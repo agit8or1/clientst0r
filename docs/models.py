@@ -219,6 +219,12 @@ class Diagram(BaseModel):
         blank=True,
         help_text='SVG export of diagram'
     )
+    thumbnail = models.ImageField(
+        upload_to='diagrams/thumbnails/',
+        null=True,
+        blank=True,
+        help_text='Thumbnail preview (300x200)'
+    )
 
     # Categorization
     diagram_type = models.CharField(

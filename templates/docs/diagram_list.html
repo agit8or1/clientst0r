@@ -58,7 +58,9 @@
     {% for diagram in diagrams %}
     <div class="col-md-4">
         <div class="card h-100">
-            {% if diagram.png_export %}
+            {% if diagram.thumbnail %}
+            <img src="{{ diagram.thumbnail.url }}" class="card-img-top" alt="{{ diagram.title }}" style="height: 200px; object-fit: cover; background: #f8f9fa;">
+            {% elif diagram.png_export %}
             <img src="{{ diagram.png_export.url }}" class="card-img-top" alt="{{ diagram.title }}" style="height: 200px; object-fit: contain; background: #f8f9fa;">
             {% else %}
             <div class="card-img-top d-flex align-items-center justify-content-center bg-light" style="height: 200px;">
