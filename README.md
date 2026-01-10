@@ -179,12 +179,14 @@ Visit `http://localhost:8000` and log in with the credentials you created in ste
 
 ## 📚 Documentation
 
-**Quick Start:** Follow the installation steps above to get started.
+**Installation:**
+- **[INSTALL.md](INSTALL.md)** - Complete installation guide (quick start, upgrade, troubleshooting)
 
 **Core Documentation:**
 - **[ORGANIZATIONS.md](ORGANIZATIONS.md)** - Complete guide to organizations, user types, roles, and permissions
 - **[SECURITY.md](SECURITY.md)** - Security best practices and vulnerability disclosure
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Development and contribution guidelines
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
 - **[deploy/](deploy/)** - Production deployment configs (Nginx, Gunicorn, systemd services)
 
 ## 🏗️ Architecture
