@@ -234,13 +234,22 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📸 Screenshots
 
-View application screenshots in the [screenshots/](screenshots/) directory, including:
-- Dashboard and overview
-- Password vault and credential management
-- Asset tracking and inventory
-- Documentation and knowledge base
-- Website monitoring and infrastructure
-- User management and security settings
+**[View Full Screenshot Gallery →](SCREENSHOTS.md)**
+
+<table>
+  <tr>
+    <td><img src="screenshots/01-dashboard.png" width="300" alt="Dashboard"/><br/><sub><b>Dashboard</b></sub></td>
+    <td><img src="screenshots/05-passwords-list.png" width="300" alt="Password Vault"/><br/><sub><b>Password Vault</b></sub></td>
+    <td><img src="screenshots/03-assets-list.png" width="300" alt="Assets"/><br/><sub><b>Asset Management</b></sub></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/08-documents-list.png" width="300" alt="Documents"/><br/><sub><b>Knowledge Base</b></sub></td>
+    <td><img src="screenshots/13-website-monitors.png" width="300" alt="Monitoring"/><br/><sub><b>Website Monitoring</b></sub></td>
+    <td><img src="screenshots/25-system-status.png" width="300" alt="System Status"/><br/><sub><b>System Status</b></sub></td>
+  </tr>
+</table>
+
+**[See all 31 screenshots →](SCREENSHOTS.md)**
 
 ---
 
