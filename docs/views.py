@@ -104,9 +104,11 @@ def document_create(request):
                 is_template=True
             )
             initial_data = {
+                'title': '',  # Leave title empty for new document
                 'body': selected_template.body,
                 'content_type': selected_template.content_type,
                 'category': selected_template.category,
+                'tags': selected_template.tags.all(),  # Include tags from template
             }
         except Document.DoesNotExist:
             messages.warning(request, 'Template not found.')
@@ -296,9 +298,11 @@ def global_kb_create(request):
                 is_template=True
             )
             initial_data = {
+                'title': '',  # Leave title empty for new document
                 'body': selected_template.body,
                 'content_type': selected_template.content_type,
                 'category': selected_template.category,
+                'tags': selected_template.tags.all(),  # Include tags from template
             }
         except Document.DoesNotExist:
             messages.warning(request, 'Template not found.')
