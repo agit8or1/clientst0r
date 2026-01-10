@@ -213,6 +213,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Discussions**: [GitHub Discussions](https://github.com/agit8or1/huduglue/discussions)
 - **Security**: See [SECURITY.md](SECURITY.md) for vulnerability disclosure
 
+## 💝 Supporting This Project
+
+If you find HuduGlue useful for your MSP or IT department, please consider supporting the developer's business: **[MSP Reboot](https://www.mspreboot.com)** - Professional MSP services and consulting.
+
+Your support allows me to continue developing open-source tools like HuduGlue and contribute to the MSP community. Thank you!
+
 ## 🗺️ Roadmap
 
 - [ ] Mobile-responsive UI improvements
