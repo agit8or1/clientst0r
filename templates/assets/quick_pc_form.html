@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Quick Add PC - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-laptop"></i> Quick Add PC</h1>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'accounts:quick_add_menu' %}">Quick Add</a></li>
+            <li class="breadcrumb-item active">Add PC</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-laptop"></i> PC Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Quick form for adding a new PC or laptop. Only essential fields are required.
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">
+                            Name / Description <span class="text-danger">*</span>
+                        </label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                        <div class="text-danger small">{{ form.name.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Descriptive name for this PC (e.g., "John Doe - Dell Latitude")</small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.asset_type.id_for_label }}" class="form-label">
+                                Asset Type <span class="text-danger">*</span>
+                            </label>
+                            {{ form.asset_type }}
+                            {% if form.asset_type.errors %}
+                            <div class="text-danger small">{{ form.asset_type.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.serial_number.id_for_label }}" class="form-label">Serial Number</label>
+                            {{ form.serial_number }}
+                            {% if form.serial_number.errors %}
+                            <div class="text-danger small">{{ form.serial_number.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.manufacturer.id_for_label }}" class="form-label">Manufacturer</label>
+                            {{ form.manufacturer }}
+                            {% if form.manufacturer.errors %}
+                            <div class="text-danger small">{{ form.manufacturer.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.model.id_for_label }}" class="form-label">Model</label>
+                            {{ form.model }}
+                            {% if form.model.errors %}
+                            <div class="text-danger small">{{ form.model.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <h6 class="border-bottom pb-2 mb-3 mt-4">Network Information (Optional)</h6>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.hostname.id_for_label }}" class="form-label">Hostname</label>
+                            {{ form.hostname }}
+                            {% if form.hostname.errors %}
+                            <div class="text-danger small">{{ form.hostname.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.ip_address.id_for_label }}" class="form-label">IP Address</label>
+                            {{ form.ip_address }}
+                            {% if form.ip_address.errors %}
+                            <div class="text-danger small">{{ form.ip_address.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <h6 class="border-bottom pb-2 mb-3 mt-4">Additional Information</h6>
+
+                    <div class="mb-3">
+                        <label for="{{ form.primary_contact.id_for_label }}" class="form-label">Primary Contact</label>
+                        {{ form.primary_contact }}
+                        {% if form.primary_contact.errors %}
+                        <div class="text-danger small">{{ form.primary_contact.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Person responsible for or assigned to this PC</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                        <div class="text-danger small">{{ form.notes.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Warranty info, purchase date, configuration notes, etc.</small>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Create PC
+                        </button>
+                        <a href="{% url 'accounts:quick_add_menu' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-lightbulb"></i> Quick Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="small mb-0">
+                    <li>Serial numbers are usually on a sticker on the bottom or back of the PC</li>
+                    <li>For Dell computers, the service tag is the serial number</li>
+                    <li>Hostname can usually be found in System Properties</li>
+                    <li>You can add more details later by editing the asset</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-info-circle"></i> Finding Information</h6>
+            </div>
+            <div class="card-body small">
+                <p class="mb-2"><strong>Windows:</strong></p>
+                <ul>
+                    <li>Hostname: <code>Settings → System → About</code></li>
+                    <li>Serial: <code>cmd → wmic bios get serialnumber</code></li>
+                </ul>
+
+                <p class="mb-2 mt-3"><strong>Mac:</strong></p>
+                <ul>
+                    <li>Info: <code>Apple menu → About This Mac</code></li>
+                    <li>Serial: Look under "Overview"</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-body text-center">
+                <p class="small text-muted mb-2">Need more fields?</p>
+                <a href="{% url 'assets:asset_create' %}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-list"></i> Use Full Form
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

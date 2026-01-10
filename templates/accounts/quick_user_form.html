@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Quick Add User - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-user-plus"></i> Quick Add User</h1>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'accounts:quick_add_menu' %}">Quick Add</a></li>
+            <li class="breadcrumb-item active">Add User</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-user"></i> User Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> This form will create a new user account and add them to your organization.
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <h6 class="border-bottom pb-2 mb-3">Account Details</h6>
+
+                    <div class="mb-3">
+                        <label for="{{ form.username.id_for_label }}" class="form-label">
+                            Username <span class="text-danger">*</span>
+                        </label>
+                        {{ form.username }}
+                        {% if form.username.errors %}
+                        <div class="text-danger small">{{ form.username.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.username.help_text }}</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">
+                            Email Address <span class="text-danger">*</span>
+                        </label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                        <div class="text-danger small">{{ form.email.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.email.help_text }}</small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                            <div class="text-danger small">{{ form.first_name.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                            <div class="text-danger small">{{ form.last_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <h6 class="border-bottom pb-2 mb-3 mt-4">Password</h6>
+
+                    <div class="mb-3">
+                        <label for="{{ form.password.id_for_label }}" class="form-label">
+                            Password <span class="text-danger">*</span>
+                        </label>
+                        {{ form.password }}
+                        {% if form.password.errors %}
+                        <div class="text-danger small">{{ form.password.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.password.help_text }}</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.password_confirm.id_for_label }}" class="form-label">
+                            Confirm Password <span class="text-danger">*</span>
+                        </label>
+                        {{ form.password_confirm }}
+                        {% if form.password_confirm.errors %}
+                        <div class="text-danger small">{{ form.password_confirm.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.password_confirm.help_text }}</small>
+                    </div>
+
+                    <h6 class="border-bottom pb-2 mb-3 mt-4">Organization Role</h6>
+
+                    <div class="mb-3">
+                        <label for="{{ form.role.id_for_label }}" class="form-label">
+                            Role <span class="text-danger">*</span>
+                        </label>
+                        {{ form.role }}
+                        {% if form.role.errors %}
+                        <div class="text-danger small">{{ form.role.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.role.help_text }}</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.send_welcome_email }}
+                            <label class="form-check-label" for="{{ form.send_welcome_email.id_for_label }}">
+                                Send Welcome Email
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">{{ form.send_welcome_email.help_text }}</small>
+                    </div>
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Create User
+                        </button>
+                        <a href="{% url 'accounts:quick_add_menu' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-question-circle"></i> Role Descriptions</h6>
+            </div>
+            <div class="card-body">
+                <dl class="small">
+                    <dt><span class="badge bg-danger">Owner</span></dt>
+                    <dd>Full control over organization settings and members</dd>
+
+                    <dt><span class="badge bg-warning">Admin</span></dt>
+                    <dd>Can manage organization content and invite members</dd>
+
+                    <dt><span class="badge bg-info">Editor</span></dt>
+                    <dd>Can create and edit organization content</dd>
+
+                    <dt><span class="badge bg-secondary">Viewer</span></dt>
+                    <dd>Read-only access to organization content</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-lightbulb"></i> Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="small mb-0">
+                    <li>Choose a memorable username (usually firstname.lastname)</li>
+                    <li>Set a temporary password that's easy to communicate</li>
+                    <li>User should change their password after first login</li>
+                    <li>Most users should start as "Viewer" or "Editor"</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
