@@ -79,6 +79,7 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
+    {% if processes %}
     $('#globalProcessesTable').DataTable({
         "order": [[0, "asc"]],
         "pageLength": 25,
@@ -91,6 +92,7 @@ $(document).ready(function() {
             "zeroRecords": "No matching processes found"
         }
     });
+    {% endif %}
 });
 </script>
 {% endblock %}

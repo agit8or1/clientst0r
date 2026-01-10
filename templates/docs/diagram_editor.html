@@ -45,7 +45,7 @@
     const statusDiv = document.getElementById('status');
     const origin = 'https://embed.diagrams.net';
 
-    let currentDiagramXml = {{ diagram.diagram_xml|safe|default:"''" }};
+    let currentDiagramXml = {% if diagram.diagram_xml %}'{{ diagram.diagram_xml|escapejs }}'{% else %}''{% endif %};
     let hasUnsavedChanges = false;
     let editorReady = false;
     let autoSaveInterval = null;
