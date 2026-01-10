@@ -8,7 +8,6 @@ This document provides guidelines for contributing to the project. Luna the GSD 
 
 - [Code of Conduct](#code-of-conduct)
 - [How Can I Contribute?](#how-can-i-contribute)
-- [Development Setup](#development-setup)
 - [Pull Request Process](#pull-request-process)
 - [Coding Standards](#coding-standards)
 - [Testing](#testing)
@@ -16,7 +15,7 @@ This document provides guidelines for contributing to the project. Luna the GSD 
 
 ## 🤝 Code of Conduct
 
-This project adheres to a Code of Conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to conduct@yourdomain.com.
+This project adheres to a Code of Conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to agit8or@agit8or.net.
 
 ## 🎯 How Can I Contribute?
 
@@ -58,60 +57,6 @@ Unsure where to begin? Look for issues labeled:
 6. Commit your changes (`git commit -m 'Add amazing feature'`)
 7. Push to the branch (`git push origin feature/amazing-feature`)
 8. Open a Pull Request
-
-## 🛠️ Development Setup
-
-### Prerequisites
-
-- Python 3.12+
-- MariaDB 10.5+ or MySQL 8.0+
-- Git
-- Virtual environment tool
-
-### Setup Steps
-
-```bash
-# 1. Fork and clone
-git clone https://github.com/yourusername/huduglue.git
-cd huduglue
-
-# 2. Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# 3. Install dependencies
-pip install -r requirements.txt
-pip install -r requirements-dev.txt  # Development dependencies
-
-# 4. Set up environment
-cp .env.example .env
-# Edit .env with your local settings
-
-# 5. Create database
-mysql -u root -p
-CREATE DATABASE huduglue_dev CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'huduglue_dev'@'localhost' IDENTIFIED BY 'dev_password';
-GRANT ALL PRIVILEGES ON huduglue_dev.* TO 'huduglue_dev'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
-
-# 6. Run migrations
-python3 manage.py migrate
-
-# 7. Create superuser
-python3 manage.py createsuperuser
-
-# 8. Run development server
-python3 manage.py runserver
-```
-
-### Development Tools
-
-We recommend:
-- **IDE**: VS Code, PyCharm, or your preferred editor
-- **Database Client**: DBeaver, MySQL Workbench, or similar
-- **API Testing**: Postman, Insomnia, or curl
-- **Browser DevTools**: Chrome/Firefox Developer Tools
 
 ## 📝 Pull Request Process
 
@@ -200,15 +145,15 @@ def calc_cost(i,t=0):
 
 ```
 huduglue/
-├── apps/              # Django apps
-│   ├── core/         # Core functionality
-│   ├── vault/        # Password vault
-│   ├── assets/       # Asset management
-│   └── ...
+├── core/             # Core functionality
+├── vault/            # Password vault
+├── assets/           # Asset management
+├── docs/             # Knowledge base app
+├── monitoring/       # Website & infrastructure monitoring
+├── integrations/     # PSA integrations
 ├── config/           # Django settings
 ├── templates/        # HTML templates
 ├── static/           # CSS, JS, images
-├── docs/             # Documentation
 └── scripts/          # Utility scripts
 ```
 
@@ -292,10 +237,10 @@ def encrypt_password(plaintext: str, master_key: bytes) -> str:
 
 ### User Documentation
 
-- Update relevant docs in `docs/` directory
+- Update README.md, FEATURES.md, or SECURITY.md as appropriate
 - Include screenshots for UI changes
 - Provide examples for new features
-- Update API documentation for API changes
+- Document new features in commit messages and pull requests
 
 ### Commit Messages
 
@@ -381,7 +326,7 @@ Contributors are recognized in:
 
 - **GitHub Issues**: For bugs and features
 - **GitHub Discussions**: For questions and ideas
-- **Email**: dev@yourdomain.com for private inquiries
+- **Email**: agit8or@agit8or.net for private inquiries
 
 ## 📄 License
 

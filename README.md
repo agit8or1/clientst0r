@@ -1,6 +1,6 @@
 # HuduGlue 🐕
 
-[![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/yourusername/huduglue)
+[![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/huduglue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)](https://www.python.org/)
@@ -68,7 +68,7 @@ Full implementations for:
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/yourusername/huduglue.git
+git clone https://github.com/agit8or1/huduglue.git
 cd huduglue
 
 # 2. Create virtual environment
@@ -166,7 +166,7 @@ HuduGlue has undergone comprehensive security auditing:
 - Private file serving
 - Audit logging
 
-**Security Disclosure**: If you discover a vulnerability, please email security@yourdomain.com. See [SECURITY.md](SECURITY.md) for details.
+**Security Disclosure**: If you discover a vulnerability, please email agit8or@agit8or.net. See [SECURITY.md](SECURITY.md) for details.
 
 ## 🤝 Contributing
 
@@ -176,7 +176,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 ```bash
 # 1. Fork and clone
-git clone https://github.com/yourusername/huduglue.git
+git clone https://github.com/agit8or1/huduglue.git
 cd huduglue
 
 # 2. Create feature branch
@@ -214,8 +214,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 💬 Support
 
 - **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/huduglue/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/huduglue/discussions)
+- **Issues**: [GitHub Issues](https://github.com/agit8or1/huduglue/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/agit8or1/huduglue/discussions)
 
 ## 🗺️ Roadmap
 
