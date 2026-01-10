@@ -29,6 +29,16 @@ The installer now does EVERYTHING:
 
 **When the installer finishes, the server is RUNNING!** No manual commands needed.
 
+**Smart Detection & Upgrade System:**
+The installer now detects existing installations and provides options:
+- **Option 1: Upgrade/Update** - Pull latest code, update dependencies, run migrations, restart service (zero downtime)
+- **Option 2: System Check** - Comprehensive health check (Python, database, service, port, HTTP response)
+- **Option 3: Clean Install** - Automated cleanup and fresh reinstall
+- **Option 4: Exit** - Leave installation untouched
+
+Detects: .env file, virtual environment, systemd service, database
+Shows: Current status of all components before prompting
+
 ### ✨ Added
 - **Processes Feature** - Sequential workflow/runbook system for IT operations
   - Process CRUD operations with slug-based URLs

@@ -80,6 +80,17 @@ This automated installer will:
 
 **When the installer finishes, your server is RUNNING and ready to use!**
 
+### Smart Detection
+
+The installer automatically detects existing installations and offers:
+
+1. **Upgrade/Update** - Pull latest code, run migrations, restart service (zero downtime)
+2. **System Check** - Verify all components are working properly
+3. **Clean Install** - Remove everything and reinstall from scratch
+4. **Exit** - Leave existing installation untouched
+
+No manual cleanup needed! The installer handles everything.
+
 **System Requirements:**
 - Ubuntu 20.04+ or Debian 11+
 - 2GB RAM minimum (4GB recommended)
