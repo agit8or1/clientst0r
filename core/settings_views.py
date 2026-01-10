@@ -328,17 +328,17 @@ def system_status(request):
     try:
         import subprocess
         # Check Gunicorn
-        result = subprocess.run(['systemctl', 'is-active', 'itdocs-gunicorn'],
+        result = subprocess.run(['/usr/bin/systemctl', 'is-active', 'itdocs-gunicorn'],
                               capture_output=True, text=True, timeout=5)
         services_status['gunicorn'] = result.stdout.strip() == 'active'
 
         # Check PSA Sync timer
-        result = subprocess.run(['systemctl', 'is-active', 'itdocs-psa-sync.timer'],
+        result = subprocess.run(['/usr/bin/systemctl', 'is-active', 'itdocs-psa-sync.timer'],
                               capture_output=True, text=True, timeout=5)
         services_status['psa_sync'] = result.stdout.strip() == 'active'
 
         # Check Monitor timer
-        result = subprocess.run(['systemctl', 'is-active', 'itdocs-monitor.timer'],
+        result = subprocess.run(['/usr/bin/systemctl', 'is-active', 'itdocs-monitor.timer'],
                               capture_output=True, text=True, timeout=5)
         services_status['monitor'] = result.stdout.strip() == 'active'
     except Exception as e:
