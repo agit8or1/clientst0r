@@ -19,12 +19,13 @@ def document_list(request):
     from django.db.models import Q
     org = get_request_organization(request)
 
-    # Get org-specific docs only
+    # Get org-specific docs only (exclude templates)
     documents = Document.objects.filter(
         organization=org,
         is_published=True,
         is_archived=False,
-        is_global=False  # Exclude global KB articles
+        is_global=False,  # Exclude global KB articles
+        is_template=False  # Exclude templates
     ).prefetch_related('tags', 'category')
 
     # Filter by category
@@ -94,10 +95,12 @@ def document_create(request):
     selected_template = None
 
     if template_id:
+        from django.db.models import Q
         try:
+            # Allow both org-specific templates and global templates
             selected_template = Document.objects.get(
+                Q(organization=org) | Q(organization=None, is_global=True),
                 id=template_id,
-                organization=org,
                 is_template=True
             )
             initial_data = {
@@ -212,10 +215,12 @@ def global_kb_list(request):
     # Get first org for categories/tags
     org = Organization.objects.first()
 
+    # Global KB articles (exclude templates - templates have their own list)
     documents = Document.objects.filter(
         is_global=True,
         is_published=True,
-        is_archived=False
+        is_archived=False,
+        is_template=False  # Exclude templates
     ).prefetch_related('tags', 'category')
 
     # Filter by category
@@ -380,12 +385,15 @@ def global_kb_delete(request, slug):
 @require_write
 def template_list(request):
     """
-    List all document templates in current organization.
+    List all document templates (organization-specific + global templates).
     """
+    from django.db.models import Q
+
     org = get_request_organization(request)
 
+    # Show org-specific templates AND global templates
     templates = Document.objects.filter(
-        organization=org,
+        Q(organization=org) | Q(organization=None, is_global=True),
         is_template=True
     ).order_by('title')
 
@@ -486,10 +494,11 @@ def diagram_list(request):
     
     org = get_request_organization(request)
 
-    # Get org-specific and global diagrams
+    # Get org-specific and global diagrams (exclude templates)
     diagrams = Diagram.objects.filter(
         Q(organization=org) | Q(is_global=True),
-        is_published=True
+        is_published=True,
+        is_template=False  # Exclude templates
     ).prefetch_related('tags')
 
     # Filter by diagram type

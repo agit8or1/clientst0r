@@ -13,10 +13,10 @@ from django.contrib.auth.models import User
 
 
 class Command(BaseCommand):
-    help = 'Seed Global KB articles (knowledge base content for all organizations)'
+    help = 'Seed global document templates (IT/MSP templates for all organizations)'
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.SUCCESS('Seeding Global KB articles...'))
+        self.stdout.write(self.style.SUCCESS('Seeding global document templates...'))
 
         # Get admin user
         admin_user = User.objects.filter(is_superuser=True).first()
@@ -99,7 +99,7 @@ class Command(BaseCommand):
 ''',
                 'content_type': 'markdown',
                 'is_global': True,
-                'is_template': False,
+                'is_template': True,
                 'is_published': True,
             },
             {
@@ -200,7 +200,7 @@ class Command(BaseCommand):
 ''',
                 'content_type': 'markdown',
                 'is_global': True,
-                'is_template': False,
+                'is_template': True,
                 'is_published': True,
             },
             {
@@ -343,7 +343,7 @@ Rule #  | Source      | Dest       | Port    | Action | Purpose
 ''',
                 'content_type': 'markdown',
                 'is_global': True,
-                'is_template': False,
+                'is_template': True,
                 'is_published': True,
             },
             {
@@ -514,7 +514,7 @@ Impact:
 ''',
                 'content_type': 'markdown',
                 'is_global': True,
-                'is_template': False,
+                'is_template': True,
                 'is_published': True,
             },
             {
@@ -764,7 +764,7 @@ Maximum acceptable data loss measured in time.
 ''',
                 'content_type': 'markdown',
                 'is_global': True,
-                'is_template': False,
+                'is_template': True,
                 'is_published': True,
             },
         ]
@@ -787,5 +787,5 @@ Maximum acceptable data loss measured in time.
             else:
                 self.stdout.write(f'  - Exists: {article.title}')
 
-        self.stdout.write(self.style.SUCCESS(f'\nCreated {count} new Global KB articles'))
-        self.stdout.write(self.style.SUCCESS('Global KB is now populated with useful knowledge base content!'))
+        self.stdout.write(self.style.SUCCESS(f'\nCreated {count} new global document templates'))
+        self.stdout.write(self.style.SUCCESS('Global templates are now available to all organizations!'))
