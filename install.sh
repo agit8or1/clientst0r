@@ -535,9 +535,10 @@ print_status "Static files collected"
 echo ""
 print_info "Step 11/11: Starting production server..."
 
-# Kill any existing gunicorn processes first
+# Stop any existing service and kill processes
+sudo systemctl stop huduglue-gunicorn.service 2>/dev/null || true
 sudo pkill -9 gunicorn 2>/dev/null || true
-sleep 1
+sleep 2
 
 # Create systemd service file
 sudo tee /etc/systemd/system/huduglue-gunicorn.service > /dev/null << 'SVCEOF'
@@ -572,18 +573,21 @@ sudo sed -i "s|WORKDIR_PLACEHOLDER|$INSTALL_DIR|g" /etc/systemd/system/huduglue-
 
 # Reload systemd and start service
 sudo systemctl daemon-reload
-sudo systemctl enable huduglue-gunicorn.service
+sudo systemctl enable huduglue-gunicorn.service 2>&1 | grep -v "Created symlink" || true
 sudo systemctl start huduglue-gunicorn.service
 
-# Wait a moment for service to start
-sleep 2
+# Wait for service to start (gunicorn takes a moment to initialize workers)
+sleep 4
 
 # Check if service started successfully
 if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
     print_status "Production server started successfully!"
 else
     print_error "Failed to start production server. Checking logs..."
-    sudo journalctl -u huduglue-gunicorn.service -n 20 --no-pager
+    sudo journalctl -u huduglue-gunicorn.service -n 30 --no-pager
+    echo ""
+    print_info "Trying to diagnose the issue..."
+    sudo ss -tlnp | grep :8000 || echo "Port 8000 is not in use"
     exit 1
 fi
 
