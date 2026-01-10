@@ -129,3 +129,4 @@ take_screenshots.sh
 screenshots/
 screenshots_selected/
 core/management/commands/create_test_data.py
+snap/
