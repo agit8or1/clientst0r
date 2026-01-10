@@ -45,7 +45,7 @@ HuduGlue has been thoroughly audited for security vulnerabilities with assistanc
 We take security vulnerabilities seriously. If you discover a security issue, please follow responsible disclosure:
 
 ### DO:
-1. **Email us first** at security@yourdomain.com
+1. **Email us first** at agit8or@agit8or.net
 2. Provide detailed information about the vulnerability
 3. Give us reasonable time to address the issue (90 days)
 4. Work with us to verify the fix
@@ -152,7 +152,7 @@ We encourage security testing but please:
 
 ## 📞 Contact
 
-- **Security Email**: security@yourdomain.com
+- **Security Email**: agit8or@agit8or.net
 - **Response Time**: Within 48 hours
 - **PGP Key**: Available upon request
 
