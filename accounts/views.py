@@ -114,7 +114,18 @@ def two_factor_setup(request):
     """
     Setup 2FA/TOTP for user account.
     """
+    from django_otp.plugins.otp_totp.models import TOTPDevice
+
     profile, created = UserProfile.objects.get_or_create(user=request.user)
+
+    # Check for inconsistent state: profile says 2FA enabled but no TOTPDevice
+    # This can happen if user enabled 2FA before TOTPDevice integration was added
+    has_device = TOTPDevice.objects.filter(user=request.user, confirmed=True).exists()
+    if profile.two_factor_enabled and not has_device:
+        # Auto-fix: reset profile state to match device state
+        profile.two_factor_enabled = False
+        profile.save()
+        messages.warning(request, '2FA configuration was inconsistent and has been reset. Please enable 2FA again.')
 
     if request.method == 'POST':
         action = request.POST.get('action')
