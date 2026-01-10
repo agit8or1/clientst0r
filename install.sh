@@ -54,29 +54,58 @@ echo ""
 
 # Detect existing installation
 EXISTING_INSTALL=false
-if [ -f "$SCRIPT_DIR/.env" ] || [ -f "$SCRIPT_DIR/venv/bin/activate" ] || sudo systemctl list-unit-files | grep -q huduglue-gunicorn.service; then
+HAS_DATABASE=false
+HAS_VENV=false
+HAS_SERVICE=false
+HAS_ENV=false
+
+# Check for database with data
+if sudo mysql -e "USE huduglue; SELECT COUNT(*) FROM auth_user;" 2>/dev/null | grep -q -E "[0-9]+"; then
+    HAS_DATABASE=true
     EXISTING_INSTALL=true
+fi
+
+# Check for venv
+if [ -f "$SCRIPT_DIR/venv/bin/activate" ]; then
+    HAS_VENV=true
+    EXISTING_INSTALL=true
+fi
+
+# Check for service
+if sudo systemctl list-unit-files | grep -q huduglue-gunicorn.service; then
+    HAS_SERVICE=true
+    EXISTING_INSTALL=true
+fi
+
+# Check for .env
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    HAS_ENV=true
+    EXISTING_INSTALL=true
+fi
+
+if [ "$EXISTING_INSTALL" = true ]; then
     echo ""
     print_warning "Existing HuduGlue installation detected!"
     echo ""
 
-    # Check what exists
-    if [ -f "$SCRIPT_DIR/.env" ]; then
+    # Show what exists
+    if [ "$HAS_ENV" = true ]; then
         echo "  • Found: .env configuration file"
     fi
-    if [ -d "$SCRIPT_DIR/venv" ]; then
+    if [ "$HAS_VENV" = true ]; then
         echo "  • Found: Python virtual environment"
     fi
-    if sudo systemctl list-unit-files | grep -q huduglue-gunicorn.service; then
+    if [ "$HAS_SERVICE" = true ]; then
         echo "  • Found: systemd service"
         if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
-            echo "    Status: Running"
+            echo "    Status: Running ✓"
         else
             echo "    Status: Stopped"
         fi
     fi
-    if sudo mysql -e "SHOW DATABASES LIKE 'huduglue';" 2>/dev/null | grep -q huduglue; then
-        echo "  • Found: Database 'huduglue'"
+    if [ "$HAS_DATABASE" = true ]; then
+        USER_COUNT=$(sudo mysql -e "USE huduglue; SELECT COUNT(*) FROM auth_user;" 2>/dev/null | tail -n1)
+        echo "  • Found: Database 'huduglue' with $USER_COUNT user(s)"
     fi
 
     echo ""
