@@ -153,13 +153,16 @@
                 console.log('Editor ready, diagram XML length:', currentDiagramXml.length);
                 updateStatus('Editor ready');
 
-                // Load existing diagram if available
+                // Load existing diagram if available, otherwise load blank diagram
                 if (currentDiagramXml && currentDiagramXml.length > 0) {
                     console.log('Loading existing diagram...');
                     sendToDrawio('load', {xml: currentDiagramXml});
                     updateStatus('Loading diagram...');
                 } else {
-                    console.log('No existing diagram, ready for new diagram');
+                    console.log('No existing diagram, loading blank canvas...');
+                    // Load a blank diagram to start the editor
+                    const blankDiagram = '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>';
+                    sendToDrawio('load', {xml: blankDiagram});
                     updateStatus('Ready to draw');
                 }
 
