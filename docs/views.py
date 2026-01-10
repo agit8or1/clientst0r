@@ -567,9 +567,34 @@ def diagram_detail(request, slug):
 @require_write
 def diagram_create(request):
     """
-    Create new diagram - redirects to editor.
+    Create new diagram, optionally from a template - redirects to editor.
     """
+    from django.db.models import Q
+    from .models import Diagram
+
     org = get_request_organization(request)
+
+    # Check if creating from template
+    template_id = request.GET.get('template')
+    initial_data = {}
+    selected_template = None
+    template_xml = ''
+
+    if template_id:
+        try:
+            # Allow both org-specific templates and global templates
+            selected_template = Diagram.objects.get(
+                Q(organization=org) | Q(organization=None, is_global=True),
+                id=template_id,
+                is_template=True
+            )
+            template_xml = selected_template.diagram_xml
+            initial_data = {
+                'diagram_type': selected_template.diagram_type,
+                'description': selected_template.description,
+            }
+        except Diagram.DoesNotExist:
+            messages.warning(request, 'Template not found.')
 
     if request.method == 'POST':
         from .forms import DiagramForm
@@ -579,19 +604,22 @@ def diagram_create(request):
             diagram.organization = org
             diagram.created_by = request.user
             diagram.last_modified_by = request.user
-            diagram.diagram_xml = ''  # Empty initially
+            # If from template, use template's XML; otherwise empty
+            diagram.diagram_xml = template_xml if template_xml else ''
+            diagram.is_template = False  # Ensure created diagrams are not templates
             diagram.save()
             form.save_m2m()
             messages.success(request, f"Diagram '{diagram.title}' created. You can now edit it.")
             return redirect('docs:diagram_edit', slug=diagram.slug)
     else:
         from .forms import DiagramForm
-        form = DiagramForm(organization=org)
+        form = DiagramForm(organization=org, initial=initial_data)
 
     return render(request, 'docs/diagram_form.html', {
         'form': form,
         'action': 'Create',
         'current_organization': org,
+        'selected_template': selected_template,
     })
 
 
@@ -693,14 +721,16 @@ def diagram_delete(request, slug):
 @login_required
 def diagram_template_list(request):
     """
-    List all diagram templates in current organization.
+    List all diagram templates (organization-specific + global templates).
     """
+    from django.db.models import Q
     from .models import Diagram
 
     org = get_request_organization(request)
 
+    # Show org-specific templates AND global templates
     templates = Diagram.objects.filter(
-        organization=org,
+        Q(organization=org) | Q(organization=None, is_global=True),
         is_template=True
     ).order_by('title')
 
