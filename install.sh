@@ -111,6 +111,12 @@ if ! dpkg -l | grep -q libmysqlclient-dev && ! dpkg -l | grep -q default-libmysq
     PACKAGES_TO_INSTALL+=("default-libmysqlclient-dev")
 fi
 
+# Check for LDAP development headers (needed for python-ldap package)
+if ! dpkg -l | grep -q libldap2-dev && ! dpkg -l | grep -q libldap-dev; then
+    print_warning "LDAP development headers not found (needed for python-ldap)"
+    PACKAGES_TO_INSTALL+=("libldap2-dev" "libsasl2-dev")
+fi
+
 # Install missing packages
 if [ ${#PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
     print_info "Installing missing packages: ${PACKAGES_TO_INSTALL[*]}"
