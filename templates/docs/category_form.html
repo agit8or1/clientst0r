@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} Category - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-folder"></i> {{ action }} Category</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'docs:document_list' %}">Documents</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'docs:category_list' %}">Categories</a></li>
+                <li class="breadcrumb-item active">{{ action }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                        <div class="text-danger small">{{ form.name.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.slug.id_for_label }}" class="form-label">{{ form.slug.label }}</label>
+                        {{ form.slug }}
+                        <div class="form-text">{{ form.slug.help_text }}</div>
+                        {% if form.slug.errors %}
+                        <div class="text-danger small">{{ form.slug.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                        <div class="text-danger small">{{ form.description.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.parent.id_for_label }}" class="form-label">{{ form.parent.label }}</label>
+                            {{ form.parent }}
+                            <div class="form-text">Optional: Create subcategories</div>
+                            {% if form.parent.errors %}
+                            <div class="text-danger small">{{ form.parent.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.icon.id_for_label }}" class="form-label">{{ form.icon.label }}</label>
+                            {{ form.icon }}
+                            <div class="form-text">{{ form.icon.help_text }}</div>
+                            {% if form.icon.errors %}
+                            <div class="text-danger small">{{ form.icon.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.order.id_for_label }}" class="form-label">{{ form.order.label }}</label>
+                        {{ form.order }}
+                        <div class="form-text">{{ form.order.help_text }}</div>
+                        {% if form.order.errors %}
+                        <div class="text-danger small">{{ form.order.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Category
+                        </button>
+                        <a href="{% url 'docs:category_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6><i class="fas fa-info-circle"></i> Category Tips</h6>
+                <ul class="small mb-0">
+                    <li>Use descriptive names for easy identification</li>
+                    <li>Set parent category to create hierarchy</li>
+                    <li>Use order field to control sort order</li>
+                    <li>Choose appropriate FontAwesome icons</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6><i class="fas fa-icons"></i> Common Icons</h6>
+                <div class="small">
+                    <p class="mb-1"><i class="fas fa-folder"></i> <code>fa-folder</code> - General</p>
+                    <p class="mb-1"><i class="fas fa-book"></i> <code>fa-book</code> - Documentation</p>
+                    <p class="mb-1"><i class="fas fa-cog"></i> <code>fa-cog</code> - Technical</p>
+                    <p class="mb-1"><i class="fas fa-users"></i> <code>fa-users</code> - HR/People</p>
+                    <p class="mb-1"><i class="fas fa-shield-alt"></i> <code>fa-shield-alt</code> - Security</p>
+                    <p class="mb-0"><i class="fas fa-network-wired"></i> <code>fa-network-wired</code> - Network</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -19,6 +19,12 @@ urlpatterns = [
     path('kb/<slug:slug>/edit/', views.global_kb_edit, name='global_kb_edit'),
     path('kb/<slug:slug>/delete/', views.global_kb_delete, name='global_kb_delete'),
 
+    # Categories
+    path('categories/', views.category_list, name='category_list'),
+    path('categories/create/', views.category_create, name='category_create'),
+    path('categories/<int:pk>/edit/', views.category_edit, name='category_edit'),
+    path('categories/<int:pk>/delete/', views.category_delete, name='category_delete'),
+
     # Diagrams
     path('diagrams/', views.diagram_list, name='diagram_list'),
     path('diagrams/create/', views.diagram_create, name='diagram_create'),

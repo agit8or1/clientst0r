@@ -6,6 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1><i class="fas fa-file-alt"></i> Documents</h1>
     <div class="btn-group">
+        <a href="{% url 'docs:category_list' %}" class="btn btn-outline-secondary"><i class="fas fa-folder"></i> Categories</a>
         <a href="{% url 'docs:template_list' %}" class="btn btn-outline-secondary"><i class="fas fa-file-alt"></i> Templates</a>
         <a href="{% url 'docs:document_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New Document</a>
     </div>
@@ -75,7 +76,10 @@
                     <tbody>
                         {% for doc in org_docs %}
                         <tr>
-                            <td><a href="{% url 'docs:document_detail' doc.slug %}">{{ doc.title }}</a></td>
+                            <td>
+                                <a href="{% url 'docs:document_detail' doc.slug %}">{{ doc.title }}</a>
+                                {% if doc.is_template %}<span class="badge bg-success ms-2">Template</span>{% endif %}
+                            </td>
                             <td>
                                 {% if doc.category %}
                                 <span class="badge bg-info">{{ doc.category.name }}</span>

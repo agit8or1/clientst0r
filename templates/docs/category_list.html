@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Document Categories - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-folder"></i> Document Categories</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'docs:document_list' %}">Documents</a></li>
+                <li class="breadcrumb-item active">Categories</li>
+            </ol>
+        </nav>
+    </div>
+    <div>
+        <a href="{% url 'docs:category_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Category
+        </a>
+        <a href="{% url 'docs:document_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Documents
+        </a>
+    </div>
+</div>
+
+{% if categories %}
+<div class="card">
+    <div class="card-body">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th width="50">Icon</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Parent</th>
+                    <th width="80">Order</th>
+                    <th width="100">Documents</th>
+                    <th width="150">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in categories %}
+                <tr>
+                    <td><i class="fas {{ category.icon }}"></i></td>
+                    <td><strong>{{ category.name }}</strong></td>
+                    <td>{{ category.description|truncatewords:15 }}</td>
+                    <td>
+                        {% if category.parent %}
+                        <span class="badge bg-secondary">{{ category.parent.name }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>{{ category.order }}</td>
+                    <td>
+                        <span class="badge bg-info">{{ category.documents.count }}</span>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'docs:category_edit' category.pk %}" class="btn btn-outline-primary" title="Edit">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
+                            <a href="{% url 'docs:category_delete' category.pk %}" class="btn btn-outline-danger" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-secondary text-center py-5">
+    <i class="fas fa-folder fa-3x mb-3 text-muted"></i>
+    <h5>No Categories Yet</h5>
+    <p class="text-muted">Create your first category to organize your documents.</p>
+    <a href="{% url 'docs:category_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Create Category
+    </a>
+</div>
+{% endif %}
+
+<div class="card mt-3">
+    <div class="card-body">
+        <h6><i class="fas fa-info-circle"></i> About Categories</h6>
+        <p class="mb-0">
+            Categories help organize your documents. You can create hierarchical categories by setting a parent category.
+            The order field determines the sort order (lower numbers appear first).
+        </p>
+    </div>
+</div>
+{% endblock %}

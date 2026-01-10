@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Category - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-trash"></i> Delete Category</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'docs:document_list' %}">Documents</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'docs:category_list' %}">Categories</a></li>
+                <li class="breadcrumb-item active">Delete</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">Are you sure you want to delete the category <strong>"{{ category.name }}"</strong>?</p>
+
+                {% if doc_count > 0 %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <strong>Warning:</strong> This category is used by <strong>{{ doc_count }}</strong> document(s).
+                    Deleting it will remove the category from those documents.
+                </div>
+                {% endif %}
+
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h6>Category Details:</h6>
+                        <dl class="row mb-0">
+                            <dt class="col-sm-3">Name:</dt>
+                            <dd class="col-sm-9">{{ category.name }}</dd>
+
+                            <dt class="col-sm-3">Description:</dt>
+                            <dd class="col-sm-9">{{ category.description|default:"—" }}</dd>
+
+                            <dt class="col-sm-3">Parent:</dt>
+                            <dd class="col-sm-9">
+                                {% if category.parent %}{{ category.parent.name }}{% else %}—{% endif %}
+                            </dd>
+
+                            <dt class="col-sm-3">Documents:</dt>
+                            <dd class="col-sm-9">{{ doc_count }}</dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Yes, Delete Category
+                        </button>
+                        <a href="{% url 'docs:category_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-header bg-warning">
+                <h6 class="mb-0"><i class="fas fa-info-circle"></i> Important</h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-0">
+                    This action cannot be undone. The category will be permanently deleted and removed from all associated documents.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

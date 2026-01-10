@@ -61,3 +61,31 @@ class DiagramForm(forms.ModelForm):
 
         if self.organization:
             self.fields['tags'].queryset = self.organization.tags.all()
+
+
+class DocumentCategoryForm(forms.ModelForm):
+    class Meta:
+        model = DocumentCategory
+        fields = ['name', 'slug', 'description', 'parent', 'icon', 'order']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Category Name'}),
+            'slug': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'category-slug'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Brief description'}),
+            'parent': forms.Select(attrs={'class': 'form-select'}),
+            'icon': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'fa-folder'}),
+            'order': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0'}),
+        }
+        help_texts = {
+            'slug': 'URL-friendly identifier (auto-generated if empty)',
+            'icon': 'FontAwesome icon name (e.g., fa-folder, fa-book)',
+            'order': 'Sort order (lower numbers appear first)',
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop('organization', None)
+        super().__init__(*args, **kwargs)
+
+        if self.organization:
+            # Only show categories from same organization for parent selection
+            self.fields['parent'].queryset = DocumentCategory.objects.filter(organization=self.organization)
+            self.fields['parent'].required = False

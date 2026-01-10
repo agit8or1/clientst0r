@@ -799,3 +799,105 @@ def diagram_template_delete(request, pk):
     return render(request, 'docs/diagram_template_confirm_delete.html', {
         'template': template,
     })
+
+
+# ============================================================================
+# Document Category Management
+# ============================================================================
+
+@login_required
+@require_admin
+def category_list(request):
+    """
+    List all document categories for current organization.
+    """
+    from .models import DocumentCategory
+
+    org = get_request_organization(request)
+    categories = DocumentCategory.objects.filter(organization=org).order_by('order', 'name')
+
+    return render(request, 'docs/category_list.html', {
+        'categories': categories,
+    })
+
+
+@login_required
+@require_admin
+def category_create(request):
+    """
+    Create new document category.
+    """
+    from .models import DocumentCategory
+    from .forms import DocumentCategoryForm
+
+    org = get_request_organization(request)
+
+    if request.method == 'POST':
+        form = DocumentCategoryForm(request.POST, organization=org)
+        if form.is_valid():
+            category = form.save(commit=False)
+            category.organization = org
+            category.save()
+            messages.success(request, f"Category '{category.name}' created successfully.")
+            return redirect('docs:category_list')
+    else:
+        form = DocumentCategoryForm(organization=org)
+
+    return render(request, 'docs/category_form.html', {
+        'form': form,
+        'action': 'Create',
+    })
+
+
+@login_required
+@require_admin
+def category_edit(request, pk):
+    """
+    Edit existing document category.
+    """
+    from .models import DocumentCategory
+    from .forms import DocumentCategoryForm
+
+    org = get_request_organization(request)
+    category = get_object_or_404(DocumentCategory, pk=pk, organization=org)
+
+    if request.method == 'POST':
+        form = DocumentCategoryForm(request.POST, instance=category, organization=org)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Category '{category.name}' updated successfully.")
+            return redirect('docs:category_list')
+    else:
+        form = DocumentCategoryForm(instance=category, organization=org)
+
+    return render(request, 'docs/category_form.html', {
+        'form': form,
+        'category': category,
+        'action': 'Edit',
+    })
+
+
+@login_required
+@require_admin
+def category_delete(request, pk):
+    """
+    Delete document category.
+    """
+    from .models import DocumentCategory
+
+    org = get_request_organization(request)
+    category = get_object_or_404(DocumentCategory, pk=pk, organization=org)
+
+    # Check if category is in use
+    doc_count = category.documents.count()
+
+    if request.method == 'POST':
+        name = category.name
+        category.delete()
+        messages.success(request, f"Category '{name}' deleted successfully.")
+        return redirect('docs:category_list')
+
+    return render(request, 'docs/category_confirm_delete.html', {
+        'category': category,
+        'doc_count': doc_count,
+    })
