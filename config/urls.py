@@ -40,3 +40,7 @@ urlpatterns = [
     # API
     path('api/', include('api.urls')),
 ]
+
+# Serve media files in development and production
+if settings.DEBUG or True:  # Allow media serving
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
