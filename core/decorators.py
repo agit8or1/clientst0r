@@ -34,9 +34,14 @@ def require_write(view_func):
     """
     Decorator that checks if user has write permission (Editor or above).
     Read-only users will be denied access.
+    Superusers always have access.
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
+        # Superusers always have write access
+        if request.user.is_superuser:
+            return view_func(request, *args, **kwargs)
+
         membership = get_user_membership(request)
 
         if not membership:
@@ -56,9 +61,14 @@ def require_admin(view_func):
     """
     Decorator that checks if user has admin permission (Admin or Owner).
     Editors and Read-only users will be denied access.
+    Superusers always have access.
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
+        # Superusers always have admin access
+        if request.user.is_superuser:
+            return view_func(request, *args, **kwargs)
+
         membership = get_user_membership(request)
 
         if not membership:
@@ -78,9 +88,14 @@ def require_owner(view_func):
     """
     Decorator that checks if user is an owner of the organization.
     Only owners can manage users and critical org settings.
+    Superusers always have access.
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
+        # Superusers always have owner access
+        if request.user.is_superuser:
+            return view_func(request, *args, **kwargs)
+
         membership = get_user_membership(request)
 
         if not membership:
