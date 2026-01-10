@@ -43,7 +43,7 @@ class PasswordForm(forms.ModelForm):
             'otp_issuer': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Google, GitHub'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'expires_at': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
-            'tags': forms.CheckboxSelectMultiple(),
+            'tags': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
             # Email fields
             'email_server': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'mail.example.com'}),
             'email_port': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '993/587'}),

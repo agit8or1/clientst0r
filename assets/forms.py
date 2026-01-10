@@ -24,7 +24,7 @@ class AssetForm(forms.ModelForm):
             'primary_contact': forms.Select(attrs={'class': 'form-control'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'custom_fields': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '{"key": "value"}'}),
-            'tags': forms.CheckboxSelectMultiple(),
+            'tags': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
         }
 
     def __init__(self, *args, **kwargs):

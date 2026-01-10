@@ -18,7 +18,7 @@ class DocumentForm(forms.ModelForm):
             'is_published': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_template': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_archived': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'tags': forms.CheckboxSelectMultiple(),
+            'tags': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
         }
         help_texts = {
             'slug': 'URL-friendly identifier (auto-generated if empty)',
@@ -48,7 +48,7 @@ class DiagramForm(forms.ModelForm):
             'diagram_type': forms.Select(attrs={'class': 'form-select'}),
             'is_published': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_template': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'tags': forms.CheckboxSelectMultiple(),
+            'tags': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
         }
         help_texts = {
             'slug': 'URL-friendly identifier (auto-generated if empty)',

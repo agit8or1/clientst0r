@@ -32,6 +32,11 @@
     </div>
 </div>
 
+<!-- Store diagram XML in a script tag to avoid escaping issues -->
+<script id="diagram-data" type="application/json">
+{{ diagram.diagram_xml|default:""|safe }}
+</script>
+
 <div id="status" class="text-center text-muted small mt-2">
     Loading editor...
 </div>
@@ -45,7 +50,9 @@
     const statusDiv = document.getElementById('status');
     const origin = 'https://embed.diagrams.net';
 
-    let currentDiagramXml = {% if diagram.diagram_xml %}'{{ diagram.diagram_xml|escapejs }}'{% else %}''{% endif %};
+    // Get diagram XML from the script tag
+    const diagramDataEl = document.getElementById('diagram-data');
+    let currentDiagramXml = diagramDataEl ? diagramDataEl.textContent.trim() : '';
     let hasUnsavedChanges = false;
     let editorReady = false;
     let autoSaveInterval = null;
@@ -120,13 +127,16 @@
         switch (msg.event) {
             case 'init':
                 editorReady = true;
+                console.log('Editor ready, diagram XML length:', currentDiagramXml.length);
                 updateStatus('Editor ready');
 
                 // Load existing diagram if available
-                if (currentDiagramXml) {
+                if (currentDiagramXml && currentDiagramXml.length > 0) {
+                    console.log('Loading existing diagram...');
                     sendToDrawio('load', {xml: currentDiagramXml});
-                    updateStatus('Diagram loaded');
+                    updateStatus('Loading diagram...');
                 } else {
+                    console.log('No existing diagram, ready for new diagram');
                     updateStatus('Ready to draw');
                 }
 
@@ -136,6 +146,11 @@
                         sendToDrawio('export', {format: 'xml'});
                     }
                 }, 60000); // Auto-save every 60 seconds
+                break;
+
+            case 'load':
+                console.log('Diagram loaded event received');
+                updateStatus('Diagram loaded');
                 break;
 
             case 'autosave':

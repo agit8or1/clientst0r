@@ -17,7 +17,7 @@ class ProcessForm(forms.ModelForm):
             'is_published': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_template': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'linked_diagram': forms.Select(attrs={'class': 'form-select'}),
-            'tags': forms.CheckboxSelectMultiple(),
+            'tags': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
         }
         help_texts = {
             'is_published': 'Make this process visible to users',
