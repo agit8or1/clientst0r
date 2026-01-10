@@ -42,7 +42,7 @@ class Document(BaseModel):
         ('markdown', 'Markdown'),
     ]
 
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='documents')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='documents', null=True, blank=True, help_text='Organization for org-specific docs. NULL for global KB articles.')
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255)
     body = models.TextField()
