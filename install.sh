@@ -391,11 +391,20 @@ if [ -d "venv" ]; then
 fi
 
 python3.12 -m venv venv
+if [ ! -f "venv/bin/activate" ]; then
+    print_error "Failed to create virtual environment"
+    print_error "Python venv creation failed. Is python3.12-venv installed?"
+    exit 1
+fi
 print_status "Virtual environment created"
 
 # Step 3: Activate virtual environment and install dependencies
 print_info "Step 3/11: Installing Python dependencies (this may take 2-3 minutes)..."
 source venv/bin/activate
+if [ -z "$VIRTUAL_ENV" ]; then
+    print_error "Failed to activate virtual environment"
+    exit 1
+fi
 
 echo -e "${YELLOW}Upgrading pip...${NC}"
 pip install --upgrade pip -q
@@ -403,6 +412,13 @@ pip install --upgrade pip -q
 echo -e "${YELLOW}Installing dependencies from requirements.txt...${NC}"
 echo -e "${YELLOW}Please wait, this will take a few minutes...${NC}"
 pip install -r requirements.txt --progress-bar on
+
+# Verify critical packages were installed
+if [ ! -f "venv/bin/gunicorn" ]; then
+    print_error "Failed to install dependencies - gunicorn not found"
+    print_error "Check the pip install output above for errors"
+    exit 1
+fi
 print_status "Python dependencies installed"
 
 # Step 4: Generate secrets
