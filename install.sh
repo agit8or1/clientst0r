@@ -47,9 +47,31 @@ fi
 
 # Get the directory where the script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$SCRIPT_DIR"
 
-print_info "Installing from: $SCRIPT_DIR"
+# Try to find the actual installation directory
+INSTALL_DIR="$SCRIPT_DIR"
+
+# Check if current directory has venv/.env
+if [ ! -f "$SCRIPT_DIR/venv/bin/activate" ] && [ ! -f "$SCRIPT_DIR/.env" ]; then
+    # Look for installation in common locations
+    POSSIBLE_DIRS=(
+        "$HOME/huduglue"
+        "$(dirname "$SCRIPT_DIR")"
+        "/home/administrator/huduglue"
+    )
+
+    for dir in "${POSSIBLE_DIRS[@]}"; do
+        if [ -f "$dir/venv/bin/activate" ] || [ -f "$dir/.env" ]; then
+            INSTALL_DIR="$dir"
+            print_warning "Found existing installation at: $INSTALL_DIR"
+            break
+        fi
+    done
+fi
+
+cd "$INSTALL_DIR"
+
+print_info "Installing from: $INSTALL_DIR"
 echo ""
 
 # Detect existing installation
@@ -66,7 +88,7 @@ if sudo mysql -e "USE huduglue; SELECT COUNT(*) FROM auth_user;" 2>/dev/null | g
 fi
 
 # Check for venv
-if [ -f "$SCRIPT_DIR/venv/bin/activate" ]; then
+if [ -f "$INSTALL_DIR/venv/bin/activate" ]; then
     HAS_VENV=true
     EXISTING_INSTALL=true
 fi
@@ -78,7 +100,7 @@ if sudo systemctl list-unit-files | grep -q huduglue-gunicorn.service; then
 fi
 
 # Check for .env
-if [ -f "$SCRIPT_DIR/.env" ]; then
+if [ -f "$INSTALL_DIR/.env" ]; then
     HAS_ENV=true
     EXISTING_INSTALL=true
 fi
@@ -128,7 +150,7 @@ if [ "$EXISTING_INSTALL" = true ]; then
 
             # Pull latest code
             print_info "Pulling latest code from GitHub..."
-            cd "$SCRIPT_DIR"
+            cd "$INSTALL_DIR"
             git pull origin main || print_warning "Git pull failed or not a git repository"
 
             # Activate venv and upgrade dependencies
@@ -167,8 +189,8 @@ if [ "$EXISTING_INSTALL" = true ]; then
             echo ""
 
             # Check Python
-            if [ -f "$SCRIPT_DIR/venv/bin/python3" ]; then
-                PYTHON_VERSION=$($SCRIPT_DIR/venv/bin/python3 --version 2>&1)
+            if [ -f "$INSTALL_DIR/venv/bin/python3" ]; then
+                PYTHON_VERSION=$($INSTALL_DIR/venv/bin/python3 --version 2>&1)
                 print_status "Python: $PYTHON_VERSION"
             else
                 print_error "Python virtual environment not found"
@@ -249,9 +271,9 @@ EOSQL
 
             # Remove directories
             cd ~
-            rm -rf "$SCRIPT_DIR/venv"
-            rm -f "$SCRIPT_DIR/.env"
-            rm -f "$SCRIPT_DIR/.env.backup"
+            rm -rf "$INSTALL_DIR/venv"
+            rm -f "$INSTALL_DIR/.env"
+            rm -f "$INSTALL_DIR/.env.backup"
             sudo rm -rf /var/log/itdocs/
 
             print_status "Cleanup complete. Starting fresh installation..."
@@ -540,7 +562,7 @@ SVCEOF
 
 # Replace placeholders with actual values
 sudo sed -i "s|USER_PLACEHOLDER|$USER|g" /etc/systemd/system/huduglue-gunicorn.service
-sudo sed -i "s|WORKDIR_PLACEHOLDER|$SCRIPT_DIR|g" /etc/systemd/system/huduglue-gunicorn.service
+sudo sed -i "s|WORKDIR_PLACEHOLDER|$INSTALL_DIR|g" /etc/systemd/system/huduglue-gunicorn.service
 
 # Reload systemd and start service
 sudo systemctl daemon-reload
@@ -610,8 +632,8 @@ print_info "📚 Documentation: https://github.com/agit8or1/huduglue"
 echo ""
 
 print_status "Installation files:"
-echo "  • Install directory: $SCRIPT_DIR"
-echo "  • Config file: $SCRIPT_DIR/.env"
-echo "  • Virtual env: $SCRIPT_DIR/venv"
+echo "  • Install directory: $INSTALL_DIR"
+echo "  • Config file: $INSTALL_DIR/.env"
+echo "  • Virtual env: $INSTALL_DIR/venv"
 echo "  • Logs: /var/log/itdocs/"
 echo ""
