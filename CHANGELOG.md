@@ -5,6 +5,33 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-01-10
+
+### 🐛 Fixed
+- **2FA Inconsistent State Detection** - Added auto-detection and repair for users who enabled 2FA before TOTPDevice integration
+  - System now automatically resets inconsistent states (profile.two_factor_enabled=True but no TOTPDevice)
+  - Shows warning message prompting users to re-enable 2FA properly
+  - Fixes dashboard warning showing incorrectly
+- **ModuleNotFoundError in 2FA Setup** - Removed incorrect import statement that caused 500 errors
+  - Removed `from two_factor.models import get_available_methods` (module doesn't exist)
+  - 2FA verification now works without errors
+- **TOTPDevice Key Format Error** - Fixed "Non-hexadecimal digit found" error on login
+  - Now properly converts base32 keys from pyotp to hex format expected by django-otp
+  - Base32 to hex conversion: `base64.b32decode(secret).hex()`
+  - Fixed existing broken TOTPDevice records in database
+- **2FA Login Challenge Not Working** - Fixed issue where users with 2FA enabled weren't challenged for codes
+  - Login now properly prompts for 6-digit TOTP codes
+  - django-two-factor-auth integration working correctly
+- **2FA Dashboard Warning Logic** - Dashboard warning now accurately reflects 2FA status
+  - Checks for confirmed TOTPDevice existence rather than profile flag alone
+  - No more false warnings for users with proper 2FA setup
+
+### 🔧 Technical Details
+- TOTPDevice keys stored in hex format (40 chars) instead of base32 (32 chars)
+- Conversion: base32 → bytes (20) → hex (40 chars)
+- State consistency check added to 2FA setup page load
+- Auto-repair runs when users visit Profile > Two-Factor Authentication
+
 ## [2.1.0] - 2026-01-10
 
 ### ✨ Added
