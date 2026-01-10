@@ -55,11 +55,12 @@ def password_reveal(request, pk):
             AuditLog.objects.create(
                 organization=org,
                 user=request.user,
+                username=request.user.username,
                 action='reveal',
                 object_type='password',
                 object_id=password.id,
                 object_repr=password.title,
-                details=f"Password '{password.title}' revealed",
+                description=f"Password '{password.title}' revealed",
                 ip_address=request.META.get('REMOTE_ADDR'),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
             )
@@ -227,11 +228,12 @@ def generate_otp_api(request, pk):
             AuditLog.objects.create(
                 organization=org,
                 user=request.user,
+                username=request.user.username,
                 action='read',
                 object_type='password',
                 object_id=password.id,
                 object_repr=password.title,
-                details=f"OTP generated for '{password.title}'",
+                description=f"OTP generated for '{password.title}'",
                 ip_address=request.META.get('REMOTE_ADDR'),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
             )
@@ -286,11 +288,12 @@ def password_qrcode(request, pk):
         AuditLog.objects.create(
             organization=org,
             user=request.user,
+            username=request.user.username,
             action='read',
             object_type='password',
             object_id=password.id,
             object_repr=password.title,
-            details=f"TOTP QR code viewed for '{password.title}'",
+            description=f"TOTP QR code viewed for '{password.title}'",
             ip_address=request.META.get('REMOTE_ADDR'),
             user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
         )

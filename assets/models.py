@@ -59,6 +59,11 @@ class Asset(BaseModel):
     manufacturer = models.CharField(max_length=255, blank=True)
     model = models.CharField(max_length=255, blank=True)
 
+    # Network fields
+    hostname = models.CharField(max_length=255, blank=True, help_text='Network hostname/FQDN')
+    ip_address = models.GenericIPAddressField(null=True, blank=True, help_text='IPv4 or IPv6 address')
+    mac_address = models.CharField(max_length=17, blank=True, help_text='MAC address (e.g., 00:11:22:33:44:55)')
+
     # Flexible fields stored as JSON
     custom_fields = models.JSONField(default=dict, blank=True)
 
