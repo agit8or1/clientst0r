@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils.text import slugify
 from core.middleware import get_request_organization
-from core.decorators import require_write
+from core.decorators import require_write, require_admin
 from .models import Document, DocumentVersion, DocumentCategory
 from .forms import DocumentForm
 
