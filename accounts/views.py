@@ -19,16 +19,20 @@ def switch_organization(request, org_id):
     """
     org = get_object_or_404(Organization, id=org_id, is_active=True)
 
-    # Verify user has membership
-    membership = Membership.objects.filter(
-        user=request.user,
-        organization=org,
-        is_active=True
-    ).first()
+    # Staff users can access any organization
+    is_staff = hasattr(request.user, 'profile') and request.user.profile.is_staff_user()
 
-    if not membership:
-        messages.error(request, "You don't have access to this organization.")
-        return redirect('home')
+    if not is_staff:
+        # Verify regular user has membership
+        membership = Membership.objects.filter(
+            user=request.user,
+            organization=org,
+            is_active=True
+        ).first()
+
+        if not membership:
+            messages.error(request, "You don't have access to this organization.")
+            return redirect('home')
 
     request.session['current_organization_id'] = org.id
     request.session.modified = True  # Force session save

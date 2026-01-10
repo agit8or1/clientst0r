@@ -18,15 +18,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('Seeding Global KB articles...'))
 
-        # Get or create a global organization for KB articles
-        global_org, created = Organization.objects.get_or_create(
-            slug='global-kb',
-            defaults={
-                'name': 'Global Knowledge Base',
-                'is_active': True,
-            }
-        )
-
         # Get admin user
         admin_user = User.objects.filter(is_superuser=True).first()
 
@@ -782,7 +773,7 @@ Maximum acceptable data loss measured in time.
         for article_data in articles:
             article, created = Document.objects.get_or_create(
                 slug=article_data['slug'],
-                organization=global_org,
+                organization=None,  # Global KB articles have no organization
                 defaults={
                     **article_data,
                     'created_by': admin_user,
