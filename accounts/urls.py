@@ -4,11 +4,16 @@ Accounts URL configuration
 from django.urls import path
 from . import views
 from . import roles_views
+from . import quick_views
 
 app_name = 'accounts'
 
 urlpatterns = [
     path('switch/<int:org_id>/', views.switch_organization, name='switch_organization'),
+
+    # Quick Add
+    path('quick/', quick_views.quick_add_menu, name='quick_add_menu'),
+    path('quick/user/', quick_views.quick_user_add, name='quick_user_add'),
     path('profile/', views.profile, name='profile'),
     path('profile/edit/', views.profile_edit, name='profile_edit'),
     path('profile/password/', views.password_change, name='password_change'),
