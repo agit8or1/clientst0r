@@ -1,0 +1,238 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{% csrf_token %}">
+    <title>{% block title %}HuduGlue - IT Documentation Platform{% endblock %}</title>
+    <meta name="generator" content="HuduGlue v2.0.0">
+    <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="{% static 'css/custom.css' %}" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+    <script>
+        // Initialize theme before page renders to avoid flash
+        (function() {
+            const savedTheme = localStorage.getItem('theme') ||
+                              (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        })();
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'home' %}">
+                <img src="{% static 'images/logo-light.svg' %}" alt="HuduGlue" height="30">
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                {% if user.is_authenticated %}
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link" href="{% url 'core:dashboard' %}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'assets:asset_list' %}"><i class="fas fa-box"></i> Assets</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="vaultDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-key"></i> Vault
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'vault:password_list' %}"><i class="fas fa-key"></i> Passwords</a></li>
+                            <li><a class="dropdown-item" href="{% url 'vault:personal_vault_list' %}"><i class="fas fa-sticky-note"></i> My Vault</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'core:secure_note_inbox' %}"><i class="fas fa-lock"></i> Secure Notes</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'docs:document_list' %}"><i class="fas fa-file-alt"></i> Docs</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'core:favorite_list' %}"><i class="fas fa-star text-warning"></i> Favorites</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="monitoringDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-chart-line"></i> Monitoring
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'monitoring:website_monitor_list' %}"><i class="fas fa-globe"></i> Websites</a></li>
+                            <li><a class="dropdown-item" href="{% url 'monitoring:expiration_list' %}"><i class="fas fa-calendar-times"></i> Expirations</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="infrastructureDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-network-wired"></i> Infrastructure
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'monitoring:rack_list' %}"><i class="fas fa-server"></i> Racks</a></li>
+                            <li><a class="dropdown-item" href="{% url 'monitoring:subnet_list' %}"><i class="fas fa-sitemap"></i> IPAM</a></li>
+                        </ul>
+                    </li>
+                    {% if user.is_superuser %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-cog"></i> Admin
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><h6 class="dropdown-header">Settings</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'core:settings_general' %}"><i class="fas fa-sliders-h"></i> General</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:settings_security' %}"><i class="fas fa-shield-alt"></i> Security</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:settings_smtp' %}"><i class="fas fa-envelope"></i> SMTP/Email</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:settings_scheduler' %}"><i class="fas fa-clock"></i> Task Scheduler</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:settings_directory' %}"><i class="fas fa-users-cog"></i> Directory Services</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">System</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'core:system_status' %}"><i class="fas fa-heartbeat"></i> System Status</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:maintenance' %}"><i class="fas fa-tools"></i> Maintenance</a></li>
+                            <li><a class="dropdown-item" href="{% url 'accounts:user_list' %}"><i class="fas fa-users-cog"></i> User Management</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Integrations</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'integrations:integration_list' %}"><i class="fas fa-plug"></i> Connections</a></li>
+                            <li><a class="dropdown-item" href="{% url 'integrations:psa_companies' %}"><i class="fas fa-building"></i> PSA Companies</a></li>
+                            <li><a class="dropdown-item" href="{% url 'integrations:psa_contacts' %}"><i class="fas fa-users"></i> PSA Contacts</a></li>
+                            <li><a class="dropdown-item" href="{% url 'integrations:psa_tickets' %}"><i class="fas fa-ticket-alt"></i> PSA Tickets</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+                </ul>
+                <form class="d-flex mx-3" action="{% url 'core:search' %}" method="get">
+                    <input class="form-control form-control-sm me-2" type="search" name="q" placeholder="Search..." aria-label="Search">
+                    <button class="btn btn-outline-light btn-sm" type="submit"><i class="fas fa-search"></i></button>
+                </form>
+                {% if is_staff_user or user.is_superuser %}
+                <a href="{% url 'docs:global_kb_list' %}" class="btn btn-outline-light btn-sm me-3">
+                    <i class="fas fa-book"></i> Global KB
+                </a>
+                {% endif %}
+                {% endif %}
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <button class="theme-toggle" id="themeToggle" title="Toggle dark/light mode" aria-label="Toggle theme">
+                            <i class="fas fa-moon" id="themeIcon"></i>
+                        </button>
+                    </li>
+                    {% if user.is_authenticated %}
+                    {% if current_organization %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown">
+                            {{ current_organization.name }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            {% for org in user_organizations %}
+                            <li><a class="dropdown-item" href="{% url 'accounts:switch_organization' org.id %}">{{ org.name }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            {{ user.username }}
+                            {% if is_staff_user %}
+                            <span class="badge bg-primary ms-1">Staff</span>
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'accounts:profile' %}"><i class="fas fa-user"></i> Profile</a></li>
+                            <li><a class="dropdown-item" href="{% url 'accounts:organization_list' %}"><i class="fas fa-building"></i> Organizations</a></li>
+                            <li><a class="dropdown-item" href="{% url 'accounts:member_list' %}"><i class="fas fa-users"></i> Members</a></li>
+                            <li><a class="dropdown-item" href="{% url 'accounts:role_list' %}"><i class="fas fa-user-shield"></i> Roles</a></li>
+                            <li><a class="dropdown-item" href="{% url 'api:apikey_list' %}"><i class="fas fa-key"></i> API Keys</a></li>
+                            <li><a class="dropdown-item" href="{% url 'audit:audit_log_list' %}"><i class="fas fa-clipboard-list"></i> Audit Logs</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'core:about' %}"><i class="fas fa-info-circle"></i> About</a></li>
+                            <li>
+                                <form method="post" action="{% url 'logout' %}" style="margin: 0;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left; cursor: pointer;">
+                                        <i class="fas fa-sign-out-alt"></i> Logout
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+                {% else %}
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="{% url 'two_factor:login' %}">Login</a></li>
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        {% csrf_token %}
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="mt-5 py-3 bg-light border-top">
+        <div class="container text-center text-muted">
+            <small>HuduGlue v2.0.0 | Secure, Self-Hosted IT Documentation</small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+
+    <script>
+        // Theme toggle functionality
+        (function() {
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = document.getElementById('themeIcon');
+            const htmlElement = document.documentElement;
+
+            // Get current theme
+            function getCurrentTheme() {
+                return htmlElement.getAttribute('data-bs-theme') || 'light';
+            }
+
+            // Update icon based on theme
+            function updateIcon(theme) {
+                if (theme === 'dark') {
+                    themeIcon.classList.remove('fa-moon');
+                    themeIcon.classList.add('fa-sun');
+                } else {
+                    themeIcon.classList.remove('fa-sun');
+                    themeIcon.classList.add('fa-moon');
+                }
+            }
+
+            // Set initial icon
+            updateIcon(getCurrentTheme());
+
+            // Toggle theme
+            if (themeToggle) {
+                themeToggle.addEventListener('click', function() {
+                    const currentTheme = getCurrentTheme();
+                    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+                    htmlElement.setAttribute('data-bs-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                    updateIcon(newTheme);
+                });
+            }
+
+            // Listen for system theme changes
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                if (!localStorage.getItem('theme')) {
+                    const newTheme = e.matches ? 'dark' : 'light';
+                    htmlElement.setAttribute('data-bs-theme', newTheme);
+                    updateIcon(newTheme);
+                }
+            });
+        })();
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

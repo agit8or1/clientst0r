@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Log Detail - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-clipboard-list"></i> Audit Log Detail</h1>
+    <a href="{% url 'audit:audit_log_list' %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-info-circle"></i> Log Information</h3>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Timestamp:</dt>
+                    <dd class="col-sm-9">
+                        <strong>{{ log.timestamp|date:"F j, Y, g:i:s A" }}</strong>
+                        <br><small class="text-muted">{{ log.timestamp|timesince }} ago</small>
+                    </dd>
+
+                    <dt class="col-sm-3">User:</dt>
+                    <dd class="col-sm-9">
+                        <strong>{{ log.username|default:"System" }}</strong>
+                        {% if log.user %}
+                        <br><small class="text-muted">User ID: {{ log.user.id }}</small>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-3">Action:</dt>
+                    <dd class="col-sm-9">
+                        <span class="badge
+                            {% if log.action == 'create' %}bg-success
+                            {% elif log.action == 'update' %}bg-primary
+                            {% elif log.action == 'delete' %}bg-danger
+                            {% elif log.action == 'read' or log.action == 'reveal' %}bg-info
+                            {% elif log.action == 'login' %}bg-success
+                            {% elif log.action == 'logout' %}bg-secondary
+                            {% elif log.action == 'login_failed' %}bg-danger
+                            {% else %}bg-secondary
+                            {% endif %}">
+                            {{ log.get_action_display }}
+                        </span>
+                    </dd>
+
+                    <dt class="col-sm-3">Status:</dt>
+                    <dd class="col-sm-9">
+                        {% if log.success %}
+                        <span class="badge bg-success">Success</span>
+                        {% else %}
+                        <span class="badge bg-danger">Failed</span>
+                        {% endif %}
+                    </dd>
+
+                    {% if log.object_type %}
+                    <dt class="col-sm-3">Object Type:</dt>
+                    <dd class="col-sm-9"><code>{{ log.object_type }}</code></dd>
+                    {% endif %}
+
+                    {% if log.object_id %}
+                    <dt class="col-sm-3">Object ID:</dt>
+                    <dd class="col-sm-9"><code>{{ log.object_id }}</code></dd>
+                    {% endif %}
+
+                    {% if log.object_repr %}
+                    <dt class="col-sm-3">Object:</dt>
+                    <dd class="col-sm-9">{{ log.object_repr }}</dd>
+                    {% endif %}
+
+                    {% if log.description %}
+                    <dt class="col-sm-3">Description:</dt>
+                    <dd class="col-sm-9">{{ log.description }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+
+        {% if log.extra_data %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-code"></i> Additional Data</h3>
+            </div>
+            <div class="card-body">
+                <pre class="bg-light p-3 rounded"><code>{{ log.extra_data|safe }}</code></pre>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-network-wired"></i> Request Information</h3>
+            </div>
+            <div class="card-body">
+                <dl>
+                    {% if log.ip_address %}
+                    <dt>IP Address:</dt>
+                    <dd><code>{{ log.ip_address }}</code></dd>
+                    {% endif %}
+
+                    {% if log.path %}
+                    <dt>Path:</dt>
+                    <dd><code>{{ log.path }}</code></dd>
+                    {% endif %}
+
+                    {% if log.user_agent %}
+                    <dt>User Agent:</dt>
+                    <dd>
+                        <small class="text-muted text-break">{{ log.user_agent }}</small>
+                    </dd>
+                    {% endif %}
+
+                    {% if log.organization %}
+                    <dt>Organization:</dt>
+                    <dd>
+                        <strong>{{ log.organization.name }}</strong>
+                    </dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-fingerprint"></i> Meta</h3>
+            </div>
+            <div class="card-body">
+                <dl>
+                    <dt>Log ID:</dt>
+                    <dd><code>{{ log.pk }}</code></dd>
+
+                    <dt>Created:</dt>
+                    <dd>{{ log.timestamp|date:"Y-m-d H:i:s" }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

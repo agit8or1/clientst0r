@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Favorites - HuduGlue{% endblock %}
+
+{% block content %}
+<h2><i class="fas fa-star text-warning"></i> Favorites <span class="badge bg-secondary">{{ total_count }}</span></h2>
+
+{% if favorites_by_type %}
+    {% for type_name, favs in favorites_by_type.items %}
+    <div class="card mb-3">
+        <div class="card-header py-2">
+            <h6 class="mb-0">
+                {% if type_name == 'password' %}<i class="fas fa-key"></i> Passwords
+                {% elif type_name == 'document' %}<i class="fas fa-file-alt"></i> Documents
+                {% elif type_name == 'asset' %}<i class="fas fa-server"></i> Assets
+                {% elif type_name == 'contact' %}<i class="fas fa-user"></i> Contacts
+                {% else %}<i class="fas fa-bookmark"></i> {{ type_name|title }}
+                {% endif %}
+                <span class="badge bg-primary">{{ favs|length }}</span>
+            </h6>
+        </div>
+        <div class="list-group list-group-flush">
+            {% for fav in favs %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ fav.content_object }}</strong>
+                    {% if fav.notes %}<br><small class="text-muted">{{ fav.notes }}</small>{% endif %}
+                    <br><small class="text-muted"><i class="fas fa-clock"></i> {{ fav.created_at|date:"M d, Y" }}</small>
+                </div>
+                <form action="{% url 'core:favorite_toggle' fav.content_type.id fav.object_id %}" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-star fa-3x text-muted mb-3"></i>
+        <p class="text-muted">You haven't favorited anything yet.</p>
+        <p class="text-muted small">Click the <i class="fas fa-star"></i> icon on any password, document, or asset to save it here.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

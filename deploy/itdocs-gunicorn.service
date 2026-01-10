@@ -1,0 +1,27 @@
+[Unit]
+Description=HuduGlue Gunicorn
+After=network.target mariadb.service
+Requires=mariadb.service
+
+[Service]
+Type=notify
+User=itdocs
+Group=itdocs
+WorkingDirectory=/opt/itdocs
+Environment="PATH=/opt/itdocs/venv/bin"
+EnvironmentFile=/opt/itdocs/.env
+ExecStart=/opt/itdocs/venv/bin/gunicorn \
+    --workers 4 \
+    --bind unix:/opt/itdocs/gunicorn.sock \
+    --timeout 120 \
+    --access-logfile /var/log/itdocs/gunicorn-access.log \
+    --error-logfile /var/log/itdocs/gunicorn-error.log \
+    --log-level info \
+    config.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

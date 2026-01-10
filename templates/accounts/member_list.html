@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Members - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Members</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-users"></i> Organization Members</h2>
+    {% if current_membership.can_manage_users %}
+    <a href="{% url 'accounts:member_add' current_organization.id %}" class="btn btn-primary">
+        <i class="fas fa-user-plus"></i> Add Member
+    </a>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="membersTable">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Joined</th>
+                        <th style="width: 200px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in members %}
+                    <tr>
+                        <td>
+                            <strong>{{ member.user.get_full_name|default:member.user.username }}</strong>
+                            {% if member.user == request.user %}
+                            <span class="badge bg-info ms-2">You</span>
+                            {% endif %}
+                            {% if not member.is_active %}
+                            <span class="badge bg-danger ms-2">Suspended</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ member.user.email }}</td>
+                        <td>
+                            {% if member.role_template %}
+                                <span class="badge bg-success">{{ member.role_template.name }}</span>
+                                {% if member.role_template.is_system_template %}
+                                <small class="text-muted">(System)</small>
+                                {% else %}
+                                <small class="text-muted">(Custom)</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary">{{ member.get_role_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ member.created_at|date:"Y-m-d" }}</td>
+                        <td>
+                            {% if current_membership.can_manage_users %}
+                                <a href="{% url 'accounts:member_role_assign' member.user.id %}" class="btn btn-sm btn-outline-primary" title="Assign Role">
+                                    <i class="fas fa-user-tag"></i>
+                                </a>
+                                {% if member.user != request.user %}
+                                <a href="{% url 'accounts:member_edit' current_organization.id member.id %}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% if member.is_active %}
+                                <a href="{% url 'accounts:member_suspend' member.id %}" class="btn btn-sm btn-outline-warning" title="Suspend User" onclick="return confirm('Suspend this user? They will not be able to log in.')">
+                                    <i class="fas fa-ban"></i>
+                                </a>
+                                {% else %}
+                                <a href="{% url 'accounts:member_reactivate' member.id %}" class="btn btn-sm btn-outline-success" title="Reactivate User">
+                                    <i class="fas fa-check-circle"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'accounts:member_remove' current_organization.id member.id %}" class="btn btn-sm btn-outline-danger" title="Remove">
+                                    <i class="fas fa-user-times"></i>
+                                </a>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            <i class="fas fa-users"></i> No members found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-info-circle"></i> About Roles</h5>
+    </div>
+    <div class="card-body">
+        <p class="mb-2"><strong>Default Roles:</strong></p>
+        <ul class="mb-3">
+            <li><strong>Owner:</strong> Full control including user management and billing</li>
+            <li><strong>Admin:</strong> Manage content and settings, but not users</li>
+            <li><strong>Editor:</strong> Create and edit content</li>
+            <li><strong>Read-Only:</strong> View-only access</li>
+        </ul>
+        <p class="mb-0">
+            <strong>Custom Roles:</strong> Create custom roles with granular permissions in
+            <a href="{% url 'accounts:role_list' %}">Role Management</a>.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#membersTable').DataTable({
+        order: [[3, 'desc']],
+        pageLength: 25,
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search members..."
+        }
+    });
+});
+</script>
+{% endblock %}

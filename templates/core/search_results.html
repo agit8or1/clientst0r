@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Search: {{ query }} - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-search"></i> Search Results</h1>
+
+    <form method="get" action="{% url 'core:search' %}" class="mb-4">
+        <div class="input-group input-group-lg">
+            <input type="text" name="q" class="form-control" placeholder="Search..." value="{{ query }}" autofocus>
+            <button class="btn btn-primary" type="submit">
+                <i class="fas fa-search"></i> Search
+            </button>
+        </div>
+    </form>
+
+    {% if query %}
+    <p class="text-muted">Found <strong>{{ total_count }}</strong> results for "<strong>{{ query }}</strong>"</p>
+    {% endif %}
+</div>
+
+{% if total_count > 0 %}
+
+<!-- Assets -->
+{% if assets %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h4 class="mb-0"><i class="fas fa-server"></i> Assets ({{ assets|length }})</h4>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for asset in assets %}
+        <a href="{% url 'assets:asset_detail' asset.pk %}" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1"><i class="fas fa-server text-primary"></i> {{ asset.name }}</h6>
+                <small class="text-muted">{{ asset.get_asset_type_display }}</small>
+            </div>
+            {% if asset.asset_tag %}
+            <small class="text-muted">Tag: {{ asset.asset_tag }}</small>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Documents -->
+{% if documents %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h4 class="mb-0"><i class="fas fa-file-alt"></i> Documents ({{ documents|length }})</h4>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for doc in documents %}
+        <a href="{% url 'docs:document_detail' doc.slug %}" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1"><i class="fas fa-file-alt text-primary"></i> {{ doc.title }}</h6>
+                <small class="text-muted">{{ doc.updated_at|date:"M d, Y" }}</small>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Global KB -->
+{% if global_kb %}
+<div class="card mb-3">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0"><i class="fas fa-book"></i> Global KB ({{ global_kb|length }})</h4>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for doc in global_kb %}
+        <a href="{% url 'docs:global_kb_detail' doc.slug %}" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1"><i class="fas fa-book text-primary"></i> {{ doc.title }}</h6>
+                <small class="text-muted">{{ doc.updated_at|date:"M d, Y" }}</small>
+            </div>
+            {% if doc.category %}
+            <small class="badge bg-info">{{ doc.category.name }}</small>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Passwords -->
+{% if passwords %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h4 class="mb-0"><i class="fas fa-key"></i> Passwords ({{ passwords|length }})</h4>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for password in passwords %}
+        <a href="{% url 'vault:password_detail' password.pk %}" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1"><i class="fas fa-key text-warning"></i> {{ password.title }}</h6>
+                {% if password.username %}
+                <small class="text-muted">{{ password.username }}</small>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Contacts -->
+{% if contacts %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h4 class="mb-0"><i class="fas fa-users"></i> Contacts ({{ contacts|length }})</h4>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for contact in contacts %}
+        <a href="{% url 'assets:contact_detail' contact.pk %}" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1"><i class="fas fa-user text-info"></i> {{ contact.full_name }}</h6>
+                {% if contact.email %}
+                <small class="text-muted">{{ contact.email }}</small>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- PSA Companies -->
+{% if psa_companies %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h4 class="mb-0"><i class="fas fa-building"></i> PSA Companies ({{ psa_companies|length }})</h4>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for company in psa_companies %}
+        <div class="list-group-item">
+            <h6 class="mb-1"><i class="fas fa-building text-success"></i> {{ company.name }}</h6>
+            <small class="text-muted">{{ company.connection.name }}</small>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- PSA Contacts -->
+{% if psa_contacts %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h4 class="mb-0"><i class="fas fa-address-card"></i> PSA Contacts ({{ psa_contacts|length }})</h4>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for contact in psa_contacts %}
+        <div class="list-group-item">
+            <h6 class="mb-1"><i class="fas fa-user-tie text-success"></i> {{ contact.name }}</h6>
+            {% if contact.email %}
+            <small class="text-muted">{{ contact.email }}</small>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% elif query %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No results found</h5>
+        <p class="text-muted">Try different keywords or check your spelling</p>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">Enter a search query</h5>
+        <p class="text-muted">Search across assets, documents, passwords, contacts, and more</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-user-circle"></i> My Profile</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if profile.avatar %}
+                <img src="{{ profile.avatar.url }}" class="rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;" alt="Avatar">
+                {% else %}
+                <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3" style="width: 150px; height: 150px; font-size: 48px;">
+                    {{ user.username|slice:":1"|upper }}
+                </div>
+                {% endif %}
+
+                <h4>{{ profile.full_name }}</h4>
+                <p class="text-muted">@{{ user.username }}</p>
+
+                {% if profile.title %}
+                <p><i class="fas fa-briefcase"></i> {{ profile.title }}</p>
+                {% endif %}
+
+                {% if profile.department %}
+                <p><i class="fas fa-building"></i> {{ profile.department }}</p>
+                {% endif %}
+
+                <div class="d-grid gap-2 mt-3">
+                    <a href="{% url 'accounts:profile_edit' %}" class="btn btn-primary">
+                        <i class="fas fa-edit"></i> Edit Profile
+                    </a>
+                    <a href="{% url 'accounts:password_change' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-key"></i> Change Password
+                    </a>
+                    <a href="{% url 'accounts:two_factor_setup' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-shield-alt"></i> 2FA Settings
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Security Status</h5>
+            </div>
+            <div class="card-body">
+                <dl>
+                    <dt>Two-Factor Auth:</dt>
+                    <dd>
+                        {% if profile.two_factor_enabled %}
+                        <span class="badge bg-success"><i class="fas fa-check"></i> Enabled</span>
+                        {% else %}
+                        <span class="badge bg-warning"><i class="fas fa-times"></i> Disabled</span>
+                        {% endif %}
+                    </dd>
+
+                    {% if user.last_login %}
+                    <dt>Last Login:</dt>
+                    <dd>{{ user.last_login|date:"F j, Y g:i A" }}</dd>
+                    {% endif %}
+
+                    {% if profile.last_login_ip %}
+                    <dt>Last IP:</dt>
+                    <dd><code>{{ profile.last_login_ip }}</code></dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Profile Information</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Email:</dt>
+                    <dd class="col-sm-9">{{ user.email|default:"Not set" }}</dd>
+
+                    <dt class="col-sm-3">Phone:</dt>
+                    <dd class="col-sm-9">{{ profile.phone|default:"Not set" }}</dd>
+
+                    <dt class="col-sm-3">Timezone:</dt>
+                    <dd class="col-sm-9">{{ profile.timezone }}</dd>
+
+                    <dt class="col-sm-3">Language:</dt>
+                    <dd class="col-sm-9">{{ profile.get_locale_display }}</dd>
+
+                    <dt class="col-sm-3">Notifications:</dt>
+                    <dd class="col-sm-9">
+                        {% if profile.email_notifications %}
+                        <i class="fas fa-check-circle text-success"></i> Enabled ({{ profile.get_notification_frequency_display }})
+                        {% else %}
+                        <i class="fas fa-times-circle text-danger"></i> Disabled
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-3">Member Since:</dt>
+                    <dd class="col-sm-9">{{ user.date_joined|date:"F j, Y" }}</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-building"></i> Organization Memberships</h5>
+            </div>
+            <div class="card-body">
+                {% if memberships %}
+                <div class="list-group">
+                    {% for membership in memberships %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ membership.organization.name }}</h6>
+                                <small class="text-muted">{{ membership.organization.description|truncatewords:10 }}</small>
+                            </div>
+                            <div>
+                                <span class="badge
+                                    {% if membership.role == 'owner' %}bg-danger
+                                    {% elif membership.role == 'admin' %}bg-warning
+                                    {% elif membership.role == 'editor' %}bg-info
+                                    {% else %}bg-secondary
+                                    {% endif %}">
+                                    {{ membership.get_role_display }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">You are not a member of any organizations.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

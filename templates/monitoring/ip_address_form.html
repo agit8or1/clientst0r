@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} IP Address - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'monitoring:subnet_list' %}">IPAM</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'monitoring:subnet_detail' subnet.pk %}">{{ subnet.network }}</a></li>
+        <li class="breadcrumb-item active">{{ action}} IP</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-ethernet"></i> {{ action }} IP Address</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> <strong>Subnet:</strong> {{ subnet.name }} ({{ subnet.network }})
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.ip_address.id_for_label }}" class="form-label">IP Address *</label>
+                            {{ form.ip_address }}
+                            {% if form.ip_address.errors %}<div class="invalid-feedback d-block">{{ form.ip_address.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.status.id_for_label }}" class="form-label">Status *</label>
+                            {{ form.status }}
+                            {% if form.status.errors %}<div class="invalid-feedback d-block">{{ form.status.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.hostname.id_for_label }}" class="form-label">Hostname</label>
+                            {{ form.hostname }}
+                            {% if form.hostname.errors %}<div class="invalid-feedback d-block">{{ form.hostname.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.mac_address.id_for_label }}" class="form-label">MAC Address</label>
+                            {{ form.mac_address }}
+                            {% if form.mac_address.errors %}<div class="invalid-feedback d-block">{{ form.mac_address.errors }}</div>{% endif %}
+                            <small class="form-text text-muted">Format: 00:11:22:33:44:55</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}<div class="invalid-feedback d-block">{{ form.description.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}<div class="invalid-feedback d-block">{{ form.notes.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.asset_id.id_for_label }}" class="form-label">Asset ID</label>
+                        {{ form.asset_id }}
+                        {% if form.asset_id.errors %}<div class="invalid-feedback d-block">{{ form.asset_id.errors }}</div>{% endif %}
+                        <small class="form-text text-muted">Link to asset record</small>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'monitoring:subnet_detail' subnet.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {{ action }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

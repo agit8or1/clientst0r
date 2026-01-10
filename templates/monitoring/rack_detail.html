@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}{{ rack.name }} - HuduGlue{% endblock %}
+
+{% block extra_css %}
+<style>
+.rack-visual {
+    border: 2px solid #495057;
+    background: #212529;
+    padding: 8px;
+    border-radius: 6px;
+    max-width: 250px;
+}
+.rack-unit {
+    height: 22px;
+    border: 1px solid #495057;
+    background: #343a40;
+    margin-bottom: 1px;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    font-size: 0.7rem;
+    color: #adb5bd;
+}
+.rack-unit-number {
+    width: 24px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.65rem;
+}
+.rack-device {
+    color: white;
+    cursor: pointer;
+}
+.rack-device:hover {
+    opacity: 0.9;
+}
+.rack-device-multi {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+[data-bs-theme="dark"] .rack-visual {
+    background: #0d1117;
+}
+[data-bs-theme="dark"] .rack-unit {
+    background: #1a1d23;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="fas fa-server"></i> {{ rack.name }}</h2>
+    <div class="btn-group btn-group-sm">
+        <a href="{% url 'monitoring:rack_device_create' rack.pk %}" class="btn btn-success"><i class="fas fa-plus"></i> Device</a>
+        <a href="{% url 'monitoring:rack_edit' rack.pk %}" class="btn btn-primary"><i class="fas fa-edit"></i></a>
+        <a href="{% url 'monitoring:rack_delete' rack.pk %}" class="btn btn-danger"><i class="fas fa-trash"></i></a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Info Card (Left) -->
+    <div class="col-lg-3 col-md-12">
+        <div class="card card-body p-3">
+            <h6 class="mb-2"><i class="fas fa-info-circle"></i> Info</h6>
+            <table class="table table-sm mb-0">
+                <tr><td class="border-0 px-0"><small>Location</small></td><td class="border-0 px-0 text-end"><small>{{ rack.location|default:"—" }}</small></td></tr>
+                <tr><td class="border-0 px-0"><small>Units</small></td><td class="border-0 px-0 text-end"><small>{{ rack.units }}U</small></td></tr>
+                <tr><td class="border-0 px-0"><small>Available</small></td><td class="border-0 px-0 text-end"><small><span class="badge bg-success">{{ rack.available_units }}U</span></small></td></tr>
+                {% if rack.power_capacity_watts %}
+                <tr><td class="border-0 px-0"><small>Power</small></td><td class="border-0 px-0 text-end"><small>{{ rack.power_allocated_watts }}/{{ rack.power_capacity_watts }}W</small></td></tr>
+                <tr><td colspan="2" class="border-0 px-0">
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar {% if rack.power_utilization_percent > 80 %}bg-danger{% elif rack.power_utilization_percent > 60 %}bg-warning{% else %}bg-success{% endif %}"
+                             style="width: {{ rack.power_utilization_percent }}%"></div>
+                    </div>
+                </td></tr>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <!-- Rack Visual and Devices (Right) -->
+    <div class="col-lg-9 col-md-12">
+        <div class="row g-3">
+            <!-- Rack Visual (Left side of right section) -->
+            <div class="col-lg-4 col-md-5">
+                <div class="card card-body p-3">
+                    <h6 class="mb-2"><i class="fas fa-th"></i> Visual</h6>
+                    {% for unit in rack_units %}
+                    {% if unit.device %}
+                    <a href="{% url 'monitoring:rack_device_edit' unit.device.pk %}" style="text-decoration: none; display: block;">
+                        <div class="rack-unit {% if unit.is_start %}rack-device{% else %}rack-device rack-device-multi{% endif %}"
+                             style="background-color: {{ unit.device.color }};"
+                             data-bs-toggle="tooltip"
+                             data-bs-placement="right"
+                             data-bs-html="true"
+                             title="<strong>{{ unit.device.name }}</strong><br>U{{ unit.device.start_unit }}-U{{ unit.device.end_unit }}{% if unit.device.power_draw_watts %}<br>{{ unit.device.power_draw_watts }}W{% endif %}">
+                            <span class="rack-unit-number">{{ unit.number }}</span>
+                            {% if unit.is_start %}
+                            <span class="flex-fill text-truncate" style="font-size: 0.65rem;">{{ unit.device.name }}</span>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% else %}
+                    <div class="rack-unit"
+                         data-bs-toggle="tooltip"
+                         data-bs-placement="right"
+                         title="U{{ unit.number }} - Available">
+                        <span class="rack-unit-number">{{ unit.number }}</span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Device List (Right side of right section) -->
+            <div class="col-lg-8 col-md-7">
+                <div class="card">
+                    <div class="card-header py-2">
+                        <h6 class="mb-0"><i class="fas fa-list"></i> Devices ({{ devices.count }})</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if devices %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Device</th>
+                                <th>Position</th>
+                                <th>Power</th>
+                                <th width="80"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for device in devices %}
+                            <tr>
+                                <td>
+                                    <span class="badge" style="background-color: {{ device.color }};">▊</span>
+                                    {{ device.name }}
+                                </td>
+                                <td><small>U{{ device.start_unit }}-{{ device.end_unit }}</small></td>
+                                <td><small>{% if device.power_draw_watts %}{{ device.power_draw_watts }}W{% else %}—{% endif %}</small></td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'monitoring:rack_device_edit' device.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i></a>
+                                        <a href="{% url 'monitoring:rack_device_delete' device.pk %}" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                        {% else %}
+                        <p class="text-center text-muted py-3 mb-0"><i class="fas fa-inbox"></i> No devices</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Initialize Bootstrap tooltips for rack units
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+});
+</script>
+{% endblock %}

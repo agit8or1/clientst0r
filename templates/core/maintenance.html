@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Maintenance - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Maintenance</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog"></i> Settings</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{% url 'core:settings_general' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-sliders-h"></i> General
+                </a>
+                <a href="{% url 'core:settings_security' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-shield-alt"></i> Security
+                </a>
+                <a href="{% url 'core:settings_smtp' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-envelope"></i> SMTP/Email
+                </a>
+                <a href="{% url 'core:settings_scheduler' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-clock"></i> Task Scheduler
+                </a>
+                <a href="{% url 'core:settings_directory' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-users-cog"></i> Directory Services
+                </a>
+                <a href="{% url 'core:system_status' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-heartbeat"></i> System Status
+                </a>
+                <a href="{% url 'core:maintenance' %}" class="list-group-item list-group-item-action active">
+                    <i class="fas fa-tools"></i> Maintenance
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-9">
+        <!-- System Statistics -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> System Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body py-2 px-3 text-center">
+                                <h4 class="mb-0">{{ stats.total_users }}</h4>
+                                <small>Total Users</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body py-2 px-3 text-center">
+                                <h4 class="mb-0">{{ stats.active_users }}</h4>
+                                <small>Active Users</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body py-2 px-3 text-center">
+                                <h4 class="mb-0">{{ stats.total_orgs }}</h4>
+                                <small>Organizations</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-dark">
+                            <div class="card-body py-2 px-3 text-center">
+                                <h4 class="mb-0">{{ stats.active_sessions }}</h4>
+                                <small>Active Sessions</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Session Management -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-user-clock"></i> Session Management</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span>Active Sessions:</span>
+                            <strong>{{ stats.active_sessions }}</strong>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span>Expired Sessions:</span>
+                            <strong class="text-warning">{{ stats.expired_sessions }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                {% if stats.expired_sessions > 0 %}
+                <form method="post" class="d-inline" onsubmit="return confirm('Clear all expired sessions?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="clear_expired_sessions">
+                    <button type="submit" class="btn btn-warning btn-sm">
+                        <i class="fas fa-broom"></i> Clear Expired Sessions ({{ stats.expired_sessions }})
+                    </button>
+                </form>
+                {% else %}
+                <div class="alert alert-success mb-0">
+                    <i class="fas fa-check"></i> No expired sessions to clean up.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Audit Log Management -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> Audit Log Management</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="d-flex justify-content-between">
+                            <span>Total Logs:</span>
+                            <strong>{{ stats.audit_logs_count|intcomma }}</strong>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex justify-content-between">
+                            <span>Last 30 Days:</span>
+                            <strong>{{ stats.audit_logs_30d|intcomma }}</strong>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex justify-content-between">
+                            <span>Older than 90 Days:</span>
+                            <strong class="text-warning">{{ stats.audit_logs_older_90d|intcomma }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="post" class="row g-2 align-items-end" onsubmit="return confirm('This will permanently delete old audit logs. Continue?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="cleanup_audit_logs">
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">Delete logs older than:</label>
+                        <select name="days" class="form-select form-select-sm">
+                            <option value="30">30 days</option>
+                            <option value="60">60 days</option>
+                            <option value="90" selected>90 days</option>
+                            <option value="180">180 days</option>
+                            <option value="365">1 year</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="fas fa-trash"></i> Clean Up Audit Logs
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Database Maintenance -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-database"></i> Database Maintenance</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Optimize and analyze database tables to improve query performance.</p>
+
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <form method="post" class="d-inline" onsubmit="return confirm('Optimize all database tables? This may take several minutes.');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="optimize_database">
+                            <button type="submit" class="btn btn-primary btn-sm w-100">
+                                <i class="fas fa-wrench"></i> Optimize Tables
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-6">
+                        <form method="post" class="d-inline" onsubmit="return confirm('Analyze all database tables for query optimization?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="vacuum_database">
+                            <button type="submit" class="btn btn-info btn-sm w-100">
+                                <i class="fas fa-chart-line"></i> Analyze Tables
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Database Table Sizes -->
+                {% if table_sizes %}
+                <h6 class="mt-4 mb-2">Largest Database Tables</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Table Name</th>
+                                <th class="text-end">Size (MB)</th>
+                                <th class="text-end">Rows</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for table in table_sizes %}
+                            <tr>
+                                <td><code>{{ table.name }}</code></td>
+                                <td class="text-end">{{ table.size_mb }}</td>
+                                <td class="text-end">{{ table.rows|intcomma }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Warning Notice -->
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> Maintenance operations can be resource-intensive and may temporarily impact system performance. It's recommended to perform these operations during low-traffic periods.
+        </div>
+    </div>
+</div>
+{% endblock %}

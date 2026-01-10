@@ -1,0 +1,55 @@
+{% load contenttypes %}
+{% get_content_type object as content_type %}
+<button class="btn btn-sm btn-outline-warning favorite-btn"
+        data-content-type="{{ content_type.id }}"
+        data-object-id="{{ object.id }}"
+        data-favorited="false">
+    <i class="fas fa-star"></i>
+</button>
+
+<script>
+// Initialize favorite button state and handle clicks
+(function() {
+    const btn = document.querySelector('.favorite-btn[data-object-id="{{ object.id }}"]');
+    if (!btn) return;
+
+    const contentTypeId = btn.dataset.contentType;
+    const objectId = btn.dataset.objectId;
+
+    // Check initial state
+    fetch(`/core/favorites/check/${contentTypeId}/${objectId}/`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.favorited) {
+                btn.classList.remove('btn-outline-warning');
+                btn.classList.add('btn-warning');
+                btn.dataset.favorited = 'true';
+            }
+        });
+
+    // Handle click
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        fetch(`/core/favorites/toggle/${contentTypeId}/${objectId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.favorited) {
+                btn.classList.remove('btn-outline-warning');
+                btn.classList.add('btn-warning');
+                btn.dataset.favorited = 'true';
+            } else {
+                btn.classList.remove('btn-warning');
+                btn.classList.add('btn-outline-warning');
+                btn.dataset.favorited = 'false';
+            }
+        });
+    });
+})();
+</script>

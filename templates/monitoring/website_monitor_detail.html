@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}{{ monitor.name }} - Website Monitor - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'monitoring:website_monitor_list' %}">Website Monitors</a></li>
+        <li class="breadcrumb-item active">{{ monitor.name }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-globe"></i> {{ monitor.name }}</h2>
+    <div class="btn-group">
+        <a href="{% url 'monitoring:website_monitor_check' monitor.pk %}" class="btn btn-success">
+            <i class="fas fa-sync"></i> Check Now
+        </a>
+        <a href="{% url 'monitoring:website_monitor_edit' monitor.pk %}" class="btn btn-primary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{% url 'monitoring:website_monitor_delete' monitor.pk %}" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Delete
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Monitor Details</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">URL</dt>
+                    <dd class="col-sm-8"><a href="{{ monitor.url }}" target="_blank" rel="noopener">{{ monitor.url }}</a></dd>
+
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8">
+                        {% if monitor.status == 'active' %}
+                        <span class="badge bg-success">Active</span>
+                        {% elif monitor.status == 'warning' %}
+                        <span class="badge bg-warning">Warning</span>
+                        {% elif monitor.status == 'down' %}
+                        <span class="badge bg-danger">Down</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Unknown</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Enabled</dt>
+                    <dd class="col-sm-8">
+                        {% if monitor.is_enabled %}
+                        <span class="badge bg-success">Yes</span>
+                        {% else %}
+                        <span class="badge bg-secondary">No</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Check Interval</dt>
+                    <dd class="col-sm-8">Every {{ monitor.check_interval_minutes }} minutes</dd>
+
+                    <dt class="col-sm-4">Last Checked</dt>
+                    <dd class="col-sm-8">
+                        {% if monitor.last_checked_at %}
+                        {{ monitor.last_checked_at }} ({{ monitor.last_checked_at|timesince }} ago)
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Last Status Code</dt>
+                    <dd class="col-sm-8">
+                        {% if monitor.last_status_code %}
+                        {{ monitor.last_status_code }}
+                        {% else %}
+                        N/A
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Response Time</dt>
+                    <dd class="col-sm-8">
+                        {% if monitor.last_response_time_ms %}
+                        {{ monitor.last_response_time_ms }}ms
+                        {% else %}
+                        N/A
+                        {% endif %}
+                    </dd>
+                </dl>
+
+                {% if monitor.last_error %}
+                <div class="alert alert-danger">
+                    <strong>Last Error:</strong> {{ monitor.last_error }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        {% if monitor.ssl_enabled %}
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-lock"></i> SSL Certificate</h5>
+            </div>
+            <div class="card-body">
+                {% if monitor.ssl_expires_at %}
+                {% if monitor.is_ssl_expiring_soon %}
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>Certificate expiring soon!</strong>
+                </div>
+                {% endif %}
+
+                <dl class="mb-0">
+                    {% if monitor.ssl_subject %}
+                    <dt>Subject (CN)</dt>
+                    <dd><code>{{ monitor.ssl_subject }}</code></dd>
+                    {% endif %}
+
+                    <dt>Issuer</dt>
+                    <dd>{{ monitor.ssl_issuer|default:"Unknown" }}</dd>
+
+                    {% if monitor.ssl_issued_at %}
+                    <dt>Valid From</dt>
+                    <dd>{{ monitor.ssl_issued_at|date:"M d, Y H:i" }} UTC</dd>
+                    {% endif %}
+
+                    <dt>Expires</dt>
+                    <dd>
+                        {{ monitor.ssl_expires_at|date:"M d, Y H:i" }} UTC
+                        <br><small class="text-muted">{{ monitor.ssl_expires_at|timeuntil }} remaining</small>
+                    </dd>
+
+                    {% if monitor.ssl_version %}
+                    <dt>Protocol</dt>
+                    <dd><span class="badge bg-info">{{ monitor.ssl_version }}</span></dd>
+                    {% endif %}
+
+                    {% if monitor.ssl_serial_number %}
+                    <dt>Serial Number</dt>
+                    <dd><code class="small">{{ monitor.ssl_serial_number }}</code></dd>
+                    {% endif %}
+                </dl>
+                {% else %}
+                <p class="text-muted mb-0">SSL information will be populated after next check</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if monitor.domain_expires_at %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-calendar"></i> Domain Registration</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Expires:</strong> {{ monitor.domain_expires_at|date:"M d, Y" }}</p>
+                {% if monitor.is_domain_expiring_soon %}
+                <div class="alert alert-warning mb-2">
+                    <i class="fas fa-exclamation-triangle"></i> Domain expiring soon!
+                </div>
+                {% endif %}
+                {% if monitor.domain_registrar %}
+                <p><strong>Registrar:</strong> {{ monitor.domain_registrar }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bell"></i> Notifications</h5>
+            </div>
+            <div class="card-body">
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" {% if monitor.notify_on_down %}checked{% endif %} disabled>
+                    <label class="form-check-label">Notify on Down</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" {% if monitor.notify_on_ssl_expiry %}checked{% endif %} disabled>
+                    <label class="form-check-label">Notify on SSL Expiry</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" {% if monitor.notify_on_domain_expiry %}checked{% endif %} disabled>
+                    <label class="form-check-label">Notify on Domain Expiry</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

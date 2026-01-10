@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}{{ document.title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{{ document.title }}</h1>
+    <div>
+        <a href="{% url 'docs:document_edit' document.slug %}" class="btn btn-secondary">Edit</a>
+        <a href="{% url 'docs:document_list' %}" class="btn btn-outline-secondary">Back to List</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {{ rendered_body|safe }}
+    </div>
+</div>
+
+{% if versions %}
+<h3 class="mt-4">Version History</h3>
+<ul class="list-group">
+    {% for version in versions %}
+    <li class="list-group-item">
+        Version {{ version.version_number }} - {{ version.created_at|date:"Y-m-d H:i" }} by {{ version.created_by.username }}
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

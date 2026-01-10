@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subnet.name }} - IPAM - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'monitoring:subnet_list' %}">IPAM</a></li>
+        <li class="breadcrumb-item active">{{ subnet.network }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-network-wired"></i> {{ subnet.name }}</h2>
+        <p class="text-muted mb-0">{{ subnet.network }}</p>
+    </div>
+    <div class="btn-group">
+        <a href="{% url 'monitoring:ip_address_create' subnet.pk %}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Add IP
+        </a>
+        <a href="{% url 'monitoring:subnet_edit' subnet.pk %}" class="btn btn-primary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{% url 'monitoring:subnet_delete' subnet.pk %}" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Delete
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-primary mb-0">{{ ip_addresses.count }}</h3>
+                <p class="text-muted small mb-0">Total IPs</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-success mb-0">{{ ip_addresses|filter_by_status:"available"|length }}</h3>
+                <p class="text-muted small mb-0">Available</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-info mb-0">{{ ip_addresses|filter_by_status:"assigned"|length }}</h3>
+                <p class="text-muted small mb-0">Assigned</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-warning mb-0">{{ ip_addresses|filter_by_status:"reserved"|length }}</h3>
+                <p class="text-muted small mb-0">Reserved</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-info-circle"></i> Subnet Information</h5>
+            {% if subnet.vlan_id %}
+            <span class="badge bg-primary">VLAN {{ subnet.vlan_id }}{% if subnet.vlan_name %} - {{ subnet.vlan_name }}{% endif %}</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <dl class="row mb-0">
+                    <dt class="col-4">Network:</dt>
+                    <dd class="col-8">{{ subnet.network }}</dd>
+
+                    {% if subnet.gateway %}
+                    <dt class="col-4">Gateway:</dt>
+                    <dd class="col-8">{{ subnet.gateway }}</dd>
+                    {% endif %}
+
+                    {% if subnet.location %}
+                    <dt class="col-4">Location:</dt>
+                    <dd class="col-8">{{ subnet.location }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+            <div class="col-md-6">
+                {% if subnet.description %}
+                <p class="small text-muted mb-0">{{ subnet.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list"></i> IP Addresses</h5>
+            <div class="btn-group btn-group-sm">
+                <a href="?status=" class="btn btn-outline-secondary {% if not status_filter %}active{% endif %}">All</a>
+                <a href="?status=available" class="btn btn-outline-success {% if status_filter == 'available' %}active{% endif %}">Available</a>
+                <a href="?status=assigned" class="btn btn-outline-info {% if status_filter == 'assigned' %}active{% endif %}">Assigned</a>
+                <a href="?status=reserved" class="btn btn-outline-warning {% if status_filter == 'reserved' %}active{% endif %}">Reserved</a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if ip_addresses %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Hostname</th>
+                        <th>MAC Address</th>
+                        <th>Status</th>
+                        <th>Description</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ip in ip_addresses %}
+                    <tr>
+                        <td><strong>{{ ip.ip_address }}</strong></td>
+                        <td>{{ ip.hostname|default:"—" }}</td>
+                        <td><code class="small">{{ ip.mac_address|default:"—" }}</code></td>
+                        <td>
+                            {% if ip.status == 'available' %}
+                            <span class="badge bg-success">Available</span>
+                            {% elif ip.status == 'assigned' %}
+                            <span class="badge bg-info">Assigned</span>
+                            {% elif ip.status == 'reserved' %}
+                            <span class="badge bg-warning">Reserved</span>
+                            {% elif ip.status == 'dhcp' %}
+                            <span class="badge bg-secondary">DHCP</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">{{ ip.description|truncatewords:8|default:"—" }}</td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'monitoring:ip_address_edit' ip.pk %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'monitoring:ip_address_delete' ip.pk %}" class="btn btn-outline-danger">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <p class="text-muted mb-0">No IP addresses configured</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Task Scheduler - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Task Scheduler</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog"></i> Settings</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{% url 'core:settings_general' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-sliders-h"></i> General
+                </a>
+                <a href="{% url 'core:settings_security' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-shield-alt"></i> Security
+                </a>
+                <a href="{% url 'core:settings_smtp' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-envelope"></i> SMTP/Email
+                </a>
+                <a href="{% url 'core:settings_scheduler' %}" class="list-group-item list-group-item-action active">
+                    <i class="fas fa-clock"></i> Task Scheduler
+                </a>
+                <a href="{% url 'core:settings_directory' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-users-cog"></i> Directory Services
+                </a>
+                <a href="{% url 'core:system_status' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-heartbeat"></i> System Status
+                </a>
+                <a href="{% url 'core:maintenance' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-tools"></i> Maintenance
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-clock"></i> Task Scheduler</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">
+                    Configure scheduled tasks that run automatically in the background.
+                    The scheduler daemon checks every minute and runs tasks based on their configured intervals.
+                </p>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Task</th>
+                                    <th style="width: 150px;">Interval (minutes)</th>
+                                    <th style="width: 100px;">Enabled</th>
+                                    <th style="width: 150px;">Last Run</th>
+                                    <th style="width: 150px;">Next Run</th>
+                                    <th style="width: 100px;">Status</th>
+                                    <th style="width: 80px;">Runs</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in tasks %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ task.get_task_type_display }}</strong>
+                                        {% if task.description %}
+                                        <br><small class="text-muted">{{ task.description }}</small>
+                                        {% endif %}
+                                        {% if task.last_error %}
+                                        <br><small class="text-danger"><i class="fas fa-exclamation-circle"></i> {{ task.last_error|truncatewords:15 }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm"
+                                               name="task_{{ task.id }}_interval"
+                                               value="{{ task.interval_minutes }}"
+                                               min="1" max="10080" required>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox"
+                                                   name="task_{{ task.id }}_enabled"
+                                                   {% if task.enabled %}checked{% endif %}>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if task.last_run_at %}
+                                            <small>{{ task.last_run_at|date:"Y-m-d H:i" }}</small>
+                                        {% else %}
+                                            <small class="text-muted">Never</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if task.next_run_at %}
+                                            <small>{{ task.next_run_at|date:"Y-m-d H:i" }}</small>
+                                        {% else %}
+                                            <small class="text-muted">-</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if task.last_status == 'success' %}
+                                            <span class="badge bg-success">Success</span>
+                                        {% elif task.last_status == 'failed' %}
+                                            <span class="badge bg-danger">Failed</span>
+                                        {% elif task.last_status == 'running' %}
+                                            <span class="badge bg-info">Running</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <small>{{ task.run_count }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> <strong>Note:</strong> Interval is in minutes.
+                        Common values: 5 (every 5 min), 60 (hourly), 1440 (daily), 10080 (weekly).
+                        The systemd timer or cron job must be running for tasks to execute.
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-terminal"></i> Scheduler Status</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> <strong>Scheduler is installed and running!</strong>
+                    The systemd timer checks every minute and runs tasks based on their configured schedules.
+                </div>
+
+                <h6>Check Scheduler Status</h6>
+                <pre class="bg-dark text-light p-3 rounded"><code>sudo systemctl status itdocs-scheduler.timer</code></pre>
+
+                <h6 class="mt-3">View Recent Scheduler Logs</h6>
+                <pre class="bg-dark text-light p-3 rounded"><code>sudo journalctl -u itdocs-scheduler.service -n 50 --no-pager</code></pre>
+
+                <h6 class="mt-3">Manually Run Scheduler (for testing)</h6>
+                <pre class="bg-dark text-light p-3 rounded"><code>cd /home/administrator && ./venv/bin/python manage.py run_scheduler</code></pre>
+
+                <h6 class="mt-3">Restart Scheduler</h6>
+                <pre class="bg-dark text-light p-3 rounded"><code>sudo systemctl restart itdocs-scheduler.timer</code></pre>
+
+                <hr class="my-3">
+
+                <h6>Production Deployment</h6>
+                <p class="small text-muted">For production environments, update paths in the service file:</p>
+                <pre class="bg-dark text-light p-3 rounded"><code># Edit service file
+sudo nano /etc/systemd/system/itdocs-scheduler.service
+
+# Update these paths:
+WorkingDirectory=/opt/itdocs
+ExecStart=/opt/itdocs/venv/bin/python manage.py run_scheduler
+User=itdocs
+Group=itdocs
+
+# Reload and restart
+sudo systemctl daemon-reload
+sudo systemctl restart itdocs-scheduler.timer</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

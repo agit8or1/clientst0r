@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} Website Monitor - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'monitoring:website_monitor_list' %}">Website Monitors</a></li>
+        <li class="breadcrumb-item active">{{ action }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-globe"></i> {{ action }} Website Monitor</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">Name *</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.url.id_for_label }}" class="form-label">URL *</label>
+                        {{ form.url }}
+                        {% if form.url.errors %}<div class="invalid-feedback d-block">{{ form.url.errors }}</div>{% endif %}
+                        <small class="form-text text-muted">Full URL including https://</small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.check_interval_minutes.id_for_label }}" class="form-label">Check Interval (minutes)</label>
+                            {{ form.check_interval_minutes }}
+                            {% if form.check_interval_minutes.errors %}<div class="invalid-feedback d-block">{{ form.check_interval_minutes.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check mt-4">
+                                {{ form.is_enabled }}
+                                <label class="form-check-label" for="{{ form.is_enabled.id_for_label }}">
+                                    Monitoring Enabled
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h5><i class="fas fa-bell"></i> Notifications</h5>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                {{ form.notify_on_down }}
+                                <label class="form-check-label" for="{{ form.notify_on_down.id_for_label }}">
+                                    Notify on Down
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                {{ form.notify_on_ssl_expiry }}
+                                <label class="form-check-label" for="{{ form.notify_on_ssl_expiry.id_for_label }}">
+                                    Notify on SSL Expiry
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                {{ form.notify_on_domain_expiry }}
+                                <label class="form-check-label" for="{{ form.notify_on_domain_expiry.id_for_label }}">
+                                    Notify on Domain Expiry
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.ssl_warning_days.id_for_label }}" class="form-label">SSL Warning Days</label>
+                            {{ form.ssl_warning_days }}
+                            {% if form.ssl_warning_days.errors %}<div class="invalid-feedback d-block">{{ form.ssl_warning_days.errors }}</div>{% endif %}
+                            <small class="form-text text-muted">Warn X days before SSL expiry</small>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.domain_warning_days.id_for_label }}" class="form-label">Domain Warning Days</label>
+                            {{ form.domain_warning_days }}
+                            {% if form.domain_warning_days.errors %}<div class="invalid-feedback d-block">{{ form.domain_warning_days.errors }}</div>{% endif %}
+                            <small class="form-text text-muted">Warn X days before domain expiry</small>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a href="{% if monitor %}{% url 'monitoring:website_monitor_detail' monitor.pk %}{% else %}{% url 'monitoring:website_monitor_list' %}{% endif %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {{ action }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

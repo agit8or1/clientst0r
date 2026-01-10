@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}{{ connection.name }} - PSA Integration - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'integrations:integration_list' %}">Integrations</a></li>
+        <li class="breadcrumb-item active">{{ connection.name }}</li>
+    </ol>
+</nav>
+
+<div class="mb-4 d-flex justify-content-between align-items-start">
+    <div>
+        <h1><i class="fas fa-plug"></i> {{ connection.name }}</h1>
+        <p class="lead mb-0">
+            <span class="badge bg-info">{{ connection.get_provider_type_display }}</span>
+            {% if connection.is_active %}
+            <span class="badge bg-success">Active</span>
+            {% else %}
+            <span class="badge bg-secondary">Inactive</span>
+            {% endif %}
+        </p>
+    </div>
+    <div>
+        <button id="testConnection" class="btn btn-outline-primary" data-url="{% url 'integrations:integration_test' connection.pk %}">
+            <i class="fas fa-check-circle"></i> Test Connection
+        </button>
+        <button id="syncNow" class="btn btn-primary" data-url="{% url 'integrations:integration_sync' connection.pk %}">
+            <i class="fas fa-sync"></i> Sync Now
+        </button>
+        <a href="{% url 'integrations:integration_edit' connection.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog"></i> Connection Settings</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Base URL:</dt>
+                    <dd class="col-sm-8"><code>{{ connection.base_url }}</code></dd>
+
+                    <dt class="col-sm-4">Sync Enabled:</dt>
+                    <dd class="col-sm-8">
+                        {% if connection.sync_enabled %}
+                        <i class="fas fa-check-circle text-success"></i> Yes
+                        {% else %}
+                        <i class="fas fa-times-circle text-danger"></i> No
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Sync Interval:</dt>
+                    <dd class="col-sm-8">{{ connection.sync_interval_minutes }} minutes</dd>
+
+                    <dt class="col-sm-4">Sync Companies:</dt>
+                    <dd class="col-sm-8">{{ connection.sync_companies|yesno:"Yes,No" }}</dd>
+
+                    <dt class="col-sm-4">Sync Contacts:</dt>
+                    <dd class="col-sm-8">{{ connection.sync_contacts|yesno:"Yes,No" }}</dd>
+
+                    <dt class="col-sm-4">Sync Tickets:</dt>
+                    <dd class="col-sm-8">{{ connection.sync_tickets|yesno:"Yes,No" }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Sync Status</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Last Sync:</dt>
+                    <dd class="col-sm-8">
+                        {% if connection.last_sync_at %}
+                        {{ connection.last_sync_at|date:"F j, Y g:i A" }}
+                        {% else %}
+                        <span class="text-muted">Never</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Sync Status:</dt>
+                    <dd class="col-sm-8">
+                        {% if connection.last_sync_status == 'success' %}
+                        <span class="badge bg-success"><i class="fas fa-check"></i> Success</span>
+                        {% elif connection.last_sync_status == 'error' %}
+                        <span class="badge bg-danger"><i class="fas fa-exclamation-triangle"></i> Error</span>
+                        {% else %}
+                        <span class="badge bg-secondary">N/A</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+
+                {% if connection.last_error %}
+                <div class="alert alert-danger mt-3 mb-0">
+                    <strong>Last Error:</strong><br>
+                    {{ connection.last_error }}
+                </div>
+                {% endif %}
+
+                <div id="syncResult" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-building"></i> Recent Companies</h6>
+                <a href="{% url 'integrations:psa_companies' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if companies %}
+                <ul class="list-group list-group-flush">
+                    {% for company in companies %}
+                    <li class="list-group-item px-0">
+                        <a href="{% url 'integrations:psa_company_detail' company.pk %}">
+                            {{ company.name }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted mb-0">No companies synced yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-ticket-alt"></i> Recent Tickets</h6>
+                <a href="{% url 'integrations:psa_tickets' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                {% if tickets %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Ticket #</th>
+                                <th>Subject</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ticket in tickets %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'integrations:psa_ticket_detail' ticket.pk %}">
+                                        {{ ticket.ticket_number }}
+                                    </a>
+                                </td>
+                                <td>{{ ticket.subject|truncatewords:8 }}</td>
+                                <td>
+                                    <span class="badge
+                                        {% if ticket.status == 'closed' %}bg-secondary
+                                        {% elif ticket.status == 'resolved' %}bg-success
+                                        {% elif ticket.status == 'in_progress' %}bg-primary
+                                        {% elif ticket.status == 'waiting' %}bg-warning
+                                        {% else %}bg-info
+                                        {% endif %}">
+                                        {{ ticket.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge
+                                        {% if ticket.priority == 'urgent' %}bg-danger
+                                        {% elif ticket.priority == 'high' %}bg-warning
+                                        {% elif ticket.priority == 'medium' %}bg-info
+                                        {% else %}bg-secondary
+                                        {% endif %}">
+                                        {{ ticket.get_priority_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No tickets synced yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'integrations:integration_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Integrations
+    </a>
+    <a href="{% url 'integrations:integration_delete' connection.pk %}" class="btn btn-danger">
+        <i class="fas fa-trash"></i> Delete Connection
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('testConnection').addEventListener('click', async function() {
+    const btn = this;
+    const url = btn.dataset.url;
+    const resultDiv = document.getElementById('syncResult');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle"></i> ' + data.message + '</div>';
+        } else {
+            resultDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-times-circle"></i> ' + data.message + '</div>';
+        }
+    } catch (error) {
+        resultDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error: ' + error.message + '</div>';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-circle"></i> Test Connection';
+});
+
+document.getElementById('syncNow').addEventListener('click', async function() {
+    const btn = this;
+    const url = btn.dataset.url;
+    const resultDiv = document.getElementById('syncResult');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            let statsHtml = '<ul class="mb-0">';
+            for (const [type, stats] of Object.entries(data.stats)) {
+                statsHtml += '<li>' + type.charAt(0).toUpperCase() + type.slice(1) + ': ';
+                statsHtml += stats.created + ' created, ' + stats.updated + ' updated';
+                if (stats.errors > 0) {
+                    statsHtml += ', <span class="text-danger">' + stats.errors + ' errors</span>';
+                }
+                statsHtml += '</li>';
+            }
+            statsHtml += '</ul>';
+
+            resultDiv.innerHTML = '<div class="alert alert-success"><strong><i class="fas fa-check-circle"></i> Sync completed!</strong>' + statsHtml + '</div>';
+
+            // Reload page after 2 seconds to show new data
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            resultDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-times-circle"></i> ' + data.message + '</div>';
+        }
+    } catch (error) {
+        resultDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error: ' + error.message + '</div>';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-sync"></i> Sync Now';
+});
+</script>
+{% endblock %}

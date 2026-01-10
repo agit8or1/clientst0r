@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} Note - My Vault - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-sticky-note"></i> {{ action }} Personal Note</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title *</label>
+                        <input type="text" name="title" id="title" class="form-control" value="{% if item %}{{ item.title }}{% endif %}" required>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="category" class="form-label">Category</label>
+                            <input type="text" name="category" id="category" class="form-control" value="{% if item %}{{ item.category }}{% endif %}" placeholder="e.g., Notes, Passwords, Ideas">
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" name="is_favorite" id="is_favorite" {% if item.is_favorite %}checked{% endif %}>
+                                <label class="form-check-label" for="is_favorite">
+                                    <i class="fas fa-star text-warning"></i> Favorite
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="content" class="form-label">Content *</label>
+                        <textarea name="content" id="content" class="form-control" rows="15" required>{% if content %}{{ content }}{% endif %}</textarea>
+                        <small class="form-text text-muted">Content will be encrypted before storage</small>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% if item %}{% url 'vault:personal_vault_detail' item.pk %}{% else %}{% url 'vault:personal_vault_list' %}{% endif %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {{ action }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

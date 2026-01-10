@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} PSA Integration - HuduGlue{% endblock %}
+
+{% block extra_css %}
+<style>
+    .credential-section {
+        display: none;
+    }
+    .credential-section.active {
+        display: block;
+    }
+    .provider-info {
+        background-color: #f8f9fa;
+        border-left: 4px solid #0d6efd;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    .provider-docs-link {
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'integrations:integration_list' %}">Integrations</a></li>
+        <li class="breadcrumb-item active">{{ action }} Integration</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-plug"></i> {{ action }} PSA Integration</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" id="integration-form">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Provider Type Selection -->
+                    <div class="mb-3">
+                        <label for="{{ form.provider_type.id_for_label }}" class="form-label">PSA Provider *</label>
+                        {{ form.provider_type }}
+                        {% if form.provider_type.errors %}
+                        <div class="invalid-feedback d-block">{{ form.provider_type.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Select your PSA platform</small>
+                    </div>
+
+                    <!-- Provider-specific info boxes -->
+                    <div id="info-connectwise" class="provider-info credential-section">
+                        <h5><i class="fas fa-info-circle"></i> ConnectWise Manage Setup</h5>
+                        <p class="mb-2">To connect to ConnectWise Manage, you'll need:</p>
+                        <ul class="mb-2">
+                            <li><strong>Company ID:</strong> Your company identifier in ConnectWise</li>
+                            <li><strong>Public Key & Private Key:</strong> API member credentials</li>
+                            <li><strong>Client ID:</strong> Your integrator login client ID</li>
+                            <li><strong>Base URL:</strong> Your ConnectWise instance URL (e.g., https://na.myconnectwise.net)</li>
+                        </ul>
+                        <a href="https://developer.connectwise.com/Getting_Started" target="_blank" class="provider-docs-link">
+                            <i class="fas fa-external-link-alt"></i> View ConnectWise API Documentation
+                        </a>
+                    </div>
+
+                    <div id="info-autotask" class="provider-info credential-section">
+                        <h5><i class="fas fa-info-circle"></i> Autotask PSA Setup</h5>
+                        <p class="mb-2">To connect to Autotask PSA, you'll need:</p>
+                        <ul class="mb-2">
+                            <li><strong>Username:</strong> API user email address</li>
+                            <li><strong>API Secret:</strong> Generated API secret key</li>
+                            <li><strong>Integration Code:</strong> Your integration tracking identifier</li>
+                            <li><strong>Base URL:</strong> Your Autotask API endpoint (e.g., https://webservices5.autotask.net/atservicesrest/)</li>
+                        </ul>
+                        <a href="https://ww4.autotask.net/help/DeveloperHelp/Content/APIs/REST/General_Topics/REST_API_Home.htm" target="_blank" class="provider-docs-link">
+                            <i class="fas fa-external-link-alt"></i> View Autotask API Documentation
+                        </a>
+                    </div>
+
+                    <div id="info-halo" class="provider-info credential-section">
+                        <h5><i class="fas fa-info-circle"></i> HaloPSA Setup</h5>
+                        <p class="mb-2">To connect to HaloPSA, you'll need:</p>
+                        <ul class="mb-2">
+                            <li><strong>Client ID & Client Secret:</strong> OAuth2 application credentials</li>
+                            <li><strong>Tenant:</strong> (Optional) Your tenant ID for multi-tenant instances</li>
+                            <li><strong>Base URL:</strong> Your HaloPSA instance URL (e.g., https://yourcompany.halopsa.com)</li>
+                        </ul>
+                        <a href="https://haloitsm.com/guides/api-authentication/" target="_blank" class="provider-docs-link">
+                            <i class="fas fa-external-link-alt"></i> View HaloPSA API Documentation
+                        </a>
+                    </div>
+
+                    <div id="info-kaseya" class="provider-info credential-section">
+                        <h5><i class="fas fa-info-circle"></i> Kaseya BMS Setup</h5>
+                        <p class="mb-2">To connect to Kaseya BMS, you'll need:</p>
+                        <ul class="mb-2">
+                            <li><strong>API Key & API Secret:</strong> Your API credentials from Kaseya BMS</li>
+                            <li><strong>Base URL:</strong> Your Kaseya BMS instance URL</li>
+                        </ul>
+                    </div>
+
+                    <div id="info-syncro" class="provider-info credential-section">
+                        <h5><i class="fas fa-info-circle"></i> Syncro Setup</h5>
+                        <p class="mb-2">To connect to Syncro, you'll need:</p>
+                        <ul class="mb-2">
+                            <li><strong>API Key:</strong> Your Syncro API key</li>
+                            <li><strong>Subdomain:</strong> Your Syncro subdomain (e.g., "yourcompany" from yourcompany.syncromsp.com)</li>
+                        </ul>
+                        <p class="mb-0"><small>The Base URL will be automatically constructed from your subdomain.</small></p>
+                    </div>
+
+                    <div id="info-freshservice" class="provider-info credential-section">
+                        <h5><i class="fas fa-info-circle"></i> Freshservice Setup</h5>
+                        <p class="mb-2">To connect to Freshservice, you'll need:</p>
+                        <ul class="mb-2">
+                            <li><strong>API Key:</strong> Your Freshservice API key</li>
+                            <li><strong>Domain:</strong> Your Freshservice domain (e.g., "yourcompany" from yourcompany.freshservice.com)</li>
+                        </ul>
+                        <p class="mb-0"><small>The Base URL will be automatically constructed from your domain.</small></p>
+                    </div>
+
+                    <div id="info-zendesk" class="provider-info credential-section">
+                        <h5><i class="fas fa-info-circle"></i> Zendesk Setup</h5>
+                        <p class="mb-2">To connect to Zendesk, you'll need:</p>
+                        <ul class="mb-2">
+                            <li><strong>Email:</strong> Admin email address for API authentication</li>
+                            <li><strong>API Token:</strong> Your Zendesk API token</li>
+                            <li><strong>Subdomain:</strong> Your Zendesk subdomain (e.g., "yourcompany" from yourcompany.zendesk.com)</li>
+                        </ul>
+                        <a href="https://developer.zendesk.com/api-reference/" target="_blank" class="provider-docs-link">
+                            <i class="fas fa-external-link-alt"></i> View Zendesk API Documentation
+                        </a>
+                    </div>
+
+                    <!-- Connection Name -->
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">Connection Name *</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                        <div class="invalid-feedback d-block">{{ form.name.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Friendly name for this connection (e.g., "Main PSA", "Production")</small>
+                    </div>
+
+                    <!-- Base URL -->
+                    <div class="mb-3">
+                        <label for="{{ form.base_url.id_for_label }}" class="form-label">Base URL *</label>
+                        {{ form.base_url }}
+                        {% if form.base_url.errors %}
+                        <div class="invalid-feedback d-block">{{ form.base_url.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Your PSA instance URL</small>
+                    </div>
+
+                    <hr class="my-4">
+                    <h4 class="mb-3">API Credentials</h4>
+
+                    <!-- ConnectWise Manage Credentials -->
+                    <div id="creds-connectwise" class="credential-section">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.cw_company_id.id_for_label }}" class="form-label">Company ID *</label>
+                                {{ form.cw_company_id }}
+                                {% if form.cw_company_id.errors %}
+                                <div class="invalid-feedback d-block">{{ form.cw_company_id.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.cw_client_id.id_for_label }}" class="form-label">Client ID *</label>
+                                {{ form.cw_client_id }}
+                                {% if form.cw_client_id.errors %}
+                                <div class="invalid-feedback d-block">{{ form.cw_client_id.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.cw_public_key.id_for_label }}" class="form-label">Public Key *</label>
+                                {{ form.cw_public_key }}
+                                {% if form.cw_public_key.errors %}
+                                <div class="invalid-feedback d-block">{{ form.cw_public_key.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.cw_private_key.id_for_label }}" class="form-label">Private Key *</label>
+                                {{ form.cw_private_key }}
+                                {% if form.cw_private_key.errors %}
+                                <div class="invalid-feedback d-block">{{ form.cw_private_key.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Autotask PSA Credentials -->
+                    <div id="creds-autotask" class="credential-section">
+                        <div class="mb-3">
+                            <label for="{{ form.at_username.id_for_label }}" class="form-label">Username (Email) *</label>
+                            {{ form.at_username }}
+                            {% if form.at_username.errors %}
+                            <div class="invalid-feedback d-block">{{ form.at_username.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.at_secret.id_for_label }}" class="form-label">API Secret *</label>
+                            {{ form.at_secret }}
+                            {% if form.at_secret.errors %}
+                            <div class="invalid-feedback d-block">{{ form.at_secret.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.at_integration_code.id_for_label }}" class="form-label">Integration Code *</label>
+                            {{ form.at_integration_code }}
+                            {% if form.at_integration_code.errors %}
+                            <div class="invalid-feedback d-block">{{ form.at_integration_code.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- HaloPSA Credentials -->
+                    <div id="creds-halo" class="credential-section">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.halo_client_id.id_for_label }}" class="form-label">Client ID *</label>
+                                {{ form.halo_client_id }}
+                                {% if form.halo_client_id.errors %}
+                                <div class="invalid-feedback d-block">{{ form.halo_client_id.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.halo_client_secret.id_for_label }}" class="form-label">Client Secret *</label>
+                                {{ form.halo_client_secret }}
+                                {% if form.halo_client_secret.errors %}
+                                <div class="invalid-feedback d-block">{{ form.halo_client_secret.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.halo_tenant.id_for_label }}" class="form-label">Tenant (Optional)</label>
+                            {{ form.halo_tenant }}
+                            {% if form.halo_tenant.errors %}
+                            <div class="invalid-feedback d-block">{{ form.halo_tenant.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Kaseya BMS Credentials -->
+                    <div id="creds-kaseya" class="credential-section">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.kaseya_api_key.id_for_label }}" class="form-label">API Key *</label>
+                                {{ form.kaseya_api_key }}
+                                {% if form.kaseya_api_key.errors %}
+                                <div class="invalid-feedback d-block">{{ form.kaseya_api_key.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.kaseya_api_secret.id_for_label }}" class="form-label">API Secret *</label>
+                                {{ form.kaseya_api_secret }}
+                                {% if form.kaseya_api_secret.errors %}
+                                <div class="invalid-feedback d-block">{{ form.kaseya_api_secret.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Syncro Credentials -->
+                    <div id="creds-syncro" class="credential-section">
+                        <div class="mb-3">
+                            <label for="{{ form.syncro_api_key.id_for_label }}" class="form-label">API Key *</label>
+                            {{ form.syncro_api_key }}
+                            {% if form.syncro_api_key.errors %}
+                            <div class="invalid-feedback d-block">{{ form.syncro_api_key.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.syncro_subdomain.id_for_label }}" class="form-label">Subdomain *</label>
+                            {{ form.syncro_subdomain }}
+                            {% if form.syncro_subdomain.errors %}
+                            <div class="invalid-feedback d-block">{{ form.syncro_subdomain.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Freshservice Credentials -->
+                    <div id="creds-freshservice" class="credential-section">
+                        <div class="mb-3">
+                            <label for="{{ form.fresh_api_key.id_for_label }}" class="form-label">API Key *</label>
+                            {{ form.fresh_api_key }}
+                            {% if form.fresh_api_key.errors %}
+                            <div class="invalid-feedback d-block">{{ form.fresh_api_key.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.fresh_domain.id_for_label }}" class="form-label">Domain *</label>
+                            {{ form.fresh_domain }}
+                            {% if form.fresh_domain.errors %}
+                            <div class="invalid-feedback d-block">{{ form.fresh_domain.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Zendesk Credentials -->
+                    <div id="creds-zendesk" class="credential-section">
+                        <div class="mb-3">
+                            <label for="{{ form.zendesk_email.id_for_label }}" class="form-label">Email *</label>
+                            {{ form.zendesk_email }}
+                            {% if form.zendesk_email.errors %}
+                            <div class="invalid-feedback d-block">{{ form.zendesk_email.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.zendesk_api_token.id_for_label }}" class="form-label">API Token *</label>
+                            {{ form.zendesk_api_token }}
+                            {% if form.zendesk_api_token.errors %}
+                            <div class="invalid-feedback d-block">{{ form.zendesk_api_token.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.zendesk_subdomain.id_for_label }}" class="form-label">Subdomain *</label>
+                            {{ form.zendesk_subdomain }}
+                            {% if form.zendesk_subdomain.errors %}
+                            <div class="invalid-feedback d-block">{{ form.zendesk_subdomain.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <h4 class="mb-3">Sync Settings</h4>
+
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.sync_enabled }}
+                                <label class="form-check-label" for="{{ form.sync_enabled.id_for_label }}">
+                                    Sync Enabled
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.sync_companies }}
+                                <label class="form-check-label" for="{{ form.sync_companies.id_for_label }}">
+                                    Sync Companies
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.sync_contacts }}
+                                <label class="form-check-label" for="{{ form.sync_contacts.id_for_label }}">
+                                    Sync Contacts
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.sync_tickets }}
+                                <label class="form-check-label" for="{{ form.sync_tickets.id_for_label }}">
+                                    Sync Tickets
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.sync_interval_minutes.id_for_label }}" class="form-label">Sync Interval (Minutes)</label>
+                        {{ form.sync_interval_minutes }}
+                        {% if form.sync_interval_minutes.errors %}
+                        <div class="invalid-feedback d-block">{{ form.sync_interval_minutes.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">How often to sync data (default: 60 minutes)</small>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'integrations:integration_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Integration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const providerSelect = document.getElementById('id_provider_type');
+
+    // Map provider types to their credential/info section IDs
+    const providerMapping = {
+        'connectwise_manage': 'connectwise',
+        'autotask': 'autotask',
+        'halo_psa': 'halo',
+        'kaseya_bms': 'kaseya',
+        'syncro': 'syncro',
+        'freshservice': 'freshservice',
+        'zendesk': 'zendesk'
+    };
+
+    function updateVisibleSections() {
+        const selectedProvider = providerSelect.value;
+        const mappedProvider = providerMapping[selectedProvider];
+
+        // Hide all credential sections
+        document.querySelectorAll('.credential-section').forEach(section => {
+            section.classList.remove('active');
+        });
+
+        // Show sections for selected provider
+        if (mappedProvider) {
+            const infoSection = document.getElementById(`info-${mappedProvider}`);
+            const credsSection = document.getElementById(`creds-${mappedProvider}`);
+
+            if (infoSection) infoSection.classList.add('active');
+            if (credsSection) credsSection.classList.add('active');
+        }
+    }
+
+    // Initialize on page load
+    updateVisibleSections();
+
+    // Update when provider changes
+    providerSelect.addEventListener('change', updateVisibleSections);
+</script>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} Subnet - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-network-wired"></i> {{ action }} Subnet</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">Name *</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.vlan_id.id_for_label }}" class="form-label">VLAN ID</label>
+                            {{ form.vlan_id }}
+                            {% if form.vlan_id.errors %}<div class="invalid-feedback d-block">{{ form.vlan_id.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="{{ form.network.id_for_label }}" class="form-label">Network (CIDR) *</label>
+                            {{ form.network }}
+                            {% if form.network.errors %}<div class="invalid-feedback d-block">{{ form.network.errors }}</div>{% endif %}
+                            <small class="form-text text-muted">e.g., 192.168.1.0/24</small>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.gateway.id_for_label }}" class="form-label">Gateway</label>
+                            {{ form.gateway }}
+                            {% if form.gateway.errors %}<div class="invalid-feedback d-block">{{ form.gateway.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="{{ form.vlan_name.id_for_label }}" class="form-label">VLAN Name</label>
+                            {{ form.vlan_name }}
+                            {% if form.vlan_name.errors %}<div class="invalid-feedback d-block">{{ form.vlan_name.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.location.id_for_label }}" class="form-label">Location</label>
+                            {{ form.location }}
+                            {% if form.location.errors %}<div class="invalid-feedback d-block">{{ form.location.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.dns_servers.id_for_label }}" class="form-label">DNS Servers</label>
+                        {{ form.dns_servers }}
+                        {% if form.dns_servers.errors %}<div class="invalid-feedback d-block">{{ form.dns_servers.errors }}</div>{% endif %}
+                        <small class="form-text text-muted">JSON array format: ["8.8.8.8", "8.8.4.4"]</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}<div class="invalid-feedback d-block">{{ form.description.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% if subnet %}{% url 'monitoring:subnet_detail' subnet.pk %}{% else %}{% url 'monitoring:subnet_list' %}{% endif %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {{ action }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

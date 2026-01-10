@@ -1,0 +1,535 @@
+"""
+Monitoring Models - Website/SSL monitoring, Expiration tracking, Rack Management, IPAM
+"""
+from django.db import models
+from django.contrib.auth.models import User
+from core.models import Organization, BaseModel
+from core.utils import OrganizationManager
+
+
+class WebsiteMonitor(BaseModel):
+    """
+    Website and SSL certificate monitoring.
+    Tracks domain expiration, SSL expiration, and website status.
+    """
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('warning', 'Warning'),
+        ('down', 'Down'),
+        ('unknown', 'Unknown'),
+    ]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='website_monitors')
+    name = models.CharField(max_length=255)
+    url = models.URLField(max_length=500)
+
+    # Monitoring configuration
+    check_interval_minutes = models.PositiveIntegerField(default=60, help_text="How often to check")
+    is_enabled = models.BooleanField(default=True)
+
+    # Current status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unknown')
+    last_checked_at = models.DateTimeField(null=True, blank=True)
+    last_status_code = models.PositiveIntegerField(null=True, blank=True)
+    last_response_time_ms = models.PositiveIntegerField(null=True, blank=True, help_text="Response time in milliseconds")
+
+    # SSL Certificate info
+    ssl_enabled = models.BooleanField(default=False)
+    ssl_expires_at = models.DateTimeField(null=True, blank=True)
+    ssl_issued_at = models.DateTimeField(null=True, blank=True)
+    ssl_issuer = models.CharField(max_length=255, blank=True)
+    ssl_subject = models.CharField(max_length=255, blank=True)
+    ssl_serial_number = models.CharField(max_length=100, blank=True)
+    ssl_version = models.CharField(max_length=20, blank=True)
+    ssl_warning_days = models.PositiveIntegerField(default=30, help_text="Warn X days before expiration")
+
+    # Domain WHOIS info
+    domain_expires_at = models.DateTimeField(null=True, blank=True)
+    domain_registrar = models.CharField(max_length=255, blank=True)
+    domain_warning_days = models.PositiveIntegerField(default=60, help_text="Warn X days before expiration")
+
+    # Notifications
+    notify_on_down = models.BooleanField(default=True)
+    notify_on_ssl_expiry = models.BooleanField(default=True)
+    notify_on_domain_expiry = models.BooleanField(default=True)
+
+    # Last error
+    last_error = models.TextField(blank=True)
+
+    objects = OrganizationManager()
+
+    class Meta:
+        db_table = 'website_monitors'
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['organization', 'is_enabled']),
+            models.Index(fields=['ssl_expires_at']),
+            models.Index(fields=['domain_expires_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.url})"
+
+    @property
+    def is_ssl_expiring_soon(self):
+        """Check if SSL cert expires within warning period."""
+        if not self.ssl_expires_at:
+            return False
+        from django.utils import timezone
+        from datetime import timedelta
+        return self.ssl_expires_at <= timezone.now() + timedelta(days=self.ssl_warning_days)
+
+    @property
+    def is_domain_expiring_soon(self):
+        """Check if domain expires within warning period."""
+        if not self.domain_expires_at:
+            return False
+        from django.utils import timezone
+        from datetime import timedelta
+        return self.domain_expires_at <= timezone.now() + timedelta(days=self.domain_warning_days)
+
+    def check_status(self):
+        """
+        Perform website health check and SSL certificate check.
+        Updates status, response time, and SSL information.
+        """
+        import requests
+        import ssl
+        import socket
+        from datetime import datetime, timezone as dt_timezone
+        from django.utils import timezone
+        from urllib.parse import urlparse
+        import ipaddress
+
+        # Validate URL to prevent SSRF attacks
+        def is_safe_url(url):
+            """Validate URL to prevent SSRF attacks."""
+            try:
+                parsed = urlparse(url)
+
+                # Only allow http/https schemes
+                if parsed.scheme not in ['http', 'https']:
+                    return False, f"Invalid URL scheme: {parsed.scheme}"
+
+                # Get hostname
+                hostname = parsed.hostname
+                if not hostname:
+                    return False, "Invalid URL: no hostname"
+
+                # Try to resolve hostname to IP
+                try:
+                    ip_str = socket.gethostbyname(hostname)
+                    ip = ipaddress.ip_address(ip_str)
+
+                    # Block private IP ranges
+                    if ip.is_private:
+                        return False, f"Cannot monitor private IP addresses: {ip_str}"
+
+                    # Block loopback addresses
+                    if ip.is_loopback:
+                        return False, f"Cannot monitor loopback addresses: {ip_str}"
+
+                    # Block link-local addresses
+                    if ip.is_link_local:
+                        return False, f"Cannot monitor link-local addresses: {ip_str}"
+
+                except socket.gaierror:
+                    # Hostname doesn't resolve - allow it (will fail naturally)
+                    pass
+
+                return True, None
+
+            except Exception as e:
+                return False, f"URL validation error: {str(e)}"
+
+        try:
+            # Validate URL before making request
+            is_safe, error_msg = is_safe_url(self.url)
+            if not is_safe:
+                self.last_checked_at = timezone.now()
+                self.status = 'error'
+                self.last_error = f'Security: {error_msg}'
+                self.save()
+                return
+
+            # Make HTTP request
+            start_time = datetime.now()
+            response = requests.get(self.url, timeout=10, verify=True, allow_redirects=False)
+            end_time = datetime.now()
+
+            # Calculate response time
+            response_time_ms = int((end_time - start_time).total_seconds() * 1000)
+
+            # Update basic status
+            self.last_checked_at = timezone.now()
+            self.last_status_code = response.status_code
+            self.last_response_time_ms = response_time_ms
+
+            # Determine status based on response code
+            if 200 <= response.status_code < 300:
+                self.status = 'active'
+                self.last_error = ''
+            elif 300 <= response.status_code < 400:
+                self.status = 'warning'
+                self.last_error = f'Redirect: {response.status_code}'
+            else:
+                self.status = 'down'
+                self.last_error = f'HTTP {response.status_code}'
+
+            # Check SSL certificate if HTTPS
+            parsed_url = urlparse(self.url)
+            if parsed_url.scheme == 'https':
+                try:
+                    hostname = parsed_url.hostname
+                    port = parsed_url.port or 443
+
+                    # Create SSL context
+                    context = ssl.create_default_context()
+
+                    # Get certificate
+                    with socket.create_connection((hostname, port), timeout=5) as sock:
+                        with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                            cert = ssock.getpeercert()
+
+                            # Parse expiry date
+                            expiry_str = cert['notAfter']
+                            # Format: 'Jan 15 12:00:00 2026 GMT'
+                            expiry_date = datetime.strptime(expiry_str, '%b %d %H:%M:%S %Y %Z')
+                            expiry_date = expiry_date.replace(tzinfo=dt_timezone.utc)
+
+                            # Parse issued date
+                            issued_str = cert['notBefore']
+                            issued_date = datetime.strptime(issued_str, '%b %d %H:%M:%S %Y %Z')
+                            issued_date = issued_date.replace(tzinfo=dt_timezone.utc)
+
+                            # Update SSL info
+                            self.ssl_enabled = True
+                            self.ssl_expires_at = expiry_date
+                            self.ssl_issued_at = issued_date
+
+                            # Get issuer
+                            issuer = dict(x[0] for x in cert['issuer'])
+                            self.ssl_issuer = issuer.get('organizationName', issuer.get('commonName', 'Unknown'))
+
+                            # Get subject
+                            subject = dict(x[0] for x in cert['subject'])
+                            self.ssl_subject = subject.get('commonName', hostname)
+
+                            # Get serial number
+                            self.ssl_serial_number = cert.get('serialNumber', '')
+
+                            # Get SSL version
+                            self.ssl_version = ssock.version() or 'Unknown'
+
+                except Exception as ssl_error:
+                    self.last_error += f' SSL error: {str(ssl_error)}'
+
+        except requests.exceptions.Timeout:
+            self.status = 'down'
+            self.last_error = 'Connection timeout'
+            self.last_checked_at = timezone.now()
+
+        except requests.exceptions.ConnectionError as e:
+            self.status = 'down'
+            self.last_error = f'Connection error: {str(e)}'
+            self.last_checked_at = timezone.now()
+
+        except Exception as e:
+            self.status = 'down'
+            self.last_error = f'Error: {str(e)}'
+            self.last_checked_at = timezone.now()
+
+        # Save the updated monitor
+        self.save()
+
+
+class Expiration(BaseModel):
+    """
+    Generic expiration tracking for any item.
+    Auto-populated from website monitors and can be manually added.
+    """
+    EXPIRATION_TYPES = [
+        ('ssl_cert', 'SSL Certificate'),
+        ('domain', 'Domain Registration'),
+        ('license', 'Software License'),
+        ('contract', 'Contract/Agreement'),
+        ('warranty', 'Warranty'),
+        ('insurance', 'Insurance'),
+        ('certification', 'Certification'),
+        ('other', 'Other'),
+    ]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='expirations')
+    name = models.CharField(max_length=255)
+    expiration_type = models.CharField(max_length=50, choices=EXPIRATION_TYPES)
+    expires_at = models.DateTimeField()
+    warning_days = models.PositiveIntegerField(default=30)
+
+    # Optional link to related object
+    related_url = models.URLField(max_length=500, blank=True)
+    notes = models.TextField(blank=True)
+
+    # Auto-renewal info
+    auto_renew = models.BooleanField(default=False)
+    renewal_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    # Notification status
+    notification_sent = models.BooleanField(default=False)
+
+    objects = OrganizationManager()
+
+    class Meta:
+        db_table = 'expirations'
+        ordering = ['expires_at']
+        indexes = [
+            models.Index(fields=['organization', 'expires_at']),
+            models.Index(fields=['expiration_type']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} (expires {self.expires_at.date()})"
+
+    @property
+    def is_expired(self):
+        """Check if already expired."""
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+
+    @property
+    def days_until_expiration(self):
+        """Days until expiration (negative if expired)."""
+        from django.utils import timezone
+        delta = self.expires_at - timezone.now()
+        return delta.days
+
+    @property
+    def is_expiring_soon(self):
+        """Check if expiring within warning period."""
+        return 0 <= self.days_until_expiration <= self.warning_days
+
+
+class Rack(BaseModel):
+    """
+    Physical rack for equipment.
+    Tracks rack location, dimensions, power, and cooling.
+    """
+    WIDTH_CHOICES = [
+        (19, '19"'),
+        (23, '23"'),
+    ]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='racks')
+    name = models.CharField(max_length=100)
+
+    # Location hierarchy
+    datacenter = models.CharField(max_length=100, blank=True, help_text="Datacenter/facility name")
+    aisle = models.CharField(max_length=50, blank=True, help_text="Aisle/row identifier")
+    location = models.CharField(max_length=255, blank=True, help_text="Additional location details")
+
+    # Physical specs
+    units = models.PositiveIntegerField(default=42, help_text="Rack units (U)")
+    width_inches = models.PositiveIntegerField(choices=WIDTH_CHOICES, default=19)
+    depth_inches = models.PositiveIntegerField(null=True, blank=True)
+
+    # Power
+    power_capacity_watts = models.PositiveIntegerField(null=True, blank=True)
+    power_allocated_watts = models.PositiveIntegerField(default=0)
+
+    # Cooling
+    cooling_capacity_btu = models.PositiveIntegerField(null=True, blank=True)
+
+    # Metadata
+    notes = models.TextField(blank=True)
+
+    objects = OrganizationManager()
+
+    class Meta:
+        db_table = 'racks'
+        ordering = ['location', 'name']
+        indexes = [
+            models.Index(fields=['organization', 'location']),
+        ]
+
+    def __str__(self):
+        return f"{self.location}: {self.name}"
+
+    @property
+    def power_utilization_percent(self):
+        """Calculate power utilization percentage."""
+        if not self.power_capacity_watts or self.power_capacity_watts == 0:
+            return 0
+        return round((self.power_allocated_watts / self.power_capacity_watts) * 100, 1)
+
+    @property
+    def available_units(self):
+        """Calculate available rack units."""
+        used = self.rack_devices.aggregate(total=models.Sum('units'))['total'] or 0
+        return self.units - used
+
+
+class RackDevice(BaseModel):
+    """
+    Device mounted in a rack.
+    Tracks position, size, power draw, and links to assets.
+    """
+    rack = models.ForeignKey(Rack, on_delete=models.CASCADE, related_name='rack_devices')
+    name = models.CharField(max_length=255)
+
+    # Position in rack (1U = bottom)
+    start_unit = models.PositiveIntegerField(help_text="Starting U position (1 = bottom)")
+    units = models.PositiveIntegerField(default=1, help_text="Height in U")
+
+    # Power draw
+    power_draw_watts = models.PositiveIntegerField(null=True, blank=True)
+
+    # Optional link to asset
+    asset_id = models.PositiveIntegerField(null=True, blank=True, help_text="Link to Asset")
+
+    # Visual
+    color = models.CharField(max_length=7, default='#0d6efd', help_text="Hex color for visualization")
+    photo = models.ImageField(upload_to='rack_devices/', null=True, blank=True, help_text="Device photo")
+
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'rack_devices'
+        ordering = ['rack', 'start_unit']
+        unique_together = [['rack', 'start_unit']]
+
+    def __str__(self):
+        return f"{self.name} (U{self.start_unit}-U{self.start_unit + self.units - 1})"
+
+    @property
+    def end_unit(self):
+        """Calculate ending U position."""
+        return self.start_unit + self.units - 1
+
+    def save(self, *args, **kwargs):
+        """Override save to auto-resize uploaded photos."""
+        if self.photo:
+            from PIL import Image
+            from io import BytesIO
+            from django.core.files.uploadedfile import InMemoryUploadedFile
+            import sys
+
+            # Open the image
+            img = Image.open(self.photo)
+
+            # Convert to RGB if necessary (handles RGBA, P, etc.)
+            if img.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                background.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
+                img = background
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+
+            # Calculate target dimensions
+            # Width based on rack width (19" = 300px, 23" = 350px)
+            rack_width_px = 300 if self.rack.width_inches == 19 else 350
+            # Height: 40px per U unit
+            target_height = self.units * 40
+
+            # Resize image maintaining aspect ratio to fit within target dimensions
+            img.thumbnail((rack_width_px, target_height), Image.Resampling.LANCZOS)
+
+            # Create a new image with exact dimensions and paste the resized image centered
+            final_img = Image.new('RGB', (rack_width_px, target_height), (255, 255, 255))
+            paste_x = (rack_width_px - img.width) // 2
+            paste_y = (target_height - img.height) // 2
+            final_img.paste(img, (paste_x, paste_y))
+
+            # Save to BytesIO
+            output = BytesIO()
+            final_img.save(output, format='JPEG', quality=85, optimize=True)
+            output.seek(0)
+
+            # Replace the photo field with optimized version
+            self.photo = InMemoryUploadedFile(
+                output, 'ImageField',
+                f"{self.photo.name.split('.')[0]}.jpg",
+                'image/jpeg',
+                sys.getsizeof(output), None
+            )
+
+        super().save(*args, **kwargs)
+
+
+class Subnet(BaseModel):
+    """
+    IP subnet for IP address management (IPAM).
+    """
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='subnets')
+    name = models.CharField(max_length=100)
+    network = models.CharField(max_length=50, help_text="e.g., 192.168.1.0/24")
+    description = models.TextField(blank=True)
+
+    # VLAN info
+    vlan_id = models.PositiveIntegerField(null=True, blank=True)
+    vlan_name = models.CharField(max_length=100, blank=True)
+
+    # Gateway
+    gateway = models.GenericIPAddressField(null=True, blank=True)
+
+    # DNS servers
+    dns_servers = models.JSONField(default=list, help_text="List of DNS server IPs")
+
+    # Location
+    location = models.CharField(max_length=255, blank=True)
+
+    objects = OrganizationManager()
+
+    class Meta:
+        db_table = 'subnets'
+        ordering = ['network']
+        indexes = [
+            models.Index(fields=['organization', 'network']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.network})"
+
+
+class IPAddress(BaseModel):
+    """
+    Individual IP address assignment.
+    """
+    STATUS_CHOICES = [
+        ('available', 'Available'),
+        ('assigned', 'Assigned'),
+        ('reserved', 'Reserved'),
+        ('dhcp', 'DHCP Pool'),
+    ]
+
+    subnet = models.ForeignKey(Subnet, on_delete=models.CASCADE, related_name='ip_addresses')
+    ip_address = models.GenericIPAddressField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
+
+    # Assignment details
+    hostname = models.CharField(max_length=255, blank=True)
+    mac_address = models.CharField(max_length=17, blank=True, help_text="MAC address in XX:XX:XX:XX:XX:XX format")
+    description = models.TextField(blank=True)
+
+    # Optional link to asset
+    asset_id = models.PositiveIntegerField(null=True, blank=True, help_text="Link to Asset")
+
+    # Last seen
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'ip_addresses'
+        unique_together = [['subnet', 'ip_address']]
+        ordering = ['subnet', 'ip_address']
+        indexes = [
+            models.Index(fields=['subnet', 'status']),
+            models.Index(fields=['ip_address']),
+            models.Index(fields=['mac_address']),
+        ]
+
+    def __str__(self):
+        if self.hostname:
+            return f"{self.ip_address} ({self.hostname})"
+        return self.ip_address

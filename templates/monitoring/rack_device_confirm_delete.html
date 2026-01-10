@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Device - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h3 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h3>
+            </div>
+            <div class="card-body">
+                <p>Are you sure you want to remove this device from the rack?</p>
+                <div class="alert alert-warning">
+                    <strong>Device:</strong> {{ device.name }}<br>
+                    <strong>Position:</strong> U{{ device.start_unit }}-U{{ device.end_unit }}<br>
+                    <strong>Rack:</strong> {{ rack.name }}
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'monitoring:rack_detail' rack.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Delete Device
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

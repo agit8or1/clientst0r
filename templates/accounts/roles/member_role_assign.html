@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Assign Role - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:member_list' %}">Members</a></li>
+        <li class="breadcrumb-item active">Assign Role</li>
+    </ol>
+</nav>
+
+<h2><i class="fas fa-user-tag"></i> Assign Role to {{ user.get_full_name|default:user.username }}</h2>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Select a role template to assign granular permissions to this user. Leave blank to use the default role setting.
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label"><strong>Current Assignment:</strong></label>
+                <p class="ms-3">
+                    {% if user_membership.role_template %}
+                        Role Template: <span class="badge bg-success">{{ user_membership.role_template.name }}</span>
+                        {% if user_membership.role_template.is_system_template %}
+                        <small class="text-muted">(System)</small>
+                        {% else %}
+                        <small class="text-muted">(Custom)</small>
+                        {% endif %}
+                    {% else %}
+                        Default Role: <span class="badge bg-secondary">{{ user_membership.get_role_display }}</span>
+                    {% endif %}
+                </p>
+            </div>
+
+            <hr class="my-4">
+
+            <h5 class="mb-3">Select New Role Template</h5>
+
+            <!-- System Role Templates -->
+            <div class="mb-4">
+                <h6 class="text-muted mb-3"><i class="fas fa-shield-alt"></i> System Role Templates</h6>
+                <div class="row">
+                    {% for role in system_templates %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="role_template_id"
+                                           id="role_{{ role.id }}" value="{{ role.id }}"
+                                           {% if user_membership.role_template.id == role.id %}checked{% endif %}>
+                                    <label class="form-check-label w-100" for="role_{{ role.id }}">
+                                        <strong>{{ role.name }}</strong>
+                                        <span class="badge bg-primary ms-2">System</span>
+                                        <p class="small text-muted mb-0 mt-1">{{ role.description }}</p>
+                                    </label>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-link p-0 mt-2"
+                                        data-bs-toggle="collapse" data-bs-target="#details-{{ role.id }}">
+                                    <i class="fas fa-eye"></i> View Permissions
+                                </button>
+                                <div id="details-{{ role.id }}" class="collapse mt-2">
+                                    <div class="small">
+                                        <strong>Key Permissions:</strong>
+                                        <ul class="mb-0">
+                                            {% if role.vault_view_password %}<li>View Passwords</li>{% endif %}
+                                            {% if role.vault_create %}<li>Create Passwords</li>{% endif %}
+                                            {% if role.assets_create %}<li>Create Assets</li>{% endif %}
+                                            {% if role.docs_create %}<li>Create Documents</li>{% endif %}
+                                            {% if role.monitoring_create %}<li>Create Monitors</li>{% endif %}
+                                            {% if role.integrations_configure %}<li>Configure Integrations</li>{% endif %}
+                                            {% if role.org_manage_members %}<li>Manage Members</li>{% endif %}
+                                            {% if role.audit_view %}<li>View Audit Logs</li>{% endif %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Custom Role Templates -->
+            {% if custom_templates %}
+            <div class="mb-4">
+                <h6 class="text-muted mb-3"><i class="fas fa-user-cog"></i> Custom Role Templates</h6>
+                <div class="row">
+                    {% for role in custom_templates %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="role_template_id"
+                                           id="role_{{ role.id }}" value="{{ role.id }}"
+                                           {% if user_membership.role_template.id == role.id %}checked{% endif %}>
+                                    <label class="form-check-label w-100" for="role_{{ role.id }}">
+                                        <strong>{{ role.name }}</strong>
+                                        <span class="badge bg-secondary ms-2">Custom</span>
+                                        <p class="small text-muted mb-0 mt-1">{{ role.description }}</p>
+                                    </label>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-link p-0 mt-2"
+                                        data-bs-toggle="collapse" data-bs-target="#details-{{ role.id }}">
+                                    <i class="fas fa-eye"></i> View Permissions
+                                </button>
+                                <div id="details-{{ role.id }}" class="collapse mt-2">
+                                    <div class="small">
+                                        <strong>Key Permissions:</strong>
+                                        <ul class="mb-0">
+                                            {% if role.vault_view_password %}<li>View Passwords</li>{% endif %}
+                                            {% if role.vault_create %}<li>Create Passwords</li>{% endif %}
+                                            {% if role.assets_create %}<li>Create Assets</li>{% endif %}
+                                            {% if role.docs_create %}<li>Create Documents</li>{% endif %}
+                                            {% if role.monitoring_create %}<li>Create Monitors</li>{% endif %}
+                                            {% if role.integrations_configure %}<li>Configure Integrations</li>{% endif %}
+                                            {% if role.org_manage_members %}<li>Manage Members</li>{% endif %}
+                                            {% if role.audit_view %}<li>View Audit Logs</li>{% endif %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- No Role Template Option -->
+            <div class="mb-4">
+                <div class="card border-secondary">
+                    <div class="card-body">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="role_template_id"
+                                   id="role_none" value=""
+                                   {% if not user_membership.role_template %}checked{% endif %}>
+                            <label class="form-check-label" for="role_none">
+                                <strong>Use Default Role</strong>
+                                <p class="small text-muted mb-0 mt-1">
+                                    Don't use a role template. User will have the default role: <strong>{{ user_membership.get_role_display }}</strong>
+                                </p>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'accounts:member_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Assign Role
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

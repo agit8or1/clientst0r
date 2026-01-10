@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+  <!-- Light logo for dark backgrounds -->
+  <g transform="translate(10, 10)">
+    <polygon points="20,0 40,10 40,30 20,40 0,30 0,10" fill="#0d6efd" stroke="#6ea8fe" stroke-width="2"/>
+    <text x="20" y="28" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">H</text>
+  </g>
+
+  <text x="55" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="white">
+    Hudu<tspan fill="#6ea8fe">Glue</tspan>
+  </text>
+
+  <text x="55" y="50" font-family="Arial, sans-serif" font-size="10" fill="#adb5bd">
+    IT Documentation Platform
+  </text>
+</svg>

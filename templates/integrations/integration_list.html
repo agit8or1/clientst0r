@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Integrations{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>PSA Integrations</h1>
+    <a href="{% url 'integrations:integration_create' %}" class="btn btn-primary">Add Integration</a>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Provider</th>
+            <th>Status</th>
+            <th>Last Sync</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for conn in connections %}
+        <tr>
+            <td><a href="{% url 'integrations:integration_detail' conn.pk %}">{{ conn.name }}</a></td>
+            <td>{{ conn.get_provider_type_display }}</td>
+            <td>
+                {% if conn.is_active %}
+                <span class="badge bg-success">Active</span>
+                {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+            </td>
+            <td>{{ conn.last_sync_at|date:"Y-m-d H:i"|default:"Never" }}</td>
+            <td>
+                <button class="btn btn-sm btn-info test-conn" data-id="{{ conn.pk }}">Test</button>
+                <button class="btn btn-sm btn-primary sync-conn" data-id="{{ conn.pk }}">Sync</button>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center">No integrations configured.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="mt-4">
+    <a href="{% url 'integrations:psa_companies' %}" class="btn btn-outline-primary">View Synced Companies</a>
+    <a href="{% url 'integrations:psa_tickets' %}" class="btn btn-outline-primary">View Synced Tickets</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.test-conn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        fetch(`/integrations/${id}/test/`, {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}})
+        .then(r => r.json())
+        .then(data => alert(data.message))
+        .catch(e => alert('Error testing connection'));
+    });
+});
+
+document.querySelectorAll('.sync-conn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        if (!confirm('Start sync now?')) return;
+        this.disabled = true;
+        this.textContent = 'Syncing...';
+        fetch(`/integrations/${id}/sync/`, {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}})
+        .then(r => r.json())
+        .then(data => {
+            alert(data.message + '\n' + JSON.stringify(data.stats));
+            location.reload();
+        })
+        .catch(e => alert('Sync error'));
+    });
+});
+</script>
+{% endblock %}

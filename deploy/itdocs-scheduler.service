@@ -1,0 +1,15 @@
+[Unit]
+Description=HuduGlue Task Scheduler
+After=network.target
+
+[Service]
+Type=oneshot
+User=administrator
+Group=administrator
+WorkingDirectory=/home/administrator
+Environment="PATH=/home/administrator/venv/bin"
+EnvironmentFile=/home/administrator/.env
+ExecStart=/home/administrator/venv/bin/python manage.py run_scheduler
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=itdocs-scheduler

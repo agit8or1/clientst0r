@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} Document - HuduGlue{% endblock %}
+
+{% block extra_css %}
+<style>
+    #markdown-editor-container {
+        display: none;
+    }
+    .tox-tinymce {
+        border: 1px solid #dee2e6 !important;
+        border-radius: 0.375rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-file-alt"></i> {{ action }} Document</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" id="document-form">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    {% if action == 'Create' and templates %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-file-alt"></i> <strong>Start from Template:</strong>
+                        <select class="form-select form-select-sm d-inline-block w-auto ms-2" id="template-selector">
+                            <option value="">-- Select a template --</option>
+                            {% for template in templates %}
+                            <option value="{{ template.id }}" {% if selected_template and selected_template.id == template.id %}selected{% endif %}>
+                                {{ template.title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-sm btn-primary ms-2" onclick="loadTemplate()">
+                            <i class="fas fa-download"></i> Load Template
+                        </button>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.title.id_for_label }}" class="form-label">Title *</label>
+                            {{ form.title }}
+                            {% if form.title.errors %}<div class="invalid-feedback d-block">{{ form.title.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ form.content_type.id_for_label }}" class="form-label">Editor *</label>
+                            {{ form.content_type }}
+                            {% if form.content_type.errors %}<div class="invalid-feedback d-block">{{ form.content_type.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ form.category.id_for_label }}" class="form-label">Category</label>
+                            {{ form.category }}
+                            {% if form.category.errors %}<div class="invalid-feedback d-block">{{ form.category.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editor-container" class="form-label">Content *</label>
+
+                        <!-- WYSIWYG Editor (TinyMCE) -->
+                        <div id="tinymce-editor-container">
+                            {{ form.body }}
+                        </div>
+
+                        <!-- Markdown Editor -->
+                        <div id="markdown-editor-container">
+                            <textarea id="markdown-textarea" class="form-control" rows="20"></textarea>
+                        </div>
+
+                        {% if form.body.errors %}
+                        <div class="invalid-feedback d-block">{{ form.body.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Tags</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for tag in form.tags %}
+                                {{ tag }}
+                                {% endfor %}
+                            </div>
+                            {% if form.tags.errors %}<div class="invalid-feedback d-block">{{ form.tags.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Options</label>
+                            <div class="form-check">
+                                {{ form.is_published }}
+                                <label class="form-check-label" for="{{ form.is_published.id_for_label }}">Published</label>
+                            </div>
+                            <div class="form-check">
+                                {{ form.is_template }}
+                                <label class="form-check-label" for="{{ form.is_template.id_for_label }}">Template</label>
+                            </div>
+                            <div class="form-check">
+                                {{ form.is_archived }}
+                                <label class="form-check-label" for="{{ form.is_archived.id_for_label }}">Archived</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% if document %}{% url 'docs:document_detail' document.slug %}{% else %}{% url 'docs:document_list' %}{% endif %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {{ action }} Document
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+
+<script>
+    const contentTypeSelect = document.getElementById('content-type-select');
+    const bodyTextarea = document.getElementById('document-body');
+    const quillContainer = document.getElementById('tinymce-editor-container');
+    const markdownContainer = document.getElementById('markdown-editor-container');
+    const markdownTextarea = document.getElementById('markdown-textarea');
+    const form = document.getElementById('document-form');
+
+    let quillEditor = null;
+
+    // Initialize Quill
+    function initQuill() {
+        if (quillEditor) return;
+
+        // Create editor container for Quill
+        const editorDiv = document.createElement('div');
+        editorDiv.id = 'quill-editor';
+        editorDiv.style.height = '500px';
+        editorDiv.style.backgroundColor = 'white';
+
+        // Insert before the textarea
+        bodyTextarea.parentNode.insertBefore(editorDiv, bodyTextarea);
+        bodyTextarea.style.display = 'none';
+
+        quillEditor = new Quill('#quill-editor', {
+            theme: 'snow',
+            placeholder: 'Write your document content here...',
+            modules: {
+                toolbar: [
+                    [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                    [{ 'font': [] }],
+                    [{ 'size': ['small', false, 'large', 'huge'] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'color': [] }, { 'background': [] }],
+                    [{ 'script': 'sub'}, { 'script': 'super' }],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    [{ 'indent': '-1'}, { 'indent': '+1' }],
+                    [{ 'direction': 'rtl' }],
+                    [{ 'align': [] }],
+                    ['blockquote', 'code-block'],
+                    ['link', 'image', 'video'],
+                    ['clean']
+                ],
+                clipboard: {
+                    // Preserve more formatting when pasting
+                    matchVisual: true
+                }
+            }
+        });
+
+        // Set initial content if exists
+        if (bodyTextarea.value) {
+            quillEditor.root.innerHTML = bodyTextarea.value;
+        }
+    }
+
+    // Toggle editor based on content type
+    function toggleEditor() {
+        const contentType = contentTypeSelect.value;
+
+        if (contentType === 'html') {
+            // Show WYSIWYG
+            quillContainer.style.display = 'block';
+            markdownContainer.style.display = 'none';
+
+            if (!quillEditor) {
+                initQuill();
+            } else {
+                document.getElementById('quill-editor').style.display = 'block';
+            }
+        } else {
+            // Show Markdown textarea
+            quillContainer.style.display = 'none';
+            markdownContainer.style.display = 'block';
+
+            // Sync content from Quill to markdown textarea
+            if (quillEditor) {
+                const htmlContent = quillEditor.root.innerHTML;
+                markdownTextarea.value = htmlContent;
+                document.getElementById('quill-editor').style.display = 'none';
+            }
+        }
+    }
+
+    // Initialize on page load
+    toggleEditor();
+
+    // Listen for content type changes
+    contentTypeSelect.addEventListener('change', toggleEditor);
+
+    // Before form submit, ensure content is synced
+    form.addEventListener('submit', function(e) {
+        if (contentTypeSelect.value === 'html' && quillEditor) {
+            bodyTextarea.value = quillEditor.root.innerHTML;
+        } else if (contentTypeSelect.value === 'markdown') {
+            bodyTextarea.value = markdownTextarea.value;
+        }
+    });
+
+    // Auto-generate slug from title
+    const titleInput = document.getElementById('{{ form.title.id_for_label }}');
+    const slugInput = document.getElementById('{{ form.slug.id_for_label }}');
+
+    if (titleInput && slugInput && !slugInput.value) {
+        titleInput.addEventListener('input', function() {
+            const slug = this.value
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+            slugInput.value = slug;
+        });
+    }
+
+    // Load template function
+    function loadTemplate() {
+        const templateSelector = document.getElementById('template-selector');
+        const templateId = templateSelector.value;
+
+        if (templateId) {
+            window.location.href = '?template=' + templateId;
+        } else {
+            alert('Please select a template first.');
+        }
+    }
+</script>
+{% endblock %}

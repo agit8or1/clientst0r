@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}API Key Created - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-check-circle text-success"></i> API Key Created Successfully</h1>
+</div>
+
+<div class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>IMPORTANT:</strong> This is the only time you will see the full API key. Copy it now and store it securely!
+</div>
+
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-key"></i> Your New API Key</h5>
+    </div>
+    <div class="card-body">
+        <dl class="row">
+            <dt class="col-sm-3">Name:</dt>
+            <dd class="col-sm-9"><strong>{{ api_key.name }}</strong></dd>
+
+            <dt class="col-sm-3">Role:</dt>
+            <dd class="col-sm-9">
+                {% if api_key.role == 'owner' %}
+                <span class="badge bg-danger">{{ api_key.get_role_display }}</span>
+                {% elif api_key.role == 'admin' %}
+                <span class="badge bg-warning">{{ api_key.get_role_display }}</span>
+                {% elif api_key.role == 'editor' %}
+                <span class="badge bg-info">{{ api_key.get_role_display }}</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ api_key.get_role_display }}</span>
+                {% endif %}
+            </dd>
+
+            <dt class="col-sm-3">API Key:</dt>
+            <dd class="col-sm-9">
+                <div class="input-group">
+                    <input type="text" class="form-control font-monospace" id="apiKeyValue"
+                           value="{{ plaintext_key }}" readonly>
+                    <button class="btn btn-outline-secondary" type="button" id="copyButton"
+                            onclick="copyToClipboard()">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+            </dd>
+        </dl>
+
+        <div class="alert alert-info mt-3">
+            <h6><i class="fas fa-book"></i> Using Your API Key</h6>
+            <p>Include the API key in the Authorization header of your HTTP requests:</p>
+            <pre class="bg-light p-3 mb-0"><code>Authorization: Bearer {{ plaintext_key }}</code></pre>
+        </div>
+
+        <div class="alert alert-warning mt-3">
+            <h6><i class="fas fa-shield-alt"></i> Security Reminders</h6>
+            <ul class="mb-0">
+                <li>Never share your API key publicly</li>
+                <li>Don't commit keys to version control (Git)</li>
+                <li>Store keys in environment variables or secret managers</li>
+                <li>If a key is compromised, delete it immediately and create a new one</li>
+            </ul>
+        </div>
+
+        <h6 class="mt-4">Example cURL Request</h6>
+        <pre class="bg-light p-3"><code>curl -H "Authorization: Bearer {{ plaintext_key }}" \
+     {{ request.scheme }}://{{ request.get_host }}/api/assets/</code></pre>
+
+        <h6>Example Python Request</h6>
+        <pre class="bg-light p-3"><code>import requests
+
+headers = {
+    'Authorization': 'Bearer {{ plaintext_key }}'
+}
+
+response = requests.get(
+    '{{ request.scheme }}://{{ request.get_host }}/api/assets/',
+    headers=headers
+)
+
+print(response.json())</code></pre>
+
+        <div class="d-flex gap-2 mt-4">
+            <a href="{% url 'api:apikey_list' %}" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Back to API Keys
+            </a>
+            <a href="{% url 'api:apikey_create' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-plus"></i> Create Another Key
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard() {
+    const input = document.getElementById('apiKeyValue');
+    const button = document.getElementById('copyButton');
+
+    input.select();
+    input.setSelectionRange(0, 99999); // For mobile devices
+
+    navigator.clipboard.writeText(input.value).then(function() {
+        // Success
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-success');
+
+        setTimeout(function() {
+            button.innerHTML = originalHTML;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+    }, function(err) {
+        // Fallback for older browsers
+        document.execCommand('copy');
+        alert('API key copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}

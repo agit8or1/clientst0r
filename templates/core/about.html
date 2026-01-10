@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}About{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <h1>About HuduGlue</h1>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3>Version Information</h3>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Version:</dt>
+                    <dd class="col-sm-8"><code>{{ full_version }}</code></dd>
+                    <dt class="col-sm-4">Release Date:</dt>
+                    <dd class="col-sm-8">January 2026</dd>
+                    <dt class="col-sm-4">Status:</dt>
+                    <dd class="col-sm-8"><span class="badge bg-success">Production Ready</span></dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3>Platform Overview</h3>
+                <p>
+                    A complete, self-hosted IT documentation platform designed for managed service providers (MSPs) and IT departments.
+                    Provides secure asset management, encrypted password vault, knowledge base, and PSA integrations.
+                </p>
+
+                <h5>Core Features</h5>
+                <ul>
+                    <li><strong>Multi-Tenancy:</strong> Organization-based data isolation with granular RBAC (42 permissions)</li>
+                    <li><strong>MSP User Types:</strong> Staff users (global access), Organization users (scoped access), Role templates</li>
+                    <li><strong>Asset Management:</strong> Flexible device tracking with custom fields and relationships</li>
+                    <li><strong>Password Vault:</strong> AES-GCM encrypted secrets with folder organization</li>
+                    <li><strong>Personal Vault:</strong> Private password storage per user</li>
+                    <li><strong>Documentation:</strong> Per-org docs with categories, tags, filtering, and version control</li>
+                    <li><strong>Global Knowledge Base:</strong> Staff-only internal KB with full markdown support</li>
+                    <li><strong>Website Monitoring:</strong> Uptime checks with SSL certificate tracking</li>
+                    <li><strong>Infrastructure:</strong> NetBox-style rack visualization + IPAM with VLANs</li>
+                    <li><strong>Secure Notes:</strong> Encrypted ephemeral messaging with self-destruct</li>
+                    <li><strong>PSA Integration:</strong> ConnectWise Manage, Autotask, and more</li>
+                    <li><strong>REST API:</strong> Full CRUD with API key authentication</li>
+                    <li><strong>Audit Logging:</strong> Complete activity tracking with export</li>
+                    <li><strong>Contact Management:</strong> Organization-specific contact tracking</li>
+                    <li><strong>Task Scheduler:</strong> Automated jobs via systemd timers (no Redis required)</li>
+                    <li><strong>Directory Integration:</strong> LDAP and Azure AD support (optional)</li>
+                </ul>
+
+                <h5>Security Highlights</h5>
+                <ul>
+                    <li>Enforced TOTP two-factor authentication</li>
+                    <li>Argon2 password hashing</li>
+                    <li>AES-GCM encryption for sensitive data</li>
+                    <li>HMAC-SHA256 hashed API keys</li>
+                    <li>Brute-force protection (django-axes)</li>
+                    <li>Rate limiting on all endpoints</li>
+                    <li>Comprehensive security headers</li>
+                    <li>Private file serving (X-Accel-Redirect)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3>Technology Stack</h3>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Framework:</dt>
+                    <dd class="col-sm-8">Django 6.0</dd>
+
+                    <dt class="col-sm-4">API:</dt>
+                    <dd class="col-sm-8">Django REST Framework 3.15</dd>
+
+                    <dt class="col-sm-4">Database:</dt>
+                    <dd class="col-sm-8">MariaDB 10.5+</dd>
+
+                    <dt class="col-sm-4">Web Server:</dt>
+                    <dd class="col-sm-8">Nginx + Gunicorn</dd>
+
+                    <dt class="col-sm-4">Authentication:</dt>
+                    <dd class="col-sm-8">django-two-factor-auth (TOTP)</dd>
+
+                    <dt class="col-sm-4">Encryption:</dt>
+                    <dd class="col-sm-8">Python cryptography (AES-GCM)</dd>
+
+                    <dt class="col-sm-4">Password Hashing:</dt>
+                    <dd class="col-sm-8">Argon2</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3>PSA Integration Status</h3>
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Provider</th>
+                            <th>Status</th>
+                            <th>Features</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>ConnectWise Manage</strong></td>
+                            <td><span class="badge bg-success">Implemented</span></td>
+                            <td>Companies, Contacts, Tickets, Projects, Agreements</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Autotask PSA</strong></td>
+                            <td><span class="badge bg-success">Implemented</span></td>
+                            <td>Companies, Contacts, Tickets, Projects, Agreements</td>
+                        </tr>
+                        <tr>
+                            <td><strong>HaloPSA</strong></td>
+                            <td><span class="badge bg-success">Implemented</span></td>
+                            <td>Companies, Contacts, Tickets, OAuth2 Authentication</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Kaseya BMS</strong></td>
+                            <td><span class="badge bg-success">Implemented</span></td>
+                            <td>Companies, Contacts, Tickets, Projects, Agreements</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Syncro</strong></td>
+                            <td><span class="badge bg-success">Implemented</span></td>
+                            <td>Companies (Customers), Contacts, Tickets</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Freshservice</strong></td>
+                            <td><span class="badge bg-success">Implemented</span></td>
+                            <td>Companies (Departments), Contacts (Requesters), Tickets, Basic Auth</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Zendesk</strong></td>
+                            <td><span class="badge bg-success">Implemented</span></td>
+                            <td>Companies (Organizations), Contacts (Users), Tickets, Basic Auth</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3>System Information</h3>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Current Organization:</dt>
+                    <dd class="col-sm-8">
+                        {% if current_organization %}
+                            {{ current_organization.name }}
+                        {% else %}
+                            <em class="text-muted">No organization selected</em>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">User Role:</dt>
+                    <dd class="col-sm-8">
+                        {% if current_organization %}
+                            {% for membership in user.memberships.all %}
+                                {% if membership.organization == current_organization %}
+                                    {{ membership.get_role_display }}
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <em class="text-muted">N/A</em>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Logged in as:</dt>
+                    <dd class="col-sm-8">{{ user.username }}</dd>
+
+                    <dt class="col-sm-4">2FA Status:</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge bg-success">Enabled</span>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h3>License & Credits</h3>
+                <p>
+                    Built with Django 6, Django REST Framework, django-two-factor-auth, django-axes,
+                    Bootstrap 5, and other open-source technologies.
+                </p>
+                <p class="mb-0">
+                    <strong>Deployment:</strong> Self-hosted on Ubuntu with MariaDB + Nginx + systemd<br>
+                    <strong>Architecture:</strong> No Docker, no Redis - pure Python + systemd timers
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

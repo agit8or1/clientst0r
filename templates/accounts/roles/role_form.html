@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_edit %}Edit{% else %}Create{% endif %} Role - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:role_list' %}">Role Management</a></li>
+        <li class="breadcrumb-item active">{% if is_edit %}Edit{% else %}Create{% endif %} Role</li>
+    </ol>
+</nav>
+
+<h2><i class="fas fa-user-shield"></i> {% if is_edit %}Edit{% else %}Create{% endif %} Custom Role</h2>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label for="name" class="form-label">Role Name *</label>
+                    <input type="text" class="form-control" id="name" name="name"
+                           value="{% if role %}{{ role.name }}{% elif copy_from %}{{ copy_from.name }} (Copy){% endif %}"
+                           required>
+                </div>
+                <div class="col-md-6">
+                    <label for="description" class="form-label">Description</label>
+                    <input type="text" class="form-control" id="description" name="description"
+                           value="{% if role %}{{ role.description }}{% elif copy_from %}{{ copy_from.description }}{% endif %}">
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <h5 class="mb-3"><i class="fas fa-sliders-h"></i> Permissions</h5>
+
+            <div class="row">
+                <!-- Vault Permissions -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-key"></i> Vault Permissions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="vault_view" id="vault_view"
+                                       {% if role %}{% if role.vault_view %}checked{% endif %}{% elif copy_from %}{% if copy_from.vault_view %}checked{% endif %}{% else %}checked{% endif %}>
+                                <label class="form-check-label" for="vault_view">View passwords and secrets</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="vault_create" id="vault_create"
+                                       {% if role %}{% if role.vault_create %}checked{% endif %}{% elif copy_from %}{% if copy_from.vault_create %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="vault_create">Create passwords</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="vault_edit" id="vault_edit"
+                                       {% if role %}{% if role.vault_edit %}checked{% endif %}{% elif copy_from %}{% if copy_from.vault_edit %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="vault_edit">Edit passwords</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="vault_delete" id="vault_delete"
+                                       {% if role %}{% if role.vault_delete %}checked{% endif %}{% elif copy_from %}{% if copy_from.vault_delete %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="vault_delete">Delete passwords</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="vault_export" id="vault_export"
+                                       {% if role %}{% if role.vault_export %}checked{% endif %}{% elif copy_from %}{% if copy_from.vault_export %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="vault_export">Export passwords</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="vault_view_password" id="vault_view_password"
+                                       {% if role %}{% if role.vault_view_password %}checked{% endif %}{% elif copy_from %}{% if copy_from.vault_view_password %}checked{% endif %}{% else %}checked{% endif %}>
+                                <label class="form-check-label" for="vault_view_password">View actual password values</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assets Permissions -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-server"></i> Assets Permissions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="assets_view" id="assets_view"
+                                       {% if role %}{% if role.assets_view %}checked{% endif %}{% elif copy_from %}{% if copy_from.assets_view %}checked{% endif %}{% else %}checked{% endif %}>
+                                <label class="form-check-label" for="assets_view">View assets</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="assets_create" id="assets_create"
+                                       {% if role %}{% if role.assets_create %}checked{% endif %}{% elif copy_from %}{% if copy_from.assets_create %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="assets_create">Create assets</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="assets_edit" id="assets_edit"
+                                       {% if role %}{% if role.assets_edit %}checked{% endif %}{% elif copy_from %}{% if copy_from.assets_edit %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="assets_edit">Edit assets</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="assets_delete" id="assets_delete"
+                                       {% if role %}{% if role.assets_delete %}checked{% endif %}{% elif copy_from %}{% if copy_from.assets_delete %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="assets_delete">Delete assets</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documents Permissions -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-file-alt"></i> Documents Permissions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="docs_view" id="docs_view"
+                                       {% if role %}{% if role.docs_view %}checked{% endif %}{% elif copy_from %}{% if copy_from.docs_view %}checked{% endif %}{% else %}checked{% endif %}>
+                                <label class="form-check-label" for="docs_view">View documents</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="docs_create" id="docs_create"
+                                       {% if role %}{% if role.docs_create %}checked{% endif %}{% elif copy_from %}{% if copy_from.docs_create %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="docs_create">Create documents</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="docs_edit" id="docs_edit"
+                                       {% if role %}{% if role.docs_edit %}checked{% endif %}{% elif copy_from %}{% if copy_from.docs_edit %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="docs_edit">Edit documents</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="docs_delete" id="docs_delete"
+                                       {% if role %}{% if role.docs_delete %}checked{% endif %}{% elif copy_from %}{% if copy_from.docs_delete %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="docs_delete">Delete documents</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="docs_publish" id="docs_publish"
+                                       {% if role %}{% if role.docs_publish %}checked{% endif %}{% elif copy_from %}{% if copy_from.docs_publish %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="docs_publish">Publish/unpublish documents</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Files Permissions -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-folder"></i> Files Permissions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="files_view" id="files_view"
+                                       {% if role %}{% if role.files_view %}checked{% endif %}{% elif copy_from %}{% if copy_from.files_view %}checked{% endif %}{% else %}checked{% endif %}>
+                                <label class="form-check-label" for="files_view">View files</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="files_upload" id="files_upload"
+                                       {% if role %}{% if role.files_upload %}checked{% endif %}{% elif copy_from %}{% if copy_from.files_upload %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="files_upload">Upload files</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="files_delete" id="files_delete"
+                                       {% if role %}{% if role.files_delete %}checked{% endif %}{% elif copy_from %}{% if copy_from.files_delete %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="files_delete">Delete files</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monitoring Permissions -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-chart-line"></i> Monitoring Permissions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="monitoring_view" id="monitoring_view"
+                                       {% if role %}{% if role.monitoring_view %}checked{% endif %}{% elif copy_from %}{% if copy_from.monitoring_view %}checked{% endif %}{% else %}checked{% endif %}>
+                                <label class="form-check-label" for="monitoring_view">View monitors</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="monitoring_create" id="monitoring_create"
+                                       {% if role %}{% if role.monitoring_create %}checked{% endif %}{% elif copy_from %}{% if copy_from.monitoring_create %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="monitoring_create">Create monitors</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="monitoring_edit" id="monitoring_edit"
+                                       {% if role %}{% if role.monitoring_edit %}checked{% endif %}{% elif copy_from %}{% if copy_from.monitoring_edit %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="monitoring_edit">Edit monitors</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="monitoring_delete" id="monitoring_delete"
+                                       {% if role %}{% if role.monitoring_delete %}checked{% endif %}{% elif copy_from %}{% if copy_from.monitoring_delete %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="monitoring_delete">Delete monitors</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="monitoring_trigger" id="monitoring_trigger"
+                                       {% if role %}{% if role.monitoring_trigger %}checked{% endif %}{% elif copy_from %}{% if copy_from.monitoring_trigger %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="monitoring_trigger">Manually trigger checks</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Integrations Permissions -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-plug"></i> Integrations Permissions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="integrations_view" id="integrations_view"
+                                       {% if role %}{% if role.integrations_view %}checked{% endif %}{% elif copy_from %}{% if copy_from.integrations_view %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="integrations_view">View integrations</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="integrations_configure" id="integrations_configure"
+                                       {% if role %}{% if role.integrations_configure %}checked{% endif %}{% elif copy_from %}{% if copy_from.integrations_configure %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="integrations_configure">Configure integrations</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="integrations_sync" id="integrations_sync"
+                                       {% if role %}{% if role.integrations_sync %}checked{% endif %}{% elif copy_from %}{% if copy_from.integrations_sync %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="integrations_sync">Trigger sync operations</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audit Permissions -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-clipboard-list"></i> Audit Permissions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="audit_view" id="audit_view"
+                                       {% if role %}{% if role.audit_view %}checked{% endif %}{% elif copy_from %}{% if copy_from.audit_view %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="audit_view">View audit logs</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="audit_export" id="audit_export"
+                                       {% if role %}{% if role.audit_export %}checked{% endif %}{% elif copy_from %}{% if copy_from.audit_export %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="audit_export">Export audit logs</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Organization Permissions -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-users"></i> Organization Permissions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="org_view_members" id="org_view_members"
+                                       {% if role %}{% if role.org_view_members %}checked{% endif %}{% elif copy_from %}{% if copy_from.org_view_members %}checked{% endif %}{% else %}checked{% endif %}>
+                                <label class="form-check-label" for="org_view_members">View organization members</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="org_invite_members" id="org_invite_members"
+                                       {% if role %}{% if role.org_invite_members %}checked{% endif %}{% elif copy_from %}{% if copy_from.org_invite_members %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="org_invite_members">Invite new members</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="org_manage_members" id="org_manage_members"
+                                       {% if role %}{% if role.org_manage_members %}checked{% endif %}{% elif copy_from %}{% if copy_from.org_manage_members %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="org_manage_members">Edit/remove members</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="org_manage_settings" id="org_manage_settings"
+                                       {% if role %}{% if role.org_manage_settings %}checked{% endif %}{% elif copy_from %}{% if copy_from.org_manage_settings %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="org_manage_settings">Change organization settings</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API Permissions -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-code"></i> API Permissions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="api_access" id="api_access"
+                                       {% if role %}{% if role.api_access %}checked{% endif %}{% elif copy_from %}{% if copy_from.api_access %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="api_access">Access API endpoints</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="api_keys_manage" id="api_keys_manage"
+                                       {% if role %}{% if role.api_keys_manage %}checked{% endif %}{% elif copy_from %}{% if copy_from.api_keys_manage %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="api_keys_manage">Create/manage API keys</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'accounts:role_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> {% if is_edit %}Update{% else %}Create{% endif %} Role
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

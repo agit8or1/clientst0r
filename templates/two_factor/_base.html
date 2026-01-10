@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% block page_title %}Two-Factor Authentication{% endblock %} - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">{% block card_title %}Two-Factor Authentication{% endblock %}</h4>
+            </div>
+            <div class="card-body">
+                {% block two_factor_content %}{% endblock %}
+            </div>
+        </div>
+
+        {% block two_factor_extra %}{% endblock %}
+    </div>
+</div>
+{% endblock %}

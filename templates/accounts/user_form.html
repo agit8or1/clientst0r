@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} User - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:user_list' %}">Users</a></li>
+        {% if user_obj %}
+        <li class="breadcrumb-item"><a href="{% url 'accounts:user_detail' user_obj.id %}">{{ user_obj.username }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active">{{ action }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-user-edit"></i> {{ action }} User</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.username.id_for_label }}" class="form-label">Username *</label>
+                        {{ form.username }}
+                        {% if form.username.errors %}
+                        <div class="invalid-feedback d-block">{{ form.username.errors }}</div>
+                        {% endif %}
+                        {% if form.username.help_text %}
+                        <small class="form-text text-muted">{{ form.username.help_text }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                            <div class="invalid-feedback d-block">{{ form.first_name.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                            <div class="invalid-feedback d-block">{{ form.last_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">Email *</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                        <div class="invalid-feedback d-block">{{ form.email.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    {% if form.password1 %}
+                    <hr class="my-4">
+                    <h5>Set Password</h5>
+
+                    <div class="mb-3">
+                        <label for="{{ form.password1.id_for_label }}" class="form-label">Password *</label>
+                        {{ form.password1 }}
+                        {% if form.password1.errors %}
+                        <div class="invalid-feedback d-block">{{ form.password1.errors }}</div>
+                        {% endif %}
+                        {% if form.password1.help_text %}
+                        <small class="form-text text-muted">{{ form.password1.help_text }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.password2.id_for_label }}" class="form-label">Confirm Password *</label>
+                        {{ form.password2 }}
+                        {% if form.password2.errors %}
+                        <div class="invalid-feedback d-block">{{ form.password2.errors }}</div>
+                        {% endif %}
+                        {% if form.password2.help_text %}
+                        <small class="form-text text-muted">{{ form.password2.help_text }}</small>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <hr class="my-4">
+                    <h5>User Type & Access Level</h5>
+
+                    <div class="mb-3">
+                        <label for="{{ form.user_type.id_for_label }}" class="form-label">User Type *</label>
+                        {{ form.user_type }}
+                        {% if form.user_type.errors %}
+                        <div class="invalid-feedback d-block">{{ form.user_type.errors }}</div>
+                        {% endif %}
+                        {% if form.user_type.help_text %}
+                        <small class="form-text text-muted">{{ form.user_type.help_text }}</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3" id="global_role_field">
+                        <label for="{{ form.global_role_template.id_for_label }}" class="form-label">Global Role Template</label>
+                        {{ form.global_role_template }}
+                        {% if form.global_role_template.errors %}
+                        <div class="invalid-feedback d-block">{{ form.global_role_template.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.global_role_template.help_text }}</small>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> <strong>User Types:</strong><br>
+                        <strong>Staff User (MSP Tech):</strong> Has global access to all organizations with assigned role template<br>
+                        <strong>Organization User (Client):</strong> Only sees organizations they are explicitly added to
+                    </div>
+
+                    {% if form.is_active %}
+                    <hr class="my-4">
+                    <h5>System Permissions</h5>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                Active
+                            </label>
+                            {% if form.is_active.help_text %}
+                            <br><small class="form-text text-muted">{{ form.is_active.help_text }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.is_staff }}
+                            <label class="form-check-label" for="{{ form.is_staff.id_for_label }}">
+                                Staff Status (Django Admin Access)
+                            </label>
+                            {% if form.is_staff.help_text %}
+                            <br><small class="form-text text-muted">{{ form.is_staff.help_text }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a href="{% if user_obj %}{% url 'accounts:user_detail' user_obj.id %}{% else %}{% url 'accounts:user_list' %}{% endif %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {{ action }} User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if user_obj %}
+        <div class="card mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-building"></i> Organization Memberships</h5>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addMembershipModal">
+                    <i class="fas fa-plus"></i> Add to Organization
+                </button>
+            </div>
+            <div class="card-body">
+                {% if memberships %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Organization</th>
+                                <th>Role Template</th>
+                                <th>Default Role</th>
+                                <th>Status</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for membership in memberships %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'accounts:organization_detail' membership.organization.id %}">
+                                        {{ membership.organization.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if membership.role_template %}
+                                        <span class="badge bg-success">{{ membership.role_template.name }}</span>
+                                    {% else %}
+                                        <span class="text-muted">None</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ membership.get_role_display }}</span>
+                                </td>
+                                <td>
+                                    {% if membership.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Suspended</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ membership.created_at|date:"Y-m-d" }}</td>
+                                <td>
+                                    <a href="{% url 'accounts:member_edit' membership.organization.id membership.id %}"
+                                       class="btn btn-sm btn-outline-primary" title="Edit Membership">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'accounts:member_remove' membership.organization.id membership.id %}"
+                                       class="btn btn-sm btn-outline-danger" title="Remove from Organization"
+                                       onclick="return confirm('Remove this user from {{ membership.organization.name }}?')">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">This user is not a member of any organizations.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Membership Modal -->
+{% if user_obj %}
+<div class="modal fade" id="addMembershipModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus"></i> Add User to Organization</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'accounts:user_add_membership' user_obj.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="organization_id" class="form-label">Organization *</label>
+                        <select name="organization_id" id="organization_id" class="form-select" required>
+                            <option value="">Select organization...</option>
+                            {% for org in available_organizations %}
+                            <option value="{{ org.id }}">{{ org.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Default Role *</label>
+                        <select name="role" id="role" class="form-select" required>
+                            <option value="readonly">Read-Only</option>
+                            <option value="editor">Editor</option>
+                            <option value="admin">Admin</option>
+                            <option value="owner">Owner</option>
+                        </select>
+                        <small class="text-muted">Used if no role template is selected</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="role_template_id" class="form-label">Role Template (Optional)</label>
+                        <select name="role_template_id" id="role_template_id" class="form-select">
+                            <option value="">--- Use Default Role ---</option>
+                            <optgroup label="System Templates">
+                                {% for template in system_role_templates %}
+                                <option value="{{ template.id }}">{{ template.name }}</option>
+                                {% endfor %}
+                            </optgroup>
+                        </select>
+                        <small class="text-muted">Provides granular permissions</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add to Organization
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle global role field visibility based on user type
+function toggleGlobalRoleField() {
+    const userTypeField = document.getElementById('{{ form.user_type.id_for_label }}');
+    const globalRoleField = document.getElementById('global_role_field');
+
+    if (userTypeField && globalRoleField) {
+        if (userTypeField.value === 'staff') {
+            globalRoleField.style.display = 'block';
+        } else {
+            globalRoleField.style.display = 'none';
+        }
+    }
+}
+
+// Run on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleGlobalRoleField();
+
+    // Run when user type changes
+    const userTypeField = document.getElementById('{{ form.user_type.id_for_label }}');
+    if (userTypeField) {
+        userTypeField.addEventListener('change', toggleGlobalRoleField);
+    }
+});
+</script>
+{% endblock %}

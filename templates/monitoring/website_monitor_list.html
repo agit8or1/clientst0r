@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Website Monitors - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-globe"></i> Website Monitors</h2>
+    <a href="{% url 'monitoring:website_monitor_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Website Monitor
+    </a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" name="q" class="form-control" placeholder="Search websites..." value="{{ query }}">
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="warning" {% if status_filter == 'warning' %}selected{% endif %}>Warning</option>
+                    <option value="down" {% if status_filter == 'down' %}selected{% endif %}>Down</option>
+                    <option value="unknown" {% if status_filter == 'unknown' %}selected{% endif %}>Unknown</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if monitors %}
+<div class="card">
+    <div class="card-body">
+        <table id="monitorTable" class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>URL</th>
+                    <th>Status</th>
+                    <th>Response Time</th>
+                    <th>SSL Expires</th>
+                    <th>Last Checked</th>
+                    <th width="150">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for monitor in monitors %}
+                <tr>
+                    <td><a href="{% url 'monitoring:website_monitor_detail' monitor.pk %}"><strong>{{ monitor.name }}</strong></a></td>
+                    <td><a href="{{ monitor.url }}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i> {{ monitor.url|truncatechars:40 }}</a></td>
+                    <td>
+                        {% if monitor.status == 'active' %}
+                        <span class="badge bg-success"><i class="fas fa-check-circle"></i> Active</span>
+                        {% elif monitor.status == 'warning' %}
+                        <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Warning</span>
+                        {% elif monitor.status == 'down' %}
+                        <span class="badge bg-danger"><i class="fas fa-times-circle"></i> Down</span>
+                        {% else %}
+                        <span class="badge bg-secondary"><i class="fas fa-question-circle"></i> Unknown</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if monitor.last_response_time_ms %}
+                        <span class="badge bg-info">{{ monitor.last_response_time_ms }}ms</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if monitor.ssl_enabled and monitor.ssl_expires_at %}
+                        {{ monitor.ssl_expires_at|date:"M d, Y" }}
+                        {% if monitor.is_ssl_expiring_soon %}<span class="badge bg-warning">Soon</span>{% endif %}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if monitor.last_checked_at %}
+                        {{ monitor.last_checked_at|timesince }} ago
+                        {% else %}Never{% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'monitoring:website_monitor_detail' monitor.pk %}" class="btn btn-outline-primary" title="View">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'monitoring:website_monitor_check' monitor.pk %}" class="btn btn-outline-success" title="Check Now">
+                                <i class="fas fa-sync"></i>
+                            </a>
+                            <a href="{% url 'monitoring:website_monitor_edit' monitor.pk %}" class="btn btn-outline-secondary" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-globe"></i>
+    <h3>No Website Monitors</h3>
+    <p>Start monitoring your websites by adding a new monitor.</p>
+    <a href="{% url 'monitoring:website_monitor_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Website Monitor
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    {% if monitors %}
+    $('#monitorTable').DataTable({
+        order: [[5, 'desc']],  // Sort by last checked (newest first)
+        pageLength: 25,
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search monitors..."
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}

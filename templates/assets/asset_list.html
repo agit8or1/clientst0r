@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Assets{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-box"></i> Assets</h1>
+    <a href="{% url 'assets:asset_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Add Asset</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table id="assetTable" class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Manufacturer</th>
+                    <th>Model</th>
+                    <th>Serial Number</th>
+                    <th>Asset Tag</th>
+                    <th width="100">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for asset in assets %}
+                <tr>
+                    <td><a href="{% url 'assets:asset_detail' asset.pk %}">{{ asset.name }}</a></td>
+                    <td>
+                        {% if asset.asset_type == 'laptop' %}<i class="fas fa-laptop text-primary"></i>
+                        {% elif asset.asset_type == 'desktop' %}<i class="fas fa-desktop text-info"></i>
+                        {% elif asset.asset_type == 'server' %}<i class="fas fa-server text-danger"></i>
+                        {% elif asset.asset_type == 'network' %}<i class="fas fa-network-wired text-success"></i>
+                        {% elif asset.asset_type == 'phone' %}<i class="fas fa-mobile-alt text-warning"></i>
+                        {% elif asset.asset_type == 'printer' %}<i class="fas fa-print text-secondary"></i>
+                        {% else %}<i class="fas fa-box text-muted"></i>{% endif %}
+                        {{ asset.get_asset_type_display }}
+                    </td>
+                    <td>{{ asset.manufacturer|default:"—" }}</td>
+                    <td>{{ asset.model|default:"—" }}</td>
+                    <td><code>{{ asset.serial_number|default:"—" }}</code></td>
+                    <td><span class="badge bg-secondary">{{ asset.asset_tag|default:"—" }}</span></td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'assets:asset_detail' asset.pk %}" class="btn btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
+                            <a href="{% url 'assets:asset_edit' asset.pk %}" class="btn btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center py-4 text-muted"><i class="fas fa-inbox"></i> No assets found. <a href="{% url 'assets:asset_create' %}">Create one</a>.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    {% if assets %}
+    $('#assetTable').DataTable({
+        order: [[0, 'asc']],
+        pageLength: 25,
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search assets..."
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}

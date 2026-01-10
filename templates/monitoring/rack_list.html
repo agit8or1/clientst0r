@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Racks - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-server"></i> Rack Management</h2>
+    <a href="{% url 'monitoring:rack_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Rack
+    </a>
+</div>
+
+{% if racks %}
+<div class="card">
+    <div class="card-body">
+        <table id="rackTable" class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Location</th>
+                    <th>Datacenter/Aisle</th>
+                    <th>Size</th>
+                    <th>Width</th>
+                    <th>Available</th>
+                    <th>Devices</th>
+                    <th>Power</th>
+                    <th width="100">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rack in racks %}
+                <tr>
+                    <td><a href="{% url 'monitoring:rack_detail' rack.pk %}"><strong>{{ rack.name }}</strong></a></td>
+                    <td><i class="fas fa-map-marker-alt text-primary"></i> {{ rack.location|default:"—" }}</td>
+                    <td>
+                        {% if rack.datacenter or rack.aisle %}
+                        <small>{{ rack.datacenter|default:"" }}{% if rack.datacenter and rack.aisle %} / {% endif %}{{ rack.aisle|default:"" }}</small>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td><span class="badge bg-info">{{ rack.units }}U</span></td>
+                    <td><span class="badge bg-secondary">{{ rack.width_inches }}"</span></td>
+                    <td><span class="badge bg-success">{{ rack.available_units }}U</span></td>
+                    <td><span class="badge bg-primary">{{ rack.rack_devices.count }}</span></td>
+                    <td>
+                        {% if rack.power_capacity_watts %}
+                        <small>{{ rack.power_utilization_percent }}%</small>
+                        <div class="progress" style="height: 6px; width: 60px;">
+                            <div class="progress-bar {% if rack.power_utilization_percent > 80 %}bg-danger{% elif rack.power_utilization_percent > 60 %}bg-warning{% else %}bg-success{% endif %}"
+                                 style="width: {{ rack.power_utilization_percent }}%"></div>
+                        </div>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'monitoring:rack_detail' rack.pk %}" class="btn btn-outline-primary" title="View">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'monitoring:rack_edit' rack.pk %}" class="btn btn-outline-secondary" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-server"></i>
+    <h3>No Racks</h3>
+    <p>Start managing your data center racks and equipment.</p>
+    <a href="{% url 'monitoring:rack_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Rack
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    {% if racks %}
+    $('#rackTable').DataTable({
+        order: [[1, 'asc']],  // Sort by location
+        pageLength: 25,
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search racks..."
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}

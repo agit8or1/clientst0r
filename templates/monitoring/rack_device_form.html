@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} Device - {{ rack.name }} - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'monitoring:rack_list' %}">Racks</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'monitoring:rack_detail' rack.pk %}">{{ rack.name }}</a></li>
+        <li class="breadcrumb-item active">{{ action }} Device</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-hdd"></i> {{ action }} Device</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">Device Name *</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.start_unit.id_for_label }}" class="form-label">Start Unit (U) *</label>
+                            {{ form.start_unit }}
+                            {% if form.start_unit.errors %}<div class="invalid-feedback d-block">{{ form.start_unit.errors }}</div>{% endif %}
+                            <small class="form-text text-muted">1 = bottom of rack</small>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.units.id_for_label }}" class="form-label">Height (U) *</label>
+                            {{ form.units }}
+                            {% if form.units.errors %}<div class="invalid-feedback d-block">{{ form.units.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.power_draw_watts.id_for_label }}" class="form-label">Power Draw (watts)</label>
+                            {{ form.power_draw_watts }}
+                            {% if form.power_draw_watts.errors %}<div class="invalid-feedback d-block">{{ form.power_draw_watts.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.color.id_for_label }}" class="form-label">Color</label>
+                            {{ form.color }}
+                            {% if form.color.errors %}<div class="invalid-feedback d-block">{{ form.color.errors }}</div>{% endif %}
+                            <small class="form-text text-muted">For visual rack display</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.photo_url.id_for_label }}" class="form-label">Photo URL</label>
+                        {{ form.photo_url }}
+                        {% if form.photo_url.errors %}<div class="invalid-feedback d-block">{{ form.photo_url.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.asset_id.id_for_label }}" class="form-label">Asset ID</label>
+                        {{ form.asset_id }}
+                        {% if form.asset_id.errors %}<div class="invalid-feedback d-block">{{ form.asset_id.errors }}</div>{% endif %}
+                        <small class="form-text text-muted">Link to asset record</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}<div class="invalid-feedback d-block">{{ form.notes.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'monitoring:rack_detail' rack.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {{ action }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

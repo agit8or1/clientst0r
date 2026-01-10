@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}{{ contact.name }} - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-user"></i> {{ contact.name }}</h1>
+    <div>
+        <a href="{% url 'assets:contact_edit' contact.pk %}" class="btn btn-secondary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{% url 'assets:contact_delete' contact.pk %}" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Delete
+        </a>
+        <a href="{% url 'assets:contact_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-info-circle"></i> Contact Information</h3>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Name:</dt>
+                    <dd class="col-sm-8">{{ contact.name }}</dd>
+
+                    {% if contact.title %}
+                    <dt class="col-sm-4">Title:</dt>
+                    <dd class="col-sm-8">{{ contact.title }}</dd>
+                    {% endif %}
+
+                    {% if contact.email %}
+                    <dt class="col-sm-4">Email:</dt>
+                    <dd class="col-sm-8">
+                        <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+                    </dd>
+                    {% endif %}
+
+                    {% if contact.phone %}
+                    <dt class="col-sm-4">Phone:</dt>
+                    <dd class="col-sm-8">
+                        <a href="tel:{{ contact.phone }}">{{ contact.phone }}</a>
+                    </dd>
+                    {% endif %}
+
+                    {% if contact.mobile %}
+                    <dt class="col-sm-4">Mobile:</dt>
+                    <dd class="col-sm-8">
+                        <a href="tel:{{ contact.mobile }}">{{ contact.mobile }}</a>
+                    </dd>
+                    {% endif %}
+
+                    <dt class="col-sm-4">Created:</dt>
+                    <dd class="col-sm-8">{{ contact.created_at|date:"F j, Y g:i A" }}</dd>
+
+                    <dt class="col-sm-4">Last Updated:</dt>
+                    <dd class="col-sm-8">{{ contact.updated_at|date:"F j, Y g:i A" }}</dd>
+                </dl>
+
+                {% if contact.notes %}
+                <h5 class="mt-3"><i class="fas fa-sticky-note"></i> Notes</h5>
+                <p>{{ contact.notes|linebreaks }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-server"></i> Associated Assets</h3>
+            </div>
+            <div class="card-body">
+                {% if assets %}
+                <div class="list-group">
+                    {% for asset in assets %}
+                    <a href="{% url 'assets:asset_detail' asset.pk %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{ asset.name }}</h5>
+                            <small class="text-muted">{{ asset.get_asset_type_display }}</small>
+                        </div>
+                        {% if asset.asset_tag %}
+                        <p class="mb-1"><small><strong>Tag:</strong> {{ asset.asset_tag }}</small></p>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No assets associated with this contact.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}IPAM - IP Address Management - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-sitemap"></i> IP Address Management</h2>
+    <a href="{% url 'monitoring:subnet_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Subnet
+    </a>
+</div>
+
+{% if subnets %}
+<div class="card">
+    <div class="card-body">
+        <table id="subnetTable" class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Network</th>
+                    <th>VLAN</th>
+                    <th>Gateway</th>
+                    <th>Location</th>
+                    <th>IPs</th>
+                    <th>Description</th>
+                    <th width="100">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for subnet in subnets %}
+                <tr>
+                    <td><a href="{% url 'monitoring:subnet_detail' subnet.pk %}"><i class="fas fa-network-wired text-primary"></i> <strong>{{ subnet.name }}</strong></a></td>
+                    <td><code>{{ subnet.network }}</code></td>
+                    <td>
+                        {% if subnet.vlan_id %}
+                        <span class="badge bg-info">VLAN {{ subnet.vlan_id }}</span>
+                        {% if subnet.vlan_name %}<br><small>{{ subnet.vlan_name }}</small>{% endif %}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if subnet.gateway %}
+                        <code>{{ subnet.gateway }}</code>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if subnet.location %}
+                        <i class="fas fa-map-marker-alt"></i> {{ subnet.location }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td><span class="badge bg-secondary">{{ subnet.ip_addresses.count }}</span></td>
+                    <td><small>{{ subnet.description|truncatewords:10|default:"—" }}</small></td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'monitoring:subnet_detail' subnet.pk %}" class="btn btn-outline-primary" title="View">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'monitoring:subnet_edit' subnet.pk %}" class="btn btn-outline-secondary" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-sitemap"></i>
+    <h3>No Subnets Configured</h3>
+    <p>Start managing your IP address space by adding subnets.</p>
+    <a href="{% url 'monitoring:subnet_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Subnet
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    {% if subnets %}
+    $('#subnetTable').DataTable({
+        order: [[1, 'asc']],  // Sort by network
+        pageLength: 25,
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search subnets..."
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}

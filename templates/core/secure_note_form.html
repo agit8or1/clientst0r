@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Send Secure Note - HuduGlue{% endblock %}
+
+{% block content %}
+<h2><i class="fas fa-lock"></i> Send Secure Note</h2>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Title *</label>
+                        <input type="text" name="title" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Recipients *</label>
+                        <select name="recipients" class="form-select" multiple size="5" required>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.username }} - {{ user.get_full_name|default:user.email }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Message *</label>
+                        <textarea name="content" class="form-control" rows="8" required></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Expires After</label>
+                            <select name="expires_hours" class="form-select">
+                                <option value="">Never</option>
+                                <option value="1">1 hour</option>
+                                <option value="24">24 hours</option>
+                                <option value="168">7 days</option>
+                                <option value="720">30 days</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check mt-4">
+                                <input type="checkbox" name="read_once" class="form-check-input" id="read_once">
+                                <label class="form-check-label" for="read_once">
+                                    Self-destruct after first read
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" name="require_password" class="form-check-input" id="require_password">
+                            <label class="form-check-label" for="require_password">
+                                Require password to decrypt
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="password_field" style="display: none;">
+                        <label class="form-label">Access Password</label>
+                        <input type="text" name="access_password" class="form-control">
+                        <small class="text-muted">Recipients must enter this password to read the note</small>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'core:secure_note_sent' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-success"><i class="fas fa-lock"></i> Send Encrypted</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6><i class="fas fa-shield-alt"></i> Security Features</h6>
+                <ul class="small mb-0">
+                    <li>End-to-end encrypted</li>
+                    <li>Self-destruct options</li>
+                    <li>Read tracking</li>
+                    <li>Password protection</li>
+                    <li>Automatic expiration</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('require_password').addEventListener('change', function() {
+    document.getElementById('password_field').style.display = this.checked ? 'block' : 'none';
+});
+</script>
+{% endblock %}

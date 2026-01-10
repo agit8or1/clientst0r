@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Create API Key - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-key"></i> Create API Key</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-plus"></i> New API Key</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required
+                               placeholder="e.g., Production Integration, CI/CD Pipeline">
+                        <small class="form-text text-muted">A descriptive name to identify this API key</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Permission Level <span class="text-danger">*</span></label>
+                        <select class="form-select" id="role" name="role" required>
+                            {% for role_value, role_label in roles %}
+                            <option value="{{ role_value }}" {% if role_value == 'readonly' %}selected{% endif %}>
+                                {{ role_label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">API keys inherit permissions based on their role</small>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Important:</strong> The API key will be shown only once after creation. Make sure to copy it and store it securely!
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-key"></i> Create API Key
+                        </button>
+                        <a href="{% url 'api:apikey_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Permission Levels</h5>
+            </div>
+            <div class="card-body">
+                <h6><span class="badge bg-secondary">Read-Only</span></h6>
+                <p class="small">Can view data but cannot make changes. Safest option for integrations that only need to read data.</p>
+
+                <h6><span class="badge bg-info">Editor</span></h6>
+                <p class="small">Can create, update, and delete resources. Suitable for automation scripts that need to modify data.</p>
+
+                <h6><span class="badge bg-warning">Admin</span></h6>
+                <p class="small">Full access to data and can manage integrations. Use with caution.</p>
+
+                <h6><span class="badge bg-danger">Owner</span></h6>
+                <p class="small">Complete access including user management and organization settings. Only create if absolutely necessary.</p>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Best Practices</h5>
+            </div>
+            <div class="card-body">
+                <ul class="small">
+                    <li>Use separate keys for different integrations</li>
+                    <li>Grant minimum required permissions</li>
+                    <li>Rotate keys regularly</li>
+                    <li>Delete unused keys immediately</li>
+                    <li>Never commit keys to version control</li>
+                    <li>Store keys in environment variables</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

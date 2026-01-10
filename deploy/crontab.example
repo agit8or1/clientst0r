@@ -1,0 +1,12 @@
+# HuduGlue Crontab Example
+# Alternative to systemd timers for scheduled tasks
+# Install with: crontab -e (as itdocs user)
+
+# Check website monitors every 5 minutes
+*/5 * * * * cd /opt/itdocs && /opt/itdocs/venv/bin/python manage.py check_websites >> /var/log/itdocs/monitor.log 2>&1
+
+# PSA sync every hour
+0 * * * * cd /opt/itdocs && /opt/itdocs/venv/bin/python manage.py sync_psa >> /var/log/itdocs/psa-sync.log 2>&1
+
+# Daily log rotation (optional, if not using logrotate)
+0 0 * * * find /var/log/itdocs -name "*.log" -mtime +30 -delete

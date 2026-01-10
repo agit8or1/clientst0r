@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Documentation{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group sticky-top" style="top: 20px;">
+            <a href="#overview" class="list-group-item list-group-item-action">Overview</a>
+            <a href="#getting-started" class="list-group-item list-group-item-action">Getting Started</a>
+            <a href="#assets" class="list-group-item list-group-item-action">Assets</a>
+            <a href="#passwords" class="list-group-item list-group-item-action">Password Vault</a>
+            <a href="#documents" class="list-group-item list-group-item-action">Documents</a>
+            <a href="#integrations" class="list-group-item list-group-item-action">PSA Integrations</a>
+            <a href="#api" class="list-group-item list-group-item-action">API Usage</a>
+            <a href="#security" class="list-group-item list-group-item-action">Security</a>
+        </div>
+    </div>
+    <div class="col-md-9">
+        <h1>Platform Documentation</h1>
+        <p class="text-muted">Version {{ version }}</p>
+
+        <section id="overview" class="mb-5">
+            <h2>Overview</h2>
+            <p>HuduGlue provides a secure, self-hosted solution for managing your IT infrastructure documentation, passwords, and PSA integrations.</p>
+
+            <h4>Key Features</h4>
+            <ul>
+                <li><strong>Asset Management:</strong> Track devices, servers, and equipment with flexible custom fields</li>
+                <li><strong>Password Vault:</strong> AES-GCM encrypted password storage with audit logging</li>
+                <li><strong>Knowledge Base:</strong> Markdown-based documentation with version history</li>
+                <li><strong>PSA Integration:</strong> Sync companies, contacts, and tickets from ConnectWise, Autotask, and more</li>
+                <li><strong>REST API:</strong> Comprehensive API with secure key-based authentication</li>
+                <li><strong>Audit Logs:</strong> Track all user actions for compliance and security</li>
+            </ul>
+        </section>
+
+        <section id="getting-started" class="mb-5">
+            <h2>Getting Started</h2>
+
+            <h4>Organization Setup</h4>
+            <p>Each account can be a member of multiple organizations. Organizations provide complete data isolation.</p>
+            <ol>
+                <li>Your administrator will create an organization and add you as a member</li>
+                <li>Use the organization dropdown in the navigation to switch between organizations</li>
+                <li>Your role determines your permissions: Owner, Admin, Editor, or Read-Only</li>
+            </ol>
+
+            <h4>Two-Factor Authentication</h4>
+            <p>2FA is enforced for security. On first login:</p>
+            <ol>
+                <li>Scan the QR code with an authenticator app (Google Authenticator, Authy, etc.)</li>
+                <li>Enter the 6-digit code to confirm setup</li>
+                <li>Save backup codes in a secure location</li>
+            </ol>
+        </section>
+
+        <section id="assets" class="mb-5">
+            <h2>Asset Management</h2>
+
+            <h4>Creating Assets</h4>
+            <ol>
+                <li>Navigate to <strong>Assets</strong> in the main menu</li>
+                <li>Click <strong>Add Asset</strong></li>
+                <li>Fill in basic details (name, type, manufacturer, model)</li>
+                <li>Add custom fields as JSON for flexible data storage</li>
+                <li>Assign tags for easy categorization</li>
+                <li>Link a primary contact if applicable</li>
+            </ol>
+
+            <h4>Custom Fields</h4>
+            <p>Custom fields are stored as JSON and allow any structure:</p>
+            <pre>
+{
+  "ip_address": "192.168.1.10",
+  "location": "Data Center A",
+  "warranty_expires": "2025-12-31",
+  "licenses": ["Windows Server", "SQL Server"]
+}
+            </pre>
+
+            <h4>Relationships</h4>
+            <p>Link assets to documents, passwords, and other assets to show dependencies and connections.</p>
+        </section>
+
+        <section id="passwords" class="mb-5">
+            <h2>Password Vault</h2>
+
+            <h4>Storing Passwords</h4>
+            <ol>
+                <li>Navigate to <strong>Passwords</strong></li>
+                <li>Click <strong>Add Password</strong></li>
+                <li>Enter title, username, URL, and password</li>
+                <li>Add notes and tags</li>
+                <li>Password is encrypted immediately using AES-GCM</li>
+            </ol>
+
+            <h4>Revealing Passwords</h4>
+            <p>For security, passwords are never displayed automatically:</p>
+            <ol>
+                <li>Open password details</li>
+                <li>Click <strong>Reveal Password</strong></li>
+                <li>Action is logged in audit trail</li>
+            </ol>
+
+            <h4>Security</h4>
+            <ul>
+                <li>Passwords encrypted at rest with 256-bit AES-GCM</li>
+                <li>Master key stored in environment variable, never in database</li>
+                <li>All reveals logged with timestamp and user</li>
+                <li>No plaintext ever touches disk</li>
+            </ul>
+        </section>
+
+        <section id="documents" class="mb-5">
+            <h2>Knowledge Base</h2>
+
+            <h4>Creating Documents</h4>
+            <ol>
+                <li>Navigate to <strong>Docs</strong></li>
+                <li>Click <strong>New Document</strong></li>
+                <li>Write content using Markdown syntax</li>
+                <li>Add tags for organization</li>
+                <li>Publish when ready</li>
+            </ol>
+
+            <h4>Markdown Support</h4>
+            <p>Full markdown support including:</p>
+            <ul>
+                <li>Headers, bold, italic, lists</li>
+                <li>Code blocks with syntax highlighting</li>
+                <li>Links and images</li>
+                <li>Tables</li>
+                <li>Blockquotes</li>
+            </ul>
+
+            <h4>Version History</h4>
+            <p>Every edit creates a version snapshot. View previous versions from the document detail page.</p>
+        </section>
+
+        <section id="integrations" class="mb-5">
+            <h2>PSA Integrations</h2>
+
+            <h4>Supported PSAs</h4>
+            <ul>
+                <li><strong>ConnectWise Manage:</strong> Full support</li>
+                <li><strong>Autotask PSA:</strong> Full support</li>
+                <li><strong>HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk:</strong> Framework ready, awaiting implementation</li>
+            </ul>
+
+            <h4>Setting Up Integration</h4>
+            <ol>
+                <li>Navigate to <strong>Integrations</strong></li>
+                <li>Click <strong>Add Integration</strong></li>
+                <li>Select provider type</li>
+                <li>Enter base URL and credentials (see provider documentation)</li>
+                <li>Click <strong>Test</strong> to verify connection</li>
+                <li>Configure sync settings (which entities to sync, interval)</li>
+                <li>Click <strong>Sync</strong> for immediate sync</li>
+            </ol>
+
+            <h4>Synced Data</h4>
+            <p>The following data is synced from your PSA:</p>
+            <ul>
+                <li><strong>Companies:</strong> Client organizations with contact info</li>
+                <li><strong>Contacts:</strong> People associated with companies</li>
+                <li><strong>Tickets:</strong> Service requests with status and priority</li>
+            </ul>
+
+            <h4>Sync Schedule</h4>
+            <p>Automatic sync runs hourly by default (configurable). Manual sync available anytime via UI or CLI.</p>
+        </section>
+
+        <section id="api" class="mb-5">
+            <h2>API Usage</h2>
+
+            <h4>Creating API Keys</h4>
+            <ol>
+                <li>Go to <strong>Profile</strong> or admin panel</li>
+                <li>Navigate to API Keys section</li>
+                <li>Click <strong>Create API Key</strong></li>
+                <li>Choose role (Owner/Admin/Editor/Read-Only)</li>
+                <li><strong>Copy key immediately</strong> - it's shown only once</li>
+            </ol>
+
+            <h4>Authentication</h4>
+            <pre>
+curl -H "Authorization: Bearer itdocs_live_YOUR_KEY_HERE" \
+  https://yourdomain.com/api/assets/
+            </pre>
+
+            <h4>Available Endpoints</h4>
+            <ul>
+                <li><code>GET /api/organizations/</code> - List your organizations</li>
+                <li><code>GET /api/assets/</code> - List assets</li>
+                <li><code>POST /api/assets/</code> - Create asset</li>
+                <li><code>GET /api/passwords/</code> - List passwords (no secrets)</li>
+                <li><code>POST /api/passwords/{id}/reveal/</code> - Reveal password</li>
+                <li><code>GET /api/documents/</code> - List documents</li>
+                <li><code>GET /api/integrations/companies/</code> - Synced PSA companies</li>
+                <li><code>GET /api/integrations/tickets/</code> - Synced PSA tickets</li>
+            </ul>
+
+            <h4>Rate Limits</h4>
+            <ul>
+                <li>1000 requests per hour per user</li>
+                <li>100 requests per hour per anonymous IP</li>
+                <li>Lower limits on sensitive endpoints</li>
+            </ul>
+        </section>
+
+        <section id="security" class="mb-5">
+            <h2>Security Features</h2>
+
+            <h4>Authentication</h4>
+            <ul>
+                <li>Argon2 password hashing (stronger than bcrypt)</li>
+                <li>Enforced TOTP two-factor authentication</li>
+                <li>5-attempt login lockout with 1-hour cooldown</li>
+                <li>Session timeout and secure cookies</li>
+            </ul>
+
+            <h4>Encryption</h4>
+            <ul>
+                <li>AES-GCM for password vault (256-bit key)</li>
+                <li>PSA credentials encrypted at rest</li>
+                <li>API keys stored as HMAC-SHA256 hashes only</li>
+                <li>Master key never stored in database</li>
+            </ul>
+
+            <h4>Access Control</h4>
+            <ul>
+                <li>Organization-based isolation (true multi-tenancy)</li>
+                <li>Role-based permissions (Owner/Admin/Editor/Read-Only)</li>
+                <li>All API calls require authentication</li>
+                <li>File access requires permission check before serving</li>
+            </ul>
+
+            <h4>Audit Logging</h4>
+            <ul>
+                <li>All actions logged (create/read/update/delete)</li>
+                <li>Includes user, IP address, user agent, timestamp</li>
+                <li>Password reveals specially logged</li>
+                <li>Logs immutable (admin read-only)</li>
+            </ul>
+
+            <h4>Best Practices</h4>
+            <ol>
+                <li>Use strong, unique passwords</li>
+                <li>Never share API keys</li>
+                <li>Rotate API keys regularly</li>
+                <li>Review audit logs periodically</li>
+                <li>Keep software updated</li>
+                <li>Use HTTPS always (enforced in production)</li>
+            </ol>
+        </section>
+
+        <div class="alert alert-info">
+            <strong>Need Help?</strong> Contact your system administrator for additional support.
+        </div>
+    </div>
+</div>
+{% endblock %}

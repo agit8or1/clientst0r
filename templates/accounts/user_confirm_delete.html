@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Deactivate {{ user_obj.username }} - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:user_list' %}">Users</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:user_detail' user_obj.id %}">{{ user_obj.username }}</a></li>
+        <li class="breadcrumb-item active">Deactivate</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h3 class="mb-0"><i class="fas fa-user-slash"></i> Deactivate User</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Warning!</strong> You are about to deactivate this user account.
+                </div>
+
+                <dl class="row">
+                    <dt class="col-sm-4">Username:</dt>
+                    <dd class="col-sm-8"><strong>{{ user_obj.username }}</strong></dd>
+
+                    <dt class="col-sm-4">Full Name:</dt>
+                    <dd class="col-sm-8">{{ user_obj.get_full_name|default:"—" }}</dd>
+
+                    <dt class="col-sm-4">Email:</dt>
+                    <dd class="col-sm-8">{{ user_obj.email|default:"—" }}</dd>
+
+                    <dt class="col-sm-4">Organizations:</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge bg-info">
+                            {{ user_obj.memberships.filter.count }}
+                        </span>
+                    </dd>
+
+                    <dt class="col-sm-4">Last Login:</dt>
+                    <dd class="col-sm-8">
+                        {% if user_obj.last_login %}
+                        {{ user_obj.last_login|date:"F j, Y g:i A" }}
+                        {% else %}
+                        <span class="text-muted">Never</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+
+                <div class="alert alert-info">
+                    <strong>What happens when you deactivate a user?</strong>
+                    <ul class="mb-0">
+                        <li>The user will no longer be able to log in</li>
+                        <li>All data created by this user will be preserved</li>
+                        <li>Organization memberships will remain (but inactive)</li>
+                        <li>You can reactivate the user later if needed</li>
+                    </ul>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'accounts:user_detail' user_obj.id %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-user-slash"></i> Deactivate User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

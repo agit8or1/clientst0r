@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Integration - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Confirm Deletion
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger" role="alert">
+                    <strong>Warning:</strong> You are about to permanently delete this PSA integration and all its synced data (companies, contacts, tickets). This action cannot be undone.
+                </div>
+
+                <h5>Integration Details:</h5>
+                <dl class="row">
+                    <dt class="col-sm-3">Name:</dt>
+                    <dd class="col-sm-9"><strong>{{ connection.name }}</strong></dd>
+
+                    <dt class="col-sm-3">Provider:</dt>
+                    <dd class="col-sm-9">
+                        <span class="badge bg-primary">{{ connection.get_provider_display }}</span>
+                    </dd>
+
+                    <dt class="col-sm-3">Server URL:</dt>
+                    <dd class="col-sm-9"><code>{{ connection.server_url }}</code></dd>
+
+                    <dt class="col-sm-3">Status:</dt>
+                    <dd class="col-sm-9">
+                        {% if connection.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </dd>
+
+                    {% if connection.last_sync_at %}
+                    <dt class="col-sm-3">Last Sync:</dt>
+                    <dd class="col-sm-9">{{ connection.last_sync_at|date:"F j, Y g:i A" }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-3">Created:</dt>
+                    <dd class="col-sm-9">{{ connection.created_at|date:"F j, Y g:i A" }}</dd>
+                </dl>
+
+                <div class="alert alert-warning mt-3" role="alert">
+                    <strong>This will also delete:</strong>
+                    <ul class="mb-0">
+                        <li>All synced companies from this PSA</li>
+                        <li>All synced contacts from this PSA</li>
+                        <li>All synced tickets from this PSA</li>
+                        <li>All sync history and logs</li>
+                    </ul>
+                </div>
+
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'integrations:integration_detail' connection.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Yes, Delete Integration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

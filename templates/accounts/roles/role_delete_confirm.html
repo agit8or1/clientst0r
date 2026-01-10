@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Role - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:role_list' %}">Role Management</a></li>
+        <li class="breadcrumb-item active">Delete Role</li>
+    </ol>
+</nav>
+
+<div class="card border-danger">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Delete Role</h5>
+    </div>
+    <div class="card-body">
+        <p class="lead">Are you sure you want to delete the role <strong>"{{ role.name }}"</strong>?</p>
+
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-circle"></i> This action cannot be undone. Make sure no users are assigned to this role before deleting.
+        </div>
+
+        <form method="post" class="mt-4">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'accounts:role_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Yes, Delete Role
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}System Status - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">System Status</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog"></i> Settings</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{% url 'core:settings_general' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-sliders-h"></i> General
+                </a>
+                <a href="{% url 'core:settings_security' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-shield-alt"></i> Security
+                </a>
+                <a href="{% url 'core:settings_smtp' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-envelope"></i> SMTP/Email
+                </a>
+                <a href="{% url 'core:settings_scheduler' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-clock"></i> Task Scheduler
+                </a>
+                <a href="{% url 'core:settings_directory' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-users-cog"></i> Directory Services
+                </a>
+                <a href="{% url 'core:system_status' %}" class="list-group-item list-group-item-action active">
+                    <i class="fas fa-heartbeat"></i> System Status
+                </a>
+                <a href="{% url 'core:maintenance' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-tools"></i> Maintenance
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-9">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-heartbeat"></i> System Status</h5>
+            </div>
+            <div class="card-body">
+                <!-- System Information -->
+                <h6 class="mb-3"><i class="fas fa-server"></i> System Information</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-borderless">
+                        <tr><td class="text-muted" width="180">HuduGlue Version:</td><td><strong>{{ system_info.huduglue_version }}</strong></td></tr>
+                        <tr><td class="text-muted">Django Version:</td><td>{{ system_info.django_version }}</td></tr>
+                        <tr><td class="text-muted">Python Version:</td><td>{{ system_info.python_version }}</td></tr>
+                        <tr><td class="text-muted">Operating System:</td><td>{{ system_info.os }} {{ system_info.os_version }}</td></tr>
+                        <tr><td class="text-muted">Platform:</td><td>{{ system_info.platform }}</td></tr>
+                        <tr><td class="text-muted">Hostname:</td><td>{{ system_info.hostname }}</td></tr>
+                    </table>
+                </div>
+
+                <!-- Database Status -->
+                <h6 class="mb-3"><i class="fas fa-database"></i> Database Status</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <td class="text-muted" width="180">Connection:</td>
+                            <td>
+                                {% if db_info.connected %}
+                                <span class="badge bg-success"><i class="fas fa-check"></i> Connected</span>
+                                {% else %}
+                                <span class="badge bg-danger"><i class="fas fa-times"></i> Disconnected</span>
+                                {% if db_info.error %}<br><small class="text-danger">{{ db_info.error }}</small>{% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if db_info.connected %}
+                        <tr><td class="text-muted">Database Version:</td><td>{{ db_info.version }}</td></tr>
+                        <tr><td class="text-muted">Database Size:</td><td>{{ db_info.size_mb }} MB</td></tr>
+                        {% endif %}
+                    </table>
+                </div>
+
+                <!-- Resource Usage -->
+                <h6 class="mb-3"><i class="fas fa-chart-line"></i> Resource Usage</h6>
+
+                <!-- CPU -->
+                {% if not cpu_info.error %}
+                <div class="mb-3">
+                    <label class="form-label small"><strong>CPU Usage</strong> ({{ cpu_info.count }} cores)</label>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar {% if cpu_info.percent > 80 %}bg-danger{% elif cpu_info.percent > 60 %}bg-warning{% else %}bg-success{% endif %}"
+                             style="width: {{ cpu_info.percent }}%">
+                            {{ cpu_info.percent }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">Load Average: {{ cpu_info.load_1 }} (1min), {{ cpu_info.load_5 }} (5min), {{ cpu_info.load_15 }} (15min)</small>
+                </div>
+                {% endif %}
+
+                <!-- Memory -->
+                {% if not memory_info.error %}
+                <div class="mb-3">
+                    <label class="form-label small"><strong>Memory Usage</strong> ({{ memory_info.used_gb }} GB / {{ memory_info.total_gb }} GB)</label>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar {% if memory_info.percent > 80 %}bg-danger{% elif memory_info.percent > 60 %}bg-warning{% else %}bg-info{% endif %}"
+                             style="width: {{ memory_info.percent }}%">
+                            {{ memory_info.percent }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">Available: {{ memory_info.available_gb }} GB</small>
+                </div>
+                {% endif %}
+
+                <!-- Disk -->
+                {% if not disk_usage.error %}
+                <div class="mb-3">
+                    <label class="form-label small"><strong>Disk Usage</strong> ({{ disk_usage.used_gb }} GB / {{ disk_usage.total_gb }} GB)</label>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar {% if disk_usage.percent > 80 %}bg-danger{% elif disk_usage.percent > 60 %}bg-warning{% else %}bg-primary{% endif %}"
+                             style="width: {{ disk_usage.percent }}%">
+                            {{ disk_usage.percent }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">Free: {{ disk_usage.free_gb }} GB</small>
+                </div>
+                {% endif %}
+
+                <!-- Upload Directory -->
+                <h6 class="mb-3 mt-4"><i class="fas fa-folder-open"></i> Upload Directory</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-borderless">
+                        {% if not upload_info.error %}
+                        <tr><td class="text-muted" width="180">Path:</td><td><code>{{ upload_info.path }}</code></td></tr>
+                        <tr>
+                            <td class="text-muted">Status:</td>
+                            <td>
+                                {% if upload_info.exists %}
+                                    <span class="badge bg-success">Exists</span>
+                                    {% if upload_info.writable %}
+                                    <span class="badge bg-success">Writable</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Not Writable</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-danger">Not Found</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if upload_info.exists %}
+                        <tr><td class="text-muted">Size:</td><td>{{ upload_info.size_mb }} MB</td></tr>
+                        {% endif %}
+                        {% else %}
+                        <tr><td colspan="2" class="text-danger">{{ upload_info.error }}</td></tr>
+                        {% endif %}
+                    </table>
+                </div>
+
+                <!-- Services Status -->
+                <h6 class="mb-3"><i class="fas fa-server"></i> System Services</h6>
+                {% if not services_status.error %}
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <td class="text-muted" width="180">Gunicorn:</td>
+                            <td>
+                                {% if services_status.gunicorn %}
+                                <span class="badge bg-success"><i class="fas fa-check"></i> Running</span>
+                                {% else %}
+                                <span class="badge bg-danger"><i class="fas fa-times"></i> Stopped</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">PSA Sync Timer:</td>
+                            <td>
+                                {% if services_status.psa_sync %}
+                                <span class="badge bg-success"><i class="fas fa-check"></i> Active</span>
+                                {% else %}
+                                <span class="badge bg-warning"><i class="fas fa-pause"></i> Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Monitor Timer:</td>
+                            <td>
+                                {% if services_status.monitor %}
+                                <span class="badge bg-success"><i class="fas fa-check"></i> Active</span>
+                                {% else %}
+                                <span class="badge bg-warning"><i class="fas fa-pause"></i> Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Could not check service status: {{ services_status.error }}
+                </div>
+                {% endif %}
+
+                <!-- Scheduled Tasks -->
+                {% if tasks_status %}
+                <h6 class="mb-3"><i class="fas fa-clock"></i> Scheduled Tasks</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Task</th>
+                                <th>Status</th>
+                                <th>Last Run</th>
+                                <th>Next Run</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in tasks_status %}
+                            <tr>
+                                <td>{{ task.name }}</td>
+                                <td>
+                                    {% if task.enabled %}
+                                    <span class="badge bg-success">Enabled</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Disabled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if task.last_run %}
+                                    {{ task.last_run|date:"Y-m-d H:i" }}
+                                    {% if task.status %}
+                                    <br><small class="badge bg-{% if task.status == 'success' %}success{% else %}danger{% endif %}">{{ task.status }}</small>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">Never</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if task.next_run %}
+                                    {{ task.next_run|date:"Y-m-d H:i" }}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

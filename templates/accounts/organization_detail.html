@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}{{ organization.name }} - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="fas fa-building"></i> {{ organization.name }}
+        {% if not organization.is_active %}
+        <span class="badge bg-secondary">Inactive</span>
+        {% endif %}
+    </h1>
+    <div>
+        {% if user_membership.role == 'owner' or user.is_superuser %}
+        <a href="{% url 'accounts:organization_edit' organization.id %}" class="btn btn-secondary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        {% endif %}
+        <a href="{% url 'accounts:organization_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-info-circle"></i> Organization Details</h3>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Name:</dt>
+                    <dd class="col-sm-8">{{ organization.name }}</dd>
+
+                    <dt class="col-sm-4">Slug:</dt>
+                    <dd class="col-sm-8"><code>{{ organization.slug }}</code></dd>
+
+                    {% if organization.description %}
+                    <dt class="col-sm-4">Description:</dt>
+                    <dd class="col-sm-8">{{ organization.description }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-4">Status:</dt>
+                    <dd class="col-sm-8">
+                        {% if organization.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Created:</dt>
+                    <dd class="col-sm-8">{{ organization.created_at|date:"F j, Y" }}</dd>
+
+                    <dt class="col-sm-4">Members:</dt>
+                    <dd class="col-sm-8">
+                        <strong>{{ members|length }}</strong> active member{{ members|length|pluralize }}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="mb-0"><i class="fas fa-users"></i> Members</h3>
+                {% if user_membership.role == 'owner' or user.is_superuser %}
+                <a href="{% url 'accounts:member_add' organization.id %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-user-plus"></i> Add Member
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if members %}
+                <div class="list-group">
+                    {% for member in members %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">
+                                    <i class="fas fa-user"></i> {{ member.user.username }}
+                                    {% if member.user.email %}
+                                    <small class="text-muted">({{ member.user.email }})</small>
+                                    {% endif %}
+                                </h6>
+                                <span class="badge
+                                    {% if member.role == 'owner' %}bg-danger
+                                    {% elif member.role == 'admin' %}bg-warning
+                                    {% elif member.role == 'editor' %}bg-info
+                                    {% else %}bg-secondary
+                                    {% endif %}">
+                                    {{ member.get_role_display }}
+                                </span>
+                            </div>
+                            {% if user_membership.role == 'owner' or user.is_superuser %}
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'accounts:member_edit' organization.id member.id %}" class="btn btn-outline-secondary" title="Edit Role">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% if member.user != user %}
+                                <a href="{% url 'accounts:member_remove' organization.id member.id %}" class="btn btn-outline-danger" title="Remove">
+                                    <i class="fas fa-user-times"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No members found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

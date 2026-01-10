@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Document - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Confirm Deletion
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger" role="alert">
+                    <strong>Warning:</strong> You are about to permanently delete this document and all its versions. This action cannot be undone.
+                </div>
+
+                <h5>Document Details:</h5>
+                <dl class="row">
+                    <dt class="col-sm-3">Title:</dt>
+                    <dd class="col-sm-9"><strong>{{ document.title }}</strong></dd>
+
+                    <dt class="col-sm-3">Slug:</dt>
+                    <dd class="col-sm-9"><code>{{ document.slug }}</code></dd>
+
+                    {% if document.tags.all %}
+                    <dt class="col-sm-3">Tags:</dt>
+                    <dd class="col-sm-9">
+                        {% for tag in document.tags.all %}
+                            <span class="badge bg-secondary">{{ tag.name }}</span>
+                        {% endfor %}
+                    </dd>
+                    {% endif %}
+
+                    <dt class="col-sm-3">Status:</dt>
+                    <dd class="col-sm-9">
+                        {% if document.is_published %}
+                            <span class="badge bg-success">Published</span>
+                        {% else %}
+                            <span class="badge bg-warning">Draft</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-3">Created:</dt>
+                    <dd class="col-sm-9">{{ document.created_at|date:"F j, Y g:i A" }} by {{ document.created_by.username }}</dd>
+
+                    <dt class="col-sm-3">Last Modified:</dt>
+                    <dd class="col-sm-9">{{ document.updated_at|date:"F j, Y g:i A" }} by {{ document.last_modified_by.username }}</dd>
+                </dl>
+
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'docs:document_detail' document.slug %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Yes, Delete Document
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

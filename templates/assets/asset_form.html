@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} Asset{% endblock %}
+
+{% block content %}
+<h1>{{ action }} Asset</h1>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="{% url 'assets:asset_list' %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

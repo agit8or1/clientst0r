@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}{% if view == 'sent' %}Sent{% else %}Inbox{% endif %} - Secure Notes - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="fas fa-lock"></i> Secure Notes</h2>
+    <a href="{% url 'core:secure_note_create' %}" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> Send Note</a>
+</div>
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link {% if view != 'sent' %}active{% endif %}" href="{% url 'core:secure_note_inbox' %}">
+            <i class="fas fa-inbox"></i> Inbox {% if unread_count %}<span class="badge bg-danger">{{ unread_count }}</span>{% endif %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if view == 'sent' %}active{% endif %}" href="{% url 'core:secure_note_sent' %}">
+            <i class="fas fa-paper-plane"></i> Sent
+        </a>
+    </li>
+</ul>
+
+{% if notes %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th width="40"></th>
+                    <th>{% if view == 'sent' %}To{% else %}From{% endif %}</th>
+                    <th>Subject</th>
+                    <th>Date</th>
+                    <th width="120">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for note in notes %}
+                <tr {% if view != 'sent' and user not in note.read_by.all %}class="table-primary"{% endif %}>
+                    <td>
+                        {% if note.require_password %}<i class="fas fa-key text-warning" title="Password protected"></i>{% endif %}
+                        {% if note.read_once %}<i class="fas fa-eye-slash text-danger" title="Read once"></i>{% endif %}
+                    </td>
+                    <td>
+                        {% if view == 'sent' %}
+                            {{ note.recipients.all|join:", " }}
+                        {% else %}
+                            {{ note.sender.username }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'core:secure_note_detail' note.pk %}">{{ note.title }}</a>
+                        {% if view != 'sent' and user not in note.read_by.all %}<span class="badge bg-primary">New</span>{% endif %}
+                    </td>
+                    <td><small>{{ note.created_at|date:"M d, Y g:i A" }}</small></td>
+                    <td>
+                        {% if note.expires_at %}
+                            {% if note.is_expired %}
+                                <span class="badge bg-danger">Expired</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Expires {{ note.expires_at|date:"M d" }}</span>
+                            {% endif %}
+                        {% endif %}
+                        {% if view == 'sent' %}
+                            <span class="badge bg-info">{{ note.read_count }} read</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-{% if view == 'sent' %}paper-plane{% else %}inbox{% endif %} fa-3x text-muted mb-3"></i>
+        <p class="text-muted">{% if view == 'sent' %}You haven't sent any secure notes.{% else %}Your inbox is empty.{% endif %}</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

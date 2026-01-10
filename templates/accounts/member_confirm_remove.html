@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Remove Member - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Confirm Member Removal
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger" role="alert">
+                    <strong>Warning:</strong> You are about to remove this member from the organization.
+                </div>
+
+                <h5>Member Details:</h5>
+                <dl class="row">
+                    <dt class="col-sm-3">Username:</dt>
+                    <dd class="col-sm-9"><strong>{{ membership.user.username }}</strong></dd>
+
+                    {% if membership.user.email %}
+                    <dt class="col-sm-3">Email:</dt>
+                    <dd class="col-sm-9">{{ membership.user.email }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-3">Current Role:</dt>
+                    <dd class="col-sm-9">
+                        <span class="badge
+                            {% if membership.role == 'owner' %}bg-danger
+                            {% elif membership.role == 'admin' %}bg-warning
+                            {% elif membership.role == 'editor' %}bg-info
+                            {% else %}bg-secondary
+                            {% endif %}">
+                            {{ membership.get_role_display }}
+                        </span>
+                    </dd>
+
+                    <dt class="col-sm-3">Organization:</dt>
+                    <dd class="col-sm-9"><strong>{{ organization.name }}</strong></dd>
+                </dl>
+
+                <div class="alert alert-warning mt-3" role="alert">
+                    <strong>Note:</strong> The user will lose access to all data in this organization immediately. This action can be reversed by adding the user back as a member.
+                </div>
+
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'accounts:organization_detail' organization.id %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-user-times"></i> Yes, Remove Member
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

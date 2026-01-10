@@ -1,0 +1,582 @@
+"""
+Monitoring views - Website monitoring, Racks, IPAM
+"""
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse
+from django.db.models import Q
+from core.middleware import get_request_organization
+from core.decorators import require_write
+from .models import WebsiteMonitor, Expiration, Rack, RackDevice, Subnet, IPAddress
+from .forms import (
+    WebsiteMonitorForm, ExpirationForm, RackForm, RackDeviceForm,
+    SubnetForm, IPAddressForm
+)
+
+
+# ============================================================================
+# Website Monitoring
+# ============================================================================
+
+@login_required
+def website_monitor_list(request):
+    """List all website monitors."""
+    org = get_request_organization(request)
+    monitors = WebsiteMonitor.objects.filter(organization=org)
+
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        monitors = monitors.filter(status=status_filter)
+
+    # Search
+    query = request.GET.get('q')
+    if query:
+        monitors = monitors.filter(
+            Q(url__icontains=query) |
+            Q(description__icontains=query)
+        )
+
+    return render(request, 'monitoring/website_monitor_list.html', {
+        'monitors': monitors,
+        'status_filter': status_filter,
+        'query': query,
+    })
+
+
+@login_required
+@require_write
+def website_monitor_create(request):
+    """Create website monitor."""
+    org = get_request_organization(request)
+
+    if request.method == 'POST':
+        form = WebsiteMonitorForm(request.POST, organization=org)
+        if form.is_valid():
+            monitor = form.save(commit=False)
+            monitor.organization = org
+            monitor.save()
+            messages.success(request, f'Website monitor "{monitor.url}" created.')
+            return redirect('monitoring:website_monitor_detail', pk=monitor.pk)
+    else:
+        form = WebsiteMonitorForm(organization=org)
+
+    return render(request, 'monitoring/website_monitor_form.html', {
+        'form': form,
+        'action': 'Create',
+    })
+
+
+@login_required
+def website_monitor_detail(request, pk):
+    """View website monitor details."""
+    org = get_request_organization(request)
+    monitor = get_object_or_404(WebsiteMonitor, pk=pk, organization=org)
+
+    return render(request, 'monitoring/website_monitor_detail.html', {
+        'monitor': monitor,
+    })
+
+
+@login_required
+@require_write
+def website_monitor_edit(request, pk):
+    """Edit website monitor."""
+    org = get_request_organization(request)
+    monitor = get_object_or_404(WebsiteMonitor, pk=pk, organization=org)
+
+    if request.method == 'POST':
+        form = WebsiteMonitorForm(request.POST, instance=monitor, organization=org)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Website monitor "{monitor.url}" updated.')
+            return redirect('monitoring:website_monitor_detail', pk=monitor.pk)
+    else:
+        form = WebsiteMonitorForm(instance=monitor, organization=org)
+
+    return render(request, 'monitoring/website_monitor_form.html', {
+        'form': form,
+        'monitor': monitor,
+        'action': 'Edit',
+    })
+
+
+@login_required
+@require_write
+def website_monitor_delete(request, pk):
+    """Delete website monitor."""
+    org = get_request_organization(request)
+    monitor = get_object_or_404(WebsiteMonitor, pk=pk, organization=org)
+
+    if request.method == 'POST':
+        url = monitor.url
+        monitor.delete()
+        messages.success(request, f'Website monitor "{url}" deleted.')
+        return redirect('monitoring:website_monitor_list')
+
+    return render(request, 'monitoring/website_monitor_confirm_delete.html', {
+        'monitor': monitor,
+    })
+
+
+@login_required
+@require_write
+def website_monitor_check(request, pk):
+    """Manually trigger website check."""
+    org = get_request_organization(request)
+    monitor = get_object_or_404(WebsiteMonitor, pk=pk, organization=org)
+
+    try:
+        monitor.check_status()
+        messages.success(request, f'Website "{monitor.url}" checked successfully.')
+    except Exception as e:
+        messages.error(request, f'Error checking website: {str(e)}')
+
+    return redirect('monitoring:website_monitor_detail', pk=monitor.pk)
+
+
+# ============================================================================
+# Expirations
+# ============================================================================
+
+@login_required
+def expiration_list(request):
+    """List all expirations."""
+    org = get_request_organization(request)
+    expirations = Expiration.objects.filter(organization=org).order_by('expires_at')
+
+    return render(request, 'monitoring/expiration_list.html', {
+        'expirations': expirations,
+    })
+
+
+@login_required
+@require_write
+def expiration_create(request):
+    """Create expiration."""
+    org = get_request_organization(request)
+
+    if request.method == 'POST':
+        form = ExpirationForm(request.POST, organization=org)
+        if form.is_valid():
+            expiration = form.save(commit=False)
+            expiration.organization = org
+            expiration.save()
+            messages.success(request, f'Expiration "{expiration.title}" created.')
+            return redirect('monitoring:expiration_list')
+    else:
+        form = ExpirationForm(organization=org)
+
+    return render(request, 'monitoring/expiration_form.html', {
+        'form': form,
+        'action': 'Create',
+    })
+
+
+@login_required
+@require_write
+def expiration_edit(request, pk):
+    """Edit expiration."""
+    org = get_request_organization(request)
+    expiration = get_object_or_404(Expiration, pk=pk, organization=org)
+
+    if request.method == 'POST':
+        form = ExpirationForm(request.POST, instance=expiration, organization=org)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Expiration "{expiration.title}" updated.')
+            return redirect('monitoring:expiration_list')
+    else:
+        form = ExpirationForm(instance=expiration, organization=org)
+
+    return render(request, 'monitoring/expiration_form.html', {
+        'form': form,
+        'expiration': expiration,
+        'action': 'Edit',
+    })
+
+
+@login_required
+@require_write
+def expiration_delete(request, pk):
+    """Delete expiration."""
+    org = get_request_organization(request)
+    expiration = get_object_or_404(Expiration, pk=pk, organization=org)
+
+    if request.method == 'POST':
+        title = expiration.title
+        expiration.delete()
+        messages.success(request, f'Expiration "{title}" deleted.')
+        return redirect('monitoring:expiration_list')
+
+    return render(request, 'monitoring/expiration_confirm_delete.html', {
+        'expiration': expiration,
+    })
+
+
+# ============================================================================
+# Rack Management
+# ============================================================================
+
+@login_required
+def rack_list(request):
+    """List all racks."""
+    org = get_request_organization(request)
+    racks = Rack.objects.filter(organization=org)
+
+    return render(request, 'monitoring/rack_list.html', {
+        'racks': racks,
+    })
+
+
+@login_required
+@require_write
+def rack_create(request):
+    """Create rack."""
+    org = get_request_organization(request)
+
+    if request.method == 'POST':
+        form = RackForm(request.POST, organization=org)
+        if form.is_valid():
+            rack = form.save(commit=False)
+            rack.organization = org
+            rack.save()
+            messages.success(request, f'Rack "{rack.name}" created.')
+            return redirect('monitoring:rack_detail', pk=rack.pk)
+    else:
+        form = RackForm(organization=org)
+
+    return render(request, 'monitoring/rack_form.html', {
+        'form': form,
+        'action': 'Create',
+    })
+
+
+@login_required
+def rack_detail(request, pk):
+    """View rack details with visual layout."""
+    org = get_request_organization(request)
+    rack = get_object_or_404(Rack, pk=pk, organization=org)
+
+    # Get devices ordered by position
+    devices = rack.rack_devices.all().order_by('start_unit')
+
+    # Create rack layout (list of units)
+    rack_units = []
+    for unit_num in range(rack.units, 0, -1):  # Top to bottom
+        # Find device that occupies this unit (can't use database filter on property)
+        device = None
+        for d in devices:
+            if d.start_unit <= unit_num <= d.end_unit:
+                device = d
+                break
+
+        rack_units.append({
+            'number': unit_num,
+            'device': device,
+            'is_start': device and device.start_unit == unit_num if device else False,
+        })
+
+    return render(request, 'monitoring/rack_detail.html', {
+        'rack': rack,
+        'devices': devices,
+        'rack_units': rack_units,
+    })
+
+
+@login_required
+@require_write
+def rack_edit(request, pk):
+    """Edit rack."""
+    org = get_request_organization(request)
+    rack = get_object_or_404(Rack, pk=pk, organization=org)
+
+    if request.method == 'POST':
+        form = RackForm(request.POST, instance=rack, organization=org)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Rack "{rack.name}" updated.')
+            return redirect('monitoring:rack_detail', pk=rack.pk)
+    else:
+        form = RackForm(instance=rack, organization=org)
+
+    return render(request, 'monitoring/rack_form.html', {
+        'form': form,
+        'rack': rack,
+        'action': 'Edit',
+    })
+
+
+@login_required
+@require_write
+def rack_delete(request, pk):
+    """Delete rack."""
+    org = get_request_organization(request)
+    rack = get_object_or_404(Rack, pk=pk, organization=org)
+
+    if request.method == 'POST':
+        name = rack.name
+        rack.delete()
+        messages.success(request, f'Rack "{name}" deleted.')
+        return redirect('monitoring:rack_list')
+
+    return render(request, 'monitoring/rack_confirm_delete.html', {
+        'rack': rack,
+    })
+
+
+@login_required
+@require_write
+def rack_device_create(request, rack_id):
+    """Add device to rack."""
+    org = get_request_organization(request)
+    rack = get_object_or_404(Rack, pk=rack_id, organization=org)
+
+    if request.method == 'POST':
+        form = RackDeviceForm(request.POST, rack=rack)
+        if form.is_valid():
+            device = form.save(commit=False)
+            device.rack = rack
+            device.save()
+            messages.success(request, f'Device "{device.name}" added to rack.')
+            return redirect('monitoring:rack_detail', pk=rack.pk)
+    else:
+        form = RackDeviceForm(rack=rack)
+
+    return render(request, 'monitoring/rack_device_form.html', {
+        'form': form,
+        'rack': rack,
+        'action': 'Add',
+    })
+
+
+@login_required
+@require_write
+def rack_device_edit(request, pk):
+    """Edit rack device."""
+    device = get_object_or_404(RackDevice, pk=pk)
+    org = get_request_organization(request)
+
+    if device.rack.organization != org:
+        messages.error(request, 'Device not found.')
+        return redirect('monitoring:rack_list')
+
+    if request.method == 'POST':
+        form = RackDeviceForm(request.POST, instance=device, rack=device.rack)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Device "{device.name}" updated.')
+            return redirect('monitoring:rack_detail', pk=device.rack.pk)
+    else:
+        form = RackDeviceForm(instance=device, rack=device.rack)
+
+    return render(request, 'monitoring/rack_device_form.html', {
+        'form': form,
+        'device': device,
+        'rack': device.rack,
+        'action': 'Edit',
+    })
+
+
+@login_required
+@require_write
+def rack_device_delete(request, pk):
+    """Delete rack device."""
+    device = get_object_or_404(RackDevice, pk=pk)
+    org = get_request_organization(request)
+
+    if device.rack.organization != org:
+        messages.error(request, 'Device not found.')
+        return redirect('monitoring:rack_list')
+
+    rack = device.rack
+
+    if request.method == 'POST':
+        name = device.name
+        device.delete()
+        messages.success(request, f'Device "{name}" removed from rack.')
+        return redirect('monitoring:rack_detail', pk=rack.pk)
+
+    return render(request, 'monitoring/rack_device_confirm_delete.html', {
+        'device': device,
+        'rack': rack,
+    })
+
+
+# ============================================================================
+# IPAM - IP Address Management
+# ============================================================================
+
+@login_required
+def subnet_list(request):
+    """List all subnets."""
+    org = get_request_organization(request)
+    subnets = Subnet.objects.filter(organization=org)
+
+    return render(request, 'monitoring/subnet_list.html', {
+        'subnets': subnets,
+    })
+
+
+@login_required
+@require_write
+def subnet_create(request):
+    """Create subnet."""
+    org = get_request_organization(request)
+
+    if request.method == 'POST':
+        form = SubnetForm(request.POST, organization=org)
+        if form.is_valid():
+            subnet = form.save(commit=False)
+            subnet.organization = org
+            subnet.save()
+            messages.success(request, f'Subnet "{subnet.network}" created.')
+            return redirect('monitoring:subnet_detail', pk=subnet.pk)
+    else:
+        form = SubnetForm(organization=org)
+
+    return render(request, 'monitoring/subnet_form.html', {
+        'form': form,
+        'action': 'Create',
+    })
+
+
+@login_required
+def subnet_detail(request, pk):
+    """View subnet details with IP addresses."""
+    org = get_request_organization(request)
+    subnet = get_object_or_404(Subnet, pk=pk, organization=org)
+
+    # Get IP addresses
+    ip_addresses = subnet.ip_addresses.all().order_by('ip_address')
+
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        ip_addresses = ip_addresses.filter(status=status_filter)
+
+    return render(request, 'monitoring/subnet_detail.html', {
+        'subnet': subnet,
+        'ip_addresses': ip_addresses,
+        'status_filter': status_filter,
+    })
+
+
+@login_required
+@require_write
+def subnet_edit(request, pk):
+    """Edit subnet."""
+    org = get_request_organization(request)
+    subnet = get_object_or_404(Subnet, pk=pk, organization=org)
+
+    if request.method == 'POST':
+        form = SubnetForm(request.POST, instance=subnet, organization=org)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Subnet "{subnet.network}" updated.')
+            return redirect('monitoring:subnet_detail', pk=subnet.pk)
+    else:
+        form = SubnetForm(instance=subnet, organization=org)
+
+    return render(request, 'monitoring/subnet_form.html', {
+        'form': form,
+        'subnet': subnet,
+        'action': 'Edit',
+    })
+
+
+@login_required
+@require_write
+def subnet_delete(request, pk):
+    """Delete subnet."""
+    org = get_request_organization(request)
+    subnet = get_object_or_404(Subnet, pk=pk, organization=org)
+
+    if request.method == 'POST':
+        network = subnet.network
+        subnet.delete()
+        messages.success(request, f'Subnet "{network}" deleted.')
+        return redirect('monitoring:subnet_list')
+
+    return render(request, 'monitoring/subnet_confirm_delete.html', {
+        'subnet': subnet,
+    })
+
+
+@login_required
+@require_write
+def ip_address_create(request, subnet_id):
+    """Add IP address to subnet."""
+    org = get_request_organization(request)
+    subnet = get_object_or_404(Subnet, pk=subnet_id, organization=org)
+
+    if request.method == 'POST':
+        form = IPAddressForm(request.POST, subnet=subnet)
+        if form.is_valid():
+            ip = form.save(commit=False)
+            ip.subnet = subnet
+            ip.save()
+            messages.success(request, f'IP address "{ip.ip_address}" added.')
+            return redirect('monitoring:subnet_detail', pk=subnet.pk)
+    else:
+        form = IPAddressForm(subnet=subnet)
+
+    return render(request, 'monitoring/ip_address_form.html', {
+        'form': form,
+        'subnet': subnet,
+        'action': 'Add',
+    })
+
+
+@login_required
+@require_write
+def ip_address_edit(request, pk):
+    """Edit IP address."""
+    ip_address = get_object_or_404(IPAddress, pk=pk)
+    org = get_request_organization(request)
+
+    if ip_address.subnet.organization != org:
+        messages.error(request, 'IP address not found.')
+        return redirect('monitoring:subnet_list')
+
+    if request.method == 'POST':
+        form = IPAddressForm(request.POST, instance=ip_address, subnet=ip_address.subnet)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'IP address "{ip_address.ip_address}" updated.')
+            return redirect('monitoring:subnet_detail', pk=ip_address.subnet.pk)
+    else:
+        form = IPAddressForm(instance=ip_address, subnet=ip_address.subnet)
+
+    return render(request, 'monitoring/ip_address_form.html', {
+        'form': form,
+        'ip_address': ip_address,
+        'subnet': ip_address.subnet,
+        'action': 'Edit',
+    })
+
+
+@login_required
+@require_write
+def ip_address_delete(request, pk):
+    """Delete IP address."""
+    ip_address = get_object_or_404(IPAddress, pk=pk)
+    org = get_request_organization(request)
+
+    if ip_address.subnet.organization != org:
+        messages.error(request, 'IP address not found.')
+        return redirect('monitoring:subnet_list')
+
+    subnet = ip_address.subnet
+
+    if request.method == 'POST':
+        ip = ip_address.ip_address
+        ip_address.delete()
+        messages.success(request, f'IP address "{ip}" deleted.')
+        return redirect('monitoring:subnet_detail', pk=subnet.pk)
+
+    return render(request, 'monitoring/ip_address_confirm_delete.html', {
+        'ip_address': ip_address,
+        'subnet': subnet,
+    })

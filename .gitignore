@@ -1,0 +1,112 @@
+# HuduGlue .gitignore
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.env
+.github-token
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/media/
+/static_collected/
+staticfiles/
+static_root/
+
+# Gunicorn
+gunicorn.sock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+
+# Backup files
+*.bak
+*.tmp
+*.temp
+
+# Logs
+*.log
+logs/
+/var/log/itdocs/
+
+# Uploads (private files)
+/uploads/
+/var/lib/itdocs/
+
+# Database dumps
+*.sql
+*.dump
+
+# Certificates
+*.pem
+*.key
+*.crt
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Local development
+.local/
+.cache/
+
+# Claude/AI assistant files
+.claude/
+
+# Node modules (if using frontend tooling)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Compiled static files
+collected_static/
+.nvm\n.npm
+.claude.json
+.claude.json.backup

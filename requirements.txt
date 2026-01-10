@@ -1,0 +1,39 @@
+# Core Django
+Django==6.0.*
+djangorestframework==3.15.*
+django-filter==25.*
+
+# Database
+mysqlclient==2.2.*
+
+# Security
+argon2-cffi==23.1.*
+django-axes==6.1.*
+django-ratelimit==4.1.*
+cryptography==41.*
+
+# 2FA
+django-two-factor-auth[phonenumbers]==1.16.*
+qrcode==7.4.*
+pyotp==2.9.*
+
+# WSGI Server
+gunicorn==21.2.*
+
+# PSA Integration HTTP clients
+requests==2.31.*
+urllib3==2.1.*
+
+# Utilities
+python-dotenv==1.0.*
+Pillow==10.2.*
+markdown==3.5.*
+bleach==6.1.*
+pytz==2024.1
+psutil==5.9.*
+
+# Directory Services Integration (Optional)
+python-ldap==3.4.*
+django-auth-ldap==4.6.*
+msal==1.26.*
+requests-oauthlib==1.3.*

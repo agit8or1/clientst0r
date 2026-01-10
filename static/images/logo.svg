@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+  <!-- Background -->
+  <rect width="200" height="60" fill="none"/>
+
+  <!-- Logo design - Hexagon with "H" -->
+  <g transform="translate(10, 10)">
+    <polygon points="20,0 40,10 40,30 20,40 0,30 0,10" fill="#0d6efd" stroke="#0a58ca" stroke-width="2"/>
+    <text x="20" y="28" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">H</text>
+  </g>
+
+  <!-- Text "HuduGlue" -->
+  <text x="55" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#212529">
+    Hudu<tspan fill="#0d6efd">Glue</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text x="55" y="50" font-family="Arial, sans-serif" font-size="10" fill="#6c757d">
+    IT Documentation Platform
+  </text>
+</svg>

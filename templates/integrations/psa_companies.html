@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}PSA Companies - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-building"></i> PSA Companies</h1>
+    <p class="text-muted">Synced companies from your PSA integrations</p>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>Website</th>
+                        <th>Provider</th>
+                        <th>Last Synced</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for company in companies %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'integrations:psa_company_detail' company.pk %}">
+                                <i class="fas fa-building"></i> {{ company.name }}
+                            </a>
+                        </td>
+                        <td>{{ company.phone|default:"—" }}</td>
+                        <td>
+                            {% if company.website %}
+                            <a href="{{ company.website }}" target="_blank">
+                                {{ company.website|truncatechars:30 }} <i class="fas fa-external-link-alt fa-xs"></i>
+                            </a>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">
+                                {{ company.connection.get_provider_type_display }}
+                            </span>
+                        </td>
+                        <td>{{ company.last_synced_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            <a href="{% url 'integrations:psa_company_detail' company.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="fas fa-building fa-3x mb-3 d-block"></i>
+                            <p>No companies synced yet. Set up a PSA integration and run a sync.</p>
+                            <a href="{% url 'integrations:integration_list' %}" class="btn btn-primary">
+                                <i class="fas fa-plug"></i> Manage Integrations
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

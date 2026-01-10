@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}My Vault - Personal Notes - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-sticky-note"></i> My Vault</h2>
+    <a href="{% url 'vault:personal_vault_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> New Note
+    </a>
+</div>
+
+{% if items %}
+<div class="row">
+    {% for item in items %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 {% if item.is_favorite %}border-warning{% endif %}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title mb-0">
+                        {% if item.is_favorite %}<i class="fas fa-star text-warning"></i> {% endif %}
+                        {{ item.title }}
+                    </h5>
+                    {% if item.category %}
+                    <span class="badge bg-secondary">{{ item.category }}</span>
+                    {% endif %}
+                </div>
+
+                <p class="card-text text-muted small">
+                    <i class="fas fa-clock"></i> Updated {{ item.updated_at|timesince }} ago
+                </p>
+            </div>
+            <div class="card-footer bg-light">
+                <div class="d-flex gap-2">
+                    <a href="{% url 'vault:personal_vault_detail' item.pk %}" class="btn btn-sm btn-primary flex-fill">
+                        <i class="fas fa-eye"></i> View
+                    </a>
+                    <a href="{% url 'vault:personal_vault_edit' item.pk %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <a href="{% url 'vault:personal_vault_delete' item.pk %}" class="btn btn-sm btn-outline-danger">
+                        <i class="fas fa-trash"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-sticky-note"></i>
+    <h3>No Personal Notes</h3>
+    <p>Create encrypted notes for quick access to personal information.</p>
+    <a href="{% url 'vault:personal_vault_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Create First Note
+    </a>
+</div>
+{% endif %}
+{% endblock %}

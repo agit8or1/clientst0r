@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}{{ contact.full_name }} - PSA Contact - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'integrations:psa_contacts' %}">PSA Contacts</a></li>
+        <li class="breadcrumb-item active">{{ contact.full_name }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-user"></i> Contact Details</h5>
+            </div>
+            <div class="card-body">
+                <dl>
+                    <dt>Name:</dt>
+                    <dd><strong>{{ contact.full_name }}</strong></dd>
+
+                    {% if contact.title %}
+                    <dt>Title:</dt>
+                    <dd>{{ contact.title }}</dd>
+                    {% endif %}
+
+                    {% if contact.email %}
+                    <dt>Email:</dt>
+                    <dd><a href="mailto:{{ contact.email }}">{{ contact.email }}</a></dd>
+                    {% endif %}
+
+                    {% if contact.phone %}
+                    <dt>Phone:</dt>
+                    <dd><a href="tel:{{ contact.phone }}">{{ contact.phone }}</a></dd>
+                    {% endif %}
+
+                    {% if contact.company %}
+                    <dt>Company:</dt>
+                    <dd>
+                        <a href="{% url 'integrations:psa_company_detail' contact.company.pk %}">
+                            <i class="fas fa-building"></i> {{ contact.company.name }}
+                        </a>
+                    </dd>
+                    {% endif %}
+
+                    <dt>Provider:</dt>
+                    <dd>
+                        <span class="badge bg-info">
+                            {{ contact.connection.get_provider_type_display }}
+                        </span>
+                    </dd>
+
+                    <dt>Connection:</dt>
+                    <dd>
+                        <a href="{% url 'integrations:integration_detail' contact.connection.pk %}">
+                            {{ contact.connection.name }}
+                        </a>
+                    </dd>
+
+                    <dt>External ID:</dt>
+                    <dd><code>{{ contact.external_id }}</code></dd>
+
+                    <dt>Last Synced:</dt>
+                    <dd>{{ contact.last_synced_at|date:"F j, Y g:i A" }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <!-- Recent Tickets -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-ticket-alt"></i> Recent Tickets ({{ tickets.count }})</h5>
+                <a href="{% url 'integrations:psa_tickets' %}?contact={{ contact.pk }}" class="btn btn-sm btn-outline-primary">
+                    View All
+                </a>
+            </div>
+            <div class="card-body">
+                {% if tickets %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Ticket #</th>
+                                <th>Subject</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ticket in tickets %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'integrations:psa_ticket_detail' ticket.pk %}">
+                                        {{ ticket.ticket_number }}
+                                    </a>
+                                </td>
+                                <td>{{ ticket.subject|truncatewords:8 }}</td>
+                                <td>
+                                    <span class="badge
+                                        {% if ticket.status == 'closed' %}bg-secondary
+                                        {% elif ticket.status == 'resolved' %}bg-success
+                                        {% elif ticket.status == 'in_progress' %}bg-primary
+                                        {% elif ticket.status == 'waiting' %}bg-warning
+                                        {% else %}bg-info
+                                        {% endif %}">
+                                        {{ ticket.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge
+                                        {% if ticket.priority == 'urgent' %}bg-danger
+                                        {% elif ticket.priority == 'high' %}bg-warning
+                                        {% elif ticket.priority == 'medium' %}bg-info
+                                        {% else %}bg-secondary
+                                        {% endif %}">
+                                        {{ ticket.get_priority_display }}
+                                    </span>
+                                </td>
+                                <td>{{ ticket.external_updated_at|date:"Y-m-d H:i"|default:"—" }}</td>
+                                <td>
+                                    <a href="{% url 'integrations:psa_ticket_detail' ticket.pk %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No tickets for this contact.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'integrations:psa_contacts' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Contacts
+    </a>
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-user-edit"></i> Edit Profile</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Profile Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                            <div class="invalid-feedback d-block">{{ form.first_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                            <div class="invalid-feedback d-block">{{ form.last_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">Email <span class="text-danger">*</span></label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                        <div class="invalid-feedback d-block">{{ form.email.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.phone.id_for_label }}" class="form-label">Phone</label>
+                            {{ form.phone }}
+                            {% if form.phone.errors %}
+                            <div class="invalid-feedback d-block">{{ form.phone.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.title.id_for_label }}" class="form-label">Job Title</label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                            <div class="invalid-feedback d-block">{{ form.title.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.department.id_for_label }}" class="form-label">Department</label>
+                        {{ form.department }}
+                        {% if form.department.errors %}
+                        <div class="invalid-feedback d-block">{{ form.department.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <hr class="my-4">
+                    <h6><i class="fas fa-cog"></i> Preferences</h6>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.timezone.id_for_label }}" class="form-label">
+                                <i class="fas fa-clock"></i> Timezone
+                            </label>
+                            {{ form.timezone }}
+                            {% if form.timezone.errors %}
+                            <div class="invalid-feedback d-block">{{ form.timezone.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">Your local timezone for displaying dates and times</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.locale.id_for_label }}" class="form-label">
+                                <i class="fas fa-language"></i> Language
+                            </label>
+                            {{ form.locale }}
+                            {% if form.locale.errors %}
+                            <div class="invalid-feedback d-block">{{ form.locale.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <h6><i class="fas fa-bell"></i> Notification Settings</h6>
+
+                    <div class="mb-3 form-check">
+                        {{ form.email_notifications }}
+                        <label class="form-check-label" for="{{ form.email_notifications.id_for_label }}">
+                            Enable Email Notifications
+                        </label>
+                        {% if form.email_notifications.errors %}
+                        <div class="invalid-feedback d-block">{{ form.email_notifications.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.notification_frequency.id_for_label }}" class="form-label">Notification Frequency</label>
+                        {{ form.notification_frequency }}
+                        {% if form.notification_frequency.errors %}
+                        <div class="invalid-feedback d-block">{{ form.notification_frequency.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">How often you want to receive email notifications</small>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                        <a href="{% url 'accounts:profile' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Help</h5>
+            </div>
+            <div class="card-body">
+                <h6>Timezone</h6>
+                <p class="small">Your timezone is used to display all dates and times in your local time zone. Common timezones are listed first for convenience.</p>
+
+                <h6>Notifications</h6>
+                <p class="small">Control how often you receive email notifications:</p>
+                <ul class="small">
+                    <li><strong>Real-time:</strong> Immediate notifications</li>
+                    <li><strong>Hourly:</strong> Digest every hour</li>
+                    <li><strong>Daily:</strong> Daily summary at 9 AM</li>
+                    <li><strong>Weekly:</strong> Weekly summary on Monday</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

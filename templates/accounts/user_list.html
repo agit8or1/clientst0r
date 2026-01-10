@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="fas fa-users"></i> User Management</h1>
+        <p class="text-muted mb-0">Manage all users in the system</p>
+    </div>
+    <a href="{% url 'accounts:user_create' %}" class="btn btn-primary">
+        <i class="fas fa-user-plus"></i> Create User
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>User Type</th>
+                        <th>Status</th>
+                        <th>Django Staff</th>
+                        <th>Superuser</th>
+                        <th>Organizations</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user_obj in users %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'accounts:user_detail' user_obj.id %}">
+                                <i class="fas fa-user"></i> {{ user_obj.username }}
+                            </a>
+                        </td>
+                        <td>{{ user_obj.get_full_name|default:"—" }}</td>
+                        <td>{{ user_obj.email|default:"—" }}</td>
+                        <td>
+                            {% if user_obj.profile.user_type == 'staff' %}
+                                <span class="badge bg-primary">Staff User</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Org User</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user_obj.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user_obj.is_staff %}
+                            <i class="fas fa-check text-success"></i>
+                            {% else %}
+                            <i class="fas fa-times text-muted"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user_obj.is_superuser %}
+                            <span class="badge bg-danger">Superuser</span>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">
+                                {{ user_obj.memberships.filter.count }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if user_obj.last_login %}
+                            {{ user_obj.last_login|date:"Y-m-d H:i" }}
+                            {% else %}
+                            <span class="text-muted">Never</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'accounts:user_detail' user_obj.id %}" class="btn btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'accounts:user_edit' user_obj.id %}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'accounts:user_password_reset' user_obj.id %}" class="btn btn-outline-warning" title="Reset Password">
+                                    <i class="fas fa-key"></i>
+                                </a>
+                                {% if not user_obj.is_superuser and user_obj != user %}
+                                <a href="{% url 'accounts:user_delete' user_obj.id %}" class="btn btn-outline-danger" title="Deactivate">
+                                    <i class="fas fa-user-slash"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="fas fa-users fa-3x mb-3 d-block"></i>
+                            <p>No users found.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <small class="text-muted">
+        <i class="fas fa-info-circle"></i>
+        Showing {{ users.count }} user{{ users.count|pluralize }}
+    </small>
+</div>
+{% endblock %}

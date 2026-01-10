@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}{{ document.title }} - Global KB{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'docs:global_kb_list' %}">Global KB</a></li>
+        <li class="breadcrumb-item active">{{ document.title }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-book"></i> {{ document.title }}</h1>
+    <div>
+        <a href="{% url 'docs:global_kb_edit' document.slug %}" class="btn btn-secondary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{% url 'docs:global_kb_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-body">
+                {{ document.render_content|safe }}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-info-circle"></i> Article Info</h6>
+            </div>
+            <div class="card-body">
+                <dl class="mb-0">
+                    <dt>Category:</dt>
+                    <dd>
+                        {% if document.category %}
+                        <span class="badge bg-info">{{ document.category.name }}</span>
+                        {% else %}—{% endif %}
+                    </dd>
+
+                    <dt>Tags:</dt>
+                    <dd>
+                        {% for tag in document.tags.all %}
+                        <span class="badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
+                        {% empty %}—{% endfor %}
+                    </dd>
+
+                    <dt>Created:</dt>
+                    <dd>{{ document.created_at|date:"M d, Y" }}</dd>
+
+                    <dt>Last Updated:</dt>
+                    <dd>{{ document.updated_at|date:"M d, Y H:i" }}</dd>
+
+                    <dt>Updated By:</dt>
+                    <dd>
+                        {% if document.last_modified_by %}
+                        {{ document.last_modified_by.username }}
+                        {% else %}—{% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

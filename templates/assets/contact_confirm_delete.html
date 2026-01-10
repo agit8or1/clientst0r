@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Contact - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Confirm Deletion
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger" role="alert">
+                    <strong>Warning:</strong> You are about to permanently delete this contact. This action cannot be undone.
+                </div>
+
+                <h5>Contact Details:</h5>
+                <dl class="row">
+                    <dt class="col-sm-3">Name:</dt>
+                    <dd class="col-sm-9"><strong>{{ contact.name }}</strong></dd>
+
+                    {% if contact.title %}
+                    <dt class="col-sm-3">Title:</dt>
+                    <dd class="col-sm-9">{{ contact.title }}</dd>
+                    {% endif %}
+
+                    {% if contact.email %}
+                    <dt class="col-sm-3">Email:</dt>
+                    <dd class="col-sm-9">{{ contact.email }}</dd>
+                    {% endif %}
+
+                    {% if contact.phone %}
+                    <dt class="col-sm-3">Phone:</dt>
+                    <dd class="col-sm-9">{{ contact.phone }}</dd>
+                    {% endif %}
+
+                    {% if contact.mobile %}
+                    <dt class="col-sm-3">Mobile:</dt>
+                    <dd class="col-sm-9">{{ contact.mobile }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-3">Created:</dt>
+                    <dd class="col-sm-9">{{ contact.created_at|date:"F j, Y g:i A" }}</dd>
+                </dl>
+
+                <div class="alert alert-warning mt-3" role="alert">
+                    <strong>Note:</strong> Any assets that use this contact as their primary contact will have their primary contact field set to null.
+                </div>
+
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'assets:contact_detail' contact.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Yes, Delete Contact
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

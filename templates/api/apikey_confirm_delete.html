@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Delete API Key - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1><i class="fas fa-trash text-danger"></i> Delete API Key</h1>
+</div>
+
+<div class="card">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h5>
+    </div>
+    <div class="card-body">
+        <p class="lead">Are you sure you want to delete this API key?</p>
+
+        <dl class="row">
+            <dt class="col-sm-3">Name:</dt>
+            <dd class="col-sm-9"><strong>{{ api_key.name }}</strong></dd>
+
+            <dt class="col-sm-3">Key Prefix:</dt>
+            <dd class="col-sm-9"><code>{{ api_key.key_prefix }}...</code></dd>
+
+            <dt class="col-sm-3">Role:</dt>
+            <dd class="col-sm-9">
+                <span class="badge
+                    {% if api_key.role == 'owner' %}bg-danger
+                    {% elif api_key.role == 'admin' %}bg-warning
+                    {% elif api_key.role == 'editor' %}bg-info
+                    {% else %}bg-secondary
+                    {% endif %}">
+                    {{ api_key.get_role_display }}
+                </span>
+            </dd>
+
+            <dt class="col-sm-3">Created:</dt>
+            <dd class="col-sm-9">{{ api_key.created_at|date:"F j, Y" }}</dd>
+
+            {% if api_key.last_used_at %}
+            <dt class="col-sm-3">Last Used:</dt>
+            <dd class="col-sm-9">
+                {{ api_key.last_used_at|timesince }} ago
+                {% if api_key.last_used_ip %}<br><small>from <code>{{ api_key.last_used_ip }}</code></small>{% endif %}
+            </dd>
+            {% endif %}
+        </dl>
+
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle"></i>
+            <strong>Warning:</strong> This action cannot be undone. Any applications using this API key will immediately lose access.
+        </div>
+
+        <form method="post" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Yes, Delete API Key
+            </button>
+            <a href="{% url 'api:apikey_list' %}" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Cancel
+            </a>
+        </form>
+    </div>
+</div>
+{% endblock %}

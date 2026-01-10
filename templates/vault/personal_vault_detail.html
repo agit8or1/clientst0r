@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}{{ item.title }} - My Vault - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'vault:personal_vault_list' %}">My Vault</a></li>
+        <li class="breadcrumb-item active">{{ item.title }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        {% if item.is_favorite %}<i class="fas fa-star text-warning"></i>{% endif %}
+        {{ item.title }}
+    </h2>
+    <div class="btn-group">
+        <a href="{% url 'vault:personal_vault_edit' item.pk %}" class="btn btn-primary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{% url 'vault:personal_vault_delete' item.pk %}" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Delete
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-lock"></i> Encrypted Content</h5>
+                    {% if item.category %}
+                    <span class="badge bg-secondary">{{ item.category }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <pre style="white-space: pre-wrap; font-family: monospace;">{{ content }}</pre>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Info</h5>
+            </div>
+            <div class="card-body">
+                <dl class="mb-0">
+                    <dt>Created:</dt>
+                    <dd>{{ item.created_at|date:"M d, Y H:i" }}</dd>
+
+                    <dt>Updated:</dt>
+                    <dd>{{ item.updated_at|date:"M d, Y H:i" }}</dd>
+
+                    <dt>Favorite:</dt>
+                    <dd>
+                        {% if item.is_favorite %}
+                        <i class="fas fa-check text-success"></i> Yes
+                        {% else %}
+                        <i class="fas fa-times text-muted"></i> No
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-shield-alt"></i> <strong>Encrypted</strong><br>
+            <small>This content is encrypted and only visible to you.</small>
+        </div>
+    </div>
+</div>
+{% endblock %}

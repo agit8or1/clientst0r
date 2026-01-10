@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}{{ note.title }} - Secure Note - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="fas fa-lock"></i> Secure Note</h2>
+    {% if note.sender == user %}
+    <a href="{% url 'core:secure_note_delete' note.pk %}" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i> Delete</a>
+    {% endif %}
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{{ note.title }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>From:</strong> {{ note.sender.username }}
+                    | <strong>Sent:</strong> {{ note.created_at|date:"M d, Y g:i A" }}
+                    {% if note.expires_at %}| <strong>Expires:</strong> {{ note.expires_at|date:"M d, Y g:i A" }}{% endif %}
+                </div>
+
+                <div class="bg-light p-3 rounded" style="white-space: pre-wrap;">{{ content }}</div>
+
+                {% if note.read_once %}
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-eye-slash"></i> This note will self-destruct after you close this page.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header py-2">
+                <h6 class="mb-0"><i class="fas fa-users"></i> Recipients ({{ recipients.count }})</h6>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for recipient in recipients %}
+                <div class="list-group-item">
+                    {{ recipient.username }}
+                    {% if recipient in read_by %}
+                    <span class="badge bg-success float-end"><i class="fas fa-check"></i> Read</span>
+                    {% else %}
+                    <span class="badge bg-secondary float-end">Unread</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if note.sender == user %}
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6><i class="fas fa-chart-line"></i> Statistics</h6>
+                <p class="mb-1"><strong>Read by:</strong> {{ note.read_count }}/{{ recipients.count }}</p>
+                <p class="mb-0"><strong>Status:</strong>
+                    {% if note.is_deleted %}<span class="badge bg-danger">Deleted</span>
+                    {% elif note.is_expired %}<span class="badge bg-warning text-dark">Expired</span>
+                    {% else %}<span class="badge bg-success">Active</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

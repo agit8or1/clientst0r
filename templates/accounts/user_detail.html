@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}{{ viewed_user.username }} - User Details - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:user_list' %}">Users</a></li>
+        <li class="breadcrumb-item active">{{ viewed_user.username }}</li>
+    </ol>
+</nav>
+
+<div class="mb-4 d-flex justify-content-between align-items-start">
+    <div>
+        <h1>
+            <i class="fas fa-user-circle"></i> {{ viewed_user.username }}
+            {% if not viewed_user.is_active %}
+            <span class="badge bg-secondary">Inactive</span>
+            {% endif %}
+            {% if viewed_user.is_superuser %}
+            <span class="badge bg-danger">Superuser</span>
+            {% endif %}
+        </h1>
+        <p class="text-muted mb-0">{{ viewed_user.get_full_name|default:"No name set" }}</p>
+    </div>
+    <div>
+        <a href="{% url 'accounts:user_edit' viewed_user.id %}" class="btn btn-primary">
+            <i class="fas fa-edit"></i> Edit User
+        </a>
+        <a href="{% url 'accounts:user_password_reset' viewed_user.id %}" class="btn btn-warning">
+            <i class="fas fa-key"></i> Reset Password
+        </a>
+        {% if not viewed_user.is_superuser and viewed_user != user %}
+        <a href="{% url 'accounts:user_delete' viewed_user.id %}" class="btn btn-danger">
+            <i class="fas fa-user-slash"></i> Deactivate
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-id-card"></i> Account Information</h5>
+            </div>
+            <div class="card-body">
+                <dl>
+                    <dt>Username:</dt>
+                    <dd><strong>{{ viewed_user.username }}</strong></dd>
+
+                    <dt>Email:</dt>
+                    <dd>
+                        {% if viewed_user.email %}
+                        <a href="mailto:{{ viewed_user.email }}">{{ viewed_user.email }}</a>
+                        {% else %}
+                        <span class="text-muted">Not set</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt>Full Name:</dt>
+                    <dd>{{ viewed_user.get_full_name|default:"—" }}</dd>
+
+                    <dt>User Type:</dt>
+                    <dd>
+                        {% if profile.user_type == 'staff' %}
+                            <span class="badge bg-primary">Staff User (MSP Tech)</span>
+                            {% if profile.global_role_template %}
+                                <br><small class="text-muted mt-1">Global Role: <strong>{{ profile.global_role_template.name }}</strong></small>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-secondary">Organization User (Client)</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt>Status:</dt>
+                    <dd>
+                        {% if viewed_user.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt>Staff Access:</dt>
+                    <dd>
+                        {% if viewed_user.is_staff %}
+                        <i class="fas fa-check text-success"></i> Yes
+                        {% else %}
+                        <i class="fas fa-times text-muted"></i> No
+                        {% endif %}
+                    </dd>
+
+                    <dt>Superuser:</dt>
+                    <dd>
+                        {% if viewed_user.is_superuser %}
+                        <span class="badge bg-danger">Yes</span>
+                        {% else %}
+                        <i class="fas fa-times text-muted"></i> No
+                        {% endif %}
+                    </dd>
+
+                    <dt>Date Joined:</dt>
+                    <dd>{{ viewed_user.date_joined|date:"F j, Y g:i A" }}</dd>
+
+                    <dt>Last Login:</dt>
+                    <dd>
+                        {% if viewed_user.last_login %}
+                        {{ viewed_user.last_login|date:"F j, Y g:i A" }}
+                        {% else %}
+                        <span class="text-muted">Never</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-user"></i> Profile Information</h5>
+            </div>
+            <div class="card-body">
+                <dl class="mb-0">
+                    <dt>Phone:</dt>
+                    <dd>{{ profile.phone|default:"—" }}</dd>
+
+                    <dt>Title:</dt>
+                    <dd>{{ profile.title|default:"—" }}</dd>
+
+                    <dt>Department:</dt>
+                    <dd>{{ profile.department|default:"—" }}</dd>
+
+                    <dt>Timezone:</dt>
+                    <dd>{{ profile.timezone }}</dd>
+
+                    <dt>2FA Status:</dt>
+                    <dd>
+                        {% if profile.two_factor_enabled %}
+                        <span class="badge bg-success"><i class="fas fa-shield-alt"></i> Enabled</span>
+                        {% else %}
+                        <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Disabled</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-building"></i> Organization Memberships</h5>
+                <span class="badge bg-primary">{{ memberships.count }}</span>
+            </div>
+            <div class="card-body">
+                {% if memberships %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Organization</th>
+                                <th>Role Template</th>
+                                <th>Default Role</th>
+                                <th>Status</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for membership in memberships %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'accounts:organization_detail' membership.organization.id %}">
+                                        <i class="fas fa-building"></i> {{ membership.organization.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if membership.role_template %}
+                                        <span class="badge bg-success">{{ membership.role_template.name }}</span>
+                                    {% else %}
+                                        <span class="text-muted">None</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ membership.get_role_display }}</span>
+                                </td>
+                                <td>
+                                    {% if membership.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Suspended</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ membership.created_at|date:"Y-m-d" }}</td>
+                                <td>
+                                    <a href="{% url 'accounts:member_edit' membership.organization.id membership.id %}" class="btn btn-sm btn-outline-primary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">This user is not a member of any organizations.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'accounts:user_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Users
+    </a>
+</div>
+{% endblock %}

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Global KB{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1><i class="fas fa-book"></i> Global Knowledge Base</h1>
+    <a href="{% url 'docs:global_kb_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New KB Article</a>
+</div>
+
+<div class="alert alert-info mb-3">
+    <i class="fas fa-info-circle"></i> <strong>Staff Only:</strong> This Global KB is only accessible to staff users and contains internal documentation, procedures, and resources.
+</div>
+
+<!-- Filters -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small mb-1">Search</label>
+                <input type="text" name="q" class="form-control form-control-sm" placeholder="Search articles..." value="{{ query }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Category</label>
+                <select name="category" class="form-select form-select-sm">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:"s" %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Tag</label>
+                <select name="tag" class="form-select form-select-sm">
+                    <option value="">All Tags</option>
+                    {% for tag in tags %}
+                    <option value="{{ tag.id }}" {% if selected_tag == tag.id|stringformat:"s" %}selected{% endif %}>
+                        {{ tag.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+                <a href="{% url 'docs:global_kb_list' %}" class="btn btn-outline-secondary btn-sm w-100 mt-1">
+                    <i class="fas fa-times"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if documents %}
+<div class="card">
+    <div class="card-body">
+        <table id="kbTable" class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Tags</th>
+                    <th>Last Updated</th>
+                    <th>Updated By</th>
+                    <th width="120">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documents %}
+                <tr>
+                    <td><a href="{% url 'docs:global_kb_detail' doc.slug %}"><strong>{{ doc.title }}</strong></a></td>
+                    <td>
+                        {% if doc.category %}
+                        <span class="badge bg-info">{{ doc.category.name }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% for tag in doc.tags.all %}
+                        <span class="badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
+                        {% endfor %}
+                    </td>
+                    <td>{{ doc.updated_at|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        {% if doc.last_modified_by %}
+                        {{ doc.last_modified_by.username }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'docs:global_kb_detail' doc.slug %}" class="btn btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
+                            <a href="{% url 'docs:global_kb_edit' doc.slug %}" class="btn btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
+                            <a href="{% url 'docs:global_kb_delete' doc.slug %}" class="btn btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-book fa-3x text-muted mb-3"></i>
+        <p class="text-muted">No Global KB articles found. <a href="{% url 'docs:global_kb_create' %}">Create the first one</a>.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#kbTable').DataTable({
+        order: [[3, 'desc']],
+        pageLength: 25,
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search KB articles..."
+        }
+    });
+});
+</script>
+{% endblock %}

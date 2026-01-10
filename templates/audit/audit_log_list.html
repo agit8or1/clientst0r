@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-clipboard-list"></i> Audit Logs</h1>
+    <div class="btn-group">
+        <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+            <i class="fas fa-download"></i> Export
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="#" onclick="exportTable('csv')"><i class="fas fa-file-csv"></i> Export as CSV</a></li>
+            <li><a class="dropdown-item" href="#" onclick="exportTable('json')"><i class="fas fa-file-code"></i> Export as JSON</a></li>
+        </ul>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">{{ total_count }}</h4>
+                        <small>Total Events</small>
+                    </div>
+                    <i class="fas fa-list fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">{{ today_count }}</h4>
+                        <small>Today</small>
+                    </div>
+                    <i class="fas fa-calendar-day fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">{{ unique_users }}</h4>
+                        <small>Active Users</small>
+                    </div>
+                    <i class="fas fa-users fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">{{ failed_count }}</h4>
+                        <small>Failed Actions</small>
+                    </div>
+                    <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-header py-2">
+        <h6 class="mb-0"><i class="fas fa-filter"></i> Filters</h6>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-2">
+                <label for="action" class="form-label">Action</label>
+                <select name="action" id="action" class="form-select form-select-sm">
+                    <option value="">All Actions</option>
+                    {% for action in actions %}
+                    <option value="{{ action }}" {% if current_action == action %}selected{% endif %}>
+                        {{ action|title }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="object_type" class="form-label">Object Type</label>
+                <select name="object_type" id="object_type" class="form-select form-select-sm">
+                    <option value="">All Types</option>
+                    {% for obj_type in object_types %}
+                    <option value="{{ obj_type }}" {% if current_object_type == obj_type %}selected{% endif %}>
+                        {{ obj_type|title }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="user" class="form-label">User</label>
+                <input type="text" name="user" id="user" class="form-control form-control-sm" placeholder="Username" value="{{ current_user|default:'' }}">
+            </div>
+
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">From Date</label>
+                <input type="date" name="date_from" id="date_from" class="form-control form-control-sm" value="{{ date_from|default:'' }}">
+            </div>
+
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">To Date</label>
+                <input type="date" name="date_to" id="date_to" class="form-control form-control-sm" value="{{ date_to|default:'' }}">
+            </div>
+
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary btn-sm me-2">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+                <a href="{% url 'audit:audit_log_list' %}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-times"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Audit Logs Table -->
+{% if logs %}
+<div class="card">
+    <div class="card-body">
+        <table id="auditLogTable" class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Object Type</th>
+                    <th>Object</th>
+                    <th>IP Address</th>
+                    <th>Status</th>
+                    <th width="80">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>
+                        <small>{{ log.timestamp|date:"M d, Y" }}<br>{{ log.timestamp|date:"H:i:s" }}</small>
+                    </td>
+                    <td>
+                        <i class="fas fa-user-circle text-primary"></i>
+                        <strong>{{ log.username|default:"System" }}</strong>
+                    </td>
+                    <td>
+                        <span class="badge
+                            {% if log.action == 'create' %}bg-success
+                            {% elif log.action == 'update' %}bg-primary
+                            {% elif log.action == 'delete' %}bg-danger
+                            {% elif log.action == 'read' or log.action == 'reveal' %}bg-info
+                            {% elif log.action == 'login' %}bg-success
+                            {% elif log.action == 'logout' %}bg-secondary
+                            {% elif log.action == 'login_failed' %}bg-danger
+                            {% else %}bg-secondary
+                            {% endif %}">
+                            {% if log.action == 'create' %}<i class="fas fa-plus"></i>
+                            {% elif log.action == 'update' %}<i class="fas fa-edit"></i>
+                            {% elif log.action == 'delete' %}<i class="fas fa-trash"></i>
+                            {% elif log.action == 'read' %}<i class="fas fa-eye"></i>
+                            {% elif log.action == 'login' %}<i class="fas fa-sign-in-alt"></i>
+                            {% elif log.action == 'logout' %}<i class="fas fa-sign-out-alt"></i>
+                            {% endif %}
+                            {{ log.get_action_display }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if log.object_type %}
+                        <span class="badge bg-secondary">{{ log.object_type }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if log.object_repr %}
+                        <small>{{ log.object_repr|truncatewords:5 }}</small>
+                        {% elif log.object_id %}
+                        <small><code>#{{ log.object_id }}</code></small>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if log.ip_address %}
+                        <code>{{ log.ip_address }}</code>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if log.success %}
+                        <span class="badge bg-success"><i class="fas fa-check"></i> Success</span>
+                        {% else %}
+                        <span class="badge bg-danger"><i class="fas fa-times"></i> Failed</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'audit:audit_log_detail' log.pk %}" class="btn btn-sm btn-outline-primary" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No audit logs found</h5>
+        <p class="text-muted">Audit logs will appear here as actions are performed.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    {% if logs %}
+    $('#auditLogTable').DataTable({
+        order: [[0, 'desc']],  // Sort by timestamp descending
+        pageLength: 50,
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search logs..."
+        }
+    });
+    {% endif %}
+});
+
+function exportTable(format) {
+    // Get current filter parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('export', format);
+    window.location.href = '{% url "audit:audit_log_list" %}?' + urlParams.toString();
+}
+</script>
+{% endblock %}
