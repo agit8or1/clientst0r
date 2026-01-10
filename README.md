@@ -99,7 +99,7 @@ EXIT;
 # 7. Run migrations
 python3 manage.py migrate
 
-# 8. Create superuser
+# 8. Create superuser (you'll be prompted for username, email, and password)
 python3 manage.py createsuperuser
 
 # 9. Collect static files
@@ -109,20 +109,14 @@ python3 manage.py collectstatic --noinput
 python3 manage.py runserver 0.0.0.0:8000
 ```
 
-Visit `http://localhost:8000` and log in with your superuser credentials.
+Visit `http://localhost:8000` and log in with the credentials you created in step 8.
 
 ## 📖 Documentation
 
-Comprehensive documentation is available:
-
-- **[Installation Guide](docs/INSTALLATION.md)** - Detailed setup instructions
-- **[Configuration](docs/CONFIGURATION.md)** - Environment variables
-- **[Production Deployment](docs/DEPLOYMENT.md)** - Nginx, Gunicorn, systemd
-- **[API Documentation](docs/API.md)** - REST API reference
-- **[Security Guide](docs/SECURITY.md)** - Best practices
-- **[PSA Integration](docs/PSA_INTEGRATION.md)** - Configure PSA providers
-- **[User Guide](docs/USER_GUIDE.md)** - End-user documentation
-- **[Development](docs/DEVELOPMENT.md)** - Contributing guide
+For production deployment instructions, see:
+- **[SECURITY.md](SECURITY.md)** - Security best practices and disclosure policy
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Development and contribution guidelines
+- **Production Setup**: Refer to the systemd service files in `deploy/` directory
 
 ## 🏗️ Architecture
 
@@ -213,9 +207,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 💬 Support
 
-- **Documentation**: [docs/](docs/)
 - **Issues**: [GitHub Issues](https://github.com/agit8or1/huduglue/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/agit8or1/huduglue/discussions)
+- **Security**: See [SECURITY.md](SECURITY.md) for vulnerability disclosure
 
 ## 🗺️ Roadmap
 
@@ -238,7 +232,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📸 Screenshots
 
-Screenshots coming soon! Check the [docs/screenshots/](docs/screenshots/) directory.
+View application screenshots in the [screenshots/](screenshots/) directory, including:
+- Dashboard and overview
+- Password vault and credential management
+- Asset tracking and inventory
+- Documentation and knowledge base
+- Website monitoring and infrastructure
+- User management and security settings
 
 ---
 
