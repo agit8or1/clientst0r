@@ -290,52 +290,111 @@ print_info "Step 10/10: Collecting static files..."
 python3 manage.py collectstatic --noinput > /dev/null 2>&1
 print_status "Static files collected"
 
-# Step 11: Setup complete
+# Step 11: Start the server automatically
 echo ""
-print_status "Installation complete!"
-echo ""
+print_info "Step 11/11: Starting production server..."
+
+# Create systemd service file
+sudo tee /etc/systemd/system/huduglue-gunicorn.service > /dev/null << 'SVCEOF'
+[Unit]
+Description=HuduGlue Gunicorn
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+Type=notify
+User=USER_PLACEHOLDER
+Group=USER_PLACEHOLDER
+WorkingDirectory=WORKDIR_PLACEHOLDER
+Environment="PATH=WORKDIR_PLACEHOLDER/venv/bin"
+ExecStart=WORKDIR_PLACEHOLDER/venv/bin/gunicorn \
+    --workers 4 \
+    --bind 0.0.0.0:8000 \
+    --timeout 120 \
+    --access-logfile /var/log/itdocs/gunicorn-access.log \
+    --error-logfile /var/log/itdocs/gunicorn-error.log \
+    --log-level info \
+    config.wsgi:application
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+# Replace placeholders with actual values
+sudo sed -i "s|USER_PLACEHOLDER|$USER|g" /etc/systemd/system/huduglue-gunicorn.service
+sudo sed -i "s|WORKDIR_PLACEHOLDER|$SCRIPT_DIR|g" /etc/systemd/system/huduglue-gunicorn.service
+
+# Reload systemd and start service
+sudo systemctl daemon-reload
+sudo systemctl enable huduglue-gunicorn.service
+sudo systemctl start huduglue-gunicorn.service
+
+# Wait a moment for service to start
+sleep 2
+
+# Check if service started successfully
+if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
+    print_status "Production server started successfully!"
+else
+    print_error "Failed to start production server. Checking logs..."
+    sudo journalctl -u huduglue-gunicorn.service -n 20 --no-pager
+    exit 1
+fi
+
+# Get server IP address
+SERVER_IP=$(hostname -I | awk '{print $1}')
 
 # Print summary
+echo ""
+echo ""
 echo -e "${GREEN}╔═══════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║                                                           ║${NC}"
-echo -e "${GREEN}║              Installation Successful! 🎉                  ║${NC}"
+echo -e "${GREEN}║        HuduGlue Installation Complete! 🎉 🐕              ║${NC}"
+echo -e "${GREEN}║              Server is RUNNING!                           ║${NC}"
 echo -e "${GREEN}║                                                           ║${NC}"
 echo -e "${GREEN}╚═══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-print_info "Configuration Summary:"
-echo "  • Database: huduglue (MariaDB/MySQL)"
-echo "  • Database User: huduglue"
-echo "  • Database Password: ChangeMe123!"
-echo "  • Environment file: .env"
-echo "  • Python virtual env: venv/"
+print_info "🌐 Access your HuduGlue installation at:"
+echo ""
+echo -e "  ${GREEN}➜  http://${SERVER_IP}:8000${NC}"
+echo -e "  ${GREEN}➜  http://localhost:8000${NC} (if accessing from this server)"
 echo ""
 
-print_info "To start the development server:"
-echo -e "  ${YELLOW}cd $SCRIPT_DIR${NC}"
-echo -e "  ${YELLOW}source venv/bin/activate${NC}"
-echo -e "  ${YELLOW}python3 manage.py runserver 0.0.0.0:8000${NC}"
+print_info "🔐 Login Credentials:"
+echo "  • Username: (the username you created)"
+echo "  • Password: (the password you entered)"
 echo ""
 
-print_info "Then visit: ${YELLOW}http://localhost:8000${NC}"
+print_info "📊 What's Running:"
+echo "  ✅ MariaDB Database: huduglue"
+echo "  ✅ Gunicorn Server: 4 workers on port 8000"
+echo "  ✅ Auto-start on boot: Enabled"
+echo "  ✅ Auto-restart on failure: Enabled"
 echo ""
 
-print_warning "IMPORTANT SECURITY STEPS:"
+print_info "🔧 Server Management:"
+echo "  • Check status:  sudo systemctl status huduglue-gunicorn.service"
+echo "  • Restart:       sudo systemctl restart huduglue-gunicorn.service"
+echo "  • Stop:          sudo systemctl stop huduglue-gunicorn.service"
+echo "  • View logs:     sudo journalctl -u huduglue-gunicorn.service -f"
+echo ""
+
+print_warning "⚠️  IMPORTANT SECURITY STEPS:"
 echo "  1. Change database password in .env and MySQL"
 echo "  2. Set DEBUG=False in .env for production"
-echo "  3. Update ALLOWED_HOSTS in .env with your domain"
-echo "  4. Setup proper web server (Nginx + Gunicorn) for production"
+echo "  3. Update ALLOWED_HOSTS in .env with your domain/IP"
+echo "  4. Enable 2FA after first login (Profile → Two-Factor Authentication)"
+echo "  5. Create an Organization (Dashboard → Organizations)"
 echo ""
 
-print_info "Documentation: https://github.com/agit8or1/huduglue"
+print_info "📚 Documentation: https://github.com/agit8or1/huduglue"
 echo ""
 
-# Ask if user wants to start server now
-read -p "Would you like to start the development server now? (y/n) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    print_info "Starting development server..."
-    print_warning "Press Ctrl+C to stop the server"
-    echo ""
-    python3 manage.py runserver 0.0.0.0:8000
-fi
+print_status "Installation files:"
+echo "  • Install directory: $SCRIPT_DIR"
+echo "  • Config file: $SCRIPT_DIR/.env"
+echo "  • Virtual env: $SCRIPT_DIR/venv"
+echo "  • Logs: /var/log/itdocs/"
+echo ""
