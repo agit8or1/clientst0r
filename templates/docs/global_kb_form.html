@@ -3,6 +3,8 @@
 {% block title %}{{ action }} Global KB Article - HuduGlue{% endblock %}
 
 {% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <style>
     #markdown-editor-container {
         display: none;
@@ -10,6 +12,9 @@
     .tox-tinymce {
         border: 1px solid #dee2e6 !important;
         border-radius: 0.375rem;
+    }
+    .select2-container {
+        width: 100% !important;
     }
 </style>
 {% endblock %}
@@ -88,14 +93,8 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Tags</label>
-                        <div class="row">
-                            {% for tag in form.tags %}
-                            <div class="col-md-3">
-                                {{ tag }}
-                            </div>
-                            {% endfor %}
-                        </div>
+                        <label for="{{ form.tags.id_for_label }}" class="form-label">Tags</label>
+                        {{ form.tags }}
                         {% if form.tags.errors %}
                         <div class="invalid-feedback d-block">{{ form.tags.errors }}</div>
                         {% endif %}
@@ -146,6 +145,7 @@
 {% block extra_js %}
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
     const contentTypeSelect = document.getElementById('content-type-select');
@@ -259,5 +259,15 @@
             slugInput.value = slug;
         });
     }
+
+    // Initialize Select2 for tags multi-select
+    $(document).ready(function() {
+        $('#{{ form.tags.id_for_label }}').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select tags...',
+            allowClear: true,
+            width: '100%'
+        });
+    });
 </script>
 {% endblock %}

@@ -199,17 +199,39 @@ if csrf_origins_env:
     # Use explicit env var if provided (comma-separated full URLs)
     CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_env.split(',') if origin.strip()]
 elif DEBUG:
-    # In DEBUG mode with wildcard ALLOWED_HOSTS, we need a workaround
-    # Get the actual request origin dynamically in middleware
-    # For now, add common development origins
+    # In DEBUG mode with wildcard ALLOWED_HOSTS, we need to be permissive
+    # Add common development origins
     CSRF_TRUSTED_ORIGINS = [
         'http://localhost:8000',
         'http://127.0.0.1:8000',
         'https://localhost:8000',
         'https://127.0.0.1:8000',
     ]
-    # Add wildcard support for any HTTPS origin in DEBUG mode
-    # Django doesn't support wildcards, so we'll need to handle this dynamically
+
+    # Auto-detect all local IP addresses and add them to trusted origins
+    import socket
+    try:
+        # Get hostname and primary IP
+        hostname = socket.gethostname()
+        local_ip = socket.gethostbyname(hostname)
+        if local_ip and local_ip != '127.0.0.1':
+            CSRF_TRUSTED_ORIGINS.extend([
+                f'http://{local_ip}:8000',
+                f'https://{local_ip}:8000',
+            ])
+
+        # Also try to get all network interfaces
+        import socket
+        addrs = socket.getaddrinfo(hostname, None)
+        for addr in addrs:
+            ip = addr[4][0]
+            if ip and ip not in ['127.0.0.1', '::1'] and ':' not in ip:  # Skip loopback and IPv6
+                CSRF_TRUSTED_ORIGINS.extend([
+                    f'http://{ip}:8000',
+                    f'https://{ip}:8000',
+                ])
+    except:
+        pass
 else:
     # In production, auto-generate from ALLOWED_HOSTS
     CSRF_TRUSTED_ORIGINS = []
