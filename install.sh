@@ -75,6 +75,12 @@ if ! command -v pip3 &> /dev/null; then
     PACKAGES_TO_INSTALL+=("python3-pip")
 fi
 
+# Check for MySQL/MariaDB server
+if ! systemctl list-unit-files | grep -q 'mariadb.service\|mysql.service'; then
+    print_warning "MariaDB server not found"
+    PACKAGES_TO_INSTALL+=("mariadb-server")
+fi
+
 # Check for MySQL/MariaDB client
 if ! command -v mysql &> /dev/null; then
     print_warning "MySQL client not found"
