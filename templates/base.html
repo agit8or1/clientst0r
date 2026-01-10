@@ -57,24 +57,26 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{% url 'docs:document_list' %}"><i class="fas fa-file-alt"></i> Documents</a></li>
                             <li><a class="dropdown-item" href="{% url 'docs:diagram_list' %}"><i class="fas fa-project-diagram"></i> Diagrams</a></li>
+                            {% if is_staff_user or user.is_superuser %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'docs:global_kb_list' %}"><i class="fas fa-book"></i> Global KB</a></li>
+                            {% endif %}
                         </ul>
                     </li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'processes:process_list' %}"><i class="fas fa-tasks"></i> Processes</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'core:favorite_list' %}"><i class="fas fa-star text-warning"></i> Favorites</a></li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="monitoringDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-chart-line"></i> Monitoring
+                        <a class="nav-link dropdown-toggle" href="#" id="moreDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-h"></i> More
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'monitoring:website_monitor_list' %}"><i class="fas fa-globe"></i> Websites</a></li>
+                            <li><h6 class="dropdown-header">Quick Links</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'core:favorite_list' %}"><i class="fas fa-star text-warning"></i> Favorites</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Monitoring</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'monitoring:website_monitor_list' %}"><i class="fas fa-globe"></i> Website Monitors</a></li>
                             <li><a class="dropdown-item" href="{% url 'monitoring:expiration_list' %}"><i class="fas fa-calendar-times"></i> Expirations</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="infrastructureDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-network-wired"></i> Infrastructure
-                        </a>
-                        <ul class="dropdown-menu">
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Infrastructure</h6></li>
                             <li><a class="dropdown-item" href="{% url 'monitoring:rack_list' %}"><i class="fas fa-server"></i> Racks</a></li>
                             <li><a class="dropdown-item" href="{% url 'monitoring:subnet_list' %}"><i class="fas fa-sitemap"></i> IPAM</a></li>
                         </ul>
@@ -111,23 +113,19 @@
                     </li>
                     {% endif %}
                 </ul>
-                <form class="d-flex mx-3" action="{% url 'core:search' %}" method="get">
-                    <input class="form-control form-control-sm me-2" type="search" name="q" placeholder="Search..." aria-label="Search">
+                {% if user.is_authenticated %}
+                <form class="d-flex mx-2" action="{% url 'core:search' %}" method="get">
+                    <input class="form-control form-control-sm me-1" type="search" name="q" placeholder="Search..." aria-label="Search" style="width: 200px;">
                     <button class="btn btn-outline-light btn-sm" type="submit"><i class="fas fa-search"></i></button>
                 </form>
-                {% if is_staff_user or user.is_superuser %}
-                <a href="{% url 'docs:global_kb_list' %}" class="btn btn-outline-light btn-sm me-3">
-                    <i class="fas fa-book"></i> Global KB
-                </a>
-                {% endif %}
                 {% endif %}
                 <ul class="navbar-nav ms-auto">
+                    {% if user.is_authenticated %}
                     <li class="nav-item">
                         <button class="theme-toggle" id="themeToggle" title="Toggle dark/light mode" aria-label="Toggle theme">
                             <i class="fas fa-moon" id="themeIcon"></i>
                         </button>
                     </li>
-                    {% if user.is_authenticated %}
                     {% if current_organization %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown">
