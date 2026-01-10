@@ -1,18 +1,17 @@
 [Unit]
 Description=HuduGlue Gunicorn
-After=network.target mariadb.service
-Requires=mariadb.service
+After=network.target
 
 [Service]
 Type=notify
-User=itdocs
-Group=itdocs
-WorkingDirectory=/opt/itdocs
-Environment="PATH=/opt/itdocs/venv/bin"
-EnvironmentFile=/opt/itdocs/.env
-ExecStart=/opt/itdocs/venv/bin/gunicorn \
+User=administrator
+Group=administrator
+WorkingDirectory=/home/administrator
+Environment="PATH=/home/administrator/venv/bin"
+EnvironmentFile=/home/administrator/.env
+ExecStart=/home/administrator/venv/bin/gunicorn \
     --workers 4 \
-    --bind unix:/opt/itdocs/gunicorn.sock \
+    --bind unix:/home/administrator/gunicorn.sock \
     --timeout 120 \
     --access-logfile /var/log/itdocs/gunicorn-access.log \
     --error-logfile /var/log/itdocs/gunicorn-error.log \

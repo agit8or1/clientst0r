@@ -1,15 +1,14 @@
 [Unit]
 Description=HuduGlue Website Monitor Check
-After=network.target mariadb.service
-Requires=mariadb.service
+After=network.target
 
 [Service]
 Type=oneshot
-User=itdocs
-Group=itdocs
-WorkingDirectory=/opt/itdocs
-Environment="PATH=/opt/itdocs/venv/bin"
-EnvironmentFile=/opt/itdocs/.env
-ExecStart=/opt/itdocs/venv/bin/python manage.py check_websites
+User=administrator
+Group=administrator
+WorkingDirectory=/home/administrator
+Environment="PATH=/home/administrator/venv/bin"
+EnvironmentFile=/home/administrator/.env
+ExecStart=/home/administrator/venv/bin/python manage.py check_websites
 StandardOutput=journal
 StandardError=journal
