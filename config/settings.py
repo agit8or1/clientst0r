@@ -231,6 +231,9 @@ SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
 CSP_DEFAULT_SRC = ("'self'",)
 CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net")
 CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net")
+CSP_FRAME_SRC = ("'self'", "https://embed.diagrams.net", "https://*.diagrams.net")
+CSP_CONNECT_SRC = ("'self'", "https://embed.diagrams.net", "https://*.diagrams.net")
+CSP_IMG_SRC = ("'self'", "data:", "https://embed.diagrams.net", "https://*.diagrams.net", "https://api.qrserver.com")
 
 # Django Axes (brute force protection)
 AXES_FAILURE_LIMIT = int(os.getenv('AXES_FAILURE_LIMIT', '5'))

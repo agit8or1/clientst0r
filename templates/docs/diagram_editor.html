@@ -27,6 +27,8 @@
             id="drawio-iframe"
             src="https://embed.diagrams.net/?embed=1&proto=json&spin=1&saveAndExit=0&noSaveBtn=1&ui=kennedy&libraries=1&noExitBtn=1"
             style="width: 100%; height: 85vh; border: none;"
+            allow="camera; microphone; clipboard-read; clipboard-write"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-modals allow-popups"
             allowfullscreen>
         </iframe>
     </div>
@@ -111,6 +113,26 @@
         });
     }
 
+    // Check if iframe loaded
+    iframe.addEventListener('load', function() {
+        console.log('Draw.io iframe loaded successfully');
+        updateStatus('Editor loading...');
+    });
+
+    iframe.addEventListener('error', function() {
+        console.error('Draw.io iframe failed to load');
+        updateStatus('Failed to load editor iframe', true);
+    });
+
+    // Timeout to detect if editor never loads
+    const loadTimeout = setTimeout(() => {
+        if (!editorReady) {
+            updateStatus('Editor failed to load. Please refresh the page or check console for errors.', true);
+            console.error('Draw.io editor timeout - no init message received after 15 seconds');
+            console.log('Check browser console for CORS or CSP errors');
+        }
+    }, 15000); // 15 second timeout
+
     // Handle messages from draw.io
     window.addEventListener('message', function(evt) {
         if (evt.origin !== origin) return;
@@ -126,6 +148,7 @@
 
         switch (msg.event) {
             case 'init':
+                clearTimeout(loadTimeout);
                 editorReady = true;
                 console.log('Editor ready, diagram XML length:', currentDiagramXml.length);
                 updateStatus('Editor ready');
