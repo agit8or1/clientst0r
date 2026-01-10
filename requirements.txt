@@ -19,6 +19,7 @@ pyotp==2.9.*
 
 # WSGI Server
 gunicorn==21.2.*
+whitenoise==6.6.*
 
 # PSA Integration HTTP clients
 requests==2.31.*
