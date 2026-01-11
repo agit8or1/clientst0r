@@ -86,6 +86,7 @@ def location_detail(request, location_id):
         'location': location,
         'floor_plans': floor_plans,
         'assets': assets,
+        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
     }
 
     return render(request, 'locations/location_detail.html', context)
@@ -476,7 +477,7 @@ def refresh_satellite_image(request, location_id):
 
     try:
         imagery_service = get_imagery_service()
-        image_data, content_type = imagery_service.fetch_satellite_image(
+        result = imagery_service.fetch_satellite_image(
             float(location.latitude),
             float(location.longitude),
             zoom=18,
@@ -484,7 +485,8 @@ def refresh_satellite_image(request, location_id):
             height=900
         )
 
-        if image_data:
+        if result:
+            image_data, content_type = result
             from django.core.files.base import ContentFile
             location.satellite_image.save(
                 f'satellite_{location.id}.png',
@@ -499,7 +501,7 @@ def refresh_satellite_image(request, location_id):
         else:
             return JsonResponse({
                 'success': False,
-                'error': 'Could not fetch satellite image'
+                'error': 'Could not fetch satellite image. Please check your Google Maps API key in Settings → AI.'
             }, status=400)
 
     except Exception as e:
