@@ -276,12 +276,18 @@ EOSQL
             rm -rf "$INSTALL_DIR/venv"
             rm -f "$INSTALL_DIR/.env"
             rm -f "$INSTALL_DIR/.env.backup"
+            # Also clean up any stale files in home directory that might confuse auto-detection
+            rm -rf ~/venv
+            rm -f ~/.env ~/.env.backup
             sudo rm -rf /var/log/itdocs/
 
             print_status "Cleanup complete. Starting fresh installation..."
             echo ""
-            # Return to install directory before continuing
+            # Reset INSTALL_DIR to where the script actually is (ignore auto-detection)
+            INSTALL_DIR="$SCRIPT_DIR"
+            # Change to the correct install directory
             cd "$INSTALL_DIR"
+            print_info "Installing to: $INSTALL_DIR"
             # Continue to normal installation
             ;;
         4)
