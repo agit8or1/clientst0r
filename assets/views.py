@@ -221,3 +221,227 @@ def contact_delete(request, pk):
     return render(request, 'assets/contact_confirm_delete.html', {
         'contact': contact,
     })
+
+
+@login_required
+def equipment_model_api(request, pk):
+    """
+    API endpoint to return equipment model data as JSON.
+    Used for auto-populating asset forms.
+    """
+    from django.http import JsonResponse
+    from .models import EquipmentModel
+
+    try:
+        equipment = EquipmentModel.objects.select_related('vendor').get(pk=pk)
+
+        data = {
+            'vendor_name': equipment.vendor.name,
+            'model_name': equipment.model_name,
+            'is_rackmount': equipment.is_rackmount,
+            'rack_units': equipment.rack_units,
+            'equipment_type': equipment.equipment_type,
+        }
+
+        return JsonResponse(data)
+    except EquipmentModel.DoesNotExist:
+        return JsonResponse({'error': 'Equipment model not found'}, status=404)
+
+
+@login_required
+def equipment_models_by_vendor_api(request, vendor_id):
+    """
+    API endpoint to return equipment models for a specific vendor.
+    Used for cascading dropdown functionality.
+    """
+    from django.http import JsonResponse
+    from .models import EquipmentModel
+
+    models = EquipmentModel.objects.filter(
+        vendor_id=vendor_id,
+        is_active=True
+    ).values('id', 'model_name', 'equipment_type').order_by('model_name')
+
+    return JsonResponse(list(models), safe=False)
+
+
+# ========================================
+# Equipment Catalog Management Views
+# ========================================
+
+@login_required
+def vendor_list(request):
+    """List all hardware vendors."""
+    from .models import Vendor
+    vendors = Vendor.objects.filter(is_active=True).order_by('name')
+
+    return render(request, 'assets/vendor_list.html', {
+        'vendors': vendors,
+    })
+
+
+@login_required
+def vendor_detail(request, pk):
+    """View vendor details with equipment models."""
+    from .models import Vendor, EquipmentModel
+    vendor = get_object_or_404(Vendor, pk=pk)
+
+    equipment_models = EquipmentModel.objects.filter(
+        vendor=vendor,
+        is_active=True
+    ).order_by('equipment_type', 'model_name')
+
+    # Group by equipment type
+    models_by_type = {}
+    for model in equipment_models:
+        if model.equipment_type not in models_by_type:
+            models_by_type[model.equipment_type] = []
+        models_by_type[model.equipment_type].append(model)
+
+    return render(request, 'assets/vendor_detail.html', {
+        'vendor': vendor,
+        'equipment_models': equipment_models,
+        'models_by_type': models_by_type,
+    })
+
+
+@login_required
+@require_write
+def vendor_create(request):
+    """Create new hardware vendor."""
+    from .forms import VendorForm
+
+    if request.method == 'POST':
+        form = VendorForm(request.POST)
+        if form.is_valid():
+            vendor = form.save()
+            messages.success(request, f"Vendor '{vendor.name}' created successfully.")
+            return redirect('assets:vendor_detail', pk=vendor.pk)
+    else:
+        form = VendorForm()
+
+    return render(request, 'assets/vendor_form.html', {
+        'form': form,
+        'action': 'Create',
+    })
+
+
+@login_required
+@require_write
+def vendor_edit(request, pk):
+    """Edit existing vendor."""
+    from .forms import VendorForm
+    vendor = get_object_or_404(Vendor, pk=pk)
+
+    if request.method == 'POST':
+        form = VendorForm(request.POST, instance=vendor)
+        if form.is_valid():
+            vendor = form.save()
+            messages.success(request, f"Vendor '{vendor.name}' updated successfully.")
+            return redirect('assets:vendor_detail', pk=vendor.pk)
+    else:
+        form = VendorForm(instance=vendor)
+
+    return render(request, 'assets/vendor_form.html', {
+        'form': form,
+        'vendor': vendor,
+        'action': 'Edit',
+    })
+
+
+@login_required
+def equipment_model_list(request):
+    """List all equipment models with filtering."""
+    from .models import EquipmentModel, Vendor
+
+    # Get filter parameters
+    vendor_id = request.GET.get('vendor')
+    equipment_type = request.GET.get('type')
+    search = request.GET.get('search')
+
+    models = EquipmentModel.objects.filter(is_active=True).select_related('vendor')
+
+    if vendor_id:
+        models = models.filter(vendor_id=vendor_id)
+    if equipment_type:
+        models = models.filter(equipment_type=equipment_type)
+    if search:
+        models = models.filter(model_name__icontains=search)
+
+    models = models.order_by('vendor__name', 'equipment_type', 'model_name')
+
+    # Get filter options
+    vendors = Vendor.objects.filter(is_active=True).order_by('name')
+    equipment_types = EquipmentModel.EQUIPMENT_TYPES
+
+    return render(request, 'assets/equipment_model_list.html', {
+        'models': models,
+        'vendors': vendors,
+        'equipment_types': equipment_types,
+        'selected_vendor': vendor_id,
+        'selected_type': equipment_type,
+        'search_query': search,
+    })
+
+
+@login_required
+def equipment_model_detail(request, pk):
+    """View equipment model details."""
+    from .models import EquipmentModel, Asset
+    model = get_object_or_404(EquipmentModel.objects.select_related('vendor'), pk=pk)
+
+    # Get assets using this model
+    org = get_request_organization(request)
+    assets = Asset.objects.filter(
+        organization=org,
+        equipment_model=model
+    ).select_related('primary_contact')
+
+    return render(request, 'assets/equipment_model_detail.html', {
+        'model': model,
+        'assets': assets,
+    })
+
+
+@login_required
+@require_write
+def equipment_model_create(request):
+    """Create new equipment model."""
+    from .forms import EquipmentModelForm
+
+    if request.method == 'POST':
+        form = EquipmentModelForm(request.POST)
+        if form.is_valid():
+            model = form.save()
+            messages.success(request, f"Equipment model '{model.model_name}' created successfully.")
+            return redirect('assets:equipment_model_detail', pk=model.pk)
+    else:
+        form = EquipmentModelForm()
+
+    return render(request, 'assets/equipment_model_form.html', {
+        'form': form,
+        'action': 'Create',
+    })
+
+
+@login_required
+@require_write
+def equipment_model_edit(request, pk):
+    """Edit existing equipment model."""
+    from .forms import EquipmentModelForm
+    model = get_object_or_404(EquipmentModel, pk=pk)
+
+    if request.method == 'POST':
+        form = EquipmentModelForm(request.POST, instance=model)
+        if form.is_valid():
+            model = form.save()
+            messages.success(request, f"Equipment model '{model.model_name}' updated successfully.")
+            return redirect('assets:equipment_model_detail', pk=model.pk)
+    else:
+        form = EquipmentModelForm(instance=model)
+
+    return render(request, 'assets/equipment_model_form.html', {
+        'form': form,
+        'model': model,
+        'action': 'Edit',
+    })
