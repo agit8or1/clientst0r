@@ -14,15 +14,13 @@ class OrganizationForm(forms.ModelForm):
 
     class Meta:
         model = Organization
-        fields = ['name', 'slug', 'description', 'is_active']
+        fields = ['name', 'description', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Organization Name'}),
-            'slug': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'organization-slug'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Description'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         help_texts = {
-            'slug': 'URL-friendly identifier (letters, numbers, hyphens only)',
             'is_active': 'Inactive organizations are hidden from users',
         }
 

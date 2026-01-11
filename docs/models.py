@@ -32,6 +32,13 @@ class DocumentCategory(BaseModel):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        # Auto-generate slug if not provided
+        if not self.slug:
+            from django.utils.text import slugify
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
 
 class Document(BaseModel):
     """
@@ -121,6 +128,10 @@ class Document(BaseModel):
         return self.render_content()
 
     def save(self, *args, **kwargs):
+        # Auto-generate slug if not provided
+        if not self.slug:
+            from django.utils.text import slugify
+            self.slug = slugify(self.title)
         # Create version on save if document already exists
         if self.pk:
             self._create_version()
