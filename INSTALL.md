@@ -501,16 +501,38 @@ tail -f /var/log/itdocs/django.log
    - Open `http://YOUR_IP:8000` in browser
    - Log in with superuser credentials
 
-2. **Create an organization:**
+2. **Load demo data (Optional, Recommended for Testing):**
+   - Loads comprehensive demo data under "Acme Corporation" organization
+   - Includes assets, documents, passwords, workflows, diagrams, and more
+   ```bash
+   cd ~/huduglue
+   source venv/bin/activate
+   python manage.py seed_demo_data
+   ```
+   - Demo users created:
+     - `demo.admin` / `demo123` - Admin role
+     - `demo.editor` / `demo123` - Editor role
+     - `demo.viewer` / `demo123` - Read-only role
+   - Demo data includes:
+     - 9 assets (servers, network devices, workstations)
+     - 5 documentation articles
+     - 5 password vault entries (in folders)
+     - 3 workflows with multiple stages
+     - Network topology diagram
+     - 3 contacts
+     - 3 website monitors
+     - 15 tags
+
+3. **Create an organization (if not using demo data):**
    - Dashboard → Organizations → Create New
    - All data is organization-scoped
 
-3. **Enable 2FA (Required):**
+4. **Enable 2FA (Required):**
    - Profile → Two-Factor Authentication
    - Scan QR code with authenticator app
    - Required for all users
 
-4. **Change database password:**
+5. **Change database password:**
    - Edit `.env` file
    - Change `DB_PASSWORD` from default
    - Update in MySQL:
@@ -522,7 +544,7 @@ tail -f /var/log/itdocs/django.log
      sudo systemctl restart huduglue-gunicorn.service
      ```
 
-5. **Configure for production:**
+6. **Configure for production:**
    - Edit `.env`:
      ```
      DEBUG=False
