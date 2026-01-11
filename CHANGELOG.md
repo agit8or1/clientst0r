@@ -5,6 +5,119 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-01-11
+
+### 🐛 Bug Fixes
+
+- **Diagram Editor - False "Unsaved Changes" Warning** (Critical Fix)
+  - Fixed persistent warning dialog after saving diagrams
+  - Root cause: Draw.io iframe's own beforeunload handler was triggering
+  - Solution: Remove iframe from DOM before navigation
+  - Implemented race condition prevention: justSaved flag set before fetch
+  - Increased autosave threshold from 50 → 200 bytes (accounts for PNG export metadata)
+  - Extended justSaved timer from 5s → 15s
+  - Added explicit returnValue cleanup in beforeunload
+  - Comprehensive debug logging with emoji indicators (🔒/🔓/✅/⚠️/🚪/🗑️/📍)
+  - Version progression through 7 iterations (v2.3 → v2.9)
+  - Final fix: `iframe.remove()` before `window.location.href`
+
+### ✨ New Features
+
+- **Demo Office Floor Plan**
+  - Professional 2nd floor office layout with complete network infrastructure
+  - 5 Wireless Access Points (AP-01 through AP-05) with coverage zones
+  - 7 Access Control Readers (biometric reader for server room)
+  - Server Room with 3 equipment racks:
+    - Core Switching (2x 48-port switches)
+    - Servers/Storage (4U server, 2U storage array)
+    - Patch Panel (96-port capacity)
+  - 10kVA UPS power backup
+  - Multiple office areas: Reception, Open Office (8 hot desks), Conference Rooms (2), Manager Offices (2), Executive Suite
+  - Support rooms: IT Closet, Storage, Break Room, Restrooms
+  - Network backbone visualization with dashed blue lines
+  - Professional color-coding by area type
+  - Legend with all symbols and icons
+  - Management command: `seed_demo_floorplan`
+
+- **PNG Preview Generation for Diagrams**
+  - Diagrams now auto-generate PNG exports when saved
+  - PNG preview displayed on diagram detail pages
+  - Base64 data URL handling for image data
+  - Automatic fallback: saves without PNG if export fails (3s timeout)
+  - Backend decodes and stores PNG in `diagram.png_export` FileField
+  - Fixes "No preview available" message
+
+### 🔧 Technical Improvements
+
+- **Diagram Editor Architecture**
+  - Autosave event handling instead of export requests
+  - XML caching from draw.io autosave events
+  - PNG export on save for preview generation
+  - Enhanced status messages with icon indicators
+  - Improved error handling and logging
+  - 8 major iterations documented in commit history
+
+- **Cache-Busting Enhancements**
+  - Added no-cache meta tags (Cache-Control, Pragma, Expires)
+  - Version banners in console logs
+  - Visible version indicators in page title
+  - Multiple service restarts to ensure code updates
+
+### 📚 Documentation
+
+- **Enhanced Encryption v2 Documentation** (SECURITY.md)
+  - 350+ lines of comprehensive security documentation
+  - HKDF key derivation with 6 purpose-specific contexts
+  - AAD (Associated Authenticated Data) for context binding
+  - Version tagging for key rotation support
+  - Memory clearing best practices
+  - Standards compliance: NIST SP 800-38D, NIST SP 800-108, FIPS 197, NSA Suite B, OWASP ASVS Level 2
+
+- **CVE Scanning Documentation**
+  - AI-assisted vulnerability detection explanation
+  - Alert-only system (no automatic changes)
+  - SQL injection, XSS, CSRF, path traversal detection
+  - Weekly manual audits + automated scanning
+
+- **About Page Updates**
+  - Security protocol information
+  - Enhanced encryption v2 details
+  - Vulnerability scanning status
+  - User-friendly security information
+
+### 🏗️ Database Changes
+
+- Added `png_export` FileField to Diagram model (if not already present)
+- Optimized diagram version storage
+
+### 🔐 Security
+
+- Fixed password encryption AAD mismatch
+  - Removed password_id from AAD to prevent encryption/decryption failures
+  - Ensures consistent AAD between encryption and decryption
+  - Uses only org_id in AAD for password vault entries
+
+### 🧪 Testing
+
+- Created comprehensive test password dataset
+  - 5 weak passwords (all confirmed breached: 52M to 712K occurrences)
+  - 5 strong passwords (all confirmed safe, not in breach database)
+  - 100% accuracy on breach detection
+  - Command: `seed_test_passwords`
+
+- Created diagnostic test command
+  - `test_decryption` command for identifying encryption key mismatches
+  - Reports all passwords that fail decryption
+  - Provides remediation steps
+
+### 📝 Commits
+
+This release represents 8+ hours of iterative debugging and refinement:
+- 10+ commits focused on diagram editor warning fix
+- Race condition identified and resolved
+- Multiple approaches tested (justSaved flag, threshold tuning, returnValue cleanup)
+- Final solution: iframe removal before navigation
+
 ## [2.4.0] - 2026-01-11
 
 ### 🔐 Security Enhancements
