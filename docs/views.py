@@ -649,12 +649,17 @@ def diagram_edit(request, slug):
 @require_write
 def diagram_save(request, pk):
     """
-    AJAX endpoint to save diagram XML and metadata.
+    AJAX endpoint to save diagram XML, PNG export, and metadata.
     """
     from django.http import JsonResponse
     from .models import Diagram, DiagramVersion
+    from django.core.files.base import ContentFile
     import json
-    
+    import base64
+    import logging
+
+    logger = logging.getLogger('docs')
+
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=400)
 
@@ -664,7 +669,8 @@ def diagram_save(request, pk):
     try:
         data = json.loads(request.body)
         diagram_xml = data.get('diagram_xml', '')
-        
+        png_export_b64 = data.get('png_export', '')
+
         if not diagram_xml:
             return JsonResponse({'error': 'No diagram data provided'}, status=400)
 
@@ -677,18 +683,40 @@ def diagram_save(request, pk):
             change_notes=data.get('change_notes', 'Auto-saved')
         )
 
-        # Update diagram
+        # Update diagram XML
         diagram.diagram_xml = diagram_xml
         diagram.last_modified_by = request.user
         diagram.version_number += 1
+
+        # Process PNG export if provided
+        if png_export_b64:
+            try:
+                logger.info(f'Processing PNG export for diagram {diagram.id}')
+                # PNG data comes as base64 data URL: data:image/png;base64,iVBORw0KG...
+                if png_export_b64.startswith('data:image/png;base64,'):
+                    png_export_b64 = png_export_b64.split(',')[1]
+
+                # Decode base64 to bytes
+                png_bytes = base64.b64decode(png_export_b64)
+
+                # Save PNG export
+                filename = f"{diagram.slug}_v{diagram.version_number}.png"
+                diagram.png_export.save(filename, ContentFile(png_bytes), save=False)
+                logger.info(f'Saved PNG export: {filename} ({len(png_bytes)} bytes)')
+            except Exception as e:
+                logger.error(f'Error saving PNG export for diagram {diagram.id}: {e}')
+                # Don't fail the whole save if PNG export fails
+
         diagram.save()
 
         return JsonResponse({
             'success': True,
-            'version': diagram.version_number
+            'version': diagram.version_number,
+            'has_preview': bool(diagram.png_export)
         })
 
     except Exception as e:
+        logger.error(f'Error saving diagram {pk}: {e}')
         return JsonResponse({'error': str(e)}, status=500)
 
 

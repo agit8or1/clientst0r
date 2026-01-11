@@ -83,8 +83,8 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
     }
 
     // Save diagram via AJAX
-    function saveDiagram(forceSave = false) {
-        console.log('saveDiagram() called, forceSave:', forceSave, 'hasUnsavedChanges:', hasUnsavedChanges, 'xml length:', currentDiagramXml.length);
+    function saveDiagram(forceSave = false, pngData = null) {
+        console.log('saveDiagram() called, forceSave:', forceSave, 'hasUnsavedChanges:', hasUnsavedChanges, 'xml length:', currentDiagramXml.length, 'has PNG:', !!pngData);
 
         if (!forceSave && !hasUnsavedChanges) {
             console.log('No changes to save, aborting');
@@ -103,15 +103,23 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
         updateStatus('Saving...');
         console.log('Sending AJAX request to save diagram...');
 
+        const payload = {
+            diagram_xml: currentDiagramXml
+        };
+
+        // Include PNG export if available
+        if (pngData) {
+            payload.png_export = pngData;
+            console.log('Including PNG export in save payload');
+        }
+
         fetch('{% url "docs:diagram_save" diagram.pk %}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
             },
-            body: JSON.stringify({
-                diagram_xml: currentDiagramXml
-            })
+            body: JSON.stringify(payload)
         })
         .then(response => {
             console.log('Save response status:', response.status);
@@ -301,6 +309,21 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
             case 'export':
                 // Export result (for manual save or auto-save)
                 console.log('Export event received, format:', msg.format);
+                console.log('Export data type:', typeof msg.data, 'length:', msg.data ? msg.data.length : 0);
+
+                // Handle PNG export (for preview generation)
+                if (waitingForPngExport && msg.format === 'png' && msg.data) {
+                    console.log('PNG export received, length:', msg.data.length);
+                    pngExportData = msg.data; // Store base64 PNG data
+                    waitingForPngExport = false;
+
+                    // Now save with PNG data
+                    console.log('Saving diagram with PNG export...');
+                    saveDiagram(true, pngExportData);
+                    return;
+                }
+
+                // Handle XML export (legacy/fallback)
                 console.log('Export message keys:', Object.keys(msg));
                 console.log('Export data available:', {
                     hasData: !!msg.data,
@@ -309,8 +332,6 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
                     xmlType: typeof msg.xml
                 });
 
-                // For xmlpng format, XML is embedded in the PNG data
-                // We need to extract it or use msg.xml if available
                 let xmlData = null;
 
                 if (msg.xml && typeof msg.xml === 'string') {
@@ -318,24 +339,18 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
                     xmlData = msg.xml;
                     console.log('Using msg.xml, length:', xmlData.length);
                 } else if (msg.data && typeof msg.data === 'string') {
-                    // Check if data is XML (starts with < or is base64)
+                    // Check if data is XML (starts with <)
                     if (msg.data.trim().startsWith('<')) {
                         xmlData = msg.data;
                         console.log('Using msg.data (XML string), length:', xmlData.length);
-                    } else if (msg.format === 'xmlpng') {
-                        // For xmlpng, we need to decode base64 and extract XML
-                        // For now, request plain XML format instead
-                        console.warn('Received xmlpng format but cannot extract XML, requesting plain xml...');
-                        sendToDrawio('export', {format: 'xml'});
-                        return;
                     }
                 }
 
                 if (xmlData && xmlData.length > 0) {
                     console.log('Valid XML export received, length:', xmlData.length);
                     currentDiagramXml = xmlData;
-                    hasUnsavedChanges = true; // Mark as changed so saveDiagram will proceed
-                    saveDiagram(true); // Force save since this is an explicit export request
+                    hasUnsavedChanges = true;
+                    saveDiagram(true);
                 } else {
                     console.error('Export event missing xml data');
                     console.error('Full message:', msg);
@@ -363,31 +378,39 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
         }
     });
 
+    // Track if we're waiting for PNG export
+    let waitingForPngExport = false;
+    let pngExportData = null;
+
     // Save button click
     saveBtn.addEventListener('click', function() {
         console.log('Save button clicked, editorReady:', editorReady);
         if (editorReady) {
-            // If autosave has captured XML, save it directly
+            // If autosave has captured XML, request PNG export then save
             if (currentDiagramXml && currentDiagramXml.length > 100) {
-                console.log('Saving current XML from autosave (length:', currentDiagramXml.length, ')');
-                saveDiagram(true);
-            } else {
-                // No XML captured yet - request export
-                console.log('No XML cached, requesting export from draw.io...');
-                updateStatus('Exporting diagram...');
+                console.log('XML available (length:', currentDiagramXml.length, ')');
+                console.log('Requesting PNG export for preview...');
+                updateStatus('Generating preview...');
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
 
-                // Try multiple export formats
-                sendToDrawio('export', {format: 'xml', xml: currentDiagramXml});
+                // Request PNG export
+                waitingForPngExport = true;
+                pngExportData = null;
+                sendToDrawio('export', {format: 'png'});
 
-                // Fallback: try xmlpng after delay
+                // Fallback: Save without PNG after 3 seconds if export fails
                 setTimeout(() => {
-                    if (editorReady && (!currentDiagramXml || currentDiagramXml.length < 100)) {
-                        console.log('First export failed, trying xmlpng format...');
-                        sendToDrawio('export', {format: 'xmlpng'});
+                    if (waitingForPngExport) {
+                        console.log('PNG export timeout, saving without preview');
+                        waitingForPngExport = false;
+                        saveDiagram(true, null);
                     }
-                }, 1000);
+                }, 3000);
+            } else {
+                // No XML captured yet - this shouldn't happen
+                console.error('No XML cached - cannot save');
+                updateStatus('Error: No diagram data', true);
             }
         } else {
             console.error('Cannot save - editor not ready');
