@@ -147,11 +147,14 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
                     console.log('Button text reset to Save');
                 }, 2000);
 
-                // Auto-reset justSaved flag after 5 seconds as safety
+                // Auto-reset justSaved flag after 10 seconds as safety
+                // This prevents autosave events from re-marking as unsaved right after save
                 setTimeout(() => {
-                    justSaved = false;
-                    console.log('justSaved flag auto-reset after 5 seconds');
-                }, 5000);
+                    if (justSaved) {
+                        justSaved = false;
+                        console.log('justSaved flag auto-reset after 10 seconds');
+                    }
+                }, 10000);
             } else {
                 throw new Error(data.error || 'Save failed');
             }
@@ -262,26 +265,30 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
 
             case 'autosave':
                 // Diagram changed - this fires whenever user makes a change
-                console.log('Autosave event received, xml length:', msg.xml ? msg.xml.length : 0);
+                console.log('Autosave event received, xml length:', msg.xml ? msg.xml.length : 0, 'justSaved:', justSaved, 'hasUnsavedChanges:', hasUnsavedChanges);
                 if (msg.xml) {
-                    // If we just saved, ignore the next couple of autosave events
+                    // If we just saved, ignore autosave events for a short period
                     // (draw.io may send autosave with minor metadata changes)
                     if (justSaved) {
                         const lengthDiff = Math.abs(msg.xml.length - currentDiagramXml.length);
-                        if (lengthDiff < 50) {
-                            console.log('Just saved, ignoring autosave event (length diff:', lengthDiff, ')');
+                        console.log('Just saved - checking autosave: length diff =', lengthDiff);
+
+                        if (lengthDiff < 100) {
+                            // Very minor change - probably just metadata
+                            console.log('✓ Just saved, ignoring minor autosave event (length diff:', lengthDiff, ')');
                             currentDiagramXml = msg.xml; // Update XML but don't mark as unsaved
-                            justSaved = false; // Reset flag
+                            // Don't reset justSaved flag yet - let timer handle it
                             return;
                         } else {
-                            console.log('Just saved but significant change detected (length diff:', lengthDiff, ')');
+                            // Significant change - user continued editing
+                            console.log('✗ Just saved but significant change detected (length diff:', lengthDiff, '), user made new edits');
                             justSaved = false; // Reset flag and continue to mark as changed
                         }
                     }
 
                     // Only mark as changed if XML actually changed (not just initial load)
                     if (msg.xml !== currentDiagramXml) {
-                        console.log('XML changed, marking as unsaved');
+                        console.log('XML changed, marking as unsaved (prev:', currentDiagramXml.length, 'new:', msg.xml.length, ')');
                         currentDiagramXml = msg.xml;
                         hasUnsavedChanges = true;
                         saveBtn.disabled = false;
@@ -310,17 +317,30 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
                 // Export result (for manual save or auto-save)
                 console.log('Export event received, format:', msg.format);
                 console.log('Export data type:', typeof msg.data, 'length:', msg.data ? msg.data.length : 0);
+                console.log('waitingForPngExport:', waitingForPngExport);
 
                 // Handle PNG export (for preview generation)
-                if (waitingForPngExport && msg.format === 'png' && msg.data) {
-                    console.log('PNG export received, length:', msg.data.length);
-                    pngExportData = msg.data; // Store base64 PNG data
-                    waitingForPngExport = false;
+                if (msg.format === 'png' || msg.format === 'xmlpng') {
+                    if (waitingForPngExport) {
+                        if (msg.data) {
+                            console.log('✓ PNG export received, length:', msg.data.length, 'starts with:', msg.data.substring(0, 50));
+                            pngExportData = msg.data; // Store base64 PNG data
+                            waitingForPngExport = false;
 
-                    // Now save with PNG data
-                    console.log('Saving diagram with PNG export...');
-                    saveDiagram(true, pngExportData);
-                    return;
+                            // Now save with PNG data
+                            console.log('Saving diagram with PNG export...');
+                            saveDiagram(true, pngExportData);
+                            return;
+                        } else {
+                            console.error('PNG export format received but no data!');
+                            waitingForPngExport = false;
+                            // Save without PNG
+                            saveDiagram(true, null);
+                            return;
+                        }
+                    } else {
+                        console.log('PNG export received but not waiting for it (ignoring)');
+                    }
                 }
 
                 // Handle XML export (legacy/fallback)
@@ -420,10 +440,14 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
 
     // Warn about unsaved changes on page unload
     window.addEventListener('beforeunload', function(e) {
+        console.log('beforeunload event - hasUnsavedChanges:', hasUnsavedChanges, 'justSaved:', justSaved);
         if (hasUnsavedChanges) {
+            console.warn('Showing unsaved changes warning');
             e.preventDefault();
             e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
             return e.returnValue;
+        } else {
+            console.log('No unsaved changes, allowing navigation');
         }
     });
 
