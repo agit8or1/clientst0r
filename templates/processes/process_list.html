@@ -57,30 +57,30 @@
                 {% for workflow in processes %}
                 <tr>
                     <td>
-                        <a href="{% url 'processes:process_detail' process.slug %}">{{ process.title }}</a>
+                        <a href="{% url 'processes:process_detail' workflow.slug %}">{{ workflow.title }}</a>
                     </td>
                     <td>
-                        <span class="badge bg-secondary">{{ process.get_category_display }}</span>
+                        <span class="badge bg-secondary">{{ workflow.get_category_display }}</span>
                     </td>
-                    <td>{{ process.stages.count }} stages</td>
+                    <td>{{ workflow.stages.count }} stages</td>
                     <td>
-                        {% for tag in process.tags.all %}
+                        {% for tag in workflow.tags.all %}
                         <span class="badge bg-info">{{ tag.name }}</span>
                         {% endfor %}
                     </td>
                     <td>
-                        {% if process.is_global %}
+                        {% if workflow.is_global %}
                         <span class="badge bg-success"><i class="fas fa-globe"></i> Global</span>
                         {% else %}
                         <span class="badge bg-primary"><i class="fas fa-building"></i> Org</span>
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{% url 'processes:process_detail' process.slug %}" class="btn btn-sm btn-outline-primary" title="View">
+                        <a href="{% url 'processes:process_detail' workflow.slug %}" class="btn btn-sm btn-outline-primary" title="View">
                             <i class="fas fa-eye"></i>
                         </a>
-                        {% if not process.is_global %}
-                        <a href="{% url 'processes:process_edit' process.slug %}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                        {% if not workflow.is_global %}
+                        <a href="{% url 'processes:process_edit' workflow.slug %}" class="btn btn-sm btn-outline-secondary" title="Edit">
                             <i class="fas fa-edit"></i>
                         </a>
                         {% endif %}
@@ -88,7 +88,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center text-muted">No processes found. <a href="{% url 'processes:process_create' %}">Create one</a></td>
+                    <td colspan="6" class="text-center text-muted">No workflows found. <a href="{% url 'processes:process_create' %}">Create one</a></td>
                 </tr>
                 {% endfor %}
             </tbody>

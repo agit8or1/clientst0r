@@ -32,27 +32,27 @@
                 {% for workflow in processes %}
                 <tr>
                     <td>
-                        <a href="{% url 'processes:process_detail' process.slug %}">{{ process.title }}</a>
+                        <a href="{% url 'processes:process_detail' workflow.slug %}">{{ workflow.title }}</a>
                     </td>
                     <td>
-                        <span class="badge bg-secondary">{{ process.get_category_display }}</span>
+                        <span class="badge bg-secondary">{{ workflow.get_category_display }}</span>
                     </td>
-                    <td>{{ process.stages.count }} stages</td>
+                    <td>{{ workflow.stages.count }} stages</td>
                     <td>
-                        {% for tag in process.tags.all %}
+                        {% for tag in workflow.tags.all %}
                         <span class="badge bg-info">{{ tag.name }}</span>
                         {% endfor %}
                     </td>
                     <td>
-                        {% if process.is_published %}
+                        {% if workflow.is_published %}
                         <span class="badge bg-success"><i class="fas fa-check"></i> Published</span>
                         {% else %}
                         <span class="badge bg-warning"><i class="fas fa-eye-slash"></i> Draft</span>
                         {% endif %}
                     </td>
-                    <td>{{ process.created_by.username }}</td>
+                    <td>{{ workflow.created_by.username }}</td>
                     <td>
-                        <a href="{% url 'processes:process_detail' process.slug %}" class="btn btn-sm btn-outline-primary" title="View">
+                        <a href="{% url 'processes:process_detail' workflow.slug %}" class="btn btn-sm btn-outline-primary" title="View">
                             <i class="fas fa-eye"></i>
                         </a>
                     </td>
@@ -60,7 +60,7 @@
                 {% empty %}
                 <tr>
                     <td colspan="7" class="text-center text-muted">
-                        No global processes yet. <a href="{% url 'processes:global_process_create' %}">Create one</a>
+                        No global workflows yet. <a href="{% url 'processes:global_process_create' %}">Create one</a>
                     </td>
                 </tr>
                 {% endfor %}
