@@ -245,16 +245,38 @@ def generate_floor_plan(request, location_id):
 
     if request.method == 'POST':
         # Get generation parameters
-        floor_number = int(request.POST.get('floor_number', 1))
+        try:
+            floor_number_raw = request.POST.get('floor_number', 1)
+            floor_number = int(floor_number_raw[0] if isinstance(floor_number_raw, list) else floor_number_raw)
+        except (ValueError, TypeError):
+            floor_number = 1
+
         floor_name = request.POST.get('floor_name', 'Ground Floor')
-        num_employees = int(request.POST.get('num_employees', 20))
+        if isinstance(floor_name, list):
+            floor_name = floor_name[0]
+
+        try:
+            num_employees_raw = request.POST.get('num_employees', 20)
+            num_employees = int(num_employees_raw[0] if isinstance(num_employees_raw, list) else num_employees_raw)
+        except (ValueError, TypeError):
+            num_employees = 20
+
         departments = request.POST.getlist('departments')
         include_network = request.POST.get('include_network') == 'on'
         include_security = request.POST.get('include_security') == 'on'
 
         # Get dimensions
-        width_feet = float(request.POST.get('width_feet', 100))
-        length_feet = float(request.POST.get('length_feet', 80))
+        try:
+            width_feet_raw = request.POST.get('width_feet', 100)
+            width_feet = float(width_feet_raw[0] if isinstance(width_feet_raw, list) else width_feet_raw)
+        except (ValueError, TypeError):
+            width_feet = 100.0
+
+        try:
+            length_feet_raw = request.POST.get('length_feet', 80)
+            length_feet = float(length_feet_raw[0] if isinstance(length_feet_raw, list) else length_feet_raw)
+        except (ValueError, TypeError):
+            length_feet = 80.0
 
         try:
             with transaction.atomic():

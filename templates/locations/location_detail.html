@@ -131,7 +131,7 @@
                     <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-sm btn-primary me-2">
                         <i class="fas fa-edit"></i> Edit
                     </a>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshPropertyData()" title="Requires Regrid or AttomData API (paid service)">
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshPropertyData()" title="Tries municipal tax collector records (FREE) first, then paid APIs if configured">
                         <i class="fas fa-sync"></i> Auto-Refresh
                     </button>
                 </div>
