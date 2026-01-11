@@ -3,8 +3,11 @@ Files views - Private file serving with X-Accel-Redirect
 """
 import os
 import mimetypes
+from io import BytesIO
+from PIL import Image
+from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.shortcuts import get_object_or_404
-from django.http import HttpResponse, FileResponse, Http404
+from django.http import HttpResponse, FileResponse, Http404, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
@@ -83,7 +86,7 @@ def upload_attachment(request):
         return HttpResponse("Missing entity_type or entity_id", status=400)
 
     # Security: Validate entity_type against whitelist
-    VALID_ENTITY_TYPES = ['password', 'asset', 'document', 'contact', 'integration']
+    VALID_ENTITY_TYPES = ['password', 'asset', 'document', 'contact', 'integration', 'rack']
     if entity_type not in VALID_ENTITY_TYPES:
         return HttpResponse(f"Invalid entity_type: {entity_type}", status=400)
 
@@ -92,6 +95,18 @@ def upload_attachment(request):
         entity_id = int(entity_id)
     except ValueError:
         return HttpResponse("Invalid entity_id: must be an integer", status=400)
+
+    # Check image limit (max 20 images per entity for assets and racks)
+    if entity_type in ['asset', 'rack']:
+        existing_count = Attachment.objects.filter(
+            organization=org,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            content_type__startswith='image/'
+        ).count()
+
+        if existing_count >= 20:
+            return JsonResponse({'error': 'Maximum of 20 images allowed per item'}, status=400)
 
     # Security: Validate file size (max 25MB)
     MAX_FILE_SIZE = 25 * 1024 * 1024  # 25MB
@@ -118,6 +133,49 @@ def upload_attachment(request):
     for pattern in DANGEROUS_PATTERNS:
         if pattern in filename:
             return HttpResponse(f"Dangerous file type detected: {pattern}", status=400)
+
+    # Optimize images
+    IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'}
+    if file_ext in IMAGE_EXTENSIONS and file_ext != 'svg':  # Don't optimize SVG (vector format)
+        try:
+            img = Image.open(uploaded_file)
+
+            # Convert RGBA to RGB if saving as JPEG
+            if img.mode in ('RGBA', 'LA', 'P') and file_ext in ('jpg', 'jpeg'):
+                rgb_img = Image.new('RGB', img.size, (255, 255, 255))
+                rgb_img.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                img = rgb_img
+
+            # Resize if too large (max 2000px on longest side)
+            max_dimension = 2000
+            if max(img.size) > max_dimension:
+                img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
+
+            # Save optimized image to BytesIO
+            output = BytesIO()
+            save_format = 'JPEG' if file_ext in ('jpg', 'jpeg') else file_ext.upper()
+
+            if save_format == 'JPEG':
+                img.save(output, format=save_format, quality=85, optimize=True)
+            elif save_format == 'PNG':
+                img.save(output, format=save_format, optimize=True)
+            else:
+                img.save(output, format=save_format)
+
+            output.seek(0)
+
+            # Replace uploaded_file with optimized version
+            uploaded_file = InMemoryUploadedFile(
+                output,
+                'ImageField',
+                uploaded_file.name,
+                uploaded_file.content_type,
+                output.getbuffer().nbytes,
+                None
+            )
+        except Exception as e:
+            # If optimization fails, use original file
+            pass
 
     # Create attachment
     attachment = Attachment(

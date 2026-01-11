@@ -278,10 +278,20 @@ def rack_detail(request, pk):
             'is_start': device and device.start_unit == unit_num if device else False,
         })
 
+    # Query rack images
+    from files.models import Attachment
+    rack_images = Attachment.objects.filter(
+        organization=org,
+        entity_type='rack',
+        entity_id=rack.id,
+        content_type__startswith='image/'
+    ).order_by('-created_at')
+
     return render(request, 'monitoring/rack_detail.html', {
         'rack': rack,
         'devices': devices,
         'rack_units': rack_units,
+        'rack_images': rack_images,
     })
 
 
