@@ -20,7 +20,6 @@ from .services import (
     generate_office_floor_plan
 )
 from docs.models import Diagram, DiagramVersion
-from core.models import get_current_organization
 import logging
 
 logger = logging.getLogger('locations')
@@ -29,7 +28,7 @@ logger = logging.getLogger('locations')
 @login_required
 def location_list(request):
     """List all locations for current organization."""
-    organization = get_current_organization(request)
+    organization = request.current_organization
 
     locations = Location.objects.filter(organization=organization).select_related('organization')
 
@@ -66,7 +65,7 @@ def location_list(request):
 @login_required
 def location_detail(request, location_id):
     """Display location details with map, satellite imagery, and floor plans."""
-    organization = get_current_organization(request)
+    organization = request.current_organization
     location = get_object_or_404(
         Location,
         id=location_id,
@@ -95,7 +94,7 @@ def location_detail(request, location_id):
 @login_required
 def location_create(request):
     """Create new location with optional AI-assisted setup."""
-    organization = get_current_organization(request)
+    organization = request.current_organization
 
     if request.method == 'POST':
         form = LocationForm(request.POST, request.FILES, organization=organization)
@@ -177,7 +176,7 @@ def location_create(request):
 @login_required
 def location_edit(request, location_id):
     """Edit existing location."""
-    organization = get_current_organization(request)
+    organization = request.current_organization
     location = get_object_or_404(
         Location,
         id=location_id,
@@ -211,7 +210,7 @@ def location_edit(request, location_id):
 @login_required
 def location_delete(request, location_id):
     """Delete location."""
-    organization = get_current_organization(request)
+    organization = request.current_organization
     location = get_object_or_404(
         Location,
         id=location_id,
@@ -235,7 +234,7 @@ def generate_floor_plan(request, location_id):
 
     Shows form to configure generation parameters, then creates floor plan.
     """
-    organization = get_current_organization(request)
+    organization = request.current_organization
     location = get_object_or_404(
         Location,
         id=location_id,
@@ -380,7 +379,7 @@ def generate_floor_plan(request, location_id):
 @require_http_methods(["POST"])
 def refresh_geocoding(request, location_id):
     """Re-geocode location address (AJAX)."""
-    organization = get_current_organization(request)
+    organization = request.current_organization
     location = get_object_or_404(
         Location,
         id=location_id,
@@ -421,7 +420,7 @@ def refresh_geocoding(request, location_id):
 @require_http_methods(["POST"])
 def refresh_property_data(request, location_id):
     """Re-fetch property data (AJAX)."""
-    organization = get_current_organization(request)
+    organization = request.current_organization
     location = get_object_or_404(
         Location,
         id=location_id,
@@ -462,7 +461,7 @@ def refresh_property_data(request, location_id):
 @require_http_methods(["POST"])
 def refresh_satellite_image(request, location_id):
     """Re-fetch satellite image (AJAX)."""
-    organization = get_current_organization(request)
+    organization = request.current_organization
     location = get_object_or_404(
         Location,
         id=location_id,
