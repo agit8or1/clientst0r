@@ -5,6 +5,26 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.7] - 2026-01-11
+
+### 🐛 Bug Fixes
+
+- **Google Maps API Integration**
+  - Fixed "cannot unpack non-iterable NoneType" error in satellite image refresh
+  - Fixed hardcoded "YOUR_API_KEY" in location detail template
+  - Template now properly uses API key from Django settings
+  - Added google_maps_api_key to location_detail view context
+  - Improved error messages for API fetch failures
+  - Added fallback message when API key not configured
+  - Satellite image and map embed now work correctly with configured API key
+
+### Technical Details
+
+- Changed satellite image result unpacking to check for None before tuple unpacking
+- Removed manual restart instructions from settings view warning messages
+- All warning messages now show user-friendly "The application will restart shortly" message
+- Template conditionally shows map iframe or warning based on API key availability
+
 ## [2.10.6] - 2026-01-11
 
 ### ✨ New Features
