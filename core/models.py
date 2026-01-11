@@ -510,6 +510,12 @@ class ScheduledTask(models.Model):
                 'enabled': False,
             },
             {
+                'task_type': 'password_breach_scan',
+                'description': 'Check all passwords against HaveIBeenPwned breach database',
+                'interval_minutes': 1440,  # Once per day (24 hours)
+                'enabled': True,
+            },
+            {
                 'task_type': 'ssl_expiry_check',
                 'description': 'Check for expiring SSL certificates and send notifications',
                 'interval_minutes': 1440,  # Once per day

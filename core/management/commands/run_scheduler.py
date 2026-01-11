@@ -55,6 +55,8 @@ class Command(BaseCommand):
             self.run_website_monitoring()
         elif task.task_type == 'psa_sync':
             self.run_psa_sync()
+        elif task.task_type == 'password_breach_scan':
+            self.run_password_breach_scan()
         elif task.task_type == 'ssl_expiry_check':
             self.run_ssl_expiry_check()
         elif task.task_type == 'domain_expiry_check':
@@ -75,6 +77,14 @@ class Command(BaseCommand):
         except Exception as e:
             # PSA sync might not be configured, that's okay
             self.stdout.write(f"    PSA sync not available: {e}")
+
+    def run_password_breach_scan(self):
+        """Check all passwords against HaveIBeenPwned breach database."""
+        from django.core.management import call_command
+        try:
+            call_command('check_password_breaches', verbosity=1)
+        except Exception as e:
+            self.stdout.write(f"    Password breach scan failed: {e}")
 
     def run_ssl_expiry_check(self):
         """Check for expiring SSL certificates and send notifications."""
