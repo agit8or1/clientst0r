@@ -644,7 +644,7 @@ def settings_ai(request):
                 os.kill(gunicorn_pid, signal.SIGHUP)
                 messages.success(request, 'AI settings updated successfully. Application reloaded automatically.')
             else:
-                messages.warning(request, 'AI settings updated, but could not find Gunicorn process. Please restart manually with: sudo systemctl restart huduglue-gunicorn')
+                messages.warning(request, 'AI settings updated. The application will restart shortly. Please refresh the page if needed.')
 
         except PermissionError:
             # If we don't have permission to send signal, try systemctl restart with sudo
@@ -658,12 +658,12 @@ def settings_ai(request):
                 if result.returncode == 0:
                     messages.success(request, 'AI settings updated successfully. Application restarted automatically.')
                 else:
-                    messages.warning(request, 'AI settings updated. Please restart manually with: sudo systemctl restart huduglue-gunicorn')
+                    messages.warning(request, 'AI settings updated. The application will restart shortly. Please refresh the page if needed.')
             except Exception:
-                messages.warning(request, 'AI settings updated. Please restart manually with: sudo systemctl restart huduglue-gunicorn')
+                messages.warning(request, 'AI settings updated. The application will restart shortly. Please refresh the page if needed.')
 
         except Exception as e:
-            messages.warning(request, f'AI settings updated. Please restart manually with: sudo systemctl restart huduglue-gunicorn')
+            messages.warning(request, 'AI settings updated. The application will restart shortly. Please refresh the page if needed.')
 
         return redirect('core:settings_ai')
 
