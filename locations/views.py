@@ -508,3 +508,49 @@ def refresh_satellite_image(request, location_id):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def floor_plan_import(request):
+    """Import floor plans from MagicPlan JSON export."""
+    from imports.models import ImportJob
+    from imports.forms import ImportJobForm
+    
+    if request.method == 'POST':
+        # Create import job form with MagicPlan pre-selected
+        form = ImportJobForm(request.POST, request.FILES, user=request.user)
+        
+        if form.is_valid():
+            job = form.save(commit=False)
+            job.source_type = 'magicplan'  # Force MagicPlan type
+            job.started_by = request.user
+            job.import_floor_plans = True
+            # Disable other import types for floor plans
+            job.import_assets = False
+            job.import_passwords = False
+            job.import_documents = False
+            job.import_contacts = False
+            job.import_locations = False
+            job.import_networks = False
+            job.save()
+            
+            messages.success(request, 'Floor plan import job created. Review and start the import.')
+            return redirect('imports:import_detail', pk=job.pk)
+    else:
+        # Initialize form for MagicPlan import
+        initial_data = {
+            'source_type': 'magicplan',
+            'import_floor_plans': True,
+            'import_assets': False,
+            'import_passwords': False,
+            'import_documents': False,
+            'import_contacts': False,
+            'import_locations': False,
+            'import_networks': False,
+            'dry_run': True,  # Default to dry run
+        }
+        form = ImportJobForm(initial=initial_data, user=request.user)
+    
+    return render(request, 'locations/floor_plan_import.html', {
+        'form': form,
+    })

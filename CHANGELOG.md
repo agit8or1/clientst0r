@@ -5,6 +5,34 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.1] - 2026-01-11
+
+### 🐛 Bug Fixes
+
+- **Location Model Fields**
+  - Fixed NOT NULL constraint errors in location creation form
+  - Added default='' to all CharField/TextField with blank=True
+  - Fields fixed: property_id, property_type, google_place_id, street_address_2, phone, email, website
+  - Fixed floorplan_generation_status and floorplan_error fields
+  - Fixed LocationFloorPlan diagram_xml and template_used fields
+  - Prevents database constraint violations on location creation
+
+### 🎨 UI/UX Improvements
+
+- **Navigation Enhancement**
+  - Moved Floor Plan Import to Docs → Diagrams dropdown menu
+  - Created dedicated floor plan import page at /locations/floor-plan-import/
+  - Pre-configured form for MagicPlan imports with sensible defaults
+  - Improved discoverability of floor plan import feature
+  - Added helpful instructions and documentation sidebar
+
+### 🔧 Improvements
+
+- Floor plan import form now defaults to dry_run=True for safety
+- Added informational sidebar with MagicPlan export instructions
+- Created floor_plan_import view with pre-configured settings
+- Better user experience for floor plan imports
+
 ## [2.10.0] - 2026-01-11
 
 ### ✨ New Features

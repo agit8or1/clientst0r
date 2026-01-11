@@ -17,6 +17,9 @@ urlpatterns = [
     # Floor plan generation
     path('<int:location_id>/generate-floor-plan/', views.generate_floor_plan, name='generate_floor_plan'),
 
+    # Floor plan import
+    path('floor-plan-import/', views.floor_plan_import, name='floor_plan_import'),
+
     # AJAX endpoints for data refresh
     path('<int:location_id>/refresh-geocoding/', views.refresh_geocoding, name='refresh_geocoding'),
     path('<int:location_id>/refresh-property-data/', views.refresh_property_data, name='refresh_property_data'),
