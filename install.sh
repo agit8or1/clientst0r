@@ -543,6 +543,13 @@ print_info "Step 8/10: Running database migrations..."
 python3 manage.py migrate
 print_status "Database migrations completed"
 
+# Step 8.5: Initial organization setup
+echo ""
+print_info "Step 8.5/10: Initial organization setup..."
+print_info "Running setup.py to create your organization..."
+python3 setup.py
+print_status "Organization setup completed"
+
 # Step 9: Create superuser
 echo ""
 print_info "Step 9/10: Creating superuser account..."

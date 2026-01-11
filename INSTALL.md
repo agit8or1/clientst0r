@@ -89,9 +89,21 @@ The installer performs these steps automatically:
 6. ✅ **Database Setup** - Creates database and user
 7. ✅ **Log Directory** - Creates `/var/log/itdocs/`
 8. ✅ **Database Migrations** - Applies all schema migrations
-9. ✅ **Superuser Account** - Interactive prompt for admin user
-10. ✅ **Static Files** - Collects CSS, JavaScript, images
-11. ✅ **Production Server** - Starts Gunicorn with systemd
+9. ✅ **Organization Setup** - Interactive prompt for your business name and demo data
+10. ✅ **Superuser Account** - Interactive prompt for admin user
+11. ✅ **Static Files** - Collects CSS, JavaScript, images
+12. ✅ **Production Server** - Starts Gunicorn with systemd
+
+During **Step 9 (Organization Setup)**, you will be asked:
+```
+Business Name (Organization): Acme Corporation
+Create demo office floor plan? (y/n) [y]: y
+```
+
+This creates:
+- Your default organization with the name you provide
+- (Optional) Demo office floor plan with network infrastructure
+- Proper database structure for multi-tenancy
 
 **Total time:** 5-10 minutes depending on server speed
 
