@@ -84,8 +84,26 @@ def password_test_breach(request, pk):
 
     if request.method == 'POST':
         try:
+            # Check if this is an OTP type (no password to check)
+            if password.password_type == 'otp':
+                return JsonResponse({'error': 'Cannot check OTP entries for breaches'}, status=400)
+
+            # Check if password is set
+            if not password.encrypted_password:
+                return JsonResponse({'error': 'No password set for this entry'}, status=400)
+
             # Get the plaintext password
-            plaintext = password.get_password()
+            try:
+                plaintext = password.get_password()
+            except Exception as decrypt_error:
+                import logging
+                logger = logging.getLogger('vault')
+                logger.error(f"Decryption failed for password {password.id}: {decrypt_error}")
+                return JsonResponse({'error': 'Failed to decrypt password. The encryption key may have changed.'}, status=500)
+
+            # Validate password is not empty
+            if not plaintext or not plaintext.strip():
+                return JsonResponse({'error': 'Password is empty'}, status=400)
 
             # Check against breach database
             checker = PasswordBreachChecker()
@@ -119,7 +137,10 @@ def password_test_breach(request, pk):
                 'checked_at': breach_check.checked_at.strftime('%b %d, %Y %I:%M %p')
             })
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            import logging
+            logger = logging.getLogger('vault')
+            logger.error(f"Error testing password {password.id} for breaches: {e}")
+            return JsonResponse({'error': f'Error checking password: {str(e)}'}, status=500)
 
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
