@@ -3,6 +3,7 @@ Forms for locations app
 """
 from django import forms
 from .models import Location, LocationFloorPlan
+from core.models import Organization
 
 
 class LocationForm(forms.ModelForm):
@@ -27,7 +28,7 @@ class LocationForm(forms.ModelForm):
     class Meta:
         model = Location
         fields = [
-            'name', 'location_type', 'is_primary', 'status',
+            'name', 'location_type', 'is_shared', 'associated_organizations', 'is_primary', 'status',
             'street_address', 'street_address_2', 'city', 'state', 'postal_code', 'country',
             'phone', 'email', 'website',
             'building_sqft', 'floors_count', 'year_built', 'property_type',
@@ -36,6 +37,8 @@ class LocationForm(forms.ModelForm):
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'location_type': forms.Select(attrs={'class': 'form-control'}),
+            'is_shared': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'associated_organizations': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
             'status': forms.Select(attrs={'class': 'form-control'}),
             'street_address': forms.TextInput(attrs={'class': 'form-control'}),
             'street_address_2': forms.TextInput(attrs={'class': 'form-control'}),
@@ -51,6 +54,10 @@ class LocationForm(forms.ModelForm):
             'year_built': forms.NumberInput(attrs={'class': 'form-control'}),
             'property_type': forms.TextInput(attrs={'class': 'form-control'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+        }
+        help_texts = {
+            'is_shared': 'Check if this is a shared location (e.g., data center, co-location) that multiple organizations can use',
+            'associated_organizations': 'Organizations that have access to this shared location (only if shared)',
         }
 
     def __init__(self, *args, **kwargs):

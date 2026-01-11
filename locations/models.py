@@ -34,8 +34,24 @@ class Location(BaseModel):
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
-        related_name='locations'
+        related_name='locations',
+        null=True,
+        blank=True,
+        help_text="Owner organization (leave blank for shared/global locations)"
     )
+
+    # Shared location support
+    is_shared = models.BooleanField(
+        default=False,
+        help_text="Shared location (e.g., data center, co-location facility) that multiple organizations can use"
+    )
+    associated_organizations = models.ManyToManyField(
+        Organization,
+        related_name='associated_locations',
+        blank=True,
+        help_text="Organizations that have access to this shared location"
+    )
+
     name = models.CharField(
         max_length=255,
         help_text="Location name (e.g., 'Main Office', 'Warehouse #2')"
@@ -169,17 +185,42 @@ class Location(BaseModel):
     class Meta:
         db_table = 'locations'
         ordering = ['-is_primary', 'name']
-        unique_together = [['organization', 'name']]
         indexes = [
             models.Index(fields=['organization', 'is_primary']),
             models.Index(fields=['organization', 'status']),
+            models.Index(fields=['is_shared']),
             models.Index(fields=['latitude', 'longitude']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'name'],
+                condition=models.Q(organization__isnull=False),
+                name='unique_org_location_name'
+            )
         ]
 
     def __str__(self):
-        if self.is_primary:
+        if self.is_shared:
+            return f"{self.name} (Shared)"
+        if self.is_primary and self.organization:
             return f"{self.name} (HQ) - {self.organization.name}"
-        return f"{self.name} - {self.organization.name}"
+        if self.organization:
+            return f"{self.name} - {self.organization.name}"
+        return self.name
+
+    def get_all_organizations(self):
+        """Get all organizations with access to this location."""
+        if self.is_shared:
+            return self.associated_organizations.all()
+        elif self.organization:
+            return [self.organization]
+        return []
+
+    def can_organization_access(self, organization):
+        """Check if an organization has access to this location."""
+        if self.is_shared:
+            return self.associated_organizations.filter(id=organization.id).exists()
+        return self.organization == organization
 
     @property
     def full_address(self):
@@ -205,8 +246,12 @@ class Location(BaseModel):
         return f"https://www.google.com/maps/search/?api=1&query={self.full_address.replace(' ', '+')}"
 
     def save(self, *args, **kwargs):
+        # Shared locations cannot be primary
+        if self.is_shared:
+            self.is_primary = False
+
         # Ensure only one primary location per organization
-        if self.is_primary:
+        if self.is_primary and self.organization:
             Location.objects.filter(
                 organization=self.organization,
                 is_primary=True
