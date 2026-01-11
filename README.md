@@ -1,5 +1,6 @@
 # HuduGlue 🐕
 
+[![Version 2.10.5](https://img.shields.io/badge/version-2.10.5-brightgreen)](https://github.com/agit8or1/huduglue)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/huduglue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
@@ -35,19 +36,96 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 - **Four-Tier Access** - Owner, Admin, Editor, Read-Only
 
 ### 📦 Core Features
-- **Asset Management** - Track devices with custom fields, rackmount tracking, and relationships
-- **Password Vault** - AES-GCM encrypted secrets with folder organization and automatic breach detection
-- **Personal Vault** - Private password storage per user
-- **Documentation** - Per-org docs with categories, tags, and versioning
-- **Global Knowledge Base** - Staff-only internal KB
-- **Website Monitoring** - Uptime checks with SSL certificate tracking
-- **Infrastructure** - NetBox-style rack visualization with rackmount assets + IPAM
-- **Processes** - Sequential workflow/runbook system with entity linking
-- **Diagrams** - Draw.io integration for network/system diagrams (PNG/SVG/XML export)
-- **Secure Notes** - Encrypted ephemeral messaging
-- **Contact Management** - Organization-specific contacts
-- **Audit Logging** - Complete activity tracking
-- **Data Import** - Migrate from IT Glue, Hudu, and MagicPlan with automatic multi-org import, fuzzy organization matching, floor plan imports, dry-run preview, duplicate prevention, and progress tracking
+
+#### Asset Management
+- **Comprehensive Asset Tracking** - Track all IT assets with custom fields, relationships, and lifecycle management
+- **Rackmount Tracking** - NetBox-style rack visualization with U-space management
+- **Asset Relationships** - Link related assets (server → VM, switch → port, etc.)
+- **Custom Fields** - Flexible metadata for any asset type
+- **Asset Templates** - Predefined configurations for common asset types
+- **Bulk Operations** - Import, export, and update multiple assets at once
+
+#### Password Vault & Security
+- **AES-GCM Encrypted Vault** - Military-grade encryption for all passwords
+- **Folder Organization** - Organize passwords by category, client, or custom structure
+- **Password Breach Detection** - Automatic checking against HaveIBeenPwned database
+- **Personal Vault** - Private password storage per user (separate from org passwords)
+- **Password Strength Analysis** - Real-time password quality checking
+- **Expiration Tracking** - Automatic alerts for expiring credentials
+- **Secure Notes** - Encrypted ephemeral messaging system
+
+#### Documentation & Knowledge Base
+- **Per-Organization Docs** - Isolated documentation per client/organization
+- **Categories & Tags** - Flexible organization with categories and tagging
+- **Version Control** - Full document version history with rollback
+- **Rich Text Editor** - Markdown support with WYSIWYG editing
+- **Global Knowledge Base** - Staff-only internal documentation (MSP KB)
+- **Document Templates** - Reusable templates for common documentation types
+- **Full-Text Search** - Fast search across all documentation
+
+#### Diagrams & Floor Plans
+- **Draw.io Integration** - Full-featured diagramming with Draw.io embedded editor
+- **Diagram Templates** - Pre-built templates for network, rack, and flowchart diagrams
+- **Version History** - Track diagram changes with automatic versioning
+- **Export Formats** - PNG, SVG, XML export options
+- **Floor Plan Generation** - AI-powered floor plan creation from building data
+- **MagicPlan Import** - Import floor plans directly from MagicPlan mobile app
+- **Location Linking** - Link floor plans to specific locations/buildings
+
+#### Locations & Facilities
+- **Multi-Location Management** - Track multiple offices, data centers, warehouses
+- **Geocoding** - Automatic GPS coordinate lookup from addresses
+- **Property Data Integration** - Fetch building information from external sources
+- **Satellite Imagery** - Automatic satellite image download via Google Maps API
+- **Floor Plan Management** - Multiple floor plans per location with dimensions
+- **Location Types** - Office, Warehouse, Data Center, Retail, Branch, etc.
+- **Shared Locations** - Co-location facilities shared across multiple organizations
+
+#### Infrastructure Management
+- **Rack Visualization** - NetBox-style rack diagrams with U-space allocation
+- **IPAM (IP Address Management)** - Subnet tracking, IP allocation, CIDR management
+- **Network Documentation** - Switch, router, firewall configuration tracking
+- **Cable Management** - Track patch cables, fiber runs, and connections
+- **Power Distribution** - PDU tracking and power capacity planning
+
+#### Monitoring & Alerts
+- **Website Monitoring** - Uptime checks with configurable intervals
+- **SSL Certificate Tracking** - Automatic SSL expiration monitoring and alerts
+- **Domain Expiration** - Track domain renewal dates
+- **Expiration Dashboard** - Centralized view of all expiring items
+- **Custom Alerts** - Configurable notification thresholds
+- **Monitoring History** - Track uptime/downtime trends over time
+
+#### Processes & Workflows
+- **Sequential Runbooks** - Step-by-step process documentation
+- **Entity Linking** - Link processes to assets, passwords, diagrams, docs
+- **Execution Tracking** - Track process runs with timestamps and notes
+- **Process Templates** - Reusable templates for common procedures
+- **Checklist Mode** - Interactive checklist for executing processes
+- **Stage Duration Tracking** - Time tracking for each process step
+
+#### Data Import & Migration
+- **IT Glue Import** - Full data migration from IT Glue platform
+- **Hudu Import** - Complete Hudu data migration support
+- **MagicPlan Floor Plans** - Import floor plans from MagicPlan JSON exports
+- **Multi-Organization Import** - Import all organizations at once or selectively
+- **Fuzzy Matching** - Intelligent organization name matching (e.g., "ABC LLC" → "ABC Corporation")
+- **Dry Run Mode** - Preview imports before committing changes
+- **Duplicate Prevention** - Automatic detection and prevention of duplicate records
+- **Progress Tracking** - Real-time import status with detailed logs
+- **Import History** - Track all import jobs with statistics and error logs
+
+#### Contact Management
+- **Organization-Specific Contacts** - Contact database per client
+- **Contact Types** - Primary, Billing, Technical, Emergency contacts
+- **Contact Relationships** - Link contacts to assets, locations, and tickets
+- **Communication History** - Track interactions with contacts
+
+#### Audit & Compliance
+- **Complete Audit Logging** - Every action tracked with user, timestamp, and details
+- **Audit Search** - Search audit logs by user, action, date range
+- **Compliance Reports** - Generate reports for compliance requirements
+- **Data Retention** - Configurable audit log retention policies
 
 ### 🔌 PSA Integrations (8 Providers)
 Full implementations for:
@@ -62,12 +140,61 @@ Full implementations for:
 
 ### 🖥️ RMM Integrations (5 Providers)
 Full implementations for:
-- **NinjaOne** - Device management, monitoring, and alerts
-- **Datto RMM** - Device sync, software inventory, and asset mapping
-- **ConnectWise Automate** - Device management and automation
-- **Atera** - Device monitoring and ticketing integration
-- **Tactical RMM** - Open-source RMM with full API support
-- **Auto Asset Mapping** - Automatically link RMM devices to asset records
+- **NinjaOne** - Device management, monitoring, alerts, and software inventory
+- **Datto RMM** - Device sync, software inventory, and automated asset mapping
+- **ConnectWise Automate** - Device management, scripting, and automation
+- **Atera** - Device monitoring, ticketing integration, and remote access
+- **Tactical RMM** - Open-source RMM with full API support and agent management
+- **Auto Asset Mapping** - Automatically link RMM devices to asset records based on serial number and hostname
+- **Scheduled Sync** - Automatic device synchronization on configurable intervals
+- **Device Monitoring** - Track online/offline status, last seen timestamps
+- **Software Inventory** - Sync installed software from RMM platforms
+- **Alert Integration** - Pull RMM alerts and monitoring data
+
+## 🆕 What's New in v2.10
+
+### Recent Updates (January 2026)
+
+**v2.10.5** - Navigation Improvements
+- Favorites promoted to top-level nav link for easy access
+- Cleaner, more intuitive navigation structure
+
+**v2.10.4** - Infrastructure Reorganization
+- Infrastructure features (Racks, IPAM) moved under Assets dropdown
+- Monitoring elevated to its own top-level menu
+- Better logical grouping of related features
+
+**v2.10.3** - Floor Plan Location Linking
+- Link imported floor plans to existing locations
+- Dynamic location dropdown filtered by organization
+- Option to create new location or use existing one
+
+**v2.10.2** - Critical SQLite Compatibility Fix
+- Fixed NOT NULL constraint errors in location creation
+- Improved database field handling for optional values
+
+**v2.10.1** - Navigation Enhancement
+- Floor Plan Import moved to Docs → Diagrams menu
+- Dedicated floor plan import page with instructions
+- Improved feature discoverability
+
+**v2.10.0** - MagicPlan Integration
+- Import floor plans from MagicPlan mobile app
+- Automatic unit conversion (meters to feet)
+- Location creation from project data
+- Multi-floor support from single JSON file
+
+**v2.9.0** - Multi-Organization Import
+- Import all organizations from IT Glue/Hudu at once
+- Intelligent fuzzy matching for duplicate prevention
+- Configurable similarity threshold (0-100%)
+- Organization mapping tracking
+
+**v2.8.0** - Complete Import System
+- Full IT Glue data migration support
+- Complete Hudu import functionality
+- Dry run mode for safe preview
+- Import history and logging
 
 ## 🚀 Quick Start
 
