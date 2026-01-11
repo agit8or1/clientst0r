@@ -83,129 +83,180 @@
         </div>
     </div>
 
-    <!-- Rack Visual and Devices (Right) -->
+    <!-- Main Content (Right) -->
     <div class="col-lg-9 col-md-12">
-        <div class="row g-3">
-            <!-- Rack Visual (Left side of right section) -->
-            <div class="col-lg-4 col-md-5">
-                <div class="card card-body p-3">
-                    <h6 class="mb-2"><i class="fas fa-th"></i> Visual</h6>
-                    {% for unit in rack_units %}
-                    {% if unit.device %}
-                    <a href="{% url 'monitoring:rack_device_edit' unit.device.pk %}" style="text-decoration: none; display: block;">
-                        <div class="rack-unit {% if unit.is_start %}rack-device{% else %}rack-device rack-device-multi{% endif %}"
-                             style="background-color: {{ unit.device.color }};"
-                             data-bs-toggle="tooltip"
-                             data-bs-placement="right"
-                             data-bs-html="true"
-                             title="<strong>{{ unit.device.name }}</strong><br>U{{ unit.device.start_unit }}-U{{ unit.device.end_unit }}{% if unit.device.power_draw_watts %}<br>{{ unit.device.power_draw_watts }}W{% endif %}">
-                            <span class="rack-unit-number">{{ unit.number }}</span>
-                            {% if unit.is_start %}
-                            <span class="flex-fill text-truncate" style="font-size: 0.65rem;">{{ unit.device.name }}</span>
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="visual-tab" data-bs-toggle="tab" data-bs-target="#visual" type="button" role="tab">
+                            <i class="fas fa-th"></i> Rack Visual
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="assets-tab" data-bs-toggle="tab" data-bs-target="#assets" type="button" role="tab">
+                            <i class="fas fa-list"></i> Mounted Assets <span class="badge bg-secondary">{{ devices.count }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="images-tab" data-bs-toggle="tab" data-bs-target="#images" type="button" role="tab">
+                            <i class="fas fa-images"></i> Images <span class="badge bg-secondary">{{ rack_images.count }}</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    <!-- Rack Visual Tab -->
+                    <div class="tab-pane fade show active" id="visual" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6 col-lg-4">
+                                <div class="rack-visual">
+                                    {% for unit in rack_units %}
+                                    {% if unit.device %}
+                                    <a href="{% url 'monitoring:rack_device_edit' unit.device.pk %}" style="text-decoration: none; display: block;">
+                                        <div class="rack-unit {% if unit.is_start %}rack-device{% else %}rack-device rack-device-multi{% endif %}"
+                                             style="background-color: {{ unit.device.color }};"
+                                             data-bs-toggle="tooltip"
+                                             data-bs-placement="right"
+                                             data-bs-html="true"
+                                             title="<strong>{{ unit.device.name }}</strong><br>U{{ unit.device.start_unit }}-U{{ unit.device.end_unit }}{% if unit.device.power_draw_watts %}<br>{{ unit.device.power_draw_watts }}W{% endif %}">
+                                            <span class="rack-unit-number">{{ unit.number }}</span>
+                                            {% if unit.is_start %}
+                                            <span class="flex-fill text-truncate" style="font-size: 0.65rem;">{{ unit.device.name }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </a>
+                                    {% else %}
+                                    <div class="rack-unit"
+                                         data-bs-toggle="tooltip"
+                                         data-bs-placement="right"
+                                         title="U{{ unit.number }} - Available">
+                                        <span class="rack-unit-number">{{ unit.number }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% if rack_images %}
+                            <div class="col-md-6 col-lg-8">
+                                <h6 class="mb-3"><i class="fas fa-camera"></i> Featured Images</h6>
+                                <div class="row g-2">
+                                    {% for image in rack_images|slice:":4" %}
+                                    <div class="col-6">
+                                        <img src="{% url 'files:serve_attachment' image.id %}"
+                                             class="img-fluid rounded"
+                                             alt="{{ image.original_filename }}"
+                                             style="height: 150px; width: 100%; object-fit: cover; cursor: pointer;"
+                                             onclick="viewImage('{% url 'files:serve_attachment' image.id %}', '{{ image.original_filename }}')">
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% if rack_images.count > 4 %}
+                                <p class="text-muted small mt-2 mb-0">
+                                    <i class="fas fa-info-circle"></i> Showing 4 of {{ rack_images.count }} images.
+                                    <a href="#images" onclick="document.getElementById('images-tab').click();">View all</a>
+                                </p>
+                                {% endif %}
+                            </div>
                             {% endif %}
                         </div>
-                    </a>
-                    {% else %}
-                    <div class="rack-unit"
-                         data-bs-toggle="tooltip"
-                         data-bs-placement="right"
-                         title="U{{ unit.number }} - Available">
-                        <span class="rack-unit-number">{{ unit.number }}</span>
                     </div>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
 
-            <!-- Mounted Assets List (Right side of right section) -->
-            <div class="col-lg-8 col-md-7">
-                <div class="card">
-                    <div class="card-header py-2">
-                        <h6 class="mb-0"><i class="fas fa-list"></i> Mounted Assets ({{ devices.count }})</h6>
-                    </div>
-                    <div class="card-body p-0">
+                    <!-- Mounted Assets Tab -->
+                    <div class="tab-pane fade" id="assets" role="tabpanel">
                         {% if devices %}
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Asset / Label</th>
-                                <th>Position</th>
-                                <th>Power</th>
-                                <th width="80"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for device in devices %}
-                            <tr>
-                                <td>
-                                    <span class="badge" style="background-color: {{ device.color }};">▊</span>
-                                    {{ device.name }}
-                                    {% if device.asset %}
-                                    <br><small class="text-muted"><i class="fas fa-link"></i> <a href="{% url 'assets:asset_detail' device.asset.pk %}">{{ device.asset.name }}</a></small>
-                                    {% endif %}
-                                </td>
-                                <td><small>U{{ device.start_unit }}-{{ device.end_unit }}</small></td>
-                                <td><small>{% if device.power_draw_watts %}{{ device.power_draw_watts }}W{% else %}—{% endif %}</small></td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <a href="{% url 'monitoring:rack_device_edit' device.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i></a>
-                                        <a href="{% url 'monitoring:rack_device_delete' device.pk %}" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Asset / Label</th>
+                                        <th>Position</th>
+                                        <th>Power</th>
+                                        <th width="100"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for device in devices %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge" style="background-color: {{ device.color }};">▊</span>
+                                            {{ device.name }}
+                                            {% if device.asset %}
+                                            <br><small class="text-muted"><i class="fas fa-link"></i> <a href="{% url 'assets:asset_detail' device.asset.pk %}">{{ device.asset.name }}</a></small>
+                                            {% endif %}
+                                        </td>
+                                        <td>U{{ device.start_unit }}-{{ device.end_unit }}</td>
+                                        <td>{% if device.power_draw_watts %}{{ device.power_draw_watts }}W{% else %}—{% endif %}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{% url 'monitoring:rack_device_edit' device.pk %}" class="btn btn-outline-primary"><i class="fas fa-edit"></i></a>
+                                                <a href="{% url 'monitoring:rack_device_delete' device.pk %}" class="btn btn-outline-danger"><i class="fas fa-trash"></i></a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                         {% else %}
-                        <p class="text-center text-muted py-3 mb-0"><i class="fas fa-inbox"></i> No assets mounted</p>
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
+                            <p>No assets mounted in this rack</p>
+                            <a href="{% url 'monitoring:rack_device_create' rack.pk %}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Add First Asset
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Images Tab -->
+                    <div class="tab-pane fade" id="images" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">All Images ({{ rack_images.count }})</h6>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadImageModal">
+                                <i class="fas fa-upload"></i> Upload Image
+                            </button>
+                        </div>
+
+                        {% if rack_images %}
+                        <div class="row g-3">
+                            {% for image in rack_images %}
+                            <div class="col-md-4 col-lg-3">
+                                <div class="card h-100">
+                                    <img src="{% url 'files:serve_attachment' image.id %}"
+                                         class="card-img-top"
+                                         alt="{{ image.original_filename }}"
+                                         style="height: 180px; object-fit: cover; cursor: pointer;"
+                                         onclick="viewImage('{% url 'files:serve_attachment' image.id %}', '{{ image.original_filename }}')">
+                                    <div class="card-body p-2">
+                                        <p class="card-text small mb-1" title="{{ image.original_filename }}">
+                                            {{ image.original_filename|truncatechars:30 }}
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">{{ image.file_size|filesizeformat }}</small>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteImage({{ image.id }}, this)" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-images fa-3x mb-3 opacity-50"></i>
+                            <p>No images uploaded yet</p>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadImageModal">
+                                <i class="fas fa-upload"></i> Upload First Image
+                            </button>
+                        </div>
                         {% endif %}
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
-<!-- Rack Images -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3><i class="fas fa-images"></i> Images</h3>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadImageModal">
-                <i class="fas fa-upload"></i> Upload Image
-            </button>
-        </div>
-
-        {% if rack_images %}
-        <div class="row g-3">
-            {% for image in rack_images %}
-            <div class="col-md-3">
-                <div class="card">
-                    <img src="{% url 'files:serve_attachment' image.id %}"
-                         class="card-img-top"
-                         alt="{{ image.original_filename }}"
-                         style="height: 200px; object-fit: cover; cursor: pointer;"
-                         onclick="viewImage('{% url 'files:serve_attachment' image.id %}', '{{ image.original_filename }}')">
-                    <div class="card-body p-2">
-                        <p class="card-text small mb-1" title="{{ image.original_filename }}">
-                            {{ image.original_filename|truncatechars:25 }}
-                        </p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">{{ image.file_size|filesizeformat }}</small>
-                            <button class="btn btn-sm btn-danger" onclick="deleteImage({{ image.id }}, this)" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <p class="text-muted">No images uploaded yet.</p>
-        {% endif %}
     </div>
 </div>
 

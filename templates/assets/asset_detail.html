@@ -13,102 +13,184 @@
 </div>
 
 <div class="row">
-    <div class="col-md-6">
-        <h3>Details</h3>
-        <dl class="row">
-            <dt class="col-sm-4">Type:</dt><dd class="col-sm-8">{{ asset.get_asset_type_display }}</dd>
-            <dt class="col-sm-4">Asset Tag:</dt><dd class="col-sm-8">{{ asset.asset_tag|default:"-" }}</dd>
-            <dt class="col-sm-4">Serial Number:</dt><dd class="col-sm-8">{{ asset.serial_number|default:"-" }}</dd>
-            <dt class="col-sm-4">Manufacturer:</dt><dd class="col-sm-8">{{ asset.manufacturer|default:"-" }}</dd>
-            <dt class="col-sm-4">Model:</dt><dd class="col-sm-8">{{ asset.model|default:"-" }}</dd>
-            <dt class="col-sm-4">Hostname:</dt><dd class="col-sm-8">{{ asset.hostname|default:"-" }}</dd>
-            <dt class="col-sm-4">IP Address:</dt><dd class="col-sm-8">{{ asset.ip_address|default:"-" }}</dd>
-            <dt class="col-sm-4">MAC Address:</dt><dd class="col-sm-8">{{ asset.mac_address|default:"-" }}</dd>
-            <dt class="col-sm-4">Contact:</dt><dd class="col-sm-8">{{ asset.primary_contact.full_name|default:"N/A" }}</dd>
-        </dl>
-
-        {% if asset.tags.all %}
-        <h5>Tags</h5>
-        <div>
-            {% for tag in asset.tags.all %}
-            <span class="badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
-            {% endfor %}
+    <!-- Featured Image Column (if images exist) -->
+    {% if asset_images %}
+    <div class="col-lg-4 col-md-5 mb-3">
+        <div class="card">
+            <div id="assetImageCarousel" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-inner">
+                    {% for image in asset_images|slice:":5" %}
+                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                        <img src="{% url 'files:serve_attachment' image.id %}"
+                             class="d-block w-100"
+                             alt="{{ image.original_filename }}"
+                             style="height: 300px; object-fit: cover; cursor: pointer;"
+                             onclick="viewImage('{% url 'files:serve_attachment' image.id %}', '{{ image.original_filename }}')">
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if asset_images.count > 1 %}
+                <button class="carousel-control-prev" type="button" data-bs-target="#assetImageCarousel" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Previous</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#assetImageCarousel" data-bs-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Next</span>
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body p-2 text-center">
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadImageModal">
+                    <i class="fas fa-upload"></i> Upload
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('images-tab').click();">
+                    <i class="fas fa-images"></i> View All ({{ asset_images.count }})
+                </button>
+            </div>
         </div>
-        {% endif %}
-
-        {% if asset.notes %}
-        <h5 class="mt-3">Notes</h5>
-        <p>{{ asset.notes }}</p>
-        {% endif %}
     </div>
-    <div class="col-md-6">
-        <h3>Custom Fields</h3>
-        {% if asset.custom_fields %}
-        <table class="table table-sm">
-            <tbody>
-                {% for key, value in asset.custom_fields.items %}
-                <tr>
-                    <th style="width: 30%;">{{ key|title }}</th>
-                    <td>{{ value }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="text-muted">No custom fields defined.</p>
-        {% endif %}
+    {% endif %}
 
-        <h3 class="mt-4">Relationships</h3>
-        {% if relationships %}
-        <ul>
-            {% for rel in relationships %}
-            <li>{{ rel.get_relation_type_display }}: {{ rel.target_type }}:{{ rel.target_id }}</li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-muted">No relationships.</p>
-        {% endif %}
-    </div>
-</div>
+    <!-- Main Content -->
+    <div class="{% if asset_images %}col-lg-8 col-md-7{% else %}col-12{% endif %}">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button" role="tab">
+                            <i class="fas fa-info-circle"></i> Details
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="custom-fields-tab" data-bs-toggle="tab" data-bs-target="#custom-fields" type="button" role="tab">
+                            <i class="fas fa-sliders-h"></i> Custom Fields
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="images-tab" data-bs-toggle="tab" data-bs-target="#images" type="button" role="tab">
+                            <i class="fas fa-images"></i> Images <span class="badge bg-secondary">{{ asset_images.count }}</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    <!-- Details Tab -->
+                    <div class="tab-pane fade show active" id="details" role="tabpanel">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-3">Type:</dt><dd class="col-sm-9">{{ asset.get_asset_type_display }}</dd>
+                            <dt class="col-sm-3">Asset Tag:</dt><dd class="col-sm-9">{{ asset.asset_tag|default:"-" }}</dd>
+                            <dt class="col-sm-3">Serial Number:</dt><dd class="col-sm-9">{{ asset.serial_number|default:"-" }}</dd>
+                            <dt class="col-sm-3">Manufacturer:</dt><dd class="col-sm-9">{{ asset.manufacturer|default:"-" }}</dd>
+                            <dt class="col-sm-3">Model:</dt><dd class="col-sm-9">{{ asset.model|default:"-" }}</dd>
+                            <dt class="col-sm-3">Hostname:</dt><dd class="col-sm-9">{{ asset.hostname|default:"-" }}</dd>
+                            <dt class="col-sm-3">IP Address:</dt><dd class="col-sm-9">{{ asset.ip_address|default:"-" }}</dd>
+                            <dt class="col-sm-3">MAC Address:</dt><dd class="col-sm-9">{{ asset.mac_address|default:"-" }}</dd>
+                            <dt class="col-sm-3">Contact:</dt><dd class="col-sm-9">{{ asset.primary_contact.full_name|default:"N/A" }}</dd>
+                        </dl>
 
-<!-- Asset Images -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3><i class="fas fa-images"></i> Images</h3>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadImageModal">
-                <i class="fas fa-upload"></i> Upload Image
-            </button>
-        </div>
+                        {% if asset.tags.all %}
+                        <hr>
+                        <h6><i class="fas fa-tags"></i> Tags</h6>
+                        <div>
+                            {% for tag in asset.tags.all %}
+                            <span class="badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
 
-        {% if asset_images %}
-        <div class="row g-3">
-            {% for image in asset_images %}
-            <div class="col-md-3">
-                <div class="card">
-                    <img src="{% url 'files:serve_attachment' image.id %}"
-                         class="card-img-top"
-                         alt="{{ image.original_filename }}"
-                         style="height: 200px; object-fit: cover; cursor: pointer;"
-                         onclick="viewImage('{% url 'files:serve_attachment' image.id %}', '{{ image.original_filename }}')">
-                    <div class="card-body p-2">
-                        <p class="card-text small mb-1" title="{{ image.original_filename }}">
-                            {{ image.original_filename|truncatechars:25 }}
-                        </p>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">{{ image.file_size|filesizeformat }}</small>
-                            <button class="btn btn-sm btn-danger" onclick="deleteImage({{ image.id }}, this)" title="Delete">
-                                <i class="fas fa-trash"></i>
+                        {% if asset.notes %}
+                        <hr>
+                        <h6><i class="fas fa-sticky-note"></i> Notes</h6>
+                        <p class="mb-0">{{ asset.notes }}</p>
+                        {% endif %}
+
+                        {% if relationships %}
+                        <hr>
+                        <h6><i class="fas fa-link"></i> Relationships</h6>
+                        <ul class="mb-0">
+                            {% for rel in relationships %}
+                            <li>{{ rel.get_relation_type_display }}: {{ rel.target_type }}:{{ rel.target_id }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </div>
+
+                    <!-- Custom Fields Tab -->
+                    <div class="tab-pane fade" id="custom-fields" role="tabpanel">
+                        {% if asset.custom_fields %}
+                        <table class="table table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">Field</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for key, value in asset.custom_fields.items %}
+                                <tr>
+                                    <th>{{ key|title }}</th>
+                                    <td>{{ value }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-sliders-h fa-3x mb-3 opacity-50"></i>
+                            <p>No custom fields defined for this asset</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Images Tab -->
+                    <div class="tab-pane fade" id="images" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">All Images ({{ asset_images.count }})</h6>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadImageModal">
+                                <i class="fas fa-upload"></i> Upload Image
                             </button>
                         </div>
+
+                        {% if asset_images %}
+                        <div class="row g-3">
+                            {% for image in asset_images %}
+                            <div class="col-md-4 col-lg-3">
+                                <div class="card h-100">
+                                    <img src="{% url 'files:serve_attachment' image.id %}"
+                                         class="card-img-top"
+                                         alt="{{ image.original_filename }}"
+                                         style="height: 180px; object-fit: cover; cursor: pointer;"
+                                         onclick="viewImage('{% url 'files:serve_attachment' image.id %}', '{{ image.original_filename }}')">
+                                    <div class="card-body p-2">
+                                        <p class="card-text small mb-1" title="{{ image.original_filename }}">
+                                            {{ image.original_filename|truncatechars:30 }}
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">{{ image.file_size|filesizeformat }}</small>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteImage({{ image.id }}, this)" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-images fa-3x mb-3 opacity-50"></i>
+                            <p>No images uploaded yet</p>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadImageModal">
+                                <i class="fas fa-upload"></i> Upload First Image
+                            </button>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            {% endfor %}
         </div>
-        {% else %}
-        <p class="text-muted">No images uploaded yet.</p>
-        {% endif %}
     </div>
 </div>
 
