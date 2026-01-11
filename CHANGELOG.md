@@ -5,6 +5,43 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.0] - 2026-01-11
+
+### ✨ New Features
+
+- **Property Data API Settings**
+  - Added Regrid API key configuration in Settings → AI
+  - Added AttomData API key configuration in Settings → AI
+  - Clear messaging that these are optional premium services ($299-500+/month)
+  - Emphasizes manual data entry as free alternative
+  - Auto-refresh property data feature now available when APIs are configured
+  - Keys stored securely in .env file with automatic application restart
+
+### 🎨 UI/UX Improvements
+
+- **Import Form - Automatic Organization Matching**
+  - Changed "Target Organization" from required to optional
+  - Added prominent blue alert explaining automatic matching behavior
+  - Added "Fuzzy Matching Options" section with visibility
+  - Users can now leave organization blank for automatic matching
+  - Fuzzy matching threshold slider with help text (0-100%, default 85%)
+  - Clear explanation: "Leave blank and enable fuzzy matching below. System will automatically match imported companies to existing organizations by name similarity"
+  - Makes import workflow much clearer and easier
+
+### 🔧 Improvements
+
+- Backend now saves and loads Regrid/AttomData API keys
+- Import service automatically matches organizations when target_organization is null
+- Better user guidance for choosing between manual and automatic import workflows
+- Clearer distinction between free and paid features throughout the app
+
+### Technical Details
+
+- Settings view handles two new API key fields
+- Form properly filters queryset and makes fields optional
+- Django settings already configured for property data APIs
+- Import fuzzy matching leverages existing infrastructure
+
 ## [2.10.9] - 2026-01-11
 
 ### 🎨 UI/UX Improvements
