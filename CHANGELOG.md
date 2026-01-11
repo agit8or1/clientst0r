@@ -5,6 +5,29 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.8] - 2026-01-11
+
+### 📖 Documentation
+
+- **Comprehensive Google Maps API Setup Guide**
+  - Added detailed step-by-step instructions in AI settings page
+  - Lists all 4 required APIs to enable:
+    - Maps Embed API (for interactive maps)
+    - Maps Static API (for satellite imagery)
+    - Geocoding API (for address conversion)
+    - Places API (for property data)
+  - Includes direct links to Google Cloud Console
+  - Explains free tier availability
+  - Warning alert with clear setup process
+  - Improved error messages on location detail page
+  - More user-friendly guidance for resolving "API not activated" errors
+
+### 🔧 Improvements
+
+- Better error messaging when Google Maps APIs aren't enabled
+- Clearer instructions prevent common API setup mistakes
+- Reduced support burden with self-service documentation
+
 ## [2.10.7] - 2026-01-11
 
 ### 🐛 Bug Fixes
