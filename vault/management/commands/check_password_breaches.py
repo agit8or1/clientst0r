@@ -31,6 +31,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         checker = PasswordBreachChecker()
+        verbosity = options.get('verbosity', 1)
 
         # Build queryset
         passwords = Password.objects.all()
@@ -58,7 +59,6 @@ class Command(BaseCommand):
 
                 # Create breach check record
                 PasswordBreachCheck.objects.create(
-                    organization=password.organization,
                     password=password,
                     is_breached=is_breached,
                     breach_count=count
@@ -74,7 +74,7 @@ class Command(BaseCommand):
                         )
                     )
                 else:
-                    if self.verbosity >= 2:
+                    if verbosity >= 2:
                         self.stdout.write(
                             self.style.SUCCESS(
                                 f"✓ Safe: {password.title}"
@@ -119,9 +119,10 @@ class Command(BaseCommand):
         # Log to audit trail
         try:
             AuditLog.objects.create(
-                event_type='password_breach_scan',
-                description=f"Scanned {checked} passwords, found {breached} breached",
-                metadata={
+                action='scan',
+                object_type='password',
+                description=f"Password breach scan: {checked} checked, {breached} breached, {errors} errors",
+                extra_data={
                     'checked': checked,
                     'breached': breached,
                     'errors': errors
