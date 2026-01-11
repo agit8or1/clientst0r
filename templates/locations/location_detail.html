@@ -143,12 +143,12 @@
                     <strong>Import from Property Appraiser URL</strong>
                     <p class="mb-2 small">Paste a property appraiser URL and AI will extract all property data automatically!</p>
                     <div class="input-group">
-                        <input type="url" class="form-control" id="propertyUrl" placeholder="https://paopropertysearch.coj.net/Basic/Detail.aspx?RE=1442930000">
+                        <input type="url" class="form-control" id="propertyUrl" placeholder="Paste property appraiser URL here...">
                         <button class="btn btn-success" type="button" onclick="importFromUrl()">
                             <i class="fas fa-magic"></i> Import with AI
                         </button>
                     </div>
-                    <small class="text-muted">Works with Duval County and most FL property appraiser sites</small>
+                    <small class="text-muted">Works with most property appraiser websites (Duval County, other FL counties, CA, TX, etc.)</small>
                 </div>
                 {% if not location.building_sqft and not location.floors_count %}
                 <div class="alert alert-info small mb-3">
