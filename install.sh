@@ -566,14 +566,35 @@ else
 fi
 unset DJANGO_SUPERUSER_PASSWORD
 
-# Step 10: Collect static files
-print_info "Step 10/10: Collecting static files..."
+# Step 10: Seed default templates (on fresh install only)
+print_info "Step 10/12: Seeding default templates..."
+if python3 manage.py shell -c "from docs.models import Document, Diagram; exit(0 if Document.objects.filter(is_template=True).count() == 0 and Diagram.objects.filter(is_template=True).count() == 0 else 1)" 2>/dev/null; then
+    # Fresh install - seed templates
+    print_info "  Populating document categories..."
+    python3 manage.py populate_doc_categories > /dev/null 2>&1 || true
+
+    print_info "  Seeding document templates..."
+    python3 manage.py seed_templates > /dev/null 2>&1 || true
+
+    print_info "  Seeding diagram templates..."
+    python3 manage.py seed_diagram_templates > /dev/null 2>&1 || true
+
+    print_info "  Populating MSP knowledge base..."
+    python3 manage.py populate_msp_kb > /dev/null 2>&1 || true
+
+    print_status "Default templates seeded successfully"
+else
+    print_info "  Templates already exist, skipping seed"
+fi
+
+# Step 11: Collect static files
+print_info "Step 11/12: Collecting static files..."
 python3 manage.py collectstatic --noinput > /dev/null 2>&1
 print_status "Static files collected"
 
-# Step 11: Start the server automatically
+# Step 12: Start the server automatically
 echo ""
-print_info "Step 11/11: Starting production server..."
+print_info "Step 12/12: Starting production server..."
 
 # Stop any existing service and kill processes
 sudo systemctl stop huduglue-gunicorn.service 2>/dev/null || true
