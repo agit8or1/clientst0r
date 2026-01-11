@@ -111,7 +111,6 @@ def password_test_breach(request, pk):
 
             # Create breach check record
             breach_check = PasswordBreachCheck.objects.create(
-                organization=org,
                 password=password,
                 is_breached=is_breached,
                 breach_count=count

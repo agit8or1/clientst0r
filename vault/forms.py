@@ -192,7 +192,6 @@ class PasswordForm(forms.ModelForm):
                     checker = PasswordBreachChecker()
                     is_breached, count = checker.check_password(plaintext)
                     PasswordBreachCheck.objects.create(
-                        organization=password_obj.organization,
                         password=password_obj,
                         is_breached=is_breached,
                         breach_count=count
