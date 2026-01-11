@@ -5,6 +5,66 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-01-11
+
+### ✨ Added
+
+- **Data Closets & Network Closets** - Enhanced rack management for network infrastructure
+  - New rack types: Data Closet, Network Closet, Wall Mount Rack, Open Frame, Half Rack
+  - Building/Floor/Room location hierarchy for better organization
+  - Network closet specific fields: patch panel count, total port count
+  - Closet diagram upload for visual layout documentation
+  - Ambient temperature tracking for monitoring environmental conditions
+  - PDU count tracking for power distribution management
+
+- **Rack Resources Model** - Comprehensive equipment tracking for racks and closets
+  - Track non-rackable equipment: patch panels, switches, routers, firewalls, UPS, PDUs
+  - Network equipment specifications: port count, port speed, management IP
+  - Power specifications: power draw, input voltage, UPS runtime, VA capacity
+  - Rack position tracking (U position for rack-mounted resources)
+  - Warranty and support contract tracking
+  - Photo documentation for each resource
+  - Optional asset linking for integration with asset management
+  - Full admin interface with organized fieldsets
+
+- **2FA Enrollment Prompt** - Optional but recommended security
+  - Users prompted to enable 2FA on first login
+  - "Skip for now" button allows users to defer enrollment
+  - Prompts once per session only (not on every page)
+  - Info banner explains 2FA benefits
+  - Custom template with Bootstrap styling
+
+### 🔧 Fixed
+
+- **Diagram Templates** - Resolved draw.io editor errors
+  - Fixed "Error: 1: Self Reference" in diagram XML
+  - Simplified diagram templates to use valid mxGraph structure
+  - All 5 templates now load and edit correctly without errors
+  - Created `fix_diagram_templates` management command for repairs
+
+- **Diagram Previews** - Templates now have visual previews
+  - PNG thumbnails generated for all diagram templates
+  - Previews displayed in diagram list and template selection
+  - Automated preview generation via management command
+
+- **Fresh Installation** - Template seeding now works correctly
+  - Fixed migration ordering issue that prevented template creation
+  - Templates seed after all schema changes complete
+  - No longer requires organization to exist before seeding global templates
+  - Installer automatically populates 5 document templates, 5 diagram templates
+
+- **2FA Middleware** - More flexible authentication flow
+  - When REQUIRE_2FA=False, shows optional enrollment prompt
+  - When REQUIRE_2FA=True, enforces mandatory enrollment (existing behavior)
+  - Session tracking prevents repeated redirects
+  - Improved user experience for security-conscious but flexible deployments
+
+### 📚 Documentation
+
+- Updated version to 2.3.0
+- Enhanced rack management documentation for data closets
+- Added rack resource tracking documentation
+
 ## [2.2.0] - 2026-01-10
 
 ### 🚀 One-Line Installation
