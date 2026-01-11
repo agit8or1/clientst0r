@@ -4,8 +4,23 @@
 .env
 .env.local
 .env.*.local
+.env.production
+.env.staging
+.env.development
 *.env
 .github-token
+secrets.json
+credentials.json
+config.json
+auth.json
+*.secret
+*.secrets
+.token
+*.token
+.password
+*.password
+.api-key
+*.api-key
 
 # Python
 __pycache__/
@@ -84,10 +99,15 @@ logs/
 *.sql
 *.dump
 
-# Certificates
+# Certificates and keys
 *.pem
 *.key
 *.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+*.keystore
 
 # OS
 Thumbs.db
@@ -118,9 +138,21 @@ collected_static/
 .profile
 .Xauthority
 .sudo_as_admin_successful
-.ssh/authorized_keys
-.ssh/known_hosts
 .bash_history
+
+# SSH - NEVER commit SSH keys or configs
+.ssh/
+*.ssh/
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+id_ecdsa
+id_ecdsa.pub
+known_hosts
+known_hosts.old
+authorized_keys
+ssh_config
 
 # Screenshot automation (do not commit)
 scripts/generate_screenshots.py
