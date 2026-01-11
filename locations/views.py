@@ -244,6 +244,14 @@ def generate_floor_plan(request, location_id):
     )
 
     if request.method == 'POST':
+        # Check if Anthropic API key is configured
+        if not settings.ANTHROPIC_API_KEY:
+            messages.error(
+                request,
+                "Anthropic API key is not configured. Please add your API key in Settings → AI & LLM to use floor plan generation."
+            )
+            return redirect('locations:location_detail', location_id=location.id)
+
         # Get generation parameters
         try:
             floor_number_raw = request.POST.get('floor_number', 1)
@@ -279,10 +287,15 @@ def generate_floor_plan(request, location_id):
             length_feet = 80.0
 
         try:
+            logger.info(f"Starting floor plan generation for location {location.id} ({location.name})")
+            logger.info(f"Parameters: {width_feet}x{length_feet} ft, {num_employees} employees, departments: {departments}")
+
             with transaction.atomic():
                 # Generate floor plan using AI
+                logger.debug("Initializing AIFloorPlanGenerator")
                 generator = AIFloorPlanGenerator()
 
+                logger.debug("Calling generator.generate_floor_plan()")
                 builder, metadata = generator.generate_floor_plan(
                     building_name=location.name,
                     width_feet=width_feet,
@@ -293,6 +306,7 @@ def generate_floor_plan(request, location_id):
                     include_security=include_security,
                     additional_requirements=request.POST.get('additional_requirements', '')
                 )
+                logger.debug("Floor plan generated successfully by AI")
 
                 xml_content = builder.to_xml_string()
 
