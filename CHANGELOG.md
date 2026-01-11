@@ -5,6 +5,34 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.9] - 2026-01-11
+
+### 🎨 UI/UX Improvements
+
+- **Property Data & Floor Plan Dimension Improvements**
+  - Added clear messaging that property data APIs are optional/paid services (Regrid/AttomData)
+  - Added "Edit" button in building information section for manual data entry
+  - Changed "Refresh" button to "Auto-Refresh" with tooltip explaining paid API requirement
+  - Added alert when property data is missing with instructions to add manually
+  - Added "Add manually" links for each missing building information field
+  - Floor plan generator now warns when default dimensions (100x80) are shown
+  - Alerts user to enter actual building dimensions instead of defaults
+  - Links to location edit page for permanent square footage entry
+  - Makes manual data entry workflow obvious and easy
+
+### 🐛 Bug Fixes
+
+- **Template Error Fixed**
+  - Fixed "Invalid filter: 'multiply'" TemplateSyntaxError
+  - Created custom location_filters.py with multiply filter
+  - Floor plan area calculation now works correctly
+
+### 🔧 Improvements
+
+- Better user guidance for property data entry
+- Clearer distinction between free (manual) and paid (API) features
+- Improved onboarding for users without property data APIs
+
 ## [2.10.8] - 2026-01-11
 
 ### 📖 Documentation
