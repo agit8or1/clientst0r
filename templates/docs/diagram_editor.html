@@ -115,8 +115,13 @@
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = '<i class="fas fa-check"></i> Saved';
                 console.log('Diagram saved successfully, version:', data.version);
+                console.log('hasUnsavedChanges set to false, save button disabled');
+
+                // Re-enable button but show "Saved" for a moment
                 setTimeout(() => {
                     saveBtn.innerHTML = '<i class="fas fa-save"></i> Save';
+                    // Keep button disabled until actual changes are made
+                    console.log('Button text reset to Save');
                 }, 2000);
             } else {
                 throw new Error(data.error || 'Save failed');
@@ -204,22 +209,30 @@
                 // Diagram changed - this fires whenever user makes a change
                 console.log('Autosave event received, xml length:', msg.xml ? msg.xml.length : 0);
                 if (msg.xml) {
-                    currentDiagramXml = msg.xml;
-                    hasUnsavedChanges = true;
-                    saveBtn.disabled = false;
-                    updateStatus('Unsaved changes');
-                    console.log('Save button enabled');
+                    // Only mark as changed if XML actually changed (not just initial load)
+                    if (msg.xml !== currentDiagramXml) {
+                        console.log('XML changed, marking as unsaved');
+                        currentDiagramXml = msg.xml;
+                        hasUnsavedChanges = true;
+                        saveBtn.disabled = false;
+                        updateStatus('Unsaved changes');
+                    } else {
+                        console.log('XML unchanged, ignoring autosave event');
+                    }
                 } else {
                     console.warn('Autosave event missing xml data');
                 }
                 break;
 
             case 'save':
-                // User clicked internal save
+                // User clicked internal save (Ctrl+S or File > Save in draw.io)
+                console.log('Save event received from draw.io');
                 if (msg.xml) {
                     currentDiagramXml = msg.xml;
                     hasUnsavedChanges = true;
-                    saveDiagram();
+                    saveDiagram(true); // Force save
+                } else {
+                    console.warn('Save event missing xml data');
                 }
                 break;
 
