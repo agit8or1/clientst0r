@@ -5,6 +5,40 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.2] - 2026-01-11
+
+### 🐛 Bug Fixes
+
+- **Floor Plan Generation Type Error**
+  - Fixed "int() argument must be a string, a bytes-like object or a real number, not 'list'" error
+  - Added robust type checking for all form inputs (floor number, employees, dimensions)
+  - Handles edge case where POST data returns lists instead of strings
+  - Graceful fallback to sensible default values if parsing fails
+  - Better error handling for malformed form data
+
+### 🎨 UI/UX Improvements
+
+- **Municipal Data Visibility**
+  - Added prominent green success alert in Settings → AI explaining free municipal data
+  - Changed Auto-Refresh button from gray (secondary) to blue (primary) to increase visibility
+  - Updated button tooltip: "Tries municipal tax collector records (FREE) first, then paid APIs if configured"
+  - Made it crystal clear that no configuration is needed for municipal data
+  - Listed supported jurisdictions: Florida counties, Socrata open data cities
+  - Clear distinction between free municipal data, paid APIs, and manual entry
+
+- **Settings Page Improvements**
+  - Green alert at top of Property Data section highlighting free option
+  - "No configuration needed" prominently displayed
+  - Better explanation of when you might want paid APIs vs free data
+  - Users understand they have 3 options with clear pros/cons
+
+### Technical Details
+
+- Added isinstance() checks before type conversions
+- List handling for POST data edge cases
+- Try/except blocks with sensible defaults
+- Improved button styling and prominence
+
 ## [2.11.1] - 2026-01-11
 
 ### ✨ New Features
