@@ -280,6 +280,8 @@ EOSQL
 
             print_status "Cleanup complete. Starting fresh installation..."
             echo ""
+            # Return to install directory before continuing
+            cd "$INSTALL_DIR"
             # Continue to normal installation
             ;;
         4)
