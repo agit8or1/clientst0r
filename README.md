@@ -151,50 +151,45 @@ Full implementations for:
 - **Software Inventory** - Sync installed software from RMM platforms
 - **Alert Integration** - Pull RMM alerts and monitoring data
 
-## 🆕 What's New in v2.10
+## 🆕 What's New in v2.11
 
 ### Recent Updates (January 2026)
 
-**v2.10.5** - Navigation Improvements
-- Favorites promoted to top-level nav link for easy access
-- Cleaner, more intuitive navigation structure
+**v2.11.7** - Bug Fixes & UI Improvements (Latest Release)
+- Fixed visible ">" artifact on all pages (CSRF token meta tag issue)
+- Fixed About page TemplateSyntaxError with hyphenated package names
+- Improved floor plan generation loading overlay contrast
+- Renamed "Processes" to "Workflows" throughout UI for better clarity
+- Fixed template variable mismatch causing workflow list errors
+- Added comprehensive demo data documentation to installation guide
+- Timezone display now correctly shows Eastern Time (EST/EDT)
 
-**v2.10.4** - Infrastructure Reorganization
-- Infrastructure features (Racks, IPAM) moved under Assets dropdown
-- Monitoring elevated to its own top-level menu
-- Better logical grouping of related features
+**v2.11.6** - Security & CVE Scanning
+- **Live CVE vulnerability scanning** on About page with real-time results
+- Resolved all 10 known security vulnerabilities through package upgrades:
+  - cryptography 41.0.7 → 44.0.1 (4 CVEs fixed)
+  - djangorestframework 3.14.0 → 3.15.2 (1 CVE fixed)
+  - gunicorn 21.2.0 → 22.0.0 (2 CVEs fixed)
+  - pillow 10.2.0 → 10.3.0 (1 CVE fixed)
+  - requests 2.31.0 → 2.32.4 (2 CVEs fixed)
+- Real-time dependency version display on About page
+- Integrated pip-audit for automated vulnerability detection
+- **Result: Zero known vulnerabilities** ✓
 
-**v2.10.3** - Floor Plan Location Linking
-- Link imported floor plans to existing locations
-- Dynamic location dropdown filtered by organization
-- Option to create new location or use existing one
+**v2.11.5** - Location Intelligence & Password Security
+- Location-aware property appraiser suggestions (adapts to county/state)
+- Password breach detection integration with HaveIBeenPwned
+- Scheduled password breach scanning (configurable intervals: 2-24 hours)
+- Floor plan generation progress feedback with visual overlay
+- Smarter property diagram help text based on location
 
-**v2.10.2** - Critical SQLite Compatibility Fix
-- Fixed NOT NULL constraint errors in location creation
-- Improved database field handling for optional values
-
-**v2.10.1** - Navigation Enhancement
-- Floor Plan Import moved to Docs → Diagrams menu
-- Dedicated floor plan import page with instructions
-- Improved feature discoverability
-
-**v2.10.0** - MagicPlan Integration
-- Import floor plans from MagicPlan mobile app
-- Automatic unit conversion (meters to feet)
-- Location creation from project data
-- Multi-floor support from single JSON file
-
-**v2.9.0** - Multi-Organization Import
-- Import all organizations from IT Glue/Hudu at once
-- Intelligent fuzzy matching for duplicate prevention
-- Configurable similarity threshold (0-100%)
-- Organization mapping tracking
-
-**v2.8.0** - Complete Import System
-- Full IT Glue data migration support
-- Complete Hudu import functionality
-- Dry run mode for safe preview
-- Import history and logging
+**Earlier v2.11.x Features:**
+- Workflows (formerly Processes) with sequential execution tracking
+- Enhanced diagram versioning and template system
+- Password strength analysis and expiration tracking
+- Website monitoring with SSL certificate tracking
+- Multi-location management with geocoding
+- Scheduled task system (no Redis required - systemd timers)
 
 ## 🚀 Quick Start
 
