@@ -5,6 +5,49 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.1] - 2026-01-11
+
+### ✨ New Features
+
+- **Municipal Tax Collector Data Integration (FREE!)**
+  - Automatically fetches building data from public property records
+  - Supports Florida counties: Jacksonville/Duval, Miami-Dade, Broward, Orange, Hillsborough, Pinellas
+  - Framework for California, Texas, and New York property databases
+  - Integrated with Socrata open data portals (many US cities)
+  - **Completely free** - uses public government tax assessor websites
+  - 7-day caching to minimize requests
+  - Falls back gracefully if data unavailable
+  - Triggered by clicking "Auto-Refresh" button (tries municipal first, then paid APIs if configured)
+
+### 🔧 Improvements
+
+- **Property Data Fetch Priority**
+  - New order: Regrid → AttomData → Municipal (FREE) → Basic geocoding
+  - Municipal lookup happens automatically with no configuration needed
+  - Clear UI showing 3 options: Free (municipal), Paid (API), Manual (edit)
+
+- **Floor Plan Generation Error Handling**
+  - Improved error messages with specific troubleshooting guidance
+  - Detects Anthropic API key issues and directs to settings page
+  - Better logging for debugging generation failures
+  - Helps identify issues instead of silent failures
+
+### 🎨 UI/UX Improvements
+
+- Location detail page now clearly explains property data options:
+  - **Free:** Municipal tax collector records (public data)
+  - **Paid:** Regrid/AttomData APIs (comprehensive data)
+  - **Manual:** Enter data yourself
+- Auto-Refresh button tooltip updated to reflect free option
+- Better guidance for users without paid API subscriptions
+
+### Technical Details
+
+- Created `municipal_data.py` service with county-specific implementations
+- Integrated municipal service into property data fetch cascade
+- Service detects Florida counties from city names
+- Extensible architecture for adding more jurisdictions
+
 ## [2.11.0] - 2026-01-11
 
 ### ✨ New Features
