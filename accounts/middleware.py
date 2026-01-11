@@ -9,8 +9,10 @@ from django_otp import user_has_device
 
 class Enforce2FAMiddleware:
     """
-    Enforce 2FA enrollment for all users if REQUIRE_2FA is True.
-    Allows access to 2FA setup pages and logout.
+    Enforce or encourage 2FA enrollment for users.
+
+    When REQUIRE_2FA=True: Forces 2FA enrollment (cannot be skipped)
+    When REQUIRE_2FA=False: Prompts for 2FA enrollment once per session (can be dismissed)
     """
     ALLOWED_PATHS = [
         '/account/login/',
@@ -25,9 +27,6 @@ class Enforce2FAMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if not settings.REQUIRE_2FA:
-            return self.get_response(request)
-
         # Skip for unauthenticated users
         if not request.user.is_authenticated:
             return self.get_response(request)
@@ -38,10 +37,24 @@ class Enforce2FAMiddleware:
 
         # Check if user has 2FA device configured
         if not user_has_device(request.user):
-            # Redirect to 2FA setup
             setup_url = reverse('two_factor:setup')
-            if request.path != setup_url:
-                return redirect(setup_url)
+
+            if settings.REQUIRE_2FA:
+                # REQUIRED: Force redirect to 2FA setup (cannot skip)
+                if request.path != setup_url:
+                    return redirect(setup_url)
+            else:
+                # OPTIONAL: Prompt once per session, can be dismissed
+                # Check if we've already prompted in this session
+                if not request.session.get('2fa_prompted', False):
+                    # Mark as prompted so we don't keep redirecting
+                    request.session['2fa_prompted'] = True
+
+                    # Only redirect if not already on setup page
+                    if request.path != setup_url:
+                        # Add a flag to indicate this is optional
+                        request.session['2fa_optional'] = True
+                        return redirect(setup_url)
 
         response = self.get_response(request)
         return response
