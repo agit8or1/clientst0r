@@ -74,13 +74,18 @@ class MembershipForm(forms.ModelForm):
         organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
 
-        # Filter out users who are already members
+        # Only show users who don't belong to ANY organization yet
         if organization:
-            existing_member_ids = Membership.objects.filter(
-                organization=organization,
+            # Get all user IDs who are members of ANY organization
+            all_member_ids = Membership.objects.filter(
                 is_active=True
-            ).values_list('user_id', flat=True)
-            self.fields['user'].queryset = User.objects.exclude(id__in=existing_member_ids)
+            ).values_list('user_id', flat=True).distinct()
+
+            # Show only users who aren't members of any organization
+            # This prevents adding users from other organizations
+            self.fields['user'].queryset = User.objects.exclude(id__in=all_member_ids).order_by('username')
+            self.fields['user'].label = 'Select User (unassigned users only)'
+            self.fields['user'].help_text = 'Only shows users not assigned to any organization'
 
             # Get role templates (system + org custom)
             system_templates = RoleTemplate.objects.filter(is_system_template=True)
@@ -98,6 +103,7 @@ class MembershipForm(forms.ModelForm):
             self.fields['role_template'].required = False
 
         self.fields['user'].required = False
+        self.fields['email'].help_text = 'Enter email to add existing user or create invitation'
 
 
 class UserProfileForm(forms.ModelForm):
