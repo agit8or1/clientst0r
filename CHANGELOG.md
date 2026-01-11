@@ -5,6 +5,42 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.7] - 2026-01-11
+
+### 🐛 Bug Fixes
+
+- **Fixed Visible ">" Artifact on All Pages**
+  - Resolved issue where a stray ">" character appeared at top left of navigation bar
+  - Root cause: CSRF meta tag was using `{% csrf_token %}` which outputs full `<input>` HTML element
+  - Browser was rendering the closing `>` from the input tag as visible text
+  - Solution: Changed to `{{ csrf_token }}` to output only the token value
+  - Fixed: `templates/base.html:7` - meta tag now correctly contains just token value
+
+- **About Page TemplateSyntaxError**
+  - Fixed: `Invalid character ('-') in variable name: 'dependencies.django-two-factor-auth'`
+  - Django template variables cannot contain hyphens
+  - Modified `get_dependency_versions()` to replace hyphens with underscores in dictionary keys
+  - Updated template to use underscored variable names:
+    - `dependencies.django-two-factor-auth` → `dependencies.django_two_factor_auth`
+    - `dependencies.django-axes` → `dependencies.django_axes`
+  - About page now loads successfully without template syntax errors
+
+### 🎨 UI/UX Improvements
+
+- **Floor Plan Generation Loading Overlay Contrast**
+  - Fixed poor contrast in "Generating Floor Plan with AI..." loading message
+  - Added explicit color styling to overlay text for better readability
+  - Main text: `#212529` (dark gray - high contrast on white background)
+  - Secondary text: `#6c757d` (muted gray)
+  - Ensures text is always readable regardless of theme or browser defaults
+
+### 🔧 Technical Changes
+
+- Updated `templates/base.html`: Fixed CSRF token meta tag
+- Updated `core/security_scan.py`: Hyphen-to-underscore conversion for template compatibility
+- Updated `templates/core/about.html`: Variable name fixes for Django template syntax
+- Updated `templates/locations/generate_floor_plan.html`: Inline style improvements
+
 ## [2.11.6] - 2026-01-11
 
 ### 🔒 Security Enhancements

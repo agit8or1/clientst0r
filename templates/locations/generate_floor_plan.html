@@ -224,12 +224,22 @@ function updateArea() {
 
 // Add form submission handler to show progress
 document.getElementById('floorPlanForm').addEventListener('submit', function(e) {
+    // Check if already submitted to prevent double submission
+    if (this.dataset.submitting === 'true') {
+        e.preventDefault();
+        return false;
+    }
+
+    // Mark as submitting
+    this.dataset.submitting = 'true';
+
     const submitBtn = document.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating floor plan with AI... This may take 15-30 seconds...';
 
     // Show overlay
     const overlay = document.createElement('div');
+    overlay.id = 'generationOverlay';
     overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center;';
     overlay.innerHTML = `
         <div style="background: white; padding: 40px; border-radius: 10px; text-align: center; max-width: 500px; color: #212529;">
@@ -240,6 +250,8 @@ document.getElementById('floorPlanForm').addEventListener('submit', function(e) 
         </div>
     `;
     document.body.appendChild(overlay);
+
+    // Form will submit naturally after this event handler completes
 });
 </script>
 {% endblock %}
