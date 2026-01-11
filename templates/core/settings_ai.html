@@ -117,6 +117,32 @@
 
                     <hr class="my-4">
 
+                    <h5 class="mb-3">Property Data APIs (Optional)</h5>
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Premium Services:</strong> These are paid APIs that provide building information (square footage, year built, property type) for the "Auto-Refresh" feature on location pages.
+                        <strong>Not required</strong> - you can manually enter building data instead.
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="regrid_api_key" class="form-label">Regrid API Key</label>
+                        <input type="password" class="form-control font-monospace" id="regrid_api_key" name="regrid_api_key" value="{{ current_regrid_key }}" placeholder="Leave blank if not using">
+                        <div class="form-text">
+                            Optional. Provides property/parcel data. <a href="https://regrid.com/pricing" target="_blank">Starting at $299/month</a>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="attom_api_key" class="form-label">AttomData API Key</label>
+                        <input type="password" class="form-control font-monospace" id="attom_api_key" name="attom_api_key" value="{{ current_attom_key }}" placeholder="Leave blank if not using">
+                        <div class="form-text">
+                            Optional. Provides property details and valuations. <a href="https://www.attomdata.com/solutions/" target="_blank">Contact for pricing</a>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i>
                         <strong>Automatic Restart:</strong> When you save settings, the application will automatically restart to apply the new API keys. This takes about 2-3 seconds.

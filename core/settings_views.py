@@ -583,12 +583,16 @@ def settings_ai(request):
     current_anthropic_key = env_values.get('ANTHROPIC_API_KEY', '')
     current_claude_model = env_values.get('CLAUDE_MODEL', 'claude-sonnet-4-5-20250929')
     current_google_maps_key = env_values.get('GOOGLE_MAPS_API_KEY', '')
+    current_regrid_key = env_values.get('REGRID_API_KEY', '')
+    current_attom_key = env_values.get('ATTOM_API_KEY', '')
 
     if request.method == 'POST':
         # Update .env file with new values
         anthropic_key = request.POST.get('anthropic_api_key', '').strip()
         claude_model = request.POST.get('claude_model', 'claude-sonnet-4-5-20250929')
         google_maps_key = request.POST.get('google_maps_api_key', '').strip()
+        regrid_key = request.POST.get('regrid_api_key', '').strip()
+        attom_key = request.POST.get('attom_api_key', '').strip()
 
         # Read all lines from .env
         lines = []
@@ -601,6 +605,8 @@ def settings_ai(request):
             'ANTHROPIC_API_KEY': anthropic_key,
             'CLAUDE_MODEL': claude_model,
             'GOOGLE_MAPS_API_KEY': google_maps_key,
+            'REGRID_API_KEY': regrid_key,
+            'ATTOM_API_KEY': attom_key,
         }
 
         for key, value in keys_to_update.items():
@@ -671,5 +677,7 @@ def settings_ai(request):
         'current_anthropic_key': current_anthropic_key,
         'current_claude_model': current_claude_model,
         'current_google_maps_key': current_google_maps_key,
+        'current_regrid_key': current_regrid_key,
+        'current_attom_key': current_attom_key,
         'current_tab': 'ai',
     })

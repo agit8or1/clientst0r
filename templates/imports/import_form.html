@@ -68,13 +68,43 @@
 
                         <div class="mb-3">
                             <label for="{{ form.target_organization.id_for_label }}" class="form-label">
-                                Target Organization <span class="text-danger">*</span>
+                                Target Organization <span class="badge bg-secondary">Optional</span>
                             </label>
                             {{ form.target_organization }}
                             {% if form.target_organization.errors %}
                             <div class="text-danger">{{ form.target_organization.errors }}</div>
                             {% endif %}
-                            <small class="form-text text-muted">Data will be imported into this organization</small>
+                            <small class="form-text text-muted">{{ form.target_organization.help_text }}</small>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-magic"></i>
+                            <strong>Automatic Organization Matching:</strong> Leave "Target Organization" blank and enable fuzzy matching below.
+                            The system will automatically match imported companies to your existing organizations by name similarity.
+                        </div>
+
+                        <hr>
+
+                        <h6 class="mb-3">Fuzzy Matching Options</h6>
+
+                        <div class="form-check mb-3">
+                            {{ form.use_fuzzy_matching }}
+                            <label class="form-check-label" for="{{ form.use_fuzzy_matching.id_for_label }}">
+                                <strong>Enable Fuzzy Matching</strong>
+                            </label>
+                            <br>
+                            <small class="form-text text-muted">{{ form.use_fuzzy_matching.help_text }}</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.fuzzy_match_threshold.id_for_label }}" class="form-label">
+                                Match Threshold (%)
+                            </label>
+                            {{ form.fuzzy_match_threshold }}
+                            {% if form.fuzzy_match_threshold.errors %}
+                            <div class="text-danger">{{ form.fuzzy_match_threshold.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">{{ form.fuzzy_match_threshold.help_text }}</small>
                         </div>
 
                         <hr>
