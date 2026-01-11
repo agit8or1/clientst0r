@@ -474,6 +474,9 @@ EMAIL_HOST_PASSWORD=
 # Application
 SITE_NAME=HuduGlue
 SITE_URL=http://localhost:8000
+
+# Security
+REQUIRE_2FA=False
 EOF
 
 print_status "Environment file created (.env)"
