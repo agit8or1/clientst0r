@@ -83,15 +83,7 @@
                             <li><a class="dropdown-item" href="{% url 'monitoring:expiration_list' %}"><i class="fas fa-calendar-times"></i> Expirations</a></li>
                         </ul>
                     </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="moreDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-ellipsis-h"></i> More
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><h6 class="dropdown-header">Quick Links</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'core:favorite_list' %}"><i class="fas fa-star text-warning"></i> Favorites</a></li>
-                        </ul>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'core:favorite_list' %}"><i class="fas fa-star text-warning"></i> Favorites</a></li>
                     {% if user.is_superuser %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
