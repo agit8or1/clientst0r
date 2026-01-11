@@ -5,6 +5,137 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.5] - 2026-01-11
+
+### ✨ New Features
+
+- **Location-Aware Property Appraiser Suggestions**
+  - Property diagram suggestions now dynamically adapt based on location's address
+  - Automatically shows correct county name and direct links to property appraiser
+  - Supports major FL counties: Duval (Jacksonville), Miami-Dade, Broward, Orange (Orlando), Hillsborough (Tampa), Pinellas (St. Pete/Clearwater), Leon (Tallahassee)
+  - Generic search links for California, Texas, and other states
+  - No more "Duval County" suggestions for Miami locations!
+  - Each location sees relevant, specific guidance for their jurisdiction
+
+### 🎨 UI/UX Improvements
+
+- **Floor Plan Generation Progress Feedback**
+  - Added visual loading overlay during AI generation (15-30 seconds)
+  - Shows spinner and "Generating Floor Plan with AI..." message
+  - Prevents accidental double-submission
+  - Better user experience during potentially long operation
+  - Submit button shows progress state
+
+- **Smarter Property Diagram Help Text**
+  - Adapts help text based on whether location has known appraiser or generic search
+  - Known counties: Shows specific appraiser name and direct link
+  - Unknown locations: Shows Google search link with helpful keywords
+  - References new AI import feature as alternative
+
+### Technical Details
+
+- Added `get_property_appraiser_info()` method to Location model
+- Method returns dict with county, name, url, search_url
+- Template receives `property_appraiser` context variable
+- JavaScript form submission handler with overlay creation
+
+## [2.11.4] - 2026-01-11
+
+### ✨ New Features - AI-Powered Property URL Import
+
+- **Import Property Data from URL Using Claude AI**
+  - Revolutionary new feature: Paste ANY property appraiser URL and Claude AI extracts all data
+  - Works with Duval County, all Florida counties, and most property record websites nationwide
+  - Example: `https://paopropertysearch.coj.net/Basic/Detail.aspx?RE=1442930000`
+  - No scraping rules needed - AI understands the HTML and extracts intelligently
+
+- **What Gets Extracted**
+  - Building square footage
+  - Lot square footage
+  - Year built
+  - Property type/classification
+  - Number of floors/stories
+  - Parcel ID/Property ID
+  - Owner name and mailing address
+  - Assessed value and market value
+  - Legal description
+  - Zoning and land use
+  - Full address details (street, city, state, zip, county)
+
+- **How It Works**
+  1. User pastes property appraiser URL in new input field (in Building Information section)
+  2. Clicks "Import with AI" button
+  3. System fetches HTML from URL
+  4. Claude AI analyzes HTML and extracts ALL available property data
+  5. Location automatically populated with extracted data
+  6. Success message shows what was updated
+
+### 🔧 Technical Implementation
+
+- Created `PropertyURLImporter` service class
+- Uses Anthropic Claude API with structured prompts
+- Handles HTML truncation for large pages
+- Parses JSON from AI response (handles markdown code blocks)
+- Stores full extracted data in `external_data` JSON field
+- New AJAX endpoint: `/locations/<id>/import-property-from-url/`
+- JavaScript function with loading state and error handling
+
+### 🎨 UI/UX
+
+- New green success alert in Building Information card
+- Input field with placeholder showing example URL
+- "Import with AI" button with robot icon
+- Loading state: "Importing with AI..."
+- Success message shows all updated fields
+- Works alongside existing Auto-Refresh and manual Edit options
+
+### Benefits
+
+- **No configuration needed** - uses existing Anthropic API key
+- **Universal** - works with any property website, not just specific APIs
+- **Smart** - AI understands different website layouts and field names
+- **Complete** - extracts more fields than typical APIs
+- **Fast** - results in seconds
+
+## [2.11.3] - 2026-01-11
+
+### ✨ New Features - Real Duval County Integration
+
+- **Actual Duval County Property Data Fetching**
+  - Implemented REAL API integration with Duval County (Jacksonville, FL) public records
+  - Uses FREE `opendata.coj.net` Socrata open data API
+  - Fetches: building sqft, year built, property type, floors count, parcel ID
+  - Provides direct links to property appraiser detail pages
+  - Works automatically when clicking "Auto-Refresh" on location pages
+  - Previous version only logged availability, now actually retrieves data
+
+- **Property Diagram Upload Feature**
+  - Added new `property_diagram` ImageField to Location model
+  - Upload diagrams from tax collector/property appraiser records
+  - New "Property Diagram" card on location detail page
+  - Helpful links to Duval County and other FL property appraisers
+  - Guides users to search municipal records for free diagrams
+  - Easy upload button integrated into location edit form
+
+### 🔧 Improvements
+
+- **Floor Plan Generation Debugging**
+  - Added API key check before attempting generation
+  - Clear error message if Anthropic API key is missing
+  - Detailed debug logging to track generation progress
+  - Better error handling throughout floor plan creation process
+  - Logs: initialization, parameters, AI generation, database operations
+  - Helps diagnose "page reload" issues by showing exact error messages
+
+### Technical Details
+
+- Duval County API: `https://opendata.coj.net/resource/jj2e-6w6r.json`
+- Parses multiple field name variations (total_living_area, building_area, etc.)
+- Address parsing with regex for street number and name
+- User-Agent header for polite API usage
+- Migration `0006_add_property_diagram.py` adds ImageField
+- Upload path: `locations/diagrams/%Y/%m/`
+
 ## [2.11.2] - 2026-01-11
 
 ### 🐛 Bug Fixes
