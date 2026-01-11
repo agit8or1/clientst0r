@@ -314,6 +314,15 @@ def generate_floor_plan(request, location_id):
 
                 xml_content = builder.to_xml_string()
 
+                # Ensure dimensions are numeric (final safety check)
+                try:
+                    width_feet = float(width_feet)
+                    length_feet = float(length_feet)
+                    total_sqft = int(width_feet * length_feet)
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Type conversion error: width={width_feet}, length={length_feet}, error={e}")
+                    raise Exception(f"Invalid dimensions: width={width_feet}, length={length_feet}")
+
                 # Create or update floor plan record
                 floor_plan, created = LocationFloorPlan.objects.update_or_create(
                     location=location,
@@ -323,7 +332,7 @@ def generate_floor_plan(request, location_id):
                         'floor_name': floor_name,
                         'width_feet': width_feet,
                         'length_feet': length_feet,
-                        'total_sqft': int(width_feet * length_feet),
+                        'total_sqft': total_sqft,
                         'diagram_xml': xml_content,
                         'source': 'ai_estimate',
                         'ai_analysis': metadata,
