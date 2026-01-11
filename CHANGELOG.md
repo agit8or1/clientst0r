@@ -5,6 +5,88 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.6] - 2026-01-11
+
+### 🔒 Security Enhancements
+
+- **Live CVE Vulnerability Scanning**
+  - Added real-time CVE/vulnerability scanning to About page
+  - Integrated `pip-audit` for Python package vulnerability detection
+  - About page now shows live scan results with timestamp
+  - Displays vulnerability status: All Clear / Vulnerabilities Found
+  - Shows scan tool used (pip-audit) and last scan time
+  - Created `core/security_scan.py` module with scanning functions
+
+- **Security Package Upgrades** (All 10 Known Vulnerabilities Resolved ✓)
+  - **cryptography**: `41.0.7` → `44.0.1` (Fixed 4 CVEs)
+    - PYSEC-2024-225
+    - CVE-2023-50782
+    - CVE-2024-0727
+    - GHSA-h4gh-qq45-vh27
+  - **djangorestframework**: `3.14.0` → `3.15.2` (Fixed CVE-2024-21520)
+  - **gunicorn**: `21.2.0` → `22.0.0` (Fixed 2 CVEs)
+    - CVE-2024-1135
+    - CVE-2024-6827
+  - **pillow**: `10.2.0` → `10.3.0` (Fixed CVE-2024-28219)
+  - **requests**: `2.31.0` → `2.32.4` (Fixed 2 CVEs)
+    - CVE-2024-35195
+    - CVE-2024-47081
+
+### 📊 About Page Enhancements
+
+- **Real-Time Dependency Versions**
+  - Technology Stack table now shows actual installed versions
+  - Uses `pip list` to extract current package versions
+  - Displays Django, DRF, Gunicorn, cryptography, Pillow, Requests, Anthropic SDK versions
+  - Replaces static version numbers with live data
+
+- **Live Security Reporting**
+  - CVE scan runs on each About page load
+  - Shows vulnerability count and severity breakdown
+  - Color-coded status badges (green = clean, warning = vulnerabilities found)
+  - 30-second timeout for scan operations
+  - Graceful error handling if scan fails
+
+### 🐛 Bug Fixes
+
+- **Floor Plan Generation Type Safety**
+  - Fixed: `int() argument must be a string, a bytes-like object or a real number, not 'list'` error
+  - Added explicit type conversion before database save
+  - Django POST data can return lists instead of strings
+  - Added final safety check: `float(width_feet)` and `float(length_feet)` before `int()` calculation
+  - Enhanced error logging with specific dimension values
+  - Ensures `total_sqft` calculation never fails on type errors
+
+### 🎨 UI/UX Improvements
+
+- **Property Import Placeholder Cleanup**
+  - Changed placeholder from example URL to generic text: "Paste property appraiser URL here..."
+  - Updated help text to be more general across all jurisdictions
+  - Removed Duval County-specific default URL from form
+
+### 🔧 Technical Changes
+
+- New module: `/home/administrator/core/security_scan.py`
+  - `run_vulnerability_scan()` function using subprocess to call pip-audit
+  - `get_dependency_versions()` function to extract package versions
+  - JSON parsing of pip-audit output
+  - Caching not implemented (scans on each page load)
+
+- Updated `core/views.py`:
+  - `about()` function now calls security scanning functions
+  - Passes `scan_results` and `dependencies` to template context
+
+- Updated `/home/administrator/templates/core/about.html`:
+  - Added "Live CVE Scan Results" section with real-time data
+  - Changed static version numbers to Django template variables
+  - Dynamic timestamp using `{{ scan_results.scan_time|date:"F j, Y \a\t g:i A" }}`
+  - Conditional rendering based on scan status
+
+### 📦 Dependencies
+
+- pip-audit (new dependency for vulnerability scanning)
+- safety (installed but pip-audit is primary tool)
+
 ## [2.11.5] - 2026-01-11
 
 ### ✨ New Features

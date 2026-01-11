@@ -10,7 +10,8 @@ mysqlclient==2.2.*
 argon2-cffi==23.1.*
 django-axes==6.1.*
 django-ratelimit==4.1.*
-cryptography==41.*
+cryptography==44.*
+pip-audit==2.7.*
 
 # 2FA
 django-two-factor-auth[phonenumbers]==1.16.*
@@ -18,11 +19,11 @@ qrcode==7.4.*
 pyotp==2.9.*
 
 # WSGI Server
-gunicorn==21.2.*
+gunicorn==22.0.*
 whitenoise==6.6.*
 
 # PSA Integration HTTP clients
-requests==2.31.*
+requests==2.32.*
 urllib3==2.1.*
 
 # AI Integration
@@ -30,7 +31,7 @@ anthropic==0.75.*
 
 # Utilities
 python-dotenv==1.0.*
-Pillow==10.2.*
+Pillow==10.3.*
 markdown==3.5.*
 bleach==6.1.*
 pytz==2024.1
