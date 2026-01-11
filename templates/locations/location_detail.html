@@ -217,7 +217,14 @@
                 {% else %}
                 <div class="alert alert-warning m-3">
                     <i class="fas fa-exclamation-triangle"></i>
-                    Google Maps API key not configured. Go to <a href="{% url 'core:settings_ai' %}">Settings → AI</a> to add your API key.
+                    <strong>Google Maps API Not Configured</strong>
+                    <p class="mb-2 mt-2 small">To view maps and satellite imagery:</p>
+                    <ol class="mb-2 small">
+                        <li>Go to <a href="{% url 'core:settings_ai' %}" class="alert-link">Settings → AI & LLM</a></li>
+                        <li>Follow the setup instructions to enable required APIs</li>
+                        <li>Add your Google Maps API key</li>
+                    </ol>
+                    <p class="mb-0 small"><em>Required APIs: Maps Embed, Maps Static, Geocoding, and Places API</em></p>
                 </div>
                 {% endif %}
             </div>

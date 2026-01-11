@@ -90,8 +90,28 @@
                         <label for="google_maps_api_key" class="form-label">Google Maps API Key</label>
                         <input type="password" class="form-control font-monospace" id="google_maps_api_key" name="google_maps_api_key" value="{{ current_google_maps_key }}" placeholder="AIza...">
                         <div class="form-text">
-                            Optional. Used for geocoding addresses and fetching satellite imagery. Get your API key at <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a>
+                            Optional. Used for geocoding addresses and fetching satellite imagery.
                         </div>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Important: Google Maps Setup Instructions</strong>
+                        <p class="mb-2 mt-2">To use Google Maps features, you must enable the required APIs in Google Cloud Console:</p>
+                        <ol class="mb-2 small">
+                            <li><strong>Go to:</strong> <a href="https://console.cloud.google.com/apis/library" target="_blank" class="alert-link">Google Cloud API Library</a></li>
+                            <li><strong>Enable these 4 APIs</strong> (search for each and click "Enable"):
+                                <ul class="mt-1">
+                                    <li><strong>Maps Embed API</strong> - For interactive maps</li>
+                                    <li><strong>Maps Static API</strong> - For satellite imagery</li>
+                                    <li><strong>Geocoding API</strong> - For address to coordinates conversion</li>
+                                    <li><strong>Places API</strong> - For property data lookup</li>
+                                </ul>
+                            </li>
+                            <li><strong>Create API Key:</strong> <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="alert-link">Google Cloud Credentials</a> → "Create Credentials" → "API Key"</li>
+                            <li><strong>Copy the API key</strong> and paste it above</li>
+                        </ol>
+                        <p class="mb-0 small"><strong>Note:</strong> Without enabling these APIs, you'll get "API not activated" errors. Each API has a free tier that covers typical usage.</p>
                     </div>
 
                     <hr class="my-4">
