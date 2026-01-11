@@ -618,7 +618,53 @@ def settings_ai(request):
         with open(env_path, 'w') as f:
             f.writelines(lines)
 
-        messages.success(request, 'AI settings updated successfully. Restart the application for changes to take effect.')
+        # Automatically reload Gunicorn to apply changes (using HUP signal)
+        try:
+            import subprocess
+            import signal
+
+            # Find Gunicorn master process
+            result = subprocess.run(
+                ['ps', 'aux'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            gunicorn_pid = None
+            for line in result.stdout.split('\n'):
+                if 'gunicorn' in line and 'master' in line:
+                    parts = line.split()
+                    if len(parts) > 1:
+                        gunicorn_pid = int(parts[1])
+                        break
+
+            if gunicorn_pid:
+                # Send HUP signal to reload workers (doesn't require sudo)
+                os.kill(gunicorn_pid, signal.SIGHUP)
+                messages.success(request, 'AI settings updated successfully. Application reloaded automatically.')
+            else:
+                messages.warning(request, 'AI settings updated, but could not find Gunicorn process. Please restart manually with: sudo systemctl restart huduglue-gunicorn')
+
+        except PermissionError:
+            # If we don't have permission to send signal, try systemctl restart with sudo
+            try:
+                result = subprocess.run(
+                    ['sudo', 'systemctl', 'restart', 'huduglue-gunicorn'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                if result.returncode == 0:
+                    messages.success(request, 'AI settings updated successfully. Application restarted automatically.')
+                else:
+                    messages.warning(request, 'AI settings updated. Please restart manually with: sudo systemctl restart huduglue-gunicorn')
+            except Exception:
+                messages.warning(request, 'AI settings updated. Please restart manually with: sudo systemctl restart huduglue-gunicorn')
+
+        except Exception as e:
+            messages.warning(request, f'AI settings updated. Please restart manually with: sudo systemctl restart huduglue-gunicorn')
+
         return redirect('core:settings_ai')
 
     return render(request, 'core/settings_ai.html', {

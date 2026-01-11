@@ -5,6 +5,31 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.6] - 2026-01-11
+
+### ✨ New Features
+
+- **Automatic Application Reload After Settings Changes**
+  - AI settings page now automatically reloads Gunicorn after saving
+  - Uses HUP signal for zero-downtime reload
+  - Fallback to systemctl restart if needed
+  - No manual restart required for API key changes
+  - Automatic detection of Gunicorn master process
+
+### 🔧 Improvements
+
+- Seamless settings update experience
+- Immediate application of new API keys
+- Better error handling with fallback mechanisms
+- User-friendly success/warning messages
+
+### Technical Details
+
+- Implemented automatic Gunicorn reload using SIGHUP signal
+- Process detection via ps aux command
+- Graceful fallback to sudo systemctl restart
+- Permission-aware error handling
+
 ## [2.10.5] - 2026-01-11
 
 ### 🎨 UI/UX Improvements
