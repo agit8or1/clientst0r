@@ -96,17 +96,16 @@
 
                     <hr class="my-4">
 
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <strong>Important:</strong> After saving changes, you must restart the application for the new API keys to take effect.
-                        <br><code>sudo systemctl restart huduglue-gunicorn</code>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Automatic Restart:</strong> When you save settings, the application will automatically restart to apply the new API keys. This takes about 2-3 seconds.
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center">
                         <small class="text-muted">
                             Changes are saved to .env file
                         </small>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" id="saveSettingsBtn">
                             <i class="fas fa-save"></i> Save Settings
                         </button>
                     </div>
@@ -179,4 +178,106 @@
         </div>
     </div>
 </div>
+
+<!-- Restart Loading Overlay -->
+<div id="restartOverlay" class="restart-overlay" style="display: none;">
+    <div class="restart-modal">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h4 class="text-primary mb-2">Now restarting services...</h4>
+        <p class="text-muted mb-0">Applying your API key changes</p>
+        <div class="progress mt-3" style="height: 4px; width: 250px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+.restart-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.restart-modal {
+    background: white;
+    padding: 40px 60px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Dark theme support */
+[data-bs-theme="dark"] .restart-modal {
+    background: #2d3748;
+    color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .restart-modal h4 {
+    color: #90cdf4 !important;
+}
+
+[data-bs-theme="dark"] .restart-modal .text-muted {
+    color: #a0aec0 !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const overlay = document.getElementById('restartOverlay');
+    const saveBtn = document.getElementById('saveSettingsBtn');
+
+    form.addEventListener('submit', function(e) {
+        // Show the restart overlay
+        overlay.style.display = 'flex';
+
+        // Disable the save button to prevent double submission
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        // The form will submit normally, and the page will reload after restart
+        // If the reload takes longer than expected, show a message
+        setTimeout(function() {
+            if (overlay.style.display !== 'none') {
+                // Still waiting after 10 seconds - add a message
+                const modal = document.querySelector('.restart-modal p');
+                modal.innerHTML = 'Taking longer than expected. Please wait...<br><small>If this continues, refresh the page manually.</small>';
+            }
+        }, 10000);
+    });
+});
+</script>
+
 {% endblock %}
