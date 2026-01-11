@@ -232,11 +232,11 @@ document.getElementById('floorPlanForm').addEventListener('submit', function(e) 
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center;';
     overlay.innerHTML = `
-        <div style="background: white; padding: 40px; border-radius: 10px; text-align: center; max-width: 500px;">
+        <div style="background: white; padding: 40px; border-radius: 10px; text-align: center; max-width: 500px; color: #212529;">
             <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
-            <h4>Generating Floor Plan with AI...</h4>
-            <p>Claude is analyzing your building specifications and designing an optimal layout.</p>
-            <p class="text-muted small">This typically takes 15-30 seconds. Please wait...</p>
+            <h4 style="color: #212529; margin-bottom: 1rem;">Generating Floor Plan with AI...</h4>
+            <p style="color: #212529; margin-bottom: 0.5rem;">Claude is analyzing your building specifications and designing an optimal layout.</p>
+            <p style="color: #6c757d; font-size: 0.875rem; margin-bottom: 0;">This typically takes 15-30 seconds. Please wait...</p>
         </div>
     `;
     document.body.appendChild(overlay);
