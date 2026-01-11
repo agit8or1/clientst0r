@@ -107,7 +107,9 @@ def get_dependency_versions():
             package_dict = {pkg['name'].lower(): pkg['version'] for pkg in packages}
 
             for package in critical_packages:
-                versions[package] = package_dict.get(package.lower(), 'Unknown')
+                # Replace hyphens with underscores for Django template compatibility
+                key = package.replace('-', '_')
+                versions[key] = package_dict.get(package.lower(), 'Unknown')
 
     except Exception as e:
         logger.error(f"Failed to get dependency versions: {e}")
