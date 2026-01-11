@@ -41,7 +41,15 @@
                     <li class="nav-item"><a class="nav-link text-success" href="{% url 'accounts:quick_add_menu' %}"><i class="fas fa-bolt"></i> Quick Add</a></li>
                     {% endif %}
                     <li class="nav-item"><a class="nav-link" href="{% url 'assets:asset_list' %}"><i class="fas fa-box"></i> Assets</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'locations:location_list' %}"><i class="fas fa-map-marker-alt"></i> Locations</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="orgsDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-building"></i> Organizations
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'accounts:organization_list' %}"><i class="fas fa-building"></i> Organizations</a></li>
+                            <li><a class="dropdown-item" href="{% url 'locations:location_list' %}"><i class="fas fa-map-marker-alt"></i> Locations</a></li>
+                        </ul>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="vaultDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-key"></i> Vault
