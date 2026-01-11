@@ -311,19 +311,35 @@ class Expiration(BaseModel):
 
 class Rack(BaseModel):
     """
-    Physical rack for equipment.
-    Tracks rack location, dimensions, power, and cooling.
+    Physical rack or network closet for equipment.
+    Supports full racks, data closets, network closets, and wall-mount configurations.
     """
     WIDTH_CHOICES = [
         (19, '19"'),
         (23, '23"'),
     ]
 
+    RACK_TYPE_CHOICES = [
+        ('full_rack', 'Full Rack (42U+)'),
+        ('half_rack', 'Half Rack (20U-25U)'),
+        ('data_closet', 'Data Closet'),
+        ('network_closet', 'Network Closet'),
+        ('wall_mount', 'Wall Mount Rack'),
+        ('open_frame', 'Open Frame Rack'),
+        ('cabinet', 'Server Cabinet'),
+    ]
+
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='racks')
     name = models.CharField(max_length=100)
 
+    # Rack type
+    rack_type = models.CharField(max_length=50, choices=RACK_TYPE_CHOICES, default='full_rack', help_text="Type of rack or closet")
+
     # Location hierarchy
     datacenter = models.CharField(max_length=100, blank=True, help_text="Datacenter/facility name")
+    building = models.CharField(max_length=100, blank=True, help_text="Building name/number")
+    floor = models.CharField(max_length=50, blank=True, help_text="Floor level")
+    room = models.CharField(max_length=50, blank=True, help_text="Room number/name")
     aisle = models.CharField(max_length=50, blank=True, help_text="Aisle/row identifier")
     location = models.CharField(max_length=255, blank=True, help_text="Additional location details")
 
@@ -335,9 +351,18 @@ class Rack(BaseModel):
     # Power
     power_capacity_watts = models.PositiveIntegerField(null=True, blank=True)
     power_allocated_watts = models.PositiveIntegerField(default=0)
+    pdu_count = models.PositiveIntegerField(default=0, help_text="Number of Power Distribution Units")
 
     # Cooling
     cooling_capacity_btu = models.PositiveIntegerField(null=True, blank=True)
+    ambient_temp_f = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Ambient temperature (°F)")
+
+    # Network closet specific
+    patch_panel_count = models.PositiveIntegerField(default=0, help_text="Number of patch panels")
+    total_port_count = models.PositiveIntegerField(default=0, help_text="Total network ports")
+
+    # Visual/Layout
+    closet_diagram = models.ImageField(upload_to='rack_diagrams/', null=True, blank=True, help_text="Network closet layout diagram or photo")
 
     # Metadata
     notes = models.TextField(blank=True)
@@ -534,3 +559,77 @@ class IPAddress(BaseModel):
         if self.hostname:
             return f"{self.ip_address} ({self.hostname})"
         return self.ip_address
+
+
+class RackResource(BaseModel):
+    """
+    Resources and equipment in racks/closets (non-rackable items).
+    Tracks patch panels, cable management, PDUs, UPS units, switches, etc.
+    """
+    RESOURCE_TYPE_CHOICES = [
+        ('patch_panel', 'Patch Panel'),
+        ('switch', 'Network Switch'),
+        ('router', 'Router'),
+        ('firewall', 'Firewall'),
+        ('ups', 'UPS/Battery Backup'),
+        ('pdu', 'Power Distribution Unit'),
+        ('cable_mgmt', 'Cable Management'),
+        ('shelf', 'Shelf/Tray'),
+        ('kvm', 'KVM Switch'),
+        ('monitor', 'Monitor/Display'),
+        ('keystone', 'Keystone Jacks'),
+        ('fiber_panel', 'Fiber Patch Panel'),
+        ('other', 'Other Equipment'),
+    ]
+
+    rack = models.ForeignKey(Rack, on_delete=models.CASCADE, related_name='resources')
+    name = models.CharField(max_length=255)
+    resource_type = models.CharField(max_length=50, choices=RESOURCE_TYPE_CHOICES)
+
+    # Specifications
+    manufacturer = models.CharField(max_length=100, blank=True)
+    model = models.CharField(max_length=100, blank=True)
+    serial_number = models.CharField(max_length=100, blank=True)
+
+    # Network equipment specifics
+    port_count = models.PositiveIntegerField(null=True, blank=True, help_text="Number of ports (for switches/patch panels)")
+    port_speed = models.CharField(max_length=50, blank=True, help_text="e.g., 1Gbps, 10Gbps")
+
+    # Power specs
+    power_draw_watts = models.PositiveIntegerField(null=True, blank=True)
+    input_voltage = models.CharField(max_length=50, blank=True, help_text="e.g., 120V, 240V")
+
+    # UPS specifics
+    battery_runtime_minutes = models.PositiveIntegerField(null=True, blank=True, help_text="Runtime at full load")
+    capacity_va = models.PositiveIntegerField(null=True, blank=True, help_text="VA capacity for UPS")
+
+    # Optional rack mount position
+    rack_position = models.PositiveIntegerField(null=True, blank=True, help_text="U position if rack-mounted")
+
+    # Management
+    ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="Management IP")
+    mac_address = models.CharField(max_length=17, blank=True)
+    management_url = models.URLField(max_length=500, blank=True)
+
+    # Warranty/Support
+    purchase_date = models.DateField(null=True, blank=True)
+    warranty_expires = models.DateField(null=True, blank=True)
+    support_contract = models.CharField(max_length=100, blank=True)
+
+    # Optional link to asset
+    asset = models.ForeignKey(Asset, on_delete=models.SET_NULL, null=True, blank=True, related_name='rack_resources')
+
+    # Documentation
+    photo = models.ImageField(upload_to='rack_resources/', null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'rack_resources'
+        ordering = ['rack', 'resource_type', 'name']
+        indexes = [
+            models.Index(fields=['rack', 'resource_type']),
+            models.Index(fields=['ip_address']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_resource_type_display()})"

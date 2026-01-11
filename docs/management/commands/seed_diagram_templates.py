@@ -39,52 +39,14 @@ class Command(BaseCommand):
         if not superuser:
             superuser = User.objects.first()
 
-        # Diagram Templates with mxGraph XML
+        # Diagram Templates with simple mxGraph XML (simplified to avoid issues)
         diagram_templates = [
             {
                 'title': 'Network Diagram Template',
                 'slug': 'network-diagram-template',
-                'description': 'Basic network topology template with router, switch, and server',
+                'description': 'Basic network topology template - start here and customize',
                 'diagram_type': 'network',
-                'diagram_xml': '''<mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827">
-  <root>
-    <mxCell id="0"/>
-    <mxCell id="1" parent="0"/>
-    <mxCell id="router" value="Router" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=data:image/svg+xml,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHJ4PSI0IiBmaWxsPSIjMzQ5NUVEIi8+PHBhdGggZD0iTTEyIDI0SDM2TTI0IDEyVjM2IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==;" vertex="1" parent="1">
-      <mxGeometry x="260" y="140" width="80" height="80" as="geometry"/>
-    </mxCell>
-    <mxCell id="switch" value="Switch" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
-      <mxGeometry x="240" y="300" width="120" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="server1" value="Server 1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
-      <mxGeometry x="140" y="440" width="100" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="server2" value="Server 2" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
-      <mxGeometry x="250" y="440" width="100" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="server3" value="Server 3" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
-      <mxGeometry x="360" y="440" width="100" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="internet" value="Internet" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
-      <mxGeometry x="220" y="20" width="160" height="80" as="geometry"/>
-    </mxCell>
-    <mxCell id="edge1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="internet" target="router">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="edge2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="router" target="switch">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="edge3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="switch" target="server1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="edge4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="switch" target="server2">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="edge5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="switch" target="server3">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-  </root>
-</mxGraphModel>''',
+                'diagram_xml': '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/><mxCell id="2" value="Router" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="240" y="120" width="120" height="60" as="geometry"/></mxCell><mxCell id="3" value="Switch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="240" y="240" width="120" height="60" as="geometry"/></mxCell><mxCell id="4" value="Server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="240" y="360" width="120" height="60" as="geometry"/></mxCell><mxCell id="5" style="endArrow=classic;html=1;" edge="1" parent="1" source="2" target="3"><mxGeometry relative="1" as="geometry"/></mxCell><mxCell id="6" style="endArrow=classic;html=1;" edge="1" parent="1" source="3" target="4"><mxGeometry relative="1" as="geometry"/></mxCell></root></mxGraphModel>',
             },
             {
                 'title': 'Server Rack Layout Template',
