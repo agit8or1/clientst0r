@@ -5,6 +5,35 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-01-11
+
+### ✨ New Features
+
+- **Multi-Organization Import with Fuzzy Matching**
+  - Import ALL organizations from IT Glue/Hudu automatically
+  - No need to select target organization - imports entire source system
+  - Intelligent fuzzy name matching for existing organizations
+    - Matches "ABC LLC" to "ABC Corporation" automatically
+    - Configurable similarity threshold (0-100, default 85%)
+    - Normalizes company suffixes (Inc, Corp, LLC, Ltd, etc.)
+  - Organization mapping tracking shows created vs matched
+  - Import statistics display organizations created and matched
+  - Optional single-organization mode for selective imports
+  - Prevents duplicate organizations with smart matching
+  - OrganizationMapping model tracks source-to-target relationships
+
+### 🔧 Improvements
+
+- Import form now defaults to multi-org import (target_organization optional)
+- Added organization statistics to import job tracking
+- Enhanced import admin interface with organization metrics
+- Better import mapping with source organization tracking
+
+### 🐛 Bug Fixes
+
+- Import system now properly handles multi-tenant data migration
+- Organization relationships preserved during import
+
 ## [2.8.0] - 2026-01-11
 
 ### ✨ New Features

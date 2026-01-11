@@ -31,12 +31,34 @@ class ImportJob(BaseModel):
     source_url = models.URLField(help_text="API endpoint URL (e.g., https://api.itglue.com or https://demo.hudu.com)")
     source_api_key = models.CharField(max_length=500, help_text="API key for authentication")
 
-    # Import settings
+    # Import settings (optional - if null, imports all organizations from source)
     target_organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
         related_name='import_jobs',
-        help_text="Organization to import data into"
+        null=True,
+        blank=True,
+        help_text="Optional: Import into specific organization. Leave blank to import all organizations from source."
+    )
+
+    # Organization matching settings
+    use_fuzzy_matching = models.BooleanField(
+        default=True,
+        help_text="Use fuzzy matching to find existing organizations with similar names"
+    )
+    fuzzy_match_threshold = models.IntegerField(
+        default=85,
+        help_text="Similarity threshold for fuzzy matching (0-100, default 85)"
+    )
+
+    # Organization import tracking
+    organizations_created = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of organizations created during import"
+    )
+    organizations_matched = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of organizations matched to existing"
     )
 
     # What to import
@@ -75,7 +97,8 @@ class ImportJob(BaseModel):
         ]
 
     def __str__(self):
-        return f"{self.get_source_type_display()} import to {self.target_organization.name} - {self.get_status_display()}"
+        target = self.target_organization.name if self.target_organization else "All Organizations"
+        return f"{self.get_source_type_display()} import to {target} - {self.get_status_display()}"
 
     def add_log(self, message):
         """Add a message to the import log."""
@@ -107,6 +130,45 @@ class ImportJob(BaseModel):
         self.save(update_fields=['status', 'completed_at', 'error_message'])
 
 
+class OrganizationMapping(BaseModel):
+    """
+    Tracks mappings between source organizations/companies and HuduGlue organizations.
+    """
+
+    import_job = models.ForeignKey(
+        ImportJob,
+        on_delete=models.CASCADE,
+        related_name='organization_mappings'
+    )
+
+    # Source organization
+    source_id = models.CharField(max_length=100, help_text="Organization ID in source system")
+    source_name = models.CharField(max_length=255, help_text="Organization name in source system")
+
+    # Target organization
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='import_mappings'
+    )
+
+    # Matching info
+    was_created = models.BooleanField(default=False, help_text="True if organization was created, False if matched")
+    match_score = models.IntegerField(null=True, blank=True, help_text="Fuzzy match score (0-100) if matched")
+
+    class Meta:
+        db_table = 'organization_mappings'
+        unique_together = [['import_job', 'source_id']]
+        indexes = [
+            models.Index(fields=['source_id']),
+            models.Index(fields=['organization']),
+        ]
+
+    def __str__(self):
+        action = "created" if self.was_created else f"matched ({self.match_score}%)"
+        return f"{self.source_name} -> {self.organization.name} ({action})"
+
+
 class ImportMapping(BaseModel):
     """
     Tracks mappings between source IDs and imported objects.
@@ -122,10 +184,18 @@ class ImportMapping(BaseModel):
     # Source object
     source_type = models.CharField(max_length=50, help_text="Source object type (asset, password, document, etc.)")
     source_id = models.CharField(max_length=100, help_text="ID in source system")
+    source_organization_id = models.CharField(max_length=100, blank=True, help_text="Source organization ID for this object")
 
     # Target object
     target_model = models.CharField(max_length=100, help_text="Django model name (Asset, Password, etc.)")
     target_id = models.PositiveIntegerField(help_text="ID in HuduGlue")
+    target_organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text="Organization this object belongs to"
+    )
 
     class Meta:
         db_table = 'import_mappings'
@@ -133,6 +203,7 @@ class ImportMapping(BaseModel):
         indexes = [
             models.Index(fields=['source_type', 'source_id']),
             models.Index(fields=['target_model', 'target_id']),
+            models.Index(fields=['source_organization_id']),
         ]
 
     def __str__(self):

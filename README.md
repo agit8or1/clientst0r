@@ -47,7 +47,7 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 - **Secure Notes** - Encrypted ephemeral messaging
 - **Contact Management** - Organization-specific contacts
 - **Audit Logging** - Complete activity tracking
-- **Data Import** - Migrate from IT Glue and Hudu with dry-run preview, duplicate prevention, and progress tracking
+- **Data Import** - Migrate from IT Glue and Hudu with automatic multi-org import, fuzzy organization matching, dry-run preview, duplicate prevention, and progress tracking
 
 ### 🔌 PSA Integrations (8 Providers)
 Full implementations for:

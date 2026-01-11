@@ -12,6 +12,7 @@ class ImportJobForm(forms.ModelForm):
         model = ImportJob
         fields = [
             'source_type', 'source_url', 'source_api_key', 'target_organization',
+            'use_fuzzy_matching', 'fuzzy_match_threshold',
             'import_assets', 'import_passwords', 'import_documents',
             'import_contacts', 'import_locations', 'import_networks',
             'dry_run'
@@ -21,6 +22,8 @@ class ImportJobForm(forms.ModelForm):
             'source_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://api.itglue.com or https://your-hudu.com'}),
             'source_api_key': forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Your API key'}),
             'target_organization': forms.Select(attrs={'class': 'form-control'}),
+            'use_fuzzy_matching': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'fuzzy_match_threshold': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '100'}),
             'import_assets': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'import_passwords': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'import_documents': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -32,12 +35,18 @@ class ImportJobForm(forms.ModelForm):
         help_texts = {
             'source_url': 'Full API URL (e.g., https://api.itglue.com or https://demo.hudu.com)',
             'source_api_key': 'API key for authentication',
+            'target_organization': 'Optional: Leave blank to import all organizations. Select one to import only to that organization.',
+            'use_fuzzy_matching': 'Match existing organizations with similar names (e.g., "ABC LLC" matches "ABC Corporation")',
+            'fuzzy_match_threshold': 'Similarity threshold (0-100, default 85). Higher = stricter matching.',
             'dry_run': 'Preview import without saving data (recommended for first run)',
         }
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+
+        # Make target_organization optional
+        self.fields['target_organization'].required = False
 
         # Filter organizations based on user permissions
         if user:
