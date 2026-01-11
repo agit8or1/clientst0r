@@ -1,6 +1,7 @@
 """
 Core context processors for templates
 """
+from config.version import get_version
 
 
 def organization_context(request):
@@ -10,6 +11,7 @@ def organization_context(request):
     context = {
         'current_organization': getattr(request, 'current_organization', None),
         'is_staff_user': getattr(request, 'is_staff_user', False),
+        'app_version': get_version(),  # Add version to all templates
     }
 
     # Add user's organizations for org switcher

@@ -1,3 +1,511 @@
-from django.shortcuts import render
+"""
+Views for locations app - Multi-location management with AI floor plan generation
+"""
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.http import require_http_methods
+from django.core.paginator import Paginator
+from django.db import transaction
+from django.utils import timezone
 
-# Create your views here.
+from .models import Location, LocationFloorPlan
+from .forms import LocationForm, LocationFloorPlanForm
+from .services import (
+    get_geocoding_service,
+    get_property_service,
+    get_imagery_service,
+    AIFloorPlanGenerator,
+    generate_office_floor_plan
+)
+from docs.models import Diagram, DiagramVersion
+from core.models import get_current_organization
+import logging
+
+logger = logging.getLogger('locations')
+
+
+@login_required
+def location_list(request):
+    """List all locations for current organization."""
+    organization = get_current_organization(request)
+
+    locations = Location.objects.filter(organization=organization).select_related('organization')
+
+    # Filtering
+    status_filter = request.GET.get('status')
+    if status_filter:
+        locations = locations.filter(status=status_filter)
+
+    location_type = request.GET.get('type')
+    if location_type:
+        locations = locations.filter(location_type=location_type)
+
+    # Search
+    search_query = request.GET.get('q')
+    if search_query:
+        locations = locations.filter(name__icontains=search_query)
+
+    # Pagination
+    paginator = Paginator(locations, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'total_count': paginator.count,
+        'status_filter': status_filter,
+        'location_type': location_type,
+        'search_query': search_query,
+    }
+
+    return render(request, 'locations/location_list.html', context)
+
+
+@login_required
+def location_detail(request, location_id):
+    """Display location details with map, satellite imagery, and floor plans."""
+    organization = get_current_organization(request)
+    location = get_object_or_404(
+        Location,
+        id=location_id,
+        organization=organization
+    )
+
+    # Get floor plans for this location
+    floor_plans = location.floor_plans.all()
+
+    # Get associated assets (if assets app has location FK)
+    try:
+        from assets.models import Asset
+        assets = Asset.objects.filter(location=location)
+    except:
+        assets = []
+
+    context = {
+        'location': location,
+        'floor_plans': floor_plans,
+        'assets': assets,
+    }
+
+    return render(request, 'locations/location_detail.html', context)
+
+
+@login_required
+def location_create(request):
+    """Create new location with optional AI-assisted setup."""
+    organization = get_current_organization(request)
+
+    if request.method == 'POST':
+        form = LocationForm(request.POST, request.FILES, organization=organization)
+
+        if form.is_valid():
+            location = form.save(commit=False)
+            location.organization = organization
+
+            # Auto-geocode if requested
+            if form.cleaned_data.get('auto_geocode'):
+                geocoding = get_geocoding_service()
+                geo_data = geocoding.geocode_address(location.full_address)
+
+                if geo_data:
+                    location.latitude = geo_data['latitude']
+                    location.longitude = geo_data['longitude']
+                    location.google_place_id = geo_data.get('place_id', '')
+
+                    messages.success(request, f"Address geocoded successfully")
+                else:
+                    messages.warning(request, "Could not geocode address automatically")
+
+            # Fetch property data if requested
+            if form.cleaned_data.get('fetch_property_data'):
+                property_service = get_property_service()
+                property_data = property_service.get_property_data(location.full_address)
+
+                if property_data:
+                    location.property_id = property_data.get('parcel_id', '')
+                    location.building_sqft = property_data.get('building_area')
+                    location.year_built = property_data.get('year_built')
+                    location.property_type = property_data.get('property_type', '')
+                    location.external_data = property_data
+
+                    messages.success(request, "Property data fetched successfully")
+                else:
+                    messages.warning(request, "Could not fetch property data")
+
+            location.save()
+
+            # Fetch satellite imagery if requested
+            if form.cleaned_data.get('fetch_satellite_image') and location.has_coordinates:
+                try:
+                    imagery_service = get_imagery_service()
+                    image_data, content_type = imagery_service.fetch_satellite_image(
+                        float(location.latitude),
+                        float(location.longitude),
+                        zoom=18,
+                        width=1200,
+                        height=900
+                    )
+
+                    if image_data:
+                        from django.core.files.base import ContentFile
+                        location.satellite_image.save(
+                            f'satellite_{location.id}.png',
+                            ContentFile(image_data),
+                            save=True
+                        )
+                        messages.success(request, "Satellite image fetched successfully")
+
+                except Exception as e:
+                    logger.error(f"Satellite image fetch failed: {e}")
+                    messages.warning(request, "Could not fetch satellite imagery")
+
+            messages.success(request, f"Location '{location.name}' created successfully")
+            return redirect('locations:location_detail', location_id=location.id)
+    else:
+        form = LocationForm(organization=organization)
+
+    context = {
+        'form': form,
+        'is_create': True,
+    }
+
+    return render(request, 'locations/location_form.html', context)
+
+
+@login_required
+def location_edit(request, location_id):
+    """Edit existing location."""
+    organization = get_current_organization(request)
+    location = get_object_or_404(
+        Location,
+        id=location_id,
+        organization=organization
+    )
+
+    if request.method == 'POST':
+        form = LocationForm(
+            request.POST,
+            request.FILES,
+            instance=location,
+            organization=organization
+        )
+
+        if form.is_valid():
+            location = form.save()
+            messages.success(request, f"Location '{location.name}' updated successfully")
+            return redirect('locations:location_detail', location_id=location.id)
+    else:
+        form = LocationForm(instance=location, organization=organization)
+
+    context = {
+        'form': form,
+        'location': location,
+        'is_create': False,
+    }
+
+    return render(request, 'locations/location_form.html', context)
+
+
+@login_required
+def location_delete(request, location_id):
+    """Delete location."""
+    organization = get_current_organization(request)
+    location = get_object_or_404(
+        Location,
+        id=location_id,
+        organization=organization
+    )
+
+    if request.method == 'POST':
+        location_name = location.name
+        location.delete()
+        messages.success(request, f"Location '{location_name}' deleted successfully")
+        return redirect('locations:location_list')
+
+    context = {'location': location}
+    return render(request, 'locations/location_confirm_delete.html', context)
+
+
+@login_required
+def generate_floor_plan(request, location_id):
+    """
+    Generate AI floor plan for a location.
+
+    Shows form to configure generation parameters, then creates floor plan.
+    """
+    organization = get_current_organization(request)
+    location = get_object_or_404(
+        Location,
+        id=location_id,
+        organization=organization
+    )
+
+    if request.method == 'POST':
+        # Get generation parameters
+        floor_number = int(request.POST.get('floor_number', 1))
+        floor_name = request.POST.get('floor_name', 'Ground Floor')
+        num_employees = int(request.POST.get('num_employees', 20))
+        departments = request.POST.getlist('departments')
+        include_network = request.POST.get('include_network') == 'on'
+        include_security = request.POST.get('include_security') == 'on'
+
+        # Get dimensions
+        width_feet = float(request.POST.get('width_feet', 100))
+        length_feet = float(request.POST.get('length_feet', 80))
+
+        try:
+            with transaction.atomic():
+                # Generate floor plan using AI
+                generator = AIFloorPlanGenerator()
+
+                builder, metadata = generator.generate_floor_plan(
+                    building_name=location.name,
+                    width_feet=width_feet,
+                    length_feet=length_feet,
+                    num_employees=num_employees,
+                    departments=departments,
+                    include_network=include_network,
+                    include_security=include_security,
+                    additional_requirements=request.POST.get('additional_requirements', '')
+                )
+
+                xml_content = builder.to_xml_string()
+
+                # Create or update floor plan record
+                floor_plan, created = LocationFloorPlan.objects.update_or_create(
+                    location=location,
+                    floor_number=floor_number,
+                    defaults={
+                        'organization': organization,
+                        'floor_name': floor_name,
+                        'width_feet': width_feet,
+                        'length_feet': length_feet,
+                        'total_sqft': int(width_feet * length_feet),
+                        'diagram_xml': xml_content,
+                        'source': 'ai_estimate',
+                        'ai_analysis': metadata,
+                        'include_network': include_network,
+                        'template_used': 'office',
+                    }
+                )
+
+                # Create diagram in docs module
+                diagram_title = f"{location.name} - {floor_name}"
+                diagram, diagram_created = Diagram.objects.update_or_create(
+                    organization=organization,
+                    slug=f"{location.name.lower().replace(' ', '-')}-{floor_name.lower().replace(' ', '-')}",
+                    defaults={
+                        'title': diagram_title,
+                        'diagram_type': 'floorplan',
+                        'xml_data': xml_content,
+                        'is_public': False,
+                        'notes': f"AI-generated floor plan for {location.name}",
+                    }
+                )
+
+                # Create diagram version
+                DiagramVersion.objects.create(
+                    organization=organization,
+                    diagram=diagram,
+                    xml_data=xml_content,
+                    version_number=diagram.versions.count() + 1,
+                    change_notes=f"Generated by AI for {location.name}",
+                    created_by=request.user
+                )
+
+                # Link diagram to floor plan
+                floor_plan.diagram = diagram
+                floor_plan.save()
+
+                # Update location generation status
+                location.floorplan_generated = True
+                location.floorplan_generated_at = timezone.now()
+                location.floorplan_generation_status = 'completed'
+                location.save()
+
+                messages.success(
+                    request,
+                    f"Floor plan generated successfully for {floor_name}! "
+                    f"Created {len(metadata.get('ai_design', {}).get('rooms', []))} rooms."
+                )
+
+                return redirect('docs:diagram_detail', slug=diagram.slug)
+
+        except Exception as e:
+            logger.error(f"Floor plan generation failed: {e}", exc_info=True)
+            location.floorplan_generation_status = 'failed'
+            location.floorplan_error = str(e)
+            location.save()
+            messages.error(request, f"Floor plan generation failed: {e}")
+            return redirect('locations:location_detail', location_id=location.id)
+
+    else:
+        # Show generation form
+        # Try to get dimensions from property data
+        width_feet = 100
+        length_feet = 80
+        num_employees = 20
+
+        if location.building_sqft:
+            # Estimate dimensions
+            property_service = get_property_service()
+            dimensions = property_service.get_building_dimensions({
+                'building_area': location.building_sqft,
+                'property_type': location.property_type,
+                'floors': location.floors_count or 1
+            })
+            if dimensions:
+                width_feet = dimensions['width_feet']
+                length_feet = dimensions['length_feet']
+
+            # Estimate employees
+            num_employees = property_service.estimate_employee_capacity(
+                building_area=location.building_sqft / (location.floors_count or 1),
+                property_type=location.location_type
+            )
+
+        context = {
+            'location': location,
+            'suggested_width': width_feet,
+            'suggested_length': length_feet,
+            'suggested_employees': num_employees,
+        }
+
+        return render(request, 'locations/generate_floor_plan.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def refresh_geocoding(request, location_id):
+    """Re-geocode location address (AJAX)."""
+    organization = get_current_organization(request)
+    location = get_object_or_404(
+        Location,
+        id=location_id,
+        organization=organization
+    )
+
+    try:
+        geocoding = get_geocoding_service()
+        geo_data = geocoding.geocode_address(location.full_address)
+
+        if geo_data:
+            location.latitude = geo_data['latitude']
+            location.longitude = geo_data['longitude']
+            location.google_place_id = geo_data.get('place_id', '')
+            location.save()
+
+            return JsonResponse({
+                'success': True,
+                'latitude': float(location.latitude),
+                'longitude': float(location.longitude),
+                'formatted_address': geo_data['formatted_address']
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Could not geocode address'
+            }, status=400)
+
+    except Exception as e:
+        logger.error(f"Geocoding refresh failed: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def refresh_property_data(request, location_id):
+    """Re-fetch property data (AJAX)."""
+    organization = get_current_organization(request)
+    location = get_object_or_404(
+        Location,
+        id=location_id,
+        organization=organization
+    )
+
+    try:
+        property_service = get_property_service()
+        property_data = property_service.get_property_data(location.full_address)
+
+        if property_data:
+            location.property_id = property_data.get('parcel_id', '')
+            location.building_sqft = property_data.get('building_area')
+            location.year_built = property_data.get('year_built')
+            location.property_type = property_data.get('property_type', '')
+            location.external_data = property_data
+            location.save()
+
+            return JsonResponse({
+                'success': True,
+                'property_data': property_data
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Could not fetch property data'
+            }, status=400)
+
+    except Exception as e:
+        logger.error(f"Property data refresh failed: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def refresh_satellite_image(request, location_id):
+    """Re-fetch satellite image (AJAX)."""
+    organization = get_current_organization(request)
+    location = get_object_or_404(
+        Location,
+        id=location_id,
+        organization=organization
+    )
+
+    if not location.has_coordinates:
+        return JsonResponse({
+            'success': False,
+            'error': 'Location has no coordinates. Geocode first.'
+        }, status=400)
+
+    try:
+        imagery_service = get_imagery_service()
+        image_data, content_type = imagery_service.fetch_satellite_image(
+            float(location.latitude),
+            float(location.longitude),
+            zoom=18,
+            width=1200,
+            height=900
+        )
+
+        if image_data:
+            from django.core.files.base import ContentFile
+            location.satellite_image.save(
+                f'satellite_{location.id}.png',
+                ContentFile(image_data),
+                save=True
+            )
+
+            return JsonResponse({
+                'success': True,
+                'image_url': location.satellite_image.url
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Could not fetch satellite image'
+            }, status=400)
+
+    except Exception as e:
+        logger.error(f"Satellite image refresh failed: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Generate Floor Plan - {{ location.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <h1>
+            <i class="fas fa-magic"></i> AI Floor Plan Generator
+        </h1>
+        <p class="lead">Generate an intelligent office layout for {{ location.name }}</p>
+
+        <div class="alert alert-info">
+            <i class="fas fa-robot"></i>
+            <strong>Powered by Claude AI:</strong> Our AI will analyze your building dimensions and requirements to design an optimal office layout with rooms, network infrastructure, and security systems.
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <!-- Floor Selection -->
+                    <fieldset class="mb-4">
+                        <legend class="h5 border-bottom pb-2"><i class="fas fa-layer-group"></i> Floor Selection</legend>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="floor_number" class="form-label">Floor Number</label>
+                                    <input type="number" name="floor_number" id="floor_number" class="form-control" value="1" min="0" required>
+                                    <small class="form-text text-muted">0 = basement, 1 = ground floor, 2 = second floor, etc.</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="floor_name" class="form-label">Floor Name</label>
+                                    <input type="text" name="floor_name" id="floor_name" class="form-control" value="Ground Floor" required>
+                                    <small class="form-text text-muted">E.g., "Ground Floor", "2nd Floor", "Basement"</small>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Building Dimensions -->
+                    <fieldset class="mb-4">
+                        <legend class="h5 border-bottom pb-2"><i class="fas fa-ruler-combined"></i> Building Dimensions</legend>
+
+                        {% if location.building_sqft %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i>
+                            <strong>Property Data Available:</strong> Building is {{ location.building_sqft|floatformat:0 }} sq ft
+                            {% if location.floors_count %}({{ location.floors_count }} floors){% endif %}.
+                            Dimensions have been estimated based on property records.
+                        </div>
+                        {% endif %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="width_feet" class="form-label">Width (feet)</label>
+                                    <input type="number" name="width_feet" id="width_feet" class="form-control" value="{{ suggested_width }}" step="0.1" min="10" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="length_feet" class="form-label">Length (feet)</label>
+                                    <input type="number" name="length_feet" id="length_feet" class="form-control" value="{{ suggested_length }}" step="0.1" min="10" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="area_display" class="alert alert-secondary">
+                            <strong>Estimated Area:</strong> <span id="area_value">{{ suggested_width|floatformat:0 }}' × {{ suggested_length|floatformat:0 }}' = <span id="total_sqft">{{ suggested_width|multiply:suggested_length|floatformat:0 }}</span> sq ft</span>
+                        </div>
+                    </fieldset>
+
+                    <!-- Organization Details -->
+                    <fieldset class="mb-4">
+                        <legend class="h5 border-bottom pb-2"><i class="fas fa-users"></i> Organization Details</legend>
+
+                        <div class="mb-3">
+                            <label for="num_employees" class="form-label">Number of Employees</label>
+                            <input type="number" name="num_employees" id="num_employees" class="form-control" value="{{ suggested_employees }}" min="1" required>
+                            <small class="form-text text-muted">This helps AI determine office space, meeting rooms, and facilities needed.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Departments (optional)</label>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="departments" value="Engineering" id="dept_eng">
+                                        <label class="form-check-label" for="dept_eng">Engineering</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="departments" value="Sales" id="dept_sales">
+                                        <label class="form-check-label" for="dept_sales">Sales</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="departments" value="Marketing" id="dept_marketing">
+                                        <label class="form-check-label" for="dept_marketing">Marketing</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="departments" value="HR" id="dept_hr">
+                                        <label class="form-check-label" for="dept_hr">HR</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="departments" value="Finance" id="dept_finance">
+                                        <label class="form-check-label" for="dept_finance">Finance</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="departments" value="IT" id="dept_it">
+                                        <label class="form-check-label" for="dept_it">IT/Operations</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="departments" value="Customer Support" id="dept_support">
+                                        <label class="form-check-label" for="dept_support">Customer Support</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="departments" value="Executive" id="dept_exec">
+                                        <label class="form-check-label" for="dept_exec">Executive</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">AI will create designated areas for selected departments.</small>
+                        </div>
+                    </fieldset>
+
+                    <!-- Infrastructure Options -->
+                    <fieldset class="mb-4">
+                        <legend class="h5 border-bottom pb-2"><i class="fas fa-network-wired"></i> Infrastructure Options</legend>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="include_network" id="include_network" checked>
+                            <label class="form-check-label" for="include_network">
+                                <strong>Include Network Infrastructure</strong>
+                                <br><small class="text-muted">Adds server room, wireless access points, network switches, and cabling</small>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="include_security" id="include_security" checked>
+                            <label class="form-check-label" for="include_security">
+                                <strong>Include Security Systems</strong>
+                                <br><small class="text-muted">Adds security cameras and access control points</small>
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <!-- Additional Requirements -->
+                    <fieldset class="mb-4">
+                        <legend class="h5 border-bottom pb-2"><i class="fas fa-clipboard-list"></i> Additional Requirements</legend>
+
+                        <div class="mb-3">
+                            <label for="additional_requirements" class="form-label">Special Requirements (optional)</label>
+                            <textarea name="additional_requirements" id="additional_requirements" class="form-control" rows="4" placeholder="E.g., 'Need soundproof rooms for video recording', 'Include a large training room for 30 people', 'Must have accessible restrooms'"></textarea>
+                            <small class="form-text text-muted">Describe any specific needs or constraints for the AI to consider.</small>
+                        </div>
+                    </fieldset>
+
+                    <!-- What Will Be Generated -->
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <h5><i class="fas fa-lightbulb"></i> What Will Be Generated:</h5>
+                            <ul class="mb-0">
+                                <li>Intelligent room layout (offices, conference rooms, open workspace, server room, kitchen, restrooms)</li>
+                                <li>Proper door placements and emergency exits</li>
+                                <li>Network infrastructure diagram (if enabled)</li>
+                                <li>Security camera and access control placements (if enabled)</li>
+                                <li>Fully editable draw.io diagram</li>
+                                <li>Floor plan saved to your Diagrams library</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'locations:location_detail' location.id %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-magic"></i> Generate Floor Plan with AI
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Info Callout -->
+        <div class="alert alert-primary mt-4">
+            <i class="fas fa-info-circle"></i>
+            <strong>Note:</strong> Generation typically takes 10-30 seconds. The AI will design the layout based on your specifications and best practices for office space planning.
+        </div>
+    </div>
+</div>
+
+<script>
+// Update area calculation dynamically
+document.getElementById('width_feet').addEventListener('input', updateArea);
+document.getElementById('length_feet').addEventListener('input', updateArea);
+
+function updateArea() {
+    const width = parseFloat(document.getElementById('width_feet').value) || 0;
+    const length = parseFloat(document.getElementById('length_feet').value) || 0;
+    const area = width * length;
+
+    document.getElementById('area_value').innerHTML =
+        `${width.toFixed(1)}' × ${length.toFixed(1)}' = <span id="total_sqft">${area.toFixed(0)}</span> sq ft`;
+}
+</script>
+{% endblock %}

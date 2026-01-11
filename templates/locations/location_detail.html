@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ location.name }} - Locations{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="fas fa-map-marker-alt"></i> {{ location.name }}
+        {% if location.is_primary %}
+        <span class="badge bg-primary">Headquarters</span>
+        {% endif %}
+    </h1>
+    <div>
+        <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-warning">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{% url 'locations:location_delete' location.id %}" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Delete
+        </a>
+    </div>
+</div>
+
+<!-- Status and Quick Info -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">Status</h6>
+                {% if location.status == 'active' %}
+                <h4><span class="badge bg-success">{{ location.get_status_display }}</span></h4>
+                {% elif location.status == 'planned' %}
+                <h4><span class="badge bg-info">{{ location.get_status_display }}</span></h4>
+                {% elif location.status == 'inactive' %}
+                <h4><span class="badge bg-warning">{{ location.get_status_display }}</span></h4>
+                {% else %}
+                <h4><span class="badge bg-danger">{{ location.get_status_display }}</span></h4>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">Type</h6>
+                <h4><span class="badge bg-secondary">{{ location.get_location_type_display }}</span></h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">Floor Plans</h6>
+                <h4>{{ floor_plans.count }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">Assets</h6>
+                <h4>{{ assets.count }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="row">
+    <!-- Left Column -->
+    <div class="col-md-6">
+        <!-- Address Card -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-address-card"></i> Address</h5>
+                {% if location.has_coordinates %}
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshGeocoding()">
+                    <i class="fas fa-sync"></i> Refresh
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <address>
+                    {{ location.street_address }}<br>
+                    {% if location.street_address_2 %}{{ location.street_address_2 }}<br>{% endif %}
+                    {{ location.city }}, {{ location.state }} {{ location.postal_code }}<br>
+                    {{ location.country }}
+                </address>
+
+                {% if location.has_coordinates %}
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-map-pin"></i>
+                        {{ location.latitude }}, {{ location.longitude }}
+                    </small>
+                    <div class="mt-2">
+                        <a href="{{ location.google_maps_url }}" target="_blank" class="btn btn-sm btn-primary">
+                            <i class="fas fa-map-marked-alt"></i> View on Google Maps
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Contact Information -->
+        {% if location.phone or location.email or location.website %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-phone"></i> Contact Information</h5>
+            </div>
+            <div class="card-body">
+                {% if location.phone %}
+                <p><i class="fas fa-phone"></i> <a href="tel:{{ location.phone }}">{{ location.phone }}</a></p>
+                {% endif %}
+                {% if location.email %}
+                <p><i class="fas fa-envelope"></i> <a href="mailto:{{ location.email }}">{{ location.email }}</a></p>
+                {% endif %}
+                {% if location.website %}
+                <p><i class="fas fa-globe"></i> <a href="{{ location.website }}" target="_blank">{{ location.website }}</a></p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Building Information -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-building"></i> Building Information</h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshPropertyData()">
+                    <i class="fas fa-sync"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th>Square Footage:</th>
+                        <td>{% if location.building_sqft %}{{ location.building_sqft|floatformat:0 }} sq ft{% else %}Not specified{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <th>Floors:</th>
+                        <td>{% if location.floors_count %}{{ location.floors_count }}{% else %}Not specified{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <th>Year Built:</th>
+                        <td>{% if location.year_built %}{{ location.year_built }}{% else %}Unknown{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <th>Property Type:</th>
+                        <td>{% if location.property_type %}{{ location.property_type }}{% else %}Not classified{% endif %}</td>
+                    </tr>
+                    {% if location.property_id %}
+                    <tr>
+                        <th>Parcel ID:</th>
+                        <td><code>{{ location.property_id }}</code></td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        {% if location.notes %}
+        <!-- Notes -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-sticky-note"></i> Notes</h5>
+            </div>
+            <div class="card-body">
+                <p>{{ location.notes|linebreaks }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-md-6">
+        <!-- Satellite Imagery -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-satellite"></i> Satellite Imagery</h5>
+                {% if location.has_coordinates %}
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshSatelliteImage()">
+                    <i class="fas fa-sync"></i> Refresh
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body text-center">
+                {% if location.satellite_image %}
+                <img src="{{ location.satellite_image.url }}" class="img-fluid rounded" alt="Satellite view of {{ location.name }}">
+                {% elif location.has_coordinates %}
+                <p class="text-muted">No satellite image available.</p>
+                <button class="btn btn-primary" onclick="refreshSatelliteImage()">
+                    <i class="fas fa-download"></i> Fetch Satellite Image
+                </button>
+                {% else %}
+                <p class="text-muted">Geocode location first to fetch satellite imagery.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Google Maps Embed -->
+        {% if location.has_coordinates %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-map"></i> Interactive Map</h5>
+            </div>
+            <div class="card-body p-0">
+                <iframe
+                    width="100%"
+                    height="400"
+                    frameborder="0"
+                    style="border:0"
+                    src="https://www.google.com/maps/embed/v1/place?key=YOUR_API_KEY&q={{ location.latitude }},{{ location.longitude }}"
+                    allowfullscreen>
+                </iframe>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Floor Plans Section -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-drafting-compass"></i> Floor Plans</h5>
+        <a href="{% url 'locations:generate_floor_plan' location.id %}" class="btn btn-success btn-sm">
+            <i class="fas fa-magic"></i> Generate AI Floor Plan
+        </a>
+    </div>
+    <div class="card-body">
+        {% if floor_plans %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Floor</th>
+                        <th>Dimensions</th>
+                        <th>Area</th>
+                        <th>Source</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plan in floor_plans %}
+                    <tr>
+                        <td><strong>{{ plan.floor_name }}</strong></td>
+                        <td>{{ plan.width_feet }}' × {{ plan.length_feet }}'</td>
+                        <td>{{ plan.total_sqft|floatformat:0 }} sq ft</td>
+                        <td><span class="badge bg-info">{{ plan.get_source_display }}</span></td>
+                        <td>
+                            {% if plan.diagram %}
+                            <a href="{% url 'docs:diagram_detail' plan.diagram.slug %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye"></i> View Diagram
+                            </a>
+                            {% else %}
+                            <span class="text-muted">No diagram</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> No floor plans generated yet.
+            <a href="{% url 'locations:generate_floor_plan' location.id %}">Generate one now with AI</a>!
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Associated Assets -->
+{% if assets %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-box"></i> Assets at This Location</h5>
+    </div>
+    <div class="card-body">
+        <ul class="list-group">
+            {% for asset in assets %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <a href="{% url 'assets:asset_detail' asset.slug %}">{{ asset.name }}</a>
+                <span class="badge bg-secondary">{{ asset.get_asset_type_display }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function refreshGeocoding() {
+    if (!confirm('Re-geocode this address? This will update the GPS coordinates.')) return;
+
+    const btn = event.target.closest('button');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Geocoding...';
+
+    fetch('{% url "locations:refresh_geocoding" location.id %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Location geocoded successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sync"></i> Refresh';
+        }
+    })
+    .catch(error => {
+        alert('Network error: ' + error);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sync"></i> Refresh';
+    });
+}
+
+function refreshPropertyData() {
+    if (!confirm('Refresh property data from external sources?')) return;
+
+    const btn = event.target.closest('button');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching...';
+
+    fetch('{% url "locations:refresh_property_data" location.id %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Property data refreshed successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sync"></i> Refresh';
+        }
+    })
+    .catch(error => {
+        alert('Network error: ' + error);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sync"></i> Refresh';
+    });
+}
+
+function refreshSatelliteImage() {
+    if (!confirm('Fetch new satellite image? This may take a moment.')) return;
+
+    const btn = event.target.closest('button');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
+
+    fetch('{% url "locations:refresh_satellite_image" location.id %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Satellite image downloaded successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-download"></i> Fetch Satellite Image';
+        }
+    })
+    .catch(error => {
+        alert('Network error: ' + error);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-download"></i> Fetch Satellite Image';
+    });
+}
+</script>
+{% endblock %}

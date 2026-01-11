@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Locations - {{ current_organization.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-map-marker-alt"></i> Locations</h1>
+    <a href="{% url 'locations:location_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Location
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Search</label>
+                <input type="text" name="q" class="form-control" placeholder="Search locations..." value="{{ search_query }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-control">
+                    <option value="">All Statuses</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="planned" {% if status_filter == 'planned' %}selected{% endif %}>Planned</option>
+                    <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Type</label>
+                <select name="type" class="form-control">
+                    <option value="">All Types</option>
+                    <option value="office" {% if location_type == 'office' %}selected{% endif %}>Office</option>
+                    <option value="warehouse" {% if location_type == 'warehouse' %}selected{% endif %}>Warehouse</option>
+                    <option value="datacenter" {% if location_type == 'datacenter' %}selected{% endif %}>Data Center</option>
+                    <option value="retail" {% if location_type == 'retail' %}selected{% endif %}>Retail</option>
+                    <option value="branch" {% if location_type == 'branch' %}selected{% endif %}>Branch</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-secondary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">Total Locations</h6>
+                <h2>{{ total_count }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Locations List -->
+{% if page_obj %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Address</th>
+                        <th>Status</th>
+                        <th>Floor Plans</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for location in page_obj %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'locations:location_detail' location.id %}">
+                                <strong>{{ location.name }}</strong>
+                                {% if location.is_primary %}
+                                <span class="badge bg-primary ms-1">HQ</span>
+                                {% endif %}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ location.get_location_type_display }}</span>
+                        </td>
+                        <td>
+                            <small>{{ location.city }}, {{ location.state }}</small>
+                            {% if location.has_coordinates %}
+                            <a href="{{ location.google_maps_url }}" target="_blank" class="ms-2" title="View on Google Maps">
+                                <i class="fas fa-map-marked-alt"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if location.status == 'active' %}
+                            <span class="badge bg-success">Active</span>
+                            {% elif location.status == 'planned' %}
+                            <span class="badge bg-info">Planned</span>
+                            {% elif location.status == 'inactive' %}
+                            <span class="badge bg-warning">Inactive</span>
+                            {% else %}
+                            <span class="badge bg-danger">Closed</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if location.floorplan_generated %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check"></i> {{ location.floor_plans.count }}
+                            </span>
+                            {% else %}
+                            <a href="{% url 'locations:generate_floor_plan' location.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-magic"></i> Generate
+                            </a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'locations:location_detail' location.id %}" class="btn btn-sm btn-info" title="View">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-sm btn-warning" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mt-3">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if location_type %}&type={{ location_type }}{% endif %}">Previous</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if location_type %}&type={{ location_type }}{% endif %}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> No locations found. <a href="{% url 'locations:location_create' %}">Create your first location</a>.
+</div>
+{% endif %}
+{% endblock %}

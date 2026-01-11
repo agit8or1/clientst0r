@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Delete {{ location.name }} - Locations{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <h5><i class="fas fa-warning"></i> Warning: This action cannot be undone!</h5>
+                    <p class="mb-0">You are about to permanently delete this location and all associated data.</p>
+                </div>
+
+                <h5>Location Details:</h5>
+                <table class="table table-bordered">
+                    <tr>
+                        <th width="30%">Name:</th>
+                        <td><strong>{{ location.name }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Type:</th>
+                        <td>{{ location.get_location_type_display }}</td>
+                    </tr>
+                    <tr>
+                        <th>Address:</th>
+                        <td>{{ location.full_address }}</td>
+                    </tr>
+                    {% if location.is_primary %}
+                    <tr>
+                        <th>Primary Location:</th>
+                        <td><span class="badge bg-primary">Yes</span></td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <th>Floor Plans:</th>
+                        <td>{{ location.floor_plans.count }}</td>
+                    </tr>
+                </table>
+
+                {% if location.floor_plans.count > 0 %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>This location has {{ location.floor_plans.count }} floor plan(s).</strong>
+                    All floor plans and associated diagrams will be deleted.
+                </div>
+                {% endif %}
+
+                <p class="text-muted">
+                    Are you absolutely sure you want to delete <strong>{{ location.name }}</strong>?
+                    This will permanently remove:
+                </p>
+                <ul class="text-muted">
+                    <li>All location information</li>
+                    <li>All floor plans ({{ location.floor_plans.count }})</li>
+                    <li>All satellite/street view images</li>
+                    <li>All property data</li>
+                </ul>
+
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'locations:location_detail' location.id %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Yes, Delete This Location
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

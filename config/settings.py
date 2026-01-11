@@ -290,6 +290,24 @@ HIBP_BLOCK_BREACHED = os.getenv('HIBP_BLOCK_BREACHED', 'False').lower() == 'true
 HIBP_SCAN_FREQUENCIES = [2, 4, 8, 16, 24]
 HIBP_DEFAULT_SCAN_FREQUENCY = int(os.getenv('HIBP_SCAN_FREQUENCY', '24'))
 
+# AI and External API Configuration
+# Claude AI (Anthropic) for floor plan generation
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
+CLAUDE_MODEL = os.getenv('CLAUDE_MODEL', 'claude-sonnet-4-5-20250929')
+
+# Google Maps API for geocoding and satellite imagery
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY', '')
+
+# Mapbox API (alternative to Google Maps)
+MAPBOX_ACCESS_TOKEN = os.getenv('MAPBOX_ACCESS_TOKEN', '')
+
+# Bing Maps API (alternative mapping provider)
+BING_MAPS_API_KEY = os.getenv('BING_MAPS_API_KEY', '')
+
+# Property data APIs
+REGRID_API_KEY = os.getenv('REGRID_API_KEY', '')  # Regrid (formerly Loveland) parcel data
+ATTOM_API_KEY = os.getenv('ATTOM_API_KEY', '')    # AttomData property records
+
 # Django REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
