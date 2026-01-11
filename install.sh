@@ -543,12 +543,25 @@ print_status "Database migrations completed"
 # Step 9: Create superuser
 echo ""
 print_info "Step 9/10: Creating superuser account..."
-print_info "You'll be prompted to create an admin account."
-echo ""
 
-python3 manage.py createsuperuser
+# Create superuser non-interactively
+# Default credentials: admin / ChangeMe123!
+export DJANGO_SUPERUSER_PASSWORD='ChangeMe123!'
+python3 manage.py createsuperuser \
+    --username admin \
+    --email admin@huduglue.local \
+    --noinput 2>/dev/null || true
 
-print_status "Superuser created"
+if python3 manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); exit(0 if User.objects.filter(username='admin').exists() else 1)" 2>/dev/null; then
+    print_status "Superuser created successfully"
+    print_info "  Username: admin"
+    print_info "  Password: ChangeMe123!"
+    print_warning "  ⚠️  CHANGE THIS PASSWORD after first login!"
+else
+    print_warning "Superuser creation skipped (may already exist or failed)"
+    print_info "  You can create one manually: python3 manage.py createsuperuser"
+fi
+unset DJANGO_SUPERUSER_PASSWORD
 
 # Step 10: Collect static files
 print_info "Step 10/10: Collecting static files..."
