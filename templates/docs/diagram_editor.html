@@ -225,14 +225,24 @@
 
             case 'export':
                 // Export result (for manual save or auto-save)
-                console.log('Export event received, format:', msg.format, 'data length:', msg.data ? msg.data.length : 0);
-                if (msg.format === 'xml' && msg.data) {
-                    console.log('Valid XML export received, saving...');
-                    currentDiagramXml = msg.data;
+                console.log('Export event received, format:', msg.format);
+                console.log('Export data available:', {
+                    hasData: !!msg.data,
+                    hasXml: !!msg.xml,
+                    dataLength: msg.data ? msg.data.length : 0,
+                    xmlLength: msg.xml ? msg.xml.length : 0
+                });
+
+                // Draw.io can return XML in either msg.xml or msg.data depending on version
+                const xmlData = msg.xml || msg.data;
+
+                if (xmlData) {
+                    console.log('Valid XML export received, length:', xmlData.length);
+                    currentDiagramXml = xmlData;
                     hasUnsavedChanges = true; // Mark as changed so saveDiagram will proceed
-                    saveDiagram();
+                    saveDiagram(true); // Force save since this is an explicit export request
                 } else {
-                    console.error('Export event missing xml data');
+                    console.error('Export event missing xml data (checked both msg.xml and msg.data)');
                     updateStatus('Failed to export diagram data', true);
                 }
                 break;
@@ -259,9 +269,15 @@
     saveBtn.addEventListener('click', function() {
         console.log('Save button clicked, editorReady:', editorReady);
         if (editorReady) {
-            // Request XML export, which will trigger save
-            console.log('Requesting XML export from draw.io...');
-            sendToDrawio('export', {format: 'xml'});
+            // If we have current XML from autosave events, just save it directly
+            if (currentDiagramXml && currentDiagramXml.length > 0) {
+                console.log('Saving current diagram XML (from autosave)...');
+                saveDiagram(true);
+            } else {
+                // Fallback: Request XML export from draw.io
+                console.log('No cached XML, requesting XML export from draw.io...');
+                sendToDrawio('export', {format: 'xmlpng'});
+            }
         } else {
             console.error('Cannot save - editor not ready');
             updateStatus('Editor not ready yet', true);
