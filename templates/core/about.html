@@ -67,28 +67,72 @@
         <div class="card mb-4">
             <div class="card-body">
                 <h3>Technology Stack</h3>
-                <dl class="row mb-0">
-                    <dt class="col-sm-4">Framework:</dt>
-                    <dd class="col-sm-8">Django 6.0</dd>
-
-                    <dt class="col-sm-4">API:</dt>
-                    <dd class="col-sm-8">Django REST Framework 3.15</dd>
-
-                    <dt class="col-sm-4">Database:</dt>
-                    <dd class="col-sm-8">MariaDB 10.5+</dd>
-
-                    <dt class="col-sm-4">Web Server:</dt>
-                    <dd class="col-sm-8">Nginx + Gunicorn</dd>
-
-                    <dt class="col-sm-4">Authentication:</dt>
-                    <dd class="col-sm-8">django-two-factor-auth (TOTP)</dd>
-
-                    <dt class="col-sm-4">Encryption:</dt>
-                    <dd class="col-sm-8">Python cryptography (AES-GCM)</dd>
-
-                    <dt class="col-sm-4">Password Hashing:</dt>
-                    <dd class="col-sm-8">Argon2</dd>
-                </dl>
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Technology</th>
+                            <th>Version</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Framework</strong></td>
+                            <td>Django</td>
+                            <td><code>{{ dependencies.Django|default:"6.0" }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>API</strong></td>
+                            <td>Django REST Framework</td>
+                            <td><code>{{ dependencies.djangorestframework|default:"3.15" }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Web Server</strong></td>
+                            <td>Gunicorn</td>
+                            <td><code>{{ dependencies.gunicorn|default:"22.0" }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Encryption</strong></td>
+                            <td>Python cryptography</td>
+                            <td><code>{{ dependencies.cryptography|default:"44.0" }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Image Processing</strong></td>
+                            <td>Pillow</td>
+                            <td><code>{{ dependencies.pillow|default:"10.3" }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>HTTP Client</strong></td>
+                            <td>Requests</td>
+                            <td><code>{{ dependencies.requests|default:"2.32" }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>AI Integration</strong></td>
+                            <td>Anthropic SDK</td>
+                            <td><code>{{ dependencies.anthropic|default:"0.45" }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>2FA</strong></td>
+                            <td>django-two-factor-auth</td>
+                            <td><code>{{ dependencies.django-two-factor-auth|default:"1.17" }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Brute Force Protection</strong></td>
+                            <td>django-axes</td>
+                            <td><code>{{ dependencies.django-axes|default:"6.1" }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Database</strong></td>
+                            <td>MariaDB</td>
+                            <td><code>10.5+</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Password Hashing</strong></td>
+                            <td>Argon2</td>
+                            <td><code>OWASP Standard</code></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -148,18 +192,39 @@
             <div class="card-body">
                 <h3><i class="fas fa-shield-alt"></i> Security & Vulnerability Scanning</h3>
 
-                <div class="alert alert-success mb-3">
-                    <h5 class="alert-heading"><i class="fas fa-check-circle"></i> Codebase Security Audit</h5>
+                <div class="alert {% if scan_results.status == 'clean' %}alert-success{% else %}alert-warning{% endif %} mb-3">
+                    <h5 class="alert-heading">
+                        <i class="fas {% if scan_results.status == 'clean' %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %}"></i>
+                        Live CVE Scan Results
+                    </h5>
                     <p class="mb-2">
-                        This codebase has been scanned for all known CVEs (Common Vulnerabilities and Exposures) and security vulnerabilities.
+                        This codebase has been scanned in real-time for all known CVEs (Common Vulnerabilities and Exposures) and security vulnerabilities.
                     </p>
                     <dl class="row mb-0">
                         <dt class="col-sm-4">Last CVE Scan:</dt>
-                        <dd class="col-sm-8"><strong>January 11, 2026</strong></dd>
+                        <dd class="col-sm-8"><strong>{{ scan_results.scan_time|date:"F j, Y \a\t g:i A" }}</strong> (Just Now)</dd>
                         <dt class="col-sm-4">Scan Status:</dt>
-                        <dd class="col-sm-8"><span class="badge bg-success">All Clear</span></dd>
+                        <dd class="col-sm-8">
+                            {% if scan_results.status == 'clean' %}
+                                <span class="badge bg-success">✓ All Clear</span>
+                            {% elif scan_results.status == 'vulnerabilities_found' %}
+                                <span class="badge bg-warning">{{ scan_results.vulnerabilities }} Vulnerability(ies) Found</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Scan Error</span>
+                            {% endif %}
+                        </dd>
                         <dt class="col-sm-4">Known Vulnerabilities:</dt>
-                        <dd class="col-sm-8"><span class="badge bg-success">0 Critical</span> <span class="badge bg-success">0 High</span> <span class="badge bg-success">0 Medium</span></dd>
+                        <dd class="col-sm-8">
+                            {% if scan_results.status == 'clean' %}
+                                <span class="badge bg-success">0 Critical</span>
+                                <span class="badge bg-success">0 High</span>
+                                <span class="badge bg-success">0 Medium</span>
+                            {% else %}
+                                <span class="badge bg-warning">{{ scan_results.vulnerabilities|default:"Unknown" }} Total</span>
+                            {% endif %}
+                        </dd>
+                        <dt class="col-sm-4">Scan Tool:</dt>
+                        <dd class="col-sm-8"><code>pip-audit</code> (Python Package Vulnerability Scanner)</dd>
                     </dl>
                 </div>
 
