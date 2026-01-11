@@ -11,7 +11,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-2">
-    <h4><i class="fas fa-edit"></i> Editing: {{ diagram.title }} <small class="text-muted" style="font-size: 0.7em;">[Editor v2.5]</small></h4>
+    <h4><i class="fas fa-edit"></i> Editing: {{ diagram.title }} <small class="text-muted" style="font-size: 0.7em;">[Editor v2.6]</small></h4>
     <div>
         <button id="saveBtn" class="btn btn-success btn-sm" disabled>
             <i class="fas fa-save"></i> Save
@@ -53,8 +53,8 @@
 
 {% block extra_js %}
 <script>
-// Diagram Editor v2.5 - 2026-01-11 - With autosave configuration
-console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration fixes');
+// Diagram Editor v2.6 - 2026-01-11 - Race condition fix for justSaved flag
+console.log('🔄 Diagram Editor v2.6 loaded - race condition fix: justSaved set BEFORE fetch, threshold increased to 200 bytes');
 (function() {
     const iframe = document.getElementById('drawio-iframe');
     const saveBtn = document.getElementById('saveBtn');
@@ -98,6 +98,14 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
             return;
         }
 
+        // CRITICAL FIX: Set justSaved flag IMMEDIATELY, before fetch starts
+        // This prevents autosave events during the save process from setting hasUnsavedChanges
+        justSaved = true;
+        console.log('🔒 justSaved flag set to true at START of save (prevents race condition)');
+
+        // Store the XML length at time of save for comparison
+        const savedXmlLength = currentDiagramXml.length;
+
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
         updateStatus('Saving...');
@@ -129,16 +137,16 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
             console.log('Save response data:', data);
             if (data.success) {
                 hasUnsavedChanges = false;
-                justSaved = true; // Set flag to ignore next autosave event
+                // justSaved already set at start of function
                 updateStatus(`Saved successfully (v${data.version})`);
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = '<i class="fas fa-check"></i> Saved';
-                console.log('Diagram saved successfully, version:', data.version);
-                console.log('hasUnsavedChanges set to false, justSaved set to true, save button disabled');
+                console.log('✅ Diagram saved successfully, version:', data.version);
+                console.log('hasUnsavedChanges set to false, justSaved is true, save button disabled');
 
                 // Important: Keep currentDiagramXml so next autosave won't trigger unsaved state
                 // The currentDiagramXml already has the saved XML from the last autosave event
-                console.log('Current XML preserved, next autosave with minor changes will be ignored');
+                console.log('Current XML preserved (length:', savedXmlLength, '), next autosave with minor changes will be ignored');
 
                 // Re-enable button but show "Saved" for a moment
                 setTimeout(() => {
@@ -147,20 +155,24 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
                     console.log('Button text reset to Save');
                 }, 2000);
 
-                // Auto-reset justSaved flag after 10 seconds as safety
+                // Auto-reset justSaved flag after 15 seconds (increased from 10)
                 // This prevents autosave events from re-marking as unsaved right after save
                 setTimeout(() => {
                     if (justSaved) {
                         justSaved = false;
-                        console.log('justSaved flag auto-reset after 10 seconds');
+                        console.log('🔓 justSaved flag auto-reset after 15 seconds');
                     }
-                }, 10000);
+                }, 15000);
             } else {
+                // Save failed - reset justSaved flag
+                justSaved = false;
+                console.log('Save failed, justSaved flag reset');
                 throw new Error(data.error || 'Save failed');
             }
         })
         .catch(error => {
             console.error('Save error:', error);
+            justSaved = false; // Reset flag on error
             updateStatus('Error: ' + error.message, true);
             saveBtn.disabled = false;
             saveBtn.innerHTML = '<i class="fas fa-save"></i> Save';
@@ -267,21 +279,23 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
                 // Diagram changed - this fires whenever user makes a change
                 console.log('Autosave event received, xml length:', msg.xml ? msg.xml.length : 0, 'justSaved:', justSaved, 'hasUnsavedChanges:', hasUnsavedChanges);
                 if (msg.xml) {
-                    // If we just saved, ignore autosave events for a short period
-                    // (draw.io may send autosave with minor metadata changes)
+                    // If we just saved, ignore autosave events with minor changes
+                    // (draw.io sends autosave events after PNG export with metadata changes)
                     if (justSaved) {
                         const lengthDiff = Math.abs(msg.xml.length - currentDiagramXml.length);
-                        console.log('Just saved - checking autosave: length diff =', lengthDiff);
+                        console.log('🔒 Just saved - checking autosave: length diff =', lengthDiff, 'bytes');
 
-                        if (lengthDiff < 100) {
-                            // Very minor change - probably just metadata
-                            console.log('✓ Just saved, ignoring minor autosave event (length diff:', lengthDiff, ')');
+                        // INCREASED THRESHOLD: Ignore changes up to 200 bytes (was 100)
+                        // PNG export often adds metadata that changes XML by 50-150 bytes
+                        if (lengthDiff < 200) {
+                            // Very minor change - probably just metadata from export
+                            console.log('✓ Ignoring minor autosave after save (diff:', lengthDiff, 'bytes < 200 threshold)');
                             currentDiagramXml = msg.xml; // Update XML but don't mark as unsaved
-                            // Don't reset justSaved flag yet - let timer handle it
+                            // Don't reset justSaved flag - let timer handle it
                             return;
                         } else {
                             // Significant change - user continued editing
-                            console.log('✗ Just saved but significant change detected (length diff:', lengthDiff, '), user made new edits');
+                            console.log('✗ Significant change detected (diff:', lengthDiff, 'bytes >= 200 threshold) - user made new edits');
                             justSaved = false; // Reset flag and continue to mark as changed
                         }
                     }
@@ -294,7 +308,7 @@ console.log('🔄 Diagram Editor v2.5 loaded - includes autosave configuration f
                         saveBtn.disabled = false;
                         updateStatus('Unsaved changes');
                     } else {
-                        console.log('XML unchanged, ignoring autosave event');
+                        console.log('XML unchanged (exact match), ignoring autosave event');
                     }
                 } else {
                     console.warn('Autosave event missing xml data');
