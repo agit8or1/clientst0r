@@ -322,10 +322,17 @@ def organization_detail(request, org_id):
         is_active=True
     ).select_related('user').order_by('role', 'user__username')
 
+    # Get all locations for this organization
+    from locations.models import Location
+    locations = Location.objects.filter(
+        organization=org
+    ).order_by('name')
+
     return render(request, 'accounts/organization_detail.html', {
         'organization': org,
         'members': members,
         'user_membership': membership,
+        'locations': locations,
     })
 
 
