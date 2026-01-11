@@ -1,0 +1,11 @@
+[Unit]
+Description=HuduGlue Website Monitor Check Timer
+Requires=huduglue-monitor.service
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

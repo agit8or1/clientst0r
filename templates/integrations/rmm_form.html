@@ -109,6 +109,19 @@
                         </a>
                     </div>
 
+                    <div id="info-tactical_rmm" class="provider-info credential-section">
+                        <h5><i class="fas fa-info-circle"></i> Tactical RMM Setup</h5>
+                        <p class="mb-2">To connect to Tactical RMM, you'll need:</p>
+                        <ul class="mb-2">
+                            <li><strong>API Key:</strong> Your Tactical RMM API key (generate in Settings → Global Settings → API Keys)</li>
+                            <li><strong>Base URL:</strong> Your Tactical RMM instance URL (e.g., https://rmm.yourcompany.com)</li>
+                        </ul>
+                        <p class="mb-0"><small>Tactical RMM is an open-source RMM platform. Generate an API key from your admin panel.</small></p>
+                        <a href="https://docs.tacticalrmm.com/api/" target="_blank" class="provider-docs-link">
+                            <i class="fas fa-external-link-alt"></i> View Tactical RMM API Documentation
+                        </a>
+                    </div>
+
                     <!-- Connection Name -->
                     <div class="mb-3">
                         <label for="{{ form.name.id_for_label }}" class="form-label">Connection Name *</label>
@@ -215,6 +228,17 @@
                         </div>
                     </div>
 
+                    <!-- Tactical RMM Credentials -->
+                    <div id="creds-tactical_rmm" class="credential-section">
+                        <div class="mb-3">
+                            <label for="{{ form.tactical_api_key.id_for_label }}" class="form-label">API Key *</label>
+                            {{ form.tactical_api_key }}
+                            {% if form.tactical_api_key.errors %}
+                            <div class="invalid-feedback d-block">{{ form.tactical_api_key.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
                     <hr class="my-4">
                     <h4 class="mb-3">Sync Settings</h4>
 
@@ -295,9 +319,10 @@
     // Map provider types to their credential/info section IDs
     const providerMapping = {
         'ninjaone': 'ninjaone',
-        'datto': 'datto',
-        'cw_automate': 'cw_automate',
-        'atera': 'atera'
+        'datto_rmm': 'datto',
+        'connectwise_automate': 'cw_automate',
+        'atera': 'atera',
+        'tactical_rmm': 'tactical_rmm'
     };
 
     function updateVisibleSections() {

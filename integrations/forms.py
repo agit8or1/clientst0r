@@ -115,6 +115,13 @@ class PSAConnectionForm(forms.ModelForm):
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'yourcompany (from yourcompany.zendesk.com)'})
     )
 
+    # ITFlow credentials
+    itflow_api_key = forms.CharField(
+        label='API Key',
+        required=False,
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Your ITFlow API key'})
+    )
+
     class Meta:
         model = PSAConnection
         fields = ['provider_type', 'name', 'base_url', 'sync_enabled', 'sync_companies',
@@ -165,6 +172,8 @@ class PSAConnectionForm(forms.ModelForm):
                 self.fields['zendesk_email'].initial = creds.get('email', '')
                 self.fields['zendesk_api_token'].initial = creds.get('api_token', '')
                 self.fields['zendesk_subdomain'].initial = creds.get('subdomain', '')
+            elif provider == 'itflow':
+                self.fields['itflow_api_key'].initial = creds.get('api_key', '')
 
     def clean(self):
         cleaned_data = super().clean()
@@ -206,6 +215,9 @@ class PSAConnectionForm(forms.ModelForm):
             for field in required_fields:
                 if not cleaned_data.get(field):
                     self.add_error(field, 'This field is required for Zendesk')
+        elif provider_type == 'itflow':
+            if not cleaned_data.get('itflow_api_key'):
+                self.add_error('itflow_api_key', 'This field is required for ITFlow')
 
         return cleaned_data
 
@@ -255,6 +267,10 @@ class PSAConnectionForm(forms.ModelForm):
                 'email': self.cleaned_data.get('zendesk_email', ''),
                 'api_token': self.cleaned_data.get('zendesk_api_token', ''),
                 'subdomain': self.cleaned_data.get('zendesk_subdomain', ''),
+            }
+        elif provider_type == 'itflow':
+            credentials = {
+                'api_key': self.cleaned_data.get('itflow_api_key', ''),
             }
 
         connection.set_credentials(credentials)
@@ -321,6 +337,13 @@ class RMMConnectionForm(forms.ModelForm):
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Your X-API-KEY'})
     )
 
+    # Tactical RMM credentials
+    tactical_api_key = forms.CharField(
+        label='API Key',
+        required=False,
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Your Tactical RMM API key'})
+    )
+
     class Meta:
         model = RMMConnection
         fields = ['provider_type', 'name', 'base_url', 'sync_enabled', 'sync_devices',
@@ -362,6 +385,8 @@ class RMMConnectionForm(forms.ModelForm):
                 self.fields['cwa_password'].initial = creds.get('password', '')
             elif provider == 'atera':
                 self.fields['atera_api_key'].initial = creds.get('api_key', '')
+            elif provider == 'tactical_rmm':
+                self.fields['tactical_api_key'].initial = creds.get('api_key', '')
 
     def clean(self):
         cleaned_data = super().clean()
@@ -386,6 +411,9 @@ class RMMConnectionForm(forms.ModelForm):
         elif provider_type == 'atera':
             if not cleaned_data.get('atera_api_key'):
                 self.add_error('atera_api_key', 'This field is required for Atera')
+        elif provider_type == 'tactical_rmm':
+            if not cleaned_data.get('tactical_api_key'):
+                self.add_error('tactical_api_key', 'This field is required for Tactical RMM')
 
         return cleaned_data
 
@@ -416,6 +444,10 @@ class RMMConnectionForm(forms.ModelForm):
         elif provider_type == 'atera':
             credentials = {
                 'api_key': self.cleaned_data.get('atera_api_key', ''),
+            }
+        elif provider_type == 'tactical_rmm':
+            credentials = {
+                'api_key': self.cleaned_data.get('tactical_api_key', ''),
             }
 
         connection.set_credentials(credentials)

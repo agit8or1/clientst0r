@@ -22,6 +22,7 @@ class PSAConnection(BaseModel):
         ('syncro', 'Syncro'),
         ('freshservice', 'Freshservice'),
         ('zendesk', 'Zendesk'),
+        ('itflow', 'ITFlow'),
     ]
 
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='psa_connections')
@@ -245,6 +246,7 @@ class RMMConnection(BaseModel):
         ('datto_rmm', 'Datto RMM'),
         ('connectwise_automate', 'ConnectWise Automate'),
         ('atera', 'Atera'),
+        ('tactical_rmm', 'Tactical RMM'),
     ]
 
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='rmm_connections')

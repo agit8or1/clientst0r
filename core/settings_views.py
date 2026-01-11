@@ -560,3 +560,70 @@ def maintenance(request):
         'table_sizes': table_sizes,
         'current_tab': 'maintenance',
     })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def settings_ai(request):
+    """AI and LLM settings - Anthropic, OpenAI, etc."""
+    import os
+    from pathlib import Path
+
+    # Read current values from .env file
+    env_path = Path('/home/administrator/.env')
+    env_values = {}
+    if env_path.exists():
+        with open(env_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if '=' in line and not line.startswith('#'):
+                    key, value = line.split('=', 1)
+                    env_values[key] = value
+
+    current_anthropic_key = env_values.get('ANTHROPIC_API_KEY', '')
+    current_claude_model = env_values.get('CLAUDE_MODEL', 'claude-sonnet-4-5-20250929')
+    current_google_maps_key = env_values.get('GOOGLE_MAPS_API_KEY', '')
+
+    if request.method == 'POST':
+        # Update .env file with new values
+        anthropic_key = request.POST.get('anthropic_api_key', '').strip()
+        claude_model = request.POST.get('claude_model', 'claude-sonnet-4-5-20250929')
+        google_maps_key = request.POST.get('google_maps_api_key', '').strip()
+
+        # Read all lines from .env
+        lines = []
+        if env_path.exists():
+            with open(env_path, 'r') as f:
+                lines = f.readlines()
+
+        # Update or add the keys
+        keys_to_update = {
+            'ANTHROPIC_API_KEY': anthropic_key,
+            'CLAUDE_MODEL': claude_model,
+            'GOOGLE_MAPS_API_KEY': google_maps_key,
+        }
+
+        for key, value in keys_to_update.items():
+            found = False
+            for i, line in enumerate(lines):
+                if line.strip().startswith(f'{key}='):
+                    lines[i] = f'{key}={value}\n'
+                    found = True
+                    break
+            if not found:
+                # Add new key
+                lines.append(f'{key}={value}\n')
+
+        # Write back to .env
+        with open(env_path, 'w') as f:
+            f.writelines(lines)
+
+        messages.success(request, 'AI settings updated successfully. Restart the application for changes to take effect.')
+        return redirect('core:settings_ai')
+
+    return render(request, 'core/settings_ai.html', {
+        'current_anthropic_key': current_anthropic_key,
+        'current_claude_model': current_claude_model,
+        'current_google_maps_key': current_google_maps_key,
+        'current_tab': 'ai',
+    })
