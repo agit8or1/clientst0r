@@ -40,7 +40,18 @@
                     {% if has_admin_permission or user.is_superuser %}
                     <li class="nav-item"><a class="nav-link text-success" href="{% url 'accounts:quick_add_menu' %}"><i class="fas fa-bolt"></i> Quick Add</a></li>
                     {% endif %}
-                    <li class="nav-item"><a class="nav-link" href="{% url 'assets:asset_list' %}"><i class="fas fa-box"></i> Assets</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="assetsDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-box"></i> Assets
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'assets:asset_list' %}"><i class="fas fa-box"></i> All Assets</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Infrastructure</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'monitoring:rack_list' %}"><i class="fas fa-server"></i> Racks</a></li>
+                            <li><a class="dropdown-item" href="{% url 'monitoring:subnet_list' %}"><i class="fas fa-sitemap"></i> IPAM</a></li>
+                        </ul>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="vaultDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-key"></i> Vault
@@ -64,20 +75,21 @@
                     </li>
                     <li class="nav-item"><a class="nav-link" href="{% url 'processes:process_list' %}"><i class="fas fa-tasks"></i> Processes</a></li>
                     <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="monitoringDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-heartbeat"></i> Monitoring
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'monitoring:website_monitor_list' %}"><i class="fas fa-globe"></i> Website Monitors</a></li>
+                            <li><a class="dropdown-item" href="{% url 'monitoring:expiration_list' %}"><i class="fas fa-calendar-times"></i> Expirations</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="moreDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-ellipsis-h"></i> More
                         </a>
                         <ul class="dropdown-menu">
                             <li><h6 class="dropdown-header">Quick Links</h6></li>
                             <li><a class="dropdown-item" href="{% url 'core:favorite_list' %}"><i class="fas fa-star text-warning"></i> Favorites</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Monitoring</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'monitoring:website_monitor_list' %}"><i class="fas fa-globe"></i> Website Monitors</a></li>
-                            <li><a class="dropdown-item" href="{% url 'monitoring:expiration_list' %}"><i class="fas fa-calendar-times"></i> Expirations</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Infrastructure</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'monitoring:rack_list' %}"><i class="fas fa-server"></i> Racks</a></li>
-                            <li><a class="dropdown-item" href="{% url 'monitoring:subnet_list' %}"><i class="fas fa-sitemap"></i> IPAM</a></li>
                         </ul>
                     </li>
                     {% if user.is_superuser %}

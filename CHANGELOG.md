@@ -5,6 +5,26 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.4] - 2026-01-11
+
+### 🎨 UI/UX Improvements
+
+- **Navigation Reorganization**
+  - Assets is now a dropdown menu with "All Assets" link
+  - Moved Infrastructure section (Racks, IPAM) under Assets dropdown
+  - Monitoring is now its own top-level nav dropdown (no longer hidden in More)
+  - Website Monitors and Expirations moved to Monitoring dropdown
+  - Cleaner navigation structure with better logical grouping
+  - Improved discoverability of infrastructure and monitoring features
+  - "More" dropdown now only contains Favorites
+
+### Improvements
+
+- Better organization of navigation menu items
+- Infrastructure features (Racks, IPAM) now logically grouped with Assets
+- Monitoring features more prominent and easier to access
+- Reduced clutter in "More" dropdown menu
+
 ## [2.10.3] - 2026-01-11
 
 ### ✨ New Features
