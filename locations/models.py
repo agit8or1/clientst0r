@@ -260,6 +260,105 @@ class Location(BaseModel):
             return f"https://www.google.com/maps/search/?api=1&query={self.latitude},{self.longitude}"
         return f"https://www.google.com/maps/search/?api=1&query={self.full_address.replace(' ', '+')}"
 
+    def get_property_appraiser_info(self):
+        """Get property appraiser information based on location's county/state."""
+        state = self.state.upper() if self.state else ''
+        city = self.city.lower() if self.city else ''
+
+        # Florida counties
+        if state in ['FL', 'FLORIDA']:
+            florida_counties = {
+                'jacksonville': {
+                    'county': 'Duval',
+                    'name': 'Duval County Property Appraiser',
+                    'url': 'https://paopropertysearch.coj.net/',
+                    'search_url': 'https://paopropertysearch.coj.net/Basic/Search.aspx'
+                },
+                'miami': {
+                    'county': 'Miami-Dade',
+                    'name': 'Miami-Dade County Property Appraiser',
+                    'url': 'https://www.miamidade.gov/pa/',
+                    'search_url': 'https://www.miamidade.gov/Apps/PA/propertysearch/'
+                },
+                'fort lauderdale': {
+                    'county': 'Broward',
+                    'name': 'Broward County Property Appraiser',
+                    'url': 'https://bcpa.net/',
+                    'search_url': 'https://web.bcpa.net/bcpaclient/PropertySearch.aspx'
+                },
+                'orlando': {
+                    'county': 'Orange',
+                    'name': 'Orange County Property Appraiser',
+                    'url': 'https://www.ocpafl.org/',
+                    'search_url': 'https://www.ocpafl.org/searches/ParcelSearch.aspx'
+                },
+                'tampa': {
+                    'county': 'Hillsborough',
+                    'name': 'Hillsborough County Property Appraiser',
+                    'url': 'https://www.hcpafl.org/',
+                    'search_url': 'https://www.hcpafl.org/Property-Search'
+                },
+                'st petersburg': {
+                    'county': 'Pinellas',
+                    'name': 'Pinellas County Property Appraiser',
+                    'url': 'https://www.pcpao.gov/',
+                    'search_url': 'https://www.pcpao.gov/propertysearch'
+                },
+                'clearwater': {
+                    'county': 'Pinellas',
+                    'name': 'Pinellas County Property Appraiser',
+                    'url': 'https://www.pcpao.gov/',
+                    'search_url': 'https://www.pcpao.gov/propertysearch'
+                },
+                'tallahassee': {
+                    'county': 'Leon',
+                    'name': 'Leon County Property Appraiser',
+                    'url': 'https://www.leonpa.org/',
+                    'search_url': 'https://www.leonpa.org/PropertySearch'
+                },
+            }
+
+            if city in florida_counties:
+                return florida_counties[city]
+
+            # Default Florida message
+            return {
+                'county': 'Your County',
+                'name': 'Florida Property Appraiser',
+                'url': f'https://www.google.com/search?q={self.city}+county+property+appraiser+florida',
+                'search_url': f'https://www.google.com/search?q={self.city}+county+property+appraiser+florida',
+                'is_generic': True
+            }
+
+        # California counties
+        elif state in ['CA', 'CALIFORNIA']:
+            return {
+                'county': 'County',
+                'name': 'County Assessor',
+                'url': f'https://www.google.com/search?q={self.city}+county+assessor+california',
+                'search_url': f'https://www.google.com/search?q={self.city}+county+assessor+california',
+                'is_generic': True
+            }
+
+        # Texas counties
+        elif state in ['TX', 'TEXAS']:
+            return {
+                'county': 'County',
+                'name': 'County Appraisal District',
+                'url': f'https://www.google.com/search?q={self.city}+county+appraisal+district+texas',
+                'search_url': f'https://www.google.com/search?q={self.city}+county+appraisal+district+texas',
+                'is_generic': True
+            }
+
+        # Default for other states
+        return {
+            'county': 'Your County',
+            'name': 'Property Records',
+            'url': f'https://www.google.com/search?q={self.city}+property+records+{state}',
+            'search_url': f'https://www.google.com/search?q={self.city}+property+records+{state}',
+            'is_generic': True
+        }
+
     def save(self, *args, **kwargs):
         # Shared locations cannot be primary
         if self.is_shared:

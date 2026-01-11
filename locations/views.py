@@ -83,11 +83,15 @@ def location_detail(request, location_id):
     except:
         assets = []
 
+    # Get property appraiser info for this location
+    property_appraiser = location.get_property_appraiser_info()
+
     context = {
         'location': location,
         'floor_plans': floor_plans,
         'assets': assets,
         'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
+        'property_appraiser': property_appraiser,
     }
 
     return render(request, 'locations/location_detail.html', context)

@@ -222,11 +222,16 @@
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i>
                     <strong>No property diagram uploaded yet</strong>
-                    <p class="mb-2 mt-2 small">Property diagrams are often available from:</p>
+                    <p class="mb-2 mt-2 small">Property diagrams are often available from your local property appraiser:</p>
                     <ul class="mb-2 small">
-                        <li><strong>Duval County (Jacksonville):</strong> <a href="https://paopropertysearch.coj.net/" target="_blank" class="alert-link">Property Appraiser Search</a></li>
-                        <li><strong>Other FL Counties:</strong> Search "[County Name] property appraiser" for official records</li>
-                        <li><strong>Municipal Records:</strong> Many counties provide free building diagrams and site plans</li>
+                        {% if property_appraiser.is_generic %}
+                        <li><strong>{{ location.city }}, {{ location.state }}:</strong> <a href="{{ property_appraiser.search_url }}" target="_blank" class="alert-link">Search for {{ property_appraiser.name }}</a></li>
+                        <li><strong>Tip:</strong> Most property appraisers provide free building diagrams, site plans, and property sketches</li>
+                        {% else %}
+                        <li><strong>{{ property_appraiser.county }} County ({{ location.city }}):</strong> <a href="{{ property_appraiser.search_url }}" target="_blank" class="alert-link">{{ property_appraiser.name }}</a></li>
+                        <li><strong>What to look for:</strong> Building sketches, site plans, floor plans in property records</li>
+                        {% endif %}
+                        <li><strong>Alternative:</strong> Try the AI import feature above - paste the property URL and get data automatically</li>
                     </ul>
                     <p class="mb-0 small">
                         <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-sm btn-primary mt-2">

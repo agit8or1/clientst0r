@@ -19,7 +19,7 @@
 
         <div class="card mt-4">
             <div class="card-body">
-                <form method="post">
+                <form method="post" id="floorPlanForm">
                     {% csrf_token %}
 
                     <!-- Floor Selection -->
@@ -221,5 +221,25 @@ function updateArea() {
     document.getElementById('area_value').innerHTML =
         `${width.toFixed(1)}' × ${length.toFixed(1)}' = <span id="total_sqft">${area.toFixed(0)}</span> sq ft`;
 }
+
+// Add form submission handler to show progress
+document.getElementById('floorPlanForm').addEventListener('submit', function(e) {
+    const submitBtn = document.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating floor plan with AI... This may take 15-30 seconds...';
+
+    // Show overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center;';
+    overlay.innerHTML = `
+        <div style="background: white; padding: 40px; border-radius: 10px; text-align: center; max-width: 500px;">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+            <h4>Generating Floor Plan with AI...</h4>
+            <p>Claude is analyzing your building specifications and designing an optimal layout.</p>
+            <p class="text-muted small">This typically takes 15-30 seconds. Please wait...</p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+});
 </script>
 {% endblock %}
