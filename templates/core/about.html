@@ -202,7 +202,7 @@
                     </p>
                     <dl class="row mb-0">
                         <dt class="col-sm-4">Last CVE Scan:</dt>
-                        <dd class="col-sm-8"><strong>{{ scan_results.scan_time|date:"F j, Y \a\t g:i A" }}</strong> (Just Now)</dd>
+                        <dd class="col-sm-8"><strong>{{ scan_results.scan_time|date:"F j, Y \a\t g:i A T" }}</strong></dd>
                         <dt class="col-sm-4">Scan Status:</dt>
                         <dd class="col-sm-8">
                             {% if scan_results.status == 'clean' %}
