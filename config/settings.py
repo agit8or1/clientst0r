@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'monitoring.apps.MonitoringConfig',
     'processes.apps.ProcessesConfig',
     'locations.apps.LocationsConfig',
+    'imports.apps.ImportsConfig',
 ]
 
 MIDDLEWARE = [

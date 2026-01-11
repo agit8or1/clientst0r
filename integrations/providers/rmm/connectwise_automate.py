@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 import base64
-from .rmm_base import BaseRMMProvider, ProviderError, AuthenticationError
+from ..rmm_base import BaseRMMProvider, ProviderError, AuthenticationError
 
 logger = logging.getLogger('integrations')
 
