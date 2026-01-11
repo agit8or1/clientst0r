@@ -8,8 +8,9 @@ from django.http import JsonResponse
 from core.middleware import get_request_organization
 from core.decorators import require_write
 from audit.models import AuditLog
-from .models import Password
+from .models import Password, PasswordBreachCheck
 from .forms import PasswordForm
+from .breach_checker import PasswordBreachChecker
 
 
 @login_required
@@ -66,6 +67,57 @@ def password_reveal(request, pk):
             )
 
             return JsonResponse({'password': plaintext})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@login_required
+def password_test_breach(request, pk):
+    """
+    AJAX endpoint to test password against breach database.
+    Creates a breach check record and returns the results.
+    """
+    org = get_request_organization(request)
+    password = get_object_or_404(Password, pk=pk, organization=org)
+
+    if request.method == 'POST':
+        try:
+            # Get the plaintext password
+            plaintext = password.get_password()
+
+            # Check against breach database
+            checker = PasswordBreachChecker()
+            is_breached, count = checker.check_password(plaintext)
+
+            # Create breach check record
+            breach_check = PasswordBreachCheck.objects.create(
+                organization=org,
+                password=password,
+                is_breached=is_breached,
+                breach_count=count
+            )
+
+            # Create audit log
+            AuditLog.objects.create(
+                organization=org,
+                user=request.user,
+                username=request.user.username,
+                action='check',
+                object_type='password',
+                object_id=password.id,
+                object_repr=password.title,
+                description=f"Password '{password.title}' checked for breaches - {'BREACHED' if is_breached else 'Safe'}",
+                ip_address=request.META.get('REMOTE_ADDR'),
+                user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
+            )
+
+            return JsonResponse({
+                'is_breached': is_breached,
+                'breach_count': count,
+                'checked_at': breach_check.checked_at.strftime('%b %d, %Y %I:%M %p')
+            })
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 

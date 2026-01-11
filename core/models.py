@@ -351,6 +351,8 @@ class ScheduledTask(models.Model):
     TASK_TYPES = [
         ('website_monitoring', 'Website Monitoring Checks'),
         ('psa_sync', 'PSA Synchronization'),
+        ('rmm_sync', 'RMM Synchronization'),
+        ('password_breach_scan', 'Password Breach Scanning'),
         ('ssl_expiry_check', 'SSL Certificate Expiry Check'),
         ('domain_expiry_check', 'Domain Expiry Check'),
     ]

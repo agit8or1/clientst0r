@@ -17,6 +17,7 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 - **Enforced TOTP 2FA** - Two-factor authentication required for all users
 - **AES-GCM Encryption** - Military-grade encryption for all sensitive data
 - **Argon2 Password Hashing** - Industry-standard password security
+- **Password Breach Detection** - HaveIBeenPwned integration with k-anonymity (your passwords never leave your server)
 - **Brute-Force Protection** - Account lockout after failed attempts
 - **Rate Limiting** - All endpoints protected
 - **Security Headers** - CSP, HSTS, X-Frame-Options, and more
@@ -34,7 +35,7 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 
 ### 📦 Core Features
 - **Asset Management** - Track devices with custom fields, rackmount tracking, and relationships
-- **Password Vault** - AES-GCM encrypted secrets with folder organization
+- **Password Vault** - AES-GCM encrypted secrets with folder organization and automatic breach detection
 - **Personal Vault** - Private password storage per user
 - **Documentation** - Per-org docs with categories, tags, and versioning
 - **Global Knowledge Base** - Staff-only internal KB
@@ -271,7 +272,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📊 Project Status
 
-- **Version**: 2.2.0
+- **Version**: 2.4.0
 - **Release Date**: January 2026
 - **Status**: Production Ready
 - **Maintained**: Yes

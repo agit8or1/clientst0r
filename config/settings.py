@@ -279,6 +279,16 @@ LOGOUT_REDIRECT_URL = 'two_factor:login'
 # Custom 2FA enforcement
 REQUIRE_2FA = os.getenv('REQUIRE_2FA', 'True').lower() == 'true'
 
+# HaveIBeenPwned Breach Checking
+HIBP_ENABLED = os.getenv('HIBP_ENABLED', 'True').lower() == 'true'
+HIBP_API_KEY = os.getenv('HIBP_API_KEY', '')  # Optional - increases rate limit
+HIBP_CHECK_ON_SAVE = os.getenv('HIBP_CHECK_ON_SAVE', 'True').lower() == 'true'
+HIBP_BLOCK_BREACHED = os.getenv('HIBP_BLOCK_BREACHED', 'False').lower() == 'true'
+
+# Scan frequency options (in hours)
+HIBP_SCAN_FREQUENCIES = [2, 4, 8, 16, 24]
+HIBP_DEFAULT_SCAN_FREQUENCY = int(os.getenv('HIBP_SCAN_FREQUENCY', '24'))
+
 # Django REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [

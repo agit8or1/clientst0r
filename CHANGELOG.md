@@ -5,6 +5,121 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-01-11
+
+### 🔐 Security Enhancements
+
+- **Password Breach Detection** - HaveIBeenPwned integration with k-anonymity privacy protection
+  - Automatic breach checking against 600+ million compromised passwords
+  - Privacy-first k-anonymity model: only 5 characters of SHA-1 hash transmitted
+  - Zero-knowledge approach - passwords never leave your server in any identifiable form
+  - Configurable scan frequencies per password: 2, 4, 8, 16, or 24 hours
+  - Visual security indicators: 🟢 Safe, 🔴 Compromised, ⚪ Unchecked
+  - Real-time manual testing with "Test Now" button
+  - Breach warning banners with breach count display
+  - Last checked timestamp in tooltips
+  - 24-hour response caching to reduce API calls
+  - Graceful degradation (fail-open) if API unavailable
+  - Management command for bulk scanning: `check_password_breaches`
+  - Scheduled scanning support via systemd timers or cron
+  - Comprehensive audit logging for all breach checks
+  - Optional blocking of breached passwords via `HIBP_BLOCK_BREACHED` setting
+  - Warning-only mode (default) allows saving with notification
+  - Full organization-level multi-tenancy support
+
+### 🎨 UI Improvements
+
+- **Password List Enhancements**
+  - New "Security" column showing breach status at a glance
+  - Color-coded status indicators for quick identification
+  - Hover tooltips with last check timestamp
+
+- **Password Detail Enhancements**
+  - Prominent security warning banner for compromised passwords
+  - Security status section with breach information
+  - "Test Now" button for on-demand verification
+  - "Change Password Now" quick action button
+  - Real-time test results with loading indicators
+  - Auto-refresh after test completion
+
+- **About Page Enhancements**
+  - CVE scan status information added
+  - Last security audit date displayed
+  - Password breach detection feature explanation
+  - Security audit transparency section
+
+### 📚 Documentation
+
+- **Comprehensive Security Documentation** (SECURITY.md)
+  - Detailed explanation of k-anonymity privacy protection
+  - Step-by-step breakdown of how breach checking works
+  - Security guarantees and privacy assurances
+  - Configuration options with examples
+  - Performance and caching details
+  - Scheduled scanning setup instructions
+  - Management command documentation
+  - Best practices guide
+  - Comparison with Chrome, Firefox, 1Password, Bitwarden implementations
+  - "Why breached passwords matter" educational section
+
+- **README Updates**
+  - Password breach detection added to security features
+  - Feature list updated with breach detection
+
+- **Configuration Examples**
+  - `HIBP_ENABLED` - Enable/disable breach checking
+  - `HIBP_CHECK_ON_SAVE` - Check passwords when saved
+  - `HIBP_BLOCK_BREACHED` - Block compromised passwords
+  - `HIBP_SCAN_FREQUENCY` - Default scan interval
+  - `HIBP_API_KEY` - Optional API key for increased rate limits
+
+### 🔧 Technical Details
+
+- **New Models**
+  - `PasswordBreachCheck` - Tracks breach check results with timestamps
+  - Foreign key relationship to `Password` model
+  - Stores breach status, count, source, and check timestamp
+  - Indexed for performance (password + checked_at, is_breached)
+
+- **New Services**
+  - `PasswordBreachChecker` - Core breach checking service
+  - SHA-1 hashing with prefix extraction
+  - API communication with HaveIBeenPwned
+  - Response caching with 24-hour TTL
+  - Suffix matching logic
+
+- **New Views & Endpoints**
+  - `password_test_breach` - AJAX endpoint for manual breach testing
+  - Returns breach status, count, and timestamp
+  - Creates breach check record and audit log
+
+- **Form Integration**
+  - Breach checking integrated into `PasswordForm` clean() method
+  - Configurable warning vs. blocking behavior
+  - Scan frequency selection field
+  - Per-password frequency storage in custom_fields
+
+- **Management Commands**
+  - `check_password_breaches` - Bulk password scanning
+  - `--force` - Ignore last check time
+  - `--password-id` - Check specific password
+  - `--organization-id` - Check organization passwords
+  - Respects individual password scan frequency settings
+  - Summary output with color-coded results
+
+### 🏗️ Database Changes
+
+- Migration 0006: Create `password_breach_checks` table
+- Added indexes for query optimization
+- Organization-scoped with automatic filtering
+
+### 🎯 Security Audit
+
+- CVE scan completed: January 11, 2026
+- Status: All Clear
+- 0 Critical, 0 High, 0 Medium vulnerabilities
+- Regular security auditing with Luna the GSD
+
 ## [2.3.0] - 2026-01-11
 
 ### ✨ Added

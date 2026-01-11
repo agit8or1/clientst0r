@@ -259,3 +259,57 @@ class PersonalVault(BaseModel):
         if not self.encrypted_content:
             return ''
         return decrypt(self.encrypted_content)
+
+
+class PasswordBreachCheck(BaseModel):
+    """
+    Track password breach check results from HaveIBeenPwned.
+    Stores historical breach checks for each password.
+    """
+    password = models.ForeignKey(
+        Password,
+        on_delete=models.CASCADE,
+        related_name='breach_checks'
+    )
+    checked_at = models.DateTimeField(auto_now_add=True)
+    is_breached = models.BooleanField(default=False)
+    breach_count = models.PositiveIntegerField(
+        default=0,
+        help_text='Number of times password found in breaches'
+    )
+    breach_source = models.CharField(
+        max_length=50,
+        default='haveibeenpwned',
+        help_text='Source of breach data'
+    )
+
+    objects = OrganizationManager()
+
+    class Meta:
+        db_table = 'password_breach_checks'
+        ordering = ['-checked_at']
+        indexes = [
+            models.Index(fields=['password', '-checked_at']),
+            models.Index(fields=['is_breached']),
+        ]
+
+    def __str__(self):
+        status = "BREACHED" if self.is_breached else "Safe"
+        return f"{self.password.title} - {status} ({self.checked_at})"
+
+
+# Add helper methods to Password model
+def get_latest_breach_check(self):
+    """Get most recent breach check result."""
+    return self.breach_checks.first()
+
+
+def is_breached(self):
+    """Check if password is currently marked as breached."""
+    latest = self.get_latest_breach_check()
+    return latest and latest.is_breached
+
+
+# Attach methods to Password model
+Password.get_latest_breach_check = get_latest_breach_check
+Password.is_breached = property(is_breached)

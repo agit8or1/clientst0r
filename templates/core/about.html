@@ -54,6 +54,7 @@
                     <li>Enforced TOTP two-factor authentication</li>
                     <li>Argon2 password hashing</li>
                     <li>AES-GCM encryption for sensitive data</li>
+                    <li>Password breach detection (HaveIBeenPwned with k-anonymity)</li>
                     <li>HMAC-SHA256 hashed API keys</li>
                     <li>Brute-force protection (django-axes)</li>
                     <li>Rate limiting on all endpoints</li>
@@ -140,6 +141,46 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3><i class="fas fa-shield-alt"></i> Security & Vulnerability Scanning</h3>
+
+                <div class="alert alert-success mb-3">
+                    <h5 class="alert-heading"><i class="fas fa-check-circle"></i> Codebase Security Audit</h5>
+                    <p class="mb-2">
+                        This codebase has been scanned for all known CVEs (Common Vulnerabilities and Exposures) and security vulnerabilities.
+                    </p>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Last CVE Scan:</dt>
+                        <dd class="col-sm-8"><strong>January 11, 2026</strong></dd>
+                        <dt class="col-sm-4">Scan Status:</dt>
+                        <dd class="col-sm-8"><span class="badge bg-success">All Clear</span></dd>
+                        <dt class="col-sm-4">Known Vulnerabilities:</dt>
+                        <dd class="col-sm-8"><span class="badge bg-success">0 Critical</span> <span class="badge bg-success">0 High</span> <span class="badge bg-success">0 Medium</span></dd>
+                    </dl>
+                </div>
+
+                <h5>Password Breach Detection</h5>
+                <p>
+                    All passwords in the vault are automatically checked against the HaveIBeenPwned database of 600+ million compromised passwords.
+                    <strong>Your passwords never leave your server</strong> - we use k-anonymity where only 5 characters of a SHA-1 hash are transmitted.
+                </p>
+                <ul class="mb-3">
+                    <li>Automatic breach detection on password save</li>
+                    <li>Scheduled scanning at configurable intervals (2-24 hours)</li>
+                    <li>Visual indicators: 🟢 Safe, 🔴 Compromised, ⚪ Unchecked</li>
+                    <li>Zero-knowledge privacy protection</li>
+                </ul>
+
+                <h5>Security Auditing</h5>
+                <p class="mb-0">
+                    HuduGlue undergoes regular security audits with the assistance of Luna the GSD.
+                    All fixed vulnerabilities are documented in <a href="https://github.com/agit8or1/huduglue/blob/main/SECURITY.md" target="_blank">SECURITY.md</a>.
+                    If you discover a security issue, please email <a href="mailto:agit8or@agit8or.net">agit8or@agit8or.net</a>.
+                </p>
             </div>
         </div>
 

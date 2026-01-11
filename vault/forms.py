@@ -2,7 +2,9 @@
 Vault forms
 """
 from django import forms
-from .models import Password
+from django.conf import settings
+from .models import Password, PasswordBreachCheck
+from .breach_checker import PasswordBreachChecker
 
 
 class PasswordForm(forms.ModelForm):
@@ -26,6 +28,15 @@ class PasswordForm(forms.ModelForm):
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         help_text="Check to automatically generate a new TOTP secret"
+    )
+
+    # Breach scanning frequency
+    hibp_scan_frequency = forms.ChoiceField(
+        label='Breach Scan Frequency',
+        choices=[],  # Will be set in __init__
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text="How often to check this password for data breaches"
     )
 
     class Meta:
@@ -63,7 +74,20 @@ class PasswordForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
+        self.breach_warning = None  # Will hold breach warning message
         super().__init__(*args, **kwargs)
+
+        # Set scan frequency choices
+        frequencies = getattr(settings, 'HIBP_SCAN_FREQUENCIES', [2, 4, 8, 16, 24])
+        self.fields['hibp_scan_frequency'].choices = [(h, f'Every {h} hours') for h in frequencies]
+
+        # Set default or current value for scan frequency
+        default_freq = getattr(settings, 'HIBP_DEFAULT_SCAN_FREQUENCY', 24)
+        if self.instance and self.instance.pk and self.instance.custom_fields:
+            current_freq = self.instance.custom_fields.get('hibp_scan_frequency', default_freq)
+            self.fields['hibp_scan_frequency'].initial = current_freq
+        else:
+            self.fields['hibp_scan_frequency'].initial = default_freq
 
         # Filter tags by organization
         if self.organization:
@@ -95,10 +119,44 @@ class PasswordForm(forms.ModelForm):
                 if not plaintext_password:
                     self.add_error('plaintext_password', 'Password is required')
 
+        # Check password against breach database
+        if plaintext_password and getattr(settings, 'HIBP_CHECK_ON_SAVE', True):
+            try:
+                checker = PasswordBreachChecker()
+                is_breached, count = checker.check_password(plaintext_password)
+
+                if is_breached:
+                    block_breached = getattr(settings, 'HIBP_BLOCK_BREACHED', False)
+                    if block_breached:
+                        # Block breached passwords
+                        self.add_error(
+                            'plaintext_password',
+                            f"This password has been found in {count:,} data breaches. "
+                            f"Please choose a different password."
+                        )
+                    else:
+                        # Just warn, don't block
+                        self.breach_warning = (
+                            f"⚠️ WARNING: This password has been found in {count:,} "
+                            f"data breaches. Consider using a different password."
+                        )
+            except Exception as e:
+                # Log error but don't block on breach check failure
+                import logging
+                logger = logging.getLogger('vault')
+                logger.warning(f"Breach check failed: {e}")
+
         return cleaned_data
 
     def save(self, commit=True):
         password_obj = super().save(commit=False)
+
+        # Store scan frequency in custom_fields
+        freq = self.cleaned_data.get('hibp_scan_frequency')
+        if freq:
+            if not password_obj.custom_fields:
+                password_obj.custom_fields = {}
+            password_obj.custom_fields['hibp_scan_frequency'] = int(freq)
 
         # Set encrypted password if plaintext provided
         plaintext = self.cleaned_data.get('plaintext_password')
@@ -127,5 +185,22 @@ class PasswordForm(forms.ModelForm):
         if commit:
             password_obj.save()
             self.save_m2m()
+
+            # Create initial breach check record if password was provided
+            if plaintext and getattr(settings, 'HIBP_CHECK_ON_SAVE', True):
+                try:
+                    checker = PasswordBreachChecker()
+                    is_breached, count = checker.check_password(plaintext)
+                    PasswordBreachCheck.objects.create(
+                        organization=password_obj.organization,
+                        password=password_obj,
+                        is_breached=is_breached,
+                        breach_count=count
+                    )
+                except Exception as e:
+                    # Log error but don't fail save
+                    import logging
+                    logger = logging.getLogger('vault')
+                    logger.warning(f"Could not create breach check record: {e}")
 
         return password_obj

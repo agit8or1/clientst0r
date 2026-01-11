@@ -117,7 +117,22 @@ Complete feature documentation for HuduGlue - Self-hosted IT documentation platf
   - Character type selection
   - Cryptographically secure randomness
 - **Password Strength Meter** - Real-time strength calculation
-- **Have I Been Pwned Integration** - Check against breach database using k-Anonymity
+- **Password Breach Detection** - HaveIBeenPwned integration with k-anonymity (NEW in v2.4.0):
+  - Automatic breach checking against 600+ million compromised passwords
+  - Privacy-first k-anonymity model: only 5 characters of SHA-1 hash transmitted
+  - Zero-knowledge approach: passwords never leave your server
+  - Configurable scan frequencies: 2, 4, 8, 16, or 24 hours per password
+  - Visual security indicators: 🟢 Safe, 🔴 Compromised, ⚪ Unchecked
+  - Real-time manual testing with "Test Now" button
+  - Breach warning banners with detailed breach count display
+  - Last checked timestamp tooltips
+  - 24-hour response caching for performance
+  - Graceful degradation if API unavailable
+  - Optional blocking of breached passwords
+  - Warning-only mode (default) with user notification
+  - Comprehensive audit logging for all breach checks
+  - Management command for bulk scanning
+  - Scheduled scanning via systemd timers or cron
 - **Expiration Tracking** - Set expiration dates with warnings
 - **Auto-lock** - Passwords automatically masked
 - **Copy to Clipboard** - One-click secure copy

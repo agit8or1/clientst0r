@@ -13,6 +13,7 @@ urlpatterns = [
     path('<int:pk>/edit/', views.password_edit, name='password_edit'),
     path('<int:pk>/delete/', views.password_delete, name='password_delete'),
     path('<int:pk>/reveal/', views.password_reveal, name='password_reveal'),
+    path('<int:pk>/test-breach/', views.password_test_breach, name='password_test_breach'),
     path('<int:pk>/otp/', views.generate_otp_api, name='generate_otp'),
     path('<int:pk>/qrcode/', views.password_qrcode, name='password_qrcode'),
 
