@@ -1,0 +1,36 @@
+<!-- Debug Info - Add this right before the Update Actions card -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card border-danger">
+            <div class="card-body">
+                <h5 class="card-title text-danger">DEBUG INFO</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>update_info type:</strong></td>
+                        <td>{{ update_info|pprint }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>update_info.update_available:</strong></td>
+                        <td>{{ update_info.update_available }} (type: {{ update_info.update_available|slugify }})</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Boolean check:</strong></td>
+                        <td>{% if update_info.update_available %}TRUE - Button should show{% else %}FALSE - Button hidden{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>current_version:</strong></td>
+                        <td>{{ update_info.current_version }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>latest_version:</strong></td>
+                        <td>{{ update_info.latest_version }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>All keys in update_info:</strong></td>
+                        <td>{{ update_info.keys }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

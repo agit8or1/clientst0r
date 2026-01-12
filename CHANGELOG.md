@@ -5,6 +5,26 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.14] - 2026-01-12
+
+### 🐛 Bug Fixes
+
+- **Auto-Update Sudo Permissions**
+  - Added sudoers configuration for passwordless systemctl restart
+  - Created `/etc/sudoers.d/huduglue-auto-update` with required permissions
+  - Allows auto-update to restart service without password prompt
+  - Fixes issue where service restart silently failed due to sudo authentication
+
+### 📝 Installation Note
+
+This release includes automated setup of sudo permissions. The installer will create:
+```
+administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.service, /bin/systemctl status huduglue-gunicorn.service, /usr/bin/systemd-run
+```
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.13] - 2026-01-12
 
 ### 🐛 Bug Fixes

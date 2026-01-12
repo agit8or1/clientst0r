@@ -468,6 +468,36 @@ This is the industry-standard approach for self-updating services!
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.14': {
+                'name': 'v2.14.14 - Auto-Update Sudo Permissions',
+                'body': '''## 🐛 Bug Fixes
+
+### Auto-Update Sudo Permissions
+- Added sudoers configuration for passwordless systemctl restart
+- Created `/etc/sudoers.d/huduglue-auto-update` with required permissions
+- Allows auto-update to restart service without password prompt
+- **Fixes issue where service restart silently failed due to sudo authentication**
+
+## 🔧 Technical Details
+
+**The Problem:**
+v2.14.13 fixed the self-restart timing issue with `systemd-run --on-active=3`, but the restart still wasn't happening because the `administrator` user didn't have passwordless sudo permissions to run systemctl commands.
+
+**The Solution:**
+Added `/etc/sudoers.d/huduglue-auto-update` with:
+```
+administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.service, /bin/systemctl status huduglue-gunicorn.service, /usr/bin/systemd-run
+```
+
+This allows the auto-update process to execute the scheduled restart without prompting for a password.
+
+## 📝 Installation Note
+
+This release includes automated setup of sudo permissions. The installer will create the necessary sudoers configuration to allow auto-updates to work seamlessly.
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 
