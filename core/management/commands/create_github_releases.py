@@ -384,6 +384,30 @@ Since git pull already brings new Python code, we only need to install newly-add
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.11': {
+                'name': 'v2.14.11 - Test Release for Progress UI',
+                'body': '''## 🎉 Test Release
+
+This is a test release to demonstrate the complete auto-update flow with real-time progress tracking.
+
+**What you'll see when updating from v2.14.10 → v2.14.11:**
+- ✅ Confirmation modal asking if you're sure
+- 🔄 Progress modal appears with animated progress bar
+- 📊 Each step lights up as it runs (spinner icon)
+- ✅ Each step gets a checkmark when complete:
+  1. Git Pull
+  2. Install Dependencies (fast - no rebuilding!)
+  3. Run Migrations
+  4. Collect Static Files
+  5. Restart Service
+- 🎉 "Update completed successfully!" message
+- 🔄 Page automatically reloads to show v2.14.11
+
+This version exists solely to let you see the beautiful progress UI in action!
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 

@@ -5,6 +5,21 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.11] - 2026-01-12
+
+### 🎉 Test Release
+
+This is a test release to demonstrate the complete auto-update flow with real-time progress tracking.
+
+**What you'll see when updating from v2.14.10 → v2.14.11:**
+- Beautiful progress modal with animated bar
+- Each step shown with spinner → checkmark
+- Auto-reload when complete
+- Version instantly updated to v2.14.11
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.10] - 2026-01-12
 
 ### 🐛 Bug Fixes
