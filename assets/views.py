@@ -47,10 +47,30 @@ def asset_detail(request, pk):
         content_type__startswith='image/'
     ).order_by('-created_at')
 
+    # Get port configurations for network equipment
+    port_configs = None
+    if asset.asset_type in ['switch', 'router', 'firewall', 'wireless_controller', 'load_balancer']:
+        from .models import NetworkPortConfiguration
+        port_configs = NetworkPortConfiguration.objects.filter(
+            organization=org,
+            asset=asset
+        ).order_by('-created_at')
+
+    # Get patch panel info if this is a patch panel asset
+    patch_panel = None
+    if asset.asset_type in ['patch_panel', 'fiber_panel']:
+        from monitoring.models import RackResource
+        patch_panel = RackResource.objects.filter(
+            asset=asset,
+            resource_type='patch_panel'
+        ).first()
+
     return render(request, 'assets/asset_detail.html', {
         'asset': asset,
         'relationships': relationships,
         'asset_images': asset_images,
+        'port_configs': port_configs,
+        'patch_panel': patch_panel,
     })
 
 
