@@ -408,6 +408,33 @@ This version exists solely to let you see the beautiful progress UI in action!
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.12': {
+                'name': 'v2.14.12 - Final Test Release',
+                'body': '''## 🎉 Final Test Release
+
+Test release to verify the **complete, working auto-update flow**!
+
+**Updating from v2.14.11 → v2.14.12 should show:**
+1. ✅ Confirmation modal
+2. 🔄 Beautiful progress modal with animated bar
+3. 📊 All 5 steps with spinners → checkmarks
+4. ⚡ **FAST** pip install (no gcc/compilation!)
+5. 🔄 Automatic service restart (no manual intervention!)
+6. ✅ Page reloads showing v2.14.12
+7. 🎉 **Complete success!**
+
+This version represents the **fully working auto-update system** with:
+- ✅ Real-time progress tracking
+- ✅ Service restart fix
+- ✅ Pip install optimization
+- ✅ 5-minute cache
+- ✅ End-to-end automation
+
+**No more manual restarts. No more gcc errors. Just smooth, beautiful updates!**
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 
