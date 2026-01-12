@@ -32,7 +32,7 @@ def switch_organization(request, org_id):
 
         if not membership:
             messages.error(request, "You don't have access to this organization.")
-            return redirect('home')
+            return redirect('core:dashboard')
 
     request.session['current_organization_id'] = org.id
     request.session.modified = True  # Force session save
@@ -619,7 +619,7 @@ def user_list(request):
     """
     if not request.user.is_superuser:
         messages.error(request, "You don't have permission to manage users.")
-        return redirect('home')
+        return redirect('core:dashboard')
 
     users = User.objects.all().select_related('profile').prefetch_related('memberships')
 
@@ -635,7 +635,7 @@ def user_create(request):
     """
     if not request.user.is_superuser:
         messages.error(request, "You don't have permission to create users.")
-        return redirect('home')
+        return redirect('core:dashboard')
 
     if request.method == 'POST':
         form = UserCreateForm(request.POST)
@@ -661,7 +661,7 @@ def user_detail(request, user_id):
     """
     if not request.user.is_superuser:
         messages.error(request, "You don't have permission to view user details.")
-        return redirect('home')
+        return redirect('core:dashboard')
 
     user = get_object_or_404(User, id=user_id)
     profile, created = UserProfile.objects.get_or_create(user=user)
@@ -681,7 +681,7 @@ def user_edit(request, user_id):
     """
     if not request.user.is_superuser:
         messages.error(request, "You don't have permission to edit users.")
-        return redirect('home')
+        return redirect('core:dashboard')
 
     user = get_object_or_404(User, id=user_id)
 
@@ -718,7 +718,7 @@ def user_password_reset(request, user_id):
     """
     if not request.user.is_superuser:
         messages.error(request, "You don't have permission to reset passwords.")
-        return redirect('home')
+        return redirect('core:dashboard')
 
     user = get_object_or_404(User, id=user_id)
 
@@ -745,7 +745,7 @@ def user_add_membership(request, user_id):
     """
     if not request.user.is_superuser:
         messages.error(request, "You don't have permission to add memberships.")
-        return redirect('home')
+        return redirect('core:dashboard')
 
     user = get_object_or_404(User, id=user_id)
 
@@ -800,7 +800,7 @@ def user_delete(request, user_id):
     """
     if not request.user.is_superuser:
         messages.error(request, "You don't have permission to delete users.")
-        return redirect('home')
+        return redirect('core:dashboard')
 
     user = get_object_or_404(User, id=user_id)
 

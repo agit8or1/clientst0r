@@ -127,9 +127,13 @@ class Membership(BaseModel):
         ])
 
     def can_admin(self):
-        """Check if user has admin privileges."""
+        """Check if user has admin privileges (can manage roles and organization settings)."""
+        # OWNER and ADMIN roles always have admin privileges
+        if self.role in [Role.OWNER, Role.ADMIN]:
+            return True
+        # Otherwise check granular permissions
         perms = self.get_permissions()
-        return perms.org_manage_settings or self.role in [Role.OWNER, Role.ADMIN]
+        return perms.org_manage_settings
 
     def can_manage_users(self):
         perms = self.get_permissions()

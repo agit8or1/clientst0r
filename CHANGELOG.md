@@ -5,6 +5,40 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.3] - 2026-01-12
+
+### 🐛 Bug Fixes
+
+- **Role Management Access**
+  - Fixed role management redirecting to dashboard instead of loading the page
+  - ADMIN role can now manage roles (previously only OWNER could)
+  - Updated `can_admin()` method to prioritize OWNER/ADMIN roles
+  - Both OWNER and ADMIN roles now have full admin privileges for role management
+
+- **User Management Redirect**
+  - Fixed broken redirect from `'home'` (non-existent) to `'core:dashboard'`
+  - Affects all user management views:
+    - User list, create, edit, detail
+    - Password reset, add membership, delete user
+    - Organization access denied
+  - Users now properly redirected to dashboard when lacking permissions
+
+- **Admin User Setup**
+  - Admin user confirmed as superuser (`is_superuser=True`)
+  - Automatically created OWNER membership for admin user if missing
+  - Ensures admin has full access to manage roles and users
+
+### 🔧 Files Modified
+
+- `accounts/models.py` - Updated `can_admin()` logic
+- `accounts/views.py` - Fixed all redirect('home') to redirect('core:dashboard')
+
+### 🎯 User-Reported Issues Fixed
+
+1. ✅ "manage roles reloads dashboard" - Fixed permission check
+2. ✅ "cant edit users" - Fixed redirect to non-existent 'home' route
+3. ✅ "admin user should be superadmin" - Confirmed and added membership
+
 ## [2.14.2] - 2026-01-12
 
 ### 🐛 Bug Fixes
