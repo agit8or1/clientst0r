@@ -702,6 +702,55 @@ Then the service restarts automatically and loads v2.14.19.
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.20': {
+                'name': 'v2.14.20 - Final Auto-Update Test 🎯',
+                'body': '''## 🎯 Final Test Release
+
+### Test Complete Auto-Update from v2.14.19
+
+This release tests the **complete auto-update system** with all PATH fixes in place!
+
+**v2.14.19 has:**
+- ✅ `/usr/bin/systemctl` for systemd check
+- ✅ `/usr/bin/sudo` for privilege escalation
+- ✅ `/usr/bin/systemd-run` for delayed restart
+- ✅ `/usr/bin/systemctl` for restart command
+
+### 🔧 Expected Behavior
+
+When updating from **v2.14.19 → v2.14.20**, the logs should show:
+
+```
+INFO ... updater Starting update: Git pull
+INFO ... updater Installing Python dependencies
+INFO ... updater Running database migrations
+INFO ... updater Collecting static files
+INFO ... updater Systemd service check result: True
+INFO ... updater Restarting systemd service
+INFO ... updater Service restart scheduled: Running timer as unit: run-...
+INFO ... updater Update completed successfully
+```
+
+Then **3 seconds later**, the systemd-run timer will execute and restart the service automatically!
+
+### 🎉 Success Criteria
+
+If this update completes and the browser shows **v2.14.20** without manual intervention:
+
+**🚀 AUTO-UPDATE SYSTEM IS COMPLETE! 🚀**
+
+All components working:
+- Real-time progress UI ✓
+- Git pull with version detection ✓
+- Fast dependency installation ✓
+- Database migrations ✓
+- Static file collection ✓
+- **Automatic service restart** ✓
+- Page reload with new version ✓
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 

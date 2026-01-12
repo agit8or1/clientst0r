@@ -5,6 +5,29 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.20] - 2026-01-12
+
+### 🎯 Final Test Release
+
+- **Test Complete Auto-Update from v2.14.19**
+  - v2.14.19 has all PATH fixes in place
+  - This update should complete automatically with service restart
+  - Tests the entire auto-update chain working end-to-end
+
+### 🔧 What Should Happen
+
+When updating from v2.14.19 → v2.14.20:
+1. Progress modal displays all 5 steps
+2. Systemd check returns True
+3. Restart command executes successfully (all paths fixed)
+4. Service restarts automatically
+5. Page reloads showing v2.14.20
+
+**If successful: Auto-update system is COMPLETE!** 🎉
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.19] - 2026-01-12
 
 ### 🐛 Bug Fixes
