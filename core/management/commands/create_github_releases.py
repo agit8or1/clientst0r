@@ -225,6 +225,32 @@ The key must be exactly 44 characters (base64-encoded 32 bytes).
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.7': {
+                'name': 'v2.14.7 - Auto-Update Service Restart Fix',
+                'body': '''## 🐛 Bug Fixes
+
+### Auto-Update Service Restart
+- Fixed service restart failing during auto-update process
+- Changed service name from `huduglue` to `huduglue-gunicorn.service`
+- Auto-updates now properly restart the application after code updates
+- Users no longer need to manually restart after applying updates
+
+## 🔧 Technical Details
+
+- Fixed `_is_systemd_service()` to check correct service name
+- Fixed restart command to use `huduglue-gunicorn.service`
+- Update process now completes fully: git pull → pip install → migrate → collectstatic → **restart** ✅
+
+## 🎯 What's Fixed
+
+1. ✅ Auto-update now properly restarts Gunicorn service
+2. ✅ Version updates immediately visible after update completes
+3. ✅ No manual intervention required after clicking "Apply Update"
+4. ✅ Complete zero-downtime update flow
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 

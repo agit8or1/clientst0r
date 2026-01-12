@@ -5,6 +5,25 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.7] - 2026-01-12
+
+### 🐛 Bug Fixes
+
+- **Auto-Update Service Restart**
+  - Fixed service restart failing during auto-update process
+  - Changed service name from `huduglue` to `huduglue-gunicorn.service`
+  - Auto-updates now properly restart the application after code updates
+  - Users no longer need to manually restart after applying updates
+
+### 🔧 Technical Details
+
+- Fixed `_is_systemd_service()` to check correct service name
+- Fixed restart command to use `huduglue-gunicorn.service`
+- Update process now completes fully: git pull → pip install → migrate → collectstatic → restart
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.6] - 2026-01-12
 
 ### 🐛 Bug Fixes
