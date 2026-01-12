@@ -251,6 +251,45 @@ The key must be exactly 44 characters (base64-encoded 32 bytes).
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.8': {
+                'name': 'v2.14.8 - Real-Time Update Progress Tracking',
+                'body': '''## ✨ New Features
+
+### Real-Time Update Progress Tracking (Backend)
+- Added UpdateProgress class for tracking update steps in real-time
+- Each update step reports start/complete status to cache
+- Background thread execution prevents browser timeout
+- Added `/api/update-progress/` endpoint for polling progress
+- Foundation for live progress UI (frontend coming soon)
+
+### Update Check Cache Optimization
+- Changed update check cache from 1 hour to 5 minutes
+- Reduces frustration when testing or releasing new versions
+- Faster detection of available updates
+
+## 🔧 Technical Details
+
+- `UpdateProgress` class tracks 5 update steps:
+  1. Git Pull
+  2. Install Dependencies
+  3. Run Migrations
+  4. Collect Static Files
+  5. Restart Service
+- Each step logs start/complete with timestamps
+- Progress data cached for 10 minutes
+- Update runs in daemon thread for async execution
+- `apply_update` now returns JSON for AJAX handling
+
+## 🎯 What's New
+
+1. ✅ Backend infrastructure for real-time progress updates
+2. ✅ Update progress API endpoint for polling
+3. ✅ Non-blocking update execution (background thread)
+4. ✅ Faster update availability detection (5 min cache vs 1 hour)
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 
