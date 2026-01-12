@@ -67,12 +67,12 @@
                             <i class="fas fa-sliders-h"></i> Custom Fields
                         </button>
                     </li>
-                    {% if port_configs or patch_panel %}
+                    {% if asset.has_ports %}
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="ports-tab" data-bs-toggle="tab" data-bs-target="#ports" type="button" role="tab">
                             <i class="fas fa-network-wired"></i> Ports/Wiring
-                            {% if port_configs %}
-                                <span class="badge bg-primary">{{ port_configs.count }}</span>
+                            {% if asset.get_port_count %}
+                                <span class="badge bg-primary">{{ asset.get_port_count }}</span>
                             {% endif %}
                         </button>
                     </li>
@@ -155,113 +155,117 @@
                     </div>
 
                     <!-- Ports/Wiring Tab -->
-                    {% if port_configs or patch_panel %}
+                    {% if asset.has_ports %}
                     <div class="tab-pane fade" id="ports" role="tabpanel">
-                        {% if port_configs %}
-                        <h6 class="mb-3">Port Configurations</h6>
-                        {% for config in port_configs %}
-                        <div class="card mb-3">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <strong>{{ config.configuration_name }}</strong>
-                                <div>
-                                    <span class="badge bg-info">{{ config.get_port_count }} ports</span>
-                                    <a href="{% url 'assets:port_config_detail' config.pk %}" class="btn btn-sm btn-primary">
-                                        View Details
-                                    </a>
-                                </div>
+                        {% if asset.ports %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h6 class="mb-0">Port Configuration</h6>
+                                <small class="text-muted">{{ asset.get_port_count }} total ports</small>
                             </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-8">
-                                        <p><strong>Equipment Model:</strong> {{ config.equipment_model.vendor.name }} {{ config.equipment_model.model_name }}</p>
-                                        {% if config.vlans %}
-                                        <p><strong>VLANs:</strong> {{ config.vlans|length }} configured</p>
-                                        {% endif %}
-                                        {% if config.notes %}
-                                        <p><strong>Notes:</strong> {{ config.notes|truncatewords:20 }}</p>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-4 text-end">
-                                        <div class="mb-2">
-                                            <span class="badge bg-success">{{ config.get_active_port_count }} Active</span>
-                                            <span class="badge bg-secondary">{{ config.get_port_count|add:"-"|add:config.get_active_port_count }} Inactive</span>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div>
+                                <span class="badge bg-success">{{ asset.get_active_port_count }} Active</span>
+                                <span class="badge bg-secondary">{{ asset.get_port_count|add:"-"|add:asset.get_active_port_count|default:"0" }} Inactive</span>
+                                <a href="{% url 'assets:asset_edit' asset.pk %}" class="btn btn-sm btn-primary ms-2">
+                                    <i class="fas fa-edit"></i> Edit Ports
+                                </a>
                             </div>
                         </div>
-                        {% endfor %}
-                        {% endif %}
 
-                        {% if patch_panel %}
-                        <h6 class="mb-3">Patch Panel Configuration</h6>
+                        {% if asset.vlans %}
                         <div class="card mb-3">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <strong>{{ patch_panel.name }}</strong>
-                                <div>
-                                    <span class="badge bg-info">{{ patch_panel.port_count }} ports</span>
-                                    <a href="{% url 'monitoring:patch_panel_detail' patch_panel.pk %}" class="btn btn-sm btn-primary">
-                                        View Details
-                                    </a>
-                                </div>
+                            <div class="card-header">
+                                <strong>VLANs ({{ asset.vlans|length }})</strong>
                             </div>
                             <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <p><strong>Rack:</strong>
-                                            <a href="{% url 'monitoring:rack_detail' patch_panel.rack.pk %}">{{ patch_panel.rack.name }}</a>
-                                        </p>
-                                        {% if patch_panel.rack_position %}
-                                        <p><strong>Position:</strong> {{ patch_panel.rack_position }}U ({{ patch_panel.rack_units }}U height)</p>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-6">
-                                        {% if patch_panel.manufacturer %}
-                                        <p><strong>Manufacturer:</strong> {{ patch_panel.manufacturer }}</p>
-                                        {% endif %}
-                                        {% if patch_panel.model %}
-                                        <p><strong>Model:</strong> {{ patch_panel.model }}</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
-
-                                {% if patch_panel.port_configuration and patch_panel.port_configuration.ports %}
-                                <hr>
-                                <h6>Port Status Summary</h6>
-                                <div class="row text-center">
-                                    <div class="col-4">
-                                        <div class="badge bg-success w-100 p-2">
-                                            <div style="font-size: 1.5rem;">{{ patch_panel.port_configuration.ports|length|add:"-"|default:"0" }}</div>
-                                            <div style="font-size: 0.8rem;">In Use</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4">
-                                        <div class="badge bg-secondary w-100 p-2">
-                                            <div style="font-size: 1.5rem;">{{ patch_panel.port_configuration.ports|length|default:"0" }}</div>
-                                            <div style="font-size: 0.8rem;">Available</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4">
-                                        <div class="badge bg-warning w-100 p-2">
-                                            <div style="font-size: 1.5rem;">0</div>
-                                            <div style="font-size: 0.8rem;">Reserved</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endif %}
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>VLAN ID</th>
+                                            <th>Name</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for vlan in asset.vlans %}
+                                        <tr>
+                                            <td><strong>{{ vlan.vlan_id }}</strong></td>
+                                            <td>{{ vlan.name|default:"-" }}</td>
+                                            <td>{{ vlan.description|default:"-" }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                         {% endif %}
 
-                        {% if not port_configs and not patch_panel %}
+                        <div class="card">
+                            <div class="card-header">
+                                <strong>Ports</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 80px;">Port</th>
+                                                {% if asset.asset_type in 'patch_panel,fiber_panel' %}
+                                                    <th>Label</th>
+                                                    <th>Destination</th>
+                                                    <th>Cable Type</th>
+                                                {% else %}
+                                                    <th>Description</th>
+                                                    <th>Type</th>
+                                                    <th>VLAN</th>
+                                                    <th>Speed</th>
+                                                {% endif %}
+                                                <th>Status</th>
+                                                {% if asset.asset_type in 'patch_panel,fiber_panel' %}
+                                                    <th>Notes</th>
+                                                {% endif %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for port in asset.ports %}
+                                            <tr>
+                                                <td><strong>{{ port.port_number }}</strong></td>
+                                                {% if asset.asset_type in 'patch_panel,fiber_panel' %}
+                                                    <td>{{ port.label|default:"-" }}</td>
+                                                    <td>{{ port.destination|default:"-" }}</td>
+                                                    <td>{{ port.cable_type|default:"-" }}</td>
+                                                {% else %}
+                                                    <td>{{ port.description|default:"-" }}</td>
+                                                    <td>{{ port.type|default:"-" }}</td>
+                                                    <td>{{ port.vlan|default:"-" }}</td>
+                                                    <td>{{ port.speed|default:"-" }}</td>
+                                                {% endif %}
+                                                <td>
+                                                    {% if port.status == 'active' or port.status == 'in-use' %}
+                                                        <span class="badge bg-success">{{ port.status }}</span>
+                                                    {% elif port.status == 'reserved' %}
+                                                        <span class="badge bg-warning">{{ port.status }}</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">{{ port.status|default:"inactive" }}</span>
+                                                    {% endif %}
+                                                </td>
+                                                {% if asset.asset_type in 'patch_panel,fiber_panel' %}
+                                                    <td>{{ port.notes|default:"-"|truncatewords:10 }}</td>
+                                                {% endif %}
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
                         <div class="text-center py-5">
                             <i class="fas fa-network-wired fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">No port configuration found for this asset.</p>
-                            {% if asset.asset_type in 'switch,router,firewall,wireless_controller,load_balancer' %}
-                            <a href="{% url 'assets:port_config_create' %}" class="btn btn-primary">
-                                <i class="fas fa-plus"></i> Create Port Configuration
+                            <p class="text-muted">No ports configured for this {{ asset.get_asset_type_display|lower }}.</p>
+                            <a href="{% url 'assets:asset_edit' asset.pk %}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Configure Ports
                             </a>
-                            {% endif %}
                         </div>
                         {% endif %}
                     </div>

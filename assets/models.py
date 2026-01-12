@@ -157,6 +157,11 @@ class Asset(BaseModel):
     is_rackmount = models.BooleanField(default=False, help_text='Is this asset rackmountable?')
     rack_units = models.PositiveIntegerField(null=True, blank=True, help_text='Height in rack units (U)')
 
+    # Port configuration (for switches, routers, firewalls, patch panels)
+    port_count = models.PositiveIntegerField(null=True, blank=True, help_text='Number of ports')
+    ports = models.JSONField(default=list, blank=True, help_text='Port configuration data')
+    vlans = models.JSONField(default=list, blank=True, help_text='VLAN configuration data')
+
     # Flexible fields stored as JSON
     custom_fields = models.JSONField(default=dict, blank=True)
 
@@ -207,6 +212,60 @@ class Asset(BaseModel):
         if self.equipment_model:
             return self.equipment_model.get_primary_image()
         return None
+
+    def has_ports(self):
+        """Check if this asset type supports ports."""
+        return self.asset_type in [
+            'switch', 'router', 'firewall', 'load_balancer',
+            'wireless_controller', 'patch_panel', 'fiber_panel',
+            'wireless_ap', 'gateway', 'bridge', 'pbx'
+        ]
+
+    def get_port_count(self):
+        """Get total number of ports."""
+        if not self.ports:
+            return 0
+        return len(self.ports)
+
+    def get_active_port_count(self):
+        """Get number of active/enabled ports."""
+        if not self.ports:
+            return 0
+        return len([p for p in self.ports if p.get('status') in ['active', 'in-use']])
+
+    def get_ports_by_vlan(self, vlan_id):
+        """Get all ports assigned to a specific VLAN."""
+        if not self.ports:
+            return []
+        return [p for p in self.ports if p.get('vlan') == vlan_id]
+
+    def initialize_ports(self, count, port_type='switch'):
+        """Initialize port configuration based on asset type."""
+        self.port_count = count
+        self.ports = []
+
+        if port_type in ['patch_panel', 'fiber_panel']:
+            # Patch panel ports
+            for i in range(1, count + 1):
+                self.ports.append({
+                    'port_number': i,
+                    'label': f'Port {i}',
+                    'destination': '',
+                    'cable_type': 'Cat6',
+                    'notes': '',
+                    'status': 'available'
+                })
+        else:
+            # Network equipment ports
+            for i in range(1, count + 1):
+                self.ports.append({
+                    'port_number': i,
+                    'description': f'Port {i}',
+                    'type': 'access',
+                    'vlan': '',
+                    'speed': '',
+                    'status': 'inactive'
+                })
 
 
 class Relationship(BaseModel):
