@@ -117,11 +117,9 @@
                     </form>
 
                     {% if update_info.update_available %}
-                    <button type="button" class="btn btn-success ms-2" data-bs-toggle="modal" data-bs-target="#updateModal">
+                    <button type="button" class="btn btn-success ms-2" onclick="showUpdateModal()">
                         <i class="fas fa-download"></i> Apply Update
                     </button>
-                    {% else %}
-                    <!-- DEBUG: Button hidden because update_available is: {{ update_info.update_available }} -->
                     {% endif %}
 
                     <div class="alert alert-info mt-3 mb-0">
@@ -235,11 +233,11 @@
 </div>
 
 <!-- Update Confirmation Modal -->
-<div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
+<div class="modal fade" id="updateConfirmModal" tabindex="-1" aria-labelledby="updateConfirmModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="updateModalLabel">
+                <h5 class="modal-title" id="updateConfirmModalLabel">
                     <i class="fas fa-exclamation-triangle text-warning"></i> Confirm System Update
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -268,20 +266,204 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="POST" action="{% url 'core:apply_update' %}" class="d-inline">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-download"></i> Yes, Apply Update
-                    </button>
-                </form>
+                <button type="button" class="btn btn-success" onclick="startUpdate()">
+                    <i class="fas fa-download"></i> Yes, Apply Update
+                </button>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Update Progress Modal -->
+<div class="modal fade" id="updateProgressModal" tabindex="-1" aria-labelledby="updateProgressModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="updateProgressModalLabel">
+                    <i class="fas fa-sync fa-spin"></i> Updating System
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="progress" style="height: 30px;">
+                        <div id="updateProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;">
+                            <span id="updateProgressText">Starting update...</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="updateSteps">
+                    <div class="step-item" data-step="git_pull">
+                        <i class="fas fa-circle text-muted"></i> <span>Git Pull</span>
+                    </div>
+                    <div class="step-item" data-step="install">
+                        <i class="fas fa-circle text-muted"></i> <span>Install Dependencies</span>
+                    </div>
+                    <div class="step-item" data-step="migrate">
+                        <i class="fas fa-circle text-muted"></i> <span>Run Migrations</span>
+                    </div>
+                    <div class="step-item" data-step="static">
+                        <i class="fas fa-circle text-muted"></i> <span>Collect Static Files</span>
+                    </div>
+                    <div class="step-item" data-step="restart">
+                        <i class="fas fa-circle text-muted"></i> <span>Restart Service</span>
+                    </div>
+                </div>
+                <div id="updateComplete" style="display: none;" class="alert alert-success mt-3">
+                    <i class="fas fa-check-circle"></i> <strong>Update completed successfully!</strong> Refreshing page...
+                </div>
+                <div id="updateError" style="display: none;" class="alert alert-danger mt-3">
+                    <i class="fas fa-exclamation-circle"></i> <strong>Update failed:</strong> <span id="updateErrorMessage"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.step-item {
+    padding: 8px 0;
+    font-size: 14px;
+}
+.step-item i.fa-circle {
+    font-size: 10px;
+    margin-right: 8px;
+}
+.step-item i.fa-spinner {
+    color: #0d6efd;
+}
+.step-item i.fa-check-circle {
+    color: #198754;
+}
+.step-item i.fa-exclamation-circle {
+    color: #dc3545;
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+function showUpdateModal() {
+    var modal = new bootstrap.Modal(document.getElementById('updateConfirmModal'));
+    modal.show();
+}
+
+function startUpdate() {
+    // Hide confirmation modal
+    var confirmModal = bootstrap.Modal.getInstance(document.getElementById('updateConfirmModal'));
+    confirmModal.hide();
+
+    // Show progress modal
+    var progressModal = new bootstrap.Modal(document.getElementById('updateProgressModal'));
+    progressModal.show();
+
+    // Get CSRF token
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // Start the update
+    fetch('{% url "core:apply_update" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'started') {
+            // Start polling for progress
+            pollProgress();
+        } else {
+            showError('Failed to start update');
+        }
+    })
+    .catch(error => {
+        console.error('Error starting update:', error);
+        showError('Failed to start update: ' + error.message);
+    });
+}
+
+function pollProgress() {
+    const pollInterval = setInterval(function() {
+        fetch('{% url "core:update_progress_api" %}')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Progress:', data);
+                updateProgressUI(data);
+
+                if (data.status === 'completed') {
+                    clearInterval(pollInterval);
+                    showComplete();
+                    // Reload page after 3 seconds
+                    setTimeout(function() {
+                        location.reload();
+                    }, 3000);
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    showError(data.error || 'Unknown error');
+                }
+            })
+            .catch(error => {
+                console.error('Error polling progress:', error);
+            });
+    }, 1000); // Poll every second
+}
+
+function updateProgressUI(data) {
+    const completed = data.steps_completed || [];
+    const totalSteps = data.total_steps || 5;
+    const currentStep = data.current_step || '';
+
+    // Update progress bar
+    const percent = (completed.length / totalSteps) * 100;
+    document.getElementById('updateProgressBar').style.width = percent + '%';
+    document.getElementById('updateProgressText').textContent =
+        currentStep || `${completed.length} of ${totalSteps} steps complete`;
+
+    // Update step icons
+    const stepMap = {
+        'Git Pull': 'git_pull',
+        'Install Dependencies': 'install',
+        'Run Migrations': 'migrate',
+        'Collect Static Files': 'static',
+        'Restart Service': 'restart'
+    };
+
+    // Mark completed steps
+    completed.forEach(function(stepName) {
+        const stepEl = document.querySelector('.step-item[data-step="' + stepMap[stepName] + '"]');
+        if (stepEl) {
+            const icon = stepEl.querySelector('i');
+            icon.className = 'fas fa-check-circle';
+        }
+    });
+
+    // Mark current step
+    if (currentStep && stepMap[currentStep]) {
+        const stepEl = document.querySelector('.step-item[data-step="' + stepMap[currentStep] + '"]');
+        if (stepEl) {
+            const icon = stepEl.querySelector('i');
+            icon.className = 'fas fa-spinner fa-spin';
+        }
+    }
+}
+
+function showComplete() {
+    document.getElementById('updateComplete').style.display = 'block';
+    document.querySelector('#updateProgressModalLabel i').className = 'fas fa-check-circle text-success';
+    document.getElementById('updateProgressBar').classList.remove('progress-bar-animated');
+    document.getElementById('updateProgressBar').classList.add('bg-success');
+    document.getElementById('updateProgressBar').style.width = '100%';
+    document.getElementById('updateProgressText').textContent = 'Update complete!';
+}
+
+function showError(message) {
+    document.getElementById('updateError').style.display = 'block';
+    document.getElementById('updateErrorMessage').textContent = message;
+    document.querySelector('#updateProgressModalLabel i').className = 'fas fa-exclamation-circle text-danger';
+    document.getElementById('updateProgressBar').classList.remove('progress-bar-animated');
+    document.getElementById('updateProgressBar').classList.add('bg-danger');
+}
+
 // Auto-refresh update status every 5 minutes
 setInterval(function() {
     fetch('{% url "core:update_status_api" %}')
