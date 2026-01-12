@@ -72,6 +72,13 @@ class AssetForm(forms.ModelForm):
         self.fields['manufacturer'].help_text = "Auto-filled when model is selected, or enter manually"
         self.fields['model'].help_text = "Auto-filled when model is selected, or enter manually"
 
+    def clean(self):
+        """Remove equipment_vendor from cleaned_data as it's just a UI helper."""
+        cleaned_data = super().clean()
+        # Remove equipment_vendor - it's just for UI, not saved to model
+        cleaned_data.pop('equipment_vendor', None)
+        return cleaned_data
+
 
 class ContactForm(forms.ModelForm):
     class Meta:

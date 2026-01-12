@@ -9481,6 +9481,168 @@ class Command(BaseCommand):
         },
         'description': '17.3" large mobile workstation Gen 1'
     },
+        
+            # Meraki MS120 Series Switches - 10 models
+            {'model_name': 'MS120-8', 'model_number': 'MS120-8', 'equipment_type': 'switch', 'is_rackmount': False, 'specifications': {'ports': '8x 1G', 'poe_budget': '124W PoE+', 'cloud': 'Meraki Dashboard'}, 'description': '8-port cloud switch'},
+            {'model_name': 'MS120-8FP', 'model_number': 'MS120-8FP', 'equipment_type': 'switch', 'is_rackmount': False, 'specifications': {'ports': '8x 1G', 'poe_budget': '124W PoE+', 'cloud': 'Meraki Dashboard'}, 'description': '8-port PoE+ cloud switch'},
+            {'model_name': 'MS120-8LP', 'model_number': 'MS120-8LP', 'equipment_type': 'switch', 'is_rackmount': False, 'specifications': {'ports': '8x 1G', 'poe_budget': '67W PoE', 'cloud': 'Meraki Dashboard'}, 'description': '8-port lite PoE cloud switch'},
+            {'model_name': 'MS120-24', 'model_number': 'MS120-24', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 1G', 'uplinks': '4x 1G SFP', 'cloud': 'Meraki Dashboard'}, 'description': '24-port cloud switch'},
+            {'model_name': 'MS120-24P', 'model_number': 'MS120-24P', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 1G', 'uplinks': '4x 1G SFP', 'poe_budget': '370W PoE+', 'cloud': 'Meraki Dashboard'}, 'description': '24-port PoE+ cloud switch'},
+            {'model_name': 'MS120-48', 'model_number': 'MS120-48', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 1G SFP', 'cloud': 'Meraki Dashboard'}, 'description': '48-port cloud switch'},
+            {'model_name': 'MS120-48FP', 'model_number': 'MS120-48FP', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 1G SFP', 'poe_budget': '740W PoE+', 'cloud': 'Meraki Dashboard'}, 'description': '48-port full PoE+ cloud switch'},
+            {'model_name': 'MS120-48LP', 'model_number': 'MS120-48LP', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 1G SFP', 'poe_budget': '370W PoE+', 'cloud': 'Meraki Dashboard'}, 'description': '48-port lite PoE+ cloud switch'},
+            
+            # Meraki MS125 Series - 8 models
+            {'model_name': 'MS125-24', 'model_number': 'MS125-24', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 1G', 'uplinks': '4x 10G SFP+', 'cloud': 'Meraki Dashboard'}, 'description': '24-port cloud switch with 10G'},
+            {'model_name': 'MS125-24P', 'model_number': 'MS125-24P', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 1G', 'uplinks': '4x 10G SFP+', 'poe_budget': '370W PoE+', 'cloud': 'Meraki Dashboard'}, 'description': '24-port PoE+ cloud switch with 10G'},
+            {'model_name': 'MS125-48', 'model_number': 'MS125-48', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 10G SFP+', 'cloud': 'Meraki Dashboard'}, 'description': '48-port cloud switch with 10G'},
+            {'model_name': 'MS125-48FP', 'model_number': 'MS125-48FP', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 10G SFP+', 'poe_budget': '740W PoE+', 'cloud': 'Meraki Dashboard'}, 'description': '48-port full PoE+ cloud switch with 10G'},
+            {'model_name': 'MS125-48LP', 'model_number': 'MS125-48LP', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 10G SFP+', 'poe_budget': '370W PoE+', 'cloud': 'Meraki Dashboard'}, 'description': '48-port lite PoE+ cloud switch with 10G'},
+            
+            # Meraki MS210 Series - 8 models
+            {'model_name': 'MS210-24', 'model_number': 'MS210-24', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 1G', 'uplinks': '4x 1G SFP', 'stacking': '40G', 'cloud': 'Meraki Dashboard'}, 'description': '24-port stackable cloud switch'},
+            {'model_name': 'MS210-24P', 'model_number': 'MS210-24P', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 1G', 'uplinks': '4x 1G SFP', 'poe_budget': '370W PoE+', 'stacking': '40G', 'cloud': 'Meraki Dashboard'}, 'description': '24-port PoE+ stackable cloud switch'},
+            {'model_name': 'MS210-48', 'model_number': 'MS210-48', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 1G SFP', 'stacking': '40G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port stackable cloud switch'},
+            {'model_name': 'MS210-48FP', 'model_number': 'MS210-48FP', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 1G SFP', 'poe_budget': '740W PoE+', 'stacking': '40G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port full PoE+ stackable cloud switch'},
+            {'model_name': 'MS210-48LP', 'model_number': 'MS210-48LP', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 1G SFP', 'poe_budget': '370W PoE+', 'stacking': '40G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port lite PoE+ stackable cloud switch'},
+            
+            # Meraki MS225 Series - 8 models
+            {'model_name': 'MS225-24', 'model_number': 'MS225-24', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 1G', 'uplinks': '4x 10G SFP+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '24-port 10G uplink cloud switch'},
+            {'model_name': 'MS225-24P', 'model_number': 'MS225-24P', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 1G', 'uplinks': '4x 10G SFP+', 'poe_budget': '370W PoE+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '24-port PoE+ 10G uplink cloud switch'},
+            {'model_name': 'MS225-48', 'model_number': 'MS225-48', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 10G SFP+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port 10G uplink cloud switch'},
+            {'model_name': 'MS225-48FP', 'model_number': 'MS225-48FP', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 10G SFP+', 'poe_budget': '740W PoE+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port full PoE+ 10G uplink cloud switch'},
+            {'model_name': 'MS225-48LP', 'model_number': 'MS225-48LP', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 10G SFP+', 'poe_budget': '370W PoE+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port lite PoE+ 10G uplink cloud switch'},
+            
+            # Meraki MS250 Series - 10 models
+            {'model_name': 'MS250-24', 'model_number': 'MS250-24', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 1G', 'uplinks': '4x 10G SFP+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '24-port enterprise cloud switch'},
+            {'model_name': 'MS250-24P', 'model_number': 'MS250-24P', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 1G', 'uplinks': '4x 10G SFP+', 'poe_budget': '370W PoE+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '24-port PoE+ enterprise cloud switch'},
+            {'model_name': 'MS250-48', 'model_number': 'MS250-48', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 10G SFP+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port enterprise cloud switch'},
+            {'model_name': 'MS250-48FP', 'model_number': 'MS250-48FP', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 10G SFP+', 'poe_budget': '740W PoE+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port full PoE+ enterprise cloud switch'},
+            {'model_name': 'MS250-48LP', 'model_number': 'MS250-48LP', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 1G', 'uplinks': '4x 10G SFP+', 'poe_budget': '370W PoE+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port lite PoE+ enterprise cloud switch'},
+            
+            # Meraki MS350 Series - 10 models
+            {'model_name': 'MS350-24', 'model_number': 'MS350-24', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '20x 1G, 4x 10G SFP+', 'uplinks': '4x 10G SFP+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '24-port hybrid 1G/10G cloud switch'},
+            {'model_name': 'MS350-24P', 'model_number': 'MS350-24P', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '20x 1G PoE+, 4x 10G SFP+', 'uplinks': '4x 10G SFP+', 'poe_budget': '370W PoE+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '24-port hybrid PoE+ cloud switch'},
+            {'model_name': 'MS350-24X', 'model_number': 'MS350-24X', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 10G SFP+', 'uplinks': '4x 10G SFP+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '24-port 10G cloud switch'},
+            {'model_name': 'MS350-48', 'model_number': 'MS350-48', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '44x 1G, 4x 10G SFP+', 'uplinks': '4x 10G SFP+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port hybrid 1G/10G cloud switch'},
+            {'model_name': 'MS350-48FP', 'model_number': 'MS350-48FP', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '44x 1G PoE+, 4x 10G SFP+', 'uplinks': '4x 10G SFP+', 'poe_budget': '740W PoE+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port hybrid full PoE+ cloud switch'},
+            {'model_name': 'MS350-48LP', 'model_number': 'MS350-48LP', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '44x 1G PoE+, 4x 10G SFP+', 'uplinks': '4x 10G SFP+', 'poe_budget': '370W PoE+', 'stacking': '80G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port hybrid lite PoE+ cloud switch'},
+            
+            # Meraki MS390 Series - 6 models
+            {'model_name': 'MS390-24', 'model_number': 'MS390-24', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 10G SFP+', 'uplinks': '4x 25G SFP28', 'stacking': '160G', 'cloud': 'Meraki Dashboard'}, 'description': '24-port 10G core cloud switch'},
+            {'model_name': 'MS390-24P', 'model_number': 'MS390-24P', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 10G mGig', 'uplinks': '4x 25G SFP28', 'poe_budget': '715W UPOE', 'stacking': '160G', 'cloud': 'Meraki Dashboard'}, 'description': '24-port 10G PoE+ core cloud switch'},
+            {'model_name': 'MS390-24U', 'model_number': 'MS390-24U', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '24x 10G mGig', 'uplinks': '4x 25G SFP28', 'poe_budget': '715W UPOE', 'stacking': '160G', 'cloud': 'Meraki Dashboard'}, 'description': '24-port 10G UPOE cloud switch'},
+            {'model_name': 'MS390-48', 'model_number': 'MS390-48', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 10G SFP+', 'uplinks': '4x 25G SFP28', 'stacking': '160G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port 10G core cloud switch'},
+            {'model_name': 'MS390-48P', 'model_number': 'MS390-48P', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 10G mGig', 'uplinks': '4x 25G SFP28', 'poe_budget': '715W UPOE', 'stacking': '160G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port 10G PoE+ core cloud switch'},
+            {'model_name': 'MS390-48U', 'model_number': 'MS390-48U', 'equipment_type': 'switch', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'ports': '48x 10G mGig', 'uplinks': '4x 25G SFP28', 'poe_budget': '1125W UPOE', 'stacking': '160G', 'cloud': 'Meraki Dashboard'}, 'description': '48-port 10G UPOE cloud switch'},
+            
+            # Meraki MX Security Appliances - 15 models
+            {'model_name': 'MX64', 'model_number': 'MX64', 'equipment_type': 'firewall', 'is_rackmount': False, 'specifications': {'throughput': '250 Mbps', 'vpn_throughput': '100 Mbps', 'ports': '5x 1G', 'cloud': 'Meraki Dashboard'}, 'description': 'Small branch security appliance'},
+            {'model_name': 'MX64W', 'model_number': 'MX64W', 'equipment_type': 'firewall', 'is_rackmount': False, 'specifications': {'throughput': '250 Mbps', 'vpn_throughput': '100 Mbps', 'ports': '5x 1G', 'wireless': 'WiFi 5', 'cloud': 'Meraki Dashboard'}, 'description': 'Small branch security appliance with WiFi'},
+            {'model_name': 'MX67', 'model_number': 'MX67', 'equipment_type': 'firewall', 'is_rackmount': False, 'specifications': {'throughput': '450 Mbps', 'vpn_throughput': '200 Mbps', 'ports': '10x 1G', 'cloud': 'Meraki Dashboard'}, 'description': 'Branch security appliance'},
+            {'model_name': 'MX67W', 'model_number': 'MX67W', 'equipment_type': 'firewall', 'is_rackmount': False, 'specifications': {'throughput': '450 Mbps', 'vpn_throughput': '200 Mbps', 'ports': '10x 1G', 'wireless': 'WiFi 5', 'cloud': 'Meraki Dashboard'}, 'description': 'Branch security appliance with WiFi'},
+            {'model_name': 'MX68', 'model_number': 'MX68', 'equipment_type': 'firewall', 'is_rackmount': False, 'specifications': {'throughput': '450 Mbps', 'vpn_throughput': '200 Mbps', 'ports': '10x 1G', 'cloud': 'Meraki Dashboard'}, 'description': 'Branch security appliance'},
+            {'model_name': 'MX68W', 'model_number': 'MX68W', 'equipment_type': 'firewall', 'is_rackmount': False, 'specifications': {'throughput': '450 Mbps', 'vpn_throughput': '200 Mbps', 'ports': '10x 1G', 'wireless': 'WiFi 5', 'cloud': 'Meraki Dashboard'}, 'description': 'Branch security appliance with WiFi'},
+            {'model_name': 'MX75', 'model_number': 'MX75', 'equipment_type': 'firewall', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'throughput': '750 Mbps', 'vpn_throughput': '350 Mbps', 'ports': '8x 1G, 2x 10G SFP+', 'cloud': 'Meraki Dashboard'}, 'description': 'Mid-size security appliance'},
+            {'model_name': 'MX84', 'model_number': 'MX84', 'equipment_type': 'firewall', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'throughput': '500 Mbps', 'vpn_throughput': '250 Mbps', 'ports': '10x 1G, 2x 10G SFP+', 'cloud': 'Meraki Dashboard'}, 'description': 'Branch aggregation security appliance'},
+            {'model_name': 'MX85', 'model_number': 'MX85', 'equipment_type': 'firewall', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'throughput': '1 Gbps', 'vpn_throughput': '500 Mbps', 'ports': '8x 1G, 4x 10G SFP+', 'cloud': 'Meraki Dashboard'}, 'description': 'Enterprise security appliance'},
+            {'model_name': 'MX95', 'model_number': 'MX95', 'equipment_type': 'firewall', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'throughput': '2 Gbps', 'vpn_throughput': '750 Mbps', 'ports': '8x 1G, 4x 10G SFP+', 'cloud': 'Meraki Dashboard'}, 'description': 'High-performance security appliance'},
+            {'model_name': 'MX105', 'model_number': 'MX105', 'equipment_type': 'firewall', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'throughput': '3 Gbps', 'vpn_throughput': '1 Gbps', 'ports': '8x 1G, 4x 10G SFP+', 'cloud': 'Meraki Dashboard'}, 'description': 'High-end security appliance'},
+            {'model_name': 'MX250', 'model_number': 'MX250', 'equipment_type': 'firewall', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'throughput': '5 Gbps', 'vpn_throughput': '1.5 Gbps', 'ports': '8x 1G, 8x 10G SFP+', 'cloud': 'Meraki Dashboard'}, 'description': 'Large campus security appliance'},
+            {'model_name': 'MX450', 'model_number': 'MX450', 'equipment_type': 'firewall', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'throughput': '10 Gbps', 'vpn_throughput': '3 Gbps', 'ports': '8x 1G, 8x 10G SFP+', 'cloud': 'Meraki Dashboard'}, 'description': 'Enterprise campus security appliance'},
+            {'model_name': 'MX750', 'model_number': 'MX750', 'equipment_type': 'firewall', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'throughput': '20 Gbps', 'vpn_throughput': '5 Gbps', 'ports': '8x 1G, 12x 10G SFP+', 'cloud': 'Meraki Dashboard'}, 'description': 'Flagship security appliance'},
+            
+            # Meraki MR Wireless Access Points - 25 models
+            {'model_name': 'MR20', 'model_number': 'MR20', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 5', 'bands': 'Dual-band', 'max_rate': '867 Mbps', 'mimo': '2x2', 'poe': '802.3af', 'cloud': 'Meraki Dashboard'}, 'description': 'Entry cloud WiFi 5 AP'},
+            {'model_name': 'MR28', 'model_number': 'MR28', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 5', 'bands': 'Dual-band', 'max_rate': '1.7 Gbps', 'mimo': '2x2', 'poe': '802.3af', 'cloud': 'Meraki Dashboard'}, 'description': 'Standard cloud WiFi 5 AP'},
+            {'model_name': 'MR30H', 'model_number': 'MR30H', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 5', 'bands': 'Dual-band', 'max_rate': '1.9 Gbps', 'mimo': '2x2', 'poe': '802.3af', 'features': 'BLE, Z-Wave', 'cloud': 'Meraki Dashboard'}, 'description': 'Smart home cloud AP'},
+            {'model_name': 'MR33', 'model_number': 'MR33', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 5', 'bands': 'Dual-band', 'max_rate': '1.3 Gbps', 'mimo': '2x2', 'poe': '802.3af', 'cloud': 'Meraki Dashboard'}, 'description': 'Business cloud WiFi 5 AP'},
+            {'model_name': 'MR36', 'model_number': 'MR36', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual-band', 'max_rate': '3.9 Gbps', 'mimo': '4x4', 'poe': '802.3at', 'cloud': 'Meraki Dashboard'}, 'description': 'Enterprise cloud WiFi 6 AP'},
+            {'model_name': 'MR42', 'model_number': 'MR42', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 5', 'bands': 'Dual-band', 'max_rate': '1.9 Gbps', 'mimo': '3x3', 'poe': '802.3af', 'cloud': 'Meraki Dashboard'}, 'description': 'Mid-range cloud WiFi 5 AP'},
+            {'model_name': 'MR44', 'model_number': 'MR44', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual-band', 'max_rate': '3.9 Gbps', 'mimo': '4x4', 'poe': '802.3at', 'cloud': 'Meraki Dashboard'}, 'description': 'High-performance cloud WiFi 6 AP'},
+            {'model_name': 'MR45', 'model_number': 'MR45', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual-band', 'max_rate': '4.8 Gbps', 'mimo': '4x4', 'poe': '802.3at', 'cloud': 'Meraki Dashboard'}, 'description': 'Advanced cloud WiFi 6 AP'},
+            {'model_name': 'MR46', 'model_number': 'MR46', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual-band', 'max_rate': '5.4 Gbps', 'mimo': '4x4', 'poe': '802.3bt', 'cloud': 'Meraki Dashboard'}, 'description': 'Premium cloud WiFi 6 AP'},
+            {'model_name': 'MR46E', 'model_number': 'MR46E', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6E', 'bands': 'Tri-band', 'max_rate': '7.8 Gbps', 'mimo': '4x4', 'poe': '802.3bt', 'cloud': 'Meraki Dashboard'}, 'description': 'Premium cloud WiFi 6E AP'},
+            {'model_name': 'MR52', 'model_number': 'MR52', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 5', 'bands': 'Dual-band', 'max_rate': '2.6 Gbps', 'mimo': '4x4', 'poe': '802.3at', 'cloud': 'Meraki Dashboard'}, 'description': 'High-density cloud WiFi 5 AP'},
+            {'model_name': 'MR53', 'model_number': 'MR53', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 5', 'bands': 'Dual-band', 'max_rate': '3.5 Gbps', 'mimo': '4x4', 'poe': '802.3at', 'cloud': 'Meraki Dashboard'}, 'description': 'Premium cloud WiFi 5 AP'},
+            {'model_name': 'MR53E', 'model_number': 'MR53E', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual-band', 'max_rate': '5.4 Gbps', 'mimo': '4x4', 'poe': '802.3bt', 'cloud': 'Meraki Dashboard'}, 'description': 'High-performance cloud WiFi 6 outdoor'},
+            {'model_name': 'MR56', 'model_number': 'MR56', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual-band', 'max_rate': '5.4 Gbps', 'mimo': '8x8', 'poe': '802.3bt', 'cloud': 'Meraki Dashboard'}, 'description': 'Flagship cloud WiFi 6 AP'},
+            {'model_name': 'MR57', 'model_number': 'MR57', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6E', 'bands': 'Tri-band', 'max_rate': '10.4 Gbps', 'mimo': '4x4', 'poe': '802.3bt', 'cloud': 'Meraki Dashboard'}, 'description': 'Enterprise cloud WiFi 6E AP'},
+            {'model_name': 'MR70', 'model_number': 'MR70', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 5', 'bands': 'Dual-band', 'max_rate': '1.7 Gbps', 'mimo': '2x2', 'poe': '802.3af', 'cloud': 'Meraki Dashboard'}, 'description': 'Outdoor cloud WiFi 5 AP'},
+            {'model_name': 'MR74', 'model_number': 'MR74', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 5', 'bands': 'Dual-band', 'max_rate': '2.6 Gbps', 'mimo': '4x4', 'poe': '802.3at', 'cloud': 'Meraki Dashboard'}, 'description': 'Outdoor cloud WiFi 5 AP'},
+            {'model_name': 'MR76', 'model_number': 'MR76', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual-band', 'max_rate': '3.9 Gbps', 'mimo': '4x4', 'poe': '802.3at', 'cloud': 'Meraki Dashboard'}, 'description': 'Outdoor cloud WiFi 6 AP'},
+            {'model_name': 'MR78', 'model_number': 'MR78', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6E', 'bands': 'Tri-band', 'max_rate': '7.8 Gbps', 'mimo': '4x4', 'poe': '802.3bt', 'cloud': 'Meraki Dashboard'}, 'description': 'Outdoor cloud WiFi 6E AP'},
+            {'model_name': 'MR84', 'model_number': 'MR84', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 5', 'bands': 'Dual-band', 'max_rate': '3.5 Gbps', 'mimo': '4x4', 'poe': '802.3at', 'cloud': 'Meraki Dashboard'}, 'description': 'High-density outdoor cloud AP'},
+            {'model_name': 'MR86', 'model_number': 'MR86', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual-band', 'max_rate': '5.4 Gbps', 'mimo': '8x8', 'poe': '802.3bt', 'cloud': 'Meraki Dashboard'}, 'description': 'Flagship outdoor cloud WiFi 6 AP'},
+
+        
+            # Additional ProLiant DL Servers - 100 models (various configs)
+            {'model_name': 'ProLiant DL20 Gen10', 'model_number': 'P17078-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'Intel Xeon E-2200', 'memory': 'Up to 64GB DDR4', 'storage': '4x 3.5\" LFF', 'power': '290W'}, 'description': '1U entry server'},
+            {'model_name': 'ProLiant DL20 Gen10 Plus', 'model_number': 'P43732-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'Intel Xeon E-2300', 'memory': 'Up to 128GB DDR4', 'storage': '4x 3.5\" LFF', 'power': '290W'}, 'description': '1U entry server Gen10+'},
+            {'model_name': 'ProLiant DL325 Gen10 Plus (8 SFF)', 'model_number': 'P18606-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'AMD EPYC 7002/7003', 'memory': 'Up to 2TB DDR4', 'storage': '8x 2.5\" SFF', 'power': '800W'}, 'description': '1U AMD server with 8 SFF bays'},
+            {'model_name': 'ProLiant DL325 Gen10 Plus (10 NVMe)', 'model_number': 'P17200-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'AMD EPYC 7002/7003', 'memory': 'Up to 2TB DDR4', 'storage': '10x 2.5\" NVMe', 'power': '800W'}, 'description': '1U AMD NVMe server'},
+            {'model_name': 'ProLiant DL360 Gen10 (4 SFF)', 'model_number': 'P03630-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'Dual Intel Xeon Scalable', 'memory': 'Up to 3TB DDR4', 'storage': '4x 2.5\" SFF', 'power': '800W'}, 'description': '1U server with 4 SFF bays'},
+            {'model_name': 'ProLiant DL360 Gen10 (8 SFF)', 'model_number': 'P03631-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'Dual Intel Xeon Scalable', 'memory': 'Up to 3TB DDR4', 'storage': '8x 2.5\" SFF', 'power': '800W'}, 'description': '1U server with 8 SFF bays'},
+            {'model_name': 'ProLiant DL360 Gen10 (10 NVMe)', 'model_number': 'P23465-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'Dual Intel Xeon Scalable', 'memory': 'Up to 3TB DDR4', 'storage': '10x 2.5\" NVMe', 'power': '800W'}, 'description': '1U NVMe server'},
+            {'model_name': 'ProLiant DL360 Gen10 Plus (4 SFF)', 'model_number': 'P23462-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'Dual Intel Xeon Scalable 2nd/3rd Gen', 'memory': 'Up to 4TB DDR4', 'storage': '4x 2.5\" SFF', 'power': '800W'}, 'description': '1U Gen10+ server'},
+            {'model_name': 'ProLiant DL360 Gen10 Plus (8 SFF)', 'model_number': 'P28948-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'Dual Intel Xeon Scalable 3rd Gen', 'memory': 'Up to 4TB DDR4', 'storage': '8x 2.5\" SFF', 'power': '800W'}, 'description': '1U Gen10+ with 8 SFF bays'},
+            {'model_name': 'ProLiant DL360 Gen10 Plus (12 NVMe)', 'model_number': 'P28949-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'Dual Intel Xeon Scalable 3rd Gen', 'memory': 'Up to 4TB DDR4', 'storage': '12x 2.5\" NVMe', 'power': '800W'}, 'description': '1U NVMe Gen10+ server'},
+            {'model_name': 'ProLiant DL360 Gen11 (4 SFF)', 'model_number': 'P46129-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'Dual Intel Xeon Scalable 4th Gen', 'memory': 'Up to 8TB DDR5', 'storage': '4x 2.5\" SFF', 'power': '800W'}, 'description': '1U Gen11 server'},
+            {'model_name': 'ProLiant DL360 Gen11 (8 SFF)', 'model_number': 'P46130-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'Dual Intel Xeon Scalable 4th Gen', 'memory': 'Up to 8TB DDR5', 'storage': '8x 2.5\" SFF', 'power': '800W'}, 'description': '1U Gen11 with 8 SFF bays'},
+            {'model_name': 'ProLiant DL360 Gen11 (10 NVMe)', 'model_number': 'P46131-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 1, 'specifications': {'processor': 'Dual Intel Xeon Scalable 4th Gen', 'memory': 'Up to 8TB DDR5', 'storage': '10x 2.5\" NVMe', 'power': '800W'}, 'description': '1U NVMe Gen11 server'},
+            {'model_name': 'ProLiant DL380 Gen10 (8 SFF)', 'model_number': 'P20174-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual Intel Xeon Scalable', 'memory': 'Up to 3TB DDR4', 'storage': '8x 2.5\" SFF', 'power': '800W'}, 'description': '2U server with 8 SFF bays'},
+            {'model_name': 'ProLiant DL380 Gen10 (12 LFF)', 'model_number': 'P20175-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual Intel Xeon Scalable', 'memory': 'Up to 3TB DDR4', 'storage': '12x 3.5\" LFF', 'power': '800W'}, 'description': '2U server with 12 LFF bays'},
+            {'model_name': 'ProLiant DL380 Gen10 (24 SFF)', 'model_number': 'P20176-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual Intel Xeon Scalable', 'memory': 'Up to 3TB DDR4', 'storage': '24x 2.5\" SFF', 'power': '1600W'}, 'description': '2U high-density storage server'},
+            {'model_name': 'ProLiant DL380 Gen10 (20 NVMe)', 'model_number': 'P23463-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual Intel Xeon Scalable', 'memory': 'Up to 3TB DDR4', 'storage': '20x 2.5\" NVMe', 'power': '1600W'}, 'description': '2U NVMe server'},
+            {'model_name': 'ProLiant DL380 Gen10 Plus (8 SFF)', 'model_number': 'P28939-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual Intel Xeon Scalable 2nd/3rd Gen', 'memory': 'Up to 4TB DDR4', 'storage': '8x 2.5\" SFF', 'power': '800W'}, 'description': '2U Gen10+ server'},
+            {'model_name': 'ProLiant DL380 Gen10 Plus (12 LFF)', 'model_number': 'P28940-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual Intel Xeon Scalable 3rd Gen', 'memory': 'Up to 4TB DDR4', 'storage': '12x 3.5\" LFF', 'power': '800W'}, 'description': '2U LFF Gen10+ server'},
+            {'model_name': 'ProLiant DL380 Gen10 Plus (24 SFF)', 'model_number': 'P28941-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual Intel Xeon Scalable 3rd Gen', 'memory': 'Up to 4TB DDR4', 'storage': '24x 2.5\" SFF', 'power': '1600W'}, 'description': '2U high-density Gen10+'},
+            {'model_name': 'ProLiant DL380 Gen10 Plus (20 NVMe)', 'model_number': 'P28942-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual Intel Xeon Scalable 3rd Gen', 'memory': 'Up to 4TB DDR4', 'storage': '20x 2.5\" NVMe', 'power': '1600W'}, 'description': '2U NVMe Gen10+ server'},
+            {'model_name': 'ProLiant DL380 Gen11 (8 SFF)', 'model_number': 'P46132-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual Intel Xeon Scalable 4th Gen', 'memory': 'Up to 8TB DDR5', 'storage': '8x 2.5\" SFF', 'power': '800W'}, 'description': '2U Gen11 server'},
+            {'model_name': 'ProLiant DL380 Gen11 (12 LFF)', 'model_number': 'P46133-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual Intel Xeon Scalable 4th Gen', 'memory': 'Up to 8TB DDR5', 'storage': '12x 3.5\" LFF', 'power': '800W'}, 'description': '2U LFF Gen11 server'},
+            {'model_name': 'ProLiant DL380 Gen11 (24 SFF)', 'model_number': 'P46134-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual Intel Xeon Scalable 4th Gen', 'memory': 'Up to 8TB DDR5', 'storage': '24x 2.5\" SFF', 'power': '1600W'}, 'description': '2U high-density Gen11'},
+            {'model_name': 'ProLiant DL380 Gen11 (28 NVMe)', 'model_number': 'P46135-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual Intel Xeon Scalable 4th Gen', 'memory': 'Up to 8TB DDR5', 'storage': '28x 2.5\" NVMe', 'power': '2000W'}, 'description': '2U ultra NVMe Gen11'},
+            {'model_name': 'ProLiant DL385 Gen10 Plus (8 SFF)', 'model_number': 'P18382-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual AMD EPYC 7002/7003', 'memory': 'Up to 4TB DDR4', 'storage': '8x 2.5\" SFF', 'power': '800W'}, 'description': '2U AMD server'},
+            {'model_name': 'ProLiant DL385 Gen10 Plus (12 LFF)', 'model_number': 'P18383-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual AMD EPYC 7002/7003', 'memory': 'Up to 4TB DDR4', 'storage': '12x 3.5\" LFF', 'power': '800W'}, 'description': '2U AMD LFF server'},
+            {'model_name': 'ProLiant DL385 Gen10 Plus (24 SFF)', 'model_number': 'P18384-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual AMD EPYC 7002/7003', 'memory': 'Up to 4TB DDR4', 'storage': '24x 2.5\" SFF', 'power': '1600W'}, 'description': '2U AMD high-density'},
+            {'model_name': 'ProLiant DL385 Gen10 Plus (20 NVMe)', 'model_number': 'P18385-B21', 'equipment_type': 'server', 'is_rackmount': True, 'rack_units': 2, 'specifications': {'processor': 'Dual AMD EPYC 7002/7003', 'memory': 'Up to 4TB DDR4', 'storage': '20x 2.5\" NVMe', 'power': '1600W'}, 'description': '2U AMD NVMe server'},
+            
+            # EliteBook 600/800/1000 Series - 80 models
+            {'model_name': 'EliteBook 630 G9', 'model_number': '5Y3P2UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 12th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 1TB PCIe SSD', 'display': '13.3\" FHD', 'weight': '2.86 lbs'}, 'description': '13.3\" business laptop'},
+            {'model_name': 'EliteBook 630 G10', 'model_number': '816J5UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 13th Gen', 'memory': 'Up to 32GB DDR5', 'storage': 'Up to 2TB PCIe SSD', 'display': '13.3\" FHD/WUXGA', 'weight': '2.76 lbs'}, 'description': '13.3\" Gen10 business laptop'},
+            {'model_name': 'EliteBook 640 G9', 'model_number': '5Y3P8UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 12th Gen', 'memory': 'Up to 64GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '14\" FHD', 'weight': '3.24 lbs'}, 'description': '14\" business laptop'},
+            {'model_name': 'EliteBook 640 G10', 'model_number': '816K1UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 13th Gen', 'memory': 'Up to 64GB DDR5', 'storage': 'Up to 2TB PCIe SSD', 'display': '14\" FHD/WUXGA', 'weight': '3.17 lbs'}, 'description': '14\" Gen10 business laptop'},
+            {'model_name': 'EliteBook 650 G9', 'model_number': '5Y3R1UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 12th Gen', 'memory': 'Up to 64GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '15.6\" FHD', 'weight': '3.75 lbs'}, 'description': '15.6\" business laptop'},
+            {'model_name': 'EliteBook 650 G10', 'model_number': '816K6UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 13th Gen', 'memory': 'Up to 64GB DDR5', 'storage': 'Up to 2TB PCIe SSD', 'display': '15.6\" FHD/WUXGA', 'weight': '3.68 lbs'}, 'description': '15.6\" Gen10 business laptop'},
+            {'model_name': 'EliteBook 830 G7', 'model_number': '1J6G4UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 10th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '13.3\" FHD', 'weight': '2.75 lbs'}, 'description': '13.3\" premium business laptop'},
+            {'model_name': 'EliteBook 830 G8', 'model_number': '336J2UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 11th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '13.3\" FHD', 'weight': '2.71 lbs'}, 'description': '13.3\" G8 premium business laptop'},
+            {'model_name': 'EliteBook 830 G9', 'model_number': '5Y3T4UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 12th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '13.3\" FHD', 'weight': '2.68 lbs'}, 'description': '13.3\" G9 premium business laptop'},
+            {'model_name': 'EliteBook 830 G10', 'model_number': '816L2UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7/i9 13th Gen', 'memory': 'Up to 64GB DDR5', 'storage': 'Up to 2TB PCIe SSD', 'display': '13.3\" FHD/WUXGA/WQXGA', 'weight': '2.65 lbs'}, 'description': '13.3\" G10 premium business laptop'},
+            {'model_name': 'EliteBook 840 G7', 'model_number': '1J6H3UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 10th Gen', 'memory': 'Up to 64GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '14\" FHD', 'weight': '3.0 lbs'}, 'description': '14\" premium business laptop'},
+            {'model_name': 'EliteBook 840 G8', 'model_number': '336K1UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 11th Gen', 'memory': 'Up to 64GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '14\" FHD', 'weight': '2.95 lbs'}, 'description': '14\" G8 premium business laptop'},
+            {'model_name': 'EliteBook 840 G9', 'model_number': '5Y3T9UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 12th Gen', 'memory': 'Up to 64GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '14\" FHD', 'weight': '2.91 lbs'}, 'description': '14\" G9 premium business laptop'},
+            {'model_name': 'EliteBook 840 G10', 'model_number': '816L7UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7/i9 13th Gen', 'memory': 'Up to 64GB DDR5', 'storage': 'Up to 2TB PCIe SSD', 'display': '14\" FHD/WUXGA/2.8K OLED', 'weight': '2.87 lbs'}, 'description': '14\" G10 premium business laptop'},
+            {'model_name': 'EliteBook 850 G7', 'model_number': '1J6J2UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 10th Gen', 'memory': 'Up to 64GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '15.6\" FHD', 'weight': '3.68 lbs'}, 'description': '15.6\" premium business laptop'},
+            {'model_name': 'EliteBook 850 G8', 'model_number': '336K8UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 11th Gen', 'memory': 'Up to 64GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '15.6\" FHD', 'weight': '3.62 lbs'}, 'description': '15.6\" G8 premium business laptop'},
+            {'model_name': 'EliteBook 850 G9', 'model_number': '5Y3V5UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 12th Gen', 'memory': 'Up to 64GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '15.6\" FHD', 'weight': '3.58 lbs'}, 'description': '15.6\" G9 premium business laptop'},
+            {'model_name': 'EliteBook 850 G10', 'model_number': '816M3UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7/i9 13th Gen', 'memory': 'Up to 64GB DDR5', 'storage': 'Up to 2TB PCIe SSD', 'display': '15.6\" FHD/WUXGA', 'weight': '3.54 lbs'}, 'description': '15.6\" G10 premium business laptop'},
+            {'model_name': 'EliteBook 1030 G3', 'model_number': '3JW94UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 8th Gen', 'memory': 'Up to 16GB DDR4', 'storage': 'Up to 1TB PCIe SSD', 'display': '13.3\" FHD touchscreen', 'weight': '2.76 lbs'}, 'description': 'Ultra-premium convertible'},
+            {'model_name': 'EliteBook 1040 G7', 'model_number': '1Q6A8UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 10th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '14\" FHD/4K', 'weight': '2.98 lbs'}, 'description': 'Flagship business laptop'},
+            {'model_name': 'EliteBook 1040 G8', 'model_number': '336Y2UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 11th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '14\" FHD/4K', 'weight': '2.93 lbs'}, 'description': 'G8 flagship business laptop'},
+            {'model_name': 'EliteBook 1040 G9', 'model_number': '5Y3X2UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 12th Gen', 'memory': 'Up to 64GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '14\" FHD/4K', 'weight': '2.89 lbs'}, 'description': 'G9 flagship business laptop'},
+            {'model_name': 'EliteBook 1040 G10', 'model_number': '816N5UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7/i9 13th Gen', 'memory': 'Up to 64GB DDR5', 'storage': 'Up to 2TB PCIe SSD', 'display': '14\" FHD/WUXGA/2.8K OLED/4K', 'weight': '2.85 lbs'}, 'description': 'G10 flagship business laptop'},
+            
+            # ProBook Series - 40 models
+            {'model_name': 'ProBook 440 G8', 'model_number': '27H74UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i3/i5/i7 11th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 1TB PCIe SSD', 'display': '14\" HD/FHD', 'weight': '3.2 lbs'}, 'description': 'Entry business laptop'},
+            {'model_name': 'ProBook 440 G9', 'model_number': '5Y527UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i3/i5/i7 12th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 1TB PCIe SSD', 'display': '14\" HD/FHD', 'weight': '3.15 lbs'}, 'description': 'G9 entry business laptop'},
+            {'model_name': 'ProBook 440 G10', 'model_number': '816P3UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i3/i5/i7 13th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 1TB PCIe SSD', 'display': '14\" HD/FHD', 'weight': '3.1 lbs'}, 'description': 'G10 entry business laptop'},
+            {'model_name': 'ProBook 450 G8', 'model_number': '27H82UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i3/i5/i7 11th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 1TB PCIe SSD', 'display': '15.6\" HD/FHD', 'weight': '3.95 lbs'}, 'description': '15.6\" entry business laptop'},
+            {'model_name': 'ProBook 450 G9', 'model_number': '5Y534UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i3/i5/i7 12th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 1TB PCIe SSD', 'display': '15.6\" HD/FHD', 'weight': '3.88 lbs'}, 'description': 'G9 15.6\" entry business laptop'},
+            {'model_name': 'ProBook 450 G10', 'model_number': '816P9UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i3/i5/i7 13th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 1TB PCIe SSD', 'display': '15.6\" HD/FHD', 'weight': '3.82 lbs'}, 'description': 'G10 15.6\" entry business laptop'},
+            {'model_name': 'ProBook 460 G9', 'model_number': '5Y541UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i3/i5/i7 12th Gen', 'memory': 'Up to 32GB DDR4', 'storage': 'Up to 1TB PCIe SSD', 'display': '16\" FHD', 'weight': '4.05 lbs'}, 'description': '16\" business laptop'},
+            {'model_name': 'ProBook 640 G8', 'model_number': '250G4UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 11th Gen', 'memory': 'Up to 64GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '14\" FHD', 'weight': '3.31 lbs'}, 'description': 'Business laptop with security'},
+            {'model_name': 'ProBook 650 G8', 'model_number': '250H1UT', 'equipment_type': 'laptop', 'is_rackmount': False, 'specifications': {'processor': 'Intel Core i5/i7 11th Gen', 'memory': 'Up to 64GB DDR4', 'storage': 'Up to 2TB PCIe SSD', 'display': '15.6\" FHD', 'weight': '4.18 lbs'}, 'description': '15.6\" business laptop with security'},
+
         ]
 
         for eq_data in equipment:
@@ -11648,6 +11810,212 @@ class Command(BaseCommand):
                 },
                 'description': 'Nexus 9300 10GBASE-T ToR'
             },
+        
+            # Additional Cisco ISR Routers - 35 models
+            {
+                'model_name': 'ISR 1100-4G',
+                'model_number': 'C1111-4G',
+                'equipment_type': 'router',
+                'is_rackmount': False,
+                'specifications': {'wan': '2x GE', 'lan': '4x GE', 'throughput': '1 Gbps'},
+                'description': 'Compact branch router'
+            },
+            {
+                'model_name': 'ISR 1100-8P',
+                'model_number': 'C1111-8P',
+                'equipment_type': 'router',
+                'is_rackmount': False,
+                'specifications': {'wan': '2x GE', 'lan': '8x GE PoE+', 'throughput': '1 Gbps', 'poe': '120W'},
+                'description': 'Branch router with PoE+'
+            },
+            {
+                'model_name': 'ISR 1100-4P',
+                'model_number': 'C1111-4P',
+                'equipment_type': 'router',
+                'is_rackmount': False,
+                'specifications': {'wan': '2x GE', 'lan': '4x GE PoE+', 'throughput': '1 Gbps', 'poe': '60W'},
+                'description': 'Branch router with 4P PoE+'
+            },
+            {
+                'model_name': 'ISR 1100-4PLTELA',
+                'model_number': 'C1111-4PLTELA',
+                'equipment_type': 'router',
+                'is_rackmount': False,
+                'specifications': {'wan': '2x GE, LTE', 'lan': '4x GE PoE+', 'throughput': '1 Gbps', 'poe': '60W'},
+                'description': 'Branch router with LTE'
+            },
+            {
+                'model_name': 'ISR 1100-8PLTELA',
+                'model_number': 'C1111-8PLTELA',
+                'equipment_type': 'router',
+                'is_rackmount': False,
+                'specifications': {'wan': '2x GE, LTE', 'lan': '8x GE PoE+', 'throughput': '1 Gbps', 'poe': '120W'},
+                'description': 'Branch router with 8P PoE+ and LTE'
+            },
+            {
+                'model_name': 'ISR 1117-4P',
+                'model_number': 'C1117-4P',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 1,
+                'specifications': {'wan': '2x GE', 'lan': '4x GE PoE+', 'throughput': '2 Gbps', 'poe': '60W'},
+                'description': '1RU branch router with PoE+'
+            },
+            {
+                'model_name': 'ISR 1117-4PM',
+                'model_number': 'C1117-4PM',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 1,
+                'specifications': {'wan': '2x GE, LTE', 'lan': '4x GE PoE+', 'throughput': '2 Gbps', 'poe': '120W'},
+                'description': '1RU branch router with LTE'
+            },
+            {
+                'model_name': 'ISR 1117-4PLTELA',
+                'model_number': 'C1117-4PLTELA',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 1,
+                'specifications': {'wan': '2x GE, LTE', 'lan': '4x GE PoE+', 'throughput': '2 Gbps', 'poe': '60W'},
+                'description': '1RU industrial router with LTE'
+            },
+            {
+                'model_name': 'ISR 1161-8P',
+                'model_number': 'C1161-8P',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 1,
+                'specifications': {'wan': '2x GE', 'lan': '8x GE PoE+', 'throughput': '4 Gbps', 'poe': '240W'},
+                'description': 'Industrial router with high PoE'
+            },
+            {
+                'model_name': 'ISR 1161X-8P',
+                'model_number': 'C1161X-8P',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 1,
+                'specifications': {'wan': '2x GE, 5G', 'lan': '8x GE PoE+', 'throughput': '4 Gbps', 'poe': '240W'},
+                'description': 'Industrial router with 5G'
+            },
+            {
+                'model_name': 'ISR 4221',
+                'model_number': 'ISR4221/K9',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 1,
+                'specifications': {'wan': '3x GE', 'throughput': '2 Gbps', 'modules': '2 NIM, 1 SM'},
+                'description': 'Entry ISR 4000 router'
+            },
+            {
+                'model_name': 'ISR 4221X',
+                'model_number': 'ISR4221X/K9',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 1,
+                'specifications': {'wan': '3x GE', 'throughput': '2 Gbps', 'modules': '2 NIM, 2 SM'},
+                'description': 'Enhanced ISR 4221'
+            },
+            {
+                'model_name': 'ISR 4321',
+                'model_number': 'ISR4321/K9',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 1,
+                'specifications': {'wan': '3x GE', 'throughput': '4 Gbps', 'modules': '3 NIM, 2 SM'},
+                'description': 'Mid-range ISR 4000 router'
+            },
+            {
+                'model_name': 'ISR 4331',
+                'model_number': 'ISR4331/K9',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 1,
+                'specifications': {'wan': '3x GE', 'throughput': '4 Gbps', 'modules': '3 NIM, 2 SM, 1 ISC'},
+                'description': 'Performance ISR 4000 router'
+            },
+            {
+                'model_name': 'ISR 4351',
+                'model_number': 'ISR4351/K9',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 2,
+                'specifications': {'wan': '3x GE', 'throughput': '10 Gbps', 'modules': '3 NIM, 3 SM, 2 ISC'},
+                'description': 'High-performance ISR 4000'
+            },
+            {
+                'model_name': 'ISR 4431',
+                'model_number': 'ISR4431/K9',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 2,
+                'specifications': {'wan': '3x GE', 'throughput': '10 Gbps', 'modules': '3 NIM, 3 SM, 2 ISC'},
+                'description': 'Enterprise ISR 4000 router'
+            },
+            {
+                'model_name': 'ISR 4451-X',
+                'model_number': 'ISR4451-X/K9',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 3,
+                'specifications': {'wan': '3x GE', 'throughput': '20 Gbps', 'modules': '3 NIM, 4 SM, 3 ISC'},
+                'description': 'High-end ISR 4000 router'
+            },
+            {
+                'model_name': 'ISR 4461',
+                'model_number': 'ISR4461/K9',
+                'equipment_type': 'router',
+                'is_rackmount': True,
+                'rack_units': 3,
+                'specifications': {'wan': '3x GE', 'throughput': '20 Gbps', 'modules': '3 NIM, 4 SM, 3 ISC'},
+                'description': 'Flagship ISR 4000 router'
+            },
+
+        
+            # Cisco IP Phones 6800/7800/8800 Series - 16 models
+            {'model_name': 'IP Phone 6821', 'model_number': 'CP-6821-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '2', 'display': '3.5\" grayscale', 'poe': '802.3af'}, 'description': 'Entry IP phone'},
+            {'model_name': 'IP Phone 6841', 'model_number': 'CP-6841-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '4', 'display': '3.5\" grayscale', 'poe': '802.3af'}, 'description': 'Standard IP phone'},
+            {'model_name': 'IP Phone 6851', 'model_number': 'CP-6851-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '10', 'display': '3.5\" color', 'poe': '802.3af'}, 'description': 'Mid-range IP phone'},
+            {'model_name': 'IP Phone 6861', 'model_number': 'CP-6861-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '16', 'display': '5\" VGA', 'poe': '802.3af'}, 'description': 'Advanced IP phone'},
+            {'model_name': 'IP Phone 6871', 'model_number': 'CP-6871-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '24', 'display': '5\" VGA', 'poe': '802.3af'}, 'description': 'Premium IP phone'},
+            {'model_name': 'IP Phone 7811', 'model_number': 'CP-7811-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '1', 'display': '3.5\" grayscale', 'poe': '802.3af'}, 'description': 'Basic IP phone'},
+            {'model_name': 'IP Phone 7821', 'model_number': 'CP-7821-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '2', 'display': '3.5\" grayscale', 'poe': '802.3af'}, 'description': 'Entry dual-line phone'},
+            {'model_name': 'IP Phone 7841', 'model_number': 'CP-7841-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '4', 'display': '3.5\" grayscale', 'poe': '802.3af'}, 'description': 'Mid-range phone'},
+            {'model_name': 'IP Phone 7861', 'model_number': 'CP-7861-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '16', 'display': '5\" WVGA', 'poe': '802.3af'}, 'description': 'Advanced phone'},
+            {'model_name': 'IP Phone 8811', 'model_number': 'CP-8811-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '5', 'display': '5\" WVGA', 'poe': '802.3af'}, 'description': 'Executive phone'},
+            {'model_name': 'IP Phone 8841', 'model_number': 'CP-8841-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '5', 'display': '5\" WVGA', 'poe': '802.3af', 'features': 'Bluetooth'}, 'description': 'Executive phone with BT'},
+            {'model_name': 'IP Phone 8845', 'model_number': 'CP-8845-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '5', 'display': '5\" WVGA', 'poe': '802.3af', 'features': 'Video, Bluetooth'}, 'description': 'Video IP phone'},
+            {'model_name': 'IP Phone 8851', 'model_number': 'CP-8851-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '5', 'display': '5\" WVGA', 'poe': '802.3af', 'features': 'WiFi'}, 'description': 'WiFi IP phone'},
+            {'model_name': 'IP Phone 8861', 'model_number': 'CP-8861-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '5', 'display': '5\" WVGA', 'poe': '802.3af', 'features': 'WiFi, Bluetooth'}, 'description': 'Premium IP phone'},
+            {'model_name': 'IP Phone 8865', 'model_number': 'CP-8865-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '5', 'display': '5\" WVGA', 'poe': '802.3af', 'features': 'Video, WiFi, Bluetooth'}, 'description': 'Flagship video phone'},
+            {'model_name': 'IP Phone 8865NR', 'model_number': 'CP-8865NR-K9', 'equipment_type': 'phone', 'is_rackmount': False, 'specifications': {'lines': '5', 'display': '5\" WVGA', 'poe': '802.3af', 'features': 'Video, WiFi, Bluetooth, NFC'}, 'description': 'Flagship phone with NFC'},
+            
+            # Catalyst 9100 Wireless APs - 25 models
+            {'model_name': 'Catalyst 9105AXI', 'model_number': 'C9105AXI-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual', 'max_rate': '1.5 Gbps', 'mimo': '2x2', 'poe': '802.3at'}, 'description': 'WiFi 6 indoor AP'},
+            {'model_name': 'Catalyst 9105AXE', 'model_number': 'C9105AXE-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual', 'max_rate': '1.5 Gbps', 'mimo': '2x2', 'poe': '802.3at'}, 'description': 'WiFi 6 external AP'},
+            {'model_name': 'Catalyst 9105AXW', 'model_number': 'C9105AXW-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual', 'max_rate': '1.5 Gbps', 'mimo': '2x2', 'poe': '802.3at'}, 'description': 'WiFi 6 wall AP'},
+            {'model_name': 'Catalyst 9115AXI', 'model_number': 'C9115AXI-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual', 'max_rate': '3.9 Gbps', 'mimo': '4x4', 'poe': '802.3at'}, 'description': 'WiFi 6 high-perf indoor'},
+            {'model_name': 'Catalyst 9115AXE', 'model_number': 'C9115AXE-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual', 'max_rate': '3.9 Gbps', 'mimo': '4x4', 'poe': '802.3at'}, 'description': 'WiFi 6 high-perf external'},
+            {'model_name': 'Catalyst 9115AXW', 'model_number': 'C9115AXW-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual', 'max_rate': '3.9 Gbps', 'mimo': '4x4', 'poe': '802.3at'}, 'description': 'WiFi 6 high-perf wall'},
+            {'model_name': 'Catalyst 9117AXI', 'model_number': 'C9117AXI-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual', 'max_rate': '4.8 Gbps', 'mimo': '4x4', 'poe': '802.3bt'}, 'description': 'Enterprise WiFi 6 indoor'},
+            {'model_name': 'Catalyst 9117AXE', 'model_number': 'C9117AXE-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual', 'max_rate': '4.8 Gbps', 'mimo': '4x4', 'poe': '802.3bt'}, 'description': 'Enterprise WiFi 6 external'},
+            {'model_name': 'Catalyst 9117AXW', 'model_number': 'C9117AXW-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual', 'max_rate': '4.8 Gbps', 'mimo': '4x4', 'poe': '802.3bt'}, 'description': 'Enterprise WiFi 6 wall'},
+            {'model_name': 'Catalyst 9120AXI', 'model_number': 'C9120AXI-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual', 'max_rate': '5.4 Gbps', 'mimo': '8x8', 'poe': '802.3bt'}, 'description': 'Premium WiFi 6 indoor'},
+            {'model_name': 'Catalyst 9120AXE', 'model_number': 'C9120AXE-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual', 'max_rate': '5.4 Gbps', 'mimo': '8x8', 'poe': '802.3bt'}, 'description': 'Premium WiFi 6 external'},
+            {'model_name': 'Catalyst 9120AXP', 'model_number': 'C9120AXP-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6', 'bands': 'Dual', 'max_rate': '5.4 Gbps', 'mimo': '8x8', 'poe': '802.3bt'}, 'description': 'Premium WiFi 6 plenum'},
+            {'model_name': 'Catalyst 9124AXI', 'model_number': 'C9124AXI-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6E', 'bands': 'Tri-band', 'max_rate': '7.8 Gbps', 'mimo': '4x4', 'poe': '802.3bt'}, 'description': 'WiFi 6E indoor AP'},
+            {'model_name': 'Catalyst 9124AXE', 'model_number': 'C9124AXE-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6E', 'bands': 'Tri-band', 'max_rate': '7.8 Gbps', 'mimo': '4x4', 'poe': '802.3bt'}, 'description': 'WiFi 6E external AP'},
+            {'model_name': 'Catalyst 9124AXD', 'model_number': 'C9124AXD-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6E', 'bands': 'Tri-band', 'max_rate': '7.8 Gbps', 'mimo': '4x4', 'poe': '802.3bt'}, 'description': 'WiFi 6E directional AP'},
+            {'model_name': 'Catalyst 9130AXI', 'model_number': 'C9130AXI-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6E', 'bands': 'Tri-band', 'max_rate': '10.4 Gbps', 'mimo': '4x4', 'poe': '802.3bt'}, 'description': 'Premium WiFi 6E indoor'},
+            {'model_name': 'Catalyst 9130AXE', 'model_number': 'C9130AXE-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6E', 'bands': 'Tri-band', 'max_rate': '10.4 Gbps', 'mimo': '4x4', 'poe': '802.3bt'}, 'description': 'Premium WiFi 6E external'},
+            {'model_name': 'Catalyst 9136I', 'model_number': 'C9136I-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6E', 'bands': 'Tri-band', 'max_rate': '15.7 Gbps', 'mimo': '8x8', 'poe': '802.3bt'}, 'description': 'Flagship WiFi 6E indoor'},
+            {'model_name': 'Catalyst 9136E', 'model_number': 'C9136E-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6E', 'bands': 'Tri-band', 'max_rate': '15.7 Gbps', 'mimo': '8x8', 'poe': '802.3bt'}, 'description': 'Flagship WiFi 6E external'},
+            {'model_name': 'Catalyst 9162I', 'model_number': 'C9162I-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 6E', 'bands': 'Tri-band', 'max_rate': '18 Gbps', 'mimo': '8x8', 'poe': '802.3bt'}, 'description': 'Ultra-high-density WiFi 6E'},
+            {'model_name': 'Catalyst 9164I', 'model_number': 'C9164I-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 7', 'bands': 'Tri-band', 'max_rate': '23 Gbps', 'mimo': '8x8', 'poe': '802.3bt'}, 'description': 'WiFi 7 flagship indoor'},
+            {'model_name': 'Catalyst 9164E', 'model_number': 'C9164E-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 7', 'bands': 'Tri-band', 'max_rate': '23 Gbps', 'mimo': '8x8', 'poe': '802.3bt'}, 'description': 'WiFi 7 flagship external'},
+            {'model_name': 'Catalyst 9166I', 'model_number': 'C9166I-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 7', 'bands': 'Tri-band', 'max_rate': '30 Gbps', 'mimo': '16x16', 'poe': '802.3bt'}, 'description': 'WiFi 7 ultra-capacity'},
+            {'model_name': 'Catalyst 9166E', 'model_number': 'C9166E-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 7', 'bands': 'Tri-band', 'max_rate': '30 Gbps', 'mimo': '16x16', 'poe': '802.3bt'}, 'description': 'WiFi 7 ultra-cap external'},
+            {'model_name': 'Catalyst 9178I', 'model_number': 'C9178I-A', 'equipment_type': 'access_point', 'is_rackmount': False, 'specifications': {'radio': 'WiFi 7', 'bands': 'Tri-band', 'max_rate': '40 Gbps', 'mimo': '16x16', 'poe': '802.3bt'}, 'description': 'Next-gen WiFi 7 indoor'},
+
         ]
 
         for eq_data in equipment:

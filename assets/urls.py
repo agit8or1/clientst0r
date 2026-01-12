@@ -5,6 +5,7 @@ from django.urls import path
 from . import views
 from . import relationship_views
 from . import quick_views
+from . import port_config_views
 
 app_name = 'assets'
 
@@ -41,4 +42,15 @@ urlpatterns = [
     path('equipment-models/create/', views.equipment_model_create, name='equipment_model_create'),
     path('equipment-models/<int:pk>/', views.equipment_model_detail, name='equipment_model_detail'),
     path('equipment-models/<int:pk>/edit/', views.equipment_model_edit, name='equipment_model_edit'),
+
+    # Port Configuration
+    path('port-configs/', port_config_views.port_config_list, name='port_config_list'),
+    path('port-configs/create/', port_config_views.port_config_create, name='port_config_create'),
+    path('port-configs/<int:pk>/', port_config_views.port_config_detail, name='port_config_detail'),
+    path('port-configs/<int:pk>/edit/', port_config_views.port_config_edit, name='port_config_edit'),
+    path('port-configs/<int:pk>/delete/', port_config_views.port_config_delete, name='port_config_delete'),
+
+    # Port Configuration API
+    path('api/port-configs/<int:pk>/ports/', port_config_views.port_config_api_ports, name='port_config_api_ports'),
+    path('api/equipment-model/<int:pk>/image/', port_config_views.equipment_model_image_api, name='equipment_model_image_api'),
 ]

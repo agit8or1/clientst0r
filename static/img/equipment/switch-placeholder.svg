@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 150" width="400" height="150">
+  <defs>
+    <linearGradient id="switchGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a5568;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2d3748;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Switch body -->
+  <rect x="20" y="30" width="360" height="90" rx="5" fill="url(#switchGrad)" stroke="#1a202c" stroke-width="2"/>
+
+  <!-- Ports row 1 -->
+  <g id="ports-row1">
+    <rect x="40" y="50" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="60" y="50" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="80" y="50" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="100" y="50" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="120" y="50" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="140" y="50" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="160" y="50" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="180" y="50" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+  </g>
+
+  <!-- Ports row 2 -->
+  <g id="ports-row2">
+    <rect x="40" y="90" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="60" y="90" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="80" y="90" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="100" y="90" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="120" y="90" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="140" y="90" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="160" y="90" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+    <rect x="180" y="90" width="12" height="20" rx="2" fill="#e2e8f0" stroke="#cbd5e0"/>
+  </g>
+
+  <!-- Uplink ports (SFP+) -->
+  <rect x="250" y="60" width="20" height="40" rx="3" fill="#f7fafc" stroke="#cbd5e0" stroke-width="2"/>
+  <rect x="280" y="60" width="20" height="40" rx="3" fill="#f7fafc" stroke="#cbd5e0" stroke-width="2"/>
+  <rect x="310" y="60" width="20" height="40" rx="3" fill="#f7fafc" stroke="#cbd5e0" stroke-width="2"/>
+  <rect x="340" y="60" width="20" height="40" rx="3" fill="#f7fafc" stroke="#cbd5e0" stroke-width="2"/>
+
+  <!-- LEDs -->
+  <circle cx="226" y="60" r="3" fill="#48bb78"/>
+  <circle cx="226" y="75" r="3" fill="#ed8936"/>
+  <circle cx="226" y="90" r="3" fill="#4299e1"/>
+
+  <!-- Label -->
+  <text x="200" y="25" font-family="Arial, sans-serif" font-size="16" fill="#2d3748" font-weight="bold">Network Switch</text>
+</svg>
