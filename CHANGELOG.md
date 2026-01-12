@@ -5,6 +5,25 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.17] - 2026-01-12
+
+### 🐛 Bug Fixes
+
+- **Fix Systemd Service Detection**
+  - Use full path `/usr/bin/systemctl` instead of `systemctl` in _is_systemd_service()
+  - Resolves PATH issues when running inside Gunicorn
+  - Added better error logging to diagnose restart failures
+  - Log systemd check result explicitly for debugging
+
+### 🔍 Enhanced Debugging
+
+- Added log message showing systemd service check result
+- Warning message when restart is skipped (not running as systemd service)
+- Better exception handling in _is_systemd_service()
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.16] - 2026-01-12
 
 ### ✅ Verification Release
