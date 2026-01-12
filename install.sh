@@ -144,6 +144,27 @@ if [ "$EXISTING_INSTALL" = true ]; then
         1)
             print_info "Starting upgrade process..."
 
+            # Check for .env file
+            if [ ! -f "$INSTALL_DIR/.env" ]; then
+                print_error ".env file not found!"
+                print_error "The upgrade requires an existing .env configuration file."
+                echo ""
+                echo "Please restore your .env file or use option 3 (Clean Install)"
+                exit 1
+            fi
+
+            # Verify .env has required keys
+            if ! grep -q "SECRET_KEY" "$INSTALL_DIR/.env"; then
+                print_error ".env file is missing SECRET_KEY!"
+                print_error "Your .env file is corrupted or incomplete."
+                echo ""
+                echo "You need to restore a backup .env file or regenerate it."
+                echo "Backup file location: $INSTALL_DIR/.env.backup"
+                exit 1
+            fi
+
+            print_status "Configuration file verified"
+
             # Stop service and kill any gunicorn processes
             print_info "Stopping service..."
             sudo systemctl stop huduglue-gunicorn.service 2>/dev/null || true
@@ -158,6 +179,18 @@ if [ "$EXISTING_INSTALL" = true ]; then
             # Check if venv exists, create if missing
             if [ ! -d "venv" ] || [ ! -f "venv/bin/activate" ]; then
                 print_warning "Virtual environment not found, creating..."
+
+                # Check write permissions
+                if [ ! -w "$INSTALL_DIR" ]; then
+                    print_error "No write permission in $INSTALL_DIR"
+                    print_error "The directory is owned by: $(stat -c '%U:%G' "$INSTALL_DIR")"
+                    print_error "Current user: $USER"
+                    echo ""
+                    echo "Fix permissions with:"
+                    echo "  sudo chown -R $USER:$USER $INSTALL_DIR"
+                    exit 1
+                fi
+
                 python3.12 -m venv venv
                 if [ ! -f "venv/bin/activate" ]; then
                     print_error "Failed to create virtual environment"

@@ -3,6 +3,12 @@
 from django.db import migrations, models
 
 
+def set_default_auth_source(apps, schema_editor):
+    """Set auth_source='local' for all existing UserProfile records."""
+    UserProfile = apps.get_model('accounts', 'UserProfile')
+    UserProfile.objects.filter(auth_source='').update(auth_source='local')
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -14,7 +20,6 @@ class Migration(migrations.Migration):
             model_name='userprofile',
             name='auth_source',
             field=models.CharField(
-                blank=True,
                 choices=[
                     ('local', 'Local'),
                     ('ldap', 'LDAP/Active Directory'),
@@ -30,8 +35,11 @@ class Migration(migrations.Migration):
             name='azure_ad_oid',
             field=models.CharField(
                 blank=True,
+                default='',
                 help_text='Azure AD Object ID (OID)',
                 max_length=255
             ),
         ),
+        # Set default for existing records
+        migrations.RunPython(set_default_auth_source, migrations.RunPython.noop),
     ]
