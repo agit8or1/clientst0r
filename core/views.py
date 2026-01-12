@@ -66,7 +66,7 @@ def system_updates(request):
 
     if not update_info:
         update_info = updater.check_for_updates()
-        cache.set(cache_key, update_info, 3600)  # Cache for 1 hour
+        cache.set(cache_key, update_info, 300)  # Cache for 5 minutes
 
     # Get git status
     git_status = updater.get_git_status()
@@ -109,7 +109,7 @@ def check_updates_now(request):
     update_info = updater.check_for_updates()
 
     # Update cache
-    cache.set('system_update_check', update_info, 3600)
+    cache.set('system_update_check', update_info, 300)  # Cache for 5 minutes
 
     # Log the check
     AuditLog.objects.create(
