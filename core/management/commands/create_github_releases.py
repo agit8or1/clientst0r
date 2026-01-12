@@ -201,6 +201,30 @@ The key must be exactly 44 characters (base64-encoded 32 bytes).
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.6': {
+                'name': 'v2.14.6 - Debug Output Removal',
+                'body': '''## 🐛 Bug Fixes
+
+### System Updates Page
+- Removed debug output from System Updates page
+- Cleaned up temporary debugging code added in previous version
+- Improved auto-update testing workflow
+
+## 🔧 Technical Details
+
+- Removed debug alert box showing update_available, current_version, latest_version
+- Clean interface for production auto-update feature
+- Ensures clean testing of auto-update functionality
+
+## 🎯 What's Fixed
+
+1. ✅ Removed yellow debug warning box from System Updates page
+2. ✅ Clean production-ready interface
+3. ✅ Proper version bump for testing auto-update from 2.14.5 → 2.14.6
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 
