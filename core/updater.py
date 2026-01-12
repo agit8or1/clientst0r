@@ -121,8 +121,9 @@ class UpdateService:
             logger.info("Installing Python dependencies")
             pip_output = self._run_command([
                 'pip', 'install', '-r',
-                os.path.join(self.base_dir, 'requirements.txt'),
-                '--upgrade'
+                os.path.join(self.base_dir, 'requirements.txt')
+                # Note: Removed --upgrade to avoid rebuilding compiled packages like python-ldap
+                # Git pull already brought new code, we only need to install missing packages
             ])
             result['steps_completed'].append('install_requirements')
             result['output'].append(f"Pip install: {pip_output[:500]}")  # Truncate output
