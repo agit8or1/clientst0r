@@ -623,6 +623,41 @@ If it says "False", check PATH and systemctl availability in the Gunicorn enviro
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.18': {
+                'name': 'v2.14.18 - Final Auto-Update Test',
+                'body': '''## 🧪 Test Release
+
+### Final Test of Auto-Update with Systemd Fix
+
+This release tests the systemd service detection fix from v2.14.17.
+
+**What to expect when updating from v2.14.17 → v2.14.18:**
+
+The logs should now show:
+```
+INFO ... updater Systemd service check result: True
+INFO ... updater Restarting systemd service
+INFO ... updater Service restart scheduled: ...
+```
+
+Then the service will automatically restart and load v2.14.18.
+
+**Previous versions (v2.14.15, v2.14.16) did not show these log messages**, which is why the restart never happened.
+
+### 🔍 How to Verify
+
+After clicking "Apply Update", watch the logs:
+```bash
+sudo journalctl -u huduglue-gunicorn.service -f
+```
+
+You should see the systemd check pass and the restart command execute.
+
+**If successful, the auto-update system is COMPLETE!** ✅
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 

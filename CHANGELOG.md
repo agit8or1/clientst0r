@@ -5,6 +5,19 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.18] - 2026-01-12
+
+### 🧪 Test Release
+
+- **Final Test of Auto-Update with Systemd Fix**
+  - Test release to verify v2.14.17 systemd detection fix works
+  - Should show "Systemd service check result: True" in logs
+  - Service should restart automatically
+  - Completes the auto-update system implementation
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.17] - 2026-01-12
 
 ### 🐛 Bug Fixes
