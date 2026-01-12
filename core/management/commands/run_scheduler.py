@@ -57,6 +57,8 @@ class Command(BaseCommand):
             self.run_psa_sync()
         elif task.task_type == 'password_breach_scan':
             self.run_password_breach_scan()
+        elif task.task_type == 'equipment_catalog_update':
+            self.run_equipment_catalog_update()
         elif task.task_type == 'ssl_expiry_check':
             self.run_ssl_expiry_check()
         elif task.task_type == 'domain_expiry_check':
@@ -85,6 +87,14 @@ class Command(BaseCommand):
             call_command('check_password_breaches', verbosity=1)
         except Exception as e:
             self.stdout.write(f"    Password breach scan failed: {e}")
+
+    def run_equipment_catalog_update(self):
+        """Update equipment catalog with new hardware releases."""
+        from django.core.management import call_command
+        try:
+            call_command('update_equipment_catalog', verbosity=1)
+        except Exception as e:
+            self.stdout.write(f"    Equipment catalog update failed: {e}")
 
     def run_ssl_expiry_check(self):
         """Check for expiring SSL certificates and send notifications."""

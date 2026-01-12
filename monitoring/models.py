@@ -411,6 +411,16 @@ class RackDevice(BaseModel):
     # Optional link to asset
     asset = models.ForeignKey(Asset, on_delete=models.SET_NULL, null=True, blank=True, help_text="Link to Asset", related_name='rack_devices')
 
+    # Equipment model from vendor database (alternative to asset link)
+    equipment_model = models.ForeignKey(
+        'assets.EquipmentModel',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='rack_devices',
+        help_text="Equipment model from vendor database"
+    )
+
     # Visual
     color = models.CharField(max_length=7, default='#0d6efd', help_text="Hex color for visualization")
     photo = models.ImageField(upload_to='rack_devices/', null=True, blank=True, help_text="Device photo")

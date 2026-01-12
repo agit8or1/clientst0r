@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block title %}Quick Create Patch Panels - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'monitoring:patch_panel_list' %}">Patch Panels</a></li>
+                    <li class="breadcrumb-item active">Quick Create</li>
+                </ol>
+            </nav>
+            <h2>Quick Create Patch Panels</h2>
+            <p class="text-muted">Quickly create multiple patch panels at once</p>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="id_rack" class="form-label">Rack *</label>
+                            <select name="rack" id="id_rack" class="form-select" required>
+                                <option value="">Select rack</option>
+                                {% for rack in racks %}
+                                    <option value="{{ rack.pk }}">{{ rack.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">All patch panels will be created in this rack</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_count" class="form-label">Number of Patch Panels *</label>
+                            <input type="number" name="count" id="id_count" class="form-control" required
+                                   min="1" max="20" value="4" onchange="updatePreview()">
+                            <small class="form-text text-muted">How many patch panels to create (max 20)</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_port_count" class="form-label">Port Count *</label>
+                            <select name="port_count" id="id_port_count" class="form-select" required onchange="updatePreview()">
+                                <option value="8">8 Ports (1U each)</option>
+                                <option value="12">12 Ports (1U each)</option>
+                                <option value="24" selected>24 Ports (1U each)</option>
+                                <option value="48">48 Ports (2U each)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_name_prefix" class="form-label">Name Prefix *</label>
+                            <input type="text" name="name_prefix" id="id_name_prefix" class="form-control" required
+                                   value="PP" placeholder="e.g., PP, Patch-Panel" onchange="updatePreview()">
+                            <small class="form-text text-muted">Panels will be named: Prefix-01, Prefix-02, etc.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_start_position" class="form-label">Starting U Position *</label>
+                            <input type="number" name="start_position" id="id_start_position" class="form-control" required
+                                   min="1" max="42" value="1" onchange="updatePreview()">
+                            <small class="form-text text-muted">Starting rack position (panels will stack upward)</small>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-bolt"></i> Create Patch Panels
+                            </button>
+                            <a href="{% url 'monitoring:patch_panel_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Preview</h5>
+                </div>
+                <div class="card-body">
+                    <div id="preview-container">
+                        <!-- Preview will be rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Create Tips</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li>All ports will be initialized as "available" status</li>
+                        <li>All ports will default to Cat6 cable type</li>
+                        <li>Patch panels will automatically stack based on their U size</li>
+                        <li>You can edit individual ports after creation</li>
+                        <li>24-port panels are 1U each, 48-port panels are 2U each</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updatePreview() {
+    const count = parseInt(document.getElementById('id_count').value) || 1;
+    const portCount = parseInt(document.getElementById('id_port_count').value) || 24;
+    const prefix = document.getElementById('id_name_prefix').value || 'PP';
+    const startPos = parseInt(document.getElementById('id_start_position').value) || 1;
+
+    // Determine rack units per panel
+    const rackUnitsMap = {8: 1, 12: 1, 24: 1, 48: 2};
+    const rackUnits = rackUnitsMap[portCount] || 1;
+
+    const preview = document.getElementById('preview-container');
+    preview.innerHTML = '<h6 class="mb-3">Will create:</h6>';
+
+    const list = document.createElement('div');
+    list.className = 'list-group';
+
+    let currentPos = startPos;
+    for (let i = 1; i <= count; i++) {
+        const item = document.createElement('div');
+        item.className = 'list-group-item';
+        item.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${prefix}-${i.toString().padStart(2, '0')}</strong>
+                    <br>
+                    <small class="text-muted">${portCount} ports</small>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-secondary">Position: ${currentPos}U</span>
+                    <span class="badge bg-info">${rackUnits}U Height</span>
+                </div>
+            </div>
+        `;
+        list.appendChild(item);
+        currentPos += rackUnits;
+    }
+
+    preview.appendChild(list);
+
+    // Add summary
+    const summary = document.createElement('div');
+    summary.className = 'alert alert-info mt-3 mb-0';
+    summary.innerHTML = `
+        <strong>Total:</strong> ${count} patch panels, ${count * portCount} total ports,
+        ${count * rackUnits}U total height (${startPos}U to ${currentPos - 1}U)
+    `;
+    preview.appendChild(summary);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    updatePreview();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}{{ closet.name }} - HuduGlue{% endblock %}
+
+{% block extra_css %}
+<style>
+.closet-visual {
+    border: 2px solid #495057;
+    background: #212529;
+    padding: 8px;
+    border-radius: 6px;
+    max-width: 250px;
+}
+.closet-unit {
+    height: 22px;
+    border: 1px solid #495057;
+    background: #343a40;
+    margin-bottom: 1px;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    font-size: 0.7rem;
+    color: #adb5bd;
+}
+.closet-unit-number {
+    width: 24px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.65rem;
+}
+.closet-device {
+    color: white;
+    cursor: pointer;
+}
+.closet-device:hover {
+    opacity: 0.9;
+}
+.closet-device-multi {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+[data-bs-theme="dark"] .closet-visual {
+    background: #0d1117;
+}
+[data-bs-theme="dark"] .closet-unit {
+    background: #1a1d23;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="fas fa-network-wired"></i> {{ closet.name }}</h2>
+    <div>
+        <a href="{% url 'monitoring:rack_device_create' closet.pk %}" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> Add Device</a>
+        <div class="btn-group btn-group-sm ms-2">
+            <a href="{% url 'monitoring:network_closet_edit' closet.pk %}" class="btn btn-primary"><i class="fas fa-edit"></i></a>
+            <a href="{% url 'monitoring:network_closet_delete' closet.pk %}" class="btn btn-danger"><i class="fas fa-trash"></i></a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Info Card (Left) -->
+    <div class="col-lg-4 col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-info-circle"></i> Network Closet Details</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td class="border-0 px-0"><strong>Type</strong></td>
+                        <td class="border-0 px-0 text-end"><span class="badge bg-info">{{ closet.get_rack_type_display }}</span></td>
+                    </tr>
+                    <tr>
+                        <td class="border-0 px-0"><strong>Building</strong></td>
+                        <td class="border-0 px-0 text-end">{{ closet.building|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="border-0 px-0"><strong>Floor</strong></td>
+                        <td class="border-0 px-0 text-end">{{ closet.floor|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="border-0 px-0"><strong>Room</strong></td>
+                        <td class="border-0 px-0 text-end">{{ closet.room|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="border-0 px-0"><strong>Location</strong></td>
+                        <td class="border-0 px-0 text-end">{{ closet.location|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="border-0 px-0"><strong>Size</strong></td>
+                        <td class="border-0 px-0 text-end"><span class="badge bg-secondary">{{ closet.units }}U</span></td>
+                    </tr>
+                    <tr>
+                        <td class="border-0 px-0"><strong>Available</strong></td>
+                        <td class="border-0 px-0 text-end"><span class="badge bg-success">{{ closet.available_units }}U</span></td>
+                    </tr>
+                    {% if closet.patch_panel_count > 0 %}
+                    <tr>
+                        <td class="border-0 px-0"><strong>Patch Panels</strong></td>
+                        <td class="border-0 px-0 text-end"><span class="badge bg-primary">{{ closet.patch_panel_count }}</span></td>
+                    </tr>
+                    {% endif %}
+                    {% if closet.total_port_count > 0 %}
+                    <tr>
+                        <td class="border-0 px-0"><strong>Total Ports</strong></td>
+                        <td class="border-0 px-0 text-end"><span class="badge bg-success">{{ closet.total_port_count }}</span></td>
+                    </tr>
+                    {% endif %}
+                    {% if closet.power_capacity_watts %}
+                    <tr>
+                        <td class="border-0 px-0"><strong>Power</strong></td>
+                        <td class="border-0 px-0 text-end">{{ closet.power_allocated_watts }}/{{ closet.power_capacity_watts }}W</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" class="border-0 px-0">
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar {% if closet.power_utilization_percent > 80 %}bg-danger{% elif closet.power_utilization_percent > 60 %}bg-warning{% else %}bg-success{% endif %}"
+                                     style="width: {{ closet.power_utilization_percent }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ closet.power_utilization_percent }}% utilized</small>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        {% if closet.notes %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-sticky-note"></i> Notes</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ closet.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Main Content (Right) -->
+    <div class="col-lg-8 col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-server"></i> Mounted Devices <span class="badge bg-secondary">{{ devices.count }}</span></h5>
+            </div>
+            <div class="card-body">
+                {% if devices %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Position</th>
+                                <th>Device Name</th>
+                                <th>Height</th>
+                                <th>Power Draw</th>
+                                <th>Asset</th>
+                                <th width="80">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for device in devices %}
+                            <tr>
+                                <td><span class="badge bg-secondary">U{{ device.start_unit }}{% if device.units > 1 %}-U{{ device.end_unit }}{% endif %}</span></td>
+                                <td>
+                                    <div style="border-left: 4px solid {{ device.color }}; padding-left: 8px;">
+                                        <strong>{{ device.name }}</strong>
+                                    </div>
+                                </td>
+                                <td><span class="badge bg-info">{{ device.units }}U</span></td>
+                                <td>
+                                    {% if device.power_draw_watts %}
+                                    {{ device.power_draw_watts }}W
+                                    {% else %}—{% endif %}
+                                </td>
+                                <td>
+                                    {% if device.asset %}
+                                    <a href="{% url 'assets:asset_detail' device.asset.pk %}">{{ device.asset.name }}</a>
+                                    {% elif device.equipment_model %}
+                                    <small class="text-muted">{{ device.equipment_model.vendor.name }} {{ device.equipment_model.model_name }}</small>
+                                    {% else %}—{% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'monitoring:rack_device_edit' device.pk %}" class="btn btn-outline-secondary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'monitoring:rack_device_delete' device.pk %}" class="btn btn-outline-danger" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Visual Representation -->
+                <div class="mt-4">
+                    <h6><i class="fas fa-th"></i> Visual Layout</h6>
+                    <div class="closet-visual">
+                        {% for u in closet.units_display|slice:"::-1" %}
+                        {% with device=closet.get_device_at_unit|slice:":"|get_index:u %}
+                        {% if device %}
+                        <div class="closet-unit closet-device {% if device.units > 1 %}closet-device-multi{% endif %}"
+                             style="background-color: {{ device.color }};"
+                             title="{{ device.name }}">
+                            <span class="closet-unit-number">{{ u }}</span>
+                            <span class="flex-grow-1 text-truncate">{{ device.name }}</span>
+                        </div>
+                        {% else %}
+                        <div class="closet-unit">
+                            <span class="closet-unit-number">{{ u }}</span>
+                            <span class="flex-grow-1"></span>
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-server"></i>
+                    <h5>No Devices Mounted</h5>
+                    <p>Start adding network equipment to this closet.</p>
+                    <a href="{% url 'monitoring:rack_device_create' closet.pk %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Device
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

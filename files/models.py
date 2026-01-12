@@ -34,6 +34,8 @@ class Attachment(BaseModel):
         ('document', 'Document'),
         ('password', 'Password'),
         ('contact', 'Contact'),
+        ('vendor', 'Vendor'),
+        ('equipment_model', 'Equipment Model'),
     ]
 
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='attachments')

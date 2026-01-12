@@ -203,7 +203,7 @@
         <!-- Info Callout -->
         <div class="alert alert-primary mt-4">
             <i class="fas fa-info-circle"></i>
-            <strong>Note:</strong> Generation typically takes 10-30 seconds. The AI will design the layout based on your specifications and best practices for office space planning.
+            <strong>Note:</strong> Generation typically takes 30-90 seconds depending on building complexity. Complex buildings with many departments or infrastructure options may take up to 3 minutes. The AI will design the layout based on your specifications and best practices for office space planning. If it times out, try reducing the building size or disabling infrastructure options.
         </div>
     </div>
 </div>
@@ -223,19 +223,21 @@ function updateArea() {
 }
 
 // Add form submission handler to show progress
-document.getElementById('floorPlanForm').addEventListener('submit', function(e) {
-    // Check if already submitted to prevent double submission
-    if (this.dataset.submitting === 'true') {
+const form = document.getElementById('floorPlanForm');
+const submitBtn = document.querySelector('button[type="submit"]');
+let isSubmitting = false;
+
+form.addEventListener('submit', function(e) {
+    // Prevent double submission
+    if (isSubmitting) {
         e.preventDefault();
         return false;
     }
 
     // Mark as submitting
-    this.dataset.submitting = 'true';
-
-    const submitBtn = document.querySelector('button[type="submit"]');
+    isSubmitting = true;
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating floor plan with AI... This may take 15-30 seconds...';
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating floor plan with AI... This may take 30-90 seconds...';
 
     // Show overlay
     const overlay = document.createElement('div');
@@ -246,12 +248,41 @@ document.getElementById('floorPlanForm').addEventListener('submit', function(e) 
             <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
             <h4 style="color: #212529; margin-bottom: 1rem;">Generating Floor Plan with AI...</h4>
             <p style="color: #212529; margin-bottom: 0.5rem;">Claude is analyzing your building specifications and designing an optimal layout.</p>
-            <p style="color: #6c757d; font-size: 0.875rem; margin-bottom: 0;">This typically takes 15-30 seconds. Please wait...</p>
+            <p style="color: #6c757d; font-size: 0.875rem; margin-bottom: 0;">This may take 30-90 seconds for typical buildings, up to 3 minutes for complex layouts. Please wait...</p>
+            <p id="timeoutWarning" style="color: #dc3545; font-size: 0.875rem; margin-top: 1rem; display: none;">Taking longer than expected... Large or complex buildings may take up to 3 minutes. If this times out, please try again with a smaller building or fewer options.</p>
         </div>
     `;
     document.body.appendChild(overlay);
 
-    // Form will submit naturally after this event handler completes
+    // Show timeout warning after 90 seconds
+    setTimeout(() => {
+        const warning = document.getElementById('timeoutWarning');
+        if (warning) {
+            warning.style.display = 'block';
+        }
+    }, 90000);
+
+    // Reset form state after 3.5 minutes if still waiting (prevents permanent lock)
+    // Server timeout is 3 minutes (180s), so we wait a bit longer to get the response
+    setTimeout(() => {
+        const overlay = document.getElementById('generationOverlay');
+
+        if (isSubmitting) {
+            isSubmitting = false;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-magic"></i> Generate Floor Plan with AI';
+
+            if (overlay) {
+                overlay.remove();
+            }
+
+            // Show error message
+            alert('Request timed out after 3.5 minutes. This can happen with large buildings or complex requirements.\n\nTips:\n• Try reducing building dimensions\n• Reduce number of employees\n• Disable network/security infrastructure\n• Or try again - sometimes it\'s just API congestion');
+        }
+    }, 210000); // 210 seconds = 3.5 minutes (longer than server's 3 minute timeout)
+
+    // Allow form to submit naturally
+    return true;
 });
 </script>
 {% endblock %}

@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Port Configurations - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Port Configurations</h2>
+            <p class="text-muted">Manage network port and VLAN configurations for switches, routers, and firewalls</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'assets:port_config_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> New Configuration
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card">
+        <div class="card-body">
+            {% if configs %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Configuration Name</th>
+                                <th>Equipment Model</th>
+                                <th>Asset</th>
+                                <th>Ports</th>
+                                <th>VLANs</th>
+                                <th>Type</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for config in configs %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'assets:port_config_detail' config.pk %}">
+                                            <strong>{{ config.configuration_name }}</strong>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'assets:equipment_model_detail' config.equipment_model.pk %}">
+                                            {{ config.equipment_model.vendor.name }} {{ config.equipment_model.model_name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if config.asset %}
+                                            <a href="{% url 'assets:asset_detail' config.asset.pk %}">
+                                                {{ config.asset.name }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">
+                                            {{ config.get_port_count }} ports
+                                        </span>
+                                        <span class="badge bg-success">
+                                            {{ config.get_active_port_count }} active
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if config.vlans %}
+                                            <span class="badge bg-secondary">
+                                                {{ config.vlans|length }} VLANs
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if config.is_template %}
+                                            <span class="badge bg-primary">Template</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Configuration</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ config.created_at|date:"M d, Y" }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'assets:port_config_detail' config.pk %}"
+                                               class="btn btn-outline-primary" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'assets:port_config_edit' config.pk %}"
+                                               class="btn btn-outline-secondary" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'assets:port_config_delete' config.pk %}"
+                                               class="btn btn-outline-danger" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-network-wired fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No port configurations yet.</p>
+                    <a href="{% url 'assets:port_config_create' %}" class="btn btn-primary">
+                        Create Your First Configuration
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

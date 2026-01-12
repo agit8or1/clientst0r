@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} Network Closet - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-network-wired"></i> {{ action }} Network Closet</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">Name *</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors }}</div>{% endif %}
+                        <small class="form-text text-muted">e.g., "IDF Floor 2", "Network Closet 2A", "MDF"</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.rack_type.id_for_label }}" class="form-label">Closet Type *</label>
+                        {{ form.rack_type }}
+                        {% if form.rack_type.errors %}<div class="invalid-feedback d-block">{{ form.rack_type.errors }}</div>{% endif %}
+                    </div>
+
+                    <hr>
+                    <h5><i class="fas fa-map-marker-alt"></i> Location</h5>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.building.id_for_label }}" class="form-label">Building</label>
+                            {{ form.building }}
+                            {% if form.building.errors %}<div class="invalid-feedback d-block">{{ form.building.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ form.floor.id_for_label }}" class="form-label">Floor</label>
+                            {{ form.floor }}
+                            {% if form.floor.errors %}<div class="invalid-feedback d-block">{{ form.floor.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ form.room.id_for_label }}" class="form-label">Room</label>
+                            {{ form.room }}
+                            {% if form.room.errors %}<div class="invalid-feedback d-block">{{ form.room.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.location.id_for_label }}" class="form-label">Additional Location Details</label>
+                        {{ form.location }}
+                        {% if form.location.errors %}<div class="invalid-feedback d-block">{{ form.location.errors }}</div>{% endif %}
+                        <small class="form-text text-muted">Any additional location information</small>
+                    </div>
+
+                    <hr>
+                    <h5><i class="fas fa-ruler"></i> Physical Specifications</h5>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.units.id_for_label }}" class="form-label">Rack Units (U) *</label>
+                            {{ form.units }}
+                            {% if form.units.errors %}<div class="invalid-feedback d-block">{{ form.units.errors }}</div>{% endif %}
+                            <small class="form-text text-muted">Standard wall mount: 6-12U</small>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.width_inches.id_for_label }}" class="form-label">Width (inches)</label>
+                            {{ form.width_inches }}
+                            {% if form.width_inches.errors %}<div class="invalid-feedback d-block">{{ form.width_inches.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.depth_inches.id_for_label }}" class="form-label">Depth (inches)</label>
+                            {{ form.depth_inches }}
+                            {% if form.depth_inches.errors %}<div class="invalid-feedback d-block">{{ form.depth_inches.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h5><i class="fas fa-network-wired"></i> Network Equipment</h5>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.patch_panel_count.id_for_label }}" class="form-label">Number of Patch Panels</label>
+                            {{ form.patch_panel_count }}
+                            {% if form.patch_panel_count.errors %}<div class="invalid-feedback d-block">{{ form.patch_panel_count.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.total_port_count.id_for_label }}" class="form-label">Total Network Ports</label>
+                            {{ form.total_port_count }}
+                            {% if form.total_port_count.errors %}<div class="invalid-feedback d-block">{{ form.total_port_count.errors }}</div>{% endif %}
+                            <small class="form-text text-muted">Total ports across all patch panels</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.pdu_count.id_for_label }}" class="form-label">Number of PDUs</label>
+                            {{ form.pdu_count }}
+                            {% if form.pdu_count.errors %}<div class="invalid-feedback d-block">{{ form.pdu_count.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h5><i class="fas fa-plug"></i> Power & Cooling</h5>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.power_capacity_watts.id_for_label }}" class="form-label">Power Capacity (watts)</label>
+                            {{ form.power_capacity_watts }}
+                            {% if form.power_capacity_watts.errors %}<div class="invalid-feedback d-block">{{ form.power_capacity_watts.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.ambient_temp_f.id_for_label }}" class="form-label">Ambient Temperature (°F)</label>
+                            {{ form.ambient_temp_f }}
+                            {% if form.ambient_temp_f.errors %}<div class="invalid-feedback d-block">{{ form.ambient_temp_f.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}<div class="invalid-feedback d-block">{{ form.notes.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% if closet %}{% url 'monitoring:network_closet_detail' closet.pk %}{% else %}{% url 'monitoring:network_closet_list' %}{% endif %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {{ action }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

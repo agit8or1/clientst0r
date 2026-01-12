@@ -3,6 +3,7 @@ Monitoring URL configuration
 """
 from django.urls import path
 from . import views
+from . import patch_panel_views
 
 app_name = 'monitoring'
 
@@ -44,4 +45,20 @@ urlpatterns = [
     path('ipam/subnets/<int:subnet_id>/ips/create/', views.ip_address_create, name='ip_address_create'),
     path('ipam/ips/<int:pk>/edit/', views.ip_address_edit, name='ip_address_edit'),
     path('ipam/ips/<int:pk>/delete/', views.ip_address_delete, name='ip_address_delete'),
+
+    # Network Closets
+    path('closets/', views.network_closet_list, name='network_closet_list'),
+    path('closets/create/', views.network_closet_create, name='network_closet_create'),
+    path('closets/<int:pk>/', views.network_closet_detail, name='network_closet_detail'),
+    path('closets/<int:pk>/edit/', views.network_closet_edit, name='network_closet_edit'),
+    path('closets/<int:pk>/delete/', views.network_closet_delete, name='network_closet_delete'),
+
+    # Patch Panels
+    path('patch-panels/', patch_panel_views.patch_panel_list, name='patch_panel_list'),
+    path('patch-panels/create/', patch_panel_views.patch_panel_create, name='patch_panel_create'),
+    path('patch-panels/quick-create/', patch_panel_views.patch_panel_quick_create, name='patch_panel_quick_create'),
+    path('patch-panels/<int:pk>/', patch_panel_views.patch_panel_detail, name='patch_panel_detail'),
+    path('patch-panels/<int:pk>/edit/', patch_panel_views.patch_panel_edit, name='patch_panel_edit'),
+    path('patch-panels/<int:pk>/delete/', patch_panel_views.patch_panel_delete, name='patch_panel_delete'),
+    path('api/patch-panels/<int:pk>/ports/', patch_panel_views.patch_panel_api_ports, name='patch_panel_api_ports'),
 ]

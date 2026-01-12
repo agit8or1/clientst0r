@@ -56,6 +56,18 @@ class Asset(BaseModel):
     asset_type = models.CharField(max_length=50, choices=ASSET_TYPES, default='other')
     asset_tag = models.CharField(max_length=100, blank=True)
     serial_number = models.CharField(max_length=255, blank=True)
+
+    # Equipment model from vendor database (optional, auto-fills fields below)
+    equipment_model = models.ForeignKey(
+        'EquipmentModel',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets',
+        help_text="Select equipment model from vendor database (auto-fills manufacturer/model)"
+    )
+
+    # Keep existing fields for backward compatibility
     manufacturer = models.CharField(max_length=255, blank=True)
     model = models.CharField(max_length=255, blank=True)
 
@@ -91,6 +103,33 @@ class Asset(BaseModel):
 
     def __str__(self):
         return f"{self.name} ({self.get_asset_type_display()})"
+
+    def save(self, *args, **kwargs):
+        """Auto-populate manufacturer/model from equipment_model if set."""
+        if self.equipment_model:
+            # Auto-fill from equipment model
+            self.manufacturer = self.equipment_model.vendor.name
+            self.model = self.equipment_model.model_name
+
+            # Auto-fill rack info if available
+            if self.equipment_model.is_rackmount:
+                self.is_rackmount = True
+                if self.equipment_model.rack_units:
+                    self.rack_units = self.equipment_model.rack_units
+
+        super().save(*args, **kwargs)
+
+    def get_equipment_specs(self):
+        """Get equipment specifications from linked model."""
+        if self.equipment_model:
+            return self.equipment_model.specifications
+        return {}
+
+    def get_equipment_image(self):
+        """Get equipment image from linked model."""
+        if self.equipment_model:
+            return self.equipment_model.get_primary_image()
+        return None
 
 
 class Relationship(BaseModel):
@@ -305,3 +344,313 @@ class FlexibleAsset(BaseModel):
                 'value': self.get_field_value(field.slug),
             })
         return fields
+
+
+# ============================================================================
+# Hardware Vendor & Equipment Database
+# ============================================================================
+
+class Vendor(BaseModel):
+    """
+    Hardware vendor/manufacturer (Dell, HP, Cisco, etc).
+    Global model - shared across all organizations.
+    """
+    name = models.CharField(
+        max_length=200,
+        unique=True,
+        help_text="Vendor name (e.g., Dell, HP, Cisco)"
+    )
+
+    slug = models.SlugField(
+        max_length=200,
+        unique=True,
+        help_text="URL-safe identifier"
+    )
+
+    website = models.URLField(
+        blank=True,
+        help_text="Vendor website URL"
+    )
+
+    support_url = models.URLField(
+        blank=True,
+        help_text="Vendor support/documentation URL"
+    )
+
+    support_phone = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Vendor support phone number"
+    )
+
+    description = models.TextField(
+        blank=True,
+        help_text="Brief description of vendor"
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether vendor is actively used"
+    )
+
+    custom_fields = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional vendor metadata"
+    )
+
+    class Meta:
+        db_table = 'vendors'
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['is_active']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    def get_logo_attachment(self):
+        """Get vendor logo from Attachment model."""
+        from files.models import Attachment
+        return Attachment.objects.filter(
+            entity_type='vendor',
+            entity_id=self.id
+        ).first()
+
+
+class EquipmentModel(BaseModel):
+    """
+    Specific equipment model from a vendor (e.g., Dell PowerEdge R740).
+    Global model - shared across all organizations.
+    """
+    EQUIPMENT_TYPES = [
+        ('server', 'Server'),
+        ('workstation', 'Workstation'),
+        ('laptop', 'Laptop'),
+        ('switch', 'Network Switch'),
+        ('router', 'Router'),
+        ('firewall', 'Firewall'),
+        ('access_point', 'Wireless Access Point'),
+        ('storage', 'Storage Device'),
+        ('ups', 'UPS'),
+        ('pdu', 'Power Distribution Unit'),
+        ('patch_panel', 'Patch Panel'),
+        ('kvm', 'KVM Switch'),
+        ('phone', 'IP Phone'),
+        ('camera', 'IP Camera'),
+        ('other', 'Other'),
+    ]
+
+    vendor = models.ForeignKey(
+        Vendor,
+        on_delete=models.CASCADE,
+        related_name='equipment_models',
+        help_text="Equipment manufacturer"
+    )
+
+    model_name = models.CharField(
+        max_length=200,
+        help_text="Marketing/display name (e.g., PowerEdge R740)"
+    )
+
+    model_number = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Specific model/part number (e.g., R740XD)"
+    )
+
+    slug = models.SlugField(
+        max_length=250,
+        unique=True,
+        help_text="URL-safe identifier"
+    )
+
+    equipment_type = models.CharField(
+        max_length=50,
+        choices=EQUIPMENT_TYPES,
+        help_text="Type of equipment"
+    )
+
+    description = models.TextField(
+        blank=True,
+        help_text="Equipment description"
+    )
+
+    # Rack mounting
+    is_rackmount = models.BooleanField(
+        default=False,
+        help_text="Whether equipment is rackmountable"
+    )
+
+    rack_units = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Height in rack units (1U, 2U, etc.)"
+    )
+
+    # Physical specifications (JSONField for flexibility)
+    specifications = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="""Equipment specifications in JSON format"""
+    )
+
+    # Data sheet and documentation
+    datasheet_url = models.URLField(
+        blank=True,
+        help_text="Link to vendor datasheet/spec sheet"
+    )
+
+    documentation_url = models.URLField(
+        blank=True,
+        help_text="Link to user manual/documentation"
+    )
+
+    # EOL tracking
+    release_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Product release date"
+    )
+
+    eol_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="End of life date"
+    )
+
+    eos_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="End of support date"
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether model is actively used/sold"
+    )
+
+    custom_fields = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional model-specific metadata"
+    )
+
+    class Meta:
+        db_table = 'equipment_models'
+        ordering = ['vendor__name', 'model_name']
+        unique_together = [['vendor', 'model_name']]
+        indexes = [
+            models.Index(fields=['vendor', 'model_name']),
+            models.Index(fields=['equipment_type']),
+            models.Index(fields=['is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.vendor.name} {self.model_name}"
+
+    def get_display_name(self):
+        """Full display name with vendor."""
+        return str(self)
+
+    def get_images(self):
+        """Get all product images."""
+        from files.models import Attachment
+        return Attachment.objects.filter(
+            entity_type='equipment_model',
+            entity_id=self.id
+        ).order_by('created_at')
+
+    def get_primary_image(self):
+        """Get first/primary product image."""
+        return self.get_images().first()
+
+    def has_port_configuration(self):
+        """Check if equipment has port configuration."""
+        return self.equipment_type in ['switch', 'router', 'firewall', 'patch_panel']
+
+
+class NetworkPortConfiguration(BaseModel):
+    """
+    Port configuration for switches, routers, firewalls.
+    Organization-scoped - can be customized per organization.
+    """
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        help_text="Organization this configuration belongs to"
+    )
+
+    equipment_model = models.ForeignKey(
+        EquipmentModel,
+        on_delete=models.CASCADE,
+        related_name='port_configurations',
+        help_text="Equipment model this configuration is for"
+    )
+
+    # Can also be linked to specific asset instance
+    asset = models.ForeignKey(
+        'Asset',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='port_configurations',
+        help_text="Specific asset instance (optional)"
+    )
+
+    configuration_name = models.CharField(
+        max_length=200,
+        help_text="Configuration name (e.g., 'Default', 'Production VLAN Setup')"
+    )
+
+    # Port definitions stored as JSON
+    ports = models.JSONField(
+        default=list,
+        help_text="Port configuration array"
+    )
+
+    # VLAN definitions
+    vlans = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="VLAN definitions"
+    )
+
+    notes = models.TextField(
+        blank=True,
+        help_text="Configuration notes"
+    )
+
+    is_template = models.BooleanField(
+        default=False,
+        help_text="Whether this is a template configuration"
+    )
+
+    objects = OrganizationManager()
+
+    class Meta:
+        db_table = 'network_port_configurations'
+        ordering = ['equipment_model', 'configuration_name']
+        indexes = [
+            models.Index(fields=['equipment_model']),
+            models.Index(fields=['asset']),
+            models.Index(fields=['is_template']),
+        ]
+
+    def __str__(self):
+        if self.asset:
+            return f"{self.asset.name} - {self.configuration_name}"
+        return f"{self.equipment_model} - {self.configuration_name}"
+
+    def get_port_count(self):
+        """Get total number of ports."""
+        return len(self.ports)
+
+    def get_active_port_count(self):
+        """Get number of active/enabled ports."""
+        return len([p for p in self.ports if p.get('status') == 'active'])
+
+    def get_ports_by_vlan(self, vlan_id):
+        """Get all ports assigned to a specific VLAN."""
+        return [p for p in self.ports if p.get('vlan') == vlan_id]

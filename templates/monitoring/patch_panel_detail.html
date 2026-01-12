@@ -1,0 +1,433 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ patch_panel.name }} - Patch Panel - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .port-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 12px;
+        margin-top: 20px;
+    }
+    .port-card {
+        border: 2px solid #dee2e6;
+        border-radius: 6px;
+        padding: 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: white;
+    }
+    .port-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .port-card.in-use {
+        background: #d1e7dd;
+        border-color: #198754;
+    }
+    .port-card.available {
+        background: #f8f9fa;
+        border-color: #dee2e6;
+    }
+    .port-card.reserved {
+        background: #fff3cd;
+        border-color: #ffc107;
+    }
+    .port-number {
+        font-weight: bold;
+        font-size: 18px;
+        display: block;
+        margin-bottom: 8px;
+        color: #2c3e50;
+    }
+    .port-label {
+        font-size: 12px;
+        color: #6c757d;
+        display: block;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .port-destination {
+        font-size: 11px;
+        color: #495057;
+        font-weight: 500;
+    }
+    .patch-panel-diagram {
+        background: #2c3e50;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+        position: relative;
+    }
+    .panel-header {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+        border-radius: 4px;
+        padding: 15px;
+        color: white;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+    .port-row {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    .port-visual {
+        background: #34495e;
+        border: 2px solid #7f8c8d;
+        border-radius: 4px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ecf0f1;
+        font-size: 11px;
+        font-weight: bold;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    .port-visual:hover {
+        border-color: #3498db;
+        box-shadow: 0 0 10px rgba(52,152,219,0.5);
+    }
+    .port-visual.in-use {
+        background: #27ae60;
+        border-color: #2ecc71;
+    }
+    .port-visual.reserved {
+        background: #f39c12;
+        border-color: #f1c40f;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'monitoring:patch_panel_list' %}">Patch Panels</a></li>
+                    <li class="breadcrumb-item active">{{ patch_panel.name }}</li>
+                </ol>
+            </nav>
+            <h2>{{ patch_panel.name }}</h2>
+            <p class="text-muted">
+                {{ patch_panel.port_count }}-Port Patch Panel in
+                <a href="{% url 'monitoring:rack_detail' patch_panel.rack.pk %}">{{ patch_panel.rack.name }}</a>
+                {% if patch_panel.rack_position %}
+                    - Position: {{ patch_panel.rack_position }}U ({{ patch_panel.rack_units }}U Height)
+                {% endif %}
+            </p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'monitoring:patch_panel_edit' patch_panel.pk %}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Edit Configuration
+            </a>
+            <a href="{% url 'monitoring:patch_panel_delete' patch_panel.pk %}" class="btn btn-outline-danger">
+                <i class="fas fa-trash"></i> Delete
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Front Panel Diagram -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Front Panel View</h5>
+                </div>
+                <div class="card-body">
+                    <div class="patch-panel-diagram">
+                        <div class="panel-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ patch_panel.name }}</strong>
+                                    {% if patch_panel.manufacturer %}
+                                        <br><small>{{ patch_panel.manufacturer }} {{ patch_panel.model }}</small>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <span class="badge bg-light text-dark">{{ patch_panel.port_count }} PORTS</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="port-visual-grid">
+                            <!-- Visual port representation -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Port Grid List -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Port Configuration</h5>
+                    <div>
+                        <span class="badge bg-success" id="ports-in-use">0 In Use</span>
+                        <span class="badge bg-secondary" id="ports-available">0 Available</span>
+                        <span class="badge bg-warning" id="ports-reserved">0 Reserved</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="port-grid" class="port-grid">
+                        <!-- Ports will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Details</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Rack:</th>
+                            <td>
+                                <a href="{% url 'monitoring:rack_detail' patch_panel.rack.pk %}">
+                                    {{ patch_panel.rack.name }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Position:</th>
+                            <td>
+                                {% if patch_panel.rack_position %}
+                                    {{ patch_panel.rack_position }}U
+                                {% else %}
+                                    <span class="text-muted">Not mounted</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Height:</th>
+                            <td>{{ patch_panel.rack_units }}U</td>
+                        </tr>
+                        <tr>
+                            <th>Port Count:</th>
+                            <td>{{ patch_panel.port_count }} ports</td>
+                        </tr>
+                        {% if patch_panel.manufacturer %}
+                        <tr>
+                            <th>Manufacturer:</th>
+                            <td>{{ patch_panel.manufacturer }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if patch_panel.model %}
+                        <tr>
+                            <th>Model:</th>
+                            <td>{{ patch_panel.model }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if patch_panel.serial_number %}
+                        <tr>
+                            <th>Serial Number:</th>
+                            <td>{{ patch_panel.serial_number }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Created:</th>
+                            <td>{{ patch_panel.created_at|date:"M d, Y" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            {% if patch_panel.notes %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Notes</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ patch_panel.notes|linebreaks }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Port Legend</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <div style="width: 20px; height: 20px; background: #d1e7dd; border: 2px solid #198754; border-radius: 4px;" class="me-2"></div>
+                        <span>In Use - Port is connected and labeled</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <div style="width: 20px; height: 20px; background: #f8f9fa; border: 2px solid #dee2e6; border-radius: 4px;" class="me-2"></div>
+                        <span>Available - Port is open</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div style="width: 20px; height: 20px; background: #fff3cd; border: 2px solid #ffc107; border-radius: 4px;" class="me-2"></div>
+                        <span>Reserved - Port is reserved for future use</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Port Detail Modal -->
+    <div class="modal fade" id="portDetailModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Port <span id="modal-port-number"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Port Number:</th>
+                            <td><span id="modal-port-num"></span></td>
+                        </tr>
+                        <tr>
+                            <th>Label:</th>
+                            <td><span id="modal-port-label"></span></td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td><span id="modal-port-status"></span></td>
+                        </tr>
+                        <tr>
+                            <th>Destination:</th>
+                            <td><span id="modal-port-destination"></span></td>
+                        </tr>
+                        <tr>
+                            <th>Cable Type:</th>
+                            <td><span id="modal-port-cable"></span></td>
+                        </tr>
+                        <tr>
+                            <th>Notes:</th>
+                            <td><span id="modal-port-notes"></span></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <a href="{% url 'monitoring:patch_panel_edit' patch_panel.pk %}" class="btn btn-primary">
+                        Edit Configuration
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const patchPanelId = {{ patch_panel.pk }};
+
+    // Load port configuration
+    fetch(`/monitoring/api/patch-panels/${patchPanelId}/ports/`)
+        .then(response => response.json())
+        .then(data => {
+            const ports = data.ports || [];
+            renderPorts(ports);
+            renderVisualPorts(ports);
+            updateStats(ports);
+        });
+
+    function renderPorts(ports) {
+        const portGrid = document.getElementById('port-grid');
+        portGrid.innerHTML = '';
+
+        ports.forEach(port => {
+            const portCard = document.createElement('div');
+            portCard.className = `port-card ${port.status || 'available'}`;
+
+            const portNumber = document.createElement('span');
+            portNumber.className = 'port-number';
+            portNumber.textContent = port.port_number;
+
+            const portLabel = document.createElement('span');
+            portLabel.className = 'port-label';
+            portLabel.textContent = port.label || `Port ${port.port_number}`;
+
+            const portDestination = document.createElement('span');
+            portDestination.className = 'port-destination';
+            portDestination.textContent = port.destination || '';
+
+            portCard.appendChild(portNumber);
+            portCard.appendChild(portLabel);
+            if (port.destination) {
+                portCard.appendChild(portDestination);
+            }
+
+            portCard.addEventListener('click', () => showPortDetail(port));
+
+            portGrid.appendChild(portCard);
+        });
+    }
+
+    function renderVisualPorts(ports) {
+        const visualGrid = document.getElementById('port-visual-grid');
+        visualGrid.innerHTML = '';
+
+        const portsPerRow = 8;
+        const rows = Math.ceil(ports.length / portsPerRow);
+
+        for (let i = 0; i < rows; i++) {
+            const row = document.createElement('div');
+            row.className = 'port-row';
+
+            for (let j = 0; j < portsPerRow; j++) {
+                const portIndex = i * portsPerRow + j;
+                if (portIndex < ports.length) {
+                    const port = ports[portIndex];
+                    const portVisual = document.createElement('div');
+                    portVisual.className = `port-visual ${port.status || 'available'}`;
+                    portVisual.textContent = port.port_number;
+                    portVisual.addEventListener('click', () => showPortDetail(port));
+                    row.appendChild(portVisual);
+                }
+            }
+
+            visualGrid.appendChild(row);
+        }
+    }
+
+    function updateStats(ports) {
+        const inUse = ports.filter(p => p.status === 'in-use').length;
+        const available = ports.filter(p => p.status === 'available').length;
+        const reserved = ports.filter(p => p.status === 'reserved').length;
+
+        document.getElementById('ports-in-use').textContent = `${inUse} In Use`;
+        document.getElementById('ports-available').textContent = `${available} Available`;
+        document.getElementById('ports-reserved').textContent = `${reserved} Reserved`;
+    }
+
+    function showPortDetail(port) {
+        document.getElementById('modal-port-number').textContent = port.port_number;
+        document.getElementById('modal-port-num').textContent = port.port_number;
+        document.getElementById('modal-port-label').textContent = port.label || '-';
+        document.getElementById('modal-port-status').innerHTML =
+            `<span class="badge bg-${port.status === 'in-use' ? 'success' : port.status === 'reserved' ? 'warning' : 'secondary'}">${port.status || 'available'}</span>`;
+        document.getElementById('modal-port-destination').textContent = port.destination || '-';
+        document.getElementById('modal-port-cable').textContent = port.cable_type || '-';
+        document.getElementById('modal-port-notes').textContent = port.notes || '-';
+
+        const modal = new bootstrap.Modal(document.getElementById('portDetailModal'));
+        modal.show();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,2137 @@
+# Dell Comprehensive Equipment List - 150+ models
+# This will be integrated into seed_vendor_data.py
+
+DELL_EQUIPMENT = [
+    # ============================================
+    # DELL POWEREDGE SERVERS - 16TH GENERATION
+    # ============================================
+    {
+        'model_name': 'PowerEdge R760',
+        'model_number': 'R760',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '16th Gen',
+            'processor': 'Dual Intel Xeon Scalable 4th Gen',
+            'memory': 'Up to 8TB DDR5',
+            'storage': 'Up to 16x 2.5" or 8x 3.5" drives',
+            'power': '800W-2400W redundant PSU',
+            'network': '4x 1GbE, optional 10/25/100GbE'
+        },
+        'description': '16th Gen 2U rack server for demanding workloads'
+    },
+    {
+        'model_name': 'PowerEdge R760xs',
+        'model_number': 'R760xs',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '16th Gen',
+            'processor': 'Dual Intel Xeon Scalable 4th Gen',
+            'memory': 'Up to 8TB DDR5',
+            'storage': 'Up to 32x 2.5" drives',
+            'power': '1400W-2400W redundant PSU',
+            'network': '4x 1GbE, optional 10/25/100GbE'
+        },
+        'description': '16th Gen 2U rack server with extreme storage density'
+    },
+    {
+        'model_name': 'PowerEdge R760xa',
+        'model_number': 'R760xa',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '16th Gen',
+            'processor': 'Dual Intel Xeon Scalable 4th Gen',
+            'memory': 'Up to 8TB DDR5',
+            'storage': 'Up to 4x GPU slots',
+            'power': '1400W-2400W redundant PSU',
+            'network': '4x 1GbE, optional 10/25/100GbE'
+        },
+        'description': '16th Gen 2U accelerated server for AI/ML workloads'
+    },
+    {
+        'model_name': 'PowerEdge R660',
+        'model_number': 'R660',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '16th Gen',
+            'processor': 'Dual Intel Xeon Scalable 4th Gen',
+            'memory': 'Up to 8TB DDR5',
+            'storage': 'Up to 10x 2.5" drives',
+            'power': '800W-1400W redundant PSU',
+            'network': '4x 1GbE, optional 10/25GbE'
+        },
+        'description': '16th Gen 1U rack server for density optimization'
+    },
+    {
+        'model_name': 'PowerEdge R660xs',
+        'model_number': 'R660xs',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '16th Gen',
+            'processor': 'Dual Intel Xeon Scalable 4th Gen',
+            'memory': 'Up to 8TB DDR5',
+            'storage': 'Up to 20x 2.5" drives',
+            'power': '1100W-1400W redundant PSU',
+            'network': '4x 1GbE, optional 10/25GbE'
+        },
+        'description': '16th Gen 1U high-density storage server'
+    },
+    {
+        'model_name': 'PowerEdge R560',
+        'model_number': 'R560',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '16th Gen',
+            'processor': 'Single Intel Xeon Scalable 4th Gen',
+            'memory': 'Up to 4TB DDR5',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '600W-1100W PSU',
+            'network': '4x 1GbE, optional 10/25GbE'
+        },
+        'description': '16th Gen 2U single-socket server for SMB'
+    },
+    {
+        'model_name': 'PowerEdge R460',
+        'model_number': 'R460',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '16th Gen',
+            'processor': 'Dual Intel Xeon E-2400',
+            'memory': 'Up to 256GB DDR5',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '450W-750W PSU',
+            'network': '2x 1GbE, optional 10GbE'
+        },
+        'description': '16th Gen 1U entry server for edge deployments'
+    },
+    {
+        'model_name': 'PowerEdge R360',
+        'model_number': 'R360',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '16th Gen',
+            'processor': 'Single Intel Xeon E-2400',
+            'memory': 'Up to 256GB DDR5',
+            'storage': 'Up to 8x 2.5" or 4x 3.5" drives',
+            'power': '350W-750W PSU',
+            'network': '2x 1GbE, optional 10GbE'
+        },
+        'description': '16th Gen 1U entry rack server for SMB'
+    },
+    {
+        'model_name': 'PowerEdge R260',
+        'model_number': 'R260',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '16th Gen',
+            'processor': 'Single Intel Xeon E-2400',
+            'memory': 'Up to 128GB DDR5',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '350W-600W PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '16th Gen 1U compact server for remote offices'
+    },
+    {
+        'model_name': 'PowerEdge T560',
+        'model_number': 'T560',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '16th Gen',
+            'processor': 'Single Intel Xeon Scalable 4th Gen',
+            'memory': 'Up to 4TB DDR5',
+            'storage': 'Up to 16x 3.5" drives',
+            'power': '600W-1100W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '16th Gen tower server with massive storage'
+    },
+    {
+        'model_name': 'PowerEdge T360',
+        'model_number': 'T360',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '16th Gen',
+            'processor': 'Single Intel Xeon E-2400',
+            'memory': 'Up to 256GB DDR5',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '350W-750W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '16th Gen entry tower server for small office'
+    },
+
+    # ============================================
+    # DELL POWEREDGE SERVERS - 15TH GENERATION
+    # ============================================
+    {
+        'model_name': 'PowerEdge R750',
+        'model_number': 'R750',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Dual Intel Xeon Scalable 3rd Gen',
+            'memory': 'Up to 4TB DDR4',
+            'storage': 'Up to 16x 2.5" or 8x 3.5" drives',
+            'power': '800W-2400W redundant PSU',
+            'network': '4x 1GbE, optional 10/25GbE'
+        },
+        'description': '15th Gen 2U rack server for virtualization'
+    },
+    {
+        'model_name': 'PowerEdge R750xs',
+        'model_number': 'R750xs',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Dual Intel Xeon Scalable 3rd Gen',
+            'memory': 'Up to 4TB DDR4',
+            'storage': 'Up to 24x 2.5" drives',
+            'power': '1400W-2400W redundant PSU',
+            'network': '4x 1GbE, optional 10/25GbE'
+        },
+        'description': '15th Gen 2U high-density storage server'
+    },
+    {
+        'model_name': 'PowerEdge R750xa',
+        'model_number': 'R750xa',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Dual Intel Xeon Scalable 3rd Gen',
+            'memory': 'Up to 4TB DDR4',
+            'storage': 'Up to 3x GPU slots',
+            'power': '1400W-2400W redundant PSU',
+            'network': '4x 1GbE, optional 10/25/100GbE'
+        },
+        'description': '15th Gen 2U accelerated server for AI workloads'
+    },
+    {
+        'model_name': 'PowerEdge R650',
+        'model_number': 'R650',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Dual Intel Xeon Scalable 3rd Gen',
+            'memory': 'Up to 4TB DDR4',
+            'storage': 'Up to 10x 2.5" drives',
+            'power': '800W-1400W redundant PSU',
+            'network': '4x 1GbE, optional 10/25GbE'
+        },
+        'description': '15th Gen 1U rack server for performance'
+    },
+    {
+        'model_name': 'PowerEdge R650xs',
+        'model_number': 'R650xs',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Dual Intel Xeon Scalable 3rd Gen',
+            'memory': 'Up to 4TB DDR4',
+            'storage': 'Up to 16x 2.5" drives',
+            'power': '1100W-1400W redundant PSU',
+            'network': '4x 1GbE, optional 10/25GbE'
+        },
+        'description': '15th Gen 1U high-density server'
+    },
+    {
+        'model_name': 'PowerEdge R550',
+        'model_number': 'R550',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Single Intel Xeon Scalable 3rd Gen',
+            'memory': 'Up to 2TB DDR4',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '600W-1100W PSU',
+            'network': '4x 1GbE, optional 10/25GbE'
+        },
+        'description': '15th Gen 2U single-socket server'
+    },
+    {
+        'model_name': 'PowerEdge R450',
+        'model_number': 'R450',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Dual Intel Xeon E-2300',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '450W-600W PSU',
+            'network': '2x 1GbE, optional 10GbE'
+        },
+        'description': '15th Gen 1U compact server for edge'
+    },
+    {
+        'model_name': 'PowerEdge R350',
+        'model_number': 'R350',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Single Intel Xeon E-2300',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'Up to 8x 2.5" or 4x 3.5" drives',
+            'power': '350W-600W PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '15th Gen 1U entry rack server'
+    },
+    {
+        'model_name': 'PowerEdge R250',
+        'model_number': 'R250',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Single Intel Xeon E-2300',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '350W-450W PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '15th Gen 1U compact entry server'
+    },
+    {
+        'model_name': 'PowerEdge T550',
+        'model_number': 'T550',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Dual Intel Xeon Scalable 3rd Gen',
+            'memory': 'Up to 2TB DDR4',
+            'storage': 'Up to 16x 3.5" drives',
+            'power': '800W-1100W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '15th Gen tower server with storage expansion'
+    },
+    {
+        'model_name': 'PowerEdge T350',
+        'model_number': 'T350',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Single Intel Xeon E-2300',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '350W-600W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '15th Gen entry tower server'
+    },
+    {
+        'model_name': 'PowerEdge T150',
+        'model_number': 'T150',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Intel Xeon E-2300 or Pentium/Core',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '300W-450W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '15th Gen compact tower server for micro offices'
+    },
+
+    # ============================================
+    # DELL POWEREDGE SERVERS - 14TH GENERATION
+    # ============================================
+    {
+        'model_name': 'PowerEdge R740',
+        'model_number': 'R740',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Dual Intel Xeon Scalable 2nd Gen',
+            'memory': 'Up to 3TB DDR4',
+            'storage': 'Up to 16x 2.5" drives',
+            'power': '750W-1400W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '14th Gen 2U rack server for virtualization'
+    },
+    {
+        'model_name': 'PowerEdge R740xd',
+        'model_number': 'R740xd',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Dual Intel Xeon Scalable 2nd Gen',
+            'memory': 'Up to 3TB DDR4',
+            'storage': 'Up to 24x 2.5" or 12x 3.5" drives',
+            'power': '750W-1600W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '14th Gen 2U storage-optimized server'
+    },
+    {
+        'model_name': 'PowerEdge R640',
+        'model_number': 'R640',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Dual Intel Xeon Scalable 2nd Gen',
+            'memory': 'Up to 3TB DDR4',
+            'storage': 'Up to 10x 2.5" drives',
+            'power': '495W-750W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '14th Gen 1U rack server for density'
+    },
+    {
+        'model_name': 'PowerEdge R540',
+        'model_number': 'R540',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Dual Intel Xeon Scalable 2nd Gen',
+            'memory': 'Up to 3TB DDR4',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '550W-1100W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '14th Gen 2U server for general workloads'
+    },
+    {
+        'model_name': 'PowerEdge R440',
+        'model_number': 'R440',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Dual Intel Xeon Scalable 2nd Gen',
+            'memory': 'Up to 768GB DDR4',
+            'storage': 'Up to 10x 2.5" drives',
+            'power': '550W-750W redundant PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '14th Gen 1U server for web hosting'
+    },
+    {
+        'model_name': 'PowerEdge R340',
+        'model_number': 'R340',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Single Intel Xeon E-2200',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '350W-550W PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '14th Gen 1U entry server'
+    },
+    {
+        'model_name': 'PowerEdge R240',
+        'model_number': 'R240',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Single Intel Xeon E-2200',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '250W-450W PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '14th Gen 1U compact entry server'
+    },
+    {
+        'model_name': 'PowerEdge R840',
+        'model_number': 'R840',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Quad Intel Xeon Scalable 2nd Gen',
+            'memory': 'Up to 6TB DDR4',
+            'storage': 'Up to 16x 2.5" drives',
+            'power': '1100W-2400W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '14th Gen 2U 4-socket server'
+    },
+    {
+        'model_name': 'PowerEdge R940',
+        'model_number': 'R940',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 4,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Quad Intel Xeon Scalable 2nd Gen',
+            'memory': 'Up to 12TB DDR4',
+            'storage': 'Up to 24x 2.5" drives',
+            'power': '1100W-2400W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '14th Gen 4U mission-critical server'
+    },
+    {
+        'model_name': 'PowerEdge R940xa',
+        'model_number': 'R940xa',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 4,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Quad Intel Xeon Scalable 2nd Gen',
+            'memory': 'Up to 12TB DDR4',
+            'storage': 'Up to 4x GPU slots',
+            'power': '1600W-2400W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '14th Gen 4U accelerated server'
+    },
+    {
+        'model_name': 'PowerEdge T640',
+        'model_number': 'T640',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Dual Intel Xeon Scalable 2nd Gen',
+            'memory': 'Up to 3TB DDR4',
+            'storage': 'Up to 16x 3.5" drives',
+            'power': '750W-1100W redundant PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '14th Gen tower server for SMB'
+    },
+    {
+        'model_name': 'PowerEdge T440',
+        'model_number': 'T440',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Dual Intel Xeon Scalable 2nd Gen',
+            'memory': 'Up to 768GB DDR4',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '495W-750W redundant PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '14th Gen mid-range tower server'
+    },
+    {
+        'model_name': 'PowerEdge T340',
+        'model_number': 'T340',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Single Intel Xeon E-2200',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '365W-495W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '14th Gen entry tower server'
+    },
+    {
+        'model_name': 'PowerEdge T140',
+        'model_number': 'T140',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Intel Xeon E-2200 or Pentium',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '365W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '14th Gen compact tower server'
+    },
+    {
+        'model_name': 'PowerEdge T40',
+        'model_number': 'T40',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Intel Xeon E-2200 or Pentium',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'Up to 3x 3.5" drives',
+            'power': '300W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '14th Gen micro tower server for small offices'
+    },
+
+    # ============================================
+    # DELL POWEREDGE SERVERS - 13TH GENERATION
+    # ============================================
+    {
+        'model_name': 'PowerEdge R730',
+        'model_number': 'R730',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Dual Intel Xeon E5-2600 v4',
+            'memory': 'Up to 1.5TB DDR4',
+            'storage': 'Up to 16x 2.5" drives',
+            'power': '495W-1100W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '13th Gen 2U rack server'
+    },
+    {
+        'model_name': 'PowerEdge R730xd',
+        'model_number': 'R730xd',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Dual Intel Xeon E5-2600 v4',
+            'memory': 'Up to 1.5TB DDR4',
+            'storage': 'Up to 26x 2.5" or 12x 3.5" drives',
+            'power': '750W-1100W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '13th Gen 2U storage server'
+    },
+    {
+        'model_name': 'PowerEdge R630',
+        'model_number': 'R630',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Dual Intel Xeon E5-2600 v4',
+            'memory': 'Up to 768GB DDR4',
+            'storage': 'Up to 10x 2.5" drives',
+            'power': '495W-750W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '13th Gen 1U rack server'
+    },
+    {
+        'model_name': 'PowerEdge R530',
+        'model_number': 'R530',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Dual Intel Xeon E5-2600 v4',
+            'memory': 'Up to 768GB DDR4',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '495W-750W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '13th Gen 2U general purpose server'
+    },
+    {
+        'model_name': 'PowerEdge R430',
+        'model_number': 'R430',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Dual Intel Xeon E5-2600 v4',
+            'memory': 'Up to 384GB DDR4',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '550W-750W redundant PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '13th Gen 1U server for web'
+    },
+    {
+        'model_name': 'PowerEdge R330',
+        'model_number': 'R330',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Single Intel Xeon E3-1200 v6',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '350W-550W PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '13th Gen 1U entry server'
+    },
+    {
+        'model_name': 'PowerEdge R230',
+        'model_number': 'R230',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Single Intel Xeon E3-1200 v6',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '250W-450W PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '13th Gen 1U compact server'
+    },
+    {
+        'model_name': 'PowerEdge R830',
+        'model_number': 'R830',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Quad Intel Xeon E5-4600 v4',
+            'memory': 'Up to 6TB DDR4',
+            'storage': 'Up to 16x 2.5" drives',
+            'power': '750W-1600W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '13th Gen 2U 4-socket server'
+    },
+    {
+        'model_name': 'PowerEdge R930',
+        'model_number': 'R930',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 4,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Quad Intel Xeon E7-8800/4800 v4',
+            'memory': 'Up to 6TB DDR4',
+            'storage': 'Up to 24x 2.5" drives',
+            'power': '1100W-1600W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '13th Gen 4U mission-critical server'
+    },
+    {
+        'model_name': 'PowerEdge T630',
+        'model_number': 'T630',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Dual Intel Xeon E5-2600 v4',
+            'memory': 'Up to 768GB DDR4',
+            'storage': 'Up to 18x 3.5" drives',
+            'power': '495W-750W redundant PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '13th Gen tower server for SMB'
+    },
+    {
+        'model_name': 'PowerEdge T430',
+        'model_number': 'T430',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Dual Intel Xeon E5-2600 v4',
+            'memory': 'Up to 384GB DDR4',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '495W-750W redundant PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '13th Gen mid-range tower server'
+    },
+    {
+        'model_name': 'PowerEdge T330',
+        'model_number': 'T330',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Single Intel Xeon E3-1200 v6',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '365W-495W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '13th Gen entry tower server'
+    },
+    {
+        'model_name': 'PowerEdge T130',
+        'model_number': 'T130',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '13th Gen',
+            'processor': 'Intel Xeon E3-1200 v6',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '290W-365W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '13th Gen compact tower server'
+    },
+
+    # ============================================
+    # DELL POWEREDGE SERVERS - 12TH GENERATION
+    # ============================================
+    {
+        'model_name': 'PowerEdge R720',
+        'model_number': 'R720',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '12th Gen',
+            'processor': 'Dual Intel Xeon E5-2600 v2',
+            'memory': 'Up to 768GB DDR3',
+            'storage': 'Up to 16x 2.5" drives',
+            'power': '495W-1100W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '12th Gen 2U rack server'
+    },
+    {
+        'model_name': 'PowerEdge R720xd',
+        'model_number': 'R720xd',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '12th Gen',
+            'processor': 'Dual Intel Xeon E5-2600 v2',
+            'memory': 'Up to 768GB DDR3',
+            'storage': 'Up to 26x 2.5" or 12x 3.5" drives',
+            'power': '750W-1100W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '12th Gen 2U storage server'
+    },
+    {
+        'model_name': 'PowerEdge R620',
+        'model_number': 'R620',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '12th Gen',
+            'processor': 'Dual Intel Xeon E5-2600 v2',
+            'memory': 'Up to 768GB DDR3',
+            'storage': 'Up to 10x 2.5" drives',
+            'power': '495W-750W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '12th Gen 1U rack server'
+    },
+    {
+        'model_name': 'PowerEdge R520',
+        'model_number': 'R520',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '12th Gen',
+            'processor': 'Dual Intel Xeon E5-2400 v2',
+            'memory': 'Up to 384GB DDR3',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '495W-750W redundant PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '12th Gen 2U general purpose server'
+    },
+    {
+        'model_name': 'PowerEdge R420',
+        'model_number': 'R420',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '12th Gen',
+            'processor': 'Dual Intel Xeon E5-2400 v2',
+            'memory': 'Up to 384GB DDR3',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '550W-750W redundant PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '12th Gen 1U server'
+    },
+    {
+        'model_name': 'PowerEdge R320',
+        'model_number': 'R320',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '12th Gen',
+            'processor': 'Single Intel Xeon E5-2400',
+            'memory': 'Up to 192GB DDR3',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '350W-550W PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '12th Gen 1U entry server'
+    },
+    {
+        'model_name': 'PowerEdge R820',
+        'model_number': 'R820',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '12th Gen',
+            'processor': 'Quad Intel Xeon E5-4600 v2',
+            'memory': 'Up to 1.5TB DDR3',
+            'storage': 'Up to 16x 2.5" drives',
+            'power': '750W-1100W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '12th Gen 2U 4-socket server'
+    },
+    {
+        'model_name': 'PowerEdge R920',
+        'model_number': 'R920',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 4,
+        'specifications': {
+            'generation': '12th Gen',
+            'processor': 'Quad Intel Xeon E7-8800/4800 v2',
+            'memory': 'Up to 6TB DDR3',
+            'storage': 'Up to 24x 2.5" drives',
+            'power': '1100W-1600W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '12th Gen 4U mission-critical server'
+    },
+    {
+        'model_name': 'PowerEdge T620',
+        'model_number': 'T620',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '12th Gen',
+            'processor': 'Dual Intel Xeon E5-2600 v2',
+            'memory': 'Up to 768GB DDR3',
+            'storage': 'Up to 16x 3.5" drives',
+            'power': '495W-750W redundant PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '12th Gen tower server for SMB'
+    },
+    {
+        'model_name': 'PowerEdge T420',
+        'model_number': 'T420',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '12th Gen',
+            'processor': 'Dual Intel Xeon E5-2400 v2',
+            'memory': 'Up to 384GB DDR3',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '495W-750W redundant PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '12th Gen mid-range tower server'
+    },
+    {
+        'model_name': 'PowerEdge T320',
+        'model_number': 'T320',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '12th Gen',
+            'processor': 'Single Intel Xeon E5-2400',
+            'memory': 'Up to 192GB DDR3',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '350W-495W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '12th Gen entry tower server'
+    },
+    {
+        'model_name': 'PowerEdge T120',
+        'model_number': 'T120',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '12th Gen',
+            'processor': 'Intel Xeon E3-1200 v3',
+            'memory': 'Up to 32GB DDR3',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '290W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '12th Gen compact tower server'
+    },
+
+    # ============================================
+    # DELL POWEREDGE SERVERS - 11TH GENERATION
+    # ============================================
+    {
+        'model_name': 'PowerEdge R710',
+        'model_number': 'R710',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '11th Gen',
+            'processor': 'Dual Intel Xeon 5600',
+            'memory': 'Up to 192GB DDR3',
+            'storage': 'Up to 8x 2.5" or 6x 3.5" drives',
+            'power': '570W-870W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '11th Gen 2U rack server'
+    },
+    {
+        'model_name': 'PowerEdge R610',
+        'model_number': 'R610',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '11th Gen',
+            'processor': 'Dual Intel Xeon 5600',
+            'memory': 'Up to 192GB DDR3',
+            'storage': 'Up to 6x 2.5" drives',
+            'power': '502W-717W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '11th Gen 1U rack server'
+    },
+    {
+        'model_name': 'PowerEdge R510',
+        'model_number': 'R510',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '11th Gen',
+            'processor': 'Dual Intel Xeon 5600',
+            'memory': 'Up to 384GB DDR3',
+            'storage': 'Up to 12x 3.5" drives',
+            'power': '580W-750W redundant PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '11th Gen 2U storage server'
+    },
+    {
+        'model_name': 'PowerEdge R410',
+        'model_number': 'R410',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '11th Gen',
+            'processor': 'Dual Intel Xeon 5600',
+            'memory': 'Up to 128GB DDR3',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '480W-580W redundant PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '11th Gen 1U server'
+    },
+    {
+        'model_name': 'PowerEdge R810',
+        'model_number': 'R810',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '11th Gen',
+            'processor': 'Quad Intel Xeon 7500',
+            'memory': 'Up to 1TB DDR3',
+            'storage': 'Up to 16x 2.5" drives',
+            'power': '870W-1100W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '11th Gen 2U 4-socket server'
+    },
+    {
+        'model_name': 'PowerEdge R910',
+        'model_number': 'R910',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 4,
+        'specifications': {
+            'generation': '11th Gen',
+            'processor': 'Quad Intel Xeon 7500',
+            'memory': 'Up to 1TB DDR3',
+            'storage': 'Up to 16x 2.5" drives',
+            'power': '1100W-1570W redundant PSU',
+            'network': '4x 1GbE'
+        },
+        'description': '11th Gen 4U mission-critical server'
+    },
+    {
+        'model_name': 'PowerEdge T610',
+        'model_number': 'T610',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '11th Gen',
+            'processor': 'Dual Intel Xeon 5600',
+            'memory': 'Up to 192GB DDR3',
+            'storage': 'Up to 16x 3.5" drives',
+            'power': '570W-870W redundant PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '11th Gen tower server'
+    },
+    {
+        'model_name': 'PowerEdge T410',
+        'model_number': 'T410',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '11th Gen',
+            'processor': 'Dual Intel Xeon 5600',
+            'memory': 'Up to 128GB DDR3',
+            'storage': 'Up to 6x 3.5" drives',
+            'power': '375W-525W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '11th Gen mid-range tower server'
+    },
+    {
+        'model_name': 'PowerEdge T110 II',
+        'model_number': 'T110 II',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': '11th Gen',
+            'processor': 'Intel Xeon E3-1200',
+            'memory': 'Up to 32GB DDR3',
+            'storage': 'Up to 4x 3.5" drives',
+            'power': '305W PSU',
+            'form_factor': 'Tower'
+        },
+        'description': '11th Gen entry tower server'
+    },
+
+    # ============================================
+    # DELL POWEREDGE MODULAR/BLADE SERVERS
+    # ============================================
+    {
+        'model_name': 'PowerEdge MX750c',
+        'model_number': 'MX750c',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': 'MX Series',
+            'processor': 'Dual Intel Xeon Scalable 3rd/4th Gen',
+            'memory': 'Up to 4TB DDR4/DDR5',
+            'storage': 'M.2 NVMe or FC boot',
+            'form_factor': 'Modular blade for MX7000 chassis',
+            'network': 'Fabric integrated'
+        },
+        'description': 'High-density compute sled for MX7000'
+    },
+    {
+        'model_name': 'PowerEdge MX840c',
+        'model_number': 'MX840c',
+        'equipment_type': 'server',
+        'is_rackmount': False,
+        'specifications': {
+            'generation': 'MX Series',
+            'processor': 'Quad Intel Xeon Scalable 3rd/4th Gen',
+            'memory': 'Up to 6TB DDR4/DDR5',
+            'storage': 'M.2 NVMe or FC boot',
+            'form_factor': 'Modular 4-socket blade for MX7000 chassis',
+            'network': 'Fabric integrated'
+        },
+        'description': 'High-performance 4-socket compute sled'
+    },
+    {
+        'model_name': 'PowerEdge C6420',
+        'model_number': 'C6420',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Dual Intel Xeon Scalable 2nd Gen per node',
+            'memory': 'Up to 3TB DDR4 per node',
+            'storage': '2x 2.5" drives per node',
+            'form_factor': '4-node 2U rack server',
+            'network': 'Dual 10GbE per node'
+        },
+        'description': 'Ultra-dense 4-node 2U hyperscale server'
+    },
+    {
+        'model_name': 'PowerEdge C6520',
+        'model_number': 'C6520',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Dual Intel Xeon Scalable 3rd Gen per node',
+            'memory': 'Up to 4TB DDR4 per node',
+            'storage': '2x 2.5" drives per node',
+            'form_factor': '4-node 2U rack server',
+            'network': 'Dual 10/25GbE per node'
+        },
+        'description': 'Ultra-dense 4-node 2U server'
+    },
+    {
+        'model_name': 'PowerEdge C6525',
+        'model_number': 'C6525',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '15th Gen',
+            'processor': 'Dual AMD EPYC 7003 per node',
+            'memory': 'Up to 4TB DDR4 per node',
+            'storage': '2x 2.5" drives per node',
+            'form_factor': '4-node 2U rack server',
+            'network': 'Dual 10/25GbE per node'
+        },
+        'description': 'Ultra-dense 4-node AMD EPYC server'
+    },
+
+    # ============================================
+    # DELL POWEREDGE AMD EPYC SERVERS
+    # ============================================
+    {
+        'model_name': 'PowerEdge R6515',
+        'model_number': 'R6515',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Single AMD EPYC 7002/7003',
+            'memory': 'Up to 2TB DDR4',
+            'storage': 'Up to 10x 2.5" drives',
+            'power': '550W-1100W redundant PSU',
+            'network': '2x 1GbE'
+        },
+        'description': '1U single-socket AMD EPYC server'
+    },
+    {
+        'model_name': 'PowerEdge R6525',
+        'model_number': 'R6525',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 1,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Dual AMD EPYC 7002/7003',
+            'memory': 'Up to 4TB DDR4',
+            'storage': 'Up to 10x 2.5" drives',
+            'power': '800W-1600W redundant PSU',
+            'network': '2x 1GbE, optional 10/25GbE'
+        },
+        'description': '1U dual-socket AMD EPYC server'
+    },
+    {
+        'model_name': 'PowerEdge R7515',
+        'model_number': 'R7515',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Single AMD EPYC 7002/7003',
+            'memory': 'Up to 2TB DDR4',
+            'storage': 'Up to 8x 3.5" drives',
+            'power': '800W-1600W redundant PSU',
+            'network': '2x 1GbE, optional 10/25GbE'
+        },
+        'description': '2U single-socket AMD EPYC server'
+    },
+    {
+        'model_name': 'PowerEdge R7525',
+        'model_number': 'R7525',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': '14th Gen',
+            'processor': 'Dual AMD EPYC 7002/7003',
+            'memory': 'Up to 4TB DDR4',
+            'storage': 'Up to 16x 2.5" or 8x 3.5" drives',
+            'power': '800W-2000W redundant PSU',
+            'network': '2x 1GbE, optional 10/25/100GbE'
+        },
+        'description': '2U dual-socket AMD EPYC server'
+    },
+
+    # ============================================
+    # DELL POWEREDGE GPU/ACCELERATED SERVERS
+    # ============================================
+    {
+        'model_name': 'PowerEdge XE8545',
+        'model_number': 'XE8545',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 4,
+        'specifications': {
+            'generation': 'XE Series',
+            'processor': 'Dual AMD EPYC 7003',
+            'memory': 'Up to 4TB DDR4',
+            'storage': 'Up to 10x 2.5" NVMe',
+            'gpu': 'Up to 4x NVIDIA A100/H100 GPUs',
+            'power': '2400W+ redundant PSU',
+            'network': 'Dual 10/25GbE, InfiniBand ready'
+        },
+        'description': '4U AI/HPC server with 4x GPUs'
+    },
+    {
+        'model_name': 'PowerEdge XE8640',
+        'model_number': 'XE8640',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 4,
+        'specifications': {
+            'generation': 'XE Series',
+            'processor': 'Dual Intel Xeon Scalable 3rd Gen',
+            'memory': 'Up to 4TB DDR4',
+            'storage': 'Up to 10x 2.5" NVMe',
+            'gpu': 'Up to 4x NVIDIA A100/H100 GPUs',
+            'power': '2400W+ redundant PSU',
+            'network': 'Dual 10/25GbE, InfiniBand ready'
+        },
+        'description': '4U AI/HPC server with 4x GPUs'
+    },
+    {
+        'model_name': 'PowerEdge XE7420',
+        'model_number': 'XE7420',
+        'equipment_type': 'server',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'generation': 'XE Series',
+            'processor': 'Dual Intel Xeon Scalable 3rd Gen',
+            'memory': 'Up to 4TB DDR4',
+            'storage': 'Up to 8x 2.5" NVMe',
+            'gpu': 'Up to 2x NVIDIA A100/A30 GPUs',
+            'power': '1400W-2000W redundant PSU',
+            'network': 'Dual 10/25GbE'
+        },
+        'description': '2U AI inference server with 2x GPUs'
+    },
+
+    # ============================================
+    # DELL OPTIPLEX WORKSTATIONS
+    # ============================================
+    # OptiPlex 7000 Series
+    {
+        'model_name': 'OptiPlex 7090 Tower',
+        'model_number': '7090',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 11th Gen',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'M.2 NVMe SSD + HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated or discrete up to RTX 3070'
+        },
+        'description': 'Premium tower business desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7090 SFF',
+        'model_number': '7090 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 11th Gen',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': 'Premium SFF business desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7090 MFF',
+        'model_number': '7090 MFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 11th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Micro Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Ultra-compact premium desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7080 Tower',
+        'model_number': '7080',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 10th Gen',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'M.2 NVMe SSD + HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': 'Business tower desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7080 SFF',
+        'model_number': '7080 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 10th Gen',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': 'Business SFF desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7080 MFF',
+        'model_number': '7080 MFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 10th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Micro Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Ultra-compact desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7070 Tower',
+        'model_number': '7070',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 9th Gen',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'M.2 NVMe SSD + HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': 'Business tower desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7070 SFF',
+        'model_number': '7070 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 9th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': 'Business SFF desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7070 Ultra',
+        'model_number': '7070 Ultra',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 9th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Modular (mounts to monitor)',
+            'graphics': 'Integrated'
+        },
+        'description': 'Modular all-in-one desktop solution'
+    },
+    {
+        'model_name': 'OptiPlex 7010 Tower',
+        'model_number': '7010',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 13th Gen',
+            'memory': 'Up to 128GB DDR5',
+            'storage': 'M.2 NVMe SSD + HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': 'Latest generation premium tower desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7010 SFF',
+        'model_number': '7010 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 13th Gen',
+            'memory': 'Up to 128GB DDR5',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': 'Latest generation SFF desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7010 MFF',
+        'model_number': '7010 MFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 13th Gen',
+            'memory': 'Up to 64GB DDR5',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Micro Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Latest generation ultra-compact desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7000 Tower',
+        'model_number': '7000',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 12th Gen',
+            'memory': 'Up to 128GB DDR5',
+            'storage': 'M.2 NVMe SSD + HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': '12th Gen premium tower desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7000 SFF',
+        'model_number': '7000 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 12th Gen',
+            'memory': 'Up to 128GB DDR5',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': '12th Gen SFF desktop'
+    },
+    {
+        'model_name': 'OptiPlex 7000 MFF',
+        'model_number': '7000 MFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 12th Gen',
+            'memory': 'Up to 64GB DDR5',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Micro Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': '12th Gen ultra-compact desktop'
+    },
+
+    # OptiPlex 5000 Series
+    {
+        'model_name': 'OptiPlex 5090 Tower',
+        'model_number': '5090',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 11th Gen',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'M.2 NVMe SSD + HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': 'Mainstream tower business desktop'
+    },
+    {
+        'model_name': 'OptiPlex 5090 SFF',
+        'model_number': '5090 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 11th Gen',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Mainstream SFF desktop'
+    },
+    {
+        'model_name': 'OptiPlex 5090 MFF',
+        'model_number': '5090 MFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 11th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Micro Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Compact mainstream desktop'
+    },
+    {
+        'model_name': 'OptiPlex 5080 Tower',
+        'model_number': '5080',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 10th Gen',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'M.2 NVMe SSD + HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': 'Mainstream tower desktop'
+    },
+    {
+        'model_name': 'OptiPlex 5080 SFF',
+        'model_number': '5080 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 10th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Mainstream SFF desktop'
+    },
+    {
+        'model_name': 'OptiPlex 5080 MFF',
+        'model_number': '5080 MFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 10th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Micro Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Compact mainstream desktop'
+    },
+    {
+        'model_name': 'OptiPlex 5070 Tower',
+        'model_number': '5070',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 9th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD + HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': 'Mainstream tower desktop'
+    },
+    {
+        'model_name': 'OptiPlex 5070 SFF',
+        'model_number': '5070 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 9th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Mainstream SFF desktop'
+    },
+    {
+        'model_name': 'OptiPlex 5000 Tower',
+        'model_number': '5000',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 12th Gen',
+            'memory': 'Up to 128GB DDR5',
+            'storage': 'M.2 NVMe SSD + HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated or discrete'
+        },
+        'description': '12th Gen mainstream tower desktop'
+    },
+    {
+        'model_name': 'OptiPlex 5000 SFF',
+        'model_number': '5000 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 12th Gen',
+            'memory': 'Up to 128GB DDR5',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': '12th Gen mainstream SFF desktop'
+    },
+    {
+        'model_name': 'OptiPlex 5000 MFF',
+        'model_number': '5000 MFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 12th Gen',
+            'memory': 'Up to 64GB DDR5',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Micro Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': '12th Gen compact desktop'
+    },
+
+    # OptiPlex 3000 Series
+    {
+        'model_name': 'OptiPlex 3090 Tower',
+        'model_number': '3090',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i3/i5/i7 11th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD or HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated'
+        },
+        'description': 'Essential tower business desktop'
+    },
+    {
+        'model_name': 'OptiPlex 3090 SFF',
+        'model_number': '3090 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i3/i5/i7 11th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD or HDD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Essential SFF desktop'
+    },
+    {
+        'model_name': 'OptiPlex 3090 MFF',
+        'model_number': '3090 MFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i3/i5/i7 11th Gen',
+            'memory': 'Up to 32GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Micro Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Compact essential desktop'
+    },
+    {
+        'model_name': 'OptiPlex 3080 Tower',
+        'model_number': '3080',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i3/i5/i7 10th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD or HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated'
+        },
+        'description': 'Essential tower desktop'
+    },
+    {
+        'model_name': 'OptiPlex 3080 SFF',
+        'model_number': '3080 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i3/i5/i7 10th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD or HDD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Essential SFF desktop'
+    },
+    {
+        'model_name': 'OptiPlex 3080 MFF',
+        'model_number': '3080 MFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i3/i5/i7 10th Gen',
+            'memory': 'Up to 32GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Micro Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Compact essential desktop'
+    },
+    {
+        'model_name': 'OptiPlex 3070 Tower',
+        'model_number': '3070',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i3/i5/i7 9th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD or HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated'
+        },
+        'description': 'Essential tower desktop'
+    },
+    {
+        'model_name': 'OptiPlex 3070 SFF',
+        'model_number': '3070 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i3/i5/i7 9th Gen',
+            'memory': 'Up to 32GB DDR4',
+            'storage': 'M.2 NVMe SSD or HDD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Essential SFF desktop'
+    },
+    {
+        'model_name': 'OptiPlex 3070 MFF',
+        'model_number': '3070 MFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i3/i5/i7 9th Gen',
+            'memory': 'Up to 32GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Micro Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': 'Compact essential desktop'
+    },
+    {
+        'model_name': 'OptiPlex 3000 Tower',
+        'model_number': '3000',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i3/i5/i7 12th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD or HDD',
+            'form_factor': 'Tower',
+            'graphics': 'Integrated'
+        },
+        'description': '12th Gen essential tower desktop'
+    },
+    {
+        'model_name': 'OptiPlex 3000 SFF',
+        'model_number': '3000 SFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i3/i5/i7 12th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD or HDD',
+            'form_factor': 'Small Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': '12th Gen essential SFF desktop'
+    },
+    {
+        'model_name': 'OptiPlex 3000 MFF',
+        'model_number': '3000 MFF',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i3/i5/i7 12th Gen',
+            'memory': 'Up to 32GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'form_factor': 'Micro Form Factor',
+            'graphics': 'Integrated'
+        },
+        'description': '12th Gen compact desktop'
+    },
+
+    # ============================================
+    # DELL PRECISION WORKSTATIONS - TOWERS
+    # ============================================
+    {
+        'model_name': 'Precision 7960 Tower',
+        'model_number': '7960',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Dual Intel Xeon W or Xeon Scalable 4th Gen',
+            'memory': 'Up to 2TB DDR5',
+            'storage': 'Multiple M.2 NVMe + SATA',
+            'graphics': 'Up to 3x NVIDIA RTX 6000/A6000',
+            'form_factor': 'Tower'
+        },
+        'description': 'Flagship dual-socket workstation'
+    },
+    {
+        'model_name': 'Precision 7920 Tower',
+        'model_number': '7920',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Dual Intel Xeon Scalable',
+            'memory': 'Up to 3TB DDR4',
+            'storage': 'Multiple M.2 NVMe + SATA',
+            'graphics': 'Up to 3x NVIDIA Quadro',
+            'form_factor': 'Tower'
+        },
+        'description': 'Extreme performance workstation'
+    },
+    {
+        'model_name': 'Precision 7910 Tower',
+        'model_number': '7910',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Dual Intel Xeon E5-2600 v4',
+            'memory': 'Up to 1TB DDR4',
+            'storage': 'Multiple SATA/SAS drives',
+            'graphics': 'Up to 3x NVIDIA Quadro',
+            'form_factor': 'Tower'
+        },
+        'description': 'Dual-socket workstation for CAD/CAE'
+    },
+    {
+        'model_name': 'Precision 5820 Tower',
+        'model_number': '5820',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Xeon W or Core X-series',
+            'memory': 'Up to 256GB DDR4',
+            'storage': 'Multiple M.2 NVMe + SATA',
+            'graphics': 'NVIDIA Quadro/AMD Radeon Pro',
+            'form_factor': 'Tower'
+        },
+        'description': 'Entry professional workstation'
+    },
+    {
+        'model_name': 'Precision 5810 Tower',
+        'model_number': '5810',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Xeon E5-1600/2600 v4',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'Multiple SATA drives',
+            'graphics': 'NVIDIA Quadro',
+            'form_factor': 'Tower'
+        },
+        'description': 'Entry workstation for CAD'
+    },
+    {
+        'model_name': 'Precision 3660 Tower',
+        'model_number': '3660',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 12th/13th Gen or Xeon W',
+            'memory': 'Up to 128GB DDR5',
+            'storage': 'Multiple M.2 NVMe + SATA',
+            'graphics': 'NVIDIA RTX A-series up to RTX A5000',
+            'form_factor': 'Tower'
+        },
+        'description': 'Mainstream workstation tower'
+    },
+    {
+        'model_name': 'Precision 3650 Tower',
+        'model_number': '3650',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 11th Gen or Xeon W',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'Multiple M.2 NVMe + SATA',
+            'graphics': 'NVIDIA RTX A-series',
+            'form_factor': 'Tower'
+        },
+        'description': 'Mainstream workstation tower'
+    },
+    {
+        'model_name': 'Precision 3640 Tower',
+        'model_number': '3640',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 10th Gen or Xeon W',
+            'memory': 'Up to 128GB DDR4',
+            'storage': 'Multiple M.2 NVMe + SATA',
+            'graphics': 'NVIDIA Quadro',
+            'form_factor': 'Tower'
+        },
+        'description': 'Mainstream workstation tower'
+    },
+    {
+        'model_name': 'Precision 3630 Tower',
+        'model_number': '3630',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7/i9 8th/9th Gen or Xeon E',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'Multiple M.2 NVMe + SATA',
+            'graphics': 'NVIDIA Quadro',
+            'form_factor': 'Tower'
+        },
+        'description': 'Mainstream workstation tower'
+    },
+    {
+        'model_name': 'Precision 3620 Tower',
+        'model_number': '3620',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 6th/7th Gen or Xeon E3',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'Multiple SATA drives',
+            'graphics': 'NVIDIA Quadro',
+            'form_factor': 'Tower'
+        },
+        'description': 'Entry workstation tower'
+    },
+    {
+        'model_name': 'Precision 3551 Tower',
+        'model_number': '3551',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 11th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'graphics': 'NVIDIA Quadro up to T2000',
+            'form_factor': 'Small Form Factor'
+        },
+        'description': 'Compact workstation SFF'
+    },
+    {
+        'model_name': 'Precision 3540 Tower',
+        'model_number': '3540',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 10th Gen',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe SSD',
+            'graphics': 'NVIDIA Quadro',
+            'form_factor': 'Small Form Factor'
+        },
+        'description': 'Compact workstation SFF'
+    },
+    {
+        'model_name': 'Precision 3431 SFF',
+        'model_number': '3431',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 9th Gen or Xeon E',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'M.2 NVMe + SATA',
+            'graphics': 'NVIDIA Quadro P series',
+            'form_factor': 'Small Form Factor'
+        },
+        'description': 'Compact workstation SFF'
+    },
+    {
+        'model_name': 'Precision 3420 SFF',
+        'model_number': '3420',
+        'equipment_type': 'workstation',
+        'is_rackmount': False,
+        'specifications': {
+            'processor': 'Intel Core i5/i7 6th/7th Gen or Xeon E3',
+            'memory': 'Up to 64GB DDR4',
+            'storage': 'SATA',
+            'graphics': 'NVIDIA Quadro',
+            'form_factor': 'Small Form Factor'
+        },
+        'description': 'Entry compact workstation'
+    },
+    {
+        'model_name': 'Precision 7920 Rack',
+        'model_number': '7920 Rack',
+        'equipment_type': 'workstation',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'processor': 'Dual Intel Xeon Scalable',
+            'memory': 'Up to 3TB DDR4',
+            'storage': 'Multiple M.2 NVMe + SATA',
+            'graphics': 'Up to 3x NVIDIA Quadro',
+            'form_factor': '2U Rackmount'
+        },
+        'description': '2U rack-mounted workstation'
+    },
+    {
+        'model_name': 'Precision 7820 Rack',
+        'model_number': '7820 Rack',
+        'equipment_type': 'workstation',
+        'is_rackmount': True,
+        'rack_units': 2,
+        'specifications': {
+            'processor': 'Dual Intel Xeon Scalable',
+            'memory': 'Up to 1TB DDR4',
+            'storage': 'Multiple M.2 NVMe + SATA',
+            'graphics': 'Up to 2x NVIDIA Quadro',
+            'form_factor': '2U Rackmount'
+        },
+        'description': '2U rack workstation'
+    },
+]
+
+# Continue to part 2...

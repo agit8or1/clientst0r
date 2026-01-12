@@ -66,6 +66,23 @@
 
         <div class="card mb-4">
             <div class="card-body">
+                <h3><i class="fas fa-database"></i> Hardware Equipment Catalog</h3>
+                <p>
+                    Comprehensive equipment database with major hardware vendors for MSP asset tracking and documentation.
+                </p>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Total Vendors:</dt>
+                    <dd class="col-sm-8"><strong>{{ equipment_stats.vendor_count }}</strong> hardware manufacturers</dd>
+                    <dt class="col-sm-4">Equipment Models:</dt>
+                    <dd class="col-sm-8"><strong>{{ equipment_stats.model_count }}</strong> servers, workstations, switches, routers, phones</dd>
+                    <dt class="col-sm-4">Coverage:</dt>
+                    <dd class="col-sm-8">Dell, HPE, Lenovo, Cisco, Fortinet, Palo Alto, Ubiquiti, and more</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
                 <h3>Technology Stack</h3>
                 <table class="table table-sm mb-0">
                     <thead>

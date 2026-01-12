@@ -397,6 +397,7 @@ class ScheduledTask(models.Model):
         ('psa_sync', 'PSA Synchronization'),
         ('rmm_sync', 'RMM Synchronization'),
         ('password_breach_scan', 'Password Breach Scanning'),
+        ('equipment_catalog_update', 'Equipment Catalog Update'),
         ('ssl_expiry_check', 'SSL Certificate Expiry Check'),
         ('domain_expiry_check', 'Domain Expiry Check'),
     ]

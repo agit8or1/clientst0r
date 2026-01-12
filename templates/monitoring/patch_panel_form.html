@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ action }} Patch Panel - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .port-editor-row {
+        display: grid;
+        grid-template-columns: 60px 1fr 1fr 150px 150px 40px;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 10px;
+        background: white;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+    }
+    .port-editor-container {
+        max-height: 500px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 15px;
+        background: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'monitoring:patch_panel_list' %}">Patch Panels</a></li>
+                    {% if patch_panel %}
+                        <li class="breadcrumb-item"><a href="{% url 'monitoring:patch_panel_detail' patch_panel.pk %}">{{ patch_panel.name }}</a></li>
+                    {% endif %}
+                    <li class="breadcrumb-item active">{{ action }}</li>
+                </ol>
+            </nav>
+            <h2>{{ action }} Patch Panel</h2>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Basic Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="id_name" class="form-label">Name *</label>
+                            <input type="text" name="name" id="id_name" class="form-control" required
+                                   value="{{ patch_panel.name|default:'' }}"
+                                   placeholder="e.g., PP-01, Patch Panel 1">
+                        </div>
+
+                        {% if action == 'Create' %}
+                        <div class="mb-3">
+                            <label for="id_rack" class="form-label">Rack *</label>
+                            <select name="rack" id="id_rack" class="form-select" required>
+                                <option value="">Select rack</option>
+                                {% for rack in racks %}
+                                    <option value="{{ rack.pk }}">{{ rack.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_port_count" class="form-label">Port Count *</label>
+                            <select name="port_count" id="id_port_count" class="form-select" required onchange="updateRackUnits()">
+                                <option value="8">8 Ports (1U)</option>
+                                <option value="12">12 Ports (1U)</option>
+                                <option value="24" selected>24 Ports (1U)</option>
+                                <option value="48">48 Ports (2U)</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                Rack unit size is automatically set based on port count
+                            </small>
+                        </div>
+                        {% else %}
+                        <div class="mb-3">
+                            <label class="form-label">Port Count</label>
+                            <p class="form-control-plaintext">{{ patch_panel.port_count }} ports ({{ patch_panel.rack_units }}U)</p>
+                        </div>
+                        {% endif %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_manufacturer" class="form-label">Manufacturer</label>
+                                    <input type="text" name="manufacturer" id="id_manufacturer" class="form-control"
+                                           value="{{ patch_panel.manufacturer|default:'' }}"
+                                           placeholder="e.g., Panduit, Leviton, CommScope">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_model" class="form-label">Model</label>
+                                    <input type="text" name="model" id="id_model" class="form-control"
+                                           value="{{ patch_panel.model|default:'' }}"
+                                           placeholder="Model number">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_serial_number" class="form-label">Serial Number</label>
+                                    <input type="text" name="serial_number" id="id_serial_number" class="form-control"
+                                           value="{{ patch_panel.serial_number|default:'' }}"
+                                           placeholder="Serial number">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="id_rack_position" class="form-label">Rack Position (U)</label>
+                                    <input type="number" name="rack_position" id="id_rack_position" class="form-control"
+                                           value="{{ patch_panel.rack_position|default:'' }}"
+                                           placeholder="1-42" min="1" max="42">
+                                    <small class="form-text text-muted">Starting U position in rack</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_notes" class="form-label">Notes</label>
+                            <textarea name="notes" id="id_notes" class="form-control" rows="3"
+                                      placeholder="Location, cable standards, etc.">{{ patch_panel.notes|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Port Configuration</h5>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="autoLabel()">
+                                <i class="fas fa-magic"></i> Auto-Label Ports
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="port-editor-container">
+                            <div class="port-editor-row" style="font-weight: bold; background: #e9ecef;">
+                                <div>Port</div>
+                                <div>Label</div>
+                                <div>Destination</div>
+                                <div>Cable Type</div>
+                                <div>Status</div>
+                                <div></div>
+                            </div>
+                            <div id="ports-container">
+                                <!-- Ports will be rendered here -->
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="ports" id="id_ports" value="[]">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card mb-4 sticky-top" style="top: 20px;">
+                    <div class="card-header">
+                        <h5 class="mb-0">Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <button type="submit" class="btn btn-primary w-100 mb-2">
+                            <i class="fas fa-save"></i> Save Patch Panel
+                        </button>
+                        <a href="{% if patch_panel %}{% url 'monitoring:patch_panel_detail' patch_panel.pk %}{% else %}{% url 'monitoring:patch_panel_list' %}{% endif %}"
+                           class="btn btn-secondary w-100">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Port Status Options</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2">
+                                <span class="badge bg-success">in-use</span> - Port is connected and active
+                            </li>
+                            <li class="mb-2">
+                                <span class="badge bg-secondary">available</span> - Port is open
+                            </li>
+                            <li>
+                                <span class="badge bg-warning">reserved</span> - Port reserved for future use
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+let ports = {{ patch_panel.port_configuration.ports|default:"[]"|safe }};
+
+// If creating new, initialize based on port count
+if (ports.length === 0 && '{{ action }}' === 'Create') {
+    const portCount = parseInt(document.getElementById('id_port_count').value);
+    initializePorts(portCount);
+}
+
+function initializePorts(count) {
+    ports = [];
+    for (let i = 1; i <= count; i++) {
+        ports.push({
+            port_number: i,
+            label: `Port ${i}`,
+            destination: '',
+            cable_type: 'Cat6',
+            notes: '',
+            status: 'available'
+        });
+    }
+    renderPorts();
+}
+
+function renderPorts() {
+    const container = document.getElementById('ports-container');
+    container.innerHTML = '';
+
+    ports.forEach((port, index) => {
+        const row = document.createElement('div');
+        row.className = 'port-editor-row';
+        row.innerHTML = `
+            <div><strong>${port.port_number}</strong></div>
+            <input type="text" class="form-control form-control-sm" value="${port.label || ''}"
+                   onchange="updatePort(${index}, 'label', this.value)" placeholder="Port label">
+            <input type="text" class="form-control form-control-sm" value="${port.destination || ''}"
+                   onchange="updatePort(${index}, 'destination', this.value)" placeholder="Where it goes">
+            <select class="form-select form-select-sm" onchange="updatePort(${index}, 'cable_type', this.value)">
+                <option value="Cat5e" ${port.cable_type === 'Cat5e' ? 'selected' : ''}>Cat5e</option>
+                <option value="Cat6" ${port.cable_type === 'Cat6' ? 'selected' : ''}>Cat6</option>
+                <option value="Cat6a" ${port.cable_type === 'Cat6a' ? 'selected' : ''}>Cat6a</option>
+                <option value="Fiber" ${port.cable_type === 'Fiber' ? 'selected' : ''}>Fiber</option>
+            </select>
+            <select class="form-select form-select-sm" onchange="updatePort(${index}, 'status', this.value)">
+                <option value="available" ${port.status === 'available' ? 'selected' : ''}>Available</option>
+                <option value="in-use" ${port.status === 'in-use' ? 'selected' : ''}>In Use</option>
+                <option value="reserved" ${port.status === 'reserved' ? 'selected' : ''}>Reserved</option>
+            </select>
+            <button type="button" class="btn btn-sm btn-outline-info" onclick="editPortNotes(${index})" title="Edit notes">
+                <i class="fas fa-sticky-note"></i>
+            </button>
+        `;
+        container.appendChild(row);
+    });
+
+    document.getElementById('id_ports').value = JSON.stringify(ports);
+}
+
+function updatePort(index, field, value) {
+    ports[index][field] = value;
+    document.getElementById('id_ports').value = JSON.stringify(ports);
+}
+
+function editPortNotes(index) {
+    const notes = prompt(`Notes for Port ${ports[index].port_number}:`, ports[index].notes || '');
+    if (notes !== null) {
+        ports[index].notes = notes;
+        document.getElementById('id_ports').value = JSON.stringify(ports);
+    }
+}
+
+function autoLabel() {
+    const prefix = prompt('Enter label prefix (e.g., "Office", "Server Room"):', 'Port');
+    if (prefix !== null) {
+        ports.forEach((port, index) => {
+            port.label = `${prefix} ${port.port_number}`;
+        });
+        renderPorts();
+    }
+}
+
+function updateRackUnits() {
+    const portCount = parseInt(document.getElementById('id_port_count').value);
+    initializePorts(portCount);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    renderPorts();
+});
+</script>
+{% endblock %}

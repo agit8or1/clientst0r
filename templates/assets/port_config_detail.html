@@ -1,0 +1,335 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ config.configuration_name }} - Port Configuration - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .equipment-image {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        background: #f8f9fa;
+        padding: 20px;
+    }
+    .port-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 8px;
+        margin-top: 20px;
+    }
+    .port-item {
+        border: 2px solid #dee2e6;
+        border-radius: 4px;
+        padding: 8px;
+        text-align: center;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .port-item:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .port-item.active {
+        background: #d1e7dd;
+        border-color: #198754;
+    }
+    .port-item.inactive {
+        background: #f8f9fa;
+        border-color: #dee2e6;
+        opacity: 0.6;
+    }
+    .port-item.trunk {
+        background: #cfe2ff;
+        border-color: #0d6efd;
+    }
+    .port-number {
+        font-weight: bold;
+        display: block;
+        margin-bottom: 4px;
+    }
+    .port-vlan {
+        font-size: 10px;
+        color: #6c757d;
+    }
+    .vlan-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 11px;
+        margin: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'assets:port_config_list' %}">Port Configurations</a></li>
+                    <li class="breadcrumb-item active">{{ config.configuration_name }}</li>
+                </ol>
+            </nav>
+            <h2>{{ config.configuration_name }}</h2>
+            <p class="text-muted">
+                {{ config.equipment_model.vendor.name }} {{ config.equipment_model.model_name }}
+                {% if config.asset %}
+                    - Linked to <a href="{% url 'assets:asset_detail' config.asset.pk %}">{{ config.asset.name }}</a>
+                {% endif %}
+            </p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'assets:port_config_edit' config.pk %}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Edit Configuration
+            </a>
+            <a href="{% url 'assets:port_config_delete' config.pk %}" class="btn btn-outline-danger">
+                <i class="fas fa-trash"></i> Delete
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Equipment Diagram</h5>
+                </div>
+                <div class="card-body text-center">
+                    <img id="equipment-image" src="" alt="Equipment Diagram" class="equipment-image">
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Port Configuration</h5>
+                    <div>
+                        <span class="badge bg-info">{{ config.get_port_count }} Total</span>
+                        <span class="badge bg-success">{{ config.get_active_port_count }} Active</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="port-grid" class="port-grid">
+                        <!-- Ports will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Configuration Details</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Equipment Model:</th>
+                            <td>
+                                <a href="{% url 'assets:equipment_model_detail' config.equipment_model.pk %}">
+                                    {{ config.equipment_model.vendor.name }} {{ config.equipment_model.model_name }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Asset:</th>
+                            <td>
+                                {% if config.asset %}
+                                    <a href="{% url 'assets:asset_detail' config.asset.pk %}">{{ config.asset.name }}</a>
+                                {% else %}
+                                    <span class="text-muted">Not linked</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Type:</th>
+                            <td>
+                                {% if config.is_template %}
+                                    <span class="badge bg-primary">Template</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Configuration</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Created:</th>
+                            <td>{{ config.created_at|date:"M d, Y g:i A" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Updated:</th>
+                            <td>{{ config.updated_at|date:"M d, Y g:i A" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            {% if config.vlans %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">VLANs ({{ config.vlans|length }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>VLAN ID</th>
+                                    <th>Name</th>
+                                    <th>Ports</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vlan-list">
+                                <!-- VLANs will be rendered here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if config.notes %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Notes</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ config.notes|linebreaks }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Port Detail Modal -->
+    <div class="modal fade" id="portDetailModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Port <span id="modal-port-number"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Status:</th>
+                            <td><span id="modal-port-status"></span></td>
+                        </tr>
+                        <tr>
+                            <th>Type:</th>
+                            <td><span id="modal-port-type"></span></td>
+                        </tr>
+                        <tr>
+                            <th>VLAN:</th>
+                            <td><span id="modal-port-vlan"></span></td>
+                        </tr>
+                        <tr>
+                            <th>Description:</th>
+                            <td><span id="modal-port-description"></span></td>
+                        </tr>
+                        <tr>
+                            <th>Speed:</th>
+                            <td><span id="modal-port-speed"></span></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const configId = {{ config.pk }};
+    const equipmentModelId = {{ config.equipment_model.pk }};
+
+    // Load equipment image
+    fetch(`/assets/api/equipment-model/${equipmentModelId}/image/`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('equipment-image').src = data.image_url;
+        });
+
+    // Load port configuration
+    fetch(`/assets/api/port-configs/${configId}/ports/`)
+        .then(response => response.json())
+        .then(data => {
+            renderPorts(data.ports);
+            renderVLANs(data.vlans, data.ports);
+        });
+
+    function renderPorts(ports) {
+        const portGrid = document.getElementById('port-grid');
+        portGrid.innerHTML = '';
+
+        ports.forEach(port => {
+            const portDiv = document.createElement('div');
+            portDiv.className = `port-item ${port.status || 'inactive'}`;
+
+            const portNumber = document.createElement('span');
+            portNumber.className = 'port-number';
+            portNumber.textContent = port.port_number || port.name || 'N/A';
+
+            const portVlan = document.createElement('span');
+            portVlan.className = 'port-vlan';
+            portVlan.textContent = port.vlan ? `VLAN ${port.vlan}` : '';
+
+            portDiv.appendChild(portNumber);
+            portDiv.appendChild(portVlan);
+
+            portDiv.addEventListener('click', () => showPortDetail(port));
+
+            portGrid.appendChild(portDiv);
+        });
+    }
+
+    function renderVLANs(vlans, ports) {
+        if (!vlans || vlans.length === 0) return;
+
+        const vlanList = document.getElementById('vlan-list');
+        if (!vlanList) return;
+
+        vlanList.innerHTML = '';
+
+        vlans.forEach(vlan => {
+            const portCount = ports.filter(p => p.vlan === vlan.vlan_id).length;
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><strong>${vlan.vlan_id}</strong></td>
+                <td>${vlan.name || '-'}</td>
+                <td><span class="badge bg-secondary">${portCount}</span></td>
+            `;
+            vlanList.appendChild(row);
+        });
+    }
+
+    function showPortDetail(port) {
+        document.getElementById('modal-port-number').textContent = port.port_number || port.name;
+        document.getElementById('modal-port-status').innerHTML =
+            `<span class="badge bg-${port.status === 'active' ? 'success' : 'secondary'}">${port.status || 'Unknown'}</span>`;
+        document.getElementById('modal-port-type').textContent = port.type || '-';
+        document.getElementById('modal-port-vlan').textContent = port.vlan ? `VLAN ${port.vlan}` : '-';
+        document.getElementById('modal-port-description').textContent = port.description || '-';
+        document.getElementById('modal-port-speed').textContent = port.speed || '-';
+
+        const modal = new bootstrap.Modal(document.getElementById('portDetailModal'));
+        modal.show();
+    }
+});
+</script>
+{% endblock %}

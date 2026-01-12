@@ -590,3 +590,131 @@ def ip_address_delete(request, pk):
         'ip_address': ip_address,
         'subnet': subnet,
     })
+
+
+# ============================================================================
+# Network Closets (Filtered Rack Views)
+# ============================================================================
+
+@login_required
+def network_closet_list(request):
+    """List all network closets and data closets."""
+    org = get_request_organization(request)
+    closets = Rack.objects.filter(
+        organization=org,
+        rack_type__in=['network_closet', 'data_closet']
+    )
+
+    # Search
+    query = request.GET.get('q')
+    if query:
+        closets = closets.filter(
+            Q(name__icontains=query) |
+            Q(building__icontains=query) |
+            Q(floor__icontains=query) |
+            Q(room__icontains=query) |
+            Q(location__icontains=query)
+        )
+
+    return render(request, 'monitoring/network_closet_list.html', {
+        'closets': closets,
+        'query': query,
+    })
+
+
+@login_required
+@require_write
+def network_closet_create(request):
+    """Create network closet."""
+    org = get_request_organization(request)
+
+    if request.method == 'POST':
+        form = RackForm(request.POST, organization=org)
+        if form.is_valid():
+            closet = form.save(commit=False)
+            closet.organization = org
+            # Default to network_closet if not specified
+            if closet.rack_type not in ['network_closet', 'data_closet']:
+                closet.rack_type = 'network_closet'
+            closet.save()
+            messages.success(request, f'Network closet "{closet.name}" created.')
+            return redirect('monitoring:network_closet_detail', pk=closet.pk)
+    else:
+        # Pre-populate form with network_closet type
+        form = RackForm(organization=org, initial={'rack_type': 'network_closet'})
+
+    return render(request, 'monitoring/network_closet_form.html', {
+        'form': form,
+        'action': 'Create',
+    })
+
+
+@login_required
+def network_closet_detail(request, pk):
+    """View network closet details."""
+    org = get_request_organization(request)
+    closet = get_object_or_404(
+        Rack,
+        pk=pk,
+        organization=org,
+        rack_type__in=['network_closet', 'data_closet']
+    )
+
+    # Get devices in this closet
+    devices = RackDevice.objects.filter(rack=closet).order_by('start_unit')
+
+    return render(request, 'monitoring/network_closet_detail.html', {
+        'closet': closet,
+        'devices': devices,
+    })
+
+
+@login_required
+@require_write
+def network_closet_edit(request, pk):
+    """Edit network closet."""
+    org = get_request_organization(request)
+    closet = get_object_or_404(
+        Rack,
+        pk=pk,
+        organization=org,
+        rack_type__in=['network_closet', 'data_closet']
+    )
+
+    if request.method == 'POST':
+        form = RackForm(request.POST, instance=closet, organization=org)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Network closet "{closet.name}" updated.')
+            return redirect('monitoring:network_closet_detail', pk=closet.pk)
+    else:
+        form = RackForm(instance=closet, organization=org)
+
+    return render(request, 'monitoring/network_closet_form.html', {
+        'form': form,
+        'closet': closet,
+        'action': 'Edit',
+    })
+
+
+@login_required
+@require_write
+def network_closet_delete(request, pk):
+    """Delete network closet."""
+    org = get_request_organization(request)
+    closet = get_object_or_404(
+        Rack,
+        pk=pk,
+        organization=org,
+        rack_type__in=['network_closet', 'data_closet']
+    )
+
+    if request.method == 'POST':
+        name = closet.name
+        closet.delete()
+        messages.success(request, f'Network closet "{name}" deleted.')
+        return redirect('monitoring:network_closet_list')
+
+    return render(request, 'monitoring/network_closet_confirm_delete.html', {
+        'closet': closet,
+    })

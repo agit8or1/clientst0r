@@ -1,0 +1,431 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ action }} Port Configuration - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .port-editor {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 15px;
+        background: #f8f9fa;
+        margin-bottom: 15px;
+    }
+    .port-row {
+        display: grid;
+        grid-template-columns: 80px 1fr 100px 150px 80px 40px;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 10px;
+        background: white;
+        border-radius: 4px;
+    }
+    .vlan-row {
+        display: grid;
+        grid-template-columns: 100px 1fr 200px 40px;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 10px;
+        background: white;
+        border-radius: 4px;
+    }
+    .json-editor {
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'assets:port_config_list' %}">Port Configurations</a></li>
+                    {% if config %}
+                        <li class="breadcrumb-item"><a href="{% url 'assets:port_config_detail' config.pk %}">{{ config.configuration_name }}</a></li>
+                    {% endif %}
+                    <li class="breadcrumb-item active">{{ action }}</li>
+                </ol>
+            </nav>
+            <h2>{{ action }} Port Configuration</h2>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Configuration Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="id_configuration_name" class="form-label">Configuration Name *</label>
+                            <input type="text" name="configuration_name" id="id_configuration_name"
+                                   class="form-control" required
+                                   value="{{ config.configuration_name|default:'' }}"
+                                   placeholder="e.g., Production VLAN Setup, Default Config">
+                        </div>
+
+                        {% if action == 'Create' %}
+                        <div class="mb-3">
+                            <label for="id_equipment_model" class="form-label">Equipment Model *</label>
+                            <select name="equipment_model" id="id_equipment_model" class="form-select" required>
+                                <option value="">Select equipment model</option>
+                                {% for model in equipment_models %}
+                                    <option value="{{ model.pk }}">
+                                        {{ model.vendor.name }} {{ model.model_name }} ({{ model.equipment_type }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_asset" class="form-label">Link to Asset (Optional)</label>
+                            <select name="asset" id="id_asset" class="form-select">
+                                <option value="">No asset (template)</option>
+                                {% for asset in assets %}
+                                    <option value="{{ asset.pk }}">{{ asset.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Leave blank to create a reusable template</small>
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_template" id="id_is_template"
+                                       class="form-check-input" {% if config.is_template %}checked{% endif %}>
+                                <label for="id_is_template" class="form-check-label">
+                                    Save as template
+                                </label>
+                                <small class="form-text text-muted d-block">Templates can be reused for multiple assets</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_notes" class="form-label">Notes</label>
+                            <textarea name="notes" id="id_notes" class="form-control" rows="3"
+                                      placeholder="Configuration notes, deployment info, etc.">{{ config.notes|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Port Configuration</h5>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="addPort()">
+                            <i class="fas fa-plus"></i> Add Port
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="port-editor" class="port-editor">
+                            <div class="port-row" style="font-weight: bold; background: #e9ecef;">
+                                <div>Port #</div>
+                                <div>Description</div>
+                                <div>Type</div>
+                                <div>VLAN</div>
+                                <div>Status</div>
+                                <div></div>
+                            </div>
+                            <div id="ports-container">
+                                <!-- Ports will be rendered here -->
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showJSONEditor('ports')">
+                                <i class="fas fa-code"></i> Advanced JSON Editor
+                            </button>
+                        </div>
+
+                        <input type="hidden" name="ports" id="id_ports" value="[]">
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">VLAN Configuration</h5>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="addVLAN()">
+                            <i class="fas fa-plus"></i> Add VLAN
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="vlan-editor" class="port-editor">
+                            <div class="vlan-row" style="font-weight: bold; background: #e9ecef;">
+                                <div>VLAN ID</div>
+                                <div>Name</div>
+                                <div>Description</div>
+                                <div></div>
+                            </div>
+                            <div id="vlans-container">
+                                <!-- VLANs will be rendered here -->
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showJSONEditor('vlans')">
+                                <i class="fas fa-code"></i> Advanced JSON Editor
+                            </button>
+                        </div>
+
+                        <input type="hidden" name="vlans" id="id_vlans" value="[]">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card mb-4 sticky-top" style="top: 20px;">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <button type="submit" class="btn btn-primary w-100 mb-2">
+                            <i class="fas fa-save"></i> Save Configuration
+                        </button>
+                        <a href="{% if config %}{% url 'assets:port_config_detail' config.pk %}{% else %}{% url 'assets:port_config_list' %}{% endif %}"
+                           class="btn btn-secondary w-100 mb-3">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+
+                        <hr>
+
+                        <h6>Quick Templates</h6>
+                        <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2"
+                                onclick="loadTemplate('24port_access')">
+                            24-Port Access Switch
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2"
+                                onclick="loadTemplate('48port_access')">
+                            48-Port Access Switch
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2"
+                                onclick="loadTemplate('firewall_basic')">
+                            Firewall (WAN/LAN/DMZ)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- JSON Editor Modal -->
+    <div class="modal fade" id="jsonEditorModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">JSON Editor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <textarea id="json-editor-textarea" class="form-control json-editor" rows="20"></textarea>
+                    <small class="form-text text-muted">Edit JSON directly. Must be valid JSON format.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveJSON()">Apply Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let ports = {{ config.ports|default:"[]"|safe }};
+let vlans = {{ config.vlans|default:"[]"|safe }};
+let currentJSONType = 'ports';
+
+document.addEventListener('DOMContentLoaded', function() {
+    renderPorts();
+    renderVLANs();
+});
+
+function renderPorts() {
+    const container = document.getElementById('ports-container');
+    container.innerHTML = '';
+
+    ports.forEach((port, index) => {
+        const row = document.createElement('div');
+        row.className = 'port-row';
+        row.innerHTML = `
+            <input type="text" class="form-control form-control-sm" value="${port.port_number || index + 1}"
+                   onchange="updatePort(${index}, 'port_number', this.value)">
+            <input type="text" class="form-control form-control-sm" value="${port.description || ''}"
+                   onchange="updatePort(${index}, 'description', this.value)" placeholder="Port description">
+            <select class="form-select form-select-sm" onchange="updatePort(${index}, 'type', this.value)">
+                <option value="access" ${port.type === 'access' ? 'selected' : ''}>Access</option>
+                <option value="trunk" ${port.type === 'trunk' ? 'selected' : ''}>Trunk</option>
+            </select>
+            <input type="text" class="form-control form-control-sm" value="${port.vlan || ''}"
+                   onchange="updatePort(${index}, 'vlan', this.value)" placeholder="VLAN ID">
+            <select class="form-select form-select-sm" onchange="updatePort(${index}, 'status', this.value)">
+                <option value="active" ${port.status === 'active' ? 'selected' : ''}>Active</option>
+                <option value="inactive" ${port.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+            </select>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removePort(${index})">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        container.appendChild(row);
+    });
+
+    document.getElementById('id_ports').value = JSON.stringify(ports);
+}
+
+function renderVLANs() {
+    const container = document.getElementById('vlans-container');
+    container.innerHTML = '';
+
+    vlans.forEach((vlan, index) => {
+        const row = document.createElement('div');
+        row.className = 'vlan-row';
+        row.innerHTML = `
+            <input type="number" class="form-control form-control-sm" value="${vlan.vlan_id || ''}"
+                   onchange="updateVLAN(${index}, 'vlan_id', this.value)" placeholder="10">
+            <input type="text" class="form-control form-control-sm" value="${vlan.name || ''}"
+                   onchange="updateVLAN(${index}, 'name', this.value)" placeholder="Management">
+            <input type="text" class="form-control form-control-sm" value="${vlan.description || ''}"
+                   onchange="updateVLAN(${index}, 'description', this.value)" placeholder="Description">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeVLAN(${index})">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        container.appendChild(row);
+    });
+
+    document.getElementById('id_vlans').value = JSON.stringify(vlans);
+}
+
+function addPort() {
+    ports.push({
+        port_number: ports.length + 1,
+        description: '',
+        type: 'access',
+        vlan: '',
+        status: 'active'
+    });
+    renderPorts();
+}
+
+function removePort(index) {
+    ports.splice(index, 1);
+    renderPorts();
+}
+
+function updatePort(index, field, value) {
+    ports[index][field] = value;
+    document.getElementById('id_ports').value = JSON.stringify(ports);
+}
+
+function addVLAN() {
+    vlans.push({
+        vlan_id: '',
+        name: '',
+        description: ''
+    });
+    renderVLANs();
+}
+
+function removeVLAN(index) {
+    vlans.splice(index, 1);
+    renderVLANs();
+}
+
+function updateVLAN(index, field, value) {
+    vlans[index][field] = field === 'vlan_id' ? parseInt(value) : value;
+    document.getElementById('id_vlans').value = JSON.stringify(vlans);
+}
+
+function showJSONEditor(type) {
+    currentJSONType = type;
+    const data = type === 'ports' ? ports : vlans;
+    document.getElementById('json-editor-textarea').value = JSON.stringify(data, null, 2);
+    const modal = new bootstrap.Modal(document.getElementById('jsonEditorModal'));
+    modal.show();
+}
+
+function saveJSON() {
+    try {
+        const jsonText = document.getElementById('json-editor-textarea').value;
+        const data = JSON.parse(jsonText);
+
+        if (currentJSONType === 'ports') {
+            ports = data;
+            renderPorts();
+        } else {
+            vlans = data;
+            renderVLANs();
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById('jsonEditorModal')).hide();
+    } catch (e) {
+        alert('Invalid JSON: ' + e.message);
+    }
+}
+
+function loadTemplate(templateType) {
+    if (!confirm('This will replace your current configuration. Continue?')) return;
+
+    switch (templateType) {
+        case '24port_access':
+            ports = Array.from({length: 24}, (_, i) => ({
+                port_number: i + 1,
+                description: '',
+                type: 'access',
+                vlan: '10',
+                status: 'active'
+            }));
+            vlans = [
+                {vlan_id: 10, name: 'Default', description: 'Default VLAN'}
+            ];
+            break;
+
+        case '48port_access':
+            ports = Array.from({length: 48}, (_, i) => ({
+                port_number: i + 1,
+                description: '',
+                type: 'access',
+                vlan: '10',
+                status: 'active'
+            }));
+            vlans = [
+                {vlan_id: 10, name: 'Default', description: 'Default VLAN'}
+            ];
+            break;
+
+        case 'firewall_basic':
+            ports = [
+                {port_number: 1, description: 'WAN1', type: 'access', vlan: '', status: 'active'},
+                {port_number: 2, description: 'WAN2', type: 'access', vlan: '', status: 'inactive'},
+                {port_number: 3, description: 'LAN1', type: 'access', vlan: '10', status: 'active'},
+                {port_number: 4, description: 'LAN2', type: 'access', vlan: '10', status: 'active'},
+                {port_number: 5, description: 'DMZ', type: 'access', vlan: '50', status: 'active'},
+            ];
+            vlans = [
+                {vlan_id: 10, name: 'LAN', description: 'Internal Network'},
+                {vlan_id: 50, name: 'DMZ', description: 'Demilitarized Zone'}
+            ];
+            break;
+    }
+
+    renderPorts();
+    renderVLANs();
+}
+</script>
+{% endblock %}

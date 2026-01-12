@@ -116,12 +116,16 @@ class Password(BaseModel):
     expires_at = models.DateTimeField(null=True, blank=True, help_text='Password expiration date')
     expiry_notification_sent = models.BooleanField(default=False)
 
+    # Password strength (0-100, calculated on save)
+    strength_score = models.IntegerField(default=0, help_text='Password strength score (0=weak, 100=strong)')
+
     # My Vault (personal passwords)
     is_personal = models.BooleanField(default=False, help_text='Personal password (My Vault)')
     personal_owner = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='personal_passwords')
 
     # Metadata
     tags = models.ManyToManyField(Tag, blank=True, related_name='passwords')
+    custom_fields = models.JSONField(default=dict, blank=True, help_text='Additional custom data (e.g., breach scan frequency)')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='passwords_created')
     last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='passwords_modified')
 
@@ -143,12 +147,19 @@ class Password(BaseModel):
         Encrypt and store password using v2 encryption with AAD context.
         Includes organization ID but NOT password ID (since it may not exist yet).
         This ensures AAD remains consistent between encryption and decryption.
+        Also calculates and stores password strength score.
         """
+        from .utils import calculate_password_strength
+
         self.encrypted_password = encrypt_password(
             plaintext_password,
             org_id=self.organization_id,
             password_id=None  # Don't use ID in AAD to avoid mismatch on create
         )
+
+        # Calculate and store password strength
+        strength_result = calculate_password_strength(plaintext_password)
+        self.strength_score = strength_result['score']
 
     def get_password(self):
         """
@@ -210,6 +221,43 @@ class Password(BaseModel):
         from django.utils import timezone
         delta = self.expires_at - timezone.now()
         return delta.days
+
+    @property
+    def password_status(self):
+        """
+        Get password status: 'breached', 'weak', or 'safe'.
+        Priority: breached > weak > safe
+        """
+        # Check if breached first (highest priority)
+        if self.is_breached:
+            return 'breached'
+
+        # Check if weak (strength score < 50)
+        if self.strength_score < 50:
+            return 'weak'
+
+        # Otherwise it's safe
+        return 'safe'
+
+    @property
+    def password_status_display(self):
+        """Get user-friendly display label for password status."""
+        status_labels = {
+            'breached': 'Breached',
+            'weak': 'Weak',
+            'safe': 'Safe'
+        }
+        return status_labels.get(self.password_status, 'Unknown')
+
+    @property
+    def password_status_color(self):
+        """Get Bootstrap color class for password status."""
+        status_colors = {
+            'breached': 'danger',
+            'weak': 'warning',
+            'safe': 'success'
+        }
+        return status_colors.get(self.password_status, 'secondary')
 
     def save(self, *args, **kwargs):
         # Ensure password is never stored in plaintext

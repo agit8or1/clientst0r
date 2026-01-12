@@ -1,0 +1,241 @@
+{
+  "description": "Equipment catalog updates - new hardware releases",
+  "last_updated": "2026-01-11",
+  "vendors": [
+    {
+      "name": "Dell",
+      "website": "https://www.dell.com",
+      "support_url": "https://www.dell.com/support",
+      "support_phone": "1-800-624-9896",
+      "description": "American multinational computer technology company",
+      "is_active": true,
+      "equipment": [
+        {
+          "model_name": "PowerEdge R750",
+          "model_number": "R750",
+          "equipment_type": "server",
+          "description": "2U rack server, 15th generation PowerEdge",
+          "is_rackmount": true,
+          "rack_units": 2,
+          "release_date": "2021-05-01",
+          "specifications": {
+            "processor": "Dual 3rd Gen Intel Xeon Scalable or AMD EPYC 7003",
+            "memory": "Up to 8TB DDR4 3200MT/s",
+            "storage": "Up to 24x 2.5\" or 12x 3.5\" drives",
+            "max_storage_capacity": "307TB",
+            "expansion_slots": "Up to 8 PCIe Gen4 slots",
+            "network": "4x 1GbE LOM",
+            "power_supply": "Dual hot-plug 800W/1100W/1400W/1800W",
+            "management": "iDRAC9 with Lifecycle Controller"
+          },
+          "datasheet_url": "https://www.dell.com/en-us/dt/servers/poweredge/r750.htm",
+          "documentation_url": "https://www.dell.com/support/manuals/en-us/poweredge-r750"
+        },
+        {
+          "model_name": "PowerEdge R650",
+          "model_number": "R650",
+          "equipment_type": "server",
+          "description": "1U rack server, 15th generation PowerEdge",
+          "is_rackmount": true,
+          "rack_units": 1,
+          "release_date": "2021-05-01",
+          "specifications": {
+            "processor": "Dual 3rd Gen Intel Xeon Scalable",
+            "memory": "Up to 4TB DDR4 3200MT/s",
+            "storage": "Up to 10x 2.5\" drives",
+            "expansion_slots": "Up to 3 PCIe Gen4 slots",
+            "network": "4x 1GbE LOM",
+            "power_supply": "Dual hot-plug 800W/1100W",
+            "management": "iDRAC9 with Lifecycle Controller"
+          },
+          "datasheet_url": "https://www.dell.com/en-us/dt/servers/poweredge/r650.htm"
+        },
+        {
+          "model_name": "Latitude 7440",
+          "model_number": "7440",
+          "equipment_type": "laptop",
+          "description": "14-inch business ultrabook",
+          "is_rackmount": false,
+          "release_date": "2023-03-01",
+          "specifications": {
+            "processor": "Intel Core i5/i7 13th Gen",
+            "memory": "Up to 64GB DDR5",
+            "storage": "Up to 2TB PCIe NVMe SSD",
+            "display": "14\" FHD/QHD/UHD",
+            "battery": "Up to 60Wh",
+            "weight": "Starting at 2.96 lbs (1.34 kg)",
+            "ports": "2x Thunderbolt 4, 2x USB 3.2, HDMI 2.0, RJ-45"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cisco",
+      "website": "https://www.cisco.com",
+      "support_url": "https://www.cisco.com/c/en/us/support",
+      "support_phone": "1-800-553-2447",
+      "equipment": [
+        {
+          "model_name": "Catalyst 9300-48UXM",
+          "model_number": "C9300-48UXM",
+          "equipment_type": "switch",
+          "description": "48-port multigigabit switch with UPOE+",
+          "is_rackmount": true,
+          "rack_units": 1,
+          "release_date": "2022-06-01",
+          "specifications": {
+            "ports": "48x 100M/1G/2.5G/5G/10G UPOE+ (90W)",
+            "uplink_ports": "8x 10/25G SFP28",
+            "switching_capacity": "960 Gbps",
+            "forwarding_rate": "714 Mpps",
+            "power_budget": "4320W PoE",
+            "stacking": "480 Gbps StackWise-480",
+            "features": "SD-Access, DNA Center ready, MACsec",
+            "power_consumption": "149W (without PoE)"
+          },
+          "datasheet_url": "https://www.cisco.com/c/en/us/products/collateral/switches/catalyst-9300-series-switches/nb-06-cat9300-ser-data-sheet-cte-en.html"
+        },
+        {
+          "model_name": "ISR 4461",
+          "model_number": "ISR4461",
+          "equipment_type": "router",
+          "description": "Integrated Services Router for enterprise WAN",
+          "is_rackmount": true,
+          "rack_units": 2,
+          "release_date": "2020-09-01",
+          "specifications": {
+            "throughput": "Up to 5 Gbps",
+            "interfaces": "4x 1GbE, 1x RJ-45 console, 1x USB 3.0",
+            "expansion_slots": "4x NIM, 3x SM",
+            "memory": "16GB DRAM default, up to 32GB",
+            "storage": "8GB flash default, up to 32GB",
+            "power_supply": "Dual redundant AC/DC",
+            "features": "SD-WAN, DNA, security, unified comms"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ubiquiti",
+      "website": "https://www.ui.com",
+      "support_url": "https://help.ui.com",
+      "equipment": [
+        {
+          "model_name": "UniFi Switch Enterprise 48 PoE",
+          "model_number": "USW-Enterprise-48-PoE",
+          "equipment_type": "switch",
+          "description": "48-port Layer 3 PoE switch with 2.5G ports",
+          "is_rackmount": true,
+          "rack_units": 1,
+          "release_date": "2022-11-01",
+          "specifications": {
+            "ports": "32x 1G PoE+, 16x 2.5G PoE++",
+            "uplink_ports": "4x 10G SFP+",
+            "switching_capacity": "136 Gbps",
+            "power_budget": "720W PoE",
+            "features": "Layer 3 routing, UniFi OS",
+            "management": "UniFi Network Controller",
+            "max_power_consumption": "832W"
+          },
+          "datasheet_url": "https://dl.ui.com/ds/usw-enterprise-48-poe-ds"
+        },
+        {
+          "model_name": "UniFi AP WiFi 7 Pro",
+          "model_number": "U7-Pro",
+          "equipment_type": "access_point",
+          "description": "WiFi 7 tri-band access point",
+          "is_rackmount": false,
+          "release_date": "2024-01-01",
+          "specifications": {
+            "wireless_standard": "802.11be (WiFi 7)",
+            "bands": "2.4GHz, 5GHz, 6GHz",
+            "max_throughput": "11.5 Gbps aggregate",
+            "antenna": "4x4 MU-MIMO on all bands",
+            "ports": "1x 10G RJ45, 1x 2.5G RJ45",
+            "power": "PoE++ (802.3bt) or 60W DC",
+            "max_power_consumption": "52W",
+            "concurrent_clients": "680+",
+            "coverage": "Up to 260 m²"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fortinet",
+      "website": "https://www.fortinet.com",
+      "support_url": "https://support.fortinet.com",
+      "support_phone": "1-866-648-4638",
+      "equipment": [
+        {
+          "model_name": "FortiGate 80F",
+          "model_number": "FG-80F",
+          "equipment_type": "firewall",
+          "description": "Desktop firewall for small offices",
+          "is_rackmount": false,
+          "release_date": "2020-01-01",
+          "specifications": {
+            "firewall_throughput": "10 Gbps",
+            "ips_throughput": "900 Mbps",
+            "ngfw_throughput": "650 Mbps",
+            "vpn_throughput": "1.8 Gbps (IPsec)",
+            "ports": "10x GE RJ45, 2x GE SFP",
+            "concurrent_sessions": "500000",
+            "new_sessions_per_second": "35000",
+            "max_ssl_inspection_throughput": "450 Mbps"
+          },
+          "eol_date": "2027-01-01",
+          "eos_date": "2030-01-01"
+        },
+        {
+          "model_name": "FortiGate 400F",
+          "model_number": "FG-400F",
+          "equipment_type": "firewall",
+          "description": "High-performance firewall for enterprises",
+          "is_rackmount": true,
+          "rack_units": 1,
+          "release_date": "2021-06-01",
+          "specifications": {
+            "firewall_throughput": "80 Gbps",
+            "ips_throughput": "10 Gbps",
+            "ngfw_throughput": "6 Gbps",
+            "vpn_throughput": "20 Gbps (IPsec)",
+            "ports": "16x GE RJ45, 8x GE SFP, 4x 10GE SFP+",
+            "concurrent_sessions": "10000000",
+            "new_sessions_per_second": "420000",
+            "power_supply": "Dual redundant"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Arista Networks",
+      "website": "https://www.arista.com",
+      "support_url": "https://www.arista.com/en/support",
+      "support_phone": "1-408-547-5500",
+      "description": "Cloud networking solutions for data centers",
+      "is_active": true,
+      "equipment": [
+        {
+          "model_name": "7280R3-48YC6",
+          "model_number": "DCS-7280R3-48YC6",
+          "equipment_type": "switch",
+          "description": "48-port 25GbE + 6-port 100GbE switch",
+          "is_rackmount": true,
+          "rack_units": 1,
+          "release_date": "2021-01-01",
+          "specifications": {
+            "ports": "48x 25GbE SFP28, 6x 100GbE QSFP28",
+            "switching_capacity": "3.84 Tbps",
+            "packet_buffer": "20GB",
+            "latency": "550ns (port-to-port)",
+            "routing_table": "128K IPv4, 64K IPv6",
+            "power_supply": "Dual redundant 1200W",
+            "features": "VXLAN, EVPN, CloudVision",
+            "os": "Arista EOS"
+          },
+          "datasheet_url": "https://www.arista.com/assets/data/pdf/Datasheets/7280R3-DataSheet.pdf"
+        }
+      ]
+    }
+  ]
+}
