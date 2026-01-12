@@ -102,6 +102,21 @@
         </div>
     </div>
 
+    <!-- DEBUG INFO -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-warning">
+                <h6>🐛 Debug Info:</h6>
+                <ul class="mb-0">
+                    <li><strong>update_available:</strong> {{ update_info.update_available }} ({{ update_info.update_available|yesno:"TRUE,FALSE" }})</li>
+                    <li><strong>current_version:</strong> {{ update_info.current_version }}</li>
+                    <li><strong>latest_version:</strong> {{ update_info.latest_version }}</li>
+                    <li><strong>Should show button:</strong> {% if update_info.update_available %}YES{% else %}NO{% endif %}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <!-- Update Actions -->
     <div class="row mb-4">
         <div class="col-12">
@@ -120,6 +135,8 @@
                     <button type="button" class="btn btn-success ms-2" data-bs-toggle="modal" data-bs-target="#updateModal">
                         <i class="fas fa-download"></i> Apply Update
                     </button>
+                    {% else %}
+                    <!-- DEBUG: Button hidden because update_available is: {{ update_info.update_available }} -->
                     {% endif %}
 
                     <div class="alert alert-info mt-3 mb-0">
