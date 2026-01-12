@@ -169,8 +169,8 @@ class UpdateService:
                 # Using systemd-run to avoid killing ourselves mid-update
                 import time
                 restart_output = self._run_command([
-                    'sudo', 'systemd-run', '--on-active=3',
-                    'systemctl', 'restart', 'huduglue-gunicorn.service'
+                    '/usr/bin/sudo', '/usr/bin/systemd-run', '--on-active=3',
+                    '/usr/bin/systemctl', 'restart', 'huduglue-gunicorn.service'
                 ])
                 logger.info(f"Service restart scheduled: {restart_output}")
                 result['steps_completed'].append('restart_service')

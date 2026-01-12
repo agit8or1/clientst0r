@@ -5,6 +5,26 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.19] - 2026-01-12
+
+### 🐛 Bug Fixes
+
+- **Fix Full Paths for All Commands in Restart**
+  - Changed `sudo` to `/usr/bin/sudo`
+  - Changed `systemd-run` to `/usr/bin/systemd-run`
+  - Changed `systemctl` to `/usr/bin/systemctl`
+  - Fixes "[Errno 2] No such file or directory: 'sudo'" error
+  - All commands in restart chain now use absolute paths
+
+### ✅ Verified Working
+
+- v2.14.18 confirmed systemd check now returns True
+- Restart command was being attempted but failing on sudo PATH
+- This fix should complete the auto-update implementation
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.18] - 2026-01-12
 
 ### 🧪 Test Release

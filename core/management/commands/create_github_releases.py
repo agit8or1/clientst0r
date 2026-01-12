@@ -658,6 +658,50 @@ You should see the systemd check pass and the restart command execute.
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.19': {
+                'name': 'v2.14.19 - Fix All Command Paths for Restart',
+                'body': '''## 🐛 Bug Fixes
+
+### Fix Full Paths for All Commands in Restart
+
+**Problem Found in v2.14.18:**
+The systemd check worked correctly (returned True), but the restart command failed with:
+```
+ERROR ... updater Update failed: [Errno 2] No such file or directory: 'sudo'
+```
+
+**Root Cause:**
+Only `/usr/bin/systemctl` was using full path. The `sudo` and `systemd-run` commands were still relying on PATH, which isn't available in the Gunicorn environment.
+
+**Solution:**
+Changed ALL commands to use absolute paths:
+- `sudo` → `/usr/bin/sudo`
+- `systemd-run` → `/usr/bin/systemd-run`
+- `systemctl` → `/usr/bin/systemctl`
+
+### ✅ Testing Progress
+
+- ✅ v2.14.17: Fixed systemd check to use `/usr/bin/systemctl`
+- ✅ v2.14.18: Confirmed systemd check returns True
+- ✅ v2.14.19: Fixed remaining PATH issues in restart command
+
+**This should complete the auto-update system!**
+
+### 📝 Expected Behavior
+
+When updating from v2.14.18 → v2.14.19, the logs should show:
+```
+INFO ... updater Systemd service check result: True
+INFO ... updater Restarting systemd service
+INFO ... updater Service restart scheduled: Running timer as unit: run-...
+INFO ... updater Update completed successfully
+```
+
+Then the service restarts automatically and loads v2.14.19.
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 
