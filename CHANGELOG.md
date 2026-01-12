@@ -5,6 +5,26 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.13] - 2026-01-12
+
+### 🐛 Bug Fixes
+
+- **Service Restart Fix - THE REAL FIX!**
+  - Changed from `systemctl restart` to `systemd-run --on-active=3 systemctl restart`
+  - Schedules restart 3 seconds after update completes
+  - Prevents process from killing itself mid-update
+  - Allows progress tracker to finish and send final response
+  - Service now ACTUALLY restarts automatically!
+
+### 🔧 Technical Details
+
+**The Problem:** A process can't restart itself while it's running. When the update thread called `systemctl restart`, it immediately killed the Gunicorn process, terminating the thread before it could finish.
+
+**The Solution:** Use `systemd-run --on-active=3` to schedule the restart 3 seconds later. This gives the update thread time to complete, mark progress as finished, and send the response BEFORE the restart happens.
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.12] - 2026-01-12
 
 ### 🎉 Final Test Release

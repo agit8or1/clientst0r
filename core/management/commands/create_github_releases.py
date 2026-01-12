@@ -435,6 +435,39 @@ This version represents the **fully working auto-update system** with:
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.13': {
+                'name': 'v2.14.13 - Service Restart Fix (THE REAL FIX!)',
+                'body': '''## 🐛 Bug Fixes
+
+### Service Restart Fix - THE REAL FIX!
+- Changed from `systemctl restart` to `systemd-run --on-active=3 systemctl restart`
+- Schedules restart 3 seconds after update completes
+- Prevents process from killing itself mid-update
+- Allows progress tracker to finish and send final response
+- **Service now ACTUALLY restarts automatically!**
+
+## 🔧 Technical Details
+
+**The Problem:**
+A process can't restart itself while it's running. When the update thread called `systemctl restart huduglue-gunicorn.service`, it immediately killed the Gunicorn process that was running the update, terminating the thread before it could finish.
+
+**The Solution:**
+Use `systemd-run --on-active=3` to schedule the restart to happen 3 seconds later. This gives the update thread time to:
+1. Complete all update steps
+2. Mark progress as finished
+3. Send HTTP response with "Update completed successfully!"
+4. THEN the restart happens (3 seconds later)
+
+**Command used:**
+```bash
+sudo systemd-run --on-active=3 systemctl restart huduglue-gunicorn.service
+```
+
+This is the industry-standard approach for self-updating services!
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 
