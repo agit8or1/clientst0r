@@ -155,6 +155,18 @@ if [ "$EXISTING_INSTALL" = true ]; then
             cd "$INSTALL_DIR"
             git pull origin main || print_warning "Git pull failed or not a git repository"
 
+            # Check if venv exists, create if missing
+            if [ ! -d "venv" ] || [ ! -f "venv/bin/activate" ]; then
+                print_warning "Virtual environment not found, creating..."
+                python3.12 -m venv venv
+                if [ ! -f "venv/bin/activate" ]; then
+                    print_error "Failed to create virtual environment"
+                    print_error "Install python3.12-venv: sudo apt-get install python3.12-venv"
+                    exit 1
+                fi
+                print_status "Virtual environment created"
+            fi
+
             # Activate venv and upgrade dependencies
             print_info "Updating Python dependencies..."
             source venv/bin/activate
