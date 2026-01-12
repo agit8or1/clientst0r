@@ -41,13 +41,90 @@ class Asset(BaseModel):
     Asset/device with flexible JSON fields.
     """
     ASSET_TYPES = [
+        # Computers & Workstations
         ('server', 'Server'),
         ('workstation', 'Workstation'),
         ('laptop', 'Laptop'),
-        ('network', 'Network Device'),
+        ('desktop', 'Desktop Computer'),
+        ('thin_client', 'Thin Client'),
+        ('terminal', 'Terminal'),
+
+        # Network Infrastructure
+        ('switch', 'Network Switch'),
+        ('router', 'Router'),
+        ('firewall', 'Firewall'),
+        ('load_balancer', 'Load Balancer'),
+        ('wireless_ap', 'Wireless Access Point'),
+        ('wireless_controller', 'Wireless Controller'),
+        ('modem', 'Modem'),
+        ('gateway', 'Gateway'),
+        ('bridge', 'Network Bridge'),
+
+        # Security & Access Control
+        ('access_control', 'Access Control System'),
+        ('door_controller', 'Door Controller'),
+        ('card_reader', 'Card Reader'),
+        ('biometric_scanner', 'Biometric Scanner'),
+        ('security_camera', 'Security Camera'),
+        ('nvr', 'Network Video Recorder (NVR)'),
+        ('dvr', 'Digital Video Recorder (DVR)'),
+
+        # Telecommunications
+        ('phone', 'IP Phone'),
+        ('pbx', 'PBX System'),
+        ('voip_gateway', 'VoIP Gateway'),
+        ('conference_phone', 'Conference Phone'),
+        ('paging_system', 'Paging System'),
+
+        # Storage
+        ('nas', 'Network Attached Storage (NAS)'),
+        ('san', 'Storage Area Network (SAN)'),
+        ('tape_drive', 'Tape Drive/Library'),
+        ('backup_appliance', 'Backup Appliance'),
+
+        # Power & Environmental
+        ('ups', 'UPS (Uninterruptible Power Supply)'),
+        ('pdu', 'Power Distribution Unit (PDU)'),
+        ('generator', 'Generator'),
+        ('hvac', 'HVAC System'),
+        ('environmental_monitor', 'Environmental Monitor'),
+
+        # Printing & Peripherals
         ('printer', 'Printer'),
-        ('phone', 'Phone'),
+        ('scanner', 'Scanner'),
+        ('copier', 'Copier/MFP'),
+        ('label_printer', 'Label Printer'),
+        ('plotter', 'Plotter'),
+        ('kvm', 'KVM Switch'),
+
+        # Audio/Visual
+        ('projector', 'Projector'),
+        ('display', 'Display/Monitor'),
+        ('video_conferencing', 'Video Conferencing System'),
+        ('digital_signage', 'Digital Signage'),
+        ('av_receiver', 'AV Receiver'),
+
+        # Mobile & Portable
         ('mobile', 'Mobile Device'),
+        ('tablet', 'Tablet'),
+        ('handheld', 'Handheld Scanner/Device'),
+        ('pda', 'PDA'),
+
+        # IoT & Building Systems
+        ('iot_device', 'IoT Device'),
+        ('sensor', 'Sensor'),
+        ('thermostat', 'Smart Thermostat'),
+        ('lighting_control', 'Lighting Control'),
+        ('badge_printer', 'Badge Printer'),
+
+        # Rack Equipment
+        ('patch_panel', 'Patch Panel'),
+        ('fiber_panel', 'Fiber Patch Panel'),
+        ('console_server', 'Console Server'),
+        ('rack', 'Server Rack/Cabinet'),
+
+        # Other
+        ('appliance', 'Appliance'),
         ('other', 'Other'),
     ]
 
