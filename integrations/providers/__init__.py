@@ -9,6 +9,7 @@ from .kaseya import KaseyaBMSProvider
 from .syncro import SyncroProvider
 from .freshservice import FreshserviceProvider
 from .zendesk import ZendeskProvider
+from .itflow import ITFlowProvider
 
 # Registry of available providers
 PROVIDER_REGISTRY = {
@@ -19,6 +20,7 @@ PROVIDER_REGISTRY = {
     'syncro': SyncroProvider,
     'freshservice': FreshserviceProvider,
     'zendesk': ZendeskProvider,
+    'itflow': ITFlowProvider,
 }
 
 def get_provider(connection):

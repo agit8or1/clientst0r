@@ -5,6 +5,37 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.5] - 2026-01-12
+
+### ✨ New Features
+
+- **ITFlow PSA Integration**
+  - Added complete ITFlow provider implementation
+  - Fixed "Unknown provider type: itflow" error
+  - Supports clients, contacts, and tickets synchronization
+  - API authentication using X-API-KEY header
+  - Full CRUD operations for all supported entities
+  - Proper date filtering and pagination support
+
+### 🔧 Files Created
+
+- `integrations/providers/itflow.py` - Complete ITFlow provider implementation
+
+### 🔧 Files Modified
+
+- `integrations/providers/__init__.py` - Registered ITFlow provider in PROVIDER_REGISTRY
+
+### 📝 ITFlow API Endpoints
+
+- `/api/v1/clients` - List and sync clients (companies)
+- `/api/v1/contacts` - List and sync contacts
+- `/api/v1/tickets` - List and sync tickets
+- Authentication: X-API-KEY header
+
+### 🎯 User-Reported Issue Fixed
+
+✅ "Unknown provider type: itflow" - ITFlow provider now registered and functional
+
 ## [2.14.4] - 2026-01-12
 
 ### 🐛 Bug Fixes
