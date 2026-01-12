@@ -347,6 +347,43 @@ When you click "Apply Update":
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.10': {
+                'name': 'v2.14.10 - Update Process Pip Install Fix',
+                'body': '''## 🐛 Bug Fixes
+
+### Update Process - Pip Install Fix
+- Removed `--upgrade` flag from `pip install` during updates
+- Prevents unnecessary rebuilding of compiled packages (python-ldap, cryptography, etc.)
+- Avoids build failures on systems without gcc/build-essential
+- Git pull already brings new code, we only need to install missing packages
+- Faster updates - no recompiling existing packages
+
+## 🎯 What's Fixed
+
+- ✅ Updates no longer require build-essential/gcc unless adding NEW compiled dependencies
+- ✅ Existing python-ldap, cryptography, etc. won't be rebuilt every update
+- ✅ Faster update process (skips compilation of already-installed packages)
+- ✅ More reliable updates on minimal systems
+- ✅ Fixes "Command failed: error: command 'x86_64-linux-gnu-gcc' failed" errors
+
+## 📝 Technical Details
+
+**Before:** `pip install -r requirements.txt --upgrade`
+- Tried to upgrade ALL packages
+- Rebuilt compiled packages even if already satisfied
+- Required gcc/build-essential on every system
+
+**After:** `pip install -r requirements.txt`
+- Only installs missing packages
+- Skips already-satisfied packages
+- No unnecessary compilation
+- Much faster
+
+Since git pull already brings new Python code, we only need to install newly-added dependencies, not upgrade existing ones.
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 
