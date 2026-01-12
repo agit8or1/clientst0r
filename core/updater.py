@@ -100,7 +100,7 @@ class UpdateService:
         try:
             # Step 1: Git pull
             logger.info("Starting update: Git pull")
-            git_output = self._run_command(['git', 'pull', 'origin', 'main'])
+            git_output = self._run_command(['/usr/bin/git', 'pull', 'origin', 'main'])
             result['steps_completed'].append('git_pull')
             result['output'].append(f"Git pull: {git_output}")
 
@@ -231,36 +231,56 @@ class UpdateService:
         Returns:
             dict with 'branch', 'commit', 'clean'
         """
+        git_cmd = '/usr/bin/git'  # Use full path to git
+
         try:
             # Get current branch
             branch_output = subprocess.run(
-                ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                cwd=self.base_dir,
+                [git_cmd, 'rev-parse', '--abbrev-ref', 'HEAD'],
+                cwd=str(self.base_dir),
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
+                check=False
             )
-            branch = branch_output.stdout.strip()
+
+            if branch_output.returncode != 0:
+                logger.error(f"Git branch command failed: {branch_output.stderr}")
+                branch = 'unknown'
+            else:
+                branch = branch_output.stdout.strip()
 
             # Get current commit
             commit_output = subprocess.run(
-                ['git', 'rev-parse', '--short', 'HEAD'],
-                cwd=self.base_dir,
+                [git_cmd, 'rev-parse', '--short', 'HEAD'],
+                cwd=str(self.base_dir),
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
+                check=False
             )
-            commit = commit_output.stdout.strip()
+
+            if commit_output.returncode != 0:
+                logger.error(f"Git commit command failed: {commit_output.stderr}")
+                commit = 'unknown'
+            else:
+                commit = commit_output.stdout.strip()
 
             # Check if working tree is clean
             status_output = subprocess.run(
-                ['git', 'status', '--porcelain'],
-                cwd=self.base_dir,
+                [git_cmd, 'status', '--porcelain'],
+                cwd=str(self.base_dir),
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
+                check=False
             )
-            clean = len(status_output.stdout.strip()) == 0
+
+            if status_output.returncode != 0:
+                logger.error(f"Git status command failed: {status_output.stderr}")
+                clean = None
+            else:
+                clean = len(status_output.stdout.strip()) == 0
 
             return {
                 'branch': branch,
