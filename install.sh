@@ -435,6 +435,8 @@ print_info "Step 4/11: Generating secure secrets..."
 APP_MASTER_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
 SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(50))")
 API_KEY_SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(50))")
+# Generate random secure database password (32 chars, alphanumeric + special chars)
+DB_PASSWORD=$(python3 -c "import secrets; import string; chars = string.ascii_letters + string.digits + '!@#$%^&*'; print(''.join(secrets.choice(chars) for _ in range(32)))")
 
 print_status "Secrets generated"
 
@@ -455,7 +457,7 @@ ALLOWED_HOSTS=localhost,127.0.0.1
 # Database (MariaDB/MySQL)
 DB_NAME=huduglue
 DB_USER=huduglue
-DB_PASSWORD=ChangeMe123!
+DB_PASSWORD=${DB_PASSWORD}
 DB_HOST=localhost
 DB_PORT=3306
 
@@ -480,7 +482,7 @@ REQUIRE_2FA=False
 EOF
 
 print_status "Environment file created (.env)"
-print_warning "Default database password is 'ChangeMe123!' - you should change this!"
+print_info "Secure random database password generated"
 
 # Step 6: Database setup
 echo ""
@@ -502,14 +504,14 @@ if ! sudo systemctl is-active --quiet mariadb && ! sudo systemctl is-active --qu
     fi
 fi
 
-print_info "Creating database and user..."
-print_warning "You'll be prompted for the MySQL root password."
+print_info "Creating database and user with secure random password..."
+print_warning "You may be prompted for the MySQL root password."
 echo ""
 
-# Create database and user
-sudo mysql << 'EOSQL'
+# Create database and user with the generated password
+sudo mysql << EOSQL
 CREATE DATABASE IF NOT EXISTS huduglue CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'huduglue'@'localhost' IDENTIFIED BY 'ChangeMe123!';
+CREATE USER IF NOT EXISTS 'huduglue'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
 GRANT ALL PRIVILEGES ON huduglue.* TO 'huduglue'@'localhost';
 FLUSH PRIVILEGES;
 EOSQL
@@ -518,13 +520,13 @@ if [ $? -eq 0 ]; then
     print_status "Database created successfully"
     print_info "  Database: huduglue"
     print_info "  User: huduglue"
-    print_info "  Password: ChangeMe123!"
+    print_info "  Password: (stored in .env file)"
 else
     print_error "Database creation failed. You may need to create it manually."
     echo ""
-    echo "Run these commands in MySQL as root:"
+    echo "Run these commands in MySQL as root (use the password from .env file):"
     echo "  CREATE DATABASE huduglue CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-    echo "  CREATE USER 'huduglue'@'localhost' IDENTIFIED BY 'ChangeMe123!';"
+    echo "  CREATE USER 'huduglue'@'localhost' IDENTIFIED BY '<password from .env>';"
     echo "  GRANT ALL PRIVILEGES ON huduglue.* TO 'huduglue'@'localhost';"
     echo "  FLUSH PRIVILEGES;"
     echo ""
@@ -699,11 +701,18 @@ echo "  • View logs:     sudo journalctl -u huduglue-gunicorn.service -f"
 echo ""
 
 print_warning "⚠️  IMPORTANT SECURITY STEPS:"
-echo "  1. Change database password in .env and MySQL"
+echo "  1. Backup your .env file (contains secure database password)"
 echo "  2. Set DEBUG=False in .env for production"
 echo "  3. Update ALLOWED_HOSTS in .env with your domain/IP"
 echo "  4. Enable 2FA after first login (Profile → Two-Factor Authentication)"
 echo "  5. Create an Organization (Dashboard → Organizations)"
+echo ""
+
+print_info "🔐 Security Notes:"
+echo "  ✅ Random secure database password generated (32 characters)"
+echo "  ✅ Random Django SECRET_KEY generated (50+ characters)"
+echo "  ✅ Random encryption keys generated"
+echo "  📄 All credentials stored in: $INSTALL_DIR/.env"
 echo ""
 
 print_info "📚 Documentation: https://github.com/agit8or1/huduglue"
