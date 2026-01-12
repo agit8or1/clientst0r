@@ -73,8 +73,8 @@ def system_updates(request):
 
     # Get recent update logs
     recent_updates = AuditLog.objects.filter(
-        event_type__in=['system_update', 'system_update_failed']
-    ).order_by('-created_at')[:10]
+        action__in=['system_update', 'system_update_failed', 'update_check']
+    ).order_by('-timestamp')[:10]
 
     return render(request, 'core/system_updates.html', {
         'version': get_version(),
@@ -99,10 +99,11 @@ def check_updates_now(request):
 
     # Log the check
     AuditLog.objects.create(
-        event_type='update_check',
+        action='update_check',
         description=f'Manual update check by {request.user.username}',
         user=request.user,
-        metadata=update_info
+        username=request.user.username,
+        extra_data=update_info
     )
 
     if update_info.get('error'):

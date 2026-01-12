@@ -179,18 +179,20 @@
                             <tbody>
                                 {% for update in recent_updates %}
                                 <tr>
-                                    <td>{{ update.created_at|date:"Y-m-d H:i" }}</td>
+                                    <td>{{ update.timestamp|date:"Y-m-d H:i" }}</td>
                                     <td>
-                                        {% if update.event_type == 'system_update' %}
+                                        {% if update.action == 'system_update' %}
                                         <span class="badge bg-success">Update Success</span>
-                                        {% elif update.event_type == 'system_update_failed' %}
+                                        {% elif update.action == 'system_update_failed' %}
                                         <span class="badge bg-danger">Update Failed</span>
+                                        {% elif update.action == 'update_check' %}
+                                        <span class="badge bg-info">Update Check</span>
                                         {% else %}
-                                        <span class="badge bg-info">{{ update.event_type }}</span>
+                                        <span class="badge bg-secondary">{{ update.action }}</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ update.description }}</td>
-                                    <td>{{ update.user.username|default:"System" }}</td>
+                                    <td>{{ update.username|default:"System" }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

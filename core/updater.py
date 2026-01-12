@@ -150,10 +150,12 @@ class UpdateService:
 
             # Log to audit trail
             AuditLog.objects.create(
-                event_type='system_update',
+                action='system_update',
                 description=f'System updated from {self.current_version} by {user.username if user else "system"}',
                 user=user,
-                metadata={
+                username=user.username if user else 'system',
+                success=True,
+                extra_data={
                     'previous_version': self.current_version,
                     'steps_completed': result['steps_completed'],
                 }
@@ -168,10 +170,12 @@ class UpdateService:
 
             # Log failure to audit trail
             AuditLog.objects.create(
-                event_type='system_update_failed',
+                action='system_update_failed',
                 description=f'System update failed: {str(e)}',
                 user=user,
-                metadata={
+                username=user.username if user else 'system',
+                success=False,
+                extra_data={
                     'current_version': self.current_version,
                     'steps_completed': result['steps_completed'],
                     'error': str(e),
