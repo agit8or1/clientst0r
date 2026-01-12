@@ -498,6 +498,42 @@ This release includes automated setup of sudo permissions. The installer will cr
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.15': {
+                'name': 'v2.14.15 - Final Auto-Update Test',
+                'body': '''## 🧪 Test Release
+
+### Final Auto-Update Test
+- Test release to verify complete auto-update flow
+- Should demonstrate automatic service restart with sudo permissions
+- Real-time progress tracking with all 5 steps
+- Validates systemd-run delayed restart + passwordless sudo
+
+## ✅ Expected Behavior
+
+When updating from v2.14.14 → v2.14.15:
+1. **Progress modal displays** with animated steps
+2. **All 5 steps complete** successfully:
+   - Step 1: Git Pull ✓
+   - Step 2: Install Dependencies ✓
+   - Step 3: Run Migrations ✓
+   - Step 4: Collect Static Files ✓
+   - Step 5: Restart Service ✓
+3. **Service restarts automatically** (no manual intervention needed)
+4. **Page reloads** showing v2.14.15
+
+## 🔧 Complete Fix Stack
+
+This release validates the complete auto-update system with:
+- ✅ Real-time progress UI (v2.14.9)
+- ✅ Fast pip install without rebuild (v2.14.11)
+- ✅ systemd-run delayed restart (v2.14.13)
+- ✅ Passwordless sudo permissions (v2.14.14)
+
+**All components working together for seamless auto-updates!**
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 

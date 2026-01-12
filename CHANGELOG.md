@@ -5,6 +5,27 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.15] - 2026-01-12
+
+### 🧪 Test Release
+
+- **Final Auto-Update Test**
+  - Test release to verify complete auto-update flow
+  - Should demonstrate automatic service restart with sudo permissions
+  - Real-time progress tracking with all 5 steps
+  - Validates systemd-run delayed restart + passwordless sudo
+
+### ✅ Expected Behavior
+
+When updating from v2.14.14 → v2.14.15:
+1. Progress modal displays with animated steps
+2. All 5 steps complete successfully
+3. Service restarts automatically (no manual intervention)
+4. Page reloads showing v2.14.15
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.14] - 2026-01-12
 
 ### 🐛 Bug Fixes
