@@ -588,6 +588,41 @@ The auto-update system requires **zero manual intervention**. Users can now:
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.17': {
+                'name': 'v2.14.17 - Fix Systemd Service Detection',
+                'body': '''## 🐛 Bug Fixes
+
+### Fix Systemd Service Detection
+
+**Problem:** The `_is_systemd_service()` method was using `systemctl` without a full path. When running inside the Gunicorn process, the PATH environment variable might not include `/usr/bin`, causing the systemd check to fail and skip the restart step.
+
+**Solution:**
+- Changed from `systemctl` to `/usr/bin/systemctl` with full path
+- Added better error logging with exception details
+- Added explicit logging of systemd check result
+- Warning message when restart is skipped
+
+### 🔍 Enhanced Debugging
+
+To help diagnose restart issues, this version includes:
+- Log message: "Systemd service check result: True/False"
+- Warning if restart skipped: "Not running as systemd service - skipping restart"
+- Exception details when systemctl command fails
+
+### 📝 How to Check Logs
+
+After updating, check if restart is working:
+```bash
+sudo journalctl -u huduglue-gunicorn.service -n 100 | grep -i "systemd service check"
+```
+
+You should see: "Systemd service check result: True"
+
+If it says "False", check PATH and systemctl availability in the Gunicorn environment.
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 

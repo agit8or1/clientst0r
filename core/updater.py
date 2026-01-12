@@ -157,7 +157,10 @@ class UpdateService:
                 progress_tracker.step_complete('Collect Static Files')
 
             # Step 5: Restart service (if running under systemd)
-            if self._is_systemd_service():
+            is_systemd = self._is_systemd_service()
+            logger.info(f"Systemd service check result: {is_systemd}")
+
+            if is_systemd:
                 if progress_tracker:
                     progress_tracker.step_start('Restart Service')
                 logger.info("Restarting systemd service")
@@ -174,6 +177,8 @@ class UpdateService:
                 result['output'].append(f"Service restart scheduled (3s delay): {restart_output}")
                 if progress_tracker:
                     progress_tracker.step_complete('Restart Service')
+            else:
+                logger.warning("Not running as systemd service - skipping restart")
 
             result['success'] = True
 
@@ -250,13 +255,14 @@ class UpdateService:
         """Check if running as a systemd service."""
         try:
             result = subprocess.run(
-                ['systemctl', 'is-active', 'huduglue-gunicorn.service'],
+                ['/usr/bin/systemctl', 'is-active', 'huduglue-gunicorn.service'],
                 capture_output=True,
                 text=True,
                 timeout=5
             )
             return result.returncode == 0
-        except:
+        except Exception as e:
+            logger.warning(f"Failed to check systemd service status: {e}")
             return False
 
     def get_git_status(self):
