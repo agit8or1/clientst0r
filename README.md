@@ -1,6 +1,6 @@
 # HuduGlue 🐕
 
-[![Version 2.14.3](https://img.shields.io/badge/version-2.14.3-brightgreen)](https://github.com/agit8or1/huduglue)
+[![Version 2.14.4](https://img.shields.io/badge/version-2.14.4-brightgreen)](https://github.com/agit8or1/huduglue)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/huduglue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
@@ -170,7 +170,12 @@ Full implementations for:
 
 ### Latest Release - January 2026
 
-**v2.14.3** - Role Management & User Edit Fixes (Latest Release)
+**v2.14.4** - Member Edit IntegrityError Fix (Latest Release)
+- **Fixed Critical Bug** - IntegrityError when editing organization members
+- **User Field Protection** - Prevents accidental user reassignment during edit
+- **Cleaner Forms** - User selection only shown when creating new memberships
+
+**v2.14.3** - Role Management & User Edit Fixes
 - **Fixed Role Management** - ADMIN role can now manage roles (not just OWNER)
 - **Fixed User Editing** - Corrected redirect from non-existent 'home' route
 - **Admin User Setup** - Automatically creates OWNER membership if missing

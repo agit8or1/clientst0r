@@ -74,19 +74,33 @@ class MembershipForm(forms.ModelForm):
         organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
 
-        # Only show users who don't belong to ANY organization yet
-        if organization:
-            # Get all user IDs who are members of ANY organization
-            all_member_ids = Membership.objects.filter(
-                is_active=True
-            ).values_list('user_id', flat=True).distinct()
+        # If editing existing membership, remove user field (can't change user)
+        if self.instance and self.instance.pk:
+            # Editing existing membership - user cannot be changed
+            if 'user' in self.fields:
+                del self.fields['user']
+            if 'email' in self.fields:
+                del self.fields['email']
+        else:
+            # Creating new membership - allow user selection
+            if organization and 'user' in self.fields:
+                # Get all user IDs who are members of ANY organization
+                all_member_ids = Membership.objects.filter(
+                    is_active=True
+                ).values_list('user_id', flat=True).distinct()
 
-            # Show only users who aren't members of any organization
-            # This prevents adding users from other organizations
-            self.fields['user'].queryset = User.objects.exclude(id__in=all_member_ids).order_by('username')
-            self.fields['user'].label = 'Select User (unassigned users only)'
-            self.fields['user'].help_text = 'Only shows users not assigned to any organization'
+                # Show only users who aren't members of any organization
+                # This prevents adding users from other organizations
+                self.fields['user'].queryset = User.objects.exclude(id__in=all_member_ids).order_by('username')
+                self.fields['user'].label = 'Select User (unassigned users only)'
+                self.fields['user'].help_text = 'Only shows users not assigned to any organization'
+                self.fields['user'].required = False
 
+            if 'email' in self.fields:
+                self.fields['email'].help_text = 'Enter email to add existing user or create invitation'
+
+        # Setup role template choices for both create and edit
+        if organization and 'role_template' in self.fields:
             # Get role templates (system + org custom)
             system_templates = RoleTemplate.objects.filter(is_system_template=True)
             org_templates = RoleTemplate.objects.filter(organization=organization, is_system_template=False)
@@ -101,9 +115,6 @@ class MembershipForm(forms.ModelForm):
 
             self.fields['role_template'].choices = choices
             self.fields['role_template'].required = False
-
-        self.fields['user'].required = False
-        self.fields['email'].help_text = 'Enter email to add existing user or create invitation'
 
 
 class UserProfileForm(forms.ModelForm):

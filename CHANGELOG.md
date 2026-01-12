@@ -5,6 +5,27 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.4] - 2026-01-12
+
+### 🐛 Bug Fixes
+
+- **Member Edit IntegrityError**
+  - Fixed `IntegrityError: NOT NULL constraint failed: memberships.user_id` when editing members
+  - Root cause: MembershipForm was trying to modify the immutable `user` field during edit
+  - Solution: Exclude `user` and `email` fields when editing existing memberships
+  - User field now only appears when creating new memberships, not when editing
+  - Prevents accidental user reassignment which would break membership integrity
+
+### 🔧 Files Modified
+
+- `accounts/forms.py` - Updated MembershipForm.__init__() to conditionally exclude user field
+
+### 📝 Technical Details
+
+**Before:** Form included 'user' field for both create and edit operations, causing NULL constraint violation when form didn't properly set user_id during edit.
+
+**After:** Form dynamically removes 'user' and 'email' fields when `instance.pk` exists (editing), keeping them only for new memberships (creating).
+
 ## [2.14.3] - 2026-01-12
 
 ### 🐛 Bug Fixes
