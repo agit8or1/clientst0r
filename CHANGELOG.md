@@ -5,6 +5,45 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.0] - 2026-01-12
+
+### ✨ New Features
+
+- **Auto-Update System with Web Interface**
+  - Check for updates from GitHub releases API
+  - Manual update trigger from web interface (Admin → System Updates)
+  - Automatic hourly update checks via scheduled task
+  - Complete update process: git pull, pip install, migrate, collectstatic, restart
+  - Version comparison using semantic versioning (packaging library)
+  - Update history tracking in audit log
+  - Real-time update status API endpoint
+  - Beautiful UI displaying:
+    - Current version vs. available version
+    - Git status (branch, commit, clean working tree)
+    - Release notes from GitHub
+    - Update history with all checks and attempts
+  - Safety features:
+    - Staff-only access
+    - Confirmation modal before applying updates
+    - Warns if working tree has uncommitted changes
+    - Comprehensive audit logging
+    - Graceful failure handling
+  - Configuration:
+    - `GITHUB_REPO_OWNER` (default: agit8or1)
+    - `GITHUB_REPO_NAME` (default: huduglue)
+    - `AUTO_UPDATE_ENABLED` (default: true)
+    - `AUTO_UPDATE_CHECK_INTERVAL` (default: 3600 seconds)
+  - Files: `core/updater.py`, `core/management/commands/check_updates.py`, `templates/core/system_updates.html`
+  - Routes: `/core/settings/updates/`, `/core/settings/updates/check/`, `/core/settings/updates/apply/`, `/api/update-status/`
+
+### 🐛 Bug Fixes
+
+- Fixed AuditLog field names in update system (event_type → action, metadata → extra_data, created_at → timestamp)
+
+### 📚 Documentation
+
+- Updated README.md to version 2.13.0
+
 ## [2.12.0] - 2026-01-12
 
 ### ✨ New Features

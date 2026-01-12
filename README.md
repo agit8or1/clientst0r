@@ -1,6 +1,6 @@
 # HuduGlue 🐕
 
-[![Version 2.12.0](https://img.shields.io/badge/version-2.12.0-brightgreen)](https://github.com/agit8or1/huduglue)
+[![Version 2.13.0](https://img.shields.io/badge/version-2.13.0-brightgreen)](https://github.com/agit8or1/huduglue)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/huduglue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
@@ -166,11 +166,25 @@ Full implementations for:
 - **Software Inventory** - Sync installed software from RMM platforms
 - **Alert Integration** - Pull RMM alerts and monitoring data
 
-## 🆕 What's New in v2.12
+## 🆕 What's New in v2.13
 
 ### Latest Release - January 2026
 
-**v2.12.0** - Azure SSO & Organization Auto-Import (Latest Release)
+**v2.13.0** - Auto-Update System (Latest Release)
+- **Auto-Update System with Web Interface**
+  - Check for updates from GitHub releases
+  - Manual update trigger from Admin → System Updates
+  - Automatic hourly update checks
+  - One-click update: git pull, pip install, migrate, collectstatic, restart
+  - Version comparison using semantic versioning
+  - Beautiful UI showing current vs. available version
+  - Git status monitoring (branch, commit, clean working tree)
+  - Release notes display from GitHub
+  - Update history tracking with audit log
+  - Staff-only access with confirmation modal
+  - Graceful failure handling
+
+**v2.12.0** - Azure SSO & Organization Auto-Import
 - **Azure AD / Microsoft Entra ID SSO** - Complete single sign-on implementation
   - "Sign in with Microsoft" button on login page
   - Auto-create user accounts from Azure AD
