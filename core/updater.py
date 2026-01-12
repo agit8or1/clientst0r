@@ -161,11 +161,17 @@ class UpdateService:
                 if progress_tracker:
                     progress_tracker.step_start('Restart Service')
                 logger.info("Restarting systemd service")
+
+                # Schedule restart to happen after response is sent
+                # Using systemd-run to avoid killing ourselves mid-update
+                import time
                 restart_output = self._run_command([
-                    'sudo', 'systemctl', 'restart', 'huduglue-gunicorn.service'
+                    'sudo', 'systemd-run', '--on-active=3',
+                    'systemctl', 'restart', 'huduglue-gunicorn.service'
                 ])
+                logger.info(f"Service restart scheduled: {restart_output}")
                 result['steps_completed'].append('restart_service')
-                result['output'].append(f"Service restart: {restart_output}")
+                result['output'].append(f"Service restart scheduled (3s delay): {restart_output}")
                 if progress_tracker:
                     progress_tracker.step_complete('Restart Service')
 
