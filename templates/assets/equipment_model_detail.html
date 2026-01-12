@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}{{ model.vendor.name }} {{ model.model_name }} - Equipment Model{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'assets:equipment_model_list' %}">Equipment Models</a></li>
+        <li class="breadcrumb-item active">{{ model.model_name }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-server"></i> {{ model.vendor.name }} {{ model.model_name }}</h1>
+    <div>
+        <a href="{% url 'assets:equipment_model_edit' model.pk %}" class="btn btn-secondary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Model Information</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Vendor:</dt>
+                    <dd class="col-sm-9">
+                        <a href="{% url 'assets:vendor_detail' model.vendor.pk %}">{{ model.vendor.name }}</a>
+                    </dd>
+
+                    <dt class="col-sm-3">Model Name:</dt>
+                    <dd class="col-sm-9">{{ model.model_name }}</dd>
+
+                    {% if model.model_number %}
+                    <dt class="col-sm-3">Model Number:</dt>
+                    <dd class="col-sm-9">{{ model.model_number }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-3">Equipment Type:</dt>
+                    <dd class="col-sm-9">
+                        <span class="badge bg-primary">{{ model.get_equipment_type_display }}</span>
+                    </dd>
+
+                    {% if model.description %}
+                    <dt class="col-sm-3">Description:</dt>
+                    <dd class="col-sm-9">{{ model.description }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-3">Rackmount:</dt>
+                    <dd class="col-sm-9">
+                        {% if model.is_rackmount %}
+                            <span class="badge bg-info">{{ model.rack_units }}U Rack Mount</span>
+                        {% else %}
+                            No
+                        {% endif %}
+                    </dd>
+
+                    {% if model.release_date %}
+                    <dt class="col-sm-3">Release Date:</dt>
+                    <dd class="col-sm-9">{{ model.release_date|date:"M Y" }}</dd>
+                    {% endif %}
+
+                    {% if model.eol_date %}
+                    <dt class="col-sm-3">End of Life:</dt>
+                    <dd class="col-sm-9">{{ model.eol_date|date:"M Y" }}</dd>
+                    {% endif %}
+
+                    {% if model.eos_date %}
+                    <dt class="col-sm-3">End of Support:</dt>
+                    <dd class="col-sm-9">{{ model.eos_date|date:"M Y" }}</dd>
+                    {% endif %}
+                </dl>
+
+                {% if model.datasheet_url or model.documentation_url %}
+                <div class="mt-3">
+                    {% if model.datasheet_url %}
+                    <a href="{{ model.datasheet_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary me-2">
+                        <i class="fas fa-file-pdf"></i> Datasheet
+                    </a>
+                    {% endif %}
+                    {% if model.documentation_url %}
+                    <a href="{{ model.documentation_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-book"></i> Documentation
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if model.specifications %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Technical Specifications</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    {% for key, value in model.specifications.items %}
+                    <dt class="col-sm-4 text-capitalize">{{ key|replace:"_":" " }}:</dt>
+                    <dd class="col-sm-8">{{ value }}</dd>
+                    {% endfor %}
+                </dl>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Assets Using This Model</h5>
+            </div>
+            <div class="card-body">
+                {% if assets %}
+                <div class="list-group list-group-flush">
+                    {% for asset in assets %}
+                    <a href="{% url 'assets:asset_detail' asset.pk %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ asset.name }}</h6>
+                            <small class="text-muted">{{ asset.asset_tag|default:"No tag" }}</small>
+                        </div>
+                        {% if asset.serial_number %}
+                        <small class="text-muted">SN: {{ asset.serial_number }}</small>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">{{ assets.count }} asset{{ assets.count|pluralize }} using this model</small>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No assets are currently using this equipment model.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'assets:asset_create' %}?equipment_model={{ model.pk }}" class="btn btn-primary w-100 mb-2">
+                    <i class="fas fa-plus"></i> Create Asset with This Model
+                </a>
+                <a href="{% url 'assets:vendor_detail' model.vendor.pk %}" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-building"></i> View Vendor
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

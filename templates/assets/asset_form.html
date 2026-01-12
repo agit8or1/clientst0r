@@ -66,10 +66,36 @@
                     {% endif %}
                 </div>
 
+                <!-- Equipment Catalog Selection - Cascading Dropdowns -->
+                <div class="col-12">
+                    <h6 class="text-muted mb-3"><i class="fas fa-database"></i> Equipment Catalog (Optional)</h6>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.equipment_vendor.label }}</label>
+                    {{ form.equipment_vendor }}
+                    <small class="form-text text-muted d-block">{{ form.equipment_vendor.help_text }}</small>
+                    {% if form.equipment_vendor.errors %}
+                        <div class="text-danger small">{{ form.equipment_vendor.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.equipment_model.label }}</label>
+                    {{ form.equipment_model }}
+                    <small class="form-text text-muted d-block">{{ form.equipment_model.help_text }}</small>
+                    {% if form.equipment_model.errors %}
+                        <div class="text-danger small">{{ form.equipment_model.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="col-12"><hr></div>
+
                 <!-- Manufacturer Details - 2 columns -->
                 <div class="col-md-6">
                     <label class="form-label">{{ form.manufacturer.label }}</label>
                     {{ form.manufacturer }}
+                    <small class="form-text text-muted d-block">{{ form.manufacturer.help_text }}</small>
                     {% if form.manufacturer.errors %}
                         <div class="text-danger small">{{ form.manufacturer.errors }}</div>
                     {% endif %}
@@ -78,6 +104,7 @@
                 <div class="col-md-6">
                     <label class="form-label">{{ form.model.label }}</label>
                     {{ form.model }}
+                    <small class="form-text text-muted d-block">{{ form.model.help_text }}</small>
                     {% if form.model.errors %}
                         <div class="text-danger small">{{ form.model.errors }}</div>
                     {% endif %}
@@ -177,9 +204,87 @@
 
 {% block extra_js %}
 <script>
-// Rackmount checkbox toggle
+// Equipment catalog cascading dropdowns
 document.addEventListener('DOMContentLoaded', function() {
-    const rackmountCheckbox = document.getElementById('{{ form.is_rackmount.id_for_label }}');
+    const vendorSelect = document.getElementById('id_equipment_vendor');
+    const equipmentModelSelect = document.getElementById('id_equipment_model');
+    const manufacturerInput = document.getElementById('id_manufacturer');
+    const modelInput = document.getElementById('id_model');
+    const rackmountCheckbox = document.getElementById('id_is_rackmount');
+    const rackUnitsInput = document.getElementById('id_rack_units');
+
+    // When vendor is selected, load its models
+    if (vendorSelect) {
+        vendorSelect.addEventListener('change', function() {
+            const vendorId = this.value;
+
+            // Clear model dropdown
+            equipmentModelSelect.innerHTML = '<option value="">Loading models...</option>';
+            equipmentModelSelect.disabled = true;
+
+            if (!vendorId) {
+                equipmentModelSelect.innerHTML = '<option value="">First select a vendor</option>';
+                return;
+            }
+
+            // Fetch models for this vendor
+            fetch(`/assets/api/equipment-models-by-vendor/${vendorId}/`)
+                .then(response => response.json())
+                .then(models => {
+                    // Populate model dropdown
+                    equipmentModelSelect.innerHTML = '<option value="">Select model (optional)</option>';
+                    models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.id;
+                        option.textContent = model.model_name;
+                        equipmentModelSelect.appendChild(option);
+                    });
+                    equipmentModelSelect.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error fetching models:', error);
+                    equipmentModelSelect.innerHTML = '<option value="">Error loading models</option>';
+                });
+        });
+    }
+
+    // When equipment model is selected, auto-populate fields
+    if (equipmentModelSelect) {
+        equipmentModelSelect.addEventListener('change', function() {
+            const equipmentModelId = this.value;
+
+            if (!equipmentModelId) {
+                return;
+            }
+
+            // Fetch equipment model data
+            fetch(`/assets/api/equipment-model/${equipmentModelId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    // Auto-populate manufacturer and model
+                    if (manufacturerInput) {
+                        manufacturerInput.value = data.vendor_name || '';
+                    }
+                    if (modelInput) {
+                        modelInput.value = data.model_name || '';
+                    }
+
+                    // Auto-populate rackmount fields
+                    if (rackmountCheckbox && data.is_rackmount !== undefined) {
+                        rackmountCheckbox.checked = data.is_rackmount;
+                        toggleRackUnits(); // Update visibility
+                    }
+                    if (rackUnitsInput && data.rack_units) {
+                        rackUnitsInput.value = data.rack_units;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching equipment model:', error);
+                });
+        });
+    }
+
+    // Rackmount checkbox toggle
     const rackUnitsField = document.getElementById('rack-units-field');
 
     function toggleRackUnits() {

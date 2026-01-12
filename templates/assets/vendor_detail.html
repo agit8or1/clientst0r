@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}{{ vendor.name }} - Hardware Vendor{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'assets:vendor_list' %}">Vendors</a></li>
+        <li class="breadcrumb-item active">{{ vendor.name }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-building"></i> {{ vendor.name }}</h1>
+    <div>
+        <a href="{% url 'assets:vendor_edit' vendor.pk %}" class="btn btn-secondary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Vendor Information</h5>
+            </div>
+            <div class="card-body">
+                {% if vendor.description %}
+                <p>{{ vendor.description }}</p>
+                {% endif %}
+
+                <dl class="row mb-0">
+                    {% if vendor.website %}
+                    <dt class="col-sm-4">Website:</dt>
+                    <dd class="col-sm-8"><a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a></dd>
+                    {% endif %}
+
+                    {% if vendor.support_url %}
+                    <dt class="col-sm-4">Support:</dt>
+                    <dd class="col-sm-8"><a href="{{ vendor.support_url }}" target="_blank" rel="noopener">Support Portal</a></dd>
+                    {% endif %}
+
+                    {% if vendor.support_phone %}
+                    <dt class="col-sm-4">Phone:</dt>
+                    <dd class="col-sm-8">{{ vendor.support_phone }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-4">Models:</dt>
+                    <dd class="col-sm-8"><strong>{{ equipment_models.count }}</strong> equipment models</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Equipment Models</h5>
+                <a href="{% url 'assets:equipment_model_create' %}?vendor={{ vendor.pk }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus"></i> Add Model
+                </a>
+            </div>
+            <div class="card-body">
+                {% if models_by_type %}
+                    {% for equipment_type, models in models_by_type.items %}
+                    <h6 class="text-uppercase text-muted mb-3">
+                        {{ equipment_type|title }}s
+                        <span class="badge bg-secondary">{{ models|length }}</span>
+                    </h6>
+                    <div class="row mb-4">
+                        {% for model in models %}
+                        <div class="col-md-6 mb-2">
+                            <a href="{% url 'assets:equipment_model_detail' model.pk %}" class="text-decoration-none">
+                                <div class="border rounded p-2 hover-shadow">
+                                    <strong>{{ model.model_name }}</strong>
+                                    {% if model.model_number %}
+                                    <br><small class="text-muted">{{ model.model_number }}</small>
+                                    {% endif %}
+                                    {% if model.is_rackmount %}
+                                    <br><span class="badge bg-info">{{ model.rack_units }}U Rack</span>
+                                    {% endif %}
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="fas fa-server fa-2x mb-2"></i>
+                    <p>No equipment models for this vendor yet.</p>
+                    <a href="{% url 'assets:equipment_model_create' %}?vendor={{ vendor.pk }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add First Model
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.hover-shadow:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transition: box-shadow 0.2s;
+}
+</style>
+{% endblock %}
