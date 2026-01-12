@@ -5,6 +5,31 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.9] - 2026-01-12
+
+### ✨ New Features
+
+- **Real-Time Update Progress UI (Complete)**
+  - Beautiful animated progress bar showing update progress
+  - Live step-by-step status with spinning/checkmark icons
+  - AJAX-based update without page refresh
+  - Polls progress API every second for real-time updates
+  - Shows all 5 update steps: Git Pull → Install Dependencies → Run Migrations → Collect Static Files → Restart Service
+  - Auto-reloads page after successful completion
+  - Error handling with clear error messages
+  - Non-blocking modal that prevents premature closing
+
+### 🎯 User Experience Improvements
+
+- No more wondering if update is working or stuck
+- Clear visual feedback at each step
+- Know exactly which step is running
+- Automatic page refresh when complete
+- Can't accidentally close progress modal during update
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.8] - 2026-01-12
 
 ### ✨ New Features
