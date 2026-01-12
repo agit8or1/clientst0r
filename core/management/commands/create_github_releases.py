@@ -290,6 +290,63 @@ The key must be exactly 44 characters (base64-encoded 32 bytes).
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.9': {
+                'name': 'v2.14.9 - Real-Time Update Progress UI (Complete)',
+                'body': '''## ✨ New Features
+
+### Real-Time Update Progress UI (Complete)
+- Beautiful animated progress bar showing update progress
+- Live step-by-step status with spinning/checkmark icons
+- AJAX-based update without page refresh
+- Polls progress API every second for real-time updates
+- Shows all 5 update steps:
+  1. 🔄 Git Pull
+  2. 📦 Install Dependencies
+  3. 🗄️ Run Migrations
+  4. 📁 Collect Static Files
+  5. 🔄 Restart Service
+- Auto-reloads page after successful completion
+- Error handling with clear error messages
+- Non-blocking modal that prevents premature closing
+
+### 🎯 User Experience Improvements
+
+- **No more guessing** - See exactly what's happening during update
+- **Clear visual feedback** - Each step shows waiting → running → complete
+- **Progress bar** - Visual percentage of completion
+- **Automatic finish** - Page reloads automatically when done
+- **Error messages** - Clear feedback if something goes wrong
+- **Can't accidentally close** - Modal locked during update process
+
+## 📸 What You'll See
+
+When you click "Apply Update":
+1. ✅ Confirmation modal asking if you're sure
+2. 🔄 Progress modal appears with animated progress bar
+3. 📊 Each step lights up as it runs (spinner icon)
+4. ✅ Each step gets a checkmark when complete
+5. 🎉 "Update completed successfully!" message
+6. 🔄 Page automatically reloads to show new version
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.9': {
+                'name': 'v2.14.9 - Real-Time Update Progress UI (Complete)',
+                'body': '''## ✨ New Features
+
+### Real-Time Update Progress UI (Complete)
+- Beautiful animated progress bar showing update progress
+- Live step-by-step status with spinning/checkmark icons
+- AJAX-based update without page refresh
+- Polls progress API every second for real-time updates
+- Shows all 5 update steps
+- Auto-reloads page after successful completion
+- Error handling with clear error messages
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 
@@ -356,3 +413,44 @@ The key must be exactly 44 characters (base64-encoded 32 bytes).
             self.stdout.write('')
             self.stdout.write(self.style.SUCCESS('✓ Releases created successfully!'))
             self.stdout.write('Auto-update system should now detect new versions.')
+            },
+            'v2.14.9': {
+                'name': 'v2.14.9 - Real-Time Update Progress UI (Complete)',
+                'body': '''## ✨ New Features
+
+### Real-Time Update Progress UI (Complete)
+- Beautiful animated progress bar showing update progress
+- Live step-by-step status with spinning/checkmark icons
+- AJAX-based update without page refresh
+- Polls progress API every second for real-time updates
+- Shows all 5 update steps:
+  1. 🔄 Git Pull
+  2. 📦 Install Dependencies
+  3. 🗄️ Run Migrations
+  4. 📁 Collect Static Files
+  5. 🔄 Restart Service
+- Auto-reloads page after successful completion
+- Error handling with clear error messages
+- Non-blocking modal that prevents premature closing
+
+### 🎯 User Experience Improvements
+
+- **No more guessing** - See exactly what's happening during update
+- **Clear visual feedback** - Each step shows waiting → running → complete
+- **Progress bar** - Visual percentage of completion
+- **Automatic finish** - Page reloads automatically when done
+- **Error messages** - Clear feedback if something goes wrong
+- **Can't accidentally close** - Modal locked during update process
+
+## 📸 What You'll See
+
+When you click "Apply Update":
+1. ✅ Confirmation modal asking if you're sure
+2. 🔄 Progress modal appears with animated progress bar
+3. 📊 Each step lights up as it runs (spinner icon)
+4. ✅ Each step gets a checkmark when complete
+5. 🎉 "Update completed successfully!" message
+6. 🔄 Page automatically reloads to show new version
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
