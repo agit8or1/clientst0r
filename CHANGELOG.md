@@ -5,6 +5,28 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.10] - 2026-01-12
+
+### 🐛 Bug Fixes
+
+- **Update Process - Pip Install Fix**
+  - Removed `--upgrade` flag from `pip install` during updates
+  - Prevents unnecessary rebuilding of compiled packages (python-ldap, cryptography, etc.)
+  - Avoids build failures on systems without gcc/build-essential
+  - Git pull already brings new code, we only need to install missing packages
+  - Faster updates - no recompiling existing packages
+  - Fixes "Command failed: error: command 'x86_64-linux-gnu-gcc' failed" errors
+
+### 🎯 What's Fixed
+
+- ✅ Updates no longer require build-essential/gcc unless adding NEW compiled dependencies
+- ✅ Existing python-ldap, cryptography, etc. won't be rebuilt every update
+- ✅ Faster update process
+- ✅ More reliable updates on minimal systems
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.9] - 2026-01-12
 
 ### ✨ New Features
