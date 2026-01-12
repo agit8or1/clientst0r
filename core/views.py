@@ -76,11 +76,25 @@ def system_updates(request):
         action__in=['system_update', 'system_update_failed', 'update_check']
     ).order_by('-timestamp')[:10]
 
+    # Get changelog for current version
+    current_version = get_version()
+    current_changelog = updater.get_changelog_for_version(current_version)
+
+    # Get changelogs for newer versions (if update available)
+    newer_changelogs = {}
+    if update_info.get('update_available') and update_info.get('latest_version'):
+        newer_changelogs = updater.get_changelog_between_versions(
+            current_version,
+            update_info['latest_version']
+        )
+
     return render(request, 'core/system_updates.html', {
         'version': get_version(),
         'update_info': update_info,
         'git_status': git_status,
         'recent_updates': recent_updates,
+        'current_changelog': current_changelog,
+        'newer_changelogs': newer_changelogs,
     })
 
 

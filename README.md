@@ -1,6 +1,6 @@
 # HuduGlue 🐕
 
-[![Version 2.13.0](https://img.shields.io/badge/version-2.13.0-brightgreen)](https://github.com/agit8or1/huduglue)
+[![Version 2.14.0](https://img.shields.io/badge/version-2.14.0-brightgreen)](https://github.com/agit8or1/huduglue)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/huduglue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
@@ -166,11 +166,18 @@ Full implementations for:
 - **Software Inventory** - Sync installed software from RMM platforms
 - **Alert Integration** - Pull RMM alerts and monitoring data
 
-## 🆕 What's New in v2.13
+## 🆕 What's New in v2.14
 
 ### Latest Release - January 2026
 
-**v2.13.0** - Auto-Update System (Latest Release)
+**v2.14.0** - Enhanced Update System with Changelog Display (Latest Release)
+- **Changelog Integration**
+  - Display current version's changelog on System Updates page
+  - Show changelogs for all available newer versions
+  - Helps users understand what they're running and what updates will bring
+  - Automatically parses CHANGELOG.md for version-specific content
+
+**v2.13.0** - Auto-Update System
 - **Auto-Update System with Web Interface**
   - Check for updates from GitHub releases
   - Manual update trigger from Admin → System Updates

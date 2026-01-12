@@ -7,6 +7,8 @@ import requests
 import subprocess
 import os
 import logging
+import re
+from pathlib import Path
 from django.conf import settings
 from django.utils import timezone
 from packaging import version
@@ -296,3 +298,94 @@ class UpdateService:
                 'clean': None,
                 'error': str(e),
             }
+
+    def get_changelog_for_version(self, version_str):
+        """
+        Extract changelog content for a specific version from CHANGELOG.md.
+
+        Args:
+            version_str: Version string like "2.13.0"
+
+        Returns:
+            str: Changelog content for the version, or empty string if not found
+        """
+        changelog_path = Path(self.base_dir) / 'CHANGELOG.md'
+
+        if not changelog_path.exists():
+            logger.warning("CHANGELOG.md not found")
+            return ""
+
+        try:
+            with open(changelog_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Pattern to match version section: ## [2.13.0] - date
+            version_pattern = rf'## \[{re.escape(version_str)}\].*?\n(.*?)(?=\n## \[|\Z)'
+            match = re.search(version_pattern, content, re.DOTALL)
+
+            if match:
+                return match.group(1).strip()
+            else:
+                logger.warning(f"Version {version_str} not found in CHANGELOG.md")
+                return ""
+
+        except Exception as e:
+            logger.error(f"Failed to read CHANGELOG.md: {e}")
+            return ""
+
+    def get_all_versions_from_changelog(self):
+        """
+        Parse CHANGELOG.md and extract all version numbers.
+
+        Returns:
+            list: List of version strings in order (newest first)
+        """
+        changelog_path = Path(self.base_dir) / 'CHANGELOG.md'
+
+        if not changelog_path.exists():
+            return []
+
+        try:
+            with open(changelog_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Find all version headers: ## [2.13.0] - date
+            version_pattern = r'## \[(\d+\.\d+\.\d+)\]'
+            matches = re.findall(version_pattern, content)
+
+            return matches
+
+        except Exception as e:
+            logger.error(f"Failed to parse CHANGELOG.md: {e}")
+            return []
+
+    def get_changelog_between_versions(self, from_version, to_version):
+        """
+        Get combined changelog for all versions between from_version and to_version.
+
+        Args:
+            from_version: Starting version (exclusive) e.g., "2.12.0"
+            to_version: Ending version (inclusive) e.g., "2.13.0"
+
+        Returns:
+            dict: {version: changelog_content} for each version in range
+        """
+        all_versions = self.get_all_versions_from_changelog()
+        changelogs = {}
+
+        try:
+            from_ver = version.parse(from_version)
+            to_ver = version.parse(to_version)
+
+            for ver_str in all_versions:
+                ver = version.parse(ver_str)
+                # Include versions greater than from_version and up to to_version
+                if from_ver < ver <= to_ver:
+                    changelog = self.get_changelog_for_version(ver_str)
+                    if changelog:
+                        changelogs[ver_str] = changelog
+
+        except Exception as e:
+            logger.error(f"Failed to get changelog between versions: {e}")
+
+        return changelogs

@@ -138,21 +138,48 @@
         </div>
     </div>
 
-    <!-- Release Notes -->
-    {% if update_info.update_available and update_info.release_notes %}
+    <!-- Current Version Changelog -->
+    {% if current_changelog %}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">
-                        <i class="fas fa-newspaper"></i> Release Notes - v{{ update_info.latest_version }}
+                        <i class="fas fa-list-ul"></i> What's in v{{ version }}
                     </h5>
-                    <a href="{{ update_info.release_url }}" target="_blank" class="btn btn-sm btn-outline-primary mb-2">
-                        <i class="fas fa-external-link-alt"></i> View on GitHub
-                    </a>
                     <div class="release-notes">
-                        <pre>{{ update_info.release_notes }}</pre>
+                        <pre>{{ current_changelog }}</pre>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Newer Versions Available -->
+    {% if newer_changelogs %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">
+                        <i class="fas fa-arrow-up"></i> What's New in Available Updates
+                    </h5>
+                    {% for ver, changelog in newer_changelogs.items %}
+                    <div class="mb-4">
+                        <h6 class="text-primary">
+                            <i class="fas fa-tag"></i> Version {{ ver }}
+                            {% if update_info.release_url %}
+                            <a href="{{ update_info.release_url }}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">
+                                <i class="fas fa-external-link-alt"></i> View on GitHub
+                            </a>
+                            {% endif %}
+                        </h6>
+                        <div class="release-notes">
+                            <pre>{{ changelog }}</pre>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>

@@ -5,6 +5,32 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.0] - 2026-01-12
+
+### ✨ New Features
+
+- **Enhanced Update System with Changelog Display**
+  - Display CHANGELOG.md content for current version on System Updates page
+  - Show changelogs for all newer available versions
+  - Parse CHANGELOG.md to extract version-specific content
+  - Beautiful UI with "What's in vX.X.X" and "What's New in Available Updates" sections
+  - Helps users understand what they're running and what they'll get with updates
+
+### 🐛 Bug Fixes
+
+- Fixed 404 error on System Updates page by clearing stale cache
+- Fixed git status detection to use full path `/usr/bin/git`
+- Fixed git commands to handle errors gracefully without exceptions
+- Improved error logging for git operations
+
+### 🔧 Technical Improvements
+
+- Added `get_changelog_for_version()` method to extract version-specific changelogs
+- Added `get_all_versions_from_changelog()` to parse all versions
+- Added `get_changelog_between_versions()` to get changelogs for version ranges
+- Enhanced views to pass changelog data to templates
+- Updated templates to display current and newer version changelogs
+
 ## [2.13.0] - 2026-01-12
 
 ### ✨ New Features
