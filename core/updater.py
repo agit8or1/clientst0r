@@ -143,7 +143,7 @@ class UpdateService:
             if self._is_systemd_service():
                 logger.info("Restarting systemd service")
                 restart_output = self._run_command([
-                    'sudo', 'systemctl', 'restart', 'huduglue'
+                    'sudo', 'systemctl', 'restart', 'huduglue-gunicorn.service'
                 ])
                 result['steps_completed'].append('restart_service')
                 result['output'].append(f"Service restart: {restart_output}")
@@ -217,7 +217,7 @@ class UpdateService:
         """Check if running as a systemd service."""
         try:
             result = subprocess.run(
-                ['systemctl', 'is-active', 'huduglue'],
+                ['systemctl', 'is-active', 'huduglue-gunicorn.service'],
                 capture_output=True,
                 text=True,
                 timeout=5
