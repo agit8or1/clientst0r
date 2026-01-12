@@ -1,0 +1,133 @@
+{% extends "two_factor/_base_focus.html" %}
+{% load i18n %}
+{% load two_factor_tags %}
+
+{% block extra_media %}
+  {{ form.media }}
+  <style>
+    .divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      margin: 1.5rem 0;
+    }
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid #dee2e6;
+    }
+    .divider span {
+      padding: 0 1rem;
+      color: #6c757d;
+      font-size: 0.875rem;
+    }
+    .btn-azure {
+      background-color: #0078d4;
+      color: white;
+      border: none;
+      padding: 0.75rem;
+      width: 100%;
+      font-size: 1rem;
+      font-weight: 500;
+      border-radius: 0.25rem;
+      transition: background-color 0.2s;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .btn-azure:hover {
+      background-color: #106ebe;
+      color: white;
+      text-decoration: none;
+    }
+    .btn-azure img {
+      height: 18px;
+      width: 18px;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <h1>{% block title %}{% trans "Login" %}{% endblock %}</h1>
+
+  <!-- Azure AD SSO Button (if enabled) -->
+  <div id="azure-sso-container" style="display: none;">
+    <a href="{% url 'accounts:azure_login' %}" class="btn-azure">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 23 23" fill="currentColor">
+        <path d="M0 0h10.931v10.931H0zm0 12.069h10.931V23H0zm12.069-12.069H23v10.931H12.069zm0 12.069H23V23H12.069z"/>
+      </svg>
+      {% trans "Sign in with Microsoft" %}
+    </a>
+
+    <div class="divider">
+      <span>{% trans "OR" %}</span>
+    </div>
+  </div>
+
+  <!-- Standard Login Form -->
+  {% if wizard.steps.current == 'auth' %}
+    <p>{% blocktrans %}Enter your credentials.{% endblocktrans %}</p>
+  {% elif wizard.steps.current == 'token' %}
+    <p>{{ device|as_verbose_action }}</p>
+  {% elif wizard.steps.current == 'backup' %}
+    <p>{% blocktrans trimmed %}Use this form for entering backup tokens for logging in.
+      These tokens have been generated for you to print and keep safe. Please
+      enter one of these backup tokens to login to your account.{% endblocktrans %}</p>
+  {% endif %}
+
+  <form action="" method="post">
+    {% block main_form_content %}
+    {% csrf_token %}
+    {% include "two_factor/_wizard_forms.html" %}
+
+    {# hidden submit button to enable [enter] key #}
+    <input type="submit" value="" hidden />
+
+    {% if other_devices %}
+      <p>{% trans "Or, alternatively, use one of your other authentication methods:" %}</p>
+      <p>
+        {% for other in other_devices %}
+        <button name="challenge_device" value="{{ other.persistent_id }}"
+                class="btn btn-secondary btn-block" type="submit">
+          {{ other|as_action }}
+        </button>
+      {% endfor %}</p>
+    {% endif %}
+
+    {% include "two_factor/_wizard_actions.html" %}
+    {% endblock %}
+  </form>
+
+  {% block 'backup_tokens' %}
+    {% if backup_tokens %}
+       <hr>
+       <div class="backup_tokens_form">
+       <form action="" method="post">
+           {% csrf_token %}
+            <p>{% trans "As a last resort, you can use a backup token:" %}</p>
+            <p>
+                <button name="wizard_goto_step" type="submit" value="backup"
+                    class="btn btn-sm btn-secondary btn-block">{% trans "Use Backup Token" %}</button>
+            </p>
+       </form>
+       </div>
+    {% endif %}
+  {% endblock %}
+
+  <script>
+    // Check if Azure AD SSO is enabled
+    fetch('{% url "accounts:azure_status" %}')
+      .then(response => response.json())
+      .then(data => {
+        if (data.enabled) {
+          document.getElementById('azure-sso-container').style.display = 'block';
+        }
+      })
+      .catch(error => {
+        console.error('Error checking Azure AD status:', error);
+      });
+  </script>
+{% endblock %}

@@ -40,93 +40,70 @@ class Asset(BaseModel):
     """
     Asset/device with flexible JSON fields.
     """
-    ASSET_TYPES = [
-        # Computers & Workstations
-        ('server', 'Server'),
-        ('workstation', 'Workstation'),
-        ('laptop', 'Laptop'),
+    ASSET_TYPES = sorted([
+        ('access_control', 'Access Control System'),
+        ('appliance', 'Appliance'),
+        ('av_receiver', 'AV Receiver'),
+        ('backup_appliance', 'Backup Appliance'),
+        ('badge_printer', 'Badge Printer'),
+        ('biometric_scanner', 'Biometric Scanner'),
+        ('bridge', 'Network Bridge'),
+        ('card_reader', 'Card Reader'),
+        ('conference_phone', 'Conference Phone'),
+        ('console_server', 'Console Server'),
+        ('copier', 'Copier/MFP'),
         ('desktop', 'Desktop Computer'),
-        ('thin_client', 'Thin Client'),
-        ('terminal', 'Terminal'),
-
-        # Network Infrastructure
-        ('switch', 'Network Switch'),
-        ('router', 'Router'),
+        ('digital_signage', 'Digital Signage'),
+        ('display', 'Display/Monitor'),
+        ('door_controller', 'Door Controller'),
+        ('dvr', 'Digital Video Recorder (DVR)'),
+        ('environmental_monitor', 'Environmental Monitor'),
+        ('fiber_panel', 'Fiber Patch Panel'),
         ('firewall', 'Firewall'),
+        ('gateway', 'Gateway'),
+        ('generator', 'Generator'),
+        ('handheld', 'Handheld Scanner/Device'),
+        ('hvac', 'HVAC System'),
+        ('iot_device', 'IoT Device'),
+        ('kvm', 'KVM Switch'),
+        ('label_printer', 'Label Printer'),
+        ('laptop', 'Laptop'),
+        ('lighting_control', 'Lighting Control'),
         ('load_balancer', 'Load Balancer'),
+        ('mobile', 'Mobile Device'),
+        ('modem', 'Modem'),
+        ('nas', 'Network Attached Storage (NAS)'),
+        ('nvr', 'Network Video Recorder (NVR)'),
+        ('other', 'Other'),
+        ('paging_system', 'Paging System'),
+        ('patch_panel', 'Patch Panel'),
+        ('pbx', 'PBX System'),
+        ('pda', 'PDA'),
+        ('pdu', 'Power Distribution Unit (PDU)'),
+        ('phone', 'IP Phone'),
+        ('plotter', 'Plotter'),
+        ('printer', 'Printer'),
+        ('projector', 'Projector'),
+        ('rack', 'Server Rack/Cabinet'),
+        ('router', 'Router'),
+        ('san', 'Storage Area Network (SAN)'),
+        ('scanner', 'Scanner'),
+        ('security_camera', 'Security Camera'),
+        ('sensor', 'Sensor'),
+        ('server', 'Server'),
+        ('switch', 'Network Switch'),
+        ('tablet', 'Tablet'),
+        ('tape_drive', 'Tape Drive/Library'),
+        ('terminal', 'Terminal'),
+        ('thermostat', 'Smart Thermostat'),
+        ('thin_client', 'Thin Client'),
+        ('ups', 'UPS (Uninterruptible Power Supply)'),
+        ('video_conferencing', 'Video Conferencing System'),
+        ('voip_gateway', 'VoIP Gateway'),
         ('wireless_ap', 'Wireless Access Point'),
         ('wireless_controller', 'Wireless Controller'),
-        ('modem', 'Modem'),
-        ('gateway', 'Gateway'),
-        ('bridge', 'Network Bridge'),
-
-        # Security & Access Control
-        ('access_control', 'Access Control System'),
-        ('door_controller', 'Door Controller'),
-        ('card_reader', 'Card Reader'),
-        ('biometric_scanner', 'Biometric Scanner'),
-        ('security_camera', 'Security Camera'),
-        ('nvr', 'Network Video Recorder (NVR)'),
-        ('dvr', 'Digital Video Recorder (DVR)'),
-
-        # Telecommunications
-        ('phone', 'IP Phone'),
-        ('pbx', 'PBX System'),
-        ('voip_gateway', 'VoIP Gateway'),
-        ('conference_phone', 'Conference Phone'),
-        ('paging_system', 'Paging System'),
-
-        # Storage
-        ('nas', 'Network Attached Storage (NAS)'),
-        ('san', 'Storage Area Network (SAN)'),
-        ('tape_drive', 'Tape Drive/Library'),
-        ('backup_appliance', 'Backup Appliance'),
-
-        # Power & Environmental
-        ('ups', 'UPS (Uninterruptible Power Supply)'),
-        ('pdu', 'Power Distribution Unit (PDU)'),
-        ('generator', 'Generator'),
-        ('hvac', 'HVAC System'),
-        ('environmental_monitor', 'Environmental Monitor'),
-
-        # Printing & Peripherals
-        ('printer', 'Printer'),
-        ('scanner', 'Scanner'),
-        ('copier', 'Copier/MFP'),
-        ('label_printer', 'Label Printer'),
-        ('plotter', 'Plotter'),
-        ('kvm', 'KVM Switch'),
-
-        # Audio/Visual
-        ('projector', 'Projector'),
-        ('display', 'Display/Monitor'),
-        ('video_conferencing', 'Video Conferencing System'),
-        ('digital_signage', 'Digital Signage'),
-        ('av_receiver', 'AV Receiver'),
-
-        # Mobile & Portable
-        ('mobile', 'Mobile Device'),
-        ('tablet', 'Tablet'),
-        ('handheld', 'Handheld Scanner/Device'),
-        ('pda', 'PDA'),
-
-        # IoT & Building Systems
-        ('iot_device', 'IoT Device'),
-        ('sensor', 'Sensor'),
-        ('thermostat', 'Smart Thermostat'),
-        ('lighting_control', 'Lighting Control'),
-        ('badge_printer', 'Badge Printer'),
-
-        # Rack Equipment
-        ('patch_panel', 'Patch Panel'),
-        ('fiber_panel', 'Fiber Patch Panel'),
-        ('console_server', 'Console Server'),
-        ('rack', 'Server Rack/Cabinet'),
-
-        # Other
-        ('appliance', 'Appliance'),
-        ('other', 'Other'),
-    ]
+        ('workstation', 'Workstation'),
+    ], key=lambda x: x[1])
 
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='assets')
     name = models.CharField(max_length=255)

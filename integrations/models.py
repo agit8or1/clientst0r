@@ -44,6 +44,11 @@ class PSAConnection(BaseModel):
     sync_projects = models.BooleanField(default=False)
     sync_interval_minutes = models.PositiveIntegerField(default=60)
 
+    # Organization import settings
+    import_organizations = models.BooleanField(default=False, help_text="Automatically import/create organizations from PSA companies")
+    org_import_as_active = models.BooleanField(default=True, help_text="Set imported organizations as active")
+    org_name_prefix = models.CharField(max_length=50, blank=True, default='', help_text='Prefix to add to imported organization names (e.g., "PSA-")')
+
     # Field mappings (JSON)
     field_mappings = models.JSONField(default=dict, blank=True, help_text="Custom field mappings")
 
@@ -269,6 +274,11 @@ class RMMConnection(BaseModel):
 
     # Asset mapping - link RMM devices to Asset model
     map_to_assets = models.BooleanField(default=True, help_text="Automatically map RMM devices to Assets")
+
+    # Organization import settings
+    import_organizations = models.BooleanField(default=False, help_text="Automatically import/create organizations from RMM sites/clients")
+    org_import_as_active = models.BooleanField(default=True, help_text="Set imported organizations as active")
+    org_name_prefix = models.CharField(max_length=50, blank=True, default='', help_text='Prefix to add to imported organization names (e.g., "RMM-")')
 
     # Field mappings (JSON) for custom asset type mapping
     field_mappings = models.JSONField(default=dict, blank=True, help_text="Custom field mappings")

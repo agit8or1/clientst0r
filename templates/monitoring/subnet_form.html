@@ -13,18 +13,10 @@
                 <form method="post">
                     {% csrf_token %}
 
-                    <div class="row">
-                        <div class="col-md-8 mb-3">
-                            <label for="{{ form.name.id_for_label }}" class="form-label">Name *</label>
-                            {{ form.name }}
-                            {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors }}</div>{% endif %}
-                        </div>
-
-                        <div class="col-md-4 mb-3">
-                            <label for="{{ form.vlan_id.id_for_label }}" class="form-label">VLAN ID</label>
-                            {{ form.vlan_id }}
-                            {% if form.vlan_id.errors %}<div class="invalid-feedback d-block">{{ form.vlan_id.errors }}</div>{% endif %}
-                        </div>
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">Name *</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors }}</div>{% endif %}
                     </div>
 
                     <div class="row">
@@ -44,9 +36,13 @@
 
                     <div class="row">
                         <div class="col-md-8 mb-3">
-                            <label for="{{ form.vlan_name.id_for_label }}" class="form-label">VLAN Name</label>
-                            {{ form.vlan_name }}
-                            {% if form.vlan_name.errors %}<div class="invalid-feedback d-block">{{ form.vlan_name.errors }}</div>{% endif %}
+                            <label for="{{ form.vlan.id_for_label }}" class="form-label">VLAN</label>
+                            {{ form.vlan }}
+                            {% if form.vlan.errors %}<div class="invalid-feedback d-block">{{ form.vlan.errors }}</div>{% endif %}
+                            <small class="form-text text-muted">
+                                Optional: Assign this subnet to a VLAN.
+                                <a href="{% url 'monitoring:vlan_create' %}" target="_blank">Create new VLAN</a>
+                            </small>
                         </div>
 
                         <div class="col-md-4 mb-3">
@@ -60,7 +56,7 @@
                         <label for="{{ form.dns_servers.id_for_label }}" class="form-label">DNS Servers</label>
                         {{ form.dns_servers }}
                         {% if form.dns_servers.errors %}<div class="invalid-feedback d-block">{{ form.dns_servers.errors }}</div>{% endif %}
-                        <small class="form-text text-muted">JSON array format: ["8.8.8.8", "8.8.4.4"]</small>
+                        <small class="form-text text-muted">Comma-separated list: 8.8.8.8, 8.8.4.4</small>
                     </div>
 
                     <div class="mb-3">

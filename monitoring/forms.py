@@ -2,7 +2,7 @@
 Monitoring forms
 """
 from django import forms
-from .models import WebsiteMonitor, Expiration, Rack, RackDevice, Subnet, IPAddress
+from .models import WebsiteMonitor, Expiration, Rack, RackDevice, Subnet, IPAddress, VLAN
 
 
 class WebsiteMonitorForm(forms.ModelForm):
@@ -129,23 +129,48 @@ class SubnetForm(forms.ModelForm):
     class Meta:
         model = Subnet
         fields = [
-            'name', 'network', 'description', 'vlan_id', 'vlan_name',
+            'name', 'network', 'description', 'vlan',
             'gateway', 'dns_servers', 'location',
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'network': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '192.168.1.0/24'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'vlan_id': forms.NumberInput(attrs={'class': 'form-control'}),
-            'vlan_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'vlan': forms.Select(attrs={'class': 'form-select'}),
             'gateway': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '192.168.1.1'}),
-            'dns_servers': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '["8.8.8.8", "8.8.4.4"]'}),
+            'dns_servers': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '8.8.8.8, 8.8.4.4'}),
             'location': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
         organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
+
+        # Filter VLANs by organization
+        if organization:
+            self.fields['vlan'].queryset = VLAN.objects.filter(organization=organization).order_by('vlan_id')
+            self.fields['vlan'].required = False
+            self.fields['vlan'].empty_label = '-- No VLAN --'
+
+
+class VLANForm(forms.ModelForm):
+    """Form for VLAN."""
+
+    class Meta:
+        model = VLAN
+        fields = ['vlan_id', 'name', 'description', 'color']
+        widgets = {
+            'vlan_id': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '4094', 'placeholder': 'e.g., 10, 100'}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Production, Guest, DMZ'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Purpose of this VLAN...'}),
+            'color': forms.TextInput(attrs={'class': 'form-control', 'type': 'color'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        organization = kwargs.pop('organization', None)
+        super().__init__(*args, **kwargs)
+        self.fields['color'].required = False
+        self.fields['color'].initial = '#3498db'  # Default blue color
 
 
 class IPAddressForm(forms.ModelForm):

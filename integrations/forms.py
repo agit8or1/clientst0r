@@ -125,7 +125,8 @@ class PSAConnectionForm(forms.ModelForm):
     class Meta:
         model = PSAConnection
         fields = ['provider_type', 'name', 'base_url', 'sync_enabled', 'sync_companies',
-                  'sync_contacts', 'sync_tickets', 'sync_interval_minutes']
+                  'sync_contacts', 'sync_tickets', 'sync_interval_minutes',
+                  'import_organizations', 'org_import_as_active', 'org_name_prefix']
         widgets = {
             'provider_type': forms.Select(attrs={'class': 'form-control', 'id': 'id_provider_type'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -135,6 +136,9 @@ class PSAConnectionForm(forms.ModelForm):
             'sync_contacts': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'sync_tickets': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'sync_interval_minutes': forms.NumberInput(attrs={'class': 'form-control'}),
+            'import_organizations': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'org_import_as_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'org_name_prefix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., PSA-'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -223,6 +227,10 @@ class PSAConnectionForm(forms.ModelForm):
 
     def save(self, commit=True):
         connection = super().save(commit=False)
+
+        # Set organization from form if provided
+        if self.organization:
+            connection.organization = self.organization
 
         # Build credentials dict based on provider type
         provider_type = self.cleaned_data.get('provider_type')
@@ -347,7 +355,8 @@ class RMMConnectionForm(forms.ModelForm):
     class Meta:
         model = RMMConnection
         fields = ['provider_type', 'name', 'base_url', 'sync_enabled', 'sync_devices',
-                  'sync_alerts', 'sync_software', 'map_to_assets', 'sync_interval_minutes']
+                  'sync_alerts', 'sync_software', 'map_to_assets', 'sync_interval_minutes',
+                  'import_organizations', 'org_import_as_active', 'org_name_prefix']
         widgets = {
             'provider_type': forms.Select(attrs={'class': 'form-control', 'id': 'id_rmm_provider_type'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -358,9 +367,13 @@ class RMMConnectionForm(forms.ModelForm):
             'sync_software': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'map_to_assets': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'sync_interval_minutes': forms.NumberInput(attrs={'class': 'form-control'}),
+            'import_organizations': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'org_import_as_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'org_name_prefix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., RMM-'}),
         }
         help_texts = {
             'map_to_assets': 'Automatically create/update Assets from RMM devices',
+            'import_organizations': 'Automatically create organizations from RMM sites/clients',
         }
 
     def __init__(self, *args, **kwargs):
@@ -419,6 +432,10 @@ class RMMConnectionForm(forms.ModelForm):
 
     def save(self, commit=True):
         connection = super().save(commit=False)
+
+        # Set organization from form if provided
+        if self.organization:
+            connection.organization = self.organization
 
         # Build credentials dict based on provider type
         provider_type = self.cleaned_data.get('provider_type')

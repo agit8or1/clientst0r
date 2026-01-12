@@ -6,6 +6,7 @@ from . import views
 from . import relationship_views
 from . import quick_views
 from . import port_config_views
+from . import port_views
 
 app_name = 'assets'
 
@@ -16,6 +17,8 @@ urlpatterns = [
     path('quick/server/', quick_views.quick_server_add, name='quick_server_add'),
     path('<int:pk>/', views.asset_detail, name='asset_detail'),
     path('<int:pk>/edit/', views.asset_edit, name='asset_edit'),
+    path('<int:pk>/ports/', port_views.asset_port_config, name='asset_port_config'),
+    path('<int:pk>/ports/save/', port_views.asset_port_config_save, name='asset_port_config_save'),
 
     # API endpoints
     path('api/equipment-model/<int:pk>/', views.equipment_model_api, name='equipment_model_api'),

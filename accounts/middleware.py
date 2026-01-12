@@ -35,6 +35,10 @@ class Enforce2FAMiddleware:
         if any(request.path.startswith(path) for path in self.ALLOWED_PATHS):
             return self.get_response(request)
 
+        # Skip 2FA for Azure AD authenticated users (SSO is already secure)
+        if request.session.get('azure_ad_authenticated', False):
+            return self.get_response(request)
+
         # Check if user has 2FA device configured
         if not user_has_device(request.user):
             setup_url = reverse('two_factor:setup')

@@ -5,10 +5,16 @@ from django.urls import path
 from . import views
 from . import roles_views
 from . import quick_views
+from . import oauth_views
 
 app_name = 'accounts'
 
 urlpatterns = [
+    # Azure AD OAuth
+    path('auth/azure/login/', oauth_views.azure_login, name='azure_login'),
+    path('auth/azure/callback/', oauth_views.azure_callback, name='azure_callback'),
+    path('auth/azure/status/', oauth_views.azure_status, name='azure_status'),
+
     path('switch/<int:org_id>/', views.switch_organization, name='switch_organization'),
     path('access-management/', views.access_management, name='access_management'),
 

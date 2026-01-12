@@ -71,9 +71,21 @@ def asset_create(request):
             asset = form.save(commit=False)
             asset.organization = org
             asset.created_by = request.user
+
+            # Initialize ports if port_count is specified
+            port_count = form.cleaned_data.get('port_count')
+            if port_count and asset.has_ports():
+                # Determine port type based on asset type
+                port_type = 'patch_panel' if asset.asset_type in ['patch_panel', 'fiber_panel'] else 'switch'
+                asset.initialize_ports(port_count, port_type)
+
             asset.save()
             form.save_m2m()
-            messages.success(request, f"Asset '{asset.name}' created successfully. Now add it to the rack.")
+
+            if port_count and asset.has_ports():
+                messages.success(request, f"Asset '{asset.name}' created successfully with {port_count} ports.")
+            else:
+                messages.success(request, f"Asset '{asset.name}' created successfully.")
 
             # Handle redirect
             if redirect_to and redirect_to.startswith('rack_'):
@@ -107,7 +119,21 @@ def asset_edit(request, pk):
     if request.method == 'POST':
         form = AssetForm(request.POST, instance=asset, organization=org)
         if form.is_valid():
-            asset = form.save()
+            # Track if port count changed
+            old_port_count = asset.get_port_count()
+            new_port_count = form.cleaned_data.get('port_count')
+
+            asset = form.save(commit=False)
+
+            # Re-initialize ports if count changed
+            if new_port_count and asset.has_ports() and new_port_count != old_port_count:
+                port_type = 'patch_panel' if asset.asset_type in ['patch_panel', 'fiber_panel'] else 'switch'
+                asset.initialize_ports(new_port_count, port_type)
+                messages.info(request, f"Port configuration updated to {new_port_count} ports.")
+
+            asset.save()
+            form.save_m2m()
+
             messages.success(request, f"Asset '{asset.name}' updated successfully.")
             return redirect('assets:asset_detail', pk=asset.pk)
     else:

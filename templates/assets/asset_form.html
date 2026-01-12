@@ -158,6 +158,21 @@
                     {% endif %}
                 </div>
 
+                <!-- Port Configuration - Only for network equipment -->
+                <div class="col-md-6" id="port-count-field" style="display: none;">
+                    <label class="form-label">{{ form.port_count.label }}</label>
+                    {{ form.port_count }}
+                    <small class="form-text text-muted d-block">{{ form.port_count.help_text }}</small>
+                    {% if form.port_count.errors %}
+                        <div class="text-danger small">{{ form.port_count.errors }}</div>
+                    {% endif %}
+                    <div id="port-count-info" class="mt-2" style="display: none;">
+                        <div class="alert alert-info alert-sm mb-0 py-2">
+                            <i class="fas fa-info-circle"></i> <span id="port-count-message"></span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Tags - Full width if present -->
                 {% if form.tags.field.queryset %}
                 <div class="col-12">
@@ -171,20 +186,12 @@
                 </div>
                 {% endif %}
 
-                <!-- Notes - 2 columns side by side -->
-                <div class="col-md-6">
+                <!-- Notes - Full width -->
+                <div class="col-12">
                     <label class="form-label">{{ form.notes.label }}</label>
                     {{ form.notes }}
                     {% if form.notes.errors %}
                         <div class="text-danger small">{{ form.notes.errors }}</div>
-                    {% endif %}
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">{{ form.custom_fields.label }}</label>
-                    {{ form.custom_fields }}
-                    {% if form.custom_fields.errors %}
-                        <div class="text-danger small">{{ form.custom_fields.errors }}</div>
                     {% endif %}
                 </div>
             </div>
@@ -212,6 +219,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const modelInput = document.getElementById('id_model');
     const rackmountCheckbox = document.getElementById('id_is_rackmount');
     const rackUnitsInput = document.getElementById('id_rack_units');
+    const assetTypeSelect = document.getElementById('id_asset_type');
+    const portCountInput = document.getElementById('id_port_count');
+    const portCountField = document.getElementById('port-count-field');
+    const portCountInfo = document.getElementById('port-count-info');
+    const portCountMessage = document.getElementById('port-count-message');
+
+    // Asset types that support ports
+    const portSupportedTypes = [
+        'switch', 'router', 'firewall', 'load_balancer',
+        'wireless_controller', 'patch_panel', 'fiber_panel',
+        'wireless_ap', 'gateway', 'bridge', 'pbx'
+    ];
 
     // When vendor is selected, load its models
     if (vendorSelect) {
@@ -305,39 +324,50 @@ document.addEventListener('DOMContentLoaded', function() {
         rackmountCheckbox.addEventListener('change', toggleRackUnits);
     }
 
-    // JSON validation for custom_fields
-    const customFieldsInput = document.querySelector('textarea[name="custom_fields"]');
-    const form = customFieldsInput ? customFieldsInput.closest('form') : null;
-
-    if (customFieldsInput && form) {
-        // Add real-time validation feedback
-        customFieldsInput.addEventListener('blur', function() {
-            const value = this.value.trim();
-            if (value && value !== '{}') {
-                try {
-                    JSON.parse(value);
-                    this.classList.remove('is-invalid');
-                    this.classList.add('is-valid');
-                } catch (e) {
-                    this.classList.remove('is-valid');
-                    this.classList.add('is-invalid');
+    // Port count field visibility based on asset type
+    function togglePortCount() {
+        if (assetTypeSelect && portCountField) {
+            const assetType = assetTypeSelect.value;
+            if (portSupportedTypes.includes(assetType)) {
+                portCountField.style.display = 'block';
+            } else {
+                portCountField.style.display = 'none';
+                if (portCountInput) {
+                    portCountInput.value = '';
                 }
             }
-        });
+        }
+    }
 
-        // Validate on form submit
-        form.addEventListener('submit', function(e) {
-            const value = customFieldsInput.value.trim();
-            if (value && value !== '{}') {
-                try {
-                    JSON.parse(value);
-                } catch (error) {
-                    e.preventDefault();
-                    alert('Custom Fields must be valid JSON format.\n\nExample for DNS servers:\n{"dns_servers": ["8.8.8.8", "8.8.4.4"]}\n\nError: ' + error.message);
-                    customFieldsInput.focus();
-                    customFieldsInput.classList.add('is-invalid');
-                    return false;
+    // Initialize on page load
+    togglePortCount();
+
+    // Toggle on asset type change
+    if (assetTypeSelect) {
+        assetTypeSelect.addEventListener('change', togglePortCount);
+    }
+
+    // Show info message when port count is entered
+    if (portCountInput) {
+        portCountInput.addEventListener('input', function() {
+            const count = parseInt(this.value);
+            if (count > 0 && count <= 256) {
+                portCountInfo.style.display = 'block';
+                const assetType = assetTypeSelect ? assetTypeSelect.value : '';
+                const isPatchPanel = ['patch_panel', 'fiber_panel'].includes(assetType);
+
+                if (isPatchPanel) {
+                    portCountMessage.textContent = `${count} ports will be created for patch panel wiring configuration.`;
+                } else {
+                    portCountMessage.textContent = `${count} network ports will be created. You can configure VLANs and port settings after saving.`;
                 }
+            } else if (count > 256) {
+                portCountInfo.style.display = 'block';
+                portCountMessage.textContent = 'Maximum 256 ports allowed.';
+                portCountInfo.querySelector('.alert').classList.remove('alert-info');
+                portCountInfo.querySelector('.alert').classList.add('alert-warning');
+            } else {
+                portCountInfo.style.display = 'none';
             }
         });
     }

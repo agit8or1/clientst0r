@@ -1,6 +1,6 @@
 # HuduGlue 🐕
 
-[![Version 2.11.7](https://img.shields.io/badge/version-2.11.7-brightgreen)](https://github.com/agit8or1/huduglue)
+[![Version 2.12.0](https://img.shields.io/badge/version-2.12.0-brightgreen)](https://github.com/agit8or1/huduglue)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/huduglue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
@@ -15,7 +15,9 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 ## ✨ Key Features
 
 ### 🔐 Security First
-- **Enforced TOTP 2FA** - Two-factor authentication required for all users
+- **Azure AD / Microsoft Entra ID SSO** - Single Sign-On with Microsoft accounts (NEW in 2.12.0)
+- **LDAP/Active Directory** - Enterprise directory integration
+- **Enforced TOTP 2FA** - Two-factor authentication required for all users (bypassed for SSO)
 - **AES-GCM Encryption** - Military-grade encryption for all sensitive data
 - **Argon2 Password Hashing** - Industry-standard password security
 - **Password Breach Detection** - HaveIBeenPwned integration with k-anonymity (your passwords never leave your server)
@@ -137,6 +139,13 @@ Full implementations for:
 - **Freshservice** - Departments, Requesters, Tickets
 - **Zendesk** - Organizations, Users, Tickets
 - **ITFlow** - Open-source PSA with full API support
+- **Alga PSA** - Placeholder ready (open-source MSP PSA)
+
+**NEW in 2.12.0: Organization Auto-Import**
+- Automatically create HuduGlue organizations from PSA companies
+- Optional name prefixes (e.g., "PSA-CompanyName")
+- Smart duplicate prevention with external ID tracking
+- Sync metadata (phone, address, website)
 
 ### 🖥️ RMM Integrations (5 Providers)
 Full implementations for:
@@ -148,14 +157,39 @@ Full implementations for:
 - **Auto Asset Mapping** - Automatically link RMM devices to asset records based on serial number and hostname
 - **Scheduled Sync** - Automatic device synchronization on configurable intervals
 - **Device Monitoring** - Track online/offline status, last seen timestamps
+
+**NEW in 2.12.0: Organization Auto-Import**
+- Automatically create HuduGlue organizations from RMM sites/clients
+- Optional name prefixes (e.g., "RMM-SiteName")
+- Smart duplicate prevention with external ID tracking
+- Sync site metadata and contact information
 - **Software Inventory** - Sync installed software from RMM platforms
 - **Alert Integration** - Pull RMM alerts and monitoring data
+
+## 🆕 What's New in v2.12
+
+### Latest Release - January 2026
+
+**v2.12.0** - Azure SSO & Organization Auto-Import (Latest Release)
+- **Azure AD / Microsoft Entra ID SSO** - Complete single sign-on implementation
+  - "Sign in with Microsoft" button on login page
+  - Auto-create user accounts from Azure AD
+  - Bypasses 2FA for SSO users (already authenticated)
+  - Full setup guide in Admin settings
+- **Organization Auto-Import from PSA/RMM**
+  - Automatically create orgs from PSA companies or RMM sites
+  - Configurable name prefixes
+  - Smart duplicate prevention
+  - Tracks external IDs in custom fields
+- **Fixed RMM/PSA IntegrityError** - organization_id null error resolved
+- **Alga PSA placeholder** - Ready for future integration
+- **Cryptography compatibility fix** - Resolved installation issues
 
 ## 🆕 What's New in v2.11
 
 ### Recent Updates (January 2026)
 
-**v2.11.7** - Bug Fixes & UI Improvements (Latest Release)
+**v2.11.7** - Bug Fixes & UI Improvements
 - Fixed visible ">" artifact on all pages (CSRF token meta tag issue)
 - Fixed About page TemplateSyntaxError with hyphenated package names
 - Improved floor plan generation loading overlay contrast

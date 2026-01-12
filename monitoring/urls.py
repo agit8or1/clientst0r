@@ -4,6 +4,7 @@ Monitoring URL configuration
 from django.urls import path
 from . import views
 from . import patch_panel_views
+from . import vlan_views
 
 app_name = 'monitoring'
 
@@ -45,6 +46,13 @@ urlpatterns = [
     path('ipam/subnets/<int:subnet_id>/ips/create/', views.ip_address_create, name='ip_address_create'),
     path('ipam/ips/<int:pk>/edit/', views.ip_address_edit, name='ip_address_edit'),
     path('ipam/ips/<int:pk>/delete/', views.ip_address_delete, name='ip_address_delete'),
+
+    # VLANs
+    path('vlans/', vlan_views.vlan_list, name='vlan_list'),
+    path('vlans/create/', vlan_views.vlan_create, name='vlan_create'),
+    path('vlans/<int:pk>/', vlan_views.vlan_detail, name='vlan_detail'),
+    path('vlans/<int:pk>/edit/', vlan_views.vlan_edit, name='vlan_edit'),
+    path('vlans/<int:pk>/delete/', vlan_views.vlan_delete, name='vlan_delete'),
 
     # Network Closets
     path('closets/', views.network_closet_list, name='network_closet_list'),

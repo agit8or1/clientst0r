@@ -492,6 +492,33 @@ class RackDevice(BaseModel):
         super().save(*args, **kwargs)
 
 
+class VLAN(BaseModel):
+    """
+    Virtual LAN configuration.
+    Can be assigned to subnets, devices, and switch ports.
+    """
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='vlans')
+    vlan_id = models.PositiveIntegerField(help_text="VLAN number (1-4094)")
+    name = models.CharField(max_length=100, help_text="VLAN name (e.g., Production, Guest, DMZ)")
+    description = models.TextField(blank=True)
+
+    # Optional color for visual identification
+    color = models.CharField(max_length=7, blank=True, help_text="Hex color code (e.g., #FF5733)")
+
+    objects = OrganizationManager()
+
+    class Meta:
+        db_table = 'vlans'
+        ordering = ['vlan_id']
+        unique_together = [['organization', 'vlan_id']]
+        indexes = [
+            models.Index(fields=['organization', 'vlan_id']),
+        ]
+
+    def __str__(self):
+        return f"VLAN {self.vlan_id} - {self.name}"
+
+
 class Subnet(BaseModel):
     """
     IP subnet for IP address management (IPAM).
@@ -501,9 +528,8 @@ class Subnet(BaseModel):
     network = models.CharField(max_length=50, help_text="e.g., 192.168.1.0/24")
     description = models.TextField(blank=True)
 
-    # VLAN info
-    vlan_id = models.PositiveIntegerField(null=True, blank=True)
-    vlan_name = models.CharField(max_length=100, blank=True)
+    # VLAN association (new ForeignKey)
+    vlan = models.ForeignKey('VLAN', on_delete=models.SET_NULL, null=True, blank=True, related_name='subnets', help_text="Associated VLAN")
 
     # Gateway
     gateway = models.GenericIPAddressField(null=True, blank=True)

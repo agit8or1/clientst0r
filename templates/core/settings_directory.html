@@ -146,11 +146,51 @@
 
                     <div id="azureSettings" {% if not settings.azure_ad_enabled %}style="display:none"{% endif %}>
                         <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> <strong>Setup Instructions:</strong><br>
-                            1. Register an application in Azure Portal (App registrations)<br>
-                            2. Add a web platform with redirect URI<br>
-                            3. Generate a client secret<br>
-                            4. Grant API permissions: User.Read, openid, profile, email
+                            <i class="fas fa-info-circle"></i> <strong>Azure AD SSO Setup Instructions</strong>
+                            <hr>
+                            <h6 class="mt-3 mb-2">1. Register Application in Azure Portal</h6>
+                            <ul class="small">
+                                <li>Go to <a href="https://portal.azure.com" target="_blank" rel="noopener">Azure Portal</a> → Azure Active Directory → App registrations</li>
+                                <li>Click <strong>New registration</strong></li>
+                                <li>Name: <code>HuduGlue</code></li>
+                                <li>Supported account types: <strong>Accounts in this organizational directory only</strong></li>
+                                <li>Redirect URI: Web → <code>{{ request.scheme }}://{{ request.get_host }}/accounts/auth/azure/callback/</code></li>
+                                <li>Click <strong>Register</strong></li>
+                            </ul>
+
+                            <h6 class="mb-2">2. Copy Application Details</h6>
+                            <ul class="small">
+                                <li><strong>Application (client) ID</strong> - Found on Overview page</li>
+                                <li><strong>Directory (tenant) ID</strong> - Found on Overview page</li>
+                            </ul>
+
+                            <h6 class="mb-2">3. Create Client Secret</h6>
+                            <ul class="small">
+                                <li>Go to <strong>Certificates & secrets</strong> → <strong>Client secrets</strong></li>
+                                <li>Click <strong>New client secret</strong></li>
+                                <li>Description: <code>HuduGlue OAuth</code></li>
+                                <li>Expiration: <strong>24 months</strong> (recommended)</li>
+                                <li><strong>⚠️ IMPORTANT:</strong> Copy the <strong>Value</strong> immediately (you won't be able to see it again!)</li>
+                            </ul>
+
+                            <h6 class="mb-2">4. Configure API Permissions</h6>
+                            <ul class="small">
+                                <li>Go to <strong>API permissions</strong></li>
+                                <li>Verify <strong>User.Read</strong> permission is present (added automatically)</li>
+                                <li>If you have admin rights, click <strong>Grant admin consent</strong></li>
+                            </ul>
+
+                            <h6 class="mb-2">5. Configure Settings Below</h6>
+                            <ul class="small">
+                                <li>Enter the <strong>Tenant ID</strong>, <strong>Client ID</strong>, and <strong>Client Secret</strong> you copied</li>
+                                <li>Redirect URI should be: <code>{{ request.scheme }}://{{ request.get_host }}/accounts/auth/azure/callback/</code></li>
+                                <li>Enable <strong>Auto-create users</strong> to automatically create accounts for new Azure AD users</li>
+                                <li>Click <strong>Save Changes</strong> below</li>
+                            </ul>
+
+                            <div class="alert alert-warning mt-2 mb-0">
+                                <i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> Users authenticating via Azure AD will bypass 2FA requirements (Azure SSO is already secure). A "Sign in with Microsoft" button will appear on the login page once configured.
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -179,9 +219,9 @@
                         <div class="mb-3">
                             <label for="azure_ad_redirect_uri" class="form-label">Redirect URI *</label>
                             <input type="text" class="form-control" id="azure_ad_redirect_uri" name="azure_ad_redirect_uri"
-                                   value="{{ settings.azure_ad_redirect_uri }}"
-                                   placeholder="https://yourapp.com/auth/callback">
-                            <div class="form-text">Must match the redirect URI configured in Azure</div>
+                                   value="{{ settings.azure_ad_redirect_uri|default:'' }}"
+                                   placeholder="{{ request.scheme }}://{{ request.get_host }}/accounts/auth/azure/callback/">
+                            <div class="form-text">Must match the redirect URI configured in Azure (typically: <code>{{ request.scheme }}://{{ request.get_host }}/accounts/auth/azure/callback/</code>)</div>
                         </div>
 
                         <div class="form-check form-switch mb-3">

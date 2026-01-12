@@ -21,7 +21,8 @@ class AssetForm(forms.ModelForm):
                   'equipment_model', 'manufacturer', 'model',
                   'hostname', 'ip_address', 'mac_address',
                   'is_rackmount', 'rack_units',
-                  'primary_contact', 'tags', 'notes', 'custom_fields']
+                  'port_count',
+                  'primary_contact', 'tags', 'notes']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'asset_type': forms.Select(attrs={'class': 'form-control'}),
@@ -35,9 +36,9 @@ class AssetForm(forms.ModelForm):
             'mac_address': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '00:11:22:33:44:55'}),
             'is_rackmount': forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_is_rackmount'}),
             'rack_units': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '42', 'id': 'id_rack_units'}),
+            'port_count': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '256', 'id': 'id_port_count', 'placeholder': 'e.g., 24, 48'}),
             'primary_contact': forms.Select(attrs={'class': 'form-control'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'custom_fields': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': '{"key": "value"}'}),
             'tags': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
         }
 
@@ -54,8 +55,14 @@ class AssetForm(forms.ModelForm):
         self.fields['equipment_vendor'].queryset = Vendor.objects.filter(is_active=True).order_by('name')
         self.fields['equipment_vendor'].help_text = "Select vendor to see available models"
 
-        # Equipment model dropdown starts empty, populated by JavaScript when vendor is selected
-        self.fields['equipment_model'].queryset = EquipmentModel.objects.none()
+        # Equipment model dropdown handling
+        # If this is a POST request (args[0] exists), allow all active models for validation
+        # Otherwise, start with empty queryset (populated by JavaScript)
+        if args and args[0]:  # POST data present
+            self.fields['equipment_model'].queryset = EquipmentModel.objects.filter(is_active=True)
+        else:
+            self.fields['equipment_model'].queryset = EquipmentModel.objects.none()
+
         self.fields['equipment_model'].empty_label = "First select a vendor"
         self.fields['equipment_model'].required = False
         self.fields['equipment_model'].help_text = "Select model to auto-fill manufacturer/model fields"
@@ -71,6 +78,8 @@ class AssetForm(forms.ModelForm):
         # Add help text
         self.fields['manufacturer'].help_text = "Auto-filled when model is selected, or enter manually"
         self.fields['model'].help_text = "Auto-filled when model is selected, or enter manually"
+        self.fields['port_count'].help_text = "Number of network ports (for switches, routers, firewalls, patch panels)"
+        self.fields['port_count'].required = False
 
     def clean(self):
         """Remove equipment_vendor from cleaned_data as it's just a UI helper."""

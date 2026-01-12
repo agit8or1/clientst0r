@@ -5,6 +5,14 @@ Complete feature documentation for HuduGlue - Self-hosted IT documentation platf
 ## 🔐 Security Features
 
 ### Authentication & Access Control
+- **Azure AD / Microsoft Entra ID SSO** (NEW in v2.12.0):
+  - Single Sign-On with Azure AD / Microsoft Entra ID
+  - OAuth 2.0 authentication flow with MSAL
+  - Auto-user creation on first login
+  - 2FA bypass for Azure authenticated users (SSO is already secure)
+  - Microsoft Graph API user sync
+  - Tenant restriction support
+  - Comprehensive setup instructions in Admin UI
 - **Enforced TOTP 2FA** - Two-factor authentication required for all users
 - **Argon2 Password Hashing** - Industry-standard password security with configurable work factors
 - **Session Management** - Secure session handling with configurable timeout
@@ -275,6 +283,79 @@ All integrations fully implemented:
 - **Error Handling** - Comprehensive error logging
 - **Sync History** - Track sync operations
 - **Test Connection** - Verify credentials before saving
+
+### Organization Auto-Import (NEW in v2.12.0)
+Automatically create and manage organizations from PSA companies during synchronization:
+- **Auto-Create Organizations** - Automatically create HuduGlue organizations from PSA companies
+- **Smart Duplicate Prevention** - Detects existing organizations by external ID to prevent duplicates
+- **Configurable Settings**:
+  - Enable/disable auto-import per connection
+  - Set imported organizations as active or inactive
+  - Add custom name prefix (e.g., "PSA-" or "CW-")
+- **External ID Tracking** - Links organizations to PSA companies via custom_fields
+- **Bulk Import** - Import all companies with statistics (created/updated/errors)
+- **Audit Trail** - Full logging of all organization creates and updates
+- **Update Sync** - Updates organization data when PSA company information changes
+
+## 🖥️ RMM Integrations
+
+### Supported RMM Platforms
+Phase 1 infrastructure complete (v2.12.0), provider implementations in progress:
+
+1. **Tactical RMM** (Fully Implemented)
+   - Devices, Sites, Agents
+   - Monitoring checks and alerts
+   - Software inventory
+   - Token-based authentication
+   - WebSocket real-time updates
+
+2. **NinjaOne** (Infrastructure Ready)
+   - Device management
+   - Policy assignments
+   - Monitoring and alerts
+   - OAuth 2.0 authentication
+
+3. **Datto RMM** (Infrastructure Ready)
+   - Device inventory
+   - Component tracking
+   - Monitoring alerts
+   - API key authentication
+
+4. **Atera** (Infrastructure Ready)
+   - Agent management
+   - Ticket integration
+   - Alerts and monitoring
+   - API key authentication
+
+5. **ConnectWise Automate** (Infrastructure Ready)
+   - Computer management
+   - Location tracking
+   - Script execution
+   - API authentication
+
+### Integration Features
+- **Automated Device Sync** - Scheduled synchronization via systemd timers
+- **Manual Sync** - On-demand sync with force option
+- **Asset Mapping** - Link RMM devices to asset records
+- **Alert Management** - Import and track RMM alerts
+- **Software Inventory** - Track installed software per device
+- **Online Status Tracking** - Monitor device connectivity
+- **Error Handling** - Comprehensive error logging
+- **Sync History** - Track sync operations
+- **Test Connection** - Verify credentials before saving
+
+### Organization Auto-Import (NEW in v2.12.0)
+Automatically create and manage organizations from RMM sites/clients during synchronization:
+- **Auto-Create Organizations** - Automatically create HuduGlue organizations from RMM sites or clients
+- **Smart Duplicate Prevention** - Detects existing organizations by external ID to prevent duplicates
+- **Configurable Settings**:
+  - Enable/disable auto-import per connection
+  - Set imported organizations as active or inactive
+  - Add custom name prefix (e.g., "RMM-" or "Tactical-")
+- **External ID Tracking** - Links organizations to RMM sites via custom_fields
+- **Bulk Import** - Import all sites with statistics (created/updated/errors)
+- **Audit Trail** - Full logging of all organization creates and updates
+- **Update Sync** - Updates organization data when RMM site information changes
 
 ## 🔔 Notifications & Alerts
 

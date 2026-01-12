@@ -5,6 +5,112 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.0] - 2026-01-12
+
+### ✨ New Features
+
+- **Azure AD / Microsoft Entra ID Single Sign-On**
+  - Added complete Azure AD OAuth authentication backend
+  - "Sign in with Microsoft" button appears on login page when configured
+  - Auto-creates user accounts on first Azure AD login (configurable)
+  - Syncs user info (name, email) from Microsoft Graph API
+  - Users authenticated via Azure AD bypass 2FA requirements (SSO is already secure)
+  - Comprehensive setup instructions in Admin → Settings → Directory Services
+  - Dynamic redirect URI display based on current domain
+  - Stores Azure AD Object ID in user profile for tracking
+  - Files: `accounts/azure_auth.py`, `accounts/oauth_views.py`, `templates/two_factor/core/login.html`
+  - Routes: `/accounts/auth/azure/login/`, `/accounts/auth/azure/callback/`, `/accounts/auth/azure/status/`
+  - Documentation: `AZURE_SSO_SETUP.md`
+
+- **RMM/PSA Organization Import**
+  - Automatically create organizations from PSA companies or RMM sites/clients during sync
+  - New connection settings:
+    - **Import Organizations**: Enable/disable automatic org creation
+    - **Set as Active**: Control if imported orgs are active by default
+    - **Name Prefix**: Add prefix to org names (e.g., "PSA-", "RMM-")
+  - Smart matching prevents duplicates (checks custom_fields for existing linkage)
+  - Tracks PSA/RMM linkage in organization custom_fields:
+    - `psa_company_id` / `rmm_site_id`
+    - `psa_connection_id` / `rmm_connection_id`
+    - `psa_provider` / `rmm_provider`
+    - Additional metadata (phone, address, website, description)
+  - Unique slug generation ensures no conflicts
+  - All org creates/updates logged to audit trail
+  - Utility functions: `integrations/org_import.py`
+  - Supports bulk import with statistics (created, updated, errors)
+
+- **Alga PSA Integration Placeholder**
+  - Added provider stub for future Alga PSA integration
+  - Open-source MSP PSA platform by Nine-Minds
+  - Complete implementation checklist included
+  - Ready to be completed once API documentation is available
+  - File: `integrations/providers/psa/alga.py`
+
+### 🐛 Bug Fixes
+
+- **Fixed RMM/PSA Connection Creation IntegrityError**
+  - Resolved: "Column 'organization_id' cannot be null" error when creating RMM or PSA connections
+  - Root cause: Form's `save()` method wasn't setting `connection.organization` before saving
+  - Fixed both `RMMConnectionForm` and `PSAConnectionForm` in `integrations/forms.py`
+  - Now properly sets organization from form context before save
+
+- **Fixed Cryptography Version Compatibility**
+  - Updated `requirements.txt`: `cryptography>=43.0.0,<44.0.0`
+  - Resolves installation issues reported on fresh installs
+  - Maintains backward compatibility with existing 44.x installations
+
+### 🎨 UI/UX Improvements
+
+- **Enhanced Azure AD Setup Page**
+  - Comprehensive step-by-step setup instructions in Admin settings
+  - Five clear setup phases with specific actions
+  - Dynamic redirect URI display (shows actual domain-based URL)
+  - Warning about 2FA bypass for Azure users
+  - Direct links to Azure Portal
+  - Code-formatted examples and configuration snippets
+
+- **Port Configuration Table Contrast**
+  - Changed port configuration table headers to `table-dark` for better readability
+  - Improved visual hierarchy with Bootstrap dark theme
+  - Applies to both network equipment and patch panel configurations
+
+### 🔧 Technical Changes
+
+- **Authentication Backend Updates**
+  - Added `accounts.azure_auth.AzureADBackend` to `AUTHENTICATION_BACKENDS`
+  - Integrated MSAL (Microsoft Authentication Library) for OAuth flow
+  - Added auth_source field to UserProfile model (local, ldap, azure_ad)
+  - Added azure_ad_oid field to UserProfile for Azure Object ID tracking
+
+- **Middleware Enhancements**
+  - Updated `Enforce2FAMiddleware` to skip 2FA for Azure AD authenticated users
+  - Checks session flag `azure_ad_authenticated` before enforcing 2FA
+
+- **Database Migrations**
+  - `accounts/migrations/0005_add_azure_fields_to_userprofile.py` - Azure AD fields
+  - `integrations/migrations/0004_add_org_import_fields.py` - Organization import settings
+
+- **New Dependencies**
+  - Added `msal==1.26.*` to requirements.txt for Azure AD OAuth
+
+### 📚 Documentation
+
+- **New Files**
+  - `AZURE_SSO_SETUP.md` - Complete Azure AD SSO setup guide
+  - `integrations/org_import.py` - Organization import utility library
+
+- **Updated Files**
+  - `templates/core/settings_directory.html` - Azure AD setup instructions
+  - `config/settings.py` - Azure AD authentication backend
+  - `requirements.txt` - MSAL library, cryptography version fix
+
+### 🔐 Security Notes
+
+- Azure AD client secrets stored encrypted in database
+- Session flag tracks Azure authentication for 2FA bypass
+- All organization imports logged to audit trail
+- Azure AD authentication validated against Microsoft Graph API
+
 ## [2.11.7] - 2026-01-11
 
 ### 🐛 Bug Fixes

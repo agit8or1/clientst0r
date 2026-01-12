@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}Configure Ports - {{ asset.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="fas fa-network-wired"></i> Configure Ports - {{ asset.name }}
+    </h1>
+    <div>
+        <button id="saveButton" class="btn btn-primary">
+            <i class="fas fa-save"></i> Save Configuration
+        </button>
+        <a href="{% url 'assets:asset_detail' asset.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-times"></i> Cancel
+        </a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{{ asset.get_asset_type_display }} - {{ asset.model|default:"Generic" }}</h5>
+            <div>
+                {% if asset.port_count %}
+                <span class="badge bg-info">{{ asset.port_count }} Ports</span>
+                {% else %}
+                <a href="{% url 'assets:asset_edit' asset.pk %}" class="btn btn-sm btn-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Set Port Count First
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if not asset.port_count %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            No port count specified. Please <a href="{% url 'assets:asset_edit' asset.pk %}">edit the asset</a> and set the port count first.
+        </div>
+        {% else %}
+        <div id="portConfigContainer">
+            <table class="table table-sm table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 70px;">Port #</th>
+                        {% if is_patch_panel %}
+                            <th style="width: 150px;">Label</th>
+                            <th style="width: 200px;">Destination</th>
+                            <th style="width: 120px;">Cable Type</th>
+                            <th style="width: 150px;">VLAN</th>
+                            <th style="width: 120px;">Status</th>
+                            <th>Notes</th>
+                        {% else %}
+                            <th style="width: 180px;">Description</th>
+                            <th style="width: 100px;">Mode</th>
+                            <th style="width: 150px;">Native VLAN</th>
+                            <th style="width: 200px;">Tagged VLANs</th>
+                            <th style="width: 110px;">Speed</th>
+                            <th style="width: 100px;">Status</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody id="portTableBody">
+                    {% for port in asset.ports %}
+                    <tr data-port="{{ port.port_number }}">
+                        <td class="align-middle"><strong>{{ port.port_number }}</strong></td>
+                        {% if is_patch_panel %}
+                            <td><input type="text" class="form-control form-control-sm" name="label" value="{{ port.label|default:'' }}"></td>
+                            <td><input type="text" class="form-control form-control-sm" name="destination" value="{{ port.destination|default:'' }}"></td>
+                            <td>
+                                <select class="form-select form-select-sm" name="cable_type">
+                                    <option value="Cat5e" {% if port.cable_type == 'Cat5e' %}selected{% endif %}>Cat5e</option>
+                                    <option value="Cat6" {% if port.cable_type == 'Cat6' %}selected{% endif %}>Cat6</option>
+                                    <option value="Cat6a" {% if port.cable_type == 'Cat6a' %}selected{% endif %}>Cat6a</option>
+                                    <option value="Cat7" {% if port.cable_type == 'Cat7' %}selected{% endif %}>Cat7</option>
+                                    <option value="Fiber" {% if port.cable_type == 'Fiber' %}selected{% endif %}>Fiber</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" name="vlan">
+                                    <option value="">No VLAN</option>
+                                    {% for vlan in vlans %}
+                                    <option value="{{ vlan.vlan_id }}" {% if port.vlan|stringformat:"s" == vlan.vlan_id|stringformat:"s" %}selected{% endif %}>
+                                        VLAN {{ vlan.vlan_id }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" name="status">
+                                    <option value="available" {% if port.status == 'available' %}selected{% endif %}>Available</option>
+                                    <option value="in-use" {% if port.status == 'in-use' %}selected{% endif %}>In Use</option>
+                                    <option value="reserved" {% if port.status == 'reserved' %}selected{% endif %}>Reserved</option>
+                                </select>
+                            </td>
+                            <td><input type="text" class="form-control form-control-sm" name="notes" value="{{ port.notes|default:'' }}"></td>
+                        {% else %}
+                            <td><input type="text" class="form-control form-control-sm" name="description" value="{{ port.description|default:'' }}" placeholder="e.g., Uplink to Core"></td>
+                            <td>
+                                <select class="form-select form-select-sm port-mode" name="mode" onchange="toggleVlanFields(this)">
+                                    <option value="access" {% if port.mode == 'access' or not port.mode %}selected{% endif %}>Access</option>
+                                    <option value="trunk" {% if port.mode == 'trunk' %}selected{% endif %}>Trunk</option>
+                                    <option value="hybrid" {% if port.mode == 'hybrid' %}selected{% endif %}>Hybrid</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm native-vlan" name="native_vlan">
+                                    <option value="">None</option>
+                                    {% for vlan in vlans %}
+                                    <option value="{{ vlan.vlan_id }}" {% if port.native_vlan|stringformat:"s" == vlan.vlan_id|stringformat:"s" or port.vlan|stringformat:"s" == vlan.vlan_id|stringformat:"s" %}selected{% endif %}>
+                                        VLAN {{ vlan.vlan_id }} - {{ vlan.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm tagged-vlans" name="tagged_vlans" multiple size="1" style="height: 31px; overflow: hidden;">
+                                    {% for vlan in vlans %}
+                                    <option value="{{ vlan.vlan_id }}" {% if vlan.vlan_id|stringformat:"s" in port.tagged_vlans|default:list %}selected{% endif %}>
+                                        VLAN {{ vlan.vlan_id }} - {{ vlan.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted d-block">Ctrl+Click for multiple</small>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" name="speed">
+                                    <option value="" {% if not port.speed %}selected{% endif %}>Auto</option>
+                                    <option value="10M" {% if port.speed == '10M' %}selected{% endif %}>10M</option>
+                                    <option value="100M" {% if port.speed == '100M' %}selected{% endif %}>100M</option>
+                                    <option value="1G" {% if port.speed == '1G' %}selected{% endif %}>1G</option>
+                                    <option value="10G" {% if port.speed == '10G' %}selected{% endif %}>10G</option>
+                                    <option value="25G" {% if port.speed == '25G' %}selected{% endif %}>25G</option>
+                                    <option value="40G" {% if port.speed == '40G' %}selected{% endif %}>40G</option>
+                                    <option value="100G" {% if port.speed == '100G' %}selected{% endif %}>100G</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" name="status">
+                                    <option value="inactive" {% if port.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                                    <option value="active" {% if port.status == 'active' %}selected{% endif %}>Active</option>
+                                    <option value="disabled" {% if port.status == 'disabled' %}selected{% endif %}>Disabled</option>
+                                    <option value="error" {% if port.status == 'error' %}selected{% endif %}>Error</option>
+                                </select>
+                            </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Initialize VLAN field visibility based on mode
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.port-mode').forEach(select => {
+        toggleVlanFields(select);
+    });
+});
+
+function toggleVlanFields(modeSelect) {
+    const row = modeSelect.closest('tr');
+    const nativeVlanSelect = row.querySelector('.native-vlan');
+    const taggedVlansSelect = row.querySelector('.tagged-vlans');
+    const mode = modeSelect.value;
+
+    if (mode === 'access') {
+        // Access mode: only native VLAN (untagged)
+        nativeVlanSelect.disabled = false;
+        taggedVlansSelect.disabled = true;
+        taggedVlansSelect.style.opacity = '0.5';
+    } else if (mode === 'trunk') {
+        // Trunk mode: native VLAN (optional) + tagged VLANs
+        nativeVlanSelect.disabled = false;
+        taggedVlansSelect.disabled = false;
+        taggedVlansSelect.style.opacity = '1';
+    } else if (mode === 'hybrid') {
+        // Hybrid mode: native VLAN + tagged VLANs
+        nativeVlanSelect.disabled = false;
+        taggedVlansSelect.disabled = false;
+        taggedVlansSelect.style.opacity = '1';
+    }
+}
+
+document.getElementById('saveButton').addEventListener('click', function() {
+    const button = this;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    // Collect port data
+    const ports = [];
+    document.querySelectorAll('#portTableBody tr').forEach(row => {
+        const portNumber = parseInt(row.dataset.port);
+        const portData = {
+            port_number: portNumber
+        };
+
+        // Collect all input values
+        row.querySelectorAll('input, select:not([multiple])').forEach(input => {
+            portData[input.name] = input.value;
+        });
+
+        // Handle multiple select (tagged VLANs)
+        const taggedVlansSelect = row.querySelector('select[name="tagged_vlans"]');
+        if (taggedVlansSelect) {
+            const selectedOptions = Array.from(taggedVlansSelect.selectedOptions).map(opt => opt.value);
+            portData['tagged_vlans'] = selectedOptions;
+        }
+
+        ports.push(portData);
+    });
+
+    // Save via AJAX
+    fetch('{% url "assets:asset_port_config_save" asset.pk %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            ports: ports,
+            vlans: []  // Will be populated later if needed
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message and redirect
+            window.location.href = '{% url "assets:asset_detail" asset.pk %}';
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-save"></i> Save Configuration';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to save configuration');
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-save"></i> Save Configuration';
+    });
+});
+</script>
+{% endblock %}

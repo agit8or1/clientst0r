@@ -154,6 +154,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Authentication backends
 AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',
+    'accounts.azure_auth.AzureADBackend',  # Azure AD SSO
     'django.contrib.auth.backends.ModelBackend',
 ]
 

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}VLAN {{ vlan.vlan_id }} - {{ vlan.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>
+        <i class="fas fa-network-wired"></i>
+        VLAN {{ vlan.vlan_id }} - {{ vlan.name }}
+        {% if vlan.color %}
+        <span class="badge" style="background-color: {{ vlan.color }}; font-size: 0.8rem;">&nbsp;&nbsp;&nbsp;</span>
+        {% endif %}
+    </h1>
+    <div>
+        <a href="{% url 'monitoring:vlan_edit' vlan.pk %}" class="btn btn-secondary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{% url 'monitoring:vlan_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-list"></i> All VLANs
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">VLAN Details</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">VLAN ID:</dt>
+                    <dd class="col-sm-8"><strong>{{ vlan.vlan_id }}</strong></dd>
+
+                    <dt class="col-sm-4">Name:</dt>
+                    <dd class="col-sm-8">{{ vlan.name }}</dd>
+
+                    <dt class="col-sm-4">Description:</dt>
+                    <dd class="col-sm-8">{{ vlan.description|default:"—" }}</dd>
+
+                    <dt class="col-sm-4">Color:</dt>
+                    <dd class="col-sm-8">
+                        {% if vlan.color %}
+                        <span class="badge" style="background-color: {{ vlan.color }}; width: 100px; padding: 10px;">&nbsp;</span>
+                        <span class="text-muted ms-2">{{ vlan.color }}</span>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Associated Subnets</h5>
+                <span class="badge bg-primary">{{ subnets.count }}</span>
+            </div>
+            <div class="card-body">
+                {% if subnets %}
+                <ul class="list-unstyled mb-0">
+                    {% for subnet in subnets %}
+                    <li class="mb-2">
+                        <a href="{% url 'monitoring:subnet_detail' subnet.pk %}">
+                            <i class="fas fa-network-wired"></i> {{ subnet.name }} ({{ subnet.network }})
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted mb-0">No subnets assigned to this VLAN yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0">Danger Zone</h5>
+    </div>
+    <div class="card-body">
+        <p class="mb-2">Delete this VLAN permanently. This action cannot be undone.</p>
+        <a href="{% url 'monitoring:vlan_delete' vlan.pk %}" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Delete VLAN
+        </a>
+    </div>
+</div>
+{% endblock %}
