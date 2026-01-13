@@ -800,6 +800,52 @@ No SSH access required. No manual service restarts. No downtime.
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
+            'v2.14.22': {
+                'name': 'v2.14.22 - Critical IntegrityError Fixes',
+                'body': '''## 🐛 Critical Bug Fixes
+
+### Fixed IntegrityError on User Profile Page
+
+**Error:** `(1364, "Field 'auth_source' doesn't have a default value")`
+
+**Problem:** The UserProfile model was missing `auth_source` and `azure_ad_oid` field definitions, even though the migration created them in the database.
+
+**Solution:**
+- Added `auth_source` field with default='local' to UserProfile model
+- Added `azure_ad_oid` field for Azure AD SSO tracking
+- Users can now access their profile page without errors
+
+### Fixed IntegrityError on RMM Connection Creation
+
+**Error:** `(1048, "Column 'organization_id' cannot be null")`
+
+**Problem:** Users could attempt to create RMM connections without selecting an organization, causing the database to reject the null organization_id.
+
+**Solution:**
+- Added organization validation check in `rmm_create` view
+- Returns error message: "Please select an organization first."
+- Redirects users to access management page to select organization
+- Prevents database constraint violations
+
+### 🔒 Security & Data Integrity
+
+Both fixes ensure:
+- Database constraint compliance
+- Data integrity preservation
+- Better error handling and user guidance
+
+### 📝 Affected Areas
+
+**UserProfile Model (`accounts/models.py`):**
+- Added auth_source field (local, ldap, azure_ad)
+- Added azure_ad_oid field for SSO tracking
+
+**RMM Integration (`integrations/views.py`):**
+- Added organization validation in rmm_create view
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             }
         }
 
