@@ -5,6 +5,37 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.24] - 2026-01-13
+
+### 🔧 Consistency Improvements
+
+- **Applied Organization Validation to PSA Integrations**
+  - PSA integration creation now requires organization selection (matching RMM behavior)
+  - Prevents `IntegrityError: Column 'organization_id' cannot be null` for PSA connections
+  - Both PSA and RMM integrations now have consistent validation
+  - Clear error message: "Please select an organization first."
+
+### 📝 User Experience
+
+- **Integration Creation Flow:**
+  1. Select an organization from top navigation or Access Management page
+  2. Navigate to Integrations
+  3. Click "Add PSA Integration" or "Add RMM Integration"
+  4. Form appears (no redirect if organization is selected)
+
+- **Why This Matters:**
+  - Prevents database constraint violations
+  - Provides clear feedback to users
+  - Ensures data integrity across all integration types
+
+### 🐛 Related Issues
+
+- Addresses GitHub Issue #7 feedback about RMM integration redirect
+- Applies same protection to PSA integrations for consistency
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.23] - 2026-01-13
 
 ### 🐛 Critical Bug Fix

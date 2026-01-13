@@ -34,6 +34,11 @@ def integration_create(request):
     """Create new PSA connection."""
     org = get_request_organization(request)
 
+    # Require organization to be selected
+    if not org:
+        messages.error(request, "Please select an organization first.")
+        return redirect('accounts:access_management')
+
     if request.method == 'POST':
         form = PSAConnectionForm(request.POST, organization=org)
         if form.is_valid():
