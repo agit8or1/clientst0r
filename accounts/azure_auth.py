@@ -204,12 +204,13 @@ class AzureOAuthClient:
 
     def load_config(self):
         """Load Azure configuration from SystemSetting."""
+        settings = SystemSetting.get_settings()
         return {
-            'enabled': SystemSetting.get_setting('azure_ad_enabled', False),
-            'tenant_id': SystemSetting.get_setting('azure_ad_tenant_id', ''),
-            'client_id': SystemSetting.get_setting('azure_ad_client_id', ''),
-            'client_secret': SystemSetting.get_setting('azure_ad_client_secret', ''),
-            'redirect_uri': SystemSetting.get_setting('azure_ad_redirect_uri', ''),
+            'enabled': getattr(settings, 'azure_ad_enabled', False),
+            'tenant_id': getattr(settings, 'azure_ad_tenant_id', ''),
+            'client_id': getattr(settings, 'azure_ad_client_id', ''),
+            'client_secret': getattr(settings, 'azure_ad_client_secret', ''),
+            'redirect_uri': getattr(settings, 'azure_ad_redirect_uri', ''),
         }
 
     def is_enabled(self):

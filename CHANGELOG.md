@@ -5,6 +5,25 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.23] - 2026-01-13
+
+### 🐛 Critical Bug Fix
+
+- **Fixed Azure AD SSO Button Not Appearing on Login Page**
+  - Fixed `AzureOAuthClient.load_config()` method calling non-existent `SystemSetting.get_setting()` method
+  - Updated to use correct `SystemSetting.get_settings()` singleton pattern with `getattr()`
+  - Azure SSO button now properly appears on login page when Azure AD is configured
+  - Resolves GitHub Issue #3: "Azure SSO button not showing on main page after configuration"
+
+### 🔧 Technical Details
+
+- The bug prevented the `/accounts/auth/azure/status/` API endpoint from returning the correct enabled status
+- Login page JavaScript was unable to determine if Azure AD was configured, keeping the "Sign in with Microsoft" button hidden
+- All Azure AD settings (tenant ID, client ID, client secret, redirect URI) are now properly loaded from the database
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.22] - 2026-01-12
 
 ### 🐛 Critical Bug Fixes
