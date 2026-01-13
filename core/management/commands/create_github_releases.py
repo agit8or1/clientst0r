@@ -801,6 +801,73 @@ No SSH access required. No manual service restarts. No downtime.
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
             },
+            'v2.14.23': {
+                'name': 'v2.14.23 - Azure AD SSO Button Fix',
+                'body': '''## 🐛 Critical Bug Fix
+
+### Fixed Azure AD SSO Button Not Appearing on Login Page
+
+**Issue:** GitHub Issue #3 - Users configured Azure AD SSO but the "Sign in with Microsoft" button never appeared on the login page.
+
+**Error:** `AttributeError: type object 'SystemSetting' has no attribute 'get_setting'`
+
+**Root Cause:**
+- `AzureOAuthClient.load_config()` method was calling `SystemSetting.get_setting()` which doesn't exist
+- SystemSetting only has `get_settings()` (returns singleton instance), not `get_setting()`
+- This caused the `/accounts/auth/azure/status/` API endpoint to fail silently
+- Login page JavaScript couldn't determine if Azure AD was configured
+- Button remained hidden even after proper Azure AD setup
+
+**Solution:**
+- Updated `AzureOAuthClient.load_config()` to use correct `SystemSetting.get_settings()` singleton pattern
+- Used `getattr()` to safely access Azure AD configuration attributes with defaults
+- API endpoint now correctly returns `{"enabled": true}` when Azure AD is configured
+- Login page JavaScript receives proper response and displays the "Sign in with Microsoft" button
+
+### 🔧 Technical Details
+
+**File Changed:** `accounts/azure_auth.py`
+
+**Before:**
+```python
+def load_config(self):
+    return {
+        'enabled': SystemSetting.get_setting('azure_ad_enabled', False),
+        # ... other settings
+    }
+```
+
+**After:**
+```python
+def load_config(self):
+    settings = SystemSetting.get_settings()
+    return {
+        'enabled': getattr(settings, 'azure_ad_enabled', False),
+        # ... other settings
+    }
+```
+
+### ✅ What's Fixed
+
+- Azure SSO button now properly appears when configured
+- All Azure AD settings correctly loaded from database
+- API endpoint returns proper JSON response
+- Login page JavaScript works as intended
+
+### 📝 Configuration Requirements
+
+To use Azure AD SSO, configure in **System Settings → Directory Services**:
+- ✅ Enable Azure AD
+- ✅ Tenant ID
+- ✅ Client ID
+- ✅ Client Secret
+- ✅ Redirect URI
+
+The button will automatically appear on the login page once all required fields are configured.
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)'''
+            },
             'v2.14.22': {
                 'name': 'v2.14.22 - Critical IntegrityError Fixes',
                 'body': '''## 🐛 Critical Bug Fixes
