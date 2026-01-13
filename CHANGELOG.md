@@ -5,6 +5,37 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.25] - 2026-01-13
+
+### 🐛 Critical Bug Fixes
+
+- **Fixed RMM Sync NameError**
+  - Added missing `logging` import and `logger` instance to `integrations/views.py`
+  - RMM sync now logs errors properly instead of crashing with `NameError: name 'logger' is not defined`
+  - Resolves GitHub Issue #8: "Sync failed on rmm integration"
+
+- **Fixed Azure AD Authentication Failure**
+  - Fixed `get_azure_config()` method in `accounts/azure_auth.py` calling non-existent `SystemSetting.get_setting()`
+  - Updated to use correct `SystemSetting.get_settings()` singleton pattern
+  - Azure AD login now works properly (button displays AND authentication succeeds)
+  - Resolves GitHub Issue #3 authentication failure: "sso config worked but cant login"
+
+### 🔧 Technical Details
+
+**RMM Sync Fix:**
+- File: `integrations/views.py`
+- Added: `import logging` and `logger = logging.getLogger('integrations')`
+- Line 512 can now properly log exceptions during manual RMM sync
+
+**Azure AD Authentication Fix:**
+- File: `accounts/azure_auth.py`
+- Method: `get_azure_config()`
+- This was a second instance of the same bug from v2.14.23 in a different method
+- v2.14.23 fixed the button display, v2.14.25 fixes the actual authentication
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.24] - 2026-01-13
 
 ### 🔧 Consistency Improvements

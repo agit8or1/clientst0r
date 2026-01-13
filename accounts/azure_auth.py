@@ -70,18 +70,19 @@ class AzureADBackend(ModelBackend):
     def get_azure_config(self):
         """Get Azure AD configuration from SystemSetting."""
         try:
-            enabled = SystemSetting.get_setting('azure_ad_enabled', False)
+            settings = SystemSetting.get_settings()
+            enabled = getattr(settings, 'azure_ad_enabled', False)
             if not enabled:
                 return None
 
             return {
                 'enabled': enabled,
-                'tenant_id': SystemSetting.get_setting('azure_ad_tenant_id', ''),
-                'client_id': SystemSetting.get_setting('azure_ad_client_id', ''),
-                'client_secret': SystemSetting.get_setting('azure_ad_client_secret', ''),
-                'redirect_uri': SystemSetting.get_setting('azure_ad_redirect_uri', ''),
-                'auto_create': SystemSetting.get_setting('azure_ad_auto_create_users', True),
-                'sync_groups': SystemSetting.get_setting('azure_ad_sync_groups', False),
+                'tenant_id': getattr(settings, 'azure_ad_tenant_id', ''),
+                'client_id': getattr(settings, 'azure_ad_client_id', ''),
+                'client_secret': getattr(settings, 'azure_ad_client_secret', ''),
+                'redirect_uri': getattr(settings, 'azure_ad_redirect_uri', ''),
+                'auto_create': getattr(settings, 'azure_ad_auto_create_users', True),
+                'sync_groups': getattr(settings, 'azure_ad_sync_groups', False),
             }
         except Exception as e:
             logger.error(f"Error getting Azure config: {e}")

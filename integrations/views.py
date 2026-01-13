@@ -13,6 +13,9 @@ from .forms import PSAConnectionForm, RMMConnectionForm
 from .sync import PSASync
 from .providers import get_provider
 from vault.encryption import EncryptionError
+import logging
+
+logger = logging.getLogger('integrations')
 
 
 @login_required
