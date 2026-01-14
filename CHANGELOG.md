@@ -5,6 +5,29 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.21.0] - 2026-01-14
+
+### ✨ New Features
+- **Added:** Theme support with 10 color palettes
+  - Users can now select their preferred color theme in profile settings
+  - **11 Themes Available:**
+    1. Default Blue (original HuduGlue theme)
+    2. Dark Mode (dark background, high contrast)
+    3. Purple Haze (purple accents, modern)
+    4. Forest Green (green theme, natural)
+    5. Ocean Blue (deep blue, professional)
+    6. Sunset Orange (warm orange tones)
+    7. Nord (Arctic-inspired, muted colors)
+    8. Dracula (popular dark theme)
+    9. Solarized Light (eye-friendly light theme)
+    10. Monokai (code editor inspired)
+    11. Gruvbox (warm, retro colors)
+  - Themes use CSS custom properties for consistent styling
+  - All Bootstrap components, cards, tables, and forms adapt to selected theme
+  - Theme selection available in User Profile settings
+
+---
+
 ## [2.20.2] - 2026-01-14
 
 ### 🐛 Bug Fixes
