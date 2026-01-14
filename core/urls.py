@@ -51,6 +51,7 @@ urlpatterns = [
     path('settings/snyk/scan/run/', settings_views.run_snyk_scan, name='run_snyk_scan'),
     path('settings/snyk/scan/status/<str:scan_id>/', settings_views.snyk_scan_status, name='snyk_scan_status'),
     path('settings/snyk/remediate/', settings_views.apply_snyk_remediation, name='apply_snyk_remediation'),
+    path('settings/restart-app/', settings_views.restart_application, name='restart_application'),
     path('settings/system-status/', settings_views.system_status, name='system_status'),
     path('settings/maintenance/', settings_views.maintenance, name='maintenance'),
 

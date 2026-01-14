@@ -370,11 +370,20 @@ $(document).ready(function() {
                                 <pre class="bg-dark text-light p-2 mt-2" style="max-height: 200px; overflow-y: auto;"><code>${response.output}</code></pre>
                             </details>
                             <hr>
-                            <p class="mb-0">
+                            <p class="mb-2">
                                 <i class="fas fa-info-circle"></i> <strong>Next Steps:</strong>
-                                <br>• Restart the application: <code>sudo systemctl restart huduglue-gunicorn.service</code>
-                                <br>• Run a new scan to verify the fix
                             </p>
+                            <div class="d-flex gap-2 mb-2">
+                                <button type="button" class="btn btn-warning btn-sm" id="restartAppBtn">
+                                    <i class="fas fa-sync-alt"></i> Restart Application
+                                </button>
+                                <a href="{% url 'core:settings_snyk' %}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-redo"></i> Run New Scan
+                                </a>
+                            </div>
+                            <small class="text-muted">
+                                Restart the application to load the updated package, then run a new scan to verify the fix.
+                            </small>
                         </div>
                     `);
                 } else {
@@ -387,10 +396,14 @@ $(document).ready(function() {
                 }
                 resultsDiv.show();
 
-                // Re-enable button
+                // Change button to close modal
                 btn.prop('disabled', false);
-                btn.html('<i class="fas fa-check"></i> Fix Applied - Close Modal');
+                btn.html('<i class="fas fa-times"></i> Close');
                 btn.removeClass('btn-success').addClass('btn-secondary');
+                btn.off('click'); // Remove previous handler
+                btn.on('click', function() {
+                    $('#remediateModal').modal('hide');
+                });
             },
             error: function(xhr, status, error) {
                 $('#remediateResults').html(`
@@ -402,6 +415,52 @@ $(document).ready(function() {
                 // Re-enable button
                 btn.prop('disabled', false);
                 btn.html(originalHtml);
+            }
+        });
+    });
+
+    // Handle Restart Application button (delegated event since it's dynamically created)
+    $(document).on('click', '#restartAppBtn', function() {
+        const btn = $(this);
+        const originalHtml = btn.html();
+
+        if (!confirm('Are you sure you want to restart the application? This will briefly disconnect all users.')) {
+            return;
+        }
+
+        // Disable button
+        btn.prop('disabled', true);
+        btn.html('<i class="fas fa-spinner fa-spin"></i> Restarting...');
+
+        // Send restart request
+        $.ajax({
+            url: '{% url "core:restart_application" %}',
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    btn.removeClass('btn-warning').addClass('btn-success');
+                    btn.html('<i class="fas fa-check"></i> Restarted!');
+
+                    // Show alert
+                    alert('Application is restarting. The page will refresh in 5 seconds...');
+
+                    // Reload page after 5 seconds
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 5000);
+                } else {
+                    btn.prop('disabled', false);
+                    btn.html(originalHtml);
+                    alert('Failed to restart: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                btn.prop('disabled', false);
+                btn.html(originalHtml);
+                alert('Error restarting application: ' + error);
             }
         });
     });

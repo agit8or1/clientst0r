@@ -979,3 +979,49 @@ def apply_snyk_remediation(request):
             'success': False,
             'message': str(e)
         })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def restart_application(request):
+    """Restart the Gunicorn application service."""
+    from django.http import JsonResponse
+    import subprocess
+
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid request method'
+        })
+
+    try:
+        # Restart Gunicorn service using sudo
+        result = subprocess.run(
+            ['sudo', '/bin/systemctl', 'restart', 'huduglue-gunicorn.service'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode == 0:
+            return JsonResponse({
+                'success': True,
+                'message': 'Application is restarting. Please refresh the page in a few seconds.'
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': f'Failed to restart application: {result.stderr}'
+            })
+
+    except subprocess.TimeoutExpired:
+        return JsonResponse({
+            'success': False,
+            'message': 'Restart command timed out'
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        })

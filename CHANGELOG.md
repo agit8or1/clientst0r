@@ -5,6 +5,37 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.16.1] - 2026-01-14
+
+### ✨ New Features
+
+**One-Click Application Restart:**
+- Added "Restart Application" button in remediation success message
+- Automatically restart Gunicorn service after applying security fixes
+- Confirmation prompt before restarting
+- Page auto-refreshes after restart completes
+- No SSH access required
+
+**New Backend Endpoint:**
+- `restart_application()` view to restart Gunicorn via sudo systemctl
+- Superuser-only access control
+- 30-second timeout protection
+- Proper error handling and feedback
+
+### 🔧 Bug Fixes
+
+**Remediation Modal:**
+- Fixed "Apply Fix" button running remediation again after success
+- Button now changes to "Close" and properly closes modal
+- Event handler properly removed and replaced after fix applied
+
+**Files Changed:**
+- `templates/core/snyk_scan_detail.html` - Added restart button and fixed modal button
+- `core/settings_views.py` - New restart_application view
+- `core/urls.py` - New restart endpoint
+
+---
+
 ## [2.16.0] - 2026-01-14
 
 ### 🎉 Major Feature: One-Click Vulnerability Remediation
