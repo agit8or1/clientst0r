@@ -734,13 +734,13 @@ def test_snyk_connection(request):
         })
 
     try:
-        # Test the Snyk API with a simple authenticated endpoint
+        # Test the Snyk API with the v1 user endpoint
         headers = {
             'Authorization': f'token {settings.snyk_api_token}',
         }
 
         response = requests.get(
-            'https://api.snyk.io/rest/self',
+            'https://api.snyk.io/v1/user/me',
             headers=headers,
             timeout=10
         )
@@ -750,7 +750,7 @@ def test_snyk_connection(request):
             return JsonResponse({
                 'success': True,
                 'message': 'Connection successful!',
-                'user': data.get('data', {}).get('attributes', {}).get('username', 'Unknown')
+                'user': data.get('username', 'Unknown')
             })
         elif response.status_code == 401:
             return JsonResponse({

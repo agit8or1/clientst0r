@@ -5,6 +5,22 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.31] - 2026-01-14
+
+### 🐛 Bug Fix
+
+- **Fixed Snyk API Connection Test**
+  - Changed from REST API endpoint to stable v1 API endpoint
+  - Updated endpoint from `https://api.snyk.io/rest/self` to `https://api.snyk.io/v1/user/me`
+  - Fixed 404 errors when testing Snyk connection
+  - Corrected JSON response parsing for username field
+
+### 📝 Files Modified
+
+- `core/settings_views.py` - Updated Snyk API endpoint and response parsing
+
+---
+
 ## [2.14.30] - 2026-01-14
 
 ### ✨ New Features
