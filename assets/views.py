@@ -13,13 +13,55 @@ from .forms import AssetForm, ContactForm
 @login_required
 def asset_list(request):
     """
-    List all assets in current organization.
+    List all assets in current organization with filtering.
     """
     org = get_request_organization(request)
-    assets = Asset.objects.for_organization(org).prefetch_related('tags').select_related('primary_contact')
+    assets = Asset.objects.for_organization(org).prefetch_related('tags').select_related('primary_contact', 'equipment_model__vendor')
+
+    # Apply filters
+    filter_type = request.GET.get('type', '')
+    filter_manufacturer = request.GET.get('manufacturer', '')
+    filter_status = request.GET.get('status', '')
+    filter_location = request.GET.get('location', '')
+
+    if filter_type:
+        assets = assets.filter(asset_type=filter_type)
+
+    if filter_manufacturer:
+        assets = assets.filter(manufacturer__icontains=filter_manufacturer)
+
+    if filter_status:
+        # Status is typically stored in custom_fields
+        assets = assets.filter(custom_fields__status=filter_status)
+
+    if filter_location:
+        # Location is typically stored in custom_fields
+        assets = assets.filter(custom_fields__location__icontains=filter_location)
+
+    # Get unique values for filter dropdowns
+    all_assets = Asset.objects.for_organization(org)
+    manufacturers = all_assets.exclude(manufacturer='').values_list('manufacturer', flat=True).distinct().order_by('manufacturer')
+    asset_types = Asset.ASSET_TYPES
+
+    # Get unique statuses and locations from custom_fields
+    statuses = set()
+    locations = set()
+    for asset in all_assets:
+        if asset.custom_fields.get('status'):
+            statuses.add(asset.custom_fields['status'])
+        if asset.custom_fields.get('location'):
+            locations.add(asset.custom_fields['location'])
 
     return render(request, 'assets/asset_list.html', {
         'assets': assets,
+        'manufacturers': manufacturers,
+        'asset_types': asset_types,
+        'statuses': sorted(statuses),
+        'locations': sorted(locations),
+        'filter_type': filter_type,
+        'filter_manufacturer': filter_manufacturer,
+        'filter_status': filter_status,
+        'filter_location': filter_location,
     })
 
 
