@@ -92,6 +92,9 @@
                     <dt class="col-sm-3">Language:</dt>
                     <dd class="col-sm-9">{{ profile.get_locale_display }}</dd>
 
+                    <dt class="col-sm-3">Color Theme:</dt>
+                    <dd class="col-sm-9">{{ profile.get_theme_display }}</dd>
+
                     <dt class="col-sm-3">Notifications:</dt>
                     <dd class="col-sm-9">
                         {% if profile.email_notifications %}
