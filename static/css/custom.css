@@ -211,12 +211,18 @@ h6 { font-size: 1rem; }
     border-bottom: 1px solid var(--gray-200);
     font-weight: 600;
     padding: var(--spacing-md) var(--spacing-lg);
-}
-
-/* Rounded corners for card headers */
-.card > .card-header:first-child {
     border-top-left-radius: var(--border-radius-lg) !important;
     border-top-right-radius: var(--border-radius-lg) !important;
+}
+
+/* Force rounded corners on card headers - maximum specificity */
+.card .card-header:first-child,
+.card > .card-header:first-child,
+div.card > div.card-header:first-child {
+    border-top-left-radius: var(--border-radius-lg) !important;
+    border-top-right-radius: var(--border-radius-lg) !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
 }
 
 .card > *:first-child {
@@ -727,19 +733,33 @@ footer small {
 
 /* ===== Breadcrumb ===== */
 .breadcrumb {
-    background-color: transparent;
+    background-color: transparent !important;
     padding: var(--spacing-md) 0;
     margin-bottom: var(--spacing-lg);
+    border-radius: var(--border-radius-lg) !important;
+}
+
+.breadcrumb-item {
+    border-radius: var(--border-radius) !important;
 }
 
 .breadcrumb-item a {
     color: var(--primary-blue);
     text-decoration: none;
     transition: color var(--transition-fast);
+    border-radius: var(--border-radius);
+    padding: 0.25rem 0.5rem;
+    display: inline-block;
 }
 
 .breadcrumb-item a:hover {
     color: var(--primary-blue-dark);
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+.breadcrumb-item.active {
+    border-radius: var(--border-radius);
+    padding: 0.25rem 0.5rem;
 }
 
 /* ===== Icon Enhancements ===== */
