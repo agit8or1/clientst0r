@@ -1273,16 +1273,14 @@ def delete_global_kb_articles(request):
 def settings_data_export(request):
     """Data export settings and options."""
     from django.db.models import Count
-    from assets.models import Asset
-    from contacts.models import Company, Contact
+    from assets.models import Asset, Contact
     from docs.models import Document
-    from passwords.models import Password
+    from vault.models import Password
 
     # Get statistics for current organization
     # Note: For superuser, we could show all orgs or let them select
     stats = {
         'assets': Asset.objects.count(),
-        'companies': Company.objects.count(),
         'contacts': Contact.objects.count(),
         'documents': Document.objects.count(),
         'passwords': Password.objects.count(),
@@ -1319,14 +1317,9 @@ def export_data(request):
             assets = Asset.objects.all().select_related('equipment_model', 'primary_contact')
             export_data['assets'] = [_serialize_asset(asset, export_format) for asset in assets]
 
-        if export_type in ['all', 'companies']:
-            from contacts.models import Company
-            companies = Company.objects.all()
-            export_data['companies'] = [_serialize_company(company, export_format) for company in companies]
-
         if export_type in ['all', 'contacts']:
-            from contacts.models import Contact
-            contacts = Contact.objects.all().select_related('company')
+            from assets.models import Contact
+            contacts = Contact.objects.all()
             export_data['contacts'] = [_serialize_contact(contact, export_format) for contact in contacts]
 
         if export_type in ['all', 'documents']:
@@ -1336,7 +1329,7 @@ def export_data(request):
 
         # Note: Passwords require special handling for security
         if export_type == 'passwords':
-            from passwords.models import Password
+            from vault.models import Password
             passwords = Password.objects.all()
             export_data['passwords'] = [_serialize_password(pwd, export_format) for pwd in passwords]
 
@@ -1396,20 +1389,6 @@ def _serialize_asset(asset, format_type):
     return data
 
 
-def _serialize_company(company, format_type):
-    """Serialize company to dictionary."""
-    return {
-        'id': company.id,
-        'name': company.name,
-        'website': company.website,
-        'phone': company.phone,
-        'address': company.address,
-        'city': company.city,
-        'state': company.state,
-        'zip_code': company.zip_code,
-        'country': company.country,
-        'notes': company.notes,
-    }
 
 
 def _serialize_contact(contact, format_type):
@@ -1420,9 +1399,7 @@ def _serialize_contact(contact, format_type):
         'last_name': contact.last_name,
         'email': contact.email,
         'phone': contact.phone,
-        'mobile': contact.mobile,
         'title': contact.title,
-        'company': contact.company.name if contact.company else None,
         'notes': contact.notes,
     }
 
@@ -1483,9 +1460,6 @@ def _format_for_hudu(data):
             for asset in data['assets']
         ]
 
-    if 'companies' in data:
-        formatted['data']['companies'] = data['companies']
-
     if 'documents' in data:
         formatted['data']['kb_articles'] = [
             {
@@ -1530,24 +1504,6 @@ def _format_for_itglue(data):
                 }
             }
             for asset in data['assets']
-        ]
-
-    if 'companies' in data:
-        formatted['data']['attributes']['organizations'] = [
-            {
-                'type': 'organizations',
-                'attributes': {
-                    'name': company['name'],
-                    'website': company.get('website', ''),
-                    'phone': company.get('phone', ''),
-                    'address': company.get('address', ''),
-                    'city': company.get('city', ''),
-                    'region': company.get('state', ''),
-                    'postal_code': company.get('zip_code', ''),
-                    'country': company.get('country', ''),
-                }
-            }
-            for company in data['companies']
         ]
 
     if 'contacts' in data:
