@@ -1266,3 +1266,304 @@ def delete_global_kb_articles(request):
             'success': False,
             'message': f'Delete failed: {str(e)}'
         })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def settings_data_export(request):
+    """Data export settings and options."""
+    from django.db.models import Count
+    from assets.models import Asset
+    from contacts.models import Company, Contact
+    from docs.models import Document
+    from passwords.models import Password
+
+    # Get statistics for current organization
+    # Note: For superuser, we could show all orgs or let them select
+    stats = {
+        'assets': Asset.objects.count(),
+        'companies': Company.objects.count(),
+        'contacts': Contact.objects.count(),
+        'documents': Document.objects.count(),
+        'passwords': Password.objects.count(),
+    }
+
+    context = {
+        'current_tab': 'data_export',
+        'stats': stats,
+    }
+
+    return render(request, 'core/settings_data_export.html', context)
+
+
+@login_required
+@user_passes_test(is_superuser)
+def export_data(request):
+    """Export data in specified format."""
+    from django.http import JsonResponse, HttpResponse
+    import json
+    from datetime import datetime
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+    export_format = request.POST.get('format', 'json')  # 'json', 'hudu', 'itglue'
+    export_type = request.POST.get('type', 'all')  # 'all', 'assets', 'contacts', 'docs', 'passwords'
+
+    try:
+        # Build export data based on type
+        export_data = {}
+
+        if export_type in ['all', 'assets']:
+            from assets.models import Asset
+            assets = Asset.objects.all().select_related('equipment_model', 'primary_contact')
+            export_data['assets'] = [_serialize_asset(asset, export_format) for asset in assets]
+
+        if export_type in ['all', 'companies']:
+            from contacts.models import Company
+            companies = Company.objects.all()
+            export_data['companies'] = [_serialize_company(company, export_format) for company in companies]
+
+        if export_type in ['all', 'contacts']:
+            from contacts.models import Contact
+            contacts = Contact.objects.all().select_related('company')
+            export_data['contacts'] = [_serialize_contact(contact, export_format) for contact in contacts]
+
+        if export_type in ['all', 'documents']:
+            from docs.models import Document
+            documents = Document.objects.all()
+            export_data['documents'] = [_serialize_document(doc, export_format) for doc in documents]
+
+        # Note: Passwords require special handling for security
+        if export_type == 'passwords':
+            from passwords.models import Password
+            passwords = Password.objects.all()
+            export_data['passwords'] = [_serialize_password(pwd, export_format) for pwd in passwords]
+
+        # Format the export based on target system
+        if export_format == 'hudu':
+            formatted_data = _format_for_hudu(export_data)
+        elif export_format == 'itglue':
+            formatted_data = _format_for_itglue(export_data)
+        else:
+            formatted_data = export_data
+
+        # Generate filename
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'huduglue_export_{export_type}_{timestamp}.json'
+
+        # Return as downloadable file
+        response = HttpResponse(
+            json.dumps(formatted_data, indent=2, default=str),
+            content_type='application/json'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Export failed: {str(e)}'
+        })
+
+
+def _serialize_asset(asset, format_type):
+    """Serialize asset to dictionary."""
+    data = {
+        'id': asset.id,
+        'name': asset.name,
+        'asset_type': asset.asset_type,
+        'manufacturer': asset.manufacturer,
+        'model': asset.model,
+        'serial_number': asset.serial_number,
+        'asset_tag': asset.asset_tag,
+        'hostname': asset.hostname,
+        'ip_address': asset.ip_address,
+        'mac_address': asset.mac_address,
+        'location': asset.location,
+        'status': asset.status,
+        'purchase_date': asset.purchase_date,
+        'warranty_expiry': asset.warranty_expiry,
+        'notes': asset.notes,
+        'custom_fields': asset.custom_fields,
+    }
+
+    if asset.equipment_model:
+        data['equipment_model'] = asset.equipment_model.model_name
+        data['equipment_vendor'] = asset.equipment_model.vendor.name
+
+    return data
+
+
+def _serialize_company(company, format_type):
+    """Serialize company to dictionary."""
+    return {
+        'id': company.id,
+        'name': company.name,
+        'website': company.website,
+        'phone': company.phone,
+        'address': company.address,
+        'city': company.city,
+        'state': company.state,
+        'zip_code': company.zip_code,
+        'country': company.country,
+        'notes': company.notes,
+    }
+
+
+def _serialize_contact(contact, format_type):
+    """Serialize contact to dictionary."""
+    return {
+        'id': contact.id,
+        'first_name': contact.first_name,
+        'last_name': contact.last_name,
+        'email': contact.email,
+        'phone': contact.phone,
+        'mobile': contact.mobile,
+        'title': contact.title,
+        'company': contact.company.name if contact.company else None,
+        'notes': contact.notes,
+    }
+
+
+def _serialize_document(doc, format_type):
+    """Serialize document to dictionary."""
+    return {
+        'id': doc.id,
+        'title': doc.title,
+        'content': doc.content,
+        'category': doc.category.name if doc.category else None,
+        'tags': [tag.name for tag in doc.tags.all()],
+        'is_global': doc.organization is None,
+        'created_at': doc.created_at,
+        'updated_at': doc.updated_at,
+    }
+
+
+def _serialize_password(pwd, format_type):
+    """Serialize password to dictionary (encrypted value only)."""
+    return {
+        'id': pwd.id,
+        'title': pwd.title,
+        'username': pwd.username,
+        'url': pwd.url,
+        'password_type': pwd.password_type,
+        'notes': pwd.notes,
+        # Do NOT export decrypted password for security
+        'password_encrypted': pwd.password_encrypted,
+    }
+
+
+def _format_for_hudu(data):
+    """Format data for Hudu API compatibility."""
+    # Hudu API structure
+    formatted = {
+        'export_info': {
+            'source': 'HuduGlue',
+            'format': 'hudu',
+            'version': '1.0',
+        },
+        'data': {}
+    }
+
+    # Map to Hudu structure
+    if 'assets' in data:
+        formatted['data']['assets'] = [
+            {
+                'asset_type': asset['asset_type'],
+                'name': asset['name'],
+                'serial_number': asset.get('serial_number', ''),
+                'asset_tag': asset.get('asset_tag', ''),
+                'manufacturer': asset.get('manufacturer', ''),
+                'model': asset.get('model', ''),
+                'notes': asset.get('notes', ''),
+                'fields': asset.get('custom_fields', {}),
+            }
+            for asset in data['assets']
+        ]
+
+    if 'companies' in data:
+        formatted['data']['companies'] = data['companies']
+
+    if 'documents' in data:
+        formatted['data']['kb_articles'] = [
+            {
+                'name': doc['title'],
+                'content': doc['content'],
+                'category': doc.get('category', ''),
+            }
+            for doc in data['documents']
+        ]
+
+    return formatted
+
+
+def _format_for_itglue(data):
+    """Format data for IT Glue API compatibility."""
+    # IT Glue API structure
+    formatted = {
+        'export_info': {
+            'source': 'HuduGlue',
+            'format': 'itglue',
+            'version': '1.0',
+        },
+        'data': {
+            'type': 'export',
+            'attributes': {}
+        }
+    }
+
+    # Map to IT Glue structure
+    if 'assets' in data:
+        formatted['data']['attributes']['configurations'] = [
+            {
+                'type': 'configurations',
+                'attributes': {
+                    'name': asset['name'],
+                    'configuration_type_name': asset['asset_type'],
+                    'manufacturer_name': asset.get('manufacturer', ''),
+                    'model_name': asset.get('model', ''),
+                    'serial_number': asset.get('serial_number', ''),
+                    'asset_tag': asset.get('asset_tag', ''),
+                    'notes': asset.get('notes', ''),
+                }
+            }
+            for asset in data['assets']
+        ]
+
+    if 'companies' in data:
+        formatted['data']['attributes']['organizations'] = [
+            {
+                'type': 'organizations',
+                'attributes': {
+                    'name': company['name'],
+                    'website': company.get('website', ''),
+                    'phone': company.get('phone', ''),
+                    'address': company.get('address', ''),
+                    'city': company.get('city', ''),
+                    'region': company.get('state', ''),
+                    'postal_code': company.get('zip_code', ''),
+                    'country': company.get('country', ''),
+                }
+            }
+            for company in data['companies']
+        ]
+
+    if 'contacts' in data:
+        formatted['data']['attributes']['contacts'] = [
+            {
+                'type': 'contacts',
+                'attributes': {
+                    'first_name': contact['first_name'],
+                    'last_name': contact['last_name'],
+                    'contact_emails': [{'value': contact['email']}] if contact.get('email') else [],
+                    'contact_phones': [{'value': contact['phone']}] if contact.get('phone') else [],
+                    'title': contact.get('title', ''),
+                    'notes': contact.get('notes', ''),
+                }
+            }
+            for contact in data['contacts']
+        ]
+
+    return formatted
