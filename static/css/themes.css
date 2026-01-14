@@ -306,49 +306,50 @@
 
 /* Apply theme colors to Bootstrap components */
 body {
-    background-color: var(--background);
-    color: var(--text-primary);
+    background-color: var(--background) !important;
+    color: var(--text-primary) !important;
     min-height: 100vh;
 }
 
 /* Container backgrounds */
 .container,
 .container-fluid {
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
 }
 
 /* Cards */
 .card {
-    background-color: var(--card-bg);
-    border-color: var(--border-color);
-    box-shadow: 0 0.125rem 0.25rem var(--card-shadow);
-    color: var(--text-primary);
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: 0 0.125rem 0.25rem var(--card-shadow) !important;
+    color: var(--text-primary) !important;
 }
 
 .card-header {
-    background-color: var(--surface);
-    border-bottom-color: var(--border-color);
-    color: var(--text-primary);
+    background-color: var(--surface) !important;
+    border-bottom-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
 }
 
 .card-body {
-    background-color: var(--card-bg);
-    color: var(--text-primary);
+    background-color: var(--card-bg) !important;
+    color: var(--text-primary) !important;
 }
 
 .card-footer {
-    background-color: var(--surface);
-    border-top-color: var(--border-color);
+    background-color: var(--surface) !important;
+    border-top-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
 }
 
 .btn-primary {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
 }
 
 .btn-primary:hover {
-    background-color: var(--primary-hover);
-    border-color: var(--primary-hover);
+    background-color: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
 }
 
 .sidebar {
@@ -365,40 +366,77 @@ body {
 }
 
 .table {
-    --bs-table-bg: var(--surface);
-    --bs-table-hover-bg: var(--surface-hover);
-    --bs-table-border-color: var(--border-color);
-    color: var(--text-primary);
+    --bs-table-bg: var(--surface) !important;
+    --bs-table-hover-bg: var(--surface-hover) !important;
+    --bs-table-border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+    background-color: var(--surface) !important;
+}
+
+.table thead {
+    background-color: var(--surface) !important;
+    color: var(--text-primary) !important;
+}
+
+.table tbody {
+    background-color: var(--surface) !important;
+    color: var(--text-primary) !important;
+}
+
+.table tr {
+    background-color: var(--surface) !important;
+    border-color: var(--border-color) !important;
+}
+
+.table td,
+.table th {
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
 }
 
 .form-control, .form-select {
-    background-color: var(--surface);
-    border-color: var(--border-color);
-    color: var(--text-primary);
+    background-color: var(--surface) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
 }
 
 .form-control:focus, .form-select:focus {
-    background-color: var(--surface);
-    border-color: var(--primary-color);
-    color: var(--text-primary);
+    background-color: var(--surface) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.form-control::placeholder {
+    color: var(--text-muted) !important;
 }
 
 .modal-content {
-    background-color: var(--card-bg);
-    color: var(--text-primary);
+    background-color: var(--card-bg) !important;
+    color: var(--text-primary) !important;
 }
 
 .modal-header, .modal-footer {
-    border-color: var(--border-color);
+    border-color: var(--border-color) !important;
+    background-color: var(--surface) !important;
+}
+
+.modal-body {
+    background-color: var(--card-bg) !important;
+    color: var(--text-primary) !important;
 }
 
 .dropdown-menu {
-    background-color: var(--card-bg);
-    border-color: var(--border-color);
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
 }
 
 .dropdown-item {
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
+    background-color: transparent !important;
+}
+
+.dropdown-item:hover {
+    background-color: var(--surface-hover) !important;
 }
 
 .dropdown-item:hover {
@@ -433,45 +471,80 @@ body {
 }
 
 hr {
-    border-color: var(--border-color);
+    border-color: var(--border-color) !important;
 }
 
 /* Navbar */
 .navbar {
-    background-color: var(--sidebar-bg);
+    background-color: var(--sidebar-bg) !important;
 }
 
 .navbar-brand, .nav-link {
     color: var(--sidebar-text) !important;
 }
 
+.nav-link:hover {
+    color: var(--sidebar-text) !important;
+    opacity: 0.8;
+}
+
 /* Footer */
 footer {
-    background-color: var(--background-alt);
+    background-color: var(--background-alt) !important;
     border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
 }
 
 /* Code blocks in documentation */
 pre, code {
-    background-color: var(--surface);
-    border-color: var(--border-color);
+    background-color: var(--surface) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* ========================================
+   HEADINGS AND TEXT
+   ======================================== */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    color: var(--text-primary) !important;
+}
+
+p {
+    color: var(--text-primary) !important;
+}
+
+.lead {
+    color: var(--text-secondary) !important;
+}
+
+small, .small {
+    color: var(--text-secondary) !important;
+}
+
+a:not(.btn):not(.nav-link):not(.dropdown-item) {
+    color: var(--primary-color) !important;
+}
+
+a:not(.btn):not(.nav-link):not(.dropdown-item):hover {
+    color: var(--primary-hover) !important;
 }
 
 /* ========================================
    LISTS AND TABLES
    ======================================== */
 .list-group-item {
-    background-color: var(--surface);
-    border-color: var(--border-color);
-    color: var(--text-primary);
+    background-color: var(--surface) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
 }
 
 .list-group-item:hover {
-    background-color: var(--surface-hover);
+    background-color: var(--surface-hover) !important;
 }
 
 .list-group-item-action:hover {
-    background-color: var(--surface-hover);
+    background-color: var(--surface-hover) !important;
 }
 
 /* ========================================
@@ -516,121 +589,119 @@ body.has-background .navbar {
 }
 
 /* ========================================
-   HEADINGS AND TEXT
-   ======================================== */
-h1, h2, h3, h4, h5, h6 {
-    color: var(--text-primary);
-}
-
-.lead {
-    color: var(--text-secondary);
-}
-
-a {
-    color: var(--primary-color);
-}
-
-a:hover {
-    color: var(--primary-hover);
-}
-
-/* ========================================
-   BUTTONS
+   BUTTONS - ALL VARIANTS
    ======================================== */
 .btn-secondary {
-    background-color: var(--secondary-color);
-    border-color: var(--secondary-color);
-    color: #fff;
+    background-color: var(--secondary-color) !important;
+    border-color: var(--secondary-color) !important;
+    color: #fff !important;
 }
 
 .btn-secondary:hover {
-    background-color: var(--text-secondary);
-    border-color: var(--text-secondary);
+    background-color: var(--text-secondary) !important;
+    border-color: var(--text-secondary) !important;
 }
 
 .btn-success {
-    background-color: var(--success-color);
-    border-color: var(--success-color);
+    background-color: var(--success-color) !important;
+    border-color: var(--success-color) !important;
 }
 
 .btn-danger {
-    background-color: var(--danger-color);
-    border-color: var(--danger-color);
+    background-color: var(--danger-color) !important;
+    border-color: var(--danger-color) !important;
 }
 
 .btn-warning {
-    background-color: var(--warning-color);
-    border-color: var(--warning-color);
+    background-color: var(--warning-color) !important;
+    border-color: var(--warning-color) !important;
 }
 
 .btn-info {
-    background-color: var(--info-color);
-    border-color: var(--info-color);
+    background-color: var(--info-color) !important;
+    border-color: var(--info-color) !important;
 }
 
 /* ========================================
    ALERTS
    ======================================== */
 .alert {
-    border-color: var(--border-color);
+    border-color: var(--border-color) !important;
 }
 
 .alert-success {
-    background-color: var(--success-color);
-    border-color: var(--success-color);
-    color: #fff;
+    background-color: var(--success-color) !important;
+    border-color: var(--success-color) !important;
+    color: #fff !important;
 }
 
 .alert-danger {
-    background-color: var(--danger-color);
-    border-color: var(--danger-color);
-    color: #fff;
+    background-color: var(--danger-color) !important;
+    border-color: var(--danger-color) !important;
+    color: #fff !important;
 }
 
 .alert-warning {
-    background-color: var(--warning-color);
-    border-color: var(--warning-color);
-    color: #000;
+    background-color: var(--warning-color) !important;
+    border-color: var(--warning-color) !important;
+    color: #000 !important;
+}
+
+.alert-info {
+    background-color: var(--info-color) !important;
+    border-color: var(--info-color) !important;
 }
 
 /* ========================================
    INPUT GROUPS
    ======================================== */
 .input-group-text {
-    background-color: var(--surface);
-    border-color: var(--border-color);
-    color: var(--text-primary);
+    background-color: var(--surface) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
 }
 
 /* ========================================
    BREADCRUMBS AND NAV
    ======================================== */
+.breadcrumb {
+    background-color: var(--surface) !important;
+}
+
+.breadcrumb-item {
+    color: var(--text-primary) !important;
+}
+
 .breadcrumb-item + .breadcrumb-item::before {
-    color: var(--text-muted);
+    color: var(--text-muted) !important;
 }
 
 .breadcrumb-item a {
-    color: var(--primary-color);
+    color: var(--primary-color) !important;
+}
+
+.breadcrumb-item.active {
+    color: var(--text-secondary) !important;
 }
 
 .nav-tabs {
-    border-bottom-color: var(--border-color);
+    border-bottom-color: var(--border-color) !important;
 }
 
 .nav-tabs .nav-link {
-    color: var(--text-secondary);
-    border-color: transparent;
+    color: var(--text-secondary) !important;
+    border-color: transparent !important;
 }
 
 .nav-tabs .nav-link:hover {
-    border-color: var(--border-color);
+    border-color: var(--border-color) !important;
 }
 
 .nav-tabs .nav-link.active {
-    background-color: var(--card-bg);
-    border-color: var(--border-color);
-    border-bottom-color: transparent;
-    color: var(--text-primary);
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+    border-bottom-color: transparent !important;
+    color: var(--text-primary) !important;
 }
 
 /* ========================================
