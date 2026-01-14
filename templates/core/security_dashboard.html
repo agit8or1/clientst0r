@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Security Dashboard - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Security</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-shield-alt text-danger"></i> Security Dashboard</h2>
+            <div>
+                <a href="{% url 'core:settings_snyk' %}" class="btn btn-primary">
+                    <i class="fas fa-sync"></i> Run New Scan
+                </a>
+                <a href="{% url 'core:snyk_scans' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-history"></i> Scan History
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Status -->
+{% if not snyk_configured %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i> <strong>Snyk Not Configured</strong>
+    <p class="mb-0">Configure Snyk API token to enable vulnerability scanning. <a href="{% url 'core:settings_snyk' %}" class="alert-link">Configure Now</a></p>
+</div>
+{% elif not snyk_enabled %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> <strong>Snyk Disabled</strong>
+    <p class="mb-0">Snyk scanning is configured but disabled. <a href="{% url 'core:settings_snyk' %}" class="alert-link">Enable Scanning</a></p>
+</div>
+{% endif %}
+
+<!-- Vulnerability Overview -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bug"></i> Current Vulnerability Status</h5>
+            </div>
+            <div class="card-body">
+                {% if latest_scan %}
+                <div class="row text-center">
+                    <div class="col">
+                        <div class="card bg-light border-0">
+                            <div class="card-body">
+                                <h1 class="display-4 mb-0">{{ total_vulnerabilities }}</h1>
+                                <small class="text-muted">Total Vulnerabilities</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card bg-danger text-white border-0">
+                            <div class="card-body">
+                                <h1 class="display-4 mb-0">{{ critical_vulns }}</h1>
+                                <small>Critical</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card bg-warning border-0">
+                            <div class="card-body">
+                                <h1 class="display-4 mb-0">{{ high_vulns }}</h1>
+                                <small>High</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card bg-info text-white border-0">
+                            <div class="card-body">
+                                <h1 class="display-4 mb-0">{{ medium_vulns }}</h1>
+                                <small>Medium</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card bg-secondary text-white border-0">
+                            <div class="card-body">
+                                <h1 class="display-4 mb-0">{{ low_vulns }}</h1>
+                                <small>Low</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Last Scan:</strong> {{ latest_scan.started_at|date:"Y-m-d H:i" }}</p>
+                        <p class="mb-1"><strong>Duration:</strong> {{ latest_scan.duration_seconds }}s</p>
+                        <p class="mb-0"><strong>Status:</strong> <span class="badge {{ latest_scan.get_status_badge_class }}">{{ latest_scan.get_status_display }}</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Trend:</strong>
+                            {% if trend_direction == 'up' %}
+                                <span class="text-danger"><i class="fas fa-arrow-up"></i> {{ trend_percent|floatformat:0 }}% increase</span>
+                            {% elif trend_direction == 'down' %}
+                                <span class="text-success"><i class="fas fa-arrow-down"></i> {{ trend_percent|floatformat:0 }}% decrease</span>
+                            {% else %}
+                                <span class="text-muted"><i class="fas fa-minus"></i> Stable</span>
+                            {% endif %}
+                        </p>
+                        <p class="mb-0">
+                            <a href="{% url 'core:snyk_scan_detail' latest_scan.id %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye"></i> View Details
+                            </a>
+                        </p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h4>No Scans Yet</h4>
+                    <p class="text-muted">Run your first security scan to see vulnerability status</p>
+                    <a href="{% url 'core:settings_snyk' %}" class="btn btn-primary">
+                        <i class="fas fa-sync"></i> Run First Scan
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Scan Statistics -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-bar"></i> Scan Statistics</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span>Total Scans</span>
+                    <strong class="fs-4">{{ total_scans }}</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span>Scans (Last 7 Days)</span>
+                    <strong class="fs-4">{{ recent_scans }}</strong>
+                </div>
+                <hr>
+                <a href="{% url 'core:snyk_scans' %}" class="btn btn-sm btn-outline-primary w-100">
+                    <i class="fas fa-history"></i> View All Scans
+                </a>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'core:settings_snyk' %}" class="btn btn-success">
+                        <i class="fas fa-sync"></i> Run Security Scan
+                    </a>
+                    <a href="{% url 'core:snyk_scans' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-bug"></i> View Vulnerabilities
+                    </a>
+                    <a href="{% url 'core:settings_snyk' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-cog"></i> Scan Configuration
+                    </a>
+                    <a href="{% url 'core:restart_application' %}" class="btn btn-outline-warning" onclick="return confirm('Restart application? This will briefly disconnect all users.');">
+                        <i class="fas fa-sync-alt"></i> Restart Application
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Scan History -->
+{% if scan_history %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Recent Scan History</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Duration</th>
+                                <th>Total</th>
+                                <th>Critical</th>
+                                <th>High</th>
+                                <th>Medium</th>
+                                <th>Low</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for scan in scan_history %}
+                            <tr>
+                                <td>{{ scan.started_at|date:"Y-m-d H:i" }}</td>
+                                <td><span class="badge {{ scan.get_status_badge_class }}">{{ scan.get_status_display }}</span></td>
+                                <td>{{ scan.duration_seconds }}s</td>
+                                <td><strong>{{ scan.total_vulnerabilities }}</strong></td>
+                                <td><span class="badge bg-danger">{{ scan.critical_count }}</span></td>
+                                <td><span class="badge bg-warning text-dark">{{ scan.high_count }}</span></td>
+                                <td><span class="badge bg-info">{{ scan.medium_count }}</span></td>
+                                <td><span class="badge bg-secondary">{{ scan.low_count }}</span></td>
+                                <td>
+                                    <a href="{% url 'core:snyk_scan_detail' scan.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{% url 'core:snyk_scans' %}" class="btn btn-outline-secondary">
+                        View All Scans <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

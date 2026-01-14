@@ -25,6 +25,78 @@ def is_superuser(user):
 
 @login_required
 @user_passes_test(is_superuser)
+def security_dashboard(request):
+    """Security dashboard showing overview of all security features."""
+    from core.models import SnykScan
+    from django.db.models import Count, Q, Sum
+
+    # Get Snyk scan statistics
+    total_scans = SnykScan.objects.count()
+    recent_scans = SnykScan.objects.filter(
+        started_at__gte=timezone.now() - timedelta(days=7)
+    ).count()
+
+    latest_scan = SnykScan.objects.filter(status='completed').first()
+
+    # Get vulnerability statistics
+    if latest_scan:
+        total_vulnerabilities = latest_scan.total_vulnerabilities
+        critical_vulns = latest_scan.critical_count
+        high_vulns = latest_scan.high_count
+        medium_vulns = latest_scan.medium_count
+        low_vulns = latest_scan.low_count
+    else:
+        total_vulnerabilities = 0
+        critical_vulns = 0
+        high_vulns = 0
+        medium_vulns = 0
+        low_vulns = 0
+
+    # Get scan history for chart (last 30 days)
+    scan_history = SnykScan.objects.filter(
+        status='completed',
+        started_at__gte=timezone.now() - timedelta(days=30)
+    ).order_by('-started_at')[:10]
+
+    # Calculate trend
+    if scan_history.count() >= 2:
+        latest_total = scan_history[0].total_vulnerabilities
+        previous_total = scan_history[1].total_vulnerabilities
+
+        if previous_total > 0:
+            trend_percent = ((latest_total - previous_total) / previous_total) * 100
+        else:
+            trend_percent = 0
+
+        trend_direction = 'up' if trend_percent > 0 else 'down' if trend_percent < 0 else 'stable'
+    else:
+        trend_percent = 0
+        trend_direction = 'stable'
+
+    # Get Snyk settings
+    settings = SystemSetting.get_settings()
+
+    context = {
+        'total_scans': total_scans,
+        'recent_scans': recent_scans,
+        'latest_scan': latest_scan,
+        'total_vulnerabilities': total_vulnerabilities,
+        'critical_vulns': critical_vulns,
+        'high_vulns': high_vulns,
+        'medium_vulns': medium_vulns,
+        'low_vulns': low_vulns,
+        'scan_history': scan_history,
+        'trend_percent': abs(trend_percent),
+        'trend_direction': trend_direction,
+        'snyk_enabled': settings.snyk_enabled,
+        'snyk_configured': bool(settings.snyk_api_token),
+    }
+
+    return render(request, 'core/security_dashboard.html', context)
+
+
+@login_required
+@user_passes_test(is_superuser)
 def settings_general(request):
     """General system settings."""
     settings = SystemSetting.get_settings()

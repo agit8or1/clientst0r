@@ -5,6 +5,120 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.18.0] - 2026-01-14
+
+### 🎉 Major Feature: Dedicated Security Section
+
+This release promotes security management to a first-class feature with its own navigation section and comprehensive dashboard.
+
+### ✨ New Features
+
+**Security Navigation:**
+- New **"Security"** dropdown in main navigation (red shield icon)
+- Dedicated section for all security features
+- Organized menu structure:
+  - Security Dashboard
+  - Vulnerability Scans
+  - Scan Configuration
+
+**Security Dashboard:**
+- Comprehensive overview of security status
+- Current vulnerability status with color-coded cards
+- Scan statistics (total scans, recent activity)
+- Vulnerability trend analysis (up/down/stable with percentages)
+- Recent scan history table
+- Quick action buttons for common tasks
+- Configuration status warnings
+- One-click access to all security features
+
+**Dashboard Features:**
+- Real-time vulnerability counts by severity
+- Latest scan information and status
+- Trend calculation comparing last two scans
+- Recent scan history (last 10 scans, 30 days)
+- Quick actions: Run Scan, View Vulnerabilities, Configure, Restart App
+- Empty state for first-time setup
+
+### 🎨 UI/UX Improvements
+
+**Better Organization:**
+- Security no longer buried in Admin → Settings
+- Prominent placement in main navigation
+- Red text styling for visibility
+- Superuser-only access maintained
+
+**Dashboard Layout:**
+- 8-column vulnerability status cards
+- 4-column statistics and quick actions sidebar
+- Full-width recent scan history table
+- Responsive design for all screen sizes
+
+**Visual Enhancements:**
+- Color-coded severity cards (danger/warning/info/secondary)
+- Trend indicators with up/down arrows
+- Empty state with call-to-action
+- Configuration warnings for setup
+
+### 📊 Dashboard Data
+
+**Vulnerability Overview:**
+- Total vulnerabilities
+- Critical, High, Medium, Low counts
+- Latest scan timestamp and duration
+- Scan status badge
+
+**Statistics:**
+- Total scans performed
+- Scans in last 7 days
+- Trend percentage and direction
+
+**Recent History:**
+- Last 10 completed scans
+- Date, status, duration
+- Vulnerability breakdown by severity
+- Quick view actions
+
+### 🔧 Technical Implementation
+
+**New Backend View:**
+- `security_dashboard()` in settings_views.py
+- Aggregates data from SnykScan model
+- Calculates trends and statistics
+- Handles empty states gracefully
+
+**New Template:**
+- `templates/core/security_dashboard.html`
+- Comprehensive dashboard layout
+- Bootstrap 5 cards and utilities
+- Responsive grid system
+
+**Navigation Update:**
+- Added Security dropdown to base.html
+- Positioned between Monitoring and Favorites
+- Superuser-only visibility
+
+**URL Routing:**
+- `/core/security/` - Security dashboard
+- Existing Snyk routes remain unchanged
+
+### 💡 User Benefits
+
+- **Easier Access:** Security features no longer hidden in settings
+- **Better Visibility:** Dashboard provides at-a-glance status
+- **Faster Actions:** Quick action buttons for common tasks
+- **Trend Analysis:** See if security is improving or degrading
+- **Centralized Management:** All security features in one place
+
+**Files Changed:**
+- `templates/base.html` - Added Security navigation dropdown
+- `core/settings_views.py` - New security_dashboard view
+- `core/urls.py` - New security dashboard route
+- `templates/core/security_dashboard.html` - New comprehensive dashboard
+- `config/version.py` - Updated to v2.18.0
+- `CHANGELOG.md` - Documentation
+
+---
+
 ## [2.17.0] - 2026-01-14
 
 ### 🎉 Major Feature: Scan Cancellation & Timeout Management

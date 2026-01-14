@@ -37,6 +37,9 @@ urlpatterns = [
     path('secure-notes/<int:pk>/', securenotes_views.secure_note_detail, name='secure_note_detail'),
     path('secure-notes/<int:pk>/delete/', securenotes_views.secure_note_delete, name='secure_note_delete'),
 
+    # Security (superuser only)
+    path('security/', settings_views.security_dashboard, name='security_dashboard'),
+
     # Admin Settings (superuser only)
     path('settings/general/', settings_views.settings_general, name='settings_general'),
     path('settings/security/', settings_views.settings_security, name='settings_security'),
