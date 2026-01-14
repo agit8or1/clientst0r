@@ -62,24 +62,47 @@ class Command(BaseCommand):
         start_time = timezone.now()
         
         try:
+            # Find snyk binary (check nvm path first, then system path)
+            import os
+            import shutil
+
+            snyk_path = shutil.which('snyk')
+            if not snyk_path:
+                # Try nvm path
+                nvm_node_path = os.path.expanduser('~/.nvm/versions/node')
+                if os.path.exists(nvm_node_path):
+                    # Find the latest node version
+                    node_versions = sorted([d for d in os.listdir(nvm_node_path) if d.startswith('v')])
+                    if node_versions:
+                        snyk_path = os.path.join(nvm_node_path, node_versions[-1], 'bin', 'snyk')
+
+            if not snyk_path or not os.path.exists(snyk_path):
+                raise FileNotFoundError('Snyk CLI is not installed. Install with: npm install -g snyk')
+
             # Run Snyk test command
             cmd = [
-                'snyk',
+                snyk_path,
                 'test',
                 '--json',
                 f'--severity-threshold={settings.snyk_severity_threshold}',
             ]
-            
-            # Set environment variable for API token
-            env = {'SNYK_TOKEN': settings.snyk_api_token}
-            
+
+            # Set environment variables
+            env = os.environ.copy()
+            env['SNYK_TOKEN'] = settings.snyk_api_token
+
+            # Add nvm node bin to PATH if it exists
+            if '/.nvm/' in snyk_path:
+                node_bin = os.path.dirname(snyk_path)
+                env['PATH'] = f"{node_bin}:{env.get('PATH', '')}"
+
             result = subprocess.run(
                 cmd,
                 cwd='/home/administrator',
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minute timeout
-                env={**subprocess.os.environ.copy(), **env}
+                env=env
             )
             
             # Parse JSON output
