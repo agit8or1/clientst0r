@@ -215,7 +215,7 @@ class UserProfile(BaseModel):
     background_mode = models.CharField(max_length=20, default='none', choices=[
         ('none', 'No Background Image'),
         ('custom', 'Custom Upload'),
-        ('random', 'Random from Gallery'),
+        ('random', 'Random from Internet'),
     ])
     background_image = models.ImageField(
         upload_to='backgrounds/',
