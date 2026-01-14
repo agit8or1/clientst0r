@@ -1,0 +1,14 @@
+# Optional Directory Services Integration
+# 
+# These packages are only needed if you want to use LDAP/Active Directory integration.
+# They require system build tools and libraries to compile.
+#
+# To install:
+#   sudo apt-get install -y build-essential python3-dev libldap2-dev libsasl2-dev
+#   source venv/bin/activate
+#   pip install -r requirements-optional.txt
+#
+# Note: Azure AD SSO does NOT require these packages (uses msal instead)
+
+python-ldap==3.4.*
+django-auth-ldap==4.6.*

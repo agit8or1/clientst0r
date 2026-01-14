@@ -5,6 +5,58 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.26] - 2026-01-14
+
+### 🎯 Major Improvement: Optional LDAP Dependencies
+
+- **LDAP/Active Directory support is now optional**
+  - Moved `python-ldap` and `django-auth-ldap` to `requirements-optional.txt`
+  - Core installation no longer requires C compiler and build tools
+  - Fixes auto-update failures for users without build dependencies
+  - Resolves GitHub Issue #5: python-ldap build errors during updates
+
+### ✅ Benefits
+
+- **Faster installations:** Most users don't need LDAP support
+- **Simpler setup:** No need for build-essential, gcc, python3-dev, libldap2-dev, libsasl2-dev
+- **Better auto-updates:** Updates work without system build tools
+- **Still available:** LDAP can be installed when needed with `pip install -r requirements-optional.txt`
+
+### 📝 Migration Guide
+
+**For existing installations with LDAP:**
+If you're currently using LDAP/Active Directory authentication:
+
+```bash
+# Install system build dependencies (if not already installed)
+sudo apt-get update
+sudo apt-get install -y build-essential python3-dev libldap2-dev libsasl2-dev
+
+# Install optional LDAP packages
+cd ~/huduglue
+source venv/bin/activate
+pip install -r requirements-optional.txt
+sudo systemctl restart huduglue-gunicorn.service
+```
+
+**For new installations:**
+- Azure AD SSO works out of the box (no additional packages needed)
+- LDAP/AD can be added later if needed
+
+### 🔧 Technical Details
+
+**Files Changed:**
+- `requirements.txt` - Removed python-ldap and django-auth-ldap
+- `requirements-optional.txt` - NEW file containing LDAP dependencies
+- `README.md` - Added "Optional Features" section with LDAP installation instructions
+
+**What's Still Included:**
+- Azure AD / Microsoft Entra ID SSO (uses `msal` package)
+- All other integrations and features
+
+---
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## [2.14.25] - 2026-01-13
 
 ### 🐛 Critical Bug Fixes

@@ -38,8 +38,9 @@ pytz==2024.1
 psutil==5.9.*
 packaging==24.1  # Version comparison for auto-updates
 
-# Directory Services Integration (Optional)
-python-ldap==3.4.*
-django-auth-ldap==4.6.*
+# Azure AD / Microsoft Entra ID Integration
 msal==1.26.*
 requests-oauthlib==1.3.*
+
+# Note: LDAP/Active Directory support moved to requirements-optional.txt
+# See: https://github.com/agit8or1/huduglue/blob/main/requirements-optional.txt

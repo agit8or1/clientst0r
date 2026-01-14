@@ -358,6 +358,28 @@ Once installed, you can update HuduGlue **directly from the web interface**:
 - 2GB RAM minimum (4GB recommended)
 - Internet connection for package installation
 
+### Optional Features
+
+#### LDAP/Active Directory Integration
+
+By default, HuduGlue installs with Azure AD SSO support but **without** LDAP/Active Directory. This is because LDAP requires C compilation and system libraries.
+
+**If you need LDAP/AD support**, install it after the main installation:
+
+```bash
+# Install system build dependencies
+sudo apt-get update
+sudo apt-get install -y build-essential python3-dev libldap2-dev libsasl2-dev
+
+# Install LDAP Python packages
+cd ~/huduglue
+source venv/bin/activate
+pip install -r requirements-optional.txt
+sudo systemctl restart huduglue-gunicorn.service
+```
+
+**Note:** Azure AD SSO does **not** require these packages. LDAP is only needed for on-premises Active Directory or other LDAP servers.
+
 ### Manual Installation
 
 If you prefer to install manually or need more control:
