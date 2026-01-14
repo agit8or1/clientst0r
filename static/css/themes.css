@@ -1,0 +1,432 @@
+/**
+ * HuduGlue Color Themes
+ * Each theme defines CSS custom properties for consistent styling
+ */
+
+/* ========================================
+   THEME: Default Blue (Original)
+   ======================================== */
+[data-theme="default"] {
+    --primary-color: #0d6efd;
+    --primary-hover: #0b5ed7;
+    --primary-light: #cfe2ff;
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #0dcaf0;
+    --background: #ffffff;
+    --background-alt: #f8f9fa;
+    --surface: #ffffff;
+    --surface-hover: #f8f9fa;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --text-muted: #adb5bd;
+    --border-color: #dee2e6;
+    --sidebar-bg: #212529;
+    --sidebar-text: #ffffff;
+    --sidebar-hover: #343a40;
+    --card-bg: #ffffff;
+    --card-shadow: rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================
+   THEME: Dark Mode
+   ======================================== */
+[data-theme="dark"] {
+    --primary-color: #375a7f;
+    --primary-hover: #2a4763;
+    --primary-light: #1a3a52;
+    --secondary-color: #6c757d;
+    --success-color: #00bc8c;
+    --danger-color: #e74c3c;
+    --warning-color: #f39c12;
+    --info-color: #3498db;
+    --background: #222222;
+    --background-alt: #1a1a1a;
+    --surface: #2b2b2b;
+    --surface-hover: #353535;
+    --text-primary: #ffffff;
+    --text-secondary: #adb5bd;
+    --text-muted: #6c757d;
+    --border-color: #444444;
+    --sidebar-bg: #1a1a1a;
+    --sidebar-text: #ffffff;
+    --sidebar-hover: #2b2b2b;
+    --card-bg: #2b2b2b;
+    --card-shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* ========================================
+   THEME: Purple Haze
+   ======================================== */
+[data-theme="purple"] {
+    --primary-color: #6f42c1;
+    --primary-hover: #5a32a3;
+    --primary-light: #e2d9f3;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #9b59b6;
+    --background: #faf8fc;
+    --background-alt: #f3f0f7;
+    --surface: #ffffff;
+    --surface-hover: #f8f5fb;
+    --text-primary: #2d1b4e;
+    --text-secondary: #6c4f9a;
+    --text-muted: #9d8fb8;
+    --border-color: #e2d9f3;
+    --sidebar-bg: #4a2975;
+    --sidebar-text: #ffffff;
+    --sidebar-hover: #5a3285;
+    --card-bg: #ffffff;
+    --card-shadow: rgba(111, 66, 193, 0.15);
+}
+
+/* ========================================
+   THEME: Forest Green
+   ======================================== */
+[data-theme="green"] {
+    --primary-color: #198754;
+    --primary-hover: #157347;
+    --primary-light: #d1e7dd;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #20c997;
+    --background: #f7fcf9;
+    --background-alt: #e8f5ee;
+    --surface: #ffffff;
+    --surface-hover: #f1f9f5;
+    --text-primary: #1b4332;
+    --text-secondary: #2d6a4f;
+    --text-muted: #74c69d;
+    --border-color: #d1e7dd;
+    --sidebar-bg: #1b4332;
+    --sidebar-text: #ffffff;
+    --sidebar-hover: #2d6a4f;
+    --card-bg: #ffffff;
+    --card-shadow: rgba(25, 135, 84, 0.15);
+}
+
+/* ========================================
+   THEME: Ocean Blue
+   ======================================== */
+[data-theme="ocean"] {
+    --primary-color: #0077be;
+    --primary-hover: #005a8f;
+    --primary-light: #cce7f5;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    --background: #f0f8fc;
+    --background-alt: #e1f2fa;
+    --surface: #ffffff;
+    --surface-hover: #f5fbfe;
+    --text-primary: #003d5c;
+    --text-secondary: #005a8f;
+    --text-muted: #66b2d1;
+    --border-color: #b8dff0;
+    --sidebar-bg: #003d5c;
+    --sidebar-text: #ffffff;
+    --sidebar-hover: #005a8f;
+    --card-bg: #ffffff;
+    --card-shadow: rgba(0, 119, 190, 0.15);
+}
+
+/* ========================================
+   THEME: Sunset Orange
+   ======================================== */
+[data-theme="sunset"] {
+    --primary-color: #fd7e14;
+    --primary-hover: #d66a0f;
+    --primary-light: #ffe5cc;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --danger-color: #e63946;
+    --warning-color: #f77f00;
+    --info-color: #06aed5;
+    --background: #fff9f5;
+    --background-alt: #fff3eb;
+    --surface: #ffffff;
+    --surface-hover: #fffaf7;
+    --text-primary: #5c2e00;
+    --text-secondary: #9d4e00;
+    --text-muted: #d68844;
+    --border-color: #fdd5b3;
+    --sidebar-bg: #5c2e00;
+    --sidebar-text: #ffffff;
+    --sidebar-hover: #7d3d00;
+    --card-bg: #ffffff;
+    --card-shadow: rgba(253, 126, 20, 0.15);
+}
+
+/* ========================================
+   THEME: Nord (Arctic)
+   ======================================== */
+[data-theme="nord"] {
+    --primary-color: #5e81ac;
+    --primary-hover: #4c6a8f;
+    --primary-light: #d8dee9;
+    --secondary-color: #4c566a;
+    --success-color: #a3be8c;
+    --danger-color: #bf616a;
+    --warning-color: #ebcb8b;
+    --info-color: #88c0d0;
+    --background: #eceff4;
+    --background-alt: #e5e9f0;
+    --surface: #ffffff;
+    --surface-hover: #f9fafb;
+    --text-primary: #2e3440;
+    --text-secondary: #3b4252;
+    --text-muted: #4c566a;
+    --border-color: #d8dee9;
+    --sidebar-bg: #2e3440;
+    --sidebar-text: #eceff4;
+    --sidebar-hover: #3b4252;
+    --card-bg: #ffffff;
+    --card-shadow: rgba(46, 52, 64, 0.1);
+}
+
+/* ========================================
+   THEME: Dracula
+   ======================================== */
+[data-theme="dracula"] {
+    --primary-color: #bd93f9;
+    --primary-hover: #9d73d9;
+    --primary-light: #6272a4;
+    --secondary-color: #6272a4;
+    --success-color: #50fa7b;
+    --danger-color: #ff5555;
+    --warning-color: #f1fa8c;
+    --info-color: #8be9fd;
+    --background: #282a36;
+    --background-alt: #21222c;
+    --surface: #44475a;
+    --surface-hover: #525560;
+    --text-primary: #f8f8f2;
+    --text-secondary: #bfbfbf;
+    --text-muted: #6272a4;
+    --border-color: #44475a;
+    --sidebar-bg: #21222c;
+    --sidebar-text: #f8f8f2;
+    --sidebar-hover: #44475a;
+    --card-bg: #44475a;
+    --card-shadow: rgba(0, 0, 0, 0.4);
+}
+
+/* ========================================
+   THEME: Solarized Light
+   ======================================== */
+[data-theme="solarized"] {
+    --primary-color: #268bd2;
+    --primary-hover: #1f6fa8;
+    --primary-light: #eee8d5;
+    --secondary-color: #657b83;
+    --success-color: #859900;
+    --danger-color: #dc322f;
+    --warning-color: #b58900;
+    --info-color: #2aa198;
+    --background: #fdf6e3;
+    --background-alt: #eee8d5;
+    --surface: #ffffff;
+    --surface-hover: #f7f1e0;
+    --text-primary: #002b36;
+    --text-secondary: #073642;
+    --text-muted: #657b83;
+    --border-color: #eee8d5;
+    --sidebar-bg: #002b36;
+    --sidebar-text: #fdf6e3;
+    --sidebar-hover: #073642;
+    --card-bg: #ffffff;
+    --card-shadow: rgba(0, 43, 54, 0.1);
+}
+
+/* ========================================
+   THEME: Monokai
+   ======================================== */
+[data-theme="monokai"] {
+    --primary-color: #f92672;
+    --primary-hover: #c91f5d;
+    --primary-light: #75715e;
+    --secondary-color: #75715e;
+    --success-color: #a6e22e;
+    --danger-color: #f92672;
+    --warning-color: #e6db74;
+    --info-color: #66d9ef;
+    --background: #272822;
+    --background-alt: #1e1f1c;
+    --surface: #3e3d32;
+    --surface-hover: #49483e;
+    --text-primary: #f8f8f2;
+    --text-secondary: #cfcfc2;
+    --text-muted: #75715e;
+    --border-color: #49483e;
+    --sidebar-bg: #1e1f1c;
+    --sidebar-text: #f8f8f2;
+    --sidebar-hover: #3e3d32;
+    --card-bg: #3e3d32;
+    --card-shadow: rgba(0, 0, 0, 0.5);
+}
+
+/* ========================================
+   THEME: Gruvbox
+   ======================================== */
+[data-theme="gruvbox"] {
+    --primary-color: #d79921;
+    --primary-hover: #b47c19;
+    --primary-light: #fbf1c7;
+    --secondary-color: #928374;
+    --success-color: #98971a;
+    --danger-color: #cc241d;
+    --warning-color: #d79921;
+    --info-color: #458588;
+    --background: #fbf1c7;
+    --background-alt: #f2e5bc;
+    --surface: #ffffff;
+    --surface-hover: #f9f5d7;
+    --text-primary: #3c3836;
+    --text-secondary: #504945;
+    --text-muted: #928374;
+    --border-color: #ebdbb2;
+    --sidebar-bg: #282828;
+    --sidebar-text: #fbf1c7;
+    --sidebar-hover: #3c3836;
+    --card-bg: #ffffff;
+    --card-shadow: rgba(60, 56, 54, 0.1);
+}
+
+/* ========================================
+   THEME APPLICATION
+   ======================================== */
+
+/* Apply theme colors to Bootstrap components */
+body {
+    background-color: var(--background);
+    color: var(--text-primary);
+}
+
+.card {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    box-shadow: 0 0.125rem 0.25rem var(--card-shadow);
+}
+
+.card-header {
+    background-color: var(--surface);
+    border-bottom-color: var(--border-color);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.sidebar {
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+}
+
+.sidebar .nav-link {
+    color: var(--sidebar-text);
+}
+
+.sidebar .nav-link:hover {
+    background-color: var(--sidebar-hover);
+}
+
+.table {
+    --bs-table-bg: var(--surface);
+    --bs-table-hover-bg: var(--surface-hover);
+    --bs-table-border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.form-control, .form-select {
+    background-color: var(--surface);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--surface);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.modal-header, .modal-footer {
+    border-color: var(--border-color);
+}
+
+.dropdown-menu {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+.dropdown-item {
+    color: var(--text-primary);
+}
+
+.dropdown-item:hover {
+    background-color: var(--surface-hover);
+}
+
+.alert-info {
+    background-color: var(--info-color);
+    border-color: var(--info-color);
+}
+
+.breadcrumb {
+    background-color: var(--surface);
+}
+
+.page-link {
+    background-color: var(--surface);
+    border-color: var(--border-color);
+    color: var(--primary-color);
+}
+
+.page-link:hover {
+    background-color: var(--surface-hover);
+}
+
+.badge {
+    --bs-badge-color: #fff;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+hr {
+    border-color: var(--border-color);
+}
+
+/* Navbar */
+.navbar {
+    background-color: var(--sidebar-bg);
+}
+
+.navbar-brand, .nav-link {
+    color: var(--sidebar-text) !important;
+}
+
+/* Code blocks in documentation */
+pre, code {
+    background-color: var(--surface);
+    border-color: var(--border-color);
+}

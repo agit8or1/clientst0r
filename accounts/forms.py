@@ -137,13 +137,14 @@ class UserProfileForm(forms.ModelForm):
     
     class Meta:
         model = UserProfile
-        fields = ['phone', 'title', 'department', 'timezone', 'locale', 'email_notifications', 'notification_frequency']
+        fields = ['phone', 'title', 'department', 'timezone', 'locale', 'theme', 'email_notifications', 'notification_frequency']
         widgets = {
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+1 (555) 123-4567'}),
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Job Title'}),
             'department': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Department'}),
             'timezone': forms.Select(attrs={'class': 'form-select'}),
             'locale': forms.Select(attrs={'class': 'form-select'}),
+            'theme': forms.Select(attrs={'class': 'form-select'}),
             'email_notifications': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'notification_frequency': forms.Select(attrs={'class': 'form-select'}),
         }

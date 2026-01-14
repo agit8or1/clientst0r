@@ -197,6 +197,19 @@ class UserProfile(BaseModel):
         ('fr', 'French'),
         ('de', 'German'),
     ])
+    theme = models.CharField(max_length=30, default='default', choices=[
+        ('default', 'Default Blue'),
+        ('dark', 'Dark Mode'),
+        ('purple', 'Purple Haze'),
+        ('green', 'Forest Green'),
+        ('ocean', 'Ocean Blue'),
+        ('sunset', 'Sunset Orange'),
+        ('nord', 'Nord (Arctic)'),
+        ('dracula', 'Dracula'),
+        ('solarized', 'Solarized Light'),
+        ('monokai', 'Monokai'),
+        ('gruvbox', 'Gruvbox'),
+    ])
     
     # 2FA Settings
     two_factor_enabled = models.BooleanField(default=False)
