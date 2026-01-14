@@ -5743,6 +5743,3608 @@ repadmin /showrepl
 '''
         })
 
+        # ============================================================
+        # NETWORKING (3 articles)
+        # ============================================================
+
+        articles.append({
+            'category': 'Network Troubleshooting',
+            'title': 'How to Configure VLANs on Cisco Switches',
+            'body': r'''# Configure VLANs on Cisco Switches
+
+## Overview
+Virtual LANs (VLANs) segment network traffic to improve security, performance, and management. This guide covers VLAN configuration on Cisco switches.
+
+## Prerequisites
+- Console or SSH access to Cisco switch
+- Enable mode password
+- Basic understanding of network topology
+
+---
+
+## Basic VLAN Configuration
+
+### Step 1: Create VLANs
+
+```cisco
+Switch> enable
+Switch# configure terminal
+Switch(config)# vlan 10
+Switch(config-vlan)# name MANAGEMENT
+Switch(config-vlan)# exit
+
+Switch(config)# vlan 20
+Switch(config-vlan)# name USERS
+Switch(config-vlan)# exit
+
+Switch(config)# vlan 30
+Switch(config-vlan)# name SERVERS
+Switch(config-vlan)# exit
+
+Switch(config)# vlan 40
+Switch(config-vlan)# name GUEST_WIFI
+Switch(config-vlan)# exit
+```
+
+### Step 2: Assign Ports to VLANs
+
+**Access Port (single VLAN):**
+```cisco
+Switch(config)# interface GigabitEthernet0/1
+Switch(config-if)# switchport mode access
+Switch(config-if)# switchport access vlan 20
+Switch(config-if)# description User Workstation
+Switch(config-if)# exit
+```
+
+**Trunk Port (multiple VLANs):**
+```cisco
+Switch(config)# interface GigabitEthernet0/24
+Switch(config-if)# switchport mode trunk
+Switch(config-if)# switchport trunk allowed vlan 10,20,30,40
+Switch(config-if)# description Uplink to Router
+Switch(config-if)# exit
+```
+
+### Step 3: Configure Native VLAN (optional)
+
+```cisco
+Switch(config)# interface GigabitEthernet0/24
+Switch(config-if)# switchport trunk native vlan 10
+Switch(config-if)# exit
+```
+
+---
+
+## Advanced Configuration
+
+### Voice VLAN for IP Phones
+
+```cisco
+Switch(config)# vlan 50
+Switch(config-vlan)# name VOICE
+Switch(config-vlan)# exit
+
+Switch(config)# interface range GigabitEthernet0/1-12
+Switch(config-if-range)# switchport mode access
+Switch(config-if-range)# switchport access vlan 20
+Switch(config-if-range)# switchport voice vlan 50
+Switch(config-if-range)# exit
+```
+
+### Port Security on Access Ports
+
+```cisco
+Switch(config)# interface GigabitEthernet0/1
+Switch(config-if)# switchport port-security
+Switch(config-if)# switchport port-security maximum 2
+Switch(config-if)# switchport port-security violation restrict
+Switch(config-if)# switchport port-security mac-address sticky
+Switch(config-if)# exit
+```
+
+---
+
+## Verification Commands
+
+```cisco
+# Show all VLANs
+Switch# show vlan brief
+
+# Show VLAN details
+Switch# show vlan id 20
+
+# Show trunk ports
+Switch# show interfaces trunk
+
+# Show specific interface
+Switch# show interface GigabitEthernet0/1 switchport
+
+# Show running config
+Switch# show running-config
+```
+
+---
+
+## Common VLAN Architectures
+
+### Small Office (4 VLANs):
+- **VLAN 10 (Management)**: Switch management IPs
+- **VLAN 20 (Users)**: Employee workstations
+- **VLAN 30 (Servers)**: Internal servers
+- **VLAN 40 (Guest)**: Guest WiFi network
+
+### Enterprise (8+ VLANs):
+- **VLAN 10 (Management)**
+- **VLAN 20 (Executives)**
+- **VLAN 30 (Staff)**
+- **VLAN 40 (Servers)**
+- **VLAN 50 (Voice)**
+- **VLAN 60 (Printers)**
+- **VLAN 70 (Guest)**
+- **VLAN 80 (IoT)**
+
+---
+
+## Troubleshooting
+
+### Problem: Device can't communicate across VLANs
+**Solution**: Configure inter-VLAN routing on Layer 3 switch or router.
+
+```cisco
+# On Layer 3 switch:
+Switch(config)# ip routing
+Switch(config)# interface vlan 20
+Switch(config-if)# ip address 192.168.20.1 255.255.255.0
+Switch(config-if)# no shutdown
+Switch(config-if)# exit
+```
+
+### Problem: Trunk not passing traffic
+**Solution**: Verify allowed VLANs and native VLAN match on both ends.
+
+```cisco
+Switch# show interfaces GigabitEthernet0/24 trunk
+```
+
+### Problem: Port shows in wrong VLAN
+**Solution**: Check port assignment and mode.
+
+```cisco
+Switch# show interfaces GigabitEthernet0/1 switchport
+```
+
+---
+
+## Best Practices
+
+- **Document VLAN assignments** in network diagrams
+- **Use consistent VLAN IDs** across all switches
+- **Avoid using VLAN 1** for user traffic (security)
+- **Use descriptive VLAN names**
+- **Limit trunk ports** to only necessary VLANs
+- **Configure native VLAN** on trunks (non-default)
+- **Enable port security** on access ports
+- **Backup configuration** after changes
+
+---
+
+## Save Configuration
+
+```cisco
+Switch# write memory
+# OR
+Switch# copy running-config startup-config
+```
+'''
+        })
+
+        articles.append({
+            'category': 'Network Troubleshooting',
+            'title': 'Troubleshooting Network Connectivity Issues',
+            'body': r'''# Troubleshooting Network Connectivity Issues
+
+## Overview
+Systematic approach to diagnosing and resolving network connectivity problems using proven troubleshooting methodologies.
+
+## Quick Diagnostic Flowchart
+
+```
+1. Physical Layer → 2. IP Configuration → 3. Default Gateway → 4. DNS Resolution → 5. Firewall/Security
+```
+
+---
+
+## Step 1: Verify Physical Connectivity
+
+### Check Cable/WiFi Connection
+
+**Windows:**
+```cmd
+# Check network adapter status
+ipconfig /all
+netsh interface show interface
+
+# Test cable connection
+Get-NetAdapter | Select Name, Status, LinkSpeed
+```
+
+**Linux:**
+```bash
+# Check network interfaces
+ip link show
+ifconfig
+
+# Check cable status
+ethtool eth0
+```
+
+**What to look for:**
+- Link light on network port (green = good, amber = issue, off = no connection)
+- WiFi signal strength (should be > -70 dBm)
+- Correct speed/duplex (1000 Mbps full-duplex for gigabit)
+
+---
+
+## Step 2: Verify IP Configuration
+
+### Check IP Address
+
+**Windows:**
+```cmd
+ipconfig /all
+```
+
+**Linux:**
+```bash
+ip addr show
+# OR
+ifconfig
+```
+
+### Common Issues:
+
+**Problem: APIPA address (169.254.x.x)**
+- Indicates DHCP server not reachable
+- Solution: Check DHCP server, network cable, switch port
+
+**Problem: Wrong subnet**
+- Device on different subnet than gateway
+- Solution: Renew DHCP or configure static IP correctly
+
+**Problem: Duplicate IP**
+- Another device using same IP address
+- Solution: Release/renew DHCP or change static IP
+
+### Renew IP Address
+
+**Windows:**
+```cmd
+ipconfig /release
+ipconfig /renew
+ipconfig /flushdns
+```
+
+**Linux:**
+```bash
+sudo dhclient -r
+sudo dhclient
+# OR
+sudo systemctl restart NetworkManager
+```
+
+---
+
+## Step 3: Test Default Gateway
+
+### Ping Default Gateway
+
+**Windows:**
+```cmd
+# Find gateway
+ipconfig | findstr "Default Gateway"
+
+# Ping gateway
+ping 192.168.1.1
+```
+
+**Linux:**
+```bash
+# Find gateway
+ip route show
+# OR
+route -n
+
+# Ping gateway
+ping -c 4 192.168.1.1
+```
+
+### Analyze Results:
+
+**Success (Reply from gateway):**
+```
+Reply from 192.168.1.1: bytes=32 time=1ms TTL=64
+```
+→ Gateway reachable, proceed to DNS testing
+
+**Request Timed Out:**
+```
+Request timed out.
+```
+→ Gateway unreachable, check routing table or switch configuration
+
+**Destination Host Unreachable:**
+```
+Reply from 192.168.1.50: Destination host unreachable.
+```
+→ No route to gateway, check IP configuration
+
+---
+
+## Step 4: Test DNS Resolution
+
+### Test DNS Lookup
+
+**Windows:**
+```cmd
+nslookup google.com
+
+# Test specific DNS server
+nslookup google.com 8.8.8.8
+```
+
+**Linux:**
+```bash
+dig google.com
+
+# Test specific DNS server
+dig @8.8.8.8 google.com
+
+# OR
+nslookup google.com
+```
+
+### Common DNS Issues:
+
+**Problem: DNS server not responding**
+```cmd
+# Windows: Change DNS servers
+netsh interface ip set dns "Ethernet" static 8.8.8.8
+netsh interface ip add dns "Ethernet" 8.8.4.4 index=2
+```
+
+```bash
+# Linux: Edit /etc/resolv.conf
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
+```
+
+**Problem: DNS cache corruption**
+```cmd
+# Windows: Flush DNS cache
+ipconfig /flushdns
+
+# Linux: Flush DNS cache
+sudo systemd-resolve --flush-caches
+# OR
+sudo /etc/init.d/nscd restart
+```
+
+---
+
+## Step 5: Test Internet Connectivity
+
+### Ping External IPs
+
+```cmd
+# Google DNS
+ping 8.8.8.8
+
+# Cloudflare DNS
+ping 1.1.1.1
+```
+
+**If IP works but domain names don't:**
+→ DNS issue (see Step 4)
+
+**If neither works:**
+→ Gateway/routing issue or ISP problem
+
+### Traceroute to Find Where Traffic Stops
+
+**Windows:**
+```cmd
+tracert google.com
+```
+
+**Linux:**
+```bash
+traceroute google.com
+```
+
+Analyze output to see where packets stop reaching.
+
+---
+
+## Step 6: Check Firewall/Security
+
+### Windows Firewall
+
+```cmd
+# Check firewall status
+netsh advfirewall show allprofiles
+
+# Temporarily disable (testing only!)
+netsh advfirewall set allprofiles state off
+
+# Re-enable
+netsh advfirewall set allprofiles state on
+```
+
+### Linux Firewall (iptables/firewalld)
+
+```bash
+# Check firewall status
+sudo iptables -L -n
+# OR
+sudo firewall-cmd --list-all
+
+# Temporarily disable (testing only!)
+sudo systemctl stop firewalld
+```
+
+---
+
+## Advanced Diagnostics
+
+### Port Connectivity Testing
+
+**Windows (PowerShell):**
+```powershell
+Test-NetConnection -ComputerName google.com -Port 443
+Test-NetConnection -ComputerName 192.168.1.10 -Port 3389
+```
+
+**Linux:**
+```bash
+# Telnet method
+telnet google.com 443
+
+# Netcat method
+nc -zv google.com 443
+
+# Nmap method
+nmap -p 443 google.com
+```
+
+### Check Routing Table
+
+**Windows:**
+```cmd
+route print
+```
+
+**Linux:**
+```bash
+ip route show
+# OR
+netstat -rn
+```
+
+### Network Statistics
+
+**Windows:**
+```cmd
+netstat -an
+netstat -e
+```
+
+**Linux:**
+```bash
+netstat -tuln
+ss -tuln
+```
+
+---
+
+## Common Scenarios & Solutions
+
+### Scenario 1: "Internet was working, now it's not"
+1. Restart device
+2. Renew DHCP (ipconfig /renew)
+3. Restart router/modem
+4. Check for ISP outage
+5. Verify cables not unplugged
+
+### Scenario 2: "Can ping IP but not domain names"
+→ DNS issue
+1. Flush DNS cache
+2. Change DNS servers to 8.8.8.8 / 8.8.4.4
+3. Restart DNS Client service (Windows)
+
+### Scenario 3: "WiFi connected but no internet"
+→ Usually DNS or gateway issue
+1. Forget and reconnect to WiFi
+2. Restart WiFi router
+3. Check router has internet (plug in directly)
+4. Renew DHCP lease
+
+### Scenario 4: "Slow network performance"
+1. Run speed test (speedtest.net)
+2. Check for bandwidth-heavy applications
+3. Verify full-duplex on switch (not half-duplex)
+4. Check for network loops
+5. Update network drivers
+
+---
+
+## Troubleshooting Checklist
+
+- [ ] Physical cable/WiFi connected
+- [ ] Network adapter enabled
+- [ ] Valid IP address (not 169.254.x.x)
+- [ ] Correct subnet mask
+- [ ] Default gateway configured and reachable
+- [ ] DNS servers configured
+- [ ] Can ping default gateway
+- [ ] Can ping external IP (8.8.8.8)
+- [ ] Can resolve domain names
+- [ ] Firewall not blocking traffic
+- [ ] No IP conflicts
+- [ ] Network drivers up to date
+
+---
+
+## Quick Commands Reference
+
+| Task | Windows | Linux |
+|------|---------|-------|
+| Show IP | `ipconfig` | `ip addr` |
+| Renew DHCP | `ipconfig /renew` | `dhclient` |
+| Ping | `ping 8.8.8.8` | `ping 8.8.8.8` |
+| Traceroute | `tracert google.com` | `traceroute google.com` |
+| DNS lookup | `nslookup google.com` | `dig google.com` |
+| Show routes | `route print` | `ip route` |
+| Flush DNS | `ipconfig /flushdns` | `systemd-resolve --flush-caches` |
+'''
+        })
+
+        articles.append({
+            'category': 'Network Troubleshooting',
+            'title': 'Setting Up DHCP Server on Windows Server',
+            'body': r'''# Setting Up DHCP Server on Windows Server
+
+## Overview
+Dynamic Host Configuration Protocol (DHCP) automatically assigns IP addresses and network configuration to clients. This guide covers DHCP server installation and configuration on Windows Server.
+
+## Prerequisites
+- Windows Server 2016/2019/2022
+- Administrator access
+- Static IP address assigned to server
+- Authorized in Active Directory (if domain environment)
+
+---
+
+## Step 1: Install DHCP Server Role
+
+### Using Server Manager:
+
+1. Open **Server Manager**
+2. Click **Manage** → **Add Roles and Features**
+3. Click **Next** through "Before You Begin"
+4. Select **Role-based or feature-based installation**
+5. Select your server from the server pool
+6. Check **DHCP Server**
+7. Click **Add Features** when prompted
+8. Click **Next** through features
+9. Click **Install**
+10. Wait for installation to complete
+
+### Using PowerShell:
+
+```powershell
+# Install DHCP Server role
+Install-WindowsFeature DHCP -IncludeManagementTools
+
+# Restart server if required
+Restart-Computer -Force
+```
+
+---
+
+## Step 2: Authorize DHCP Server (Domain Only)
+
+**Important:** In Active Directory environments, DHCP servers must be authorized.
+
+### Using DHCP Manager:
+
+1. Open **DHCP** from Server Manager or Administrative Tools
+2. Right-click server name → **Authorize**
+3. Refresh to verify green arrow appears
+
+### Using PowerShell:
+
+```powershell
+# Authorize DHCP server in AD
+Add-DhcpServerInDC -DnsName "dhcp01.contoso.com" -IPAddress 192.168.1.10
+
+# Verify authorization
+Get-DhcpServerInDC
+```
+
+---
+
+## Step 3: Configure DHCP Scope
+
+### Create New Scope:
+
+1. Open **DHCP Manager**
+2. Expand server name → Right-click **IPv4** → **New Scope**
+3. Click **Next** on Welcome screen
+
+### Configure Scope:
+
+**Name and Description:**
+- Name: `Internal Network` or `VLAN 10 - Users`
+- Description: `Primary user workstation DHCP scope`
+
+**IP Address Range:**
+- Start IP: `192.168.1.100`
+- End IP: `192.168.1.200`
+- Length: `24` (255.255.255.0)
+- Subnet mask: `255.255.255.0`
+
+**Exclusions (optional):**
+- Add IP ranges reserved for static assignments
+- Example: `192.168.1.1` to `192.168.1.50` (servers/printers)
+
+**Lease Duration:**
+- Default: `8 days`
+- Typical: `8 hours` (offices) or `1 hour` (guest WiFi)
+
+**Configure DHCP Options: Yes**
+
+**Router (Default Gateway):**
+- Enter: `192.168.1.1`
+
+**DNS Servers:**
+- Primary: `192.168.1.10`
+- Secondary: `8.8.8.8` (optional)
+
+**WINS Servers:**
+- Usually leave blank (legacy)
+
+**Activate Scope: Yes**
+
+### Using PowerShell:
+
+```powershell
+# Create DHCP scope
+Add-DhcpServerv4Scope `
+    -Name "Internal Network" `
+    -StartRange 192.168.1.100 `
+    -EndRange 192.168.1.200 `
+    -SubnetMask 255.255.255.0 `
+    -State Active
+
+# Add exclusion range
+Add-DhcpServerv4ExclusionRange `
+    -ScopeId 192.168.1.0 `
+    -StartRange 192.168.1.1 `
+    -EndRange 192.168.1.50
+
+# Set default gateway
+Set-DhcpServerv4OptionValue `
+    -ScopeId 192.168.1.0 `
+    -Router 192.168.1.1
+
+# Set DNS servers
+Set-DhcpServerv4OptionValue `
+    -ScopeId 192.168.1.0 `
+    -DnsServer 192.168.1.10,8.8.8.8
+
+# Set lease duration (8 hours)
+Set-DhcpServerv4Scope `
+    -ScopeId 192.168.1.0 `
+    -LeaseDuration 08:00:00
+```
+
+---
+
+## Step 4: Configure Server-Level Options
+
+These apply to ALL scopes unless overridden.
+
+### Using DHCP Manager:
+
+1. Right-click **Server Options** → **Configure Options**
+2. Configure:
+   - **003 Router**: Default gateway
+   - **006 DNS Servers**: DNS server IPs
+   - **015 DNS Domain Name**: `contoso.com`
+   - **042 NTP Servers**: Time server IPs (optional)
+
+### Using PowerShell:
+
+```powershell
+# Set server-wide DNS domain
+Set-DhcpServerv4OptionValue `
+    -DnsDomain "contoso.com"
+
+# Set NTP servers
+Set-DhcpServerv4OptionValue `
+    -OptionId 042 `
+    -Value 192.168.1.10
+```
+
+---
+
+## Step 5: Configure DHCP Failover (Optional)
+
+High availability with two DHCP servers.
+
+### Using DHCP Manager:
+
+1. Right-click scope → **Configure Failover**
+2. Select partner server
+3. Choose mode:
+   - **Load Balance**: Both servers active (50/50 split)
+   - **Hot Standby**: Primary active, secondary standby
+4. Configure shared secret for authentication
+5. Click **Finish**
+
+### Using PowerShell:
+
+```powershell
+# Add failover relationship
+Add-DhcpServerv4Failover `
+    -Name "DHCP-Failover" `
+    -PartnerServer "dhcp02.contoso.com" `
+    -ScopeId 192.168.1.0 `
+    -LoadBalancePercent 50 `
+    -SharedSecret "MySecretKey123" `
+    -Force
+```
+
+---
+
+## Step 6: Configure DHCP Policies (Advanced)
+
+Assign different settings based on MAC address, vendor class, or user class.
+
+### Example: Give specific MAC address a reserved IP:
+
+```powershell
+Add-DhcpServerv4Reservation `
+    -ScopeId 192.168.1.0 `
+    -IPAddress 192.168.1.150 `
+    -ClientId "00-15-5D-01-02-03" `
+    -Description "Printer - Accounting Floor 2"
+```
+
+### Example: Policy for VoIP phones:
+
+```powershell
+Add-DhcpServerv4Policy `
+    -Name "VoIP Phones" `
+    -ScopeId 192.168.1.0 `
+    -Condition OR `
+    -VendorClass EQ,"Cisco*"
+
+Set-DhcpServerv4OptionValue `
+    -ScopeId 192.168.1.0 `
+    -PolicyName "VoIP Phones" `
+    -OptionId 150 `
+    -Value 192.168.1.20  # TFTP server for phone firmware
+```
+
+---
+
+## Management & Monitoring
+
+### View Active Leases:
+
+```powershell
+Get-DhcpServerv4Lease -ScopeId 192.168.1.0
+
+# Export leases to CSV
+Get-DhcpServerv4Lease -ScopeId 192.168.1.0 |
+    Export-Csv C:\DHCP-Leases.csv -NoTypeInformation
+```
+
+### View Scope Statistics:
+
+```powershell
+Get-DhcpServerv4ScopeStatistics
+
+# Example output shows:
+# - Total addresses in scope
+# - In use
+# - Available
+# - Percentage used
+```
+
+### Clear Old Leases:
+
+```powershell
+# Remove expired leases older than 30 days
+Remove-DhcpServerv4Lease -ScopeId 192.168.1.0 -BadLeases
+```
+
+---
+
+## Backup & Restore
+
+### Automatic Backup:
+
+DHCP automatically backs up to:
+```
+C:\Windows\System32\dhcp\backup
+```
+
+### Manual Backup:
+
+```powershell
+Backup-DhcpServer -Path "D:\DHCP-Backup" -ComputerName dhcp01.contoso.com
+```
+
+### Restore from Backup:
+
+```powershell
+Restore-DhcpServer -Path "D:\DHCP-Backup" -ComputerName dhcp01.contoso.com
+```
+
+---
+
+## Troubleshooting
+
+### Problem: Clients not getting IP addresses
+
+**Check:**
+```powershell
+# Verify DHCP service running
+Get-Service DHCPServer
+
+# Start if stopped
+Start-Service DHCPServer
+
+# Check firewall allows DHCP (UDP 67, 68)
+Get-NetFirewallRule -DisplayName "*DHCP*"
+
+# Verify scope is activated
+Get-DhcpServerv4Scope | Where-Object {$_.State -eq "Active"}
+
+# Check available IPs
+Get-DhcpServerv4ScopeStatistics
+```
+
+### Problem: DHCP server shows red arrow in manager
+
+→ Not authorized in Active Directory
+
+```powershell
+Add-DhcpServerInDC -DnsName "dhcp01.contoso.com"
+```
+
+### Problem: Duplicate IP addresses on network
+
+**Enable conflict detection:**
+
+```powershell
+Set-DhcpServerv4 Setting -ConflictDetectionAttempts 2
+```
+
+DHCP will ping IP before assigning to detect conflicts.
+
+---
+
+## Best Practices
+
+- **Use 80/20 rule for failover**: Primary server handles 80%, secondary 20%
+- **Set appropriate lease times**:
+  - Offices: 8-24 hours
+  - Guest WiFi: 1-2 hours
+  - Data centers: 8 days
+- **Document exclusions**: Reserve ranges for servers, printers, network devices
+- **Enable audit logging**: Track all DHCP transactions
+- **Monitor scope utilization**: Alert when >85% full
+- **Regular backups**: Automate DHCP database backups
+- **Use reservations for servers**: Instead of pure static IPs
+- **Configure failover**: For redundancy in production
+
+---
+
+## Security Considerations
+
+### Enable DHCP Logging:
+
+```powershell
+Set-DhcpServerAuditLog -Enable $true -Path "C:\Windows\System32\dhcp"
+```
+
+### Configure NAP Integration (if used):
+
+Network Access Protection can enforce health policies on DHCP clients.
+
+### Limit DHCP Server Access:
+
+Only Domain Admins and DHCP Admins groups should manage DHCP.
+
+---
+
+## Quick Reference
+
+```powershell
+# View all scopes
+Get-DhcpServerv4Scope
+
+# View scope details
+Get-DhcpServerv4Scope -ScopeId 192.168.1.0
+
+# View all leases
+Get-DhcpServerv4Lease -ScopeId 192.168.1.0
+
+# View reservations
+Get-DhcpServerv4Reservation -ScopeId 192.168.1.0
+
+# View server statistics
+Get-DhcpServerv4Statistics
+
+# Backup DHCP
+Backup-DhcpServer -Path "D:\Backup"
+
+# Restart DHCP service
+Restart-Service DHCPServer
+```
+'''
+        })
+
+        # ============================================================
+        # SECURITY (2 articles)
+        # ============================================================
+
+        articles.append({
+            'category': 'Security & Compliance',
+            'title': 'Implementing Multi-Factor Authentication (MFA)',
+            'body': r'''# Implementing Multi-Factor Authentication (MFA)
+
+## Overview
+Multi-Factor Authentication (MFA) adds an additional layer of security beyond passwords by requiring users to verify their identity using a second factor such as a mobile app, SMS, or hardware token.
+
+## Why MFA is Critical
+
+**Statistics:**
+- 99.9% of account compromise attacks can be blocked by MFA (Microsoft)
+- 80% of data breaches involve stolen or weak passwords
+- Average cost of data breach: $4.35 million (IBM)
+
+**Compliance Requirements:**
+- Required by: HIPAA, PCI-DSS, CMMC, Cyber Insurance
+- Recommended by: NIST, CISA, FBI
+
+---
+
+## MFA Methods Comparison
+
+| Method | Security | User Experience | Cost | Best For |
+|--------|----------|-----------------|------|----------|
+| **Authenticator App** | High | Good | Free | Most users |
+| **SMS/Text** | Medium | Excellent | Low | Non-technical users |
+| **Hardware Token** | Very High | Good | $20-50/user | High-security roles |
+| **Biometric** | High | Excellent | Device-dependent | Modern devices |
+| **Backup Codes** | Medium | Poor | Free | Recovery only |
+
+**Recommendation:** Authenticator app as primary, SMS as backup
+
+---
+
+## Implementation Roadmap
+
+### Phase 1: Planning (Week 1-2)
+- [ ] Identify user groups and prioritization
+- [ ] Choose MFA solution(s)
+- [ ] Document enrollment process
+- [ ] Plan communication strategy
+- [ ] Set up test environment
+
+### Phase 2: Pilot (Week 3-4)
+- [ ] Enable MFA for IT team
+- [ ] Test all authentication scenarios
+- [ ] Document issues and resolutions
+- [ ] Refine enrollment process
+- [ ] Create user guides
+
+### Phase 3: Rollout (Week 5-8)
+- [ ] Enable for executives and high-privilege accounts
+- [ ] Enable for all employees (phased)
+- [ ] Provide help desk training
+- [ ] Monitor adoption rates
+- [ ] Address user issues promptly
+
+### Phase 4: Enforcement (Week 9+)
+- [ ] Make MFA mandatory for all users
+- [ ] Disable legacy authentication protocols
+- [ ] Regular compliance audits
+- [ ] Update security policies
+
+---
+
+## Microsoft 365 / Azure AD MFA
+
+### Enable MFA for All Users
+
+**Method 1: Security Defaults (Simplest)**
+
+1. Sign in to **Azure AD admin center** (aad.portal.azure.com)
+2. Navigate to **Azure Active Directory** → **Properties**
+3. Click **Manage Security defaults**
+4. Set **Enable Security defaults** to **Yes**
+5. Click **Save**
+
+**What this enables:**
+- MFA for all users (including admins)
+- Blocks legacy authentication
+- Requires MFA when risk detected
+
+**Method 2: Conditional Access Policies (Recommended)**
+
+1. Navigate to **Azure AD** → **Security** → **Conditional Access**
+2. Click **New policy**
+3. Configure:
+
+**Name:** `Require MFA for All Users`
+
+**Assignments:**
+- Users: `All users` (exclude break-glass account)
+- Cloud apps: `All cloud apps`
+- Conditions:
+  - Locations: `Any location` except trusted IPs (optional)
+
+**Access controls:**
+- Grant: `Grant access`
+- Require: `Require multi-factor authentication`
+
+4. Enable policy: **On**
+5. Click **Create**
+
+### Register MFA Methods
+
+**Users register MFA at:**
+https://aka.ms/mfasetup
+
+**Admin-initiated registration:**
+1. Go to **Azure AD** → **Users** → Select user
+2. Click **Authentication methods**
+3. Click **Require re-register MFA**
+
+### Configure MFA Settings
+
+**Available methods:**
+```
+Azure AD > Security > MFA > Additional cloud-based settings
+
+Enable:
+☑ Microsoft Authenticator (recommended)
+☑ Authenticator app codes (TOTP)
+☐ SMS (consider disabling for better security)
+☑ Phone call (for backup)
+```
+
+---
+
+## Google Workspace MFA
+
+### Enable 2-Step Verification
+
+1. Sign in to **Google Admin console** (admin.google.com)
+2. Go to **Security** → **Authentication** → **2-Step Verification**
+3. Click **Get Started**
+4. Check **Allow users to turn on 2-Step Verification**
+5. **Enforcement:** Select organizational unit
+   - Choose: `New user enrollment period` = 1 week
+   - Then: `Mandatory for all users`
+6. Click **Save**
+
+### Recommended Settings
+
+```
+Security > 2-Step Verification:
+
+☑ Allow users to use Google Authenticator
+☑ Allow users to use security keys
+☑ Allow users to use Google prompts
+☐ Allow users to use SMS (disable for better security)
+☑ Allow users to use backup codes
+☑ Enforce in 7 days (grace period)
+```
+
+---
+
+## On-Premises Active Directory MFA
+
+### Option 1: Azure MFA Server (Legacy)
+
+**Note:** Azure MFA Server is deprecated. Migrate to Azure AD + Conditional Access.
+
+### Option 2: Duo Security (Recommended)
+
+1. **Sign up for Duo** (duo.com)
+2. **Install Duo Authentication Proxy** on server:
+
+```powershell
+# Download and install Duo proxy
+Invoke-WebRequest -Uri "https://dl.duosecurity.com/duoauthproxy-latest.exe" -OutFile "duo-installer.exe"
+.\duo-installer.exe
+
+# Configure authproxy.cfg
+@"
+[main]
+debug=true
+
+[ad_client]
+host=dc01.contoso.local
+service_account_username=duo_service@contoso.local
+service_account_password=YourSecurePassword
+search_dn=DC=contoso,DC=local
+
+[duo-only-client]
+host=127.0.0.1
+port=1812
+secret=YourRadiusSecret
+integration_key=YourIntegrationKey
+secret_key=YourSecretKey
+api_host=api-XXXXX.duosecurity.com
+"@ | Out-File "C:\Program Files\Duo Security Authentication Proxy\conf\authproxy.cfg"
+
+# Start Duo service
+Start-Service DuoAuthProxy
+```
+
+3. **Configure VPN/RDP to use Duo RADIUS**
+4. **Test with pilot users**
+
+---
+
+## Hardware Token Implementation
+
+### YubiKey Setup
+
+1. **Purchase YubiKeys** (5-10 per user for redundancy)
+2. **Enroll in Azure AD:**
+
+```powershell
+# Users register at:
+https://aka.ms/mysecurityinfo
+
+# Insert YubiKey and tap when prompted
+```
+
+3. **Enroll in Google Workspace:**
+```
+Admin console > Security > 2-Step Verification > Security Keys
+Users: My Account > Security > 2-Step Verification > Add security key
+```
+
+4. **Best Practices:**
+- Issue 2 YubiKeys per user (primary + backup)
+- Store backup YubiKey securely
+- Document serial numbers
+- Test before distributing
+
+---
+
+## Help Desk Procedures
+
+### MFA Reset Process
+
+**Microsoft 365:**
+```powershell
+# Admin resets MFA for user
+Connect-MsolService
+Set-MsolUser -UserPrincipalName user@contoso.com -StrongAuthenticationMethods @()
+
+# User re-registers at:
+https://aka.ms/mfasetup
+```
+
+**Google Workspace:**
+```
+Admin console > Users > Select user > Security >
+Click "2-Step Verification" > Revoke all 2SV methods
+```
+
+### Common User Issues
+
+**"I lost my phone"**
+1. Verify user identity (multi-factor verification!)
+2. Reset MFA registration
+3. User re-registers with new device
+4. Issue backup codes
+
+**"MFA app not working"**
+1. Check time sync on device (critical for TOTP)
+2. Remove and re-add account in app
+3. Use backup method (SMS, phone call)
+
+**"Authenticator app showing wrong code"**
+1. Sync time on device:
+   - iOS: Settings > General > Date & Time > Set Automatically
+   - Android: Settings > System > Date & Time > Automatic
+2. Re-generate codes in app
+
+---
+
+## Monitoring & Reporting
+
+### Azure AD Sign-In Logs
+
+```
+Azure AD > Sign-in logs > Filter:
+
+- Authentication requirement: MFA
+- Status: Success / Failure
+- Date range: Last 7 days
+```
+
+### MFA Adoption Report
+
+```powershell
+# Connect to Azure AD
+Connect-MsolService
+
+# Get MFA status for all users
+Get-MsolUser -All | Select DisplayName, UserPrincipalName,
+    @{Name="MFA Status";Expression={$_.StrongAuthenticationRequirements.State}}
+```
+
+### Google Workspace MFA Report
+
+```
+Admin console > Reports > User reports >
+Accounts > 2-Step Verification enrollment
+```
+
+---
+
+## Security Best Practices
+
+### Do:
+- ✅ **Enforce MFA for all admins immediately**
+- ✅ **Use authenticator apps over SMS**
+- ✅ **Maintain 2+ break-glass admin accounts** (no MFA, secured differently)
+- ✅ **Provide backup authentication methods**
+- ✅ **Monitor MFA bypass attempts**
+- ✅ **Regular security awareness training**
+- ✅ **Test MFA recovery procedures**
+
+### Don't:
+- ❌ **Don't rely solely on SMS** (SIM swapping attacks)
+- ❌ **Don't skip MFA for "low-risk" accounts** (lateral movement)
+- ❌ **Don't allow permanent MFA bypass**
+- ❌ **Don't forget break-glass accounts** (lockout risk)
+- ❌ **Don't neglect service accounts** (use managed identities)
+
+---
+
+## Regulatory Compliance
+
+### NIST SP 800-63B Requirements:
+- Authenticator must be "something you have" (device/token)
+- SMS is NOT recommended (phishing risk)
+- Biometric + PIN acceptable
+
+### PCI-DSS 3.2 Requirements:
+- MFA required for all access to cardholder data environment (CDE)
+- Must use 2 of 3 factors: knowledge, possession, inherence
+
+### HIPAA Requirements:
+- MFA recommended (not explicitly required)
+- Part of "access controls" safeguard
+- Required by most cyber insurance policies
+
+---
+
+## ROI & Business Case
+
+### Cost Savings:
+- **Prevent breaches**: Average breach cost $4.35M
+- **Reduce help desk calls**: 30-50% reduction in password resets
+- **Cyber insurance discount**: 10-20% premium reduction
+- **Compliance fines avoided**: Varies by regulation
+
+### Implementation Costs:
+- **Microsoft 365**: Included with most licenses
+- **Google Workspace**: Included (free)
+- **Duo Security**: $3-9/user/month
+- **YubiKeys**: $25-50/user (one-time)
+- **Staff time**: 40-80 hours for 100 users
+
+### Typical ROI:
+MFA pays for itself within first prevented incident.
+
+---
+
+## Quick Reference
+
+| Platform | Enable MFA | User Registration | Admin Reset |
+|----------|-----------|-------------------|-------------|
+| **Microsoft 365** | Security defaults or Conditional Access | aka.ms/mfasetup | `Set-MsolUser -UserPrincipalName user@domain.com -StrongAuthenticationMethods @()` |
+| **Google Workspace** | Admin console > Security > 2SV | myaccount.google.com > Security | Admin console > Users > Security > Revoke 2SV |
+| **Duo** | Application settings > Enable Duo | First login after enablement | Duo Admin > Users > Reset |
+
+---
+
+## Next Steps
+
+1. **Week 1**: Enable MFA for all admin accounts
+2. **Week 2-3**: Pilot with IT team
+3. **Week 4-6**: Roll out to all users (phased)
+4. **Week 7**: Enforce MFA for all accounts
+5. **Week 8+**: Monitor, audit, refine
+'''
+        })
+
+        articles.append({
+            'category': 'Security & Compliance',
+            'title': 'Configuring Windows Firewall Rules',
+            'body': r'''# Configuring Windows Firewall Rules
+
+## Overview
+Windows Defender Firewall (Windows Firewall) is a host-based firewall included in all modern Windows operating systems. This guide covers creating, managing, and troubleshooting firewall rules.
+
+## Firewall Basics
+
+### Three Network Profiles:
+- **Domain**: Connected to corporate domain (Active Directory)
+- **Private**: Home or work networks (trusted)
+- **Public**: Coffee shops, airports (untrusted)
+
+### Rule Types:
+- **Inbound**: Controls incoming connections TO this computer
+- **Outbound**: Controls outgoing connections FROM this computer
+
+### Rule Actions:
+- **Allow**: Permit the connection
+- **Block**: Deny the connection
+- **Allow if secure**: Require IPsec authentication
+
+---
+
+## Managing Firewall via GUI
+
+### Open Windows Firewall with Advanced Security
+
+**Windows 10/11:**
+1. Press `Win + R`
+2. Type: `wf.msc`
+3. Press Enter
+
+**OR:**
+- Control Panel → System and Security → Windows Defender Firewall → Advanced settings
+
+### Check Firewall Status
+
+View all three profiles (Domain, Private, Public) and verify:
+- Firewall state: **On**
+- Inbound connections: **Block (default)**
+- Outbound connections: **Allow (default)**
+
+---
+
+## Creating Firewall Rules (GUI)
+
+### Allow Inbound Port (Example: RDP on TCP 3389)
+
+1. Open **Windows Firewall with Advanced Security** (`wf.msc`)
+2. Click **Inbound Rules** in left pane
+3. Click **New Rule** in right pane
+4. **Rule Type**: Select `Port` → Next
+5. **Protocol**: Select `TCP`
+6. **Specific local ports**: Enter `3389` → Next
+7. **Action**: Select `Allow the connection` → Next
+8. **Profile**: Check all three (Domain, Private, Public) → Next
+9. **Name**: `Allow RDP` → Finish
+
+### Block Outbound Application
+
+1. Click **Outbound Rules**
+2. Click **New Rule**
+3. **Rule Type**: Select `Program` → Next
+4. **This program path**: Browse to `C:\Windows\System32\calc.exe` → Next
+5. **Action**: Select `Block the connection` → Next
+6. **Profile**: Check all → Next
+7. **Name**: `Block Calculator` → Finish
+
+### Allow Specific IP Address
+
+1. Create new rule (Port or Program)
+2. After selecting action, configure **Scope**:
+   - **Local IP**: `Any IP address` OR specify
+   - **Remote IP**: `These IP addresses`
+   - Click **Add** → Enter `192.168.1.50`
+
+---
+
+## Managing Firewall via PowerShell (Recommended)
+
+### View Firewall Status
+
+```powershell
+# Check firewall state for all profiles
+Get-NetFirewallProfile | Select Name, Enabled
+
+# View detailed firewall settings
+Get-NetFirewallProfile | Format-List Name, Enabled, DefaultInboundAction, DefaultOutboundAction
+```
+
+### Enable/Disable Firewall
+
+```powershell
+# Enable firewall for all profiles
+Set-NetFirewallProfile -All -Enabled True
+
+# Disable firewall (Domain profile only)
+Set-NetFirewallProfile -Profile Domain -Enabled False
+
+# Disable all profiles (NOT RECOMMENDED)
+Set-NetFirewallProfile -All -Enabled False
+```
+
+---
+
+## Creating Rules with PowerShell
+
+### Allow Inbound Port
+
+```powershell
+# Allow TCP port 3389 (RDP)
+New-NetFirewallRule -DisplayName "Allow RDP" `
+    -Direction Inbound `
+    -Protocol TCP `
+    -LocalPort 3389 `
+    -Action Allow `
+    -Profile Any
+
+# Allow UDP port 53 (DNS)
+New-NetFirewallRule -DisplayName "Allow DNS" `
+    -Direction Inbound `
+    -Protocol UDP `
+    -LocalPort 53 `
+    -Action Allow `
+    -Enabled True
+```
+
+### Allow Inbound Port Range
+
+```powershell
+# Allow TCP ports 5000-5100
+New-NetFirewallRule -DisplayName "Allow Port Range 5000-5100" `
+    -Direction Inbound `
+    -Protocol TCP `
+    -LocalPort 5000-5100 `
+    -Action Allow
+```
+
+### Allow Specific Program
+
+```powershell
+# Allow Google Chrome
+New-NetFirewallRule -DisplayName "Allow Chrome" `
+    -Direction Outbound `
+    -Program "C:\Program Files\Google\Chrome\Application\chrome.exe" `
+    -Action Allow `
+    -Profile Any
+
+# Block specific application
+New-NetFirewallRule -DisplayName "Block Notepad" `
+    -Direction Outbound `
+    -Program "C:\Windows\System32\notepad.exe" `
+    -Action Block
+```
+
+### Allow Specific IP Address/Subnet
+
+```powershell
+# Allow from specific IP
+New-NetFirewallRule -DisplayName "Allow from Management Server" `
+    -Direction Inbound `
+    -RemoteAddress 192.168.1.10 `
+    -Action Allow
+
+# Allow from subnet
+New-NetFirewallRule -DisplayName "Allow from Internal Subnet" `
+    -Direction Inbound `
+    -RemoteAddress 192.168.1.0/24 `
+    -Action Allow
+
+# Block specific IP
+New-NetFirewallRule -DisplayName "Block Malicious IP" `
+    -Direction Inbound `
+    -RemoteAddress 10.0.0.50 `
+    -Action Block `
+    -Enabled True
+```
+
+### Allow ICMP (Ping)
+
+```powershell
+# Allow ICMPv4 Echo Request (ping)
+New-NetFirewallRule -DisplayName "Allow Ping (ICMPv4)" `
+    -Direction Inbound `
+    -Protocol ICMPv4 `
+    -IcmpType 8 `
+    -Action Allow
+
+# Allow ICMPv6 Echo Request
+New-NetFirewallRule -DisplayName "Allow Ping (ICMPv6)" `
+    -Direction Inbound `
+    -Protocol ICMPv6 `
+    -IcmpType 8 `
+    -Action Allow
+```
+
+---
+
+## Managing Existing Rules
+
+### View Rules
+
+```powershell
+# List all inbound rules
+Get-NetFirewallRule -Direction Inbound | Select DisplayName, Enabled, Action
+
+# List enabled rules only
+Get-NetFirewallRule -Enabled True | Select DisplayName, Direction, Action
+
+# Find specific rule by name
+Get-NetFirewallRule -DisplayName "Allow RDP"
+
+# Find rules for specific port
+Get-NetFirewallRule | Where-Object {$_.DisplayName -like "*3389*"}
+```
+
+### Enable/Disable Rules
+
+```powershell
+# Disable rule by name
+Disable-NetFirewallRule -DisplayName "Allow RDP"
+
+# Enable rule by name
+Enable-NetFirewallRule -DisplayName "Allow RDP"
+
+# Disable all rules containing "File and Printer Sharing"
+Get-NetFirewallRule -DisplayGroup "File and Printer Sharing" | Disable-NetFirewallRule
+```
+
+### Modify Existing Rule
+
+```powershell
+# Change rule to block instead of allow
+Set-NetFirewallRule -DisplayName "Allow RDP" -Action Block
+
+# Add additional port to existing rule
+Set-NetFirewallRule -DisplayName "My Custom Rule" -LocalPort 80,443
+
+# Change profile
+Set-NetFirewallRule -DisplayName "Allow RDP" -Profile Domain,Private
+```
+
+### Delete Rule
+
+```powershell
+# Remove rule by name
+Remove-NetFirewallRule -DisplayName "Allow RDP"
+
+# Remove multiple rules
+Get-NetFirewallRule -DisplayName "Temp*" | Remove-NetFirewallRule
+
+# Confirm before deleting
+Remove-NetFirewallRule -DisplayName "Old Rule" -Confirm
+```
+
+---
+
+## Common Firewall Scenarios
+
+### Scenario 1: Allow Web Server (HTTP/HTTPS)
+
+```powershell
+# Allow HTTP (port 80)
+New-NetFirewallRule -DisplayName "Allow HTTP" `
+    -Direction Inbound `
+    -Protocol TCP `
+    -LocalPort 80 `
+    -Action Allow `
+    -Profile Any
+
+# Allow HTTPS (port 443)
+New-NetFirewallRule -DisplayName "Allow HTTPS" `
+    -Direction Inbound `
+    -Protocol TCP `
+    -LocalPort 443 `
+    -Action Allow `
+    -Profile Any
+```
+
+### Scenario 2: Allow SQL Server (TCP 1433)
+
+```powershell
+New-NetFirewallRule -DisplayName "Allow SQL Server" `
+    -Direction Inbound `
+    -Protocol TCP `
+    -LocalPort 1433 `
+    -Action Allow `
+    -Profile Domain
+
+# Allow SQL Browser (UDP 1434)
+New-NetFirewallRule -DisplayName "Allow SQL Browser" `
+    -Direction Inbound `
+    -Protocol UDP `
+    -LocalPort 1434 `
+    -Action Allow `
+    -Profile Domain
+```
+
+### Scenario 3: Allow File Sharing (SMB)
+
+```powershell
+# Enable File and Printer Sharing rule group
+Enable-NetFirewallRule -DisplayGroup "File and Printer Sharing"
+
+# OR create manual rule for SMB (port 445)
+New-NetFirewallRule -DisplayName "Allow SMB" `
+    -Direction Inbound `
+    -Protocol TCP `
+    -LocalPort 445 `
+    -Action Allow `
+    -Profile Domain,Private
+```
+
+### Scenario 4: Allow Remote Desktop (RDP)
+
+```powershell
+# Enable built-in RDP rule
+Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+# OR create custom rule
+New-NetFirewallRule -DisplayName "Allow RDP Custom" `
+    -Direction Inbound `
+    -Protocol TCP `
+    -LocalPort 3389 `
+    -Action Allow `
+    -Profile Any
+```
+
+### Scenario 5: Block All Except Specific IPs
+
+```powershell
+# 1. Create allow rule for specific IPs first
+New-NetFirewallRule -DisplayName "Allow Management Subnet" `
+    -Direction Inbound `
+    -RemoteAddress 192.168.1.0/24 `
+    -Action Allow `
+    -Priority 100
+
+# 2. Then block all others (lower priority)
+New-NetFirewallRule -DisplayName "Block All Others" `
+    -Direction Inbound `
+    -Action Block `
+    -Priority 200
+```
+
+---
+
+## Group Policy Firewall Management
+
+### Deploy Firewall Rules via GPO
+
+1. Open **Group Policy Management Console** (gpmc.msc)
+2. Create or edit GPO
+3. Navigate to:
+   ```
+   Computer Configuration > Policies > Windows Settings >
+   Security Settings > Windows Defender Firewall with Advanced Security
+   ```
+4. Right-click **Inbound Rules** → **New Rule**
+5. Configure as needed
+6. Link GPO to OU containing target computers
+
+### Export/Import Firewall Rules
+
+```powershell
+# Export all rules to file
+New-NetFirewallRule | Export-Csv "C:\firewall-rules.csv"
+
+# OR export specific rule group
+Get-NetFirewallRule -DisplayGroup "Remote Desktop" |
+    Export-Clixml "C:\rdp-rules.xml"
+
+# Import rules
+Import-Clixml "C:\rdp-rules.xml" | New-NetFirewallRule
+```
+
+---
+
+## Troubleshooting Firewall Issues
+
+### Check if Firewall is Blocking Connection
+
+```powershell
+# Test TCP port connectivity
+Test-NetConnection -ComputerName server01 -Port 3389
+
+# Expected output if allowed:
+# TcpTestSucceeded : True
+
+# View blocked connections in firewall log
+Get-Content C:\Windows\System32\LogFiles\Firewall\pfirewall.log | Select-String "DROP"
+```
+
+### Enable Firewall Logging
+
+```powershell
+# Enable logging for dropped packets
+Set-NetFirewallProfile -All -LogBlocked True -LogFileName "C:\Windows\System32\LogFiles\Firewall\pfirewall.log"
+
+# View log
+Get-Content C:\Windows\System32\LogFiles\Firewall\pfirewall.log -Tail 50
+```
+
+### Temporarily Disable Firewall for Testing
+
+```powershell
+# Disable firewall (PUBLIC PROFILE ONLY - for testing)
+Set-NetFirewallProfile -Profile Public -Enabled False
+
+# ALWAYS RE-ENABLE after testing!
+Set-NetFirewallProfile -Profile Public -Enabled True
+```
+
+**WARNING**: Never leave firewall disabled on production systems!
+
+### Check Which Rule is Blocking/Allowing
+
+```powershell
+# Find rule affecting specific port
+Get-NetFirewallPortFilter | Where-Object {$_.LocalPort -eq 3389} |
+    Get-NetFirewallRule
+
+# Find rule affecting specific program
+Get-NetFirewallApplicationFilter |
+    Where-Object {$_.Program -like "*chrome.exe"} |
+    Get-NetFirewallRule
+```
+
+---
+
+## Security Best Practices
+
+### Do:
+- ✅ **Enable firewall on all profiles** (Domain, Private, Public)
+- ✅ **Use most restrictive profile** (treat unknown networks as Public)
+- ✅ **Document all custom rules**
+- ✅ **Regular rule audits** (remove unused rules)
+- ✅ **Use rule groups** for easier management
+- ✅ **Test rules before deploying** via GPO
+- ✅ **Enable logging** for troubleshooting
+- ✅ **Use specific ports/IPs** (not "Any" when possible)
+
+### Don't:
+- ❌ **Don't disable firewall permanently**
+- ❌ **Don't allow "Any" port for outbound** (too permissive)
+- ❌ **Don't forget to remove test rules**
+- ❌ **Don't use duplicate rules** (create clutter)
+- ❌ **Don't allow all ICMP types** (security risk)
+
+---
+
+## Quick Reference
+
+```powershell
+# View firewall status
+Get-NetFirewallProfile
+
+# Allow inbound port
+New-NetFirewallRule -DisplayName "RuleName" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow
+
+# Block outbound program
+New-NetFirewallRule -DisplayName "BlockApp" -Direction Outbound -Program "C:\path\app.exe" -Action Block
+
+# Allow specific IP
+New-NetFirewallRule -DisplayName "AllowIP" -Direction Inbound -RemoteAddress 192.168.1.50 -Action Allow
+
+# List all rules
+Get-NetFirewallRule
+
+# Enable rule
+Enable-NetFirewallRule -DisplayName "RuleName"
+
+# Remove rule
+Remove-NetFirewallRule -DisplayName "RuleName"
+
+# Test connection
+Test-NetConnection -ComputerName server -Port 80
+```
+
+---
+
+## Common Ports Reference
+
+| Service | Protocol | Port | Rule Name |
+|---------|----------|------|-----------|
+| HTTP | TCP | 80 | Allow HTTP |
+| HTTPS | TCP | 443 | Allow HTTPS |
+| RDP | TCP | 3389 | Allow RDP |
+| SMB | TCP | 445 | Allow File Sharing |
+| SQL Server | TCP | 1433 | Allow SQL |
+| DNS | UDP | 53 | Allow DNS |
+| SSH | TCP | 22 | Allow SSH |
+| FTP | TCP | 20, 21 | Allow FTP |
+| SMTP | TCP | 25, 587 | Allow Email |
+'''
+        })
+
+        # ============================================================
+        # LINUX ADMINISTRATION (3 articles)
+        # ============================================================
+
+        articles.append({
+            'category': 'Common Issues',
+            'title': 'Linux User Management and Permissions',
+            'body': r'''# Linux User Management and Permissions
+
+## Overview
+Comprehensive guide to managing users, groups, and file permissions on Linux systems (Ubuntu, CentOS, RHEL, Debian).
+
+## User Management
+
+### Create New User
+
+```bash
+# Create user with home directory
+sudo useradd -m -s /bin/bash john
+
+# Create user and set password immediately
+sudo useradd -m -s /bin/bash jane
+sudo passwd jane
+
+# Create user with specific UID and home directory
+sudo useradd -m -u 1500 -d /home/bob -s /bin/bash bob
+
+# Create system user (no home directory, no login)
+sudo useradd -r -s /usr/sbin/nologin serviceaccount
+```
+
+**Flags Explained:**
+- `-m`: Create home directory
+- `-s /bin/bash`: Set default shell
+- `-u 1500`: Specify user ID (UID)
+- `-d /home/bob`: Specify home directory path
+- `-r`: Create system account
+- `-g groupname`: Set primary group
+- `-G group1,group2`: Add to supplementary groups
+
+### Modify Existing User
+
+```bash
+# Change user's shell
+sudo usermod -s /bin/zsh john
+
+# Change home directory
+sudo usermod -d /home/newhome -m john
+
+# Lock user account (disable login)
+sudo usermod -L john
+
+# Unlock user account
+sudo usermod -U john
+
+# Add user to sudo group
+sudo usermod -aG sudo john
+
+# Add user to multiple groups
+sudo usermod -aG wheel,developers,docker john
+
+# Change username
+sudo usermod -l newname oldname
+
+# Set account expiration date
+sudo usermod -e 2024-12-31 john
+```
+
+### Delete User
+
+```bash
+# Delete user only (keep home directory)
+sudo userdel john
+
+# Delete user and home directory
+sudo userdel -r john
+
+# Delete user, home, and mail spool
+sudo userdel -rf john
+```
+
+### Set/Change Password
+
+```bash
+# Set password for user
+sudo passwd john
+
+# Force password change on next login
+sudo passwd -e john
+
+# Set password to never expire
+sudo passwd -x -1 john
+
+# Lock password (disable password login, SSH keys still work)
+sudo passwd -l john
+
+# Unlock password
+sudo passwd -u john
+```
+
+---
+
+## Group Management
+
+### Create Group
+
+```bash
+# Create new group
+sudo groupadd developers
+
+# Create group with specific GID
+sudo groupadd -g 1050 marketing
+
+# Create system group
+sudo groupadd -r appservice
+```
+
+### Add User to Group
+
+```bash
+# Add user to group (replaces existing groups - DANGEROUS!)
+sudo usermod -G developers john
+
+# Add user to group (append to existing groups - SAFE)
+sudo usermod -aG developers john
+
+# Add user to multiple groups
+sudo usermod -aG developers,docker,sudo john
+
+# Alternative: using gpasswd
+sudo gpasswd -a john developers
+```
+
+### Remove User from Group
+
+```bash
+# Remove user from group
+sudo gpasswd -d john developers
+
+# Remove user from all supplementary groups
+sudo usermod -G "" john
+```
+
+### Delete Group
+
+```bash
+# Delete group
+sudo groupdel developers
+```
+
+### View User Groups
+
+```bash
+# Show groups for current user
+groups
+
+# Show groups for specific user
+groups john
+
+# Show detailed group info
+id john
+
+# List all groups on system
+cat /etc/group
+
+# List all members of a group
+getent group developers
+```
+
+---
+
+## File Permissions
+
+### Understanding Permissions
+
+```
+-rwxr-xr-x 1 owner group 4096 Jan 15 10:30 filename
+│││││││││││
+│││││││││└─ Execute permission for others
+│││││││└──  Read permission for others
+││││││└───  Write permission for others
+││││└────  Execute permission for group
+│││└─────  Read permission for group
+││└──────  Write permission for group
+│└───────  Execute permission for owner
+└────────  File type (- = file, d = directory, l = symlink)
+```
+
+**Permission Values:**
+- `r` (read) = 4
+- `w` (write) = 2
+- `x` (execute) = 1
+
+**Examples:**
+- `rwx` = 7 (4+2+1)
+- `rw-` = 6 (4+2)
+- `r-x` = 5 (4+1)
+- `r--` = 4
+- `---` = 0
+
+### Change File Permissions (chmod)
+
+```bash
+# Numeric method (recommended for scripts)
+chmod 755 file.txt      # rwxr-xr-x
+chmod 644 file.txt      # rw-r--r--
+chmod 600 file.txt      # rw-------
+chmod 700 script.sh     # rwx------ (owner only)
+
+# Symbolic method
+chmod u+x file.txt      # Add execute for owner
+chmod g+w file.txt      # Add write for group
+chmod o-r file.txt      # Remove read for others
+chmod a+r file.txt      # Add read for all (owner, group, others)
+
+# Multiple changes
+chmod u+x,g+x,o-rwx script.sh
+chmod u=rwx,g=rx,o= script.sh  # Same as 750
+
+# Recursive (all files in directory)
+chmod -R 755 /var/www/html
+```
+
+### Common Permission Patterns
+
+```bash
+# Web files
+sudo chmod 644 /var/www/html/*.html    # Files: rw-r--r--
+sudo chmod 755 /var/www/html/          # Directory: rwxr-xr-x
+
+# Scripts
+chmod 755 script.sh                    # Executable by all
+chmod 700 secure-script.sh             # Executable by owner only
+
+# SSH keys
+chmod 600 ~/.ssh/id_rsa                # Private key (owner read/write only)
+chmod 644 ~/.ssh/id_rsa.pub            # Public key (readable by all)
+chmod 700 ~/.ssh                       # SSH directory
+
+# Sensitive files
+chmod 600 /etc/ssl/private/server.key  # Private SSL key
+chmod 400 /root/.aws/credentials       # AWS credentials (read-only, root only)
+```
+
+---
+
+## File Ownership
+
+### Change Owner (chown)
+
+```bash
+# Change owner only
+sudo chown john file.txt
+
+# Change owner and group
+sudo chown john:developers file.txt
+
+# Change group only
+sudo chgrp developers file.txt
+# OR
+sudo chown :developers file.txt
+
+# Recursive (all files in directory)
+sudo chown -R john:developers /home/john/project
+
+# Change owner to match another file
+sudo chown --reference=file1.txt file2.txt
+```
+
+### Common Ownership Patterns
+
+```bash
+# Web server files (Apache/Nginx)
+sudo chown -R www-data:www-data /var/www/html
+
+# Application directory
+sudo chown -R appuser:appgroup /opt/myapp
+
+# Log files
+sudo chown syslog:adm /var/log/myapp.log
+```
+
+---
+
+## Special Permissions
+
+### Setuid (SUID) - Run as Owner
+
+```bash
+# Set SUID bit (4000)
+chmod 4755 /usr/bin/passwd   # -rwsr-xr-x
+
+# User executes file with file owner's permissions
+# Example: /usr/bin/passwd runs as root even when executed by regular user
+```
+
+### Setgid (SGID) - Run as Group / Inherit Group
+
+**On Executable:**
+```bash
+# Set SGID bit (2000)
+chmod 2755 /usr/bin/wall     # -rwxr-sr-x
+
+# User executes file with file group's permissions
+```
+
+**On Directory:**
+```bash
+# Set SGID on directory
+chmod 2775 /shared/projects  # drwxrwsr-x
+
+# New files created in directory inherit directory's group (not user's primary group)
+```
+
+### Sticky Bit - Delete Restriction
+
+```bash
+# Set sticky bit (1000) on directory
+chmod 1777 /tmp              # drwxrwxrwt
+
+# Users can only delete their own files in this directory
+# Even if others have write permission
+
+# Common use: /tmp directory
+```
+
+### Combined Special Permissions
+
+```bash
+# SUID + SGID + Sticky
+chmod 7755 file              # rwsr-sr-t (rarely used)
+
+# Symbolic method
+chmod u+s file               # Set SUID
+chmod g+s directory          # Set SGID
+chmod +t directory           # Set sticky bit
+```
+
+---
+
+## Access Control Lists (ACL)
+
+For more granular permissions than standard owner/group/other.
+
+### View ACL
+
+```bash
+getfacl file.txt
+```
+
+### Set ACL Permissions
+
+```bash
+# Give specific user read access
+setfacl -m u:john:r file.txt
+
+# Give specific user read+write
+setfacl -m u:jane:rw file.txt
+
+# Give specific group read+execute
+setfacl -m g:developers:rx /opt/project
+
+# Remove ACL for user
+setfacl -x u:john file.txt
+
+# Remove all ACLs
+setfacl -b file.txt
+
+# Set default ACL (new files inherit this)
+setfacl -d -m g:developers:rwx /shared/projects
+
+# Recursive ACL
+setfacl -R -m u:bob:rw /shared/docs
+```
+
+---
+
+## Sudo Configuration
+
+### Add User to Sudoers
+
+```bash
+# Method 1: Add to sudo/wheel group (recommended)
+sudo usermod -aG sudo john       # Debian/Ubuntu
+sudo usermod -aG wheel john      # RHEL/CentOS
+
+# Method 2: Edit sudoers file (advanced)
+sudo visudo
+
+# Add line:
+john ALL=(ALL:ALL) ALL
+
+# Allow user to run specific command without password:
+john ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
+
+# Allow group to sudo:
+%developers ALL=(ALL:ALL) ALL
+```
+
+### Test Sudo Access
+
+```bash
+# Test as user
+sudo -l                    # List allowed commands
+
+# Run command as another user
+sudo -u www-data ls /var/www
+
+# Run shell as root
+sudo -i                    # Login shell
+sudo -s                    # Non-login shell
+```
+
+---
+
+## User Information Commands
+
+```bash
+# View user details
+id john                    # UID, GID, groups
+finger john                # User info (if finger installed)
+getent passwd john         # /etc/passwd entry
+
+# List all users
+cat /etc/passwd
+cut -d: -f1 /etc/passwd    # Just usernames
+
+# List logged-in users
+who
+w                          # Detailed (what they're doing)
+last                       # Login history
+lastlog                    # Last login for all users
+
+# Check password status
+sudo passwd -S john        # Password status (locked, expires, etc.)
+sudo chage -l john         # Password aging info
+
+# View user's crontab
+sudo crontab -u john -l
+```
+
+---
+
+## Security Best Practices
+
+### User Management:
+- ✅ **Use strong passwords** (12+ characters, mixed case, numbers, symbols)
+- ✅ **Enforce password expiration** (90 days)
+- ✅ **Lock unused accounts**
+- ✅ **Use SSH keys** instead of passwords for remote access
+- ✅ **Disable root login** via SSH
+- ✅ **Regular audit** of user accounts
+- ✅ **Remove old accounts** when employees leave
+
+### Permission Best Practices:
+- ✅ **Principle of least privilege** (give minimum required permissions)
+- ✅ **Never use 777 permissions** (anyone can read/write/execute)
+- ✅ **Avoid running services as root**
+- ✅ **Use groups** for shared access
+- ✅ **Regular permission audits**
+- ✅ **Separate system and regular users**
+
+---
+
+## Common Permission Scenarios
+
+### Scenario: Shared Project Directory
+
+```bash
+# Create shared directory
+sudo mkdir /shared/projects
+sudo chgrp developers /shared/projects
+sudo chmod 2775 /shared/projects  # SGID + rwxrwxr-x
+
+# Now all files created in /shared/projects will be owned by 'developers' group
+# All group members can read/write
+```
+
+### Scenario: Web Application Directory
+
+```bash
+# Application owned by app user, readable by web server
+sudo chown -R appuser:www-data /var/www/myapp
+sudo chmod -R 750 /var/www/myapp          # rwxr-x---
+sudo chmod -R 640 /var/www/myapp/*.conf   # rw-r-----
+```
+
+### Scenario: Log Files
+
+```bash
+# Logs writable by app, readable by sysadmins
+sudo chown appuser:sysadmin /var/log/myapp.log
+sudo chmod 640 /var/log/myapp.log  # rw-r-----
+```
+
+---
+
+## Troubleshooting
+
+### Problem: "Permission denied" error
+
+**Check:**
+```bash
+ls -l file.txt             # View permissions
+id                         # Check your user/groups
+sudo !!                    # Re-run last command with sudo
+```
+
+**Fix:**
+```bash
+sudo chmod 755 file.txt    # Adjust permissions
+sudo chown $USER file.txt  # Take ownership
+```
+
+### Problem: User can't login
+
+```bash
+# Check if account is locked
+sudo passwd -S username
+
+# Unlock account
+sudo passwd -u username
+sudo usermod -U username
+
+# Check shell is valid
+grep username /etc/passwd
+# If shell is /usr/sbin/nologin, change to /bin/bash:
+sudo usermod -s /bin/bash username
+```
+
+### Problem: User not in sudo group
+
+```bash
+# Verify group membership
+groups username
+
+# Add to sudo group
+sudo usermod -aG sudo username
+
+# User must log out and back in for group change to take effect!
+```
+
+---
+
+## Quick Reference
+
+```bash
+# User management
+sudo useradd -m -s /bin/bash john
+sudo passwd john
+sudo usermod -aG sudo john
+sudo userdel -r john
+
+# Group management
+sudo groupadd developers
+sudo usermod -aG developers john
+sudo gpasswd -d john developers
+groups john
+
+# Permissions
+chmod 755 file                # rwxr-xr-x
+chmod 644 file                # rw-r--r--
+chmod u+x file                # Add execute for owner
+chmod -R 755 directory        # Recursive
+
+# Ownership
+sudo chown john file
+sudo chown john:developers file
+sudo chown -R john:developers directory
+
+# Special permissions
+chmod 4755 file               # SUID
+chmod 2775 directory          # SGID
+chmod 1777 directory          # Sticky bit
+
+# ACLs
+getfacl file
+setfacl -m u:john:rw file
+setfacl -x u:john file
+
+# Information
+id john
+groups john
+ls -l file
+```
+'''
+        })
+
+        articles.append({
+            'category': 'Backup & Recovery',
+            'title': 'Setting Up Automated Backups with rsync',
+            'body': r'''# Setting Up Automated Backups with rsync
+
+## Overview
+rsync is a powerful file synchronization tool perfect for creating automated backups on Linux systems. This guide covers local backups, remote backups, and automated scheduling.
+
+## Why rsync for Backups
+
+**Advantages:**
+- Fast incremental backups (only transfers changed files)
+- Preserves permissions, timestamps, symlinks
+- Network-efficient compression
+- Built-in on most Linux distributions
+- Flexible include/exclude patterns
+- Can resume interrupted transfers
+
+## Basic rsync Syntax
+
+```bash
+rsync [options] source destination
+```
+
+**Common Options:**
+- `-a`: Archive mode (preserves permissions, recursive)
+- `-v`: Verbose output
+- `-z`: Compress during transfer
+- `-h`: Human-readable sizes
+- `--delete`: Delete files in destination not in source
+- `--dry-run`: Test without making changes
+
+---
+
+## Local Backups
+
+### Simple File Backup
+
+```bash
+# Backup single directory
+sudo rsync -avh /home/user/documents /backup/
+
+# Backup with progress display
+sudo rsync -avh --progress /home/user/documents /backup/
+
+# Backup multiple directories
+sudo rsync -avh /home/user/documents /home/user/pictures /backup/
+```
+
+### Full System Backup
+
+```bash
+# Backup entire system (excluding certain directories)
+sudo rsync -aAXvh --exclude={"/dev/*","/proc/*","/sys/*","/tmp/*","/run/*","/mnt/*","/media/*","/lost+found"} / /backup/system/
+
+# Explanation:
+# -a: Archive mode
+# -A: Preserve ACLs
+# -X: Preserve extended attributes
+# -v: Verbose
+# -h: Human-readable
+```
+
+### Incremental Backups with Hardlinks
+
+Save space by creating hardlinks for unchanged files:
+
+```bash
+#!/bin/bash
+# Create dated backup directory
+BACKUP_DIR="/backup/$(date +%Y-%m-%d)"
+LATEST_LINK="/backup/latest"
+
+# Perform backup linking to previous backup
+sudo rsync -avh --delete \
+    --link-dest="$LATEST_LINK" \
+    /home/user/ \
+    "$BACKUP_DIR/"
+
+# Update latest link
+sudo rm -f "$LATEST_LINK"
+sudo ln -s "$BACKUP_DIR" "$LATEST_LINK"
+```
+
+---
+
+## Remote Backups (Over SSH)
+
+### Push to Remote Server
+
+```bash
+# Backup local to remote server
+sudo rsync -avz -e ssh /home/user/documents user@backup-server:/backups/
+
+# Using specific SSH port
+sudo rsync -avz -e "ssh -p 2222" /home/user/documents user@backup-server:/backups/
+
+# With SSH key (no password prompt)
+sudo rsync -avz -e "ssh -i /root/.ssh/backup_key" /home/user/documents user@backup-server:/backups/
+```
+
+### Pull from Remote Server
+
+```bash
+# Backup remote to local
+sudo rsync -avz user@remote-server:/var/www/html /backup/websites/
+
+# Backup multiple remote directories
+sudo rsync -avz user@remote-server:'/var/log/apache2 /var/log/nginx' /backup/logs/
+```
+
+---
+
+## Advanced Backup Strategies
+
+### Exclude Files and Directories
+
+```bash
+# Exclude specific patterns
+sudo rsync -avh \
+    --exclude='*.log' \
+    --exclude='*.tmp' \
+    --exclude='cache/*' \
+    --exclude='node_modules/*' \
+    /home/user/project /backup/
+
+# Use exclude file
+sudo rsync -avh --exclude-from='/etc/rsync-exclude.txt' /home/user /backup/
+```
+
+**Example /etc/rsync-exclude.txt:**
+```
+*.log
+*.tmp
+*.cache
+.DS_Store
+Thumbs.db
+node_modules/
+.git/
+__pycache__/
+.vscode/
+```
+
+### Bandwidth Limiting
+
+```bash
+# Limit to 5000 KB/s (5 MB/s)
+sudo rsync -avz --bwlimit=5000 /large-files/ user@remote:/backup/
+
+# Useful for:
+# - Production servers (avoid network saturation)
+# - Remote backups over slow connections
+```
+
+### Delete Old Backups
+
+```bash
+#!/bin/bash
+# Keep only last 7 daily backups
+BACKUP_ROOT="/backup/daily"
+find "$BACKUP_ROOT" -maxdepth 1 -type d -mtime +7 -exec rm -rf {} \;
+
+# Keep only 4 weekly backups
+BACKUP_ROOT="/backup/weekly"
+find "$BACKUP_ROOT" -maxdepth 1 -type d -mtime +28 -exec rm -rf {} \;
+```
+
+---
+
+## Complete Backup Scripts
+
+### Daily Backup Script
+
+```bash
+#!/bin/bash
+# /usr/local/bin/backup-daily.sh
+
+# Configuration
+SOURCE="/home"
+DEST="/backup/daily"
+LOG="/var/log/backup-daily.log"
+DATE=$(date +%Y-%m-%d_%H-%M-%S)
+BACKUP_DIR="$DEST/$DATE"
+LATEST="$DEST/latest"
+
+# Create backup directory
+mkdir -p "$BACKUP_DIR"
+
+# Perform backup
+echo "Starting backup: $DATE" >> "$LOG"
+
+rsync -aAXvh \
+    --delete \
+    --link-dest="$LATEST" \
+    --exclude={'.cache/*','*.tmp','.Trash/*'} \
+    --log-file="$LOG" \
+    "$SOURCE/" \
+    "$BACKUP_DIR/"
+
+# Check exit status
+if [ $? -eq 0 ]; then
+    echo "Backup completed successfully: $DATE" >> "$LOG"
+
+    # Update latest symlink
+    rm -f "$LATEST"
+    ln -s "$BACKUP_DIR" "$LATEST"
+
+    # Delete backups older than 7 days
+    find "$DEST" -maxdepth 1 -type d -mtime +7 -exec rm -rf {} \;
+else
+    echo "Backup FAILED: $DATE" >> "$LOG"
+    exit 1
+fi
+
+# Send email notification (optional)
+# echo "Backup completed: $DATE" | mail -s "Backup Success" admin@example.com
+```
+
+### Remote Server Backup Script
+
+```bash
+#!/bin/bash
+# /usr/local/bin/backup-remote.sh
+
+# Configuration
+SOURCE="/var/www /etc /home"
+REMOTE_USER="backup"
+REMOTE_HOST="backup-server.example.com"
+REMOTE_DIR="/backups/$(hostname)"
+SSH_KEY="/root/.ssh/backup_key"
+LOG="/var/log/backup-remote.log"
+DATE=$(date +%Y-%m-%d)
+
+echo "===== Starting remote backup: $DATE =====" >> "$LOG"
+
+# Ensure remote directory exists
+ssh -i "$SSH_KEY" "$REMOTE_USER@$REMOTE_HOST" "mkdir -p $REMOTE_DIR"
+
+# Perform backup
+rsync -avz --delete \
+    -e "ssh -i $SSH_KEY" \
+    --exclude={'*.log','cache/*','tmp/*'} \
+    --log-file="$LOG" \
+    $SOURCE \
+    "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/"
+
+if [ $? -eq 0 ]; then
+    echo "Remote backup completed successfully: $DATE" >> "$LOG"
+else
+    echo "Remote backup FAILED: $DATE" >> "$LOG"
+    echo "Remote backup failed on $(hostname)" | mail -s "BACKUP FAILURE" admin@example.com
+    exit 1
+fi
+```
+
+### Database Backup with rsync
+
+```bash
+#!/bin/bash
+# /usr/local/bin/backup-databases.sh
+
+# Configuration
+DB_BACKUP_DIR="/backup/databases"
+DATE=$(date +%Y-%m-%d)
+BACKUP_DIR="$DB_BACKUP_DIR/$DATE"
+
+mkdir -p "$BACKUP_DIR"
+
+# Backup MySQL/MariaDB databases
+mysqldump --all-databases --single-transaction \
+    --user=backup_user --password=SecurePassword \
+    | gzip > "$BACKUP_DIR/all-databases.sql.gz"
+
+# Backup PostgreSQL databases
+sudo -u postgres pg_dumpall \
+    | gzip > "$BACKUP_DIR/postgres-all.sql.gz"
+
+# Sync to remote server
+rsync -avz -e ssh "$DB_BACKUP_DIR/" backup@remote:/backups/databases/
+
+# Delete local backups older than 3 days
+find "$DB_BACKUP_DIR" -maxdepth 1 -type d -mtime +3 -exec rm -rf {} \;
+```
+
+---
+
+## Automate with Cron
+
+### Schedule Backups
+
+```bash
+# Edit root crontab
+sudo crontab -e
+
+# Add these lines:
+
+# Daily backup at 2 AM
+0 2 * * * /usr/local/bin/backup-daily.sh
+
+# Weekly backup on Sunday at 3 AM
+0 3 * * 0 /usr/local/bin/backup-weekly.sh
+
+# Remote backup every 6 hours
+0 */6 * * * /usr/local/bin/backup-remote.sh
+
+# Database backup every 4 hours
+0 */4 * * * /usr/local/bin/backup-databases.sh
+```
+
+### Systemd Timer (Alternative to Cron)
+
+**Create service file:** `/etc/systemd/system/backup.service`
+
+```ini
+[Unit]
+Description=Daily Backup
+Wants=backup.timer
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/backup-daily.sh
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Create timer file:** `/etc/systemd/system/backup.timer`
+
+```ini
+[Unit]
+Description=Daily Backup Timer
+Requires=backup.service
+
+[Timer]
+OnCalendar=daily
+OnCalendar=02:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+**Enable and start:**
+
+```bash
+sudo systemctl enable backup.timer
+sudo systemctl start backup.timer
+
+# Check status
+sudo systemctl status backup.timer
+sudo systemctl list-timers
+```
+
+---
+
+## Monitoring and Alerts
+
+### Email Notifications
+
+```bash
+# Add to backup script
+if [ $? -eq 0 ]; then
+    echo "Backup completed successfully" | \
+        mail -s "Backup Success: $(hostname)" admin@example.com
+else
+    echo "Backup FAILED! Check logs at /var/log/backup.log" | \
+        mail -s "BACKUP FAILURE: $(hostname)" admin@example.com
+fi
+```
+
+### Log Rotation
+
+**Create /etc/logrotate.d/backup:**
+
+```
+/var/log/backup-*.log {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+}
+```
+
+### Check Backup Age
+
+```bash
+#!/bin/bash
+# Alert if backup is older than 2 days
+
+LATEST_BACKUP=$(find /backup -type d -maxdepth 1 -mtime -2 | head -1)
+
+if [ -z "$LATEST_BACKUP" ]; then
+    echo "WARNING: No backup found in last 2 days!" | \
+        mail -s "BACKUP WARNING" admin@example.com
+fi
+```
+
+---
+
+## Restore from Backup
+
+### Restore Entire Directory
+
+```bash
+# Restore from latest backup
+sudo rsync -avh /backup/latest/home/user/documents/ /home/user/documents/
+
+# Restore specific file
+sudo rsync -avh /backup/latest/home/user/documents/important.txt /home/user/documents/
+```
+
+### Restore to Different Location
+
+```bash
+# Restore to temporary location for review
+sudo rsync -avh /backup/2024-01-15/var/www/ /tmp/restore-preview/
+```
+
+### Dry Run Before Restore
+
+```bash
+# See what would be restored without actually doing it
+sudo rsync -avh --dry-run /backup/latest/home/user/ /home/user/
+```
+
+---
+
+## Backup Best Practices
+
+### Do:
+- ✅ **Test restores regularly** (backup is only as good as restore)
+- ✅ **Store backups offsite** (3-2-1 rule: 3 copies, 2 media types, 1 offsite)
+- ✅ **Encrypt sensitive data** (use rsync with ssh or encrypted filesystem)
+- ✅ **Monitor backup success/failure** (email alerts, monitoring dashboard)
+- ✅ **Document restore procedures**
+- ✅ **Keep multiple backup generations** (daily, weekly, monthly)
+- ✅ **Verify backup integrity** (checksums, test restores)
+
+### Don't:
+- ❌ **Don't backup to same disk** (hardware failure will lose everything)
+- ❌ **Don't store only one backup** (ransomware can encrypt backups)
+- ❌ **Don't forget databases** (file backup alone may not capture DB state)
+- ❌ **Don't ignore logs** (monitor for errors)
+- ❌ **Don't use --delete without testing** (can accidentally delete needed files)
+
+---
+
+## Troubleshooting
+
+### Problem: Permission Denied
+
+```bash
+# Run as root or with sudo
+sudo rsync -avh /home/user /backup/
+
+# OR ensure backup user has read access
+sudo usermod -aG users backup_user
+```
+
+### Problem: rsync Hanging
+
+```bash
+# Use timeout command
+timeout 3600 rsync -avh /source /dest  # 1 hour timeout
+
+# Check for network issues (remote backups)
+ping backup-server
+
+# Check SSH connectivity
+ssh -v user@backup-server
+```
+
+### Problem: Running Out of Space
+
+```bash
+# Check disk space
+df -h /backup
+
+# Find large files
+du -sh /backup/* | sort -rh | head -10
+
+# Delete old backups
+find /backup -mtime +30 -exec rm -rf {} \;
+```
+
+---
+
+## Quick Reference
+
+```bash
+# Basic local backup
+sudo rsync -avh /source /destination
+
+# Remote backup (push)
+sudo rsync -avz -e ssh /local user@remote:/backup
+
+# Remote backup (pull)
+sudo rsync -avz user@remote:/data /local-backup
+
+# Incremental backup with hardlinks
+sudo rsync -avh --delete --link-dest=/backup/latest /source /backup/new
+
+# Exclude patterns
+sudo rsync -avh --exclude='*.log' --exclude='cache/*' /source /dest
+
+# Dry run (test without changes)
+sudo rsync -avh --dry-run /source /dest
+
+# Bandwidth limit (5 MB/s)
+sudo rsync -avz --bwlimit=5000 /source /dest
+
+# Show progress
+sudo rsync -avh --progress /source /dest
+```
+
+---
+
+## Example Backup Strategy
+
+**For Small Business:**
+- Daily full backups (7 days retention)
+- Weekly backups (4 weeks retention)
+- Monthly backups (12 months retention)
+- Offsite backup every 24 hours
+- Test restore monthly
+
+**Cron Schedule:**
+```bash
+# Daily at 2 AM
+0 2 * * * /usr/local/bin/backup-daily.sh
+
+# Weekly on Sunday at 3 AM
+0 3 * * 0 /usr/local/bin/backup-weekly.sh
+
+# Monthly on 1st at 4 AM
+0 4 1 * * /usr/local/bin/backup-monthly.sh
+
+# Remote sync every 6 hours
+0 */6 * * * /usr/local/bin/backup-remote.sh
+```
+'''
+        })
+
+        articles.append({
+            'category': 'Common Issues',
+            'title': 'Monitoring Linux System Performance',
+            'body': r'''# Monitoring Linux System Performance
+
+## Overview
+Comprehensive guide to monitoring CPU, memory, disk, and network performance on Linux systems using built-in tools.
+
+## Quick System Overview
+
+### top - Real-Time Process Monitor
+
+```bash
+# Launch top
+top
+
+# Sorted by memory usage
+top -o %MEM
+
+# Show specific user's processes
+top -u username
+
+# Batch mode (for logging)
+top -b -n 1 > system-snapshot.txt
+```
+
+**Key Metrics in top:**
+- `load average`: 1, 5, 15 minute averages (< number of CPUs = good)
+- `%Cpu(s)`: us=user, sy=system, id=idle, wa=I/O wait
+- `KiB Mem`: total, free, used, buff/cache
+- `PID`: Process ID
+- `%CPU`: CPU usage percentage
+- `%MEM`: Memory usage percentage
+- `TIME+`: Total CPU time used
+- `COMMAND`: Process name
+
+**Interactive Commands:**
+- `M`: Sort by memory
+- `P`: Sort by CPU
+- `k`: Kill process (enter PID)
+- `q`: Quit
+
+### htop - Enhanced Process Viewer
+
+```bash
+# Install htop
+sudo apt install htop      # Debian/Ubuntu
+sudo yum install htop      # CentOS/RHEL
+
+# Launch htop
+htop
+```
+
+**Advantages over top:**
+- Color-coded output
+- Mouse support
+- Tree view of processes
+- Easy to kill processes
+- Horizontal/vertical scrolling
+
+---
+
+## CPU Monitoring
+
+### Check CPU Info
+
+```bash
+# Number of CPUs
+nproc
+
+# Detailed CPU information
+lscpu
+
+# CPU model and cores
+cat /proc/cpuinfo | grep -E "model name|cpu cores"
+
+# Current CPU frequency
+cat /proc/cpuinfo | grep MHz
+```
+
+### Real-Time CPU Usage
+
+```bash
+# Overall CPU usage
+mpstat 1 5  # Update every 1 second, 5 times
+
+# Per-CPU usage
+mpstat -P ALL 1
+```
+
+**Install sysstat (contains mpstat):**
+```bash
+sudo apt install sysstat     # Debian/Ubuntu
+sudo yum install sysstat     # CentOS/RHEL
+```
+
+### Load Average
+
+```bash
+# Check load average
+uptime
+
+# Detailed load stats
+w
+
+# What load average means:
+# - Load < # of CPUs: System not busy
+# - Load = # of CPUs: System fully utilized
+# - Load > # of CPUs: System overloaded (processes waiting)
+
+# Example on 4-core system:
+# load average: 2.0, 1.5, 1.0  ← Good (under 4.0)
+# load average: 6.0, 5.5, 5.0  ← High (over 4.0)
+```
+
+### Find CPU-Hungry Processes
+
+```bash
+# Top 10 CPU consumers
+ps aux --sort=-%cpu | head -10
+
+# Continuously monitor
+watch "ps aux --sort=-%cpu | head -10"
+```
+
+---
+
+## Memory Monitoring
+
+### Check Memory Usage
+
+```bash
+# Simple overview
+free -h
+
+# Detailed breakdown
+free -h -w
+
+# Output explanation:
+# total: Total RAM
+# used: Used by processes
+# free: Completely unused
+# shared: Used by tmpfs
+# buff/cache: Used for caching (available if needed)
+# available: Actually available for applications
+```
+
+### Swap Usage
+
+```bash
+# Check swap status
+swapon --show
+
+# Total swap usage
+free -h | grep Swap
+
+# Processes using swap (sorted)
+for file in /proc/*/status ; do
+    awk '/VmSwap|Name/{printf $2 " " $3}END{ print ""}' $file
+done | sort -k 2 -n -r | head -10
+```
+
+### Memory Hogs
+
+```bash
+# Top 10 memory consumers
+ps aux --sort=-%mem | head -10
+
+# Detailed memory breakdown per process
+ps aux | awk '{print $11, $6}' | sort -k2 -n -r | head -10
+
+# Show processes using > 10% memory
+ps aux | awk '$4 > 10.0 {print $0}'
+```
+
+### OOM (Out of Memory) Killer Logs
+
+```bash
+# Check if OOM killer has run
+dmesg | grep -i "out of memory"
+
+# View OOM killed processes
+grep -i "killed process" /var/log/syslog
+# OR
+grep -i "killed process" /var/log/messages
+```
+
+---
+
+## Disk I/O Monitoring
+
+### Disk Usage
+
+```bash
+# Disk space by filesystem
+df -h
+
+# Disk space with inode information
+df -hi
+
+# Specific directory size
+du -sh /var/log
+
+# Find large directories
+du -h /var | sort -rh | head -10
+
+# Find large files
+find / -type f -size +100M -exec ls -lh {} \; 2>/dev/null | head -10
+```
+
+### Disk I/O Performance
+
+```bash
+# Real-time disk I/O statistics
+iostat -x 1
+
+# Monitor specific disk
+iostat -x /dev/sda 1
+
+# Key metrics:
+# - %util: Percentage of time disk was busy (>80% = bottleneck)
+# - await: Average wait time (ms) for I/O requests
+# - r/s: Read requests per second
+# - w/s: Write requests per second
+```
+
+**Install sysstat:**
+```bash
+sudo apt install sysstat
+```
+
+### Find Processes Using Disk I/O
+
+```bash
+# Real-time disk I/O by process
+sudo iotop
+
+# Sort by I/O usage
+sudo iotop -o
+
+# Batch mode
+sudo iotop -b -n 3
+```
+
+**Install iotop:**
+```bash
+sudo apt install iotop      # Debian/Ubuntu
+sudo yum install iotop      # CentOS/RHEL
+```
+
+### Check for Disk Errors
+
+```bash
+# Check system log for disk errors
+dmesg | grep -i error
+
+# SMART disk health (requires smartmontools)
+sudo smartctl -a /dev/sda
+
+# Check filesystem errors
+sudo fsck -n /dev/sda1  # -n = dry run (no changes)
+```
+
+---
+
+## Network Monitoring
+
+### Network Interfaces
+
+```bash
+# Show network interfaces
+ip addr show
+
+# OR
+ifconfig
+
+# Show only active interfaces
+ip link show up
+```
+
+### Network Traffic
+
+```bash
+# Real-time network usage by interface
+ifstat 1
+
+# Detailed network statistics
+netstat -i
+
+# Monitor bandwidth by process
+sudo nethogs
+
+# Monitor bandwidth by interface
+sudo iftop -i eth0
+```
+
+**Install network monitoring tools:**
+```bash
+sudo apt install ifstat nethogs iftop    # Debian/Ubuntu
+sudo yum install iftop nethogs           # CentOS/RHEL
+```
+
+### Network Connections
+
+```bash
+# Active connections
+netstat -tuln
+
+# OR (newer)
+ss -tuln
+
+# Connections by state
+ss -s
+
+# Show process using port
+sudo netstat -tulpn | grep :80
+sudo ss -tulpn | grep :80
+
+# Count connections per state
+ss -s | grep TCP
+```
+
+### Bandwidth Usage
+
+```bash
+# Total data transferred per interface
+cat /proc/net/dev
+
+# Real-time bandwidth monitor
+nload
+
+# Per-process network usage
+sudo nethogs eth0
+```
+
+---
+
+## System Logs
+
+### View System Logs
+
+```bash
+# Recent system messages
+dmesg | tail -50
+
+# Real-time system log
+sudo tail -f /var/log/syslog     # Debian/Ubuntu
+sudo tail -f /var/log/messages   # CentOS/RHEL
+
+# Kernel messages
+sudo journalctl -k
+
+# Boot messages
+sudo journalctl -b
+
+# Follow live log
+sudo journalctl -f
+```
+
+### Search Logs
+
+```bash
+# Search for errors
+sudo grep -i error /var/log/syslog
+
+# Search for specific service
+sudo grep -i nginx /var/log/syslog
+
+# Search with context (10 lines before/after)
+sudo grep -i -C 10 "error" /var/log/syslog
+```
+
+---
+
+## All-in-One Monitoring Tools
+
+### glances - Comprehensive System Monitor
+
+```bash
+# Install glances
+sudo apt install glances    # Debian/Ubuntu
+sudo yum install glances    # CentOS/RHEL
+
+# Run glances
+glances
+
+# Export to CSV
+glances --export csv --export-csv-file /tmp/glances.csv
+
+# Web interface
+glances -w
+# Access at: http://localhost:61208
+```
+
+**Features:**
+- CPU, memory, disk, network in one view
+- Process list
+- Disk I/O
+- Filesystem usage
+- Sensors (temperature)
+- Docker container monitoring
+
+### nmon - Performance Monitor
+
+```bash
+# Install nmon
+sudo apt install nmon
+
+# Run nmon
+nmon
+
+# Interactive keys:
+# c: CPU stats
+# m: Memory stats
+# d: Disk stats
+# n: Network stats
+# t: Top processes
+# q: Quit
+```
+
+---
+
+## Performance Baselines
+
+### Create Performance Baseline
+
+```bash
+#!/bin/bash
+# /usr/local/bin/performance-baseline.sh
+
+LOGFILE="/var/log/performance-baseline-$(date +%Y%m%d).log"
+
+echo "===== Performance Baseline: $(date) =====" > "$LOGFILE"
+
+echo -e "\n--- CPU Info ---" >> "$LOGFILE"
+lscpu >> "$LOGFILE"
+
+echo -e "\n--- Load Average ---" >> "$LOGFILE"
+uptime >> "$LOGFILE"
+
+echo -e "\n--- Memory Usage ---" >> "$LOGFILE"
+free -h >> "$LOGFILE"
+
+echo -e "\n--- Disk Usage ---" >> "$LOGFILE"
+df -h >> "$LOGFILE"
+
+echo -e "\n--- Disk I/O ---" >> "$LOGFILE"
+iostat -x >> "$LOGFILE"
+
+echo -e "\n--- Network Stats ---" >> "$LOGFILE"
+netstat -i >> "$LOGFILE"
+
+echo -e "\n--- Top Processes (CPU) ---" >> "$LOGFILE"
+ps aux --sort=-%cpu | head -10 >> "$LOGFILE"
+
+echo -e "\n--- Top Processes (Memory) ---" >> "$LOGFILE"
+ps aux --sort=-%mem | head -10 >> "$LOGFILE"
+```
+
+**Schedule daily baseline:**
+```bash
+sudo crontab -e
+
+# Add:
+0 6 * * * /usr/local/bin/performance-baseline.sh
+```
+
+---
+
+## Performance Alerts
+
+### CPU Alert Script
+
+```bash
+#!/bin/bash
+# Alert if CPU usage > 80%
+
+CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+THRESHOLD=80
+
+if (( $(echo "$CPU_USAGE > $THRESHOLD" | bc -l) )); then
+    echo "HIGH CPU USAGE: ${CPU_USAGE}% on $(hostname)" | \
+        mail -s "CPU Alert" admin@example.com
+fi
+```
+
+### Memory Alert Script
+
+```bash
+#!/bin/bash
+# Alert if memory usage > 90%
+
+MEMORY_USAGE=$(free | grep Mem | awk '{print ($3/$2) * 100.0}')
+THRESHOLD=90
+
+if (( $(echo "$MEMORY_USAGE > $THRESHOLD" | bc -l) )); then
+    echo "HIGH MEMORY USAGE: ${MEMORY_USAGE}% on $(hostname)" | \
+        mail -s "Memory Alert" admin@example.com
+fi
+```
+
+### Disk Space Alert
+
+```bash
+#!/bin/bash
+# Alert if disk usage > 85%
+
+df -H | grep -vE '^Filesystem|tmpfs|cdrom' | awk '{ print $5 " " $1 }' | while read output;
+do
+    USAGE=$(echo $output | awk '{ print $1}' | cut -d'%' -f1)
+    PARTITION=$(echo $output | awk '{ print $2 }')
+
+    if [ $USAGE -ge 85 ]; then
+        echo "DISK SPACE LOW: $PARTITION is ${USAGE}% full on $(hostname)" | \
+            mail -s "Disk Alert" admin@example.com
+    fi
+done
+```
+
+---
+
+## Troubleshooting Performance Issues
+
+### High CPU Usage
+
+**Identify culprit:**
+```bash
+# Find process using most CPU
+top -b -n 1 | head -20
+
+# If specific process is high:
+# 1. Check if it's legitimate
+ps aux | grep [process_name]
+
+# 2. Check process logs
+sudo journalctl -u [service_name]
+
+# 3. Kill if necessary
+sudo kill -15 [PID]      # Graceful
+sudo kill -9 [PID]       # Force kill
+```
+
+### High Memory Usage
+
+**Find memory leak:**
+```bash
+# Monitor process memory over time
+watch "ps aux --sort=-%mem | head -10"
+
+# Check for memory leaks in application logs
+# Restart service if needed
+sudo systemctl restart [service_name]
+```
+
+### Disk I/O Bottleneck
+
+**Identify:**
+```bash
+# Check %util column (>80% = bottleneck)
+iostat -x 1
+
+# Find process causing I/O
+sudo iotop -o
+
+# Solutions:
+# - Upgrade to SSD
+# - Add more RAM (increase cache)
+# - Optimize application queries
+# - Move I/O to different disk
+```
+
+### Network Saturation
+
+**Identify:**
+```bash
+# Check bandwidth usage
+sudo iftop -i eth0
+
+# Find process using bandwidth
+sudo nethogs eth0
+
+# Solutions:
+# - Rate limit applications
+# - Upgrade network interface
+# - Implement QoS
+```
+
+---
+
+## Quick Reference
+
+```bash
+# CPU
+top                    # Real-time process monitor
+htop                   # Enhanced process viewer
+mpstat 1               # CPU statistics
+uptime                 # Load average
+nproc                  # Number of CPUs
+
+# Memory
+free -h                # Memory usage
+ps aux --sort=-%mem    # Memory hogs
+
+# Disk
+df -h                  # Disk space
+du -sh /var            # Directory size
+iostat -x 1            # Disk I/O
+sudo iotop             # I/O by process
+
+# Network
+ifconfig               # Network interfaces
+ss -tuln               # Active connections
+sudo nethogs           # Bandwidth by process
+sudo iftop             # Bandwidth monitor
+
+# Logs
+dmesg                  # Kernel messages
+sudo journalctl -f     # Follow system log
+tail -f /var/log/syslog  # Follow syslog
+
+# All-in-one
+glances                # Comprehensive monitor
+nmon                   # Performance monitor
+```
+'''
+        })
+
         self.stdout.write(self.style.SUCCESS(f'✓ Created {len(articles)} professional KB articles'))
 
         # Create articles in database
