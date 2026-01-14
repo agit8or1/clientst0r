@@ -149,31 +149,31 @@
                     <p class="mb-3">
                         For advanced users who prefer manual updates via command line. Run these commands in order:
                     </p>
+                    <div class="alert alert-warning mb-3">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Important:</strong> Copy and run these commands <strong>ONE AT A TIME</strong>, not all at once.
+                        Wait for each command to complete before running the next one.
+                    </div>
                     <div class="bg-dark text-light p-3 rounded" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
-                        <div class="mb-2"><span class="text-success">#</span> Navigate to application directory (where manage.py is located)</div>
                         <div class="mb-2">cd /home/administrator</div>
                         <div class="mb-3"></div>
-                        <div class="mb-2"><span class="text-success">#</span> Verify you're in the correct directory</div>
-                        <div class="mb-2">ls manage.py venv/</div>
-                        <div class="mb-2"><span class="text-muted" style="font-size: 0.85em;">(Should show: manage.py and venv/ directory)</span></div>
+                        <div class="mb-2">pwd</div>
+                        <div class="mb-2"><span class="text-muted" style="font-size: 0.85em;"># Should show: /home/administrator</span></div>
                         <div class="mb-3"></div>
-                        <div class="mb-2"><span class="text-success">#</span> Pull latest updates from GitHub</div>
+                        <div class="mb-2">ls manage.py</div>
+                        <div class="mb-2"><span class="text-muted" style="font-size: 0.85em;"># Should show: manage.py (if this fails, you're in wrong directory)</span></div>
+                        <div class="mb-3"></div>
                         <div class="mb-2">git pull origin main</div>
                         <div class="mb-3"></div>
-                        <div class="mb-2"><span class="text-success">#</span> Activate virtual environment</div>
                         <div class="mb-2">source venv/bin/activate</div>
                         <div class="mb-3"></div>
-                        <div class="mb-2"><span class="text-success">#</span> Install updated dependencies</div>
                         <div class="mb-2">pip install -r requirements.txt</div>
                         <div class="mb-3"></div>
-                        <div class="mb-2"><span class="text-success">#</span> Run database migrations</div>
                         <div class="mb-2">python manage.py migrate</div>
                         <div class="mb-3"></div>
-                        <div class="mb-2"><span class="text-success">#</span> Collect static files</div>
                         <div class="mb-2">python manage.py collectstatic --noinput</div>
                         <div class="mb-3"></div>
-                        <div class="mb-2"><span class="text-success">#</span> Restart Gunicorn service</div>
-                        <div class="mb-0">sudo systemctl restart huduglue-gunicorn.service</div>
+                        <div class="mb-2">sudo systemctl restart huduglue-gunicorn.service</div>
                     </div>
                     <div class="alert alert-info mt-3 mb-0">
                         <i class="fas fa-info-circle"></i>
