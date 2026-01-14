@@ -414,9 +414,20 @@ body {
     color: var(--text-muted) !important;
 }
 
+/* Modals need highest z-index to appear above everything */
+.modal {
+    z-index: 10500 !important;
+}
+
+.modal-backdrop {
+    z-index: 10400 !important;
+}
+
 .modal-content {
     background-color: var(--card-bg) !important;
     color: var(--text-primary) !important;
+    position: relative !important;
+    z-index: 10500 !important;
 }
 
 .modal-header, .modal-footer {
@@ -427,6 +438,14 @@ body {
 .modal-body {
     background-color: var(--card-bg) !important;
     color: var(--text-primary) !important;
+}
+
+/* Ensure buttons in modals are clickable */
+.modal button,
+.modal .btn {
+    position: relative !important;
+    z-index: 10501 !important;
+    pointer-events: auto !important;
 }
 
 .dropdown-menu {
