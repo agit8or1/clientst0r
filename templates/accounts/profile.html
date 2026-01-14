@@ -95,6 +95,16 @@
                     <dt class="col-sm-3">Color Theme:</dt>
                     <dd class="col-sm-9">{{ profile.get_theme_display }}</dd>
 
+                    <dt class="col-sm-3">Background:</dt>
+                    <dd class="col-sm-9">
+                        {{ profile.get_background_mode_display }}
+                        {% if profile.background_mode == 'custom' and profile.background_image %}
+                        <br><small class="text-muted"><i class="fas fa-image"></i> Custom image uploaded</small>
+                        {% elif profile.background_mode == 'random' %}
+                        <br><small class="text-muted"><i class="fas fa-random"></i> Random from gallery</small>
+                        {% endif %}
+                    </dd>
+
                     <dt class="col-sm-3">Notifications:</dt>
                     <dd class="col-sm-9">
                         {% if profile.email_notifications %}
