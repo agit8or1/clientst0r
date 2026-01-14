@@ -323,6 +323,8 @@ body {
     border-color: var(--border-color) !important;
     box-shadow: 0 0.125rem 0.25rem var(--card-shadow) !important;
     color: var(--text-primary) !important;
+    position: relative !important;
+    z-index: 1 !important;
 }
 
 .card-header {
@@ -371,6 +373,8 @@ body {
     --bs-table-border-color: var(--border-color) !important;
     color: var(--text-primary) !important;
     background-color: var(--surface) !important;
+    position: relative !important;
+    z-index: 1 !important;
 }
 
 .table thead {
@@ -428,6 +432,8 @@ body {
 .dropdown-menu {
     background-color: var(--card-bg) !important;
     border-color: var(--border-color) !important;
+    z-index: 9999 !important;
+    position: absolute !important;
 }
 
 .dropdown-item {
@@ -437,6 +443,16 @@ body {
 
 .dropdown-item:hover {
     background-color: var(--surface-hover) !important;
+}
+
+/* Ensure navbar dropdowns are on top */
+.navbar .dropdown-menu {
+    z-index: 10000 !important;
+}
+
+/* Ensure dropdown toggle doesn't interfere */
+.dropdown {
+    position: relative !important;
 }
 
 .dropdown-item:hover {
@@ -477,6 +493,8 @@ hr {
 /* Navbar */
 .navbar {
     background-color: var(--sidebar-bg) !important;
+    position: relative !important;
+    z-index: 1000 !important;
 }
 
 .navbar-brand, .nav-link {
