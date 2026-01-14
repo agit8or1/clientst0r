@@ -11,7 +11,7 @@ argon2-cffi==23.1.*
 django-axes==6.1.*
 django-ratelimit==4.1.*
 cryptography>=43.0.0,<44.0.0  # Pinned <44 for compatibility with fresh installs
-pip-audit==2.7.*
+pip-audit==2.10.*
 
 # 2FA
 django-two-factor-auth[phonenumbers]==1.16.*
