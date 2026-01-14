@@ -4259,6 +4259,1490 @@ $volume.KeyProtector | Where-Object {$_.KeyProtectorType -eq "RecoveryPassword"}
 '''
         })
 
+        # ============================================================
+        # ACTIVE DIRECTORY (7 articles)
+        # ============================================================
+
+        articles.append({
+            'category': 'Active Directory',
+            'title': 'Create and Manage AD Users and Groups - Bulk Operations',
+            'body': '''# Create and Manage AD Users and Groups - Bulk Operations
+
+## 🎯 Overview
+Comprehensive guide for creating and managing Active Directory users and groups, including bulk operations using PowerShell and CSV imports for efficient administration.
+
+---
+
+## 📋 Prerequisites
+- Domain Admin or equivalent permissions
+- Active Directory PowerShell module installed
+- Remote Server Administration Tools (RSAT) for Windows 10/11
+- Excel or text editor for CSV preparation
+
+**Install AD Module (if needed):**
+```powershell
+# Windows 10/11 - Install RSAT
+Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0
+
+# Windows Server
+Install-WindowsFeature -Name RSAT-AD-PowerShell
+
+# Import module
+Import-Module ActiveDirectory
+```
+
+---
+
+## 👤 Creating Single AD User
+
+### Method 1: Active Directory Users and Computers (GUI)
+1. Open **Active Directory Users and Computers** (dsa.msc)
+2. Navigate to desired OU
+3. Right-click → **New** → **User**
+4. Fill in details:
+   - First name, Last name, Full name
+   - User logon name (username)
+5. Set password and password options
+6. Click **Finish**
+
+### Method 2: PowerShell (Recommended)
+```powershell
+# Create new AD user with full details
+New-ADUser -Name "John Smith" `
+    -GivenName "John" `
+    -Surname "Smith" `
+    -SamAccountName "jsmith" `
+    -UserPrincipalName "jsmith@contoso.com" `
+    -Path "OU=Users,OU=Sales,DC=contoso,DC=com" `
+    -AccountPassword (ConvertTo-SecureString "P@ssw0rd123!" -AsPlainText -Force) `
+    -Enabled $true `
+    -ChangePasswordAtLogon $true `
+    -EmailAddress "jsmith@contoso.com" `
+    -Title "Sales Manager" `
+    -Department "Sales" `
+    -Company "Contoso Inc" `
+    -Office "New York" `
+    -OfficePhone "+1-555-1234" `
+    -MobilePhone "+1-555-5678"
+
+# Verify user creation
+Get-ADUser -Identity jsmith -Properties *
+```
+
+---
+
+## 📦 Bulk User Creation from CSV
+
+### Step 1: Prepare CSV File
+Create file: **new_users.csv**
+```csv
+FirstName,LastName,Username,Email,Password,Department,Title,Office,OU
+John,Smith,jsmith,jsmith@contoso.com,P@ssw0rd123!,Sales,Sales Manager,New York,"OU=Users,OU=Sales,DC=contoso,DC=com"
+Jane,Doe,jdoe,jdoe@contoso.com,P@ssw0rd123!,IT,IT Specialist,Boston,"OU=Users,OU=IT,DC=contoso,DC=com"
+Bob,Johnson,bjohnson,bjohnson@contoso.com,P@ssw0rd123!,HR,HR Director,Chicago,"OU=Users,OU=HR,DC=contoso,DC=com"
+```
+
+### Step 2: Bulk Import Script
+```powershell
+# Import CSV and create users
+$Users = Import-Csv -Path "C:\\Temp\\new_users.csv"
+
+foreach ($User in $Users) {
+    try {
+        $Password = ConvertTo-SecureString $User.Password -AsPlainText -Force
+
+        New-ADUser `
+            -Name "$($User.FirstName) $($User.LastName)" `
+            -GivenName $User.FirstName `
+            -Surname $User.LastName `
+            -SamAccountName $User.Username `
+            -UserPrincipalName $User.Email `
+            -Path $User.OU `
+            -AccountPassword $Password `
+            -Enabled $true `
+            -ChangePasswordAtLogon $true `
+            -EmailAddress $User.Email `
+            -Department $User.Department `
+            -Title $User.Title `
+            -Office $User.Office `
+            -Company "Contoso Inc"
+
+        Write-Host "✓ Created user: $($User.Username)" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "✗ Failed to create $($User.Username): $_" -ForegroundColor Red
+    }
+}
+
+Write-Host "`n✓ Bulk user creation complete!" -ForegroundColor Cyan
+```
+
+### Step 3: Advanced Bulk Import with Error Logging
+```powershell
+# Enhanced script with logging
+$Users = Import-Csv -Path "C:\\Temp\\new_users.csv"
+$LogFile = "C:\\Temp\\user_creation_log.txt"
+$SuccessCount = 0
+$FailCount = 0
+
+foreach ($User in $Users) {
+    try {
+        # Check if user already exists
+        if (Get-ADUser -Filter "SamAccountName -eq '$($User.Username)'" -ErrorAction SilentlyContinue) {
+            $Message = "⚠ User $($User.Username) already exists - SKIPPED"
+            Write-Host $Message -ForegroundColor Yellow
+            Add-Content -Path $LogFile -Value "$Message`n"
+            continue
+        }
+
+        $Password = ConvertTo-SecureString $User.Password -AsPlainText -Force
+
+        New-ADUser `
+            -Name "$($User.FirstName) $($User.LastName)" `
+            -GivenName $User.FirstName `
+            -Surname $User.LastName `
+            -SamAccountName $User.Username `
+            -UserPrincipalName $User.Email `
+            -Path $User.OU `
+            -AccountPassword $Password `
+            -Enabled $true `
+            -ChangePasswordAtLogon $true `
+            -EmailAddress $User.Email `
+            -Department $User.Department `
+            -Title $User.Title `
+            -Office $User.Office
+
+        $Message = "✓ SUCCESS: Created user $($User.Username)"
+        Write-Host $Message -ForegroundColor Green
+        Add-Content -Path $LogFile -Value "$Message"
+        $SuccessCount++
+    }
+    catch {
+        $Message = "✗ FAILED: $($User.Username) - Error: $_"
+        Write-Host $Message -ForegroundColor Red
+        Add-Content -Path $LogFile -Value "$Message"
+        $FailCount++
+    }
+}
+
+# Summary
+$Summary = "`n========== SUMMARY ==========`nTotal: $($Users.Count) | Success: $SuccessCount | Failed: $FailCount"
+Write-Host $Summary -ForegroundColor Cyan
+Add-Content -Path $LogFile -Value $Summary
+```
+
+---
+
+## 👥 Creating and Managing AD Groups
+
+### Create Security Group
+```powershell
+# Create new security group
+New-ADGroup -Name "Sales_Team" `
+    -GroupCategory Security `
+    -GroupScope Global `
+    -DisplayName "Sales Team" `
+    -Path "OU=Groups,OU=Sales,DC=contoso,DC=com" `
+    -Description "Members of the Sales department"
+
+# Create distribution group
+New-ADGroup -Name "Company_All" `
+    -GroupCategory Distribution `
+    -GroupScope Universal `
+    -DisplayName "All Company Employees" `
+    -Path "OU=Groups,DC=contoso,DC=com" `
+    -Description "All company employees distribution list"
+```
+
+### Add Users to Groups
+```powershell
+# Add single user to group
+Add-ADGroupMember -Identity "Sales_Team" -Members "jsmith"
+
+# Add multiple users
+Add-ADGroupMember -Identity "Sales_Team" -Members "jsmith","jdoe","bjohnson"
+
+# Add all users from specific OU to group
+Get-ADUser -Filter * -SearchBase "OU=Users,OU=Sales,DC=contoso,DC=com" |
+    ForEach-Object { Add-ADGroupMember -Identity "Sales_Team" -Members $_ }
+
+# Verify group membership
+Get-ADGroupMember -Identity "Sales_Team" | Select-Object Name, SamAccountName
+```
+
+### Bulk Group Membership from CSV
+Create file: **group_members.csv**
+```csv
+GroupName,Username
+Sales_Team,jsmith
+Sales_Team,jdoe
+IT_Admins,bjohnson
+HR_Department,alice
+```
+
+```powershell
+# Import and process
+$Memberships = Import-Csv -Path "C:\\Temp\\group_members.csv"
+
+foreach ($Member in $Memberships) {
+    try {
+        Add-ADGroupMember -Identity $Member.GroupName -Members $Member.Username
+        Write-Host "✓ Added $($Member.Username) to $($Member.GroupName)" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "✗ Failed: $_" -ForegroundColor Red
+    }
+}
+```
+
+---
+
+## 🔧 Modifying Users in Bulk
+
+### Update User Properties
+```powershell
+# Update single property for all users in OU
+Get-ADUser -Filter * -SearchBase "OU=Users,OU=Sales,DC=contoso,DC=com" |
+    Set-ADUser -Company "Contoso Inc" -Office "New York"
+
+# Update from CSV
+$Updates = Import-Csv -Path "C:\\Temp\\user_updates.csv"
+# CSV: Username,Department,Title,Phone
+
+foreach ($Update in $Updates) {
+    Set-ADUser -Identity $Update.Username `
+        -Department $Update.Department `
+        -Title $Update.Title `
+        -OfficePhone $Update.Phone
+}
+```
+
+### Enable/Disable Users in Bulk
+```powershell
+# Disable users from list
+$UsersToDisable = Get-Content "C:\\Temp\\disable_users.txt"
+foreach ($User in $UsersToDisable) {
+    Disable-ADAccount -Identity $User
+    Write-Host "✓ Disabled: $User" -ForegroundColor Yellow
+}
+
+# Enable users
+$UsersToEnable = Get-Content "C:\\Temp\\enable_users.txt"
+foreach ($User in $UsersToEnable) {
+    Enable-ADAccount -Identity $User
+    Write-Host "✓ Enabled: $User" -ForegroundColor Green
+}
+```
+
+### Reset Passwords in Bulk
+```powershell
+# Reset passwords from CSV
+$PasswordResets = Import-Csv -Path "C:\\Temp\\password_resets.csv"
+# CSV: Username,NewPassword
+
+foreach ($Reset in $PasswordResets) {
+    $Password = ConvertTo-SecureString $Reset.NewPassword -AsPlainText -Force
+    Set-ADAccountPassword -Identity $Reset.Username -NewPassword $Password -Reset
+    Set-ADUser -Identity $Reset.Username -ChangePasswordAtLogon $true
+    Write-Host "✓ Password reset for: $($Reset.Username)" -ForegroundColor Green
+}
+```
+
+---
+
+## 🗑️ Removing Users and Groups
+
+### Delete Single User
+```powershell
+# Remove user (move to Deleted Objects)
+Remove-ADUser -Identity "jsmith" -Confirm:$false
+
+# Remove user permanently (skip Recycle Bin)
+Remove-ADUser -Identity "jsmith" -Confirm:$false -Permanent
+```
+
+### Bulk Delete Users
+```powershell
+# Delete users from CSV
+$UsersToDelete = Import-Csv -Path "C:\\Temp\\users_to_delete.csv"
+# CSV: Username
+
+foreach ($User in $UsersToDelete) {
+    try {
+        Remove-ADUser -Identity $User.Username -Confirm:$false
+        Write-Host "✓ Deleted: $($User.Username)" -ForegroundColor Yellow
+    }
+    catch {
+        Write-Host "✗ Failed to delete $($User.Username): $_" -ForegroundColor Red
+    }
+}
+```
+
+---
+
+## 📊 Reporting and Auditing
+
+### Export All Users to CSV
+```powershell
+# Export all user details
+Get-ADUser -Filter * -Properties * |
+    Select-Object Name, SamAccountName, EmailAddress, Department, Title, Enabled, WhenCreated |
+    Export-Csv -Path "C:\\Temp\\all_users.csv" -NoTypeInformation
+
+# Export users from specific OU
+Get-ADUser -Filter * -SearchBase "OU=Users,OU=Sales,DC=contoso,DC=com" -Properties * |
+    Export-Csv -Path "C:\\Temp\\sales_users.csv" -NoTypeInformation
+```
+
+### Find Inactive Users
+```powershell
+# Find users not logged in for 90 days
+$DaysInactive = 90
+$InactiveDate = (Get-Date).AddDays(-$DaysInactive)
+
+Get-ADUser -Filter {LastLogonDate -lt $InactiveDate -and Enabled -eq $true} `
+    -Properties LastLogonDate |
+    Select-Object Name, SamAccountName, LastLogonDate, DistinguishedName |
+    Export-Csv -Path "C:\\Temp\\inactive_users.csv" -NoTypeInformation
+```
+
+### Group Membership Report
+```powershell
+# Export all groups and their members
+$Groups = Get-ADGroup -Filter *
+$Report = @()
+
+foreach ($Group in $Groups) {
+    $Members = Get-ADGroupMember -Identity $Group
+    foreach ($Member in $Members) {
+        $Report += [PSCustomObject]@{
+            GroupName = $Group.Name
+            MemberName = $Member.Name
+            MemberType = $Member.objectClass
+        }
+    }
+}
+
+$Report | Export-Csv -Path "C:\\Temp\\group_memberships.csv" -NoTypeInformation
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Errors and Solutions
+
+**Error: "The specified account already exists"**
+```powershell
+# Check if user exists
+Get-ADUser -Filter "SamAccountName -eq 'jsmith'" -ErrorAction SilentlyContinue
+# If exists, use different username or remove old account
+```
+
+**Error: "The object name has bad syntax"**
+- Verify OU path is correct
+- Use `Get-ADOrganizationalUnit -Filter *` to list OUs
+- Ensure DN format: "OU=Users,OU=Department,DC=domain,DC=com"
+
+**Error: "Unable to contact the server"**
+```powershell
+# Test AD connection
+Test-ComputerSecureChannel -Verbose
+# Or
+nltest /sc_query:contoso.com
+```
+
+**CSV Import Issues**
+- Ensure CSV is UTF-8 encoded (Save As → Encoding: UTF-8)
+- Remove BOM (Byte Order Mark) if present
+- Verify column headers match script exactly (case-sensitive)
+
+---
+
+## ✅ Best Practices
+
+### Naming Conventions:
+- ✅ Use consistent username format (firstname.lastname or flastname)
+- ✅ Use descriptive group names with prefixes (SEC_, DL_, etc.)
+- ✅ Document naming standards in your organization
+
+### Security:
+- ✅ Never store passwords in plain text files
+- ✅ Use complex passwords meeting policy requirements
+- ✅ Force password change at first logon
+- ✅ Implement least privilege access
+- ✅ Regular audit of group memberships
+
+### Organization:
+- ✅ Use OUs to organize users by department/location
+- ✅ Apply Group Policy at OU level for efficiency
+- ✅ Keep "Disabled Users" in separate OU
+- ✅ Document OU structure
+
+### Automation:
+- ✅ Test scripts on test accounts before bulk operations
+- ✅ Always use error handling (try/catch)
+- ✅ Log all bulk operations
+- ✅ Create rollback procedures
+- ✅ Backup AD before major changes
+
+### Maintenance:
+- ✅ Review inactive accounts monthly
+- ✅ Clean up disabled accounts after 90 days
+- ✅ Audit group memberships quarterly
+- ✅ Update user properties regularly (department changes, etc.)
+
+---
+
+## 📝 Bulk Operation Checklist
+
+### Before Bulk Operations:
+- [ ] Backup Active Directory
+- [ ] Test script with 1-2 test accounts
+- [ ] Verify CSV format and data accuracy
+- [ ] Check OU paths exist
+- [ ] Ensure sufficient permissions
+- [ ] Prepare rollback plan
+
+### During Operations:
+- [ ] Monitor for errors in real-time
+- [ ] Save detailed logs
+- [ ] Take note of any failures
+- [ ] Pause if error rate is high
+
+### After Operations:
+- [ ] Verify users were created correctly
+- [ ] Test user logon with sample accounts
+- [ ] Verify group memberships
+- [ ] Review logs for any errors
+- [ ] Document changes made
+- [ ] Notify relevant stakeholders
+
+---
+
+## 🎯 Quick Reference Commands
+
+```powershell
+# List all users
+Get-ADUser -Filter * | Select Name, SamAccountName, Enabled
+
+# Find specific user
+Get-ADUser -Identity username -Properties *
+
+# List all groups
+Get-ADGroup -Filter * | Select Name, GroupScope, GroupCategory
+
+# Check group membership
+Get-ADGroupMember -Identity "GroupName"
+
+# Find user's group memberships
+Get-ADPrincipalGroupMembership -Identity username | Select Name
+
+# Count users in OU
+(Get-ADUser -Filter * -SearchBase "OU=Users,DC=contoso,DC=com").Count
+
+# Export disabled users
+Get-ADUser -Filter {Enabled -eq $false} | Export-Csv disabled_users.csv
+```
+'''
+        })
+
+        articles.append({
+            'category': 'Active Directory',
+            'title': 'Active Directory Organizational Units (OU) Best Practices',
+            'body': '''# Active Directory Organizational Units (OU) Best Practices
+
+## 🎯 Overview
+Comprehensive guide for designing, implementing, and managing Active Directory Organizational Units (OUs) for optimal administration, Group Policy application, and delegation of control.
+
+---
+
+## 📋 What are Organizational Units?
+
+**Organizational Units (OUs)** are Active Directory containers that:
+- Organize objects (users, computers, groups) hierarchically
+- Enable Group Policy application
+- Allow delegation of administrative permissions
+- Mirror business structure or IT management needs
+- Simplify object management and reporting
+
+**Key Difference from Groups:**
+- **OUs**: Used for organization and administration
+- **Groups**: Used for permissions and access control
+
+---
+
+## 🏗️ OU Design Principles
+
+### Design by Administrative Need (Recommended)
+Design OUs based on **who manages them** and **what policies apply**, not just organizational chart.
+
+**Good OU Structure:**
+```
+contoso.com
+├── Workstations
+│   ├── Desktops
+│   ├── Laptops
+│   └── Kiosks
+├── Servers
+│   ├── Domain Controllers
+│   ├── File Servers
+│   ├── Application Servers
+│   └── Database Servers
+├── Users
+│   ├── Employees
+│   ├── Contractors
+│   ├── Administrators
+│   └── Service Accounts
+├── Groups
+│   ├── Security Groups
+│   └── Distribution Lists
+└── Disabled Objects
+    ├── Disabled Users
+    └── Disabled Computers
+```
+
+### Design Considerations
+
+**1. Keep It Simple**
+- ✅ Maximum 5-7 levels deep
+- ✅ Flat where possible
+- ✅ Avoid mimicking entire org chart
+- ❌ Don't create OUs for every department if they have same policies
+
+**2. Plan for Group Policy**
+- ✅ Create OUs where different GPOs apply
+- ✅ Separate user and computer OUs
+- ✅ Consider GPO inheritance and blocking
+
+**3. Plan for Delegation**
+- ✅ Create OUs for different admin levels
+- ✅ Regional/site-based OUs for distributed administration
+- ✅ Separate privileged accounts
+
+**4. Consider Future Growth**
+- ✅ Scalable structure
+- ✅ Easy to add new sites/departments
+- ✅ Flexible for mergers/acquisitions
+
+---
+
+## 🔧 Creating and Managing OUs
+
+### Create OU (GUI Method)
+1. Open **Active Directory Users and Computers** (dsa.msc)
+2. Right-click parent container → **New** → **Organizational Unit**
+3. Enter OU name
+4. Optionally check **Protect container from accidental deletion**
+5. Click **OK**
+
+### Create OU (PowerShell)
+```powershell
+# Create single OU
+New-ADOrganizationalUnit -Name "Employees" `
+    -Path "OU=Users,DC=contoso,DC=com" `
+    -ProtectedFromAccidentalDeletion $true `
+    -Description "All employee user accounts"
+
+# Verify creation
+Get-ADOrganizationalUnit -Filter "Name -eq 'Employees'"
+```
+
+### Create Nested OU Structure
+```powershell
+# Create parent OU
+New-ADOrganizationalUnit -Name "Users" `
+    -Path "DC=contoso,DC=com" `
+    -ProtectedFromAccidentalDeletion $true
+
+# Create child OUs
+$ChildOUs = @("Employees", "Contractors", "Administrators", "Service Accounts", "Disabled Users")
+
+foreach ($OU in $ChildOUs) {
+    New-ADOrganizationalUnit -Name $OU `
+        -Path "OU=Users,DC=contoso,DC=com" `
+        -ProtectedFromAccidentalDeletion $true `
+        -Description "OU for $OU"
+    Write-Host "✓ Created OU: $OU" -ForegroundColor Green
+}
+```
+
+### Create Complete OU Structure from Script
+```powershell
+# Define OU structure
+$OUStructure = @(
+    @{Name="Workstations"; Path="DC=contoso,DC=com"; Description="All workstations"},
+    @{Name="Desktops"; Path="OU=Workstations,DC=contoso,DC=com"; Description="Desktop computers"},
+    @{Name="Laptops"; Path="OU=Workstations,DC=contoso,DC=com"; Description="Laptop computers"},
+    @{Name="Servers"; Path="DC=contoso,DC=com"; Description="All servers"},
+    @{Name="File Servers"; Path="OU=Servers,DC=contoso,DC=com"; Description="File and print servers"},
+    @{Name="Users"; Path="DC=contoso,DC=com"; Description="All user accounts"},
+    @{Name="Employees"; Path="OU=Users,DC=contoso,DC=com"; Description="Employee accounts"},
+    @{Name="Groups"; Path="DC=contoso,DC=com"; Description="All groups"},
+    @{Name="Security Groups"; Path="OU=Groups,DC=contoso,DC=com"; Description="Security groups"}
+)
+
+foreach ($OU in $OUStructure) {
+    try {
+        New-ADOrganizationalUnit -Name $OU.Name `
+            -Path $OU.Path `
+            -Description $OU.Description `
+            -ProtectedFromAccidentalDeletion $true `
+            -ErrorAction Stop
+        Write-Host "✓ Created: $($OU.Name)" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "⚠ Already exists or error: $($OU.Name)" -ForegroundColor Yellow
+    }
+}
+```
+
+---
+
+## 🗺️ Common OU Design Patterns
+
+### Pattern 1: Geographic-Based Structure
+```
+contoso.com
+├── North America
+│   ├── USA
+│   │   ├── New York
+│   │   │   ├── Users
+│   │   │   └── Computers
+│   │   └── Los Angeles
+│   │       ├── Users
+│   │       └── Computers
+│   └── Canada
+│       └── Toronto
+├── Europe
+│   ├── UK
+│   └── Germany
+└── Asia Pacific
+    └── Australia
+```
+
+**Use When:**
+- Multi-site organization
+- Different regional policies
+- Delegated regional IT teams
+
+### Pattern 2: Function-Based Structure
+```
+contoso.com
+├── Corporate
+│   ├── Sales
+│   ├── Marketing
+│   ├── Finance
+│   ├── HR
+│   └── IT
+├── Production
+│   ├── Manufacturing
+│   └── Warehouse
+└── Retail
+    ├── Stores
+    └── Distribution
+```
+
+**Use When:**
+- Different policies per business function
+- Department-based administration
+- Compliance requirements by function
+
+### Pattern 3: Hybrid Structure (Recommended)
+```
+contoso.com
+├── Admin
+│   ├── Domain Admins
+│   ├── Service Accounts
+│   └── Privileged Access Workstations
+├── Resources
+│   ├── Workstations
+│   │   ├── Standard Users
+│   │   ├── Power Users
+│   │   └── Kiosks
+│   ├── Servers
+│   │   ├── Member Servers
+│   │   └── Infrastructure
+│   └── Groups
+├── Locations
+│   ├── New York
+│   │   ├── Users
+│   │   └── Computers
+│   └── Chicago
+│       ├── Users
+│       └── Computers
+└── Quarantine
+    ├── Disabled Users
+    ├── Disabled Computers
+    └── Pending Deletion
+```
+
+**Use When:**
+- Need both geographic and functional organization
+- Complex multi-site environment
+- Mix of centralized and decentralized management
+
+---
+
+## 🔐 Delegating OU Permissions
+
+### Common Delegation Scenarios
+
+**1. Delegate User Account Management**
+```powershell
+# Allow help desk to reset passwords in specific OU
+$OU = "OU=Employees,OU=Users,DC=contoso,DC=com"
+$Group = "HelpDesk_Admins"
+
+# Using GUI:
+# Right-click OU → Delegate Control → Add group →
+# Select "Reset user passwords and force password change at next logon"
+```
+
+**PowerShell Delegation (Advanced):**
+```powershell
+# Import AD module
+Import-Module ActiveDirectory
+
+# Get OU
+$OU = Get-ADOrganizationalUnit -Identity "OU=Employees,OU=Users,DC=contoso,DC=com"
+$Group = Get-ADGroup -Identity "HelpDesk_Admins"
+
+# Get ACL
+$ACL = Get-Acl -Path "AD:$($OU.DistinguishedName)"
+
+# Create new access rule for password reset
+$PasswordResetGUID = [GUID]"00299570-246d-11d0-a768-00aa006e0529"
+$ExtendedRight = New-Object System.DirectoryServices.ActiveDirectoryAccessRule(
+    $Group.SID,
+    [System.DirectoryServices.ActiveDirectoryRights]::ExtendedRight,
+    [System.Security.AccessControl.AccessControlType]::Allow,
+    $PasswordResetGUID,
+    [DirectoryServices.ActiveDirectorySecurityInheritance]::All
+)
+
+# Apply ACL
+$ACL.AddAccessRule($ExtendedRight)
+Set-Acl -Path "AD:$($OU.DistinguishedName)" -AclObject $ACL
+
+Write-Host "✓ Delegated password reset permissions to $Group" -ForegroundColor Green
+```
+
+**2. Delegate Computer Management**
+```powershell
+# Delegate ability to join computers to domain in specific OU
+# GUI Method:
+# 1. Right-click Workstations OU → Delegate Control
+# 2. Add "Desktop_Admins" group
+# 3. Select "Join a computer to the domain"
+# 4. Select "Create, delete, and manage computer accounts"
+```
+
+**3. Delegate Group Management**
+```powershell
+# Allow group managers to modify group membership
+# GUI Method:
+# 1. Right-click Groups OU → Delegate Control
+# 2. Add "Group_Managers" group
+# 3. Select "Create, delete, and manage groups"
+# 4. Select "Modify the membership of a group"
+```
+
+---
+
+## 📊 OU Reporting and Auditing
+
+### List All OUs
+```powershell
+# Get all OUs with details
+Get-ADOrganizationalUnit -Filter * -Properties * |
+    Select-Object Name, DistinguishedName, Description, ProtectedFromAccidentalDeletion |
+    Export-Csv -Path "C:\\Temp\\all_ous.csv" -NoTypeInformation
+
+# Get OU hierarchy as tree
+Get-ADOrganizationalUnit -Filter * |
+    Select-Object @{Name="Level";Expression={($_.DistinguishedName -split ",OU=").Count}}, Name, DistinguishedName |
+    Sort-Object Level, Name |
+    Format-Table
+```
+
+### Count Objects in Each OU
+```powershell
+# Count users per OU
+Get-ADOrganizationalUnit -Filter * | ForEach-Object {
+    $OU = $_.DistinguishedName
+    $UserCount = (Get-ADUser -Filter * -SearchBase $OU -SearchScope OneLevel).Count
+    $ComputerCount = (Get-ADComputer -Filter * -SearchBase $OU -SearchScope OneLevel).Count
+
+    [PSCustomObject]@{
+        OU = $_.Name
+        Users = $UserCount
+        Computers = $ComputerCount
+        Path = $OU
+    }
+} | Export-Csv -Path "C:\\Temp\\ou_object_counts.csv" -NoTypeInformation
+```
+
+### Find Empty OUs
+```powershell
+# Find OUs with no direct objects
+Get-ADOrganizationalUnit -Filter * | ForEach-Object {
+    $OU = $_.DistinguishedName
+    $ObjectCount = (Get-ADObject -Filter * -SearchBase $OU -SearchScope OneLevel).Count
+
+    if ($ObjectCount -eq 0) {
+        [PSCustomObject]@{
+            EmptyOU = $_.Name
+            Path = $OU
+        }
+    }
+} | Format-Table -AutoSize
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Cannot Delete OU
+**Error: "Access is denied" or "The object is protected"**
+
+```powershell
+# Check if OU is protected
+Get-ADOrganizationalUnit -Identity "OU=TestOU,DC=contoso,DC=com" -Properties ProtectedFromAccidentalDeletion
+
+# Remove protection
+Set-ADOrganizationalUnit -Identity "OU=TestOU,DC=contoso,DC=com" -ProtectedFromAccidentalDeletion $false
+
+# Now delete
+Remove-ADOrganizationalUnit -Identity "OU=TestOU,DC=contoso,DC=com" -Confirm:$false
+```
+
+### Move Objects Between OUs
+```powershell
+# Move single user
+Move-ADObject -Identity "CN=John Smith,OU=OldOU,DC=contoso,DC=com" `
+    -TargetPath "OU=NewOU,DC=contoso,DC=com"
+
+# Move all users from one OU to another
+Get-ADUser -Filter * -SearchBase "OU=OldOU,DC=contoso,DC=com" -SearchScope OneLevel |
+    Move-ADObject -TargetPath "OU=NewOU,DC=contoso,DC=com"
+```
+
+### Rename OU
+```powershell
+# Rename organizational unit
+Rename-ADObject -Identity "OU=OldName,DC=contoso,DC=com" -NewName "NewName"
+
+# Verify
+Get-ADOrganizationalUnit -Filter "Name -eq 'NewName'"
+```
+
+---
+
+## ✅ Best Practices Summary
+
+### Design:
+- ✅ Design for Group Policy and delegation, not org chart
+- ✅ Keep structure simple (5-7 levels max)
+- ✅ Separate users, computers, groups into different OUs
+- ✅ Create dedicated OUs for servers, workstations, service accounts
+- ✅ Use consistent naming conventions
+
+### Security:
+- ✅ Enable "Protect from accidental deletion" on all production OUs
+- ✅ Separate privileged accounts into dedicated OUs
+- ✅ Apply principle of least privilege when delegating
+- ✅ Regular audit of delegated permissions
+- ✅ Use security groups for delegation, not individual users
+
+### Group Policy:
+- ✅ Block inheritance sparingly
+- ✅ Apply GPOs at highest appropriate level
+- ✅ Document GPO-to-OU mappings
+- ✅ Test GPOs in test OU before production
+
+### Management:
+- ✅ Document OU structure and purpose
+- ✅ Use descriptive OU names
+- ✅ Create "Disabled Objects" or "Quarantine" OU
+- ✅ Regular cleanup of empty OUs
+- ✅ Move objects, don't recreate them
+
+### Naming Conventions:
+- ✅ Use clear, descriptive names
+- ✅ Avoid special characters
+- ✅ Be consistent across environment
+- ✅ Consider using prefixes (e.g., LOC_NewYork, FUNC_Sales)
+
+---
+
+## 📝 OU Implementation Checklist
+
+### Planning Phase:
+- [ ] Document current structure (if migrating)
+- [ ] Identify GPO requirements
+- [ ] Identify delegation requirements
+- [ ] Design OU hierarchy (max 5-7 levels)
+- [ ] Define naming conventions
+- [ ] Get stakeholder approval
+
+### Implementation Phase:
+- [ ] Create OU structure in test environment
+- [ ] Test GPO application
+- [ ] Test delegation
+- [ ] Document structure
+- [ ] Create in production during maintenance window
+- [ ] Migrate objects to new structure
+
+### Post-Implementation:
+- [ ] Verify GPO application
+- [ ] Verify delegations work correctly
+- [ ] Train administrators on new structure
+- [ ] Update documentation
+- [ ] Monitor for issues
+
+### Ongoing Maintenance:
+- [ ] Monthly: Review OU object counts
+- [ ] Quarterly: Audit delegated permissions
+- [ ] Quarterly: Clean up empty OUs
+- [ ] Annually: Review structure for optimization
+- [ ] As needed: Adjust for business changes
+'''
+        })
+
+        articles.append({
+            'category': 'Active Directory',
+            'title': 'FSMO Roles - Transfer and Seize Operations',
+            'body': '''# FSMO Roles - Transfer and Seize Operations
+
+## 🎯 Overview
+Comprehensive guide for managing Active Directory Flexible Single Master Operations (FSMO) roles, including transfer procedures, seizing roles in disaster recovery, and troubleshooting FSMO-related issues.
+
+---
+
+## 📋 Understanding FSMO Roles
+
+**FSMO (Flexible Single Master Operations)** roles are special domain controller tasks that cannot be performed by multiple DCs simultaneously.
+
+### The 5 FSMO Roles
+
+**Forest-Wide Roles (1 per forest):**
+
+1. **Schema Master**
+   - Controls all updates to AD schema
+   - Required for: Schema updates, Exchange installations
+   - Location: First DC in forest (typically)
+
+2. **Domain Naming Master**
+   - Controls addition/removal of domains in forest
+   - Required for: Adding/removing domains, creating application partitions
+   - Location: First DC in forest (typically)
+
+**Domain-Wide Roles (1 per domain):**
+
+3. **PDC Emulator**
+   - Time synchronization source
+   - Password changes processed here first
+   - Receives preferential replication of password changes
+   - Group Policy central management
+   - Required for: Time sync, password resets, legacy NT4 compatibility
+   - **Most critical role**
+
+4. **RID Master**
+   - Allocates RID pools to domain controllers
+   - RIDs used to create unique SIDs for new objects
+   - Required for: Creating users, groups, computers
+
+5. **Infrastructure Master**
+   - Updates cross-domain group memberships
+   - Required for: Multi-domain environments
+   - **Should NOT be on Global Catalog server** (unless all DCs are GCs)
+
+---
+
+## 🔍 Viewing Current FSMO Role Holders
+
+### Method 1: PowerShell (Recommended)
+```powershell
+# View all FSMO roles
+Get-ADForest | Select-Object SchemaMaster, DomainNamingMaster
+Get-ADDomain | Select-Object PDCEmulator, RIDMaster, InfrastructureMaster
+
+# Comprehensive view
+$Forest = Get-ADForest
+$Domain = Get-ADDomain
+
+Write-Host "`n========== FOREST-WIDE FSMO ROLES ==========" -ForegroundColor Cyan
+Write-Host "Schema Master: $($Forest.SchemaMaster)"
+Write-Host "Domain Naming Master: $($Forest.DomainNamingMaster)"
+
+Write-Host "`n========== DOMAIN-WIDE FSMO ROLES ==========" -ForegroundColor Cyan
+Write-Host "PDC Emulator: $($Domain.PDCEmulator)"
+Write-Host "RID Master: $($Domain.RIDMaster)"
+Write-Host "Infrastructure Master: $($Domain.InfrastructureMaster)"
+```
+
+### Method 2: Using netdom
+```cmd
+netdom query fsmo
+```
+
+### Method 3: GUI Methods
+
+**View Schema Master and Domain Naming Master:**
+```powershell
+# Open Active Directory Domains and Trusts
+domain.msc
+
+# Right-click root → Operations Masters
+```
+
+**View PDC, RID, Infrastructure Master:**
+```powershell
+# Open Active Directory Users and Computers
+dsa.msc
+
+# Right-click domain → Operations Masters
+# Check all three tabs: RID, PDC, Infrastructure
+```
+
+---
+
+## 🔄 Transferring FSMO Roles (Normal Operation)
+
+**Transfer** = Graceful move when both DCs are online and healthy.
+
+### Transfer via PowerShell (Recommended)
+
+```powershell
+# Define target domain controller
+$TargetDC = "DC02.contoso.com"
+
+# Transfer PDC Emulator
+Move-ADDirectoryServerOperationMasterRole -Identity $TargetDC -OperationMasterRole PDCEmulator
+
+# Transfer RID Master
+Move-ADDirectoryServerOperationMasterRole -Identity $TargetDC -OperationMasterRole RIDMaster
+
+# Transfer Infrastructure Master
+Move-ADDirectoryServerOperationMasterRole -Identity $TargetDC -OperationMasterRole InfrastructureMaster
+
+# Transfer Schema Master
+Move-ADDirectoryServerOperationMasterRole -Identity $TargetDC -OperationMasterRole SchemaMaster
+
+# Transfer Domain Naming Master
+Move-ADDirectoryServerOperationMasterRole -Identity $TargetDC -OperationMasterRole DomainNamingMaster
+
+# Transfer ALL roles at once
+Move-ADDirectoryServerOperationMasterRole -Identity $TargetDC `
+    -OperationMasterRole PDCEmulator, RIDMaster, InfrastructureMaster, SchemaMaster, DomainNamingMaster -Force
+```
+
+### Transfer via ntdsutil (Legacy Method)
+
+```cmd
+# Run as Domain Admin
+ntdsutil
+roles
+connections
+connect to server DC02.contoso.com
+quit
+
+# Transfer specific role
+transfer pdc
+transfer rid master
+transfer infrastructure master
+transfer schema master
+transfer naming master
+
+# Exit ntdsutil
+quit
+quit
+```
+
+### Transfer via GUI
+
+**For PDC, RID, Infrastructure:**
+1. Open **Active Directory Users and Computers**
+2. Right-click domain → **Operations Masters**
+3. Select tab for role to transfer
+4. Click **Change**
+5. Confirm transfer
+
+**For Schema Master:**
+1. Register schmmgmt.dll: `regsvr32 schmmgmt.dll`
+2. Run `mmc` → Add Snap-in → Active Directory Schema
+3. Right-click **Active Directory Schema** → **Operations Master**
+4. Click **Change**
+
+**For Domain Naming Master:**
+1. Open **Active Directory Domains and Trusts**
+2. Right-click root → **Operations Masters**
+3. Click **Change**
+
+---
+
+## ⚡ Seizing FSMO Roles (Disaster Recovery)
+
+**Seize** = Forced takeover when original DC is offline/dead.
+
+### ⚠️ WARNING: Only seize roles if:
+- Original role holder is permanently offline/destroyed
+- Original role holder cannot be brought back online
+- You've confirmed old DC won't come back (metadata cleanup required)
+
+### Seize via PowerShell
+```powershell
+# Seize to target DC (use -Force for seizing)
+$TargetDC = "DC02.contoso.com"
+
+# Seize all roles
+Move-ADDirectoryServerOperationMasterRole -Identity $TargetDC `
+    -OperationMasterRole PDCEmulator, RIDMaster, InfrastructureMaster, SchemaMaster, DomainNamingMaster `
+    -Force
+
+# Seize individual role
+Move-ADDirectoryServerOperationMasterRole -Identity $TargetDC -OperationMasterRole PDCEmulator -Force
+```
+
+### Seize via ntdsutil
+```cmd
+ntdsutil
+roles
+connections
+connect to server DC02.contoso.com
+quit
+
+# Seize specific roles
+seize pdc
+seize rid master
+seize infrastructure master
+seize schema master
+seize naming master
+
+quit
+quit
+```
+
+### After Seizing Roles - CRITICAL STEPS
+
+**1. Metadata Cleanup (Remove old DC)**
+```powershell
+# Remove old DC from AD
+Remove-ADObject -Identity "CN=DC01,OU=Domain Controllers,DC=contoso,DC=com" -Recursive -Confirm:$false
+
+# Or use ntdsutil
+ntdsutil
+metadata cleanup
+connections
+connect to server DC02.contoso.com
+quit
+select operation target
+list sites
+select site 0
+list servers in site
+select server 0  # Select the failed DC
+quit
+remove selected server
+quit
+quit
+```
+
+**2. Clean DNS Records**
+```powershell
+# Remove old DC DNS records
+# In DNS Manager, delete A, CNAME records for old DC
+```
+
+**3. Check Replication**
+```powershell
+repadmin /replsummary
+repadmin /showrepl
+```
+
+---
+
+## 🎯 Common FSMO Scenarios
+
+### Scenario 1: Decommissioning a Domain Controller
+
+```powershell
+# Step 1: Check current roles
+Get-ADDomain | Select PDCEmulator, RIDMaster, InfrastructureMaster
+Get-ADForest | Select SchemaMaster, DomainNamingMaster
+
+# Step 2: Transfer any roles OFF the DC being decommissioned
+$TargetDC = "DC02.contoso.com"  # Healthy DC
+$SourceDC = "DC01.contoso.com"  # DC being removed
+
+# Check which roles DC01 holds
+if ((Get-ADDomain).PDCEmulator -like "*DC01*") {
+    Move-ADDirectoryServerOperationMasterRole -Identity $TargetDC -OperationMasterRole PDCEmulator
+}
+
+# Repeat for all 5 roles...
+
+# Step 3: Demote the DC properly
+# On DC01:
+Uninstall-WindowsFeature -Name AD-Domain-Services
+```
+
+### Scenario 2: Primary DC Failed Catastrophically
+
+```powershell
+# Emergency procedure - PDC failed and cannot be recovered
+
+# Step 1: Seize PDC role to surviving DC
+$NewPDC = "DC02.contoso.com"
+Move-ADDirectoryServerOperationMasterRole -Identity $NewPDC -OperationMasterRole PDCEmulator -Force
+
+# Step 2: Seize other roles if also on failed DC
+Move-ADDirectoryServerOperationMasterRole -Identity $NewPDC `
+    -OperationMasterRole RIDMaster, InfrastructureMaster, SchemaMaster, DomainNamingMaster -Force
+
+# Step 3: Metadata cleanup
+ntdsutil
+metadata cleanup
+remove selected server
+# Follow prompts...
+
+# Step 4: Force replication
+repadmin /syncall /AdeP
+```
+
+### Scenario 3: Upgrading Domain Controllers
+
+```powershell
+# Best practice: Move roles to stable DC during upgrades
+
+# Before upgrade:
+Move-ADDirectoryServerOperationMasterRole -Identity "DC02.contoso.com" `
+    -OperationMasterRole PDCEmulator, RIDMaster, InfrastructureMaster, SchemaMaster, DomainNamingMaster
+
+# Upgrade DC01 (install updates, reboot, etc.)
+
+# After upgrade (optional - move roles back):
+Move-ADDirectoryServerOperationMasterRole -Identity "DC01.contoso.com" `
+    -OperationMasterRole PDCEmulator, RIDMaster, InfrastructureMaster, SchemaMaster, DomainNamingMaster
+```
+
+---
+
+## 🔧 Troubleshooting FSMO Issues
+
+### Problem: Cannot Create Users/Groups
+**Cause:** RID Master unavailable or RID pool exhausted
+
+```powershell
+# Check RID Master availability
+dcdiag /test:ridmanager /v
+
+# Check RID pool allocation
+dcdiag /test:frssysvol /v
+
+# View current RID usage on DC
+Get-ADDomainController -Identity $env:COMPUTERNAME |
+    Select-Object -ExpandProperty RIDAvailablePool
+```
+
+**Solution:**
+- Verify RID Master is online and replicating
+- If RID Master is dead, seize role to healthy DC
+- Request new RID pool if exhausted
+
+### Problem: Time Synchronization Issues
+**Cause:** PDC Emulator issues or time source misconfiguration
+
+```powershell
+# Check PDC Emulator
+Get-ADDomain | Select PDCEmulator
+
+# Check time source on PDC
+w32tm /query /source
+
+# Configure PDC to sync with external source
+w32tm /config /manualpeerlist:"time.windows.com,time.nist.gov" /syncfromflags:manual /reliable:yes /update
+net stop w32time
+net start w32time
+w32tm /resync /force
+
+# Other DCs should sync from PDC automatically
+```
+
+### Problem: Group Policy Not Updating
+**Cause:** PDC Emulator unavailable
+
+```powershell
+# Verify PDC is online
+Test-Connection -ComputerName (Get-ADDomain).PDCEmulator -Count 2
+
+# Force GPO replication
+gpupdate /force
+
+# Check GP replication from PDC
+dcdiag /test:netlogons
+```
+
+### Problem: "RID Pool Unavailable" Errors
+
+```powershell
+# Request new RID pool allocation
+dcdiag /test:ridmanager /v
+
+# Check RID Master connectivity
+nltest /server:RID-Master-DC /sc_query:contoso.com
+
+# If RID Master is unreachable, consider seizing role
+```
+
+### Problem: Schema Update Fails
+**Cause:** Schema Master unavailable or connectivity issues
+
+```powershell
+# Verify Schema Master
+Get-ADForest | Select SchemaMaster
+
+# Test connectivity
+Test-NetConnection -ComputerName (Get-ADForest).SchemaMaster -Port 389
+
+# Check schema version
+Get-ADObject (Get-ADRootDSE).schemaNamingContext -Property objectVersion
+```
+
+---
+
+## 📊 FSMO Health Checks
+
+### Daily Monitoring Script
+```powershell
+# FSMO Health Check Script
+$Forest = Get-ADForest
+$Domain = Get-ADDomain
+
+Write-Host "=== FSMO ROLE HOLDERS ===" -ForegroundColor Cyan
+Write-Host "Schema Master: $($Forest.SchemaMaster)" -ForegroundColor $(if (Test-Connection $Forest.SchemaMaster -Count 1 -Quiet) {"Green"} else {"Red"})
+Write-Host "Domain Naming Master: $($Forest.DomainNamingMaster)" -ForegroundColor $(if (Test-Connection $Forest.DomainNamingMaster -Count 1 -Quiet) {"Green"} else {"Red"})
+Write-Host "PDC Emulator: $($Domain.PDCEmulator)" -ForegroundColor $(if (Test-Connection $Domain.PDCEmulator -Count 1 -Quiet) {"Green"} else {"Red"})
+Write-Host "RID Master: $($Domain.RIDMaster)" -ForegroundColor $(if (Test-Connection $Domain.RIDMaster -Count 1 -Quiet) {"Green"} else {"Red"})
+Write-Host "Infrastructure Master: $($Domain.InfrastructureMaster)" -ForegroundColor $(if (Test-Connection $Domain.InfrastructureMaster -Count 1 -Quiet) {"Green"} else {"Red"})
+
+# Check FSMO connectivity
+$FSMOServers = @($Forest.SchemaMaster, $Forest.DomainNamingMaster, $Domain.PDCEmulator, $Domain.RIDMaster, $Domain.InfrastructureMaster) | Select-Object -Unique
+
+foreach ($Server in $FSMOServers) {
+    $Result = Test-Connection -ComputerName $Server -Count 1 -Quiet
+    if (-not $Result) {
+        Write-Host "⚠ WARNING: Cannot reach $Server" -ForegroundColor Red
+    }
+}
+```
+
+### FSMO Diagnostic Commands
+```powershell
+# Comprehensive FSMO diagnostics
+dcdiag /test:fsmocheck
+dcdiag /test:knowns ofroleholders
+
+# Replication status
+repadmin /showrepl
+
+# FSMO-specific tests
+dcdiag /test:ridmanager /v
+dcdiag /test:systemlog /v
+```
+
+---
+
+## ✅ Best Practices
+
+### Placement:
+- ✅ Keep PDC Emulator on most reliable, performant DC
+- ✅ PDC should have best network connectivity
+- ✅ Infrastructure Master should NOT be on Global Catalog (unless all DCs are GCs)
+- ✅ Consider placing all 5 roles on same DC in small environments (<5 DCs)
+- ✅ Distribute roles in large environments for load balancing
+
+### Operations:
+- ✅ Always TRANSFER roles when possible (don't seize unless emergency)
+- ✅ Document current role holders
+- ✅ Monitor FSMO holder availability
+- ✅ Transfer roles off DC before maintenance
+- ✅ Perform metadata cleanup after seizing roles
+
+### Disaster Recovery:
+- ✅ Maintain at least 2 DCs per domain
+- ✅ Regular AD backups (System State)
+- ✅ Document FSMO transfer procedures
+- ✅ Practice FSMO seizure in lab environment
+- ✅ Monitor replication health daily
+
+### Security:
+- ✅ Limit who can transfer/seize FSMO roles (Domain/Enterprise Admins)
+- ✅ Audit FSMO role changes
+- ✅ Protect FSMO role holders with AV, patching, monitoring
+- ✅ Separate FSMO roles from resource-intensive roles if possible
+
+---
+
+## 📝 FSMO Operations Checklist
+
+### Before Transferring Roles:
+- [ ] Verify target DC is healthy and replicating
+- [ ] Check target DC has sufficient resources
+- [ ] Document current role holders
+- [ ] Notify team of planned change
+- [ ] Schedule during maintenance window
+- [ ] Ensure target DC has network connectivity
+
+### Transfer Process:
+- [ ] Verify replication is current
+- [ ] Transfer roles using PowerShell or GUI
+- [ ] Verify roles moved successfully
+- [ ] Test affected services (time sync, GP, user creation)
+- [ ] Force replication across all DCs
+- [ ] Update documentation
+
+### After Transfer:
+- [ ] Run dcdiag /test:fsmocheck
+- [ ] Verify replication with repadmin /showrepl
+- [ ] Test user/group creation (RID Master)
+- [ ] Test GPO updates (PDC Emulator)
+- [ ] Monitor for 24-48 hours
+
+### Emergency Seizure (Disaster Recovery):
+- [ ] Confirm original DC is permanently offline
+- [ ] Seize roles to healthy DC
+- [ ] Perform metadata cleanup
+- [ ] Clean DNS records
+- [ ] Force AD replication
+- [ ] Verify all services operational
+- [ ] Document incident
+- [ ] Plan for rebuilding failed DC (if applicable)
+
+---
+
+## 🎯 Quick Reference
+
+```powershell
+# View all roles
+Get-ADForest | Select SchemaMaster, DomainNamingMaster
+Get-ADDomain | Select PDCEmulator, RIDMaster, InfrastructureMaster
+
+# Transfer all roles
+Move-ADDirectoryServerOperationMasterRole -Identity "DC02" `
+    -OperationMasterRole PDCEmulator,RIDMaster,InfrastructureMaster,SchemaMaster,DomainNamingMaster
+
+# Seize all roles (emergency)
+Move-ADDirectoryServerOperationMasterRole -Identity "DC02" `
+    -OperationMasterRole PDCEmulator,RIDMaster,InfrastructureMaster,SchemaMaster,DomainNamingMaster -Force
+
+# Health check
+dcdiag /test:fsmocheck
+repadmin /showrepl
+```
+'''
+        })
+
         self.stdout.write(self.style.SUCCESS(f'✓ Created {len(articles)} professional KB articles'))
 
         # Create articles in database
