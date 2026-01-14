@@ -1,0 +1,17 @@
+[Unit]
+Description=Run HuduGlue password breach scanning daily
+Requires=huduglue-breach-scan.service
+
+[Timer]
+# Run daily at 2 AM
+OnCalendar=daily
+OnCalendar=*-*-* 02:00:00
+
+# Run on boot if missed
+Persistent=true
+
+# Random delay to avoid peak times
+RandomizedDelaySec=1800
+
+[Install]
+WantedBy=timers.target

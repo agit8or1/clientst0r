@@ -1544,11 +1544,2720 @@ Get-AuthenticodeSignature -FilePath "C:\\path\\to\\update.msu"
 '''
         })
 
-        # Add more articles for other categories
-        # I'll create a comprehensive set covering all requested areas
+        # ============================================================
+        # WINDOWS ADMINISTRATION (6 more articles)
+        # ============================================================
 
-        # Due to character limits, I'll create a compact but comprehensive version
-        # This is a starting point that can be expanded
+        articles.append({
+            'category': 'Windows Administration',
+            'title': 'Remote Desktop Services Configuration and Troubleshooting',
+            'body': '''# Remote Desktop Services Configuration
+
+## 🎯 Overview
+Complete guide to configuring Remote Desktop Services (RDS) on Windows Server and troubleshooting common RDP connection issues.
+
+---
+
+## 🔒 Prerequisites
+
+- Windows Server 2016/2019/2022 or Windows 10/11 Pro
+- Administrator privileges
+- Static IP address (recommended for servers)
+- Open firewall ports (3389)
+
+---
+
+## 📝 Enable Remote Desktop
+
+### Windows Server
+
+```powershell
+# Enable Remote Desktop via PowerShell
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server' -Name "fDenyTSConnections" -Value 0
+
+# Enable Remote Desktop with Network Level Authentication
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name "UserAuthentication" -Value 1
+
+# Enable Remote Desktop firewall rule
+Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+# Verify RDP service is running
+Get-Service TermService | Start-Service
+Set-Service -Name TermService -StartupType Automatic
+```
+
+### Windows 10/11 Pro
+
+```powershell
+# Enable RDP via PowerShell
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server' -Name "fDenyTSConnections" -Value 0
+
+# Enable firewall rule
+Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+# Or via GUI:
+# Settings → System → Remote Desktop → Enable
+```
+
+---
+
+## 🔧 Configure Remote Desktop Settings
+
+### Allow Specific Users
+
+```powershell
+# Add user to Remote Desktop Users group
+Add-LocalGroupMember -Group "Remote Desktop Users" -Member "DOMAIN\\username"
+
+# Or local user
+Add-LocalGroupMember -Group "Remote Desktop Users" -Member "localuser"
+
+# Verify members
+Get-LocalGroupMember -Group "Remote Desktop Users"
+```
+
+### Configure RDP Port (Security Hardening)
+
+```powershell
+# Change RDP port from default 3389 to custom (e.g., 33890)
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name "PortNumber" -Value 33890
+
+# Update firewall rule
+New-NetFirewallRule -DisplayName "RDP Custom Port" -Direction Inbound -LocalPort 33890 -Protocol TCP -Action Allow
+
+# Restart RDP service
+Restart-Service TermService
+
+# Connect using: mstsc /v:servername:33890
+```
+
+### Configure Session Timeout
+
+```powershell
+# Set idle session timeout (in milliseconds)
+# 30 minutes = 1800000 ms
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name "MaxIdleTime" -Value 1800000
+
+# Set disconnected session timeout
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name "MaxDisconnectionTime" -Value 1800000
+```
+
+### Configure Maximum Connections
+
+```powershell
+# Set maximum RDP connections (default: 2 for Workstation, unlimited for Server)
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server' -Name "MaxInstanceCount" -Value 5
+```
+
+---
+
+## 🛡️ Security Best Practices
+
+### Enable Network Level Authentication (NLA)
+
+```powershell
+# Require NLA (recommended for security)
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name "UserAuthentication" -Value 1
+
+# Disable NLA (less secure, allows older clients)
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name "UserAuthentication" -Value 0
+```
+
+### Require Strong Encryption
+
+```powershell
+# Set encryption level to High
+# 1=Low, 2=Client Compatible, 3=High, 4=FIPS Compliant
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name "MinEncryptionLevel" -Value 3
+```
+
+### Configure Account Lockout
+
+```powershell
+# Set account lockout policy
+net accounts /lockoutthreshold:5 /lockoutduration:30 /lockoutwindow:30
+
+# lockoutthreshold: 5 invalid attempts
+# lockoutduration: 30 minutes locked
+# lockoutwindow: 30 minutes to track attempts
+```
+
+### Use RDP Gateway (Recommended for External Access)
+
+1. Install RDP Gateway role on Windows Server
+2. Configure SSL certificate
+3. Configure Connection Authorization Policies (CAP)
+4. Configure Resource Authorization Policies (RAP)
+
+---
+
+## 🔧 Troubleshooting Common RDP Issues
+
+### Issue 1: Cannot Connect - "Remote Desktop Can't Connect"
+
+**Solutions:**
+
+```powershell
+# 1. Check if Remote Desktop is enabled
+Get-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server' -Name "fDenyTSConnections"
+# Should return: 0 (enabled)
+
+# 2. Check RDP service status
+Get-Service TermService
+# Should be: Running
+
+# 3. Verify firewall rules
+Get-NetFirewallRule -DisplayGroup "Remote Desktop" | Where-Object {$_.Enabled -eq "True"}
+
+# 4. Test network connectivity
+Test-NetConnection -ComputerName servername -Port 3389
+
+# 5. Check Windows Firewall
+netsh advfirewall firewall show rule name="Remote Desktop"
+```
+
+### Issue 2: "This computer can't connect to the remote computer"
+
+**Cause:** Network connectivity or firewall issues
+
+```powershell
+# Test RDP port connectivity
+Test-NetConnection -ComputerName 192.168.1.100 -Port 3389
+
+# If fails, check:
+# - Firewall on target computer
+# - Network connectivity (ping)
+# - Correct IP/hostname
+# - VPN connection (if remote)
+
+# Flush DNS cache
+ipconfig /flushdns
+
+# Reset network adapter
+netsh int ip reset
+netsh winsock reset
+```
+
+### Issue 3: "Your credentials did not work"
+
+```powershell
+# Solutions:
+
+# 1. Verify user is in Remote Desktop Users group
+Get-LocalGroupMember -Group "Remote Desktop Users"
+
+# 2. Add user to RDP group
+Add-LocalGroupMember -Group "Remote Desktop Users" -Member "username"
+
+# 3. Check account lockout status
+net user username | findstr "Locked"
+
+# 4. Unlock account
+net user username /active:yes
+
+# 5. Verify NLA setting matches client capability
+Get-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name "UserAuthentication"
+```
+
+### Issue 4: "The remote session was disconnected because there are no Remote Desktop client access licenses"
+
+```powershell
+# For Windows Server:
+# This means RDS licensing is not configured or expired
+
+# Install RDS Licensing role:
+Install-WindowsFeature -Name RDS-Licensing -IncludeManagementTools
+
+# Activate license server via Server Manager → Remote Desktop Services
+
+# For Workstation (Windows 10/11):
+# Limited to 1 RDP connection at a time
+# Use concurrent RDP patcher or upgrade to Server OS
+```
+
+### Issue 5: "Remote Desktop Services is currently busy"
+
+```powershell
+# Restart Terminal Services
+Restart-Service TermService -Force
+
+# If persists, reboot server
+# Or kill hung RDP sessions:
+qwinsta  # List sessions
+logoff [session_id]  # Log off specific session
+```
+
+### Issue 6: Black Screen After RDP Connection
+
+**Solutions:**
+
+1. **Disable Bitmap Caching:**
+   - RDP connection → Show Options → Experience → Uncheck "Persistent bitmap caching"
+
+2. **Update Display Drivers:**
+   ```powershell
+   # Update all drivers
+   Get-WindowsDriver -Online -All
+   ```
+
+3. **Reset RDP Session:**
+   ```powershell
+   # Kill explorer.exe and restart
+   taskkill /f /im explorer.exe
+   start explorer.exe
+   ```
+
+---
+
+## 📊 Monitor RDP Sessions
+
+### View Active Sessions
+
+```powershell
+# List all RDP sessions
+query session
+
+# Or using PowerShell
+qwinsta
+
+# Output example:
+# SESSIONNAME       USERNAME                 ID  STATE   TYPE
+# services                                    0  Disc
+# console           Administrator             1  Active
+# rdp-tcp#1         john.doe                  2  Active
+```
+
+### Disconnect Session
+
+```powershell
+# Disconnect specific session (keeps programs running)
+tsdiscon [session_id]
+
+# Logoff session (closes programs)
+logoff [session_id]
+
+# Force disconnect all RDP sessions
+qwinsta | findstr "rdp" | ForEach-Object {
+    $sessionId = ($_ -split '\\s+')[2]
+    logoff $sessionId
+}
+```
+
+### View RDP Connection Logs
+
+```powershell
+# Check RDP connection event logs
+Get-EventLog -LogName Microsoft-Windows-TerminalServices-LocalSessionManager/Operational -Newest 50 |
+    Where-Object {$_.EventID -in @(21,24,25)} |
+    Select-Object TimeGenerated, EventID, Message
+
+# Event IDs:
+# 21 = Successful logon
+# 24 = Session disconnected
+# 25 = Session reconnected
+```
+
+---
+
+## 🎯 RDP Performance Optimization
+
+### Optimize RDP Settings for Slow Connections
+
+```powershell
+# In RDP client, go to: Experience tab
+# Select connection speed: Modem (56 kbps)
+# Uncheck:
+# - Desktop background
+# - Font smoothing
+# - Desktop composition
+# - Show window contents while dragging
+```
+
+### Enable RemoteFX (Windows Server)
+
+```powershell
+# Enables advanced graphics and USB redirection
+Enable-WindowsOptionalFeature -Online -FeatureName "RemoteFX-Compression"
+```
+
+### Adjust Video Quality
+
+```powershell
+# Set visual quality mode
+# 0=High, 1=Medium, 2=Low
+Set-ItemProperty -Path 'HKLM:\\Software\\Policies\\Microsoft\\Windows NT\\Terminal Services' -Name "ColorDepth" -Value 2
+```
+
+---
+
+## ✅ RDP Security Checklist
+
+- [ ] Enable Network Level Authentication (NLA)
+- [ ] Change RDP port from default 3389
+- [ ] Implement account lockout policy
+- [ ] Use strong encryption (High or FIPS)
+- [ ] Restrict RDP access to specific users/groups
+- [ ] Enable RDP connection logging
+- [ ] Use RDP Gateway for external connections
+- [ ] Implement multi-factor authentication
+- [ ] Regular security audits of RDP logs
+- [ ] Keep Windows updated with latest patches
+- [ ] Use VPN for remote RDP access
+- [ ] Disable RDP when not needed
+'''
+        })
+
+        articles.append({
+            'category': 'Windows Administration',
+            'title': 'Windows Event Viewer and Log Analysis',
+            'body': '''# Windows Event Viewer and Log Analysis
+
+## 🎯 Overview
+Comprehensive guide to using Event Viewer for troubleshooting, monitoring system health, and security auditing.
+
+---
+
+## 📋 Understanding Event Logs
+
+### Event Log Types
+
+1. **Application Log** - Application events (errors, warnings, information)
+2. **Security Log** - Security and audit events (logon, file access)
+3. **System Log** - Windows system component events
+4. **Setup Log** - Windows setup and update events
+5. **Forwarded Events** - Events from remote computers
+
+### Event Levels
+
+- **Critical** 🔴 - Major failure (system crash, service failure)
+- **Error** 🔴 - Significant problem (application error, hardware failure)
+- **Warning** 🟡 - Not critical but may indicate future problem
+- **Information** ⚪ - Successful operation
+- **Verbose** 🔵 - Detailed diagnostic info
+
+---
+
+## 🚀 Access Event Viewer
+
+### Using GUI
+
+```powershell
+# Launch Event Viewer
+eventvwr.msc
+
+# Or from Run (Win + R)
+# Type: eventvwr.msc
+```
+
+### Using PowerShell
+
+```powershell
+# View recent System events
+Get-EventLog -LogName System -Newest 50
+
+# View recent Application events
+Get-EventLog -LogName Application -Newest 50
+
+# View recent Security events (requires admin)
+Get-EventLog -LogName Security -Newest 50
+```
+
+---
+
+## 🔍 Common Event IDs to Monitor
+
+### System Critical Events
+
+```powershell
+# Event ID 1074 - System restart/shutdown
+Get-EventLog -LogName System -InstanceId 1074 -Newest 20
+
+# Event ID 6008 - Unexpected shutdown
+Get-EventLog -LogName System -InstanceId 6008 -Newest 20
+
+# Event ID 41 - System rebooted without proper shutdown
+Get-WinEvent -FilterHashtable @{LogName='System'; ID=41} -MaxEvents 20
+
+# Event ID 7001 - Service dependency failure
+Get-EventLog -LogName System -InstanceId 7001 -Newest 20
+```
+
+### Security Events
+
+```powershell
+# Event ID 4624 - Successful logon
+Get-WinEvent -FilterHashtable @{LogName='Security'; ID=4624} -MaxEvents 20
+
+# Event ID 4625 - Failed logon attempt
+Get-WinEvent -FilterHashtable @{LogName='Security'; ID=4625} -MaxEvents 20
+
+# Event ID 4720 - User account created
+Get-WinEvent -FilterHashtable @{LogName='Security'; ID=4720} -MaxEvents 20
+
+# Event ID 4740 - User account locked out
+Get-WinEvent -FilterHashtable @{LogName='Security'; ID=4740} -MaxEvents 20
+```
+
+### Application Events
+
+```powershell
+# Event ID 1000 - Application crash
+Get-EventLog -LogName Application -InstanceId 1000 -Newest 20
+
+# Event ID 1002 - Application hang
+Get-EventLog -LogName Application -InstanceId 1002 -Newest 20
+```
+
+### Disk Events
+
+```powershell
+# Event ID 7 - Bad block on disk
+Get-WinEvent -FilterHashtable @{LogName='System'; ID=7; ProviderName='Disk'} -MaxEvents 20
+
+# Event ID 11 - Disk controller error
+Get-WinEvent -FilterHashtable @{LogName='System'; ID=11} -MaxEvents 20
+```
+
+---
+
+## 📊 Advanced Event Log Queries
+
+### Filter by Time Range
+
+```powershell
+# Events from last 24 hours
+$startTime = (Get-Date).AddHours(-24)
+Get-WinEvent -FilterHashtable @{
+    LogName='System'
+    Level=2,3  # Error and Warning
+    StartTime=$startTime
+}
+
+# Events between specific dates
+$start = Get-Date "2024-01-01 00:00:00"
+$end = Get-Date "2024-01-31 23:59:59"
+Get-WinEvent -FilterHashtable @{
+    LogName='System'
+    StartTime=$start
+    EndTime=$end
+}
+```
+
+### Filter by Event Source
+
+```powershell
+# Events from specific provider
+Get-WinEvent -FilterHashtable @{
+    LogName='System'
+    ProviderName='Microsoft-Windows-Kernel-Power'
+}
+
+# Disk-related events
+Get-WinEvent -FilterHashtable @{
+    LogName='System'
+    ProviderName='Disk'
+} | Select-Object TimeCreated, Id, Message
+```
+
+### Search Event Message Content
+
+```powershell
+# Search for specific text in messages
+Get-WinEvent -FilterHashtable @{LogName='System'} |
+    Where-Object {$_.Message -like "*error*"} |
+    Select-Object TimeCreated, Id, Message |
+    Format-Table -AutoSize
+```
+
+### Export Events to CSV
+
+```powershell
+# Export System errors to CSV
+Get-WinEvent -FilterHashtable @{
+    LogName='System'
+    Level=2  # Error only
+} -MaxEvents 1000 |
+    Select-Object TimeCreated, Id, LevelDisplayName, Message |
+    Export-Csv -Path "C:\\Logs\\SystemErrors.csv" -NoTypeInformation
+
+# Export Security logon failures
+Get-WinEvent -FilterHashtable @{
+    LogName='Security'
+    ID=4625
+} -MaxEvents 500 |
+    Export-Csv -Path "C:\\Logs\\FailedLogons.csv" -NoTypeInformation
+```
+
+---
+
+## 🔧 Troubleshooting Common Issues
+
+### Investigate Blue Screen of Death (BSOD)
+
+```powershell
+# Check for system crashes (Event ID 1001)
+Get-WinEvent -FilterHashtable @{
+    LogName='System'
+    ProviderName='Microsoft-Windows-WER-SystemErrorReporting'
+    ID=1001
+} | Select-Object TimeCreated, Message | Format-List
+
+# Check minidump files
+Get-ChildItem "C:\\Windows\\Minidump" | Sort-Object LastWriteTime -Descending
+
+# Analyze with WinDbg or WhoCrashed (free tool)
+```
+
+### Investigate Application Crashes
+
+```powershell
+# Find application crashes (Event ID 1000)
+Get-WinEvent -FilterHashtable @{
+    LogName='Application'
+    ProviderName='Application Error'
+    ID=1000
+} -MaxEvents 50 |
+    Select-Object TimeCreated, Message |
+    Format-List
+
+# Find faulting module
+Get-WinEvent -FilterHashtable @{
+    LogName='Application'
+    ID=1000
+} | ForEach-Object {
+    $xml = [xml]$_.ToXml()
+    [PSCustomObject]@{
+        Time = $_.TimeCreated
+        Application = $xml.Event.EventData.Data[0].'#text'
+        FaultingModule = $xml.Event.EventData.Data[3].'#text'
+    }
+} | Format-Table -AutoSize
+```
+
+### Investigate Slow Boot/Startup
+
+```powershell
+# Check boot performance
+Get-WinEvent -FilterHashtable @{
+    LogName='System'
+    ProviderName='Microsoft-Windows-Diagnostics-Performance'
+    ID=100
+} -MaxEvents 10 | Select-Object TimeCreated, Message
+
+# Startup duration (in milliseconds)
+Get-WinEvent -FilterHashtable @{
+    LogName='System'
+    ID=100
+} | ForEach-Object {
+    $xml = [xml]$_.ToXml()
+    [PSCustomObject]@{
+        Time = $_.TimeCreated
+        'Boot Duration (sec)' = [int]$xml.Event.EventData.Data[1].'#text' / 1000
+    }
+} | Format-Table -AutoSize
+```
+
+### Investigate Disk Errors
+
+```powershell
+# Check for disk errors
+Get-WinEvent -FilterHashtable @{
+    LogName='System'
+    ProviderName='Disk'
+} | Where-Object {$_.Level -le 3} |
+    Select-Object TimeCreated, Id, LevelDisplayName, Message |
+    Format-Table -Wrap
+
+# Check SMART status
+wmic diskdrive get status,model,serialnumber
+```
+
+### Track Account Lockouts
+
+```powershell
+# Find account lockout events (Event ID 4740)
+Get-WinEvent -FilterHashtable @{
+    LogName='Security'
+    ID=4740
+} -MaxEvents 50 | ForEach-Object {
+    $xml = [xml]$_.ToXml()
+    [PSCustomObject]@{
+        Time = $_.TimeCreated
+        TargetAccount = $xml.Event.EventData.Data[0].'#text'
+        CallerComputer = $xml.Event.EventData.Data[1].'#text'
+    }
+} | Format-Table -AutoSize
+
+# Find where bad password attempts originated
+Get-WinEvent -FilterHashtable @{
+    LogName='Security'
+    ID=4625
+} -MaxEvents 100 | ForEach-Object {
+    $xml = [xml]$_.ToXml()
+    [PSCustomObject]@{
+        Time = $_.TimeCreated
+        Account = $xml.Event.EventData.Data[5].'#text'
+        Workstation = $xml.Event.EventData.Data[13].'#text'
+        SourceIP = $xml.Event.EventData.Data[19].'#text'
+    }
+} | Group-Object SourceIP | Sort-Object Count -Descending
+```
+
+---
+
+## 🛡️ Security Monitoring
+
+### Monitor Administrative Activity
+
+```powershell
+# Track elevation of privileges (UAC prompts)
+Get-WinEvent -FilterHashtable @{
+    LogName='Security'
+    ID=4672  # Special privileges assigned
+} -MaxEvents 50
+
+# Track group membership changes
+Get-WinEvent -FilterHashtable @{
+    LogName='Security'
+    ID=4728,4729,4732,4733  # Member added/removed from groups
+} -MaxEvents 50
+```
+
+### Monitor File Access (Requires Auditing Enabled)
+
+```powershell
+# Enable file auditing (requires admin)
+# Computer Configuration → Windows Settings → Security Settings → Advanced Audit Policy
+# → Object Access → Audit File System (Success, Failure)
+
+# View file access events
+Get-WinEvent -FilterHashtable @{
+    LogName='Security'
+    ID=4663  # File accessed
+} -MaxEvents 100 | Select-Object TimeCreated, Message
+```
+
+### Monitor Logon/Logoff Activity
+
+```powershell
+# Successful logons with details
+Get-WinEvent -FilterHashtable @{
+    LogName='Security'
+    ID=4624
+} -MaxEvents 50 | ForEach-Object {
+    $xml = [xml]$_.ToXml()
+    [PSCustomObject]@{
+        Time = $_.TimeCreated
+        User = $xml.Event.EventData.Data[5].'#text'
+        LogonType = $xml.Event.EventData.Data[8].'#text'
+        SourceIP = $xml.Event.EventData.Data[18].'#text'
+    }
+} | Format-Table -AutoSize
+
+# Logon Type Codes:
+# 2 = Interactive (local logon)
+# 3 = Network (file share access)
+# 4 = Batch (scheduled task)
+# 5 = Service
+# 7 = Unlock
+# 10 = Remote Desktop
+# 11 = Cached credentials
+```
+
+---
+
+## 📋 Event Log Management
+
+### Configure Event Log Size
+
+```powershell
+# Increase maximum log size (in bytes)
+Limit-EventLog -LogName System -MaximumSize 512MB
+Limit-EventLog -LogName Application -MaximumSize 512MB
+Limit-EventLog -LogName Security -MaximumSize 1GB
+
+# Set retention policy
+# OverwriteAsNeeded, OverwriteOlder, DoNotOverwrite
+Limit-EventLog -LogName System -OverflowAction OverwriteAsNeeded
+```
+
+### Clear Event Logs
+
+```powershell
+# Clear specific log
+Clear-EventLog -LogName System
+
+# Clear all logs (use with caution)
+Get-EventLog -List | ForEach-Object {Clear-EventLog $_.Log}
+
+# Backup before clearing
+$backupPath = "C:\\EventLogBackups\\System_$(Get-Date -Format 'yyyyMMdd_HHmmss').evtx"
+wevtutil export-log System $backupPath
+Clear-EventLog -LogName System
+```
+
+### Archive Event Logs
+
+```powershell
+# Export to .evtx format
+$date = Get-Date -Format "yyyyMMdd"
+wevtutil export-log System "C:\\Logs\\System_$date.evtx"
+wevtutil export-log Application "C:\\Logs\\Application_$date.evtx"
+wevtutil export-log Security "C:\\Logs\\Security_$date.evtx"
+```
+
+---
+
+## 🔔 Create Custom Event Log Views
+
+### Create Filtered View in Event Viewer
+
+1. Open Event Viewer
+2. Right-click "Custom Views" → "Create Custom View"
+3. Filter by:
+   - Log: System, Application, Security
+   - Event level: Critical, Error, Warning
+   - Event IDs: Enter specific IDs
+   - Time range: Last 24 hours
+4. Save with descriptive name (e.g., "Critical System Errors")
+
+### PowerShell Custom Query
+
+```powershell
+# Create reusable query for critical issues
+$query = @'
+<QueryList>
+  <Query Id="0" Path="System">
+    <Select Path="System">*[System[(Level=1 or Level=2)]]</Select>
+  </Query>
+  <Query Id="1" Path="Application">
+    <Select Path="Application">*[System[(Level=1 or Level=2)]]</Select>
+  </Query>
+</QueryList>
+'@
+
+Get-WinEvent -FilterXml $query -MaxEvents 100 |
+    Select-Object TimeCreated, LogName, LevelDisplayName, Id, Message |
+    Format-Table -AutoSize
+```
+
+---
+
+## ✅ Event Log Best Practices
+
+### Daily Monitoring:
+- [ ] Check for Critical and Error events
+- [ ] Review Security log for failed logon attempts
+- [ ] Monitor disk-related warnings
+- [ ] Check for unexpected reboots
+
+### Weekly Tasks:
+- [ ] Review all Warning events
+- [ ] Export logs to CSV for analysis
+- [ ] Check log file sizes
+- [ ] Archive old logs
+
+### Monthly Tasks:
+- [ ] Generate security audit report
+- [ ] Review custom views and queries
+- [ ] Update log retention policies
+- [ ] Test log forwarding (if configured)
+
+### Security Auditing:
+- [ ] Enable audit policies for sensitive resources
+- [ ] Monitor privilege escalation events
+- [ ] Track administrative account usage
+- [ ] Review account lockout patterns
+- [ ] Monitor after-hours logon activity
+'''
+        })
+
+        articles.append({
+            'category': 'Windows Administration',
+            'title': 'Task Scheduler Advanced Usage and Automation',
+            'body': '''# Task Scheduler Advanced Usage
+
+## 🎯 Overview
+Master Windows Task Scheduler for automating administrative tasks, running scripts, and scheduling maintenance activities.
+
+---
+
+## 📋 Task Scheduler Basics
+
+### Launch Task Scheduler
+
+```powershell
+# Open Task Scheduler GUI
+taskschd.msc
+
+# Or via PowerShell
+Start-Process taskschd.msc
+```
+
+### Task Components
+
+- **Trigger** - When the task runs (time, event, logon, etc.)
+- **Action** - What the task does (run program, send email, show message)
+- **Conditions** - Additional requirements (AC power, network, idle)
+- **Settings** - Task behavior options (restart on failure, stop if runs too long)
+
+---
+
+## 🚀 Create Scheduled Tasks
+
+### Method 1: Using GUI
+
+1. **Open Task Scheduler** (taskschd.msc)
+2. **Right-click "Task Scheduler Library"** → Create Task
+3. **General Tab:**
+   - Name: "Daily Backup Script"
+   - Description: "Runs backup script daily"
+   - Security options: Run whether user is logged on or not
+   - Run with highest privileges (if needed)
+4. **Triggers Tab:** Add trigger (Daily at 2:00 AM)
+5. **Actions Tab:** Start a program (C:\\Scripts\\backup.ps1)
+6. **Conditions/Settings:** Configure as needed
+
+### Method 2: Using PowerShell
+
+```powershell
+# Create simple scheduled task
+$action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument '-File C:\\Scripts\\backup.ps1'
+$trigger = New-ScheduledTaskTrigger -Daily -At 2:00AM
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+
+Register-ScheduledTask -TaskName "Daily Backup" -Action $action -Trigger $trigger -Principal $principal -Description "Runs backup script daily at 2 AM"
+```
+
+### Method 3: Using SCHTASKS Command
+
+```cmd
+REM Create task to run script daily at 2 AM
+schtasks /create /tn "Daily Backup" /tr "powershell.exe -File C:\\Scripts\\backup.ps1" /sc daily /st 02:00 /ru SYSTEM /rl HIGHEST
+
+REM Explanation:
+REM /tn = Task Name
+REM /tr = Task Run (program to execute)
+REM /sc = Schedule type (daily, weekly, monthly, once, onstart, onlogon, onidle)
+REM /st = Start Time
+REM /ru = Run As user
+REM /rl = Run Level (HIGHEST or LIMITED)
+```
+
+---
+
+## 📅 Trigger Types and Examples
+
+### 1. Time-Based Triggers
+
+```powershell
+# Daily at specific time
+$trigger = New-ScheduledTaskTrigger -Daily -At "3:00 AM"
+
+# Weekly on specific days
+$trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Wednesday,Friday -At "6:00 PM"
+
+# Monthly on specific day
+$trigger = New-ScheduledTaskTrigger -Monthly -DayOfMonth 1 -At "12:00 AM"
+
+# Once at specific date/time
+$trigger = New-ScheduledTaskTrigger -Once -At "2024-12-31 23:59:59"
+
+# Every 15 minutes (using repetition)
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration ([TimeSpan]::MaxValue)
+```
+
+### 2. Event-Based Triggers
+
+```powershell
+# Run on system startup
+$trigger = New-ScheduledTaskTrigger -AtStartup
+
+# Run on user logon
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+
+# Run when system becomes idle
+$trigger = New-ScheduledTaskTrigger -AtIdle
+
+# Run on specific event log entry
+# Example: Run when Event ID 1074 (system shutdown) occurs
+$trigger = New-ScheduledTaskTrigger -AtEvent -LogName "System" -EventID 1074
+```
+
+### 3. Advanced Event Trigger (XML)
+
+```powershell
+# Create task triggered by specific Windows Event
+$action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument '-File C:\\Scripts\\alert.ps1'
+
+# Trigger on failed logon attempt (Event ID 4625)
+$triggerXml = @"
+<QueryList>
+  <Query Id="0" Path="Security">
+    <Select Path="Security">*[System[(EventID=4625)]]</Select>
+  </Query>
+</QueryList>
+"@
+
+$trigger = Get-CimClass -ClassName MSFT_TaskEventTrigger -Namespace Root/Microsoft/Windows/TaskScheduler
+$trigger.Subscription = $triggerXml
+$trigger.Enabled = $true
+
+Register-ScheduledTask -TaskName "Alert on Failed Logon" -Action $action -Trigger $trigger
+```
+
+---
+
+## 🔧 Action Types
+
+### 1. Start a Program
+
+```powershell
+# Run PowerShell script
+$action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument '-ExecutionPolicy Bypass -File C:\\Scripts\\maintenance.ps1'
+
+# Run batch file
+$action = New-ScheduledTaskAction -Execute 'C:\\Scripts\\backup.bat'
+
+# Run executable with arguments
+$action = New-ScheduledTaskAction -Execute 'C:\\Program Files\\Backup\\backup.exe' -Argument '-full -log'
+
+# Set working directory
+$action = New-ScheduledTaskAction -Execute 'backup.exe' -WorkingDirectory 'C:\\Backup'
+```
+
+### 2. Send Email (Deprecated in newer Windows versions)
+
+```powershell
+# Note: Email action deprecated in Windows Server 2016+
+# Alternative: Use PowerShell script to send email
+
+# Example PowerShell email script:
+$emailParams = @{
+    From = 'alerts@company.com'
+    To = 'admin@company.com'
+    Subject = 'Backup Completed'
+    Body = 'Daily backup completed successfully'
+    SmtpServer = 'smtp.company.com'
+}
+Send-MailMessage @emailParams
+```
+
+### 3. Display Message (Deprecated)
+
+```powershell
+# Note: Message action deprecated in Windows 8+
+# Alternative: Use PowerShell to show message box
+
+# Example PowerShell message box:
+Add-Type -AssemblyName PresentationFramework
+[System.Windows.MessageBox]::Show('Backup completed!', 'Backup Status')
+```
+
+---
+
+## ⚙️ Task Configuration Options
+
+### Security Context
+
+```powershell
+# Run as SYSTEM account (highest privileges)
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+
+# Run as specific user (interactive)
+$principal = New-ScheduledTaskPrincipal -UserId "DOMAIN\\username" -LogonType Interactive
+
+# Run as specific user (password stored)
+$principal = New-ScheduledTaskPrincipal -UserId "DOMAIN\\username" -LogonType Password -RunLevel Limited
+
+# Run as user who is currently logged on
+$principal = New-ScheduledTaskPrincipal -UserId "Users" -GroupId -LogonType Interactive
+```
+
+### Task Settings
+
+```powershell
+# Configure task settings
+$settings = New-ScheduledTaskSettingsSet `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
+    -StartWhenAvailable `
+    -RestartInterval (New-TimeSpan -Minutes 1) `
+    -RestartCount 3 `
+    -ExecutionTimeLimit (New-TimeSpan -Hours 2)
+
+# Register task with settings
+Register-ScheduledTask -TaskName "Backup Task" -Action $action -Trigger $trigger -Settings $settings
+```
+
+### Conditions
+
+```powershell
+# Create task with conditions
+$settings = New-ScheduledTaskSettingsSet
+$settings.IdleSettings.IdleDuration = "PT10M"  # 10 minutes idle
+$settings.IdleSettings.StopOnIdleEnd = $false
+$settings.RunOnlyIfNetworkAvailable = $true
+$settings.WakeToRun = $true  # Wake computer to run task
+
+Register-ScheduledTask -TaskName "Idle Maintenance" -Action $action -Trigger $trigger -Settings $settings
+```
+
+---
+
+## 📊 Manage Scheduled Tasks
+
+### View Tasks
+
+```powershell
+# List all scheduled tasks
+Get-ScheduledTask
+
+# View specific task
+Get-ScheduledTask -TaskName "Daily Backup"
+
+# View tasks in specific folder
+Get-ScheduledTask -TaskPath "\\Microsoft\\Windows\\WindowsUpdate\\"
+
+# Export task list to CSV
+Get-ScheduledTask | Select-Object TaskName, State, TaskPath |
+    Export-Csv -Path "C:\\Tasks.csv" -NoTypeInformation
+```
+
+### Run Task Manually
+
+```powershell
+# Start task immediately
+Start-ScheduledTask -TaskName "Daily Backup"
+
+# Using SCHTASKS
+schtasks /run /tn "Daily Backup"
+```
+
+### Enable/Disable Task
+
+```powershell
+# Disable task
+Disable-ScheduledTask -TaskName "Daily Backup"
+
+# Enable task
+Enable-ScheduledTask -TaskName "Daily Backup"
+
+# Using SCHTASKS
+schtasks /change /tn "Daily Backup" /disable
+schtasks /change /tn "Daily Backup" /enable
+```
+
+### Delete Task
+
+```powershell
+# Remove task
+Unregister-ScheduledTask -TaskName "Daily Backup" -Confirm:$false
+
+# Using SCHTASKS
+schtasks /delete /tn "Daily Backup" /f
+```
+
+### Export/Import Tasks
+
+```powershell
+# Export task to XML
+Export-ScheduledTask -TaskName "Daily Backup" | Out-File "C:\\Backup\\DailyBackup.xml"
+
+# Import task from XML
+Register-ScheduledTask -Xml (Get-Content "C:\\Backup\\DailyBackup.xml" | Out-String) -TaskName "Daily Backup"
+
+# Using SCHTASKS
+schtasks /query /tn "Daily Backup" /xml > C:\\DailyBackup.xml
+schtasks /create /tn "Daily Backup Import" /xml C:\\DailyBackup.xml
+```
+
+---
+
+## 🎯 Real-World Task Examples
+
+### Example 1: Daily Disk Cleanup
+
+```powershell
+# Create disk cleanup task
+$action = New-ScheduledTaskAction -Execute 'cleanmgr.exe' -Argument '/sagerun:1'
+$trigger = New-ScheduledTaskTrigger -Daily -At "3:00 AM"
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RunOnlyIfNetworkAvailable $false
+
+Register-ScheduledTask -TaskName "Daily Disk Cleanup" -Action $action -Trigger $trigger -Principal $principal -Settings $settings
+```
+
+### Example 2: Reboot Server Monthly
+
+```powershell
+# Schedule server reboot on 1st of each month at 2 AM
+schtasks /create /tn "Monthly Reboot" /tr "shutdown.exe /r /f /t 60 /c \\"Scheduled monthly reboot\\"" /sc monthly /d 1 /st 02:00 /ru SYSTEM /rl HIGHEST
+```
+
+### Example 3: Monitor Disk Space
+
+```powershell
+# Create PowerShell script: C:\\Scripts\\check-diskspace.ps1
+$script = @'
+$threshold = 20  # 20% free space
+$drive = Get-PSDrive C
+$percentFree = ($drive.Free / $drive.Used) * 100
+
+if ($percentFree -lt $threshold) {
+    # Send email alert
+    Send-MailMessage -To 'admin@company.com' -From 'server@company.com' -Subject "Low Disk Space Alert" -Body "Drive C: has only $([math]::Round($percentFree, 2))% free space" -SmtpServer 'smtp.company.com'
+}
+'@
+$script | Out-File -FilePath "C:\\Scripts\\check-diskspace.ps1"
+
+# Schedule to run every 4 hours
+$action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument '-ExecutionPolicy Bypass -File C:\\Scripts\\check-diskspace.ps1'
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Hours 4) -RepetitionDuration ([TimeSpan]::MaxValue)
+
+Register-ScheduledTask -TaskName "Disk Space Monitor" -Action $action -Trigger $trigger -Principal (New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount)
+```
+
+### Example 4: Backup Event Logs Weekly
+
+```powershell
+# Create backup script: C:\\Scripts\\backup-eventlogs.ps1
+$script = @'
+$date = Get-Date -Format "yyyyMMdd"
+$backupPath = "C:\\EventLogBackups"
+
+if (!(Test-Path $backupPath)) {
+    New-Item -Path $backupPath -ItemType Directory
+}
+
+wevtutil export-log System "$backupPath\\System_$date.evtx"
+wevtutil export-log Application "$backupPath\\Application_$date.evtx"
+wevtutil export-log Security "$backupPath\\Security_$date.evtx"
+
+# Delete backups older than 90 days
+Get-ChildItem $backupPath -Filter *.evtx |
+    Where-Object {$_.LastWriteTime -lt (Get-Date).AddDays(-90)} |
+    Remove-Item -Force
+'@
+$script | Out-File -FilePath "C:\\Scripts\\backup-eventlogs.ps1"
+
+# Schedule weekly on Sunday at 1 AM
+$action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument '-ExecutionPolicy Bypass -File C:\\Scripts\\backup-eventlogs.ps1'
+$trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At "1:00 AM"
+
+Register-ScheduledTask -TaskName "Weekly Event Log Backup" -Action $action -Trigger $trigger -Principal (New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest)
+```
+
+---
+
+## 🔧 Troubleshooting Scheduled Tasks
+
+### View Task History
+
+```powershell
+# Enable task history (if disabled)
+# Task Scheduler → Actions → Enable All Tasks History
+
+# View task execution history
+Get-ScheduledTaskInfo -TaskName "Daily Backup" |
+    Select-Object LastRunTime, LastTaskResult, NextRunTime, NumberOfMissedRuns
+
+# Check Event Viewer for task execution
+Get-WinEvent -FilterHashtable @{
+    LogName='Microsoft-Windows-TaskScheduler/Operational'
+    ID=200,201  # 200=Action started, 201=Action completed
+} -MaxEvents 50 | Select-Object TimeCreated, Id, Message
+```
+
+### Common Task Result Codes
+
+- **0x0** - Task completed successfully
+- **0x1** - Incorrect function called or unknown function called
+- **0x41301** - Task is currently running
+- **0x41303** - Task has not yet run
+- **0x41325** - Task ready to run at next scheduled time
+- **0x8004130F** - Task was terminated by user or disabled
+- **0x800710E0** - No logon session (user not logged in)
+
+### Debug Task Execution
+
+```powershell
+# Run task with logging
+$action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument '-ExecutionPolicy Bypass -File C:\\Scripts\\task.ps1 *> C:\\Logs\\task.log'
+
+# Or add logging to PowerShell script:
+Start-Transcript -Path "C:\\Logs\\task_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+# ... script content ...
+Stop-Transcript
+```
+
+### Fix: Task Runs But Nothing Happens
+
+**Common causes:**
+1. **Permissions** - Task needs "Run with highest privileges"
+2. **Working Directory** - Specify working directory in action
+3. **User Context** - Use SYSTEM account or verify user has access
+4. **Hidden Scripts** - PowerShell execution policy or script hidden
+
+```powershell
+# Fix execution policy
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
+
+# Run with full path and bypass policy
+$action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument '-ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File C:\\Scripts\\script.ps1'
+```
+
+---
+
+## ✅ Best Practices
+
+### Security:
+- [ ] Use least privilege principle (don't always use SYSTEM)
+- [ ] Store credentials securely (use managed service accounts)
+- [ ] Enable task history for auditing
+- [ ] Review tasks regularly for unused/old tasks
+- [ ] Use specific paths (don't rely on PATH variable)
+
+### Reliability:
+- [ ] Set execution time limit (prevent runaway tasks)
+- [ ] Configure restart on failure
+- [ ] Use StartWhenAvailable for missed runs
+- [ ] Implement logging in scripts
+- [ ] Test tasks manually before scheduling
+
+### Maintenance:
+- [ ] Document each task's purpose
+- [ ] Use consistent naming convention
+- [ ] Organize tasks in folders
+- [ ] Export critical tasks as backup
+- [ ] Review task results weekly
+'''
+        })
+
+        articles.append({
+            'category': 'Windows Administration',
+            'title': 'Windows Service Management and Troubleshooting',
+            'body': '''# Windows Service Management
+
+## 🎯 Overview
+Complete guide to managing Windows services, troubleshooting service failures, and configuring service dependencies.
+
+---
+
+## 📋 Understanding Windows Services
+
+### Service States
+
+- **Running** - Service is currently active
+- **Stopped** - Service is not running
+- **Paused** - Service temporarily suspended (not all services support)
+- **Starting/Stopping** - Service transitioning between states
+
+### Startup Types
+
+- **Automatic** - Starts at system boot
+- **Automatic (Delayed Start)** - Starts shortly after boot (reduces boot time)
+- **Manual** - Started manually or by dependent service
+- **Disabled** - Cannot be started
+
+---
+
+## 🚀 Manage Services via GUI
+
+### Services Console (services.msc)
+
+```powershell
+# Open Services console
+services.msc
+
+# Or from PowerShell
+Start-Process services.msc
+```
+
+**Common Actions:**
+1. Right-click service → **Start/Stop/Restart/Pause**
+2. Double-click service → **Properties**
+3. General tab → Change **Startup type**
+4. Log On tab → Change service account
+5. Recovery tab → Configure failure actions
+
+---
+
+## 🔧 Manage Services via PowerShell
+
+### View Services
+
+```powershell
+# List all services
+Get-Service
+
+# List running services
+Get-Service | Where-Object {$_.Status -eq "Running"}
+
+# List stopped services
+Get-Service | Where-Object {$_.Status -eq "Stopped"}
+
+# Search for specific service
+Get-Service | Where-Object {$_.DisplayName -like "*Windows Update*"}
+
+# View detailed service info
+Get-Service -Name wuauserv | Select-Object *
+
+# Export service list to CSV
+Get-Service | Select-Object Name, DisplayName, Status, StartType |
+    Export-Csv -Path "C:\\Services.csv" -NoTypeInformation
+```
+
+### Start/Stop Services
+
+```powershell
+# Start service
+Start-Service -Name "wuauserv"
+
+# Stop service
+Stop-Service -Name "wuauserv" -Force
+
+# Restart service
+Restart-Service -Name "wuauserv"
+
+# Pause service (if supported)
+Suspend-Service -Name "wuauserv"
+
+# Resume paused service
+Resume-Service -Name "wuauserv"
+
+# Multiple services at once
+Start-Service -Name "wuauserv","BITS","CryptSvc"
+```
+
+### Change Startup Type
+
+```powershell
+# Set to Automatic
+Set-Service -Name "wuauserv" -StartupType Automatic
+
+# Set to Automatic (Delayed Start)
+Set-Service -Name "wuauserv" -StartupType AutomaticDelayedStart
+
+# Set to Manual
+Set-Service -Name "wuauserv" -StartupType Manual
+
+# Disable service
+Set-Service -Name "wuauserv" -StartupType Disabled
+```
+
+### Change Service Account
+
+```powershell
+# Change to Local System
+Set-Service -Name "MyService" -Credential (New-Object System.Management.Automation.PSCredential("NT AUTHORITY\\SYSTEM", (New-Object System.Security.SecureString)))
+
+# Change to specific user (prompts for password)
+$cred = Get-Credential -UserName "DOMAIN\\ServiceAccount"
+Set-Service -Name "MyService" -Credential $cred
+
+# Or using SC command
+sc.exe config "MyService" obj= "DOMAIN\\ServiceAccount" password= "Password123"
+```
+
+---
+
+## 💻 Manage Services via Command Line (SC)
+
+### View Services
+
+```cmd
+REM List all services
+sc query
+
+REM Query specific service
+sc query wuauserv
+
+REM Query service configuration
+sc qc wuauserv
+
+REM Query service failure actions
+sc qfailure wuauserv
+```
+
+### Start/Stop Services
+
+```cmd
+REM Start service
+sc start wuauserv
+
+REM Stop service
+sc stop wuauserv
+
+REM Pause service
+sc pause wuauserv
+
+REM Continue service
+sc continue wuauserv
+```
+
+### Configure Services
+
+```cmd
+REM Change startup type to Automatic
+sc config wuauserv start= auto
+
+REM Change to Automatic (Delayed Start)
+sc config wuauserv start= delayed-auto
+
+REM Change to Manual
+sc config wuauserv start= demand
+
+REM Disable service
+sc config wuauserv start= disabled
+
+REM Change service description
+sc description wuauserv "Windows Update service manages updates"
+
+REM Change service display name
+sc config wuauserv displayname= "Windows Update Service"
+```
+
+### Create New Service
+
+```cmd
+REM Create new service
+sc create "MyService" binPath= "C:\\Path\\To\\Service.exe" start= auto
+
+REM With display name and description
+sc create "MyService" binPath= "C:\\Path\\To\\Service.exe" start= auto displayname= "My Custom Service" obj= "NT AUTHORITY\\LocalService"
+
+REM Delete service
+sc delete "MyService"
+```
+
+---
+
+## 🔍 Troubleshooting Service Issues
+
+### Issue 1: Service Won't Start
+
+**Error: "Windows could not start the [Service] service on Local Computer. Error 1053: The service did not respond in a timely fashion."**
+
+**Solutions:**
+
+```powershell
+# 1. Increase service timeout
+Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control" -Name "ServicesPipeTimeout" -Value 180000 -Type DWord
+
+# 2. Check service dependencies
+sc enumdepend wuauserv
+
+# 3. Start dependent services first
+$service = Get-Service -Name "wuauserv"
+$service.ServicesDependedOn | ForEach-Object {
+    Start-Service -Name $_.Name
+}
+
+# 4. Check Event Viewer for errors
+Get-EventLog -LogName System -Source "Service Control Manager" -Newest 50 |
+    Where-Object {$_.EntryType -eq "Error"} |
+    Select-Object TimeGenerated, Message
+
+# 5. Verify service account permissions
+# Services → Right-click service → Properties → Log On → Verify account has permissions
+
+# 6. Repair service registration
+sc delete wuauserv
+# Reinstall service or run: DISM /Online /Cleanup-Image /RestoreHealth
+```
+
+### Issue 2: Service Crashes or Stops Unexpectedly
+
+```powershell
+# Check service failure history
+Get-EventLog -LogName System -Source "Service Control Manager" -EntryType Error -Newest 100
+
+# Configure recovery actions
+sc failure wuauserv reset= 86400 actions= restart/60000/restart/60000/reboot/60000
+
+# Explanation:
+# reset= 86400 (reset failure count after 24 hours)
+# actions= restart/60000 (restart service after 60 seconds on first failure)
+# restart/60000 (restart again after 60 seconds on second failure)
+# reboot/60000 (reboot computer after 60 seconds on third failure)
+
+# View recovery settings
+sc qfailure wuauserv
+```
+
+### Issue 3: Service Disabled by Policy or Malware
+
+```powershell
+# Check if service is disabled
+Get-Service -Name "wuauserv" | Select-Object StartType
+
+# Re-enable service
+Set-Service -Name "wuauserv" -StartupType Automatic
+
+# If registry is locked, check GPO
+# gpedit.msc → Computer Configuration → Windows Settings → Security Settings → System Services
+
+# Check for registry locks
+Get-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\wuauserv" -Name "Start"
+
+# Force change registry value
+Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\wuauserv" -Name "Start" -Value 2 -Force
+# Start values: 0=Boot, 1=System, 2=Automatic, 3=Manual, 4=Disabled
+```
+
+### Issue 4: Service Stuck in "Starting" or "Stopping" State
+
+```powershell
+# Kill service process forcefully
+$service = Get-WmiObject -Class Win32_Service -Filter "Name='wuauserv'"
+$processId = $service.ProcessId
+
+if ($processId -gt 0) {
+    Stop-Process -Id $processId -Force
+}
+
+# Or find and kill by service name
+taskkill /F /FI "SERVICES eq wuauserv"
+
+# Restart service
+Start-Service -Name "wuauserv"
+```
+
+---
+
+## 🔐 Service Security Best Practices
+
+### Use Least Privilege Accounts
+
+```powershell
+# Built-in service accounts (preferred):
+# - LocalService (NT AUTHORITY\\LocalService) - Limited privileges, network identity is anonymous
+# - NetworkService (NT AUTHORITY\\NetworkService) - Limited privileges, can access network
+# - LocalSystem (NT AUTHORITY\\SYSTEM) - Full admin rights (use only if necessary)
+
+# Create Managed Service Account (recommended for domain)
+# On Domain Controller:
+New-ADServiceAccount -Name "MyServiceMSA" -DNSHostName "server.domain.com" -PrincipalsAllowedToRetrieveManagedPassword "SERVER$"
+
+# On server, install MSA:
+Install-ADServiceAccount -Identity "MyServiceMSA"
+
+# Configure service to use MSA:
+sc.exe config "MyService" obj= "DOMAIN\\MyServiceMSA$" password= ""
+```
+
+### Configure Service Permissions
+
+```powershell
+# Grant user permission to start/stop service
+# Download SubInACL tool from Microsoft
+# Or use built-in sc command:
+
+sc sdshow wuauserv  # View current security descriptor
+
+# Grant user "Start" and "Stop" permissions
+# Requires editing SDDL string (complex, use GUI instead)
+# Services → Right-click → Properties → Security tab (in some Windows versions)
+```
+
+### Audit Service Changes
+
+```powershell
+# Enable service auditing
+auditpol /set /subcategory:"Security System Extension" /success:enable /failure:enable
+
+# View service-related events
+Get-EventLog -LogName Security -InstanceId 4697 -Newest 50  # Service installed
+Get-EventLog -LogName System -Source "Service Control Manager" -Newest 50
+```
+
+---
+
+## 📊 Monitor Services
+
+### Check Service Status Remotely
+
+```powershell
+# Get services from remote computer
+Get-Service -ComputerName "SERVER01"
+
+# Check specific service on remote computer
+Get-Service -Name "wuauserv" -ComputerName "SERVER01"
+
+# Start service on remote computer
+Get-Service -Name "wuauserv" -ComputerName "SERVER01" | Start-Service
+
+# Multiple computers
+$computers = "SERVER01","SERVER02","SERVER03"
+foreach ($computer in $computers) {
+    Get-Service -Name "wuauserv" -ComputerName $computer |
+        Select-Object @{N='Computer';E={$computer}}, Name, Status
+}
+```
+
+### Monitor Critical Services
+
+```powershell
+# Create monitoring script
+$criticalServices = @("wuauserv","BITS","EventLog","Dhcp","DNS","W32Time")
+
+foreach ($service in $criticalServices) {
+    $svc = Get-Service -Name $service -ErrorAction SilentlyContinue
+    if ($svc.Status -ne "Running") {
+        Write-Host "ALERT: $service is $($svc.Status)" -ForegroundColor Red
+        Start-Service -Name $service
+
+        # Send email alert
+        Send-MailMessage -To 'admin@company.com' -From 'monitor@company.com' `
+            -Subject "Service Alert: $service stopped" `
+            -Body "$service was found stopped and has been restarted" `
+            -SmtpServer 'smtp.company.com'
+    }
+}
+```
+
+### Create Service Monitor Task
+
+```powershell
+# Schedule service monitoring every 5 minutes
+$action = New-ScheduledTaskAction -Execute 'PowerShell.exe' -Argument '-ExecutionPolicy Bypass -File C:\\Scripts\\monitor-services.ps1'
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration ([TimeSpan]::MaxValue)
+
+Register-ScheduledTask -TaskName "Service Monitor" -Action $action -Trigger $trigger -Principal (New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest)
+```
+
+---
+
+## 🔄 Service Dependencies
+
+### View Service Dependencies
+
+```powershell
+# View services this service depends on
+$service = Get-Service -Name "wuauserv"
+$service.ServicesDependedOn | Select-Object Name, DisplayName, Status
+
+# View services that depend on this service
+$service.DependentServices | Select-Object Name, DisplayName, Status
+
+# Using SC command
+sc enumdepend wuauserv  # Services that depend on this
+sc qc wuauserv  # View dependencies in config
+```
+
+### Add/Remove Dependencies
+
+```cmd
+REM Add dependency (service will start after dependency)
+sc config MyService depend= DependencyService
+
+REM Multiple dependencies
+sc config MyService depend= Service1/Service2/Service3
+
+REM Remove all dependencies
+sc config MyService depend= /
+```
+
+---
+
+## 🎯 Common Service Management Tasks
+
+### Reset Windows Update Services
+
+```powershell
+# Complete Windows Update service reset
+$services = @("wuauserv","cryptSvc","bits","msiserver")
+
+# Stop services
+foreach ($service in $services) {
+    Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
+}
+
+# Delete temp files
+Remove-Item "C:\\Windows\\SoftwareDistribution" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "C:\\Windows\\System32\\catroot2" -Recurse -Force -ErrorAction SilentlyContinue
+
+# Re-register DLLs
+$dlls = @("wuapi.dll","wuaueng.dll","wups.dll","wups2.dll","wuwebv.dll","wucltux.dll")
+foreach ($dll in $dlls) {
+    regsvr32 /s $dll
+}
+
+# Start services
+foreach ($service in $services) {
+    Start-Service -Name $service -ErrorAction SilentlyContinue
+}
+```
+
+### Export/Import Service Configuration
+
+```powershell
+# Export service configuration
+$service = Get-WmiObject Win32_Service -Filter "Name='MyService'"
+$config = @{
+    Name = $service.Name
+    DisplayName = $service.DisplayName
+    PathName = $service.PathName
+    StartMode = $service.StartMode
+    ServiceType = $service.ServiceType
+    ErrorControl = $service.ErrorControl
+    StartName = $service.StartName
+}
+$config | Export-Clixml -Path "C:\\ServiceBackup\\MyService.xml"
+
+# Import and recreate service
+$config = Import-Clixml -Path "C:\\ServiceBackup\\MyService.xml"
+sc.exe create $config.Name binPath= $config.PathName start= $config.StartMode obj= $config.StartName
+```
+
+---
+
+## ✅ Service Management Checklist
+
+### Daily Monitoring:
+- [ ] Check critical service status
+- [ ] Review service failure events
+- [ ] Verify automatic services are running
+
+### Weekly Tasks:
+- [ ] Review service recovery configurations
+- [ ] Check for new/unknown services
+- [ ] Audit service account permissions
+
+### Monthly Tasks:
+- [ ] Review and optimize startup services
+- [ ] Document service dependencies
+- [ ] Test service recovery procedures
+- [ ] Backup service configurations
+
+### Security Auditing:
+- [ ] Review services running as SYSTEM
+- [ ] Check for services with weak credentials
+- [ ] Verify service permissions
+- [ ] Disable unnecessary services
+'''
+        })
+
+        articles.append({
+            'category': 'Windows Administration',
+            'title': 'Registry Management and Best Practices',
+            'body': '''# Windows Registry Management
+
+## 🎯 Overview
+Complete guide to safely managing Windows Registry, including common modifications, troubleshooting, and security best practices.
+
+---
+
+## ⚠️ WARNING: Registry Safety
+
+**CRITICAL:** Incorrect registry modifications can render Windows unbootable!
+
+**Always:**
+- ✅ Backup registry before changes
+- ✅ Create System Restore point
+- ✅ Test in non-production environment first
+- ✅ Document all changes
+- ❌ NEVER delete keys unless certain
+- ❌ NEVER modify System hive without expertise
+
+---
+
+## 📋 Understanding Registry Structure
+
+### Registry Hives
+
+- **HKEY_LOCAL_MACHINE (HKLM)** - Computer configuration, hardware, software
+- **HKEY_CURRENT_USER (HKCU)** - Current user settings and preferences
+- **HKEY_USERS (HKU)** - All loaded user profiles
+- **HKEY_CLASSES_ROOT (HKCR)** - File associations and COM objects
+- **HKEY_CURRENT_CONFIG (HKCC)** - Current hardware profile
+
+### Registry Data Types
+
+- **REG_SZ** - String value
+- **REG_DWORD** - 32-bit number (0-4294967295)
+- **REG_QWORD** - 64-bit number
+- **REG_BINARY** - Binary data
+- **REG_MULTI_SZ** - Multiple strings
+- **REG_EXPAND_SZ** - String with environment variables
+
+---
+
+## 🚀 Access Registry
+
+### Registry Editor (GUI)
+
+```powershell
+# Open Registry Editor
+regedit
+
+# Or from Run (Win + R)
+# Type: regedit
+```
+
+### PowerShell Registry Access
+
+```powershell
+# Registry is accessed like a file system via PSDrive
+
+# List registry drives
+Get-PSDrive -PSProvider Registry
+
+# Navigate to registry key
+Set-Location HKLM:\\SOFTWARE\\Microsoft\\Windows
+
+# List subkeys
+Get-ChildItem
+
+# View properties (values)
+Get-ItemProperty .
+```
+
+---
+
+## 🔧 Backup and Restore Registry
+
+### Backup Entire Registry
+
+```powershell
+# Create System Restore point (includes registry)
+Checkpoint-Computer -Description "Before Registry Changes" -RestorePointType "MODIFY_SETTINGS"
+
+# Export entire registry (requires admin)
+regedit /e "C:\\Backup\\registry_backup_$(Get-Date -Format 'yyyyMMdd').reg"
+
+# Backup specific hive
+reg export HKLM\\SOFTWARE\\Microsoft\\Windows "C:\\Backup\\windows_key.reg" /y
+```
+
+### Backup Specific Key
+
+```powershell
+# Using PowerShell
+$key = "HKLM:\\SOFTWARE\\MyApp"
+$backupFile = "C:\\Backup\\MyApp.reg"
+reg export $key $backupFile /y
+
+# Using Registry Editor:
+# 1. Navigate to key
+# 2. File → Export
+# 3. Select "Selected branch"
+# 4. Save as .reg file
+```
+
+### Restore Registry
+
+```powershell
+# Restore from .reg file
+regedit /s "C:\\Backup\\registry_backup.reg"
+
+# Or double-click .reg file (prompts for confirmation)
+
+# Using reg command
+reg import "C:\\Backup\\MyApp.reg"
+
+# Restore from System Restore point
+# Control Panel → Recovery → Open System Restore
+```
+
+---
+
+## 📝 Modify Registry Values
+
+### Using PowerShell
+
+```powershell
+# Create new registry key
+New-Item -Path "HKLM:\\SOFTWARE\\MyCompany\\MyApp" -Force
+
+# Create string value
+New-ItemProperty -Path "HKLM:\\SOFTWARE\\MyCompany\\MyApp" -Name "Version" -Value "1.0.0" -PropertyType String
+
+# Create DWORD value
+New-ItemProperty -Path "HKLM:\\SOFTWARE\\MyCompany\\MyApp" -Name "Enabled" -Value 1 -PropertyType DWord
+
+# Modify existing value
+Set-ItemProperty -Path "HKLM:\\SOFTWARE\\MyCompany\\MyApp" -Name "Version" -Value "2.0.0"
+
+# Read value
+Get-ItemProperty -Path "HKLM:\\SOFTWARE\\MyCompany\\MyApp" -Name "Version"
+
+# Delete value
+Remove-ItemProperty -Path "HKLM:\\SOFTWARE\\MyCompany\\MyApp" -Name "OldSetting"
+
+# Delete entire key
+Remove-Item -Path "HKLM:\\SOFTWARE\\MyCompany\\MyApp" -Recurse
+```
+
+### Using REG Command
+
+```cmd
+REM Add string value
+reg add "HKLM\\SOFTWARE\\MyApp" /v "Version" /t REG_SZ /d "1.0.0" /f
+
+REM Add DWORD value
+reg add "HKLM\\SOFTWARE\\MyApp" /v "Enabled" /t REG_DWORD /d 1 /f
+
+REM Query value
+reg query "HKLM\\SOFTWARE\\MyApp" /v "Version"
+
+REM Delete value
+reg delete "HKLM\\SOFTWARE\\MyApp" /v "OldSetting" /f
+
+REM Delete entire key
+reg delete "HKLM\\SOFTWARE\\MyApp" /f
+```
+
+---
+
+## 🎯 Common Registry Modifications
+
+### 1. Disable Windows Update Automatic Restart
+
+```powershell
+# Prevent automatic restart after updates
+$path = "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU"
+New-Item -Path $path -Force | Out-Null
+Set-ItemProperty -Path $path -Name "NoAutoRebootWithLoggedOnUsers" -Value 1 -Type DWord
+Set-ItemProperty -Path $path -Name "AUOptions" -Value 3 -Type DWord  # 3=Download and notify for install
+```
+
+### 2. Enable/Disable UAC
+
+```powershell
+# Disable UAC (not recommended for security)
+Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" -Name "EnableLUA" -Value 0 -Type DWord
+
+# Enable UAC
+Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" -Name "EnableLUA" -Value 1 -Type DWord
+
+# Restart required for changes to take effect
+```
+
+### 3. Change Windows Product Key
+
+```powershell
+# View current product key partial
+(Get-ItemProperty -Path "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion").ProductId
+
+# Change product key (use slmgr instead)
+slmgr /ipk XXXXX-XXXXX-XXXXX-XXXXX-XXXXX
+slmgr /ato  # Activate
+```
+
+### 4. Customize Desktop and UI
+
+```powershell
+# Remove Recycle Bin from desktop
+$path = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\HideDesktopIcons\\NewStartPanel"
+New-Item -Path $path -Force | Out-Null
+Set-ItemProperty -Path $path -Name "{645FF040-5081-101B-9F08-00AA002F954E}" -Value 1 -Type DWord
+
+# Disable Aero Shake (minimize windows when shaking one)
+Set-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced" -Name "DisallowShaking" -Value 1 -Type DWord
+
+# Show file extensions
+Set-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced" -Name "HideFileExt" -Value 0 -Type DWord
+
+# Show hidden files
+Set-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced" -Name "Hidden" -Value 1 -Type DWord
+```
+
+### 5. Disable Telemetry and Privacy Settings
+
+```powershell
+# Disable telemetry (Windows 10 Pro/Enterprise only)
+Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection" -Name "AllowTelemetry" -Value 0 -Type DWord
+
+# Disable Activity History
+Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System" -Name "PublishUserActivities" -Value 0 -Type DWord
+
+# Disable Location Services
+Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\LocationAndSensors" -Name "DisableLocation" -Value 1 -Type DWord
+```
+
+### 6. Increase RDP Concurrent Sessions (Use with caution - licensing!)
+
+```powershell
+# Note: This violates Windows licensing for non-Server editions
+# For educational/testing purposes only
+
+# Allow multiple RDP sessions on Windows 10/11
+$path = "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server"
+Set-ItemProperty -Path $path -Name "fSingleSessionPerUser" -Value 0 -Type DWord
+
+# Increase max connections
+Set-ItemProperty -Path $path -Name "MaxInstanceCount" -Value 999999 -Type DWord
+```
+
+### 7. Customize Context Menu
+
+```powershell
+# Add "Take Ownership" to context menu
+$commands = @"
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\\*\\shell\\runas]
+@="Take Ownership"
+"NoWorkingDirectory"=""
+
+[HKEY_CLASSES_ROOT\\*\\shell\\runas\\command]
+@="cmd.exe /c takeown /f \\"%1\\" && icacls \\"%1\\" /grant administrators:F"
+"IsolatedCommand"="cmd.exe /c takeown /f \\"%1\\" && icacls \\"%1\\" /grant administrators:F"
+"@
+
+$commands | Out-File -FilePath "C:\\temp\\take_ownership.reg" -Encoding ASCII
+regedit /s "C:\\temp\\take_ownership.reg"
+```
+
+---
+
+## 🔍 Troubleshooting Registry Issues
+
+### Corrupted Registry
+
+```powershell
+# Boot into Windows Recovery Environment (WinRE)
+# Advanced Options → Command Prompt
+
+# Replace corrupted registry with backup
+copy C:\\Windows\\System32\\config\\RegBack\\* C:\\Windows\\System32\\config\\
+
+# Or use DISM to repair
+DISM /Online /Cleanup-Image /RestoreHealth
+
+# System File Checker
+sfc /scannow
+```
+
+### Registry Permissions Issues
+
+```powershell
+# Take ownership of registry key
+$key = "HKLM:\\SOFTWARE\\RestrictedKey"
+$acl = Get-Acl $key
+
+# Set owner to Administrators
+$adminGroup = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-544")
+$acl.SetOwner($adminGroup)
+Set-Acl -Path $key -AclObject $acl
+
+# Grant full control to Administrators
+$rule = New-Object System.Security.AccessControl.RegistryAccessRule(
+    "Administrators",
+    "FullControl",
+    "ContainerInherit,ObjectInherit",
+    "None",
+    "Allow"
+)
+$acl.AddAccessRule($rule)
+Set-Acl -Path $key -AclObject $acl
+```
+
+### Search Registry for Value
+
+```powershell
+# Search for registry value across all hives
+function Search-Registry {
+    param(
+        [string]$SearchTerm,
+        [string]$Path = "HKLM:\\SOFTWARE"
+    )
+
+    Get-ChildItem -Path $Path -Recurse -ErrorAction SilentlyContinue |
+        ForEach-Object {
+            $properties = Get-ItemProperty -Path $_.PSPath -ErrorAction SilentlyContinue
+            $properties.PSObject.Properties | Where-Object {
+                $_.Value -like "*$SearchTerm*"
+            } | ForEach-Object {
+                [PSCustomObject]@{
+                    Path = $_.PSPath
+                    Name = $_.Name
+                    Value = $_.Value
+                }
+            }
+        }
+}
+
+# Usage
+Search-Registry -SearchTerm "MyApp" -Path "HKLM:\\SOFTWARE"
+```
+
+---
+
+## 🛡️ Registry Security Best Practices
+
+### 1. Regular Backups
+
+```powershell
+# Create automated registry backup script
+$backupPath = "C:\\RegistryBackups"
+$date = Get-Date -Format "yyyyMMdd"
+
+if (!(Test-Path $backupPath)) {
+    New-Item -Path $backupPath -ItemType Directory
+}
+
+# Backup critical keys
+reg export "HKLM\\SOFTWARE" "$backupPath\\HKLM_SOFTWARE_$date.reg" /y
+reg export "HKLM\\SYSTEM" "$backupPath\\HKLM_SYSTEM_$date.reg" /y
+reg export "HKCU\\Software" "$backupPath\\HKCU_SOFTWARE_$date.reg" /y
+
+# Delete backups older than 30 days
+Get-ChildItem $backupPath -Filter *.reg |
+    Where-Object {$_.LastWriteTime -lt (Get-Date).AddDays(-30)} |
+    Remove-Item -Force
+```
+
+### 2. Audit Registry Access
+
+```powershell
+# Enable registry auditing
+auditpol /set /subcategory:"Registry" /success:enable /failure:enable
+
+# View registry audit events
+Get-EventLog -LogName Security -InstanceId 4656,4657,4658,4660,4663 -Newest 100 |
+    Where-Object {$_.Message -like "*Registry*"} |
+    Select-Object TimeGenerated, EventID, Message
+```
+
+### 3. Restrict Registry Access
+
+```powershell
+# Remove remote registry access for non-admins
+Stop-Service -Name "RemoteRegistry"
+Set-Service -Name "RemoteRegistry" -StartupType Disabled
+
+# Restrict registry editor access (not recommended for admins)
+$path = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+New-Item -Path $path -Force | Out-Null
+Set-ItemProperty -Path $path -Name "DisableRegistryTools" -Value 1 -Type DWord
+
+# Re-enable (if locked out, use .reg file from another computer)
+Set-ItemProperty -Path $path -Name "DisableRegistryTools" -Value 0 -Type DWord
+```
+
+---
+
+## 📊 Registry Monitoring
+
+### Monitor Registry Changes
+
+```powershell
+# Monitor specific registry key for changes
+$watcher = New-Object System.IO.FileSystemWatcher
+$watcher.Path = "HKLM:\\SOFTWARE\\MyApp"
+$watcher.IncludeSubdirectories = $true
+$watcher.EnableRaisingEvents = $true
+
+# Alternative: Use Process Monitor (Sysinternals)
+# Download: https://docs.microsoft.com/en-us/sysinternals/downloads/procmon
+# Filter: Operation → RegSetValue, RegCreateKey, RegDeleteKey
+```
+
+### Compare Registry States
+
+```powershell
+# Export current state
+reg export "HKLM\\SOFTWARE\\Microsoft\\Windows" "C:\\before.reg" /y
+
+# Make changes...
+
+# Export new state
+reg export "HKLM\\SOFTWARE\\Microsoft\\Windows" "C:\\after.reg" /y
+
+# Compare (use diff tool like WinMerge or PowerShell)
+$before = Get-Content "C:\\before.reg"
+$after = Get-Content "C:\\after.reg"
+Compare-Object $before $after
+```
+
+---
+
+## ✅ Registry Management Checklist
+
+### Before Making Changes:
+- [ ] Backup registry key(s)
+- [ ] Create System Restore point
+- [ ] Document changes (what, why, when)
+- [ ] Test in non-production environment
+- [ ] Verify you have undo plan
+
+### After Making Changes:
+- [ ] Test system functionality
+- [ ] Verify change took effect
+- [ ] Monitor for issues (24-48 hours)
+- [ ] Update documentation
+- [ ] Archive backup files
+
+### Regular Maintenance:
+- [ ] Weekly registry backups
+- [ ] Monthly registry cleanup (remove obsolete keys)
+- [ ] Quarterly security audit
+- [ ] Annual full registry backup
+
+### Security:
+- [ ] Disable Remote Registry service if not needed
+- [ ] Enable registry auditing
+- [ ] Restrict registry editor access for standard users
+- [ ] Monitor registry changes via event logs
+'''
+        })
+
+        articles.append({
+            'category': 'Windows Administration',
+            'title': 'BitLocker Drive Encryption Setup and Management',
+            'body': '''# BitLocker Drive Encryption
+
+## 🎯 Overview
+Complete guide to enabling, configuring, and managing BitLocker Drive Encryption on Windows for data protection.
+
+---
+
+## 📋 Prerequisites
+
+### System Requirements
+
+- **Windows Edition:** Pro, Enterprise, or Education (not Home)
+- **TPM:** Trusted Platform Module 1.2 or 2.0 (recommended)
+- **UEFI BIOS** with Secure Boot enabled
+- **Hard Drive:** At least 2 partitions (System and OS)
+- **Administrator rights**
+
+### Check TPM Status
+
+```powershell
+# Check if TPM is present and enabled
+Get-Tpm
+
+# Should show:
+# TpmPresent: True
+# TpmReady: True
+# TpmEnabled: True
+# TpmActivated: True
+
+# View TPM version
+(Get-Tpm).ManufacturerVersion
+```
+
+### Check BitLocker Prerequisites
+
+```powershell
+# Check if BitLocker is available
+Get-WindowsFeature -Name BitLocker
+
+# Check drive encryption status
+Get-BitLockerVolume
+
+# Check if drive supports BitLocker
+manage-bde -status C:
+```
+
+---
+
+## 🔐 Enable BitLocker
+
+### Method 1: Using Control Panel (GUI)
+
+1. **Open BitLocker Settings:**
+   - Control Panel → System and Security → BitLocker Drive Encryption
+
+2. **Turn On BitLocker:**
+   - Select drive → Turn on BitLocker
+
+3. **Choose Unlock Method:**
+   - ✅ Enter a password (recommended for data drives)
+   - ✅ Insert a USB flash drive (removed USB unlocks drive)
+   - ✅ TPM only (automatic, most secure)
+   - ✅ TPM + PIN (balanced security)
+   - ✅ TPM + USB + PIN (maximum security)
+
+4. **Backup Recovery Key:**
+   - ✅ Save to Microsoft account (recommended)
+   - ✅ Save to USB flash drive
+   - ✅ Save to file
+   - ✅ Print the recovery key
+
+5. **Choose Encryption Mode:**
+   - **Encrypt used space only** (faster, for new drives)
+   - **Encrypt entire drive** (more secure, for drives with existing data)
+
+6. **Select Encryption Algorithm:**
+   - AES 128-bit (faster)
+   - AES 256-bit (more secure, recommended)
+   - XTS-AES 128-bit (Windows 10 1511+, recommended)
+   - XTS-AES 256-bit (highest security)
+
+7. **Start Encryption**
+
+### Method 2: Using PowerShell
+
+```powershell
+# Enable BitLocker with password
+Enable-BitLocker -MountPoint "C:" -PasswordProtector -Password (Read-Host -AsSecureString "Enter Password")
+
+# Enable BitLocker with TPM
+Enable-BitLocker -MountPoint "C:" -TpmProtector
+
+# Enable BitLocker with TPM + PIN
+$pin = Read-Host -AsSecureString "Enter PIN"
+Enable-BitLocker -MountPoint "C:" -TpmAndPinProtector -Pin $pin
+
+# Enable BitLocker with TPM + USB
+Enable-BitLocker -MountPoint "C:" -TpmAndStartupKeyProtector -StartupKeyPath "E:\\"
+
+# Add recovery key protector (backup)
+Add-BitLockerKeyProtector -MountPoint "C:" -RecoveryPasswordProtector
+
+# Backup recovery key to AD (domain-joined computers)
+Backup-BitLockerKeyProtector -MountPoint "C:" -KeyProtectorId (Get-BitLockerVolume -MountPoint "C:").KeyProtector[0].KeyProtectorId
+```
+
+### Method 3: Using manage-bde Command
+
+```cmd
+REM Enable BitLocker with TPM
+manage-bde -on C: -TPM
+
+REM Enable BitLocker with TPM + PIN
+manage-bde -on C: -TPMandPIN
+
+REM Enable BitLocker with password
+manage-bde -on C: -Password
+
+REM Add recovery key
+manage-bde -protectors -add C: -RecoveryPassword
+
+REM Backup recovery key to file
+manage-bde -protectors -get C: > "C:\\BitLocker_Recovery_Key.txt"
+```
+
+---
+
+## 🔧 Manage BitLocker
+
+### View Encryption Status
+
+```powershell
+# View all BitLocker volumes
+Get-BitLockerVolume
+
+# View specific drive
+Get-BitLockerVolume -MountPoint "C:"
+
+# Check encryption percentage
+$volume = Get-BitLockerVolume -MountPoint "C:"
+$volume | Select-Object MountPoint, VolumeStatus, EncryptionPercentage, ProtectionStatus
+
+# Using manage-bde
+manage-bde -status C:
+```
+
+### Pause/Resume Encryption
+
+```powershell
+# Pause BitLocker encryption (useful during BIOS updates)
+Suspend-BitLocker -MountPoint "C:" -RebootCount 2  # Suspends for 2 reboots
+
+# Resume BitLocker
+Resume-BitLocker -MountPoint "C:"
+
+# Using manage-bde
+manage-bde -pause C:
+manage-bde -resume C:
+```
+
+### Unlock Drive
+
+```powershell
+# Unlock drive with password
+$password = Read-Host -AsSecureString "Enter Password"
+Unlock-BitLocker -MountPoint "C:" -Password $password
+
+# Unlock with recovery key
+Unlock-BitLocker -MountPoint "C:" -RecoveryPassword "123456-789012-345678-901234-567890-123456-789012-345678"
+
+# Using manage-bde
+manage-bde -unlock C: -RecoveryPassword 123456-789012-345678-901234-567890-123456-789012-345678
+```
+
+### Change/Add Protectors
+
+```powershell
+# Add additional recovery password
+Add-BitLockerKeyProtector -MountPoint "C:" -RecoveryPasswordProtector
+
+# Change PIN
+$newPin = Read-Host -AsSecureString "Enter new PIN"
+Change-BitLockerPin -MountPoint "C:" -NewPin $newPin
+
+# Add password protector
+$password = Read-Host -AsSecureString "Enter Password"
+Add-BitLockerKeyProtector -MountPoint "C:" -PasswordProtector -Password $password
+
+# Remove specific protector
+$keyProtectorId = (Get-BitLockerVolume -MountPoint "C:").KeyProtector[0].KeyProtectorId
+Remove-BitLockerKeyProtector -MountPoint "C:" -KeyProtectorId $keyProtectorId
+```
+
+---
+
+## 📂 Manage Recovery Keys
+
+### Backup Recovery Key
+
+```powershell
+# Backup to file
+$keyProtector = (Get-BitLockerVolume -MountPoint "C:").KeyProtector | Where-Object {$_.KeyProtectorType -eq "RecoveryPassword"}
+$keyProtector.RecoveryPassword | Out-File "C:\\BitLockerRecovery_C.txt"
+
+# Backup to Active Directory (domain-joined)
+$keyProtectorId = (Get-BitLockerVolume -MountPoint "C:").KeyProtector[0].KeyProtectorId
+Backup-BitLockerKeyProtector -MountPoint "C:" -KeyProtectorId $keyProtectorId
+
+# Using manage-bde
+manage-bde -protectors -get C: > "C:\\BitLocker_Recovery.txt"
+manage-bde -protectors -adbackup C: -id {KeyProtectorID}
+```
+
+### Retrieve Recovery Key
+
+```powershell
+# View recovery keys
+$volume = Get-BitLockerVolume -MountPoint "C:"
+$volume.KeyProtector | Where-Object {$_.KeyProtectorType -eq "RecoveryPassword"} |
+    Select-Object KeyProtectorType, RecoveryPassword
+
+# From Active Directory (requires AD PowerShell module)
+Get-ADObject -Filter {objectClass -eq 'msFVE-RecoveryInformation'} -SearchBase "CN=Computer1,OU=Computers,DC=domain,DC=com" -Properties msFVE-RecoveryPassword |
+    Select-Object Name, msFVE-RecoveryPassword
+```
+
+### Use Recovery Key
+
+**When needed:**
+- Forgot PIN or password
+- TPM changes detected (BIOS update, motherboard replacement)
+- Drive moved to another computer
+- System files corrupted
+
+**How to use:**
+1. Boot computer → BitLocker recovery screen appears
+2. Press ESC for recovery options
+3. Enter 48-digit recovery key
+4. System unlocks and boots
+
+---
+
+## 🔐 BitLocker To Go (Removable Drives)
+
+### Encrypt USB/External Drive
+
+```powershell
+# Encrypt removable drive with password
+$password = Read-Host -AsSecureString "Enter Password"
+Enable-BitLocker -MountPoint "E:" -PasswordProtector -Password $password
+
+# Add recovery key
+Add-BitLockerKeyProtector -MountPoint "E:" -RecoveryPasswordProtector
+
+# Using Control Panel:
+# Right-click drive → Turn on BitLocker → Set password
+```
+
+### Auto-Unlock BitLocker To Go
+
+```powershell
+# Enable auto-unlock for removable drive (on current PC only)
+Enable-BitLockerAutoUnlock -MountPoint "E:"
+
+# Disable auto-unlock
+Disable-BitLockerAutoUnlock -MountPoint "E:"
+
+# View auto-unlock status
+Get-BitLockerVolume -MountPoint "E:" | Select-Object AutoUnlockEnabled
+```
+
+---
+
+## 🛡️ BitLocker Group Policy Settings
+
+### Configure BitLocker via GPO
+
+**Location:** Computer Configuration → Administrative Templates → Windows Components → BitLocker Drive Encryption
+
+**Recommended Settings:**
+
+```powershell
+# Key GPO settings:
+
+# 1. Operating System Drives
+# Require additional authentication at startup: Enabled
+# - Allow BitLocker without a compatible TPM: No (require TPM)
+# - Configure TPM startup: Allow TPM
+# - Configure TPM startup PIN: Require startup PIN with TPM
+# - Configure TPM startup key: Do not allow startup key with TPM
+
+# 2. Choose drive encryption method and cipher strength
+# Select: XTS-AES 256-bit
+
+# 3. Store BitLocker recovery information in Active Directory Domain Services
+# Enabled
+# - Require BitLocker backup to AD DS: Yes
+# - Select: Store recovery passwords and key packages
+
+# 4. Choose how users can recover BitLocker-protected drives
+# Enabled
+# - Allow 48-digit recovery password: Enabled
+# - Allow 256-bit recovery key: Disabled
+# - Omit recovery options from BitLocker setup wizard: No
+
+# 5. Deny write access to removable drives not protected by BitLocker
+# Enabled (forces encryption on all USB drives)
+```
+
+---
+
+## 🔧 Troubleshooting BitLocker Issues
+
+### Issue 1: BitLocker Recovery Key Required on Every Boot
+
+**Cause:** TPM detected changes (BIOS update, hardware change)
+
+```powershell
+# Check TPM status
+Get-Tpm
+
+# If TPM is cleared, re-initialize
+Initialize-Tpm
+
+# Clear and reset BitLocker
+Disable-BitLocker -MountPoint "C:"
+# Wait for decryption to complete
+Enable-BitLocker -MountPoint "C:" -TpmProtector
+
+# Verify secure boot
+Confirm-SecureBootUEFI  # Should return True
+```
+
+### Issue 2: Cannot Enable BitLocker - "Device Cannot Use TPM"
+
+```powershell
+# Check if TPM is enabled in BIOS
+# Reboot → Enter BIOS → Security → TPM → Enable
+
+# Verify TPM is ready
+Get-Tpm
+
+# If TPM not ready, initialize
+Initialize-Tpm
+
+# Alternative: Use BitLocker without TPM (less secure)
+# Set GPO: Allow BitLocker without compatible TPM
+# Or edit registry:
+Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\FVE" -Name "EnableBDEWithNoTPM" -Value 1 -Type DWord
+
+# Enable with password or USB key
+Enable-BitLocker -MountPoint "C:" -PasswordProtector -Password (Read-Host -AsSecureString)
+```
+
+### Issue 3: Encryption Stuck or Very Slow
+
+```powershell
+# Check encryption status
+Get-BitLockerVolume -MountPoint "C:" | Select-Object EncryptionPercentage
+
+# Pause and resume encryption
+Suspend-BitLocker -MountPoint "C:" -RebootCount 1
+Resume-BitLocker -MountPoint "C:"
+
+# Check for disk errors
+chkdsk C: /f /r
+
+# Verify disk performance (might be slow HDD)
+winsat disk -drive C:
+```
+
+### Issue 4: Lost Recovery Key
+
+**If drive is already unlocked:**
+```powershell
+# Retrieve recovery key from running system
+$volume = Get-BitLockerVolume -MountPoint "C:"
+$volume.KeyProtector | Where-Object {$_.KeyProtectorType -eq "RecoveryPassword"}
+```
+
+**If drive is locked:**
+- Check Microsoft account: https://account.microsoft.com/devices/recoverykey
+- Check printed backup
+- Check AD (for domain computers)
+- Contact IT administrator
+
+**If truly lost:** Data is unrecoverable (by design!)
+
+---
+
+## 🎯 BitLocker Best Practices
+
+### Security:
+- ✅ Use TPM + PIN for maximum security
+- ✅ Use XTS-AES 256-bit encryption
+- ✅ Store recovery keys in Active Directory
+- ✅ Backup recovery keys to multiple locations
+- ✅ Enable BitLocker on all company devices
+- ✅ Encrypt removable drives with BitLocker To Go
+
+### Management:
+- ✅ Document recovery key locations
+- ✅ Test recovery procedures annually
+- ✅ Suspend BitLocker before BIOS updates
+- ✅ Monitor BitLocker status across fleet
+- ✅ Use GPO for consistent deployment
+- ✅ Train users on recovery procedures
+
+### Compliance:
+- ✅ Meet HIPAA encryption requirements
+- ✅ Satisfy GDPR data protection mandates
+- ✅ Comply with PCI DSS standards
+- ✅ Fulfill SOC 2 security controls
+
+---
+
+## ✅ BitLocker Deployment Checklist
+
+### Pre-Deployment:
+- [ ] Verify Windows edition supports BitLocker
+- [ ] Confirm TPM 1.2+ present and enabled
+- [ ] Enable Secure Boot in UEFI
+- [ ] Create system partitions (if needed)
+- [ ] Configure Group Policy settings
+- [ ] Set up AD recovery key backup
+
+### Deployment:
+- [ ] Enable BitLocker on OS drive
+- [ ] Configure unlock method (TPM+PIN recommended)
+- [ ] Backup recovery key to AD
+- [ ] Save recovery key to user's Microsoft account
+- [ ] Print recovery key for user records
+- [ ] Enable auto-unlock for data drives
+- [ ] Encrypt removable drives (if policy requires)
+
+### Post-Deployment:
+- [ ] Verify encryption completed successfully
+- [ ] Test unlock with PIN/password
+- [ ] Test recovery key retrieval process
+- [ ] Document configuration
+- [ ] Train users on BitLocker basics
+- [ ] Monitor for encryption failures
+
+### Ongoing:
+- [ ] Monthly: Audit encryption status
+- [ ] Quarterly: Test recovery procedures
+- [ ] Annually: Update recovery keys
+- [ ] As needed: Suspend before hardware changes
+'''
+        })
 
         self.stdout.write(self.style.SUCCESS(f'✓ Created {len(articles)} professional KB articles'))
 

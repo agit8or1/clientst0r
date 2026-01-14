@@ -1,0 +1,22 @@
+[Unit]
+Description=HuduGlue Password Breach Scanning
+After=network.target mariadb.service
+
+[Service]
+Type=oneshot
+User=administrator
+Group=administrator
+WorkingDirectory=/home/administrator
+Environment="PATH=/home/administrator/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/administrator/venv/bin/python /home/administrator/manage.py check_password_breaches --scan-frequency 24
+
+# Logging
+StandardOutput=append:/var/log/itdocs/breach-scan.log
+StandardError=append:/var/log/itdocs/breach-scan-error.log
+
+# Security hardening
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
