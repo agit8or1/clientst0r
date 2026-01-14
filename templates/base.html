@@ -86,20 +86,6 @@
                             <li><a class="dropdown-item" href="{% url 'monitoring:expiration_list' %}"><i class="fas fa-calendar-times"></i> Expirations</a></li>
                         </ul>
                     </li>
-                    {% if user.is_superuser %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-danger" href="#" id="securityDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-shield-alt"></i> Security
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'core:security_dashboard' %}"><i class="fas fa-tachometer-alt"></i> Security Dashboard</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Vulnerability Management</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'core:snyk_scans' %}"><i class="fas fa-bug"></i> Vulnerability Scans</a></li>
-                            <li><a class="dropdown-item" href="{% url 'core:settings_snyk' %}"><i class="fas fa-cog"></i> Scan Configuration</a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
                     <li class="nav-item"><a class="nav-link" href="{% url 'core:favorite_list' %}"><i class="fas fa-star text-warning"></i> Favorites</a></li>
                     {% if user.is_superuser %}
                     <li class="nav-item dropdown">
@@ -111,6 +97,11 @@
                             <li><a class="dropdown-item" href="{% url 'core:settings_general' %}"><i class="fas fa-sliders-h"></i> Settings</a></li>
                             <li><a class="dropdown-item" href="{% url 'core:system_status' %}"><i class="fas fa-heartbeat"></i> System Status</a></li>
                             <li><a class="dropdown-item" href="{% url 'core:system_updates' %}"><i class="fas fa-sync-alt"></i> System Updates</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header text-danger">Security</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'core:security_dashboard' %}"><i class="fas fa-shield-alt"></i> Security Dashboard</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:snyk_scans' %}"><i class="fas fa-bug"></i> Vulnerability Scans</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:settings_snyk' %}"><i class="fas fa-cog"></i> Scan Configuration</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">Management</h6></li>
                             <li><a class="dropdown-item" href="{% url 'accounts:organization_list' %}"><i class="fas fa-building"></i> Organizations</a></li>

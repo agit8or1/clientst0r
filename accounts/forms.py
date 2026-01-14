@@ -123,33 +123,75 @@ class UserProfileForm(forms.ModelForm):
     first_name = forms.CharField(
         max_length=150,
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First Name'})
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'First Name',
+            'autocomplete': 'given-name'
+        })
     )
     last_name = forms.CharField(
         max_length=150,
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last Name'})
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Last Name',
+            'autocomplete': 'family-name'
+        })
     )
     email = forms.EmailField(
         required=True,
-        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'email@example.com'})
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'email@example.com',
+            'autocomplete': 'email'
+        })
     )
     
     class Meta:
         model = UserProfile
         fields = ['phone', 'title', 'department', 'timezone', 'locale', 'theme', 'email_notifications', 'notification_frequency']
         widgets = {
-            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+1 (555) 123-4567'}),
-            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Job Title'}),
-            'department': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Department'}),
-            'timezone': forms.Select(attrs={'class': 'form-select'}),
-            'locale': forms.Select(attrs={'class': 'form-select'}),
-            'theme': forms.Select(attrs={'class': 'form-select'}),
-            'email_notifications': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'notification_frequency': forms.Select(attrs={'class': 'form-select'}),
+            'phone': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '+1 (555) 123-4567',
+                'autocomplete': 'tel'
+            }),
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Job Title',
+                'autocomplete': 'organization-title'
+            }),
+            'department': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Department',
+                'autocomplete': 'off'
+            }),
+            'timezone': forms.Select(attrs={
+                'class': 'form-select',
+                'autocomplete': 'off'
+            }),
+            'locale': forms.Select(attrs={
+                'class': 'form-select',
+                'autocomplete': 'language'
+            }),
+            'theme': forms.Select(attrs={
+                'class': 'form-select',
+                'autocomplete': 'off'
+            }),
+            'email_notifications': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'autocomplete': 'off'
+            }),
+            'notification_frequency': forms.Select(attrs={
+                'class': 'form-select',
+                'autocomplete': 'off'
+            }),
         }
     
     def __init__(self, *args, **kwargs):
+        import logging
+        logger = logging.getLogger('accounts')
+
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
@@ -187,8 +229,13 @@ class UserProfileForm(forms.ModelForm):
 
         # Ensure timezone and theme show current values
         if self.instance and self.instance.pk:
+            logger.info(f"UserProfileForm: instance.timezone={self.instance.timezone}, instance.theme={self.instance.theme}")
+            logger.info(f"UserProfileForm: timezone field value before: {self.fields['timezone'].initial}")
+            logger.info(f"UserProfileForm: theme field value before: {self.fields['theme'].initial}")
             self.fields['timezone'].initial = self.instance.timezone
             self.fields['theme'].initial = self.instance.theme
+            logger.info(f"UserProfileForm: timezone field value after: {self.fields['timezone'].initial}")
+            logger.info(f"UserProfileForm: theme field value after: {self.fields['theme'].initial}")
     
     def save(self, commit=True):
         profile = super().save(commit=False)
