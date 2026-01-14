@@ -63,8 +63,10 @@
     <div class="row mb-4">
         <div class="col-md-6">
             <div class="card update-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Current Version</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-info-circle"></i> Current Version</h5>
                     <h2 class="mb-0">
                         <span class="badge bg-primary version-badge">v{{ version }}</span>
                     </h2>
@@ -83,8 +85,10 @@
 
         <div class="col-md-6">
             <div class="card {% if update_info.update_available %}update-card warning{% else %}update-card{% endif %}">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cloud-download-alt"></i> Latest Available Version</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-cloud-download-alt"></i> Latest Available Version</h5>
                     {% if update_info.error %}
                     <div class="alert alert-danger mb-0">
                         <i class="fas fa-exclamation-circle"></i> {{ update_info.error }}
@@ -114,9 +118,10 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cog"></i> Update Actions</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-cog"></i> Update Actions</h5>
-
                     <form method="POST" action="{% url 'core:check_updates_now' %}" class="d-inline">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-primary">
@@ -151,10 +156,12 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card border-danger">
-                <div class="card-body">
-                    <h5 class="card-title text-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
                         <i class="fas fa-bug"></i> Update Check Debug Info
                     </h5>
+                </div>
+                <div class="card-body">
                     <div class="alert alert-danger">
                         <strong>Error:</strong> {{ debug_info.error }}
                     </div>
@@ -171,10 +178,12 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">
+                <div class="card-header">
+                    <h5 class="mb-0">
                         <i class="fas fa-info-circle"></i> Update Check Details
                     </h5>
+                </div>
+                <div class="card-body">
                     <table class="table table-sm">
                         <tr>
                             <th width="200">Current Version:</th>
@@ -220,10 +229,12 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card border-info">
-                <div class="card-body">
-                    <h5 class="card-title">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
                         <i class="fas fa-terminal"></i> Manual Update from CLI
                     </h5>
+                </div>
+                <div class="card-body">
 
                     <!-- Automated Script Method (Recommended) -->
                     <div class="alert alert-success mb-4">
@@ -329,10 +340,12 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">
+                <div class="card-header">
+                    <h5 class="mb-0">
                         <i class="fas fa-list-ul"></i> What's in v{{ version }}
                     </h5>
+                </div>
+                <div class="card-body">
                     <div class="release-notes">
                         <pre>{{ current_changelog }}</pre>
                     </div>
@@ -347,10 +360,12 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card border-warning">
-                <div class="card-body">
-                    <h5 class="card-title text-warning">
+                <div class="card-header" style="background-color: var(--warning-yellow); color: #000;">
+                    <h5 class="mb-0">
                         <i class="fas fa-arrow-up"></i> What's New in Available Updates
                     </h5>
+                </div>
+                <div class="card-body">
                     {% for ver, changelog in newer_changelogs.items %}
                     <div class="mb-4">
                         <h6 class="text-primary">
@@ -377,8 +392,10 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Recent Update History</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title"><i class="fas fa-history"></i> Recent Update History</h5>
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
