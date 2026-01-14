@@ -212,10 +212,6 @@ def global_kb_list(request):
     List all global KB articles (staff only) with filtering.
     """
     from django.db.models import Q
-    from core.models import Organization
-
-    # Get first org for categories/tags
-    org = Organization.objects.first()
 
     # Global KB articles (exclude templates - templates have their own list)
     documents = Document.objects.filter(
@@ -244,10 +240,11 @@ def global_kb_list(request):
 
     documents = documents.order_by('-updated_at')
 
-    # Get all categories and tags for filters
-    categories = DocumentCategory.objects.filter(organization=org).order_by('order', 'name')
+    # Get global categories (organization=None) for filters
+    categories = DocumentCategory.objects.filter(organization__isnull=True).order_by('order', 'name')
     from core.models import Tag
-    tags = Tag.objects.filter(organization=org).order_by('name')
+    # Global KB doesn't use tags, but keep for template compatibility
+    tags = Tag.objects.none()
 
     return render(request, 'docs/global_kb_list.html', {
         'documents': documents,
