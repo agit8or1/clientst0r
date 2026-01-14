@@ -735,16 +735,23 @@ footer small {
 
 /* ===== Breadcrumb ===== */
 .breadcrumb {
-    background-color: transparent !important;
     padding: var(--spacing-sm) 0;
     margin-bottom: 0;
     border-radius: var(--border-radius-lg) !important;
 }
 
-/* Standalone breadcrumb (not in card) needs margin */
-.breadcrumb:not(.mb-0) {
+/* Breadcrumb inside card - transparent background */
+.card .breadcrumb {
+    background-color: transparent !important;
+}
+
+/* Standalone breadcrumb (not in card) - needs background and margin */
+nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
+    background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+    padding: var(--spacing-md) var(--spacing-lg);
     margin-bottom: var(--spacing-lg);
-    padding: var(--spacing-md) 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--gray-200);
 }
 
 .breadcrumb-item {
@@ -1049,6 +1056,13 @@ footer small {
 [data-bs-theme="dark"] .password-field {
     background-color: var(--gray-200);
     color: var(--gray-900);
+}
+
+/* Standalone breadcrumb dark mode */
+[data-bs-theme="dark"] nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
+    background: linear-gradient(to bottom, #1a1d23 0%, #212529 100%);
+    border-color: var(--gray-300);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 /* Icon wrapper dark mode */
