@@ -1,0 +1,57 @@
+title: "[Idea]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 💡 Share Your Idea!
+
+        Use this template to propose new features, enhancements, or major changes to HuduGlue.
+
+        **What happens next:**
+        1. Community members can discuss and upvote your idea (👍 reaction)
+        2. Maintainers will review popular ideas
+        3. If approved, it will be promoted to a [Feature Request Issue](https://github.com/agit8or1/huduglue/issues/new?template=feature_request.yml) and added to the Roadmap
+
+        **Guidelines:**
+        - Be specific about the problem you're trying to solve
+        - Explain the "why" not just the "what"
+        - One idea per discussion (avoid bundling multiple requests)
+        - Use 👍 reactions to vote on others' ideas
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: The Idea
+      description: Describe your feature idea. What should HuduGlue be able to do?
+      placeholder: "I think HuduGlue should..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What Problem Does This Solve?
+      description: Explain the pain point or limitation you're experiencing
+      placeholder: "Currently, when I try to [action], I can't [goal] because..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: benefit
+    attributes:
+      label: Who Would Benefit?
+      description: Who would use this feature? What type of users or organizations?
+      placeholder: "This would help [user type] who need to [task]..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: mockup
+    attributes:
+      label: Mockups / Examples
+      description: |
+        (Optional) Add screenshots, mockups, or links to similar features in other tools.
+        You can attach images by dragging and dropping.
+    validations:
+      required: false

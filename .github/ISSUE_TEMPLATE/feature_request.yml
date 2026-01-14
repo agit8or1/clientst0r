@@ -1,0 +1,122 @@
+name: 💡 Feature Request
+description: Suggest a new feature or enhancement for HuduGlue
+title: "[Feature]: "
+labels: ["type:feature", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a new feature! 🚀
+
+        **Before submitting:**
+        1. Check if a similar feature request already exists in [Discussions → Ideas](https://github.com/agit8or1/huduglue/discussions/categories/ideas)
+        2. Review the [Roadmap Project](https://github.com/agit8or1/huduglue/projects) to see if it's already planned
+
+        This form is for **structured feature requests ready for implementation**. If you want to propose an idea for community discussion first, please use [GitHub Discussions](https://github.com/agit8or1/huduglue/discussions/new?category=ideas) instead.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? What pain point are you experiencing?
+      placeholder: "As a [user type], I struggle with [problem] because [reason]..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your ideal solution. How should this feature work?
+      placeholder: "I would like to be able to [action] so that [benefit]..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What alternative solutions or workarounds have you considered?
+      placeholder: "I've tried [alternative 1], but it doesn't work because..."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority / Impact
+      description: How important is this feature to you?
+      options:
+        - "Critical - Blocking my workflow"
+        - "High - Significantly improves productivity"
+        - "Medium - Nice to have"
+        - "Low - Minor enhancement"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      description: Which part of HuduGlue does this affect?
+      multiple: true
+      options:
+        - "Assets - Asset Management"
+        - "Vault - Password Management"
+        - "Docs - Documentation"
+        - "Diagrams - Network Diagrams"
+        - "Workflows - Process Management"
+        - "Monitoring - Website/Cert Monitoring"
+        - "Integrations - PSA/RMM/External APIs"
+        - "Security - Authentication/Permissions"
+        - "UI/UX - User Interface"
+        - "Performance - Speed/Optimization"
+        - "API - REST API"
+        - "Mobile - Mobile Experience"
+        - "Reporting - Reports/Analytics"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case / User Story
+      description: Describe a real-world scenario where you would use this feature
+      placeholder: "When I'm [doing task], I want to [action] so that [outcome]..."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: implementation
+    attributes:
+      label: Implementation Willingness
+      description: Would you be willing to contribute to implementing this feature?
+      options:
+        - label: "I can help with design/mockups"
+        - label: "I can help with documentation"
+        - label: "I can help with testing"
+        - label: "I can contribute code (if technically feasible)"
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: |
+        Add any other context, screenshots, mockups, or examples here.
+        **Tip:** You can attach images by clicking this area or dragging and dropping.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please verify the following before submitting
+      options:
+        - label: "I have searched existing issues and discussions to avoid duplicates"
+          required: true
+        - label: "This feature aligns with HuduGlue's purpose (IT documentation platform)"
+          required: true
+        - label: "I have provided enough detail for someone else to understand the request"
+          required: true

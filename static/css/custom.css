@@ -360,13 +360,13 @@ h6 { font-size: 1rem; }
 
 /* ===== Table Enhancements ===== */
 .table {
-    background-color: white;
+    background-color: var(--surface, white);
     border-radius: var(--border-radius-lg);
     overflow: hidden;
 }
 
 .table thead {
-    background-color: var(--gray-100);
+    background-color: var(--surface-hover, var(--gray-100));
 }
 
 .table thead th {
