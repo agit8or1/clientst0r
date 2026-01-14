@@ -34,6 +34,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Quick seed with limited data for testing',
         )
+        parser.add_argument(
+            '--from-github',
+            action='store_true',
+            help='Fetch KB articles from GitHub instead of generating locally',
+        )
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('=' * 70))
@@ -56,7 +61,10 @@ class Command(BaseCommand):
             self.stdout.write('\\n' + self.style.WARNING('Seeding KB Articles...'))
             self.stdout.write('-' * 70)
             try:
-                if options['quick']:
+                if options['from_github']:
+                    # Fetch KB articles from GitHub
+                    call_command('fetch_kb_from_github', delete=options['delete'])
+                elif options['quick']:
                     call_command('seed_kb_articles', delete=options['delete'], limit=5)
                 else:
                     call_command('seed_kb_articles', delete=options['delete'])

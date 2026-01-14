@@ -12,13 +12,13 @@ HuduGlue includes comprehensive seed data to help you get started immediately:
 ```bash
 cd /path/to/huduglue
 source venv/bin/activate
-python manage.py seed_all
+python manage.py seed_all --from-github
 ```
 
 This will:
 - Create 3,000+ equipment models with specs
-- Create 1,000+ KB articles across 20 categories
-- Take approximately 5-10 minutes
+- Fetch 1,000+ KB articles from GitHub
+- Take approximately 2-5 minutes
 
 ### Seed Specific Data
 
@@ -27,10 +27,19 @@ This will:
 python manage.py seed_equipment_catalog
 ```
 
-#### KB Articles Only
+#### KB Articles from GitHub (Recommended)
+```bash
+python manage.py fetch_kb_from_github
+```
+
+This fetches curated KB articles from the HuduGlue GitHub repository.
+
+#### KB Articles Locally Generated
 ```bash
 python manage.py seed_kb_articles
 ```
+
+Generates articles locally (slower, use GitHub fetch instead).
 
 ### Quick Seed (For Testing)
 ```bash

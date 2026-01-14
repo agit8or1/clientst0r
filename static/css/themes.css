@@ -421,6 +421,13 @@ body {
 
 .modal-backdrop {
     z-index: 10400 !important;
+    pointer-events: none !important;
+}
+
+.modal-dialog {
+    z-index: 10500 !important;
+    position: relative !important;
+    pointer-events: auto !important;
 }
 
 .modal-content {
@@ -428,24 +435,32 @@ body {
     color: var(--text-primary) !important;
     position: relative !important;
     z-index: 10500 !important;
+    pointer-events: auto !important;
 }
 
 .modal-header, .modal-footer {
     border-color: var(--border-color) !important;
     background-color: var(--surface) !important;
+    pointer-events: auto !important;
 }
 
 .modal-body {
     background-color: var(--card-bg) !important;
     color: var(--text-primary) !important;
+    pointer-events: auto !important;
 }
 
-/* Ensure buttons in modals are clickable */
+/* Ensure ALL interactive elements in modals are clickable */
 .modal button,
-.modal .btn {
+.modal .btn,
+.modal input,
+.modal select,
+.modal a,
+.modal .btn-close {
     position: relative !important;
     z-index: 10501 !important;
     pointer-events: auto !important;
+    cursor: pointer !important;
 }
 
 .dropdown-menu {
