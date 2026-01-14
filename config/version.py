@@ -2,11 +2,11 @@
 Version information for HuduGlue
 """
 
-VERSION = '2.24.30'
+VERSION = '2.24.31'
 VERSION_INFO = {
     'major': 2,
     'minor': 24,
-    'patch': 30,
+    'patch': 31,
     'status': 'stable',  # alpha, beta, rc, stable
 }
 

@@ -1212,11 +1212,11 @@ def import_kb_articles(request):
         start_time = time.time()
 
         if source == 'github':
-            # Import from GitHub
+            # Import from GitHub (which internally calls seed_professional_kb)
             call_command('fetch_kb_from_github', delete=delete_existing, stdout=out)
         else:
-            # Import locally generated articles
-            call_command('seed_kb_articles', delete=delete_existing, stdout=out)
+            # Import locally generated professional articles
+            call_command('seed_professional_kb', stdout=out)
 
         # Calculate duration
         duration = time.time() - start_time
