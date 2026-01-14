@@ -147,24 +147,41 @@
                         <i class="fas fa-terminal"></i> Manual Update from CLI
                     </h5>
                     <p class="mb-3">
-                        For advanced users who prefer manual updates via command line. Run these commands in order:
+                        For advanced users who prefer manual updates via command line:
                     </p>
                     <div class="alert alert-warning mb-3">
                         <i class="fas fa-exclamation-triangle"></i>
                         <strong>Important:</strong> Copy and run these commands <strong>ONE AT A TIME</strong>, not all at once.
                         Wait for each command to complete before running the next one.
                     </div>
-                    <div class="bg-dark text-light p-3 rounded" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
-                        <div class="mb-2">cd /home/administrator</div>
-                        <div class="mb-3"></div>
-                        <div class="mb-2">pwd</div>
-                        <div class="mb-2"><span class="text-muted" style="font-size: 0.85em;"># Should show: /home/administrator</span></div>
-                        <div class="mb-3"></div>
-                        <div class="mb-2">ls manage.py</div>
-                        <div class="mb-2"><span class="text-muted" style="font-size: 0.85em;"># Should show: manage.py (if this fails, you're in wrong directory)</span></div>
-                        <div class="mb-3"></div>
+
+                    <h6 class="mb-2"><i class="fas fa-folder"></i> Step 1: Navigate to Application Directory</h6>
+                    <p class="small text-muted mb-2">Find where your application is installed:</p>
+                    <div class="bg-dark text-light p-3 rounded mb-3" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
+                        <div class="mb-2">find /home -name "manage.py" -type f 2>/dev/null | grep huduglue</div>
+                        <div class="mb-2"><span class="text-muted" style="font-size: 0.85em;"># This will show the path to your installation</span></div>
+                    </div>
+
+                    <p class="small text-muted mb-2">Then navigate to that directory (replace with YOUR path from above):</p>
+                    <div class="bg-dark text-light p-3 rounded mb-3" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
+                        <div class="mb-2">cd /path/to/your/huduglue</div>
+                        <div class="mb-2"><span class="text-muted" style="font-size: 0.85em;"># Example: cd /home/administrator/huduglue</span></div>
+                        <div class="mb-2"><span class="text-muted" style="font-size: 0.85em;"># OR: cd /home/administrator</span></div>
+                    </div>
+
+                    <h6 class="mb-2"><i class="fas fa-check-circle"></i> Step 2: Verify Location</h6>
+                    <div class="bg-dark text-light p-3 rounded mb-3" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
+                        <div class="mb-2">ls manage.py venv/</div>
+                        <div class="mb-2"><span class="text-muted" style="font-size: 0.85em;"># Both should exist. If not, you're in the wrong directory!</span></div>
+                    </div>
+
+                    <h6 class="mb-2"><i class="fas fa-download"></i> Step 3: Pull Updates</h6>
+                    <div class="bg-dark text-light p-3 rounded mb-3" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
                         <div class="mb-2">git pull origin main</div>
-                        <div class="mb-3"></div>
+                    </div>
+
+                    <h6 class="mb-2"><i class="fas fa-play-circle"></i> Step 4: Apply Updates</h6>
+                    <div class="bg-dark text-light p-3 rounded" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
                         <div class="mb-2">source venv/bin/activate</div>
                         <div class="mb-3"></div>
                         <div class="mb-2">pip install -r requirements.txt</div>
@@ -179,10 +196,11 @@
                         <i class="fas fa-info-circle"></i>
                         <strong>Important Notes:</strong>
                         <ul class="mb-0 mt-2">
-                            <li>The application directory is <code>/home/administrator</code> (NOT /home/administrator/huduglue)</li>
-                            <li>You must run the <code>ls manage.py venv/</code> command to verify you're in the correct directory before proceeding</li>
-                            <li>Make sure you have committed any local changes before pulling updates to avoid conflicts</li>
-                            <li>Use <code>git status</code> to check for uncommitted changes</li>
+                            <li><strong>Find your path first!</strong> The application path varies by installation. Use the <code>find</code> command in Step 1 to locate YOUR installation.</li>
+                            <li>Always verify with <code>ls manage.py venv/</code> that you're in the correct directory before proceeding</li>
+                            <li>Run commands <strong>ONE AT A TIME</strong> - don't paste them all at once</li>
+                            <li>Check for uncommitted changes: <code>git status</code> before pulling updates</li>
+                            <li>If you get "externally-managed-environment" error, make sure you activated the venv first</li>
                         </ul>
                     </div>
                 </div>
