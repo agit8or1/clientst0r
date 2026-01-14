@@ -13,7 +13,7 @@ class DocumentCategory(BaseModel):
     """
     Categories for organizing documents in Knowledge Base.
     """
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='document_categories')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='document_categories', null=True, blank=True, help_text='Organization for org-specific categories. NULL for global KB categories.')
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255)
     description = models.TextField(blank=True)
