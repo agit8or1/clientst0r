@@ -4274,6 +4274,8 @@ $volume.KeyProtector | Where-Object {$_.KeyProtectorType -eq "RecoveryPassword"}
                     'title': article_data['title'],
                     'body': article_data['body'],
                     'category': category,
+                    'is_global': True,
+                    'is_published': True,
                 }
             )
 
