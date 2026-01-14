@@ -24,7 +24,7 @@ whitenoise==6.6.*
 
 # PSA Integration HTTP clients
 requests==2.32.*
-urllib3==2.1.*
+urllib3==2.6.*
 
 # AI Integration
 anthropic==0.75.*
