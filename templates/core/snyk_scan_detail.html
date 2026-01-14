@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Scan {{ scan.scan_id }} - Snyk - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:settings_snyk' %}">Snyk Security</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:snyk_scans' %}">Scan History</a></li>
+        <li class="breadcrumb-item active">{{ scan.scan_id }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-shield-alt"></i> Scan Details: {{ scan.scan_id }}
+                </h5>
+                <a href="{% url 'core:snyk_scans' %}" class="btn btn-sm btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to History
+                </a>
+            </div>
+            <div class="card-body">
+                <!-- Scan Summary -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h3 class="mb-0">{{ scan.total_vulnerabilities }}</h3>
+                                <small class="text-muted">Total Vulnerabilities</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-danger text-white">
+                            <div class="card-body text-center">
+                                <h3 class="mb-0">{{ scan.critical_count }}</h3>
+                                <small>Critical</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning">
+                            <div class="card-body text-center">
+                                <h3 class="mb-0">{{ scan.high_count }}</h3>
+                                <small>High</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center">
+                                <h3 class="mb-0">{{ scan.medium_count }}</h3>
+                                <small>Medium</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scan Metadata -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-info-circle"></i> Scan Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Scan ID:</strong> <code>{{ scan.scan_id }}</code></p>
+                                <p><strong>Status:</strong> <span class="badge {{ scan.get_status_badge_class }}">{{ scan.get_status_display }}</span></p>
+                                <p><strong>Started:</strong> {{ scan.started_at|date:"Y-m-d H:i:s" }} UTC</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Completed:</strong> {{ scan.completed_at|date:"Y-m-d H:i:s" }} UTC</p>
+                                <p><strong>Duration:</strong> {{ scan.duration_seconds }} seconds</p>
+                                <p><strong>Triggered By:</strong> {% if scan.triggered_by %}{{ scan.triggered_by.username }}{% else %}System{% endif %}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vulnerabilities List -->
+                {% if vulnerabilities %}
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-bug"></i> Vulnerability Details</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="vulnerabilitiesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Severity</th>
+                                        <th>Title</th>
+                                        <th>Package</th>
+                                        <th>Version</th>
+                                        <th>CVE</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for vuln in vulnerabilities %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-{% if vuln.severity == 'critical' %}danger{% elif vuln.severity == 'high' %}warning{% elif vuln.severity == 'medium' %}info{% else %}secondary{% endif %}">
+                                                {{ vuln.severity|upper }}
+                                            </span>
+                                        </td>
+                                        <td>{{ vuln.title|default:"N/A" }}</td>
+                                        <td><code>{{ vuln.packageName|default:"N/A" }}</code></td>
+                                        <td>{{ vuln.version|default:"N/A" }}</td>
+                                        <td>
+                                            {% if vuln.identifiers.CVE %}
+                                                {% for cve in vuln.identifiers.CVE %}
+                                                <a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name={{ cve }}" target="_blank" rel="noopener">
+                                                    {{ cve }}
+                                                </a>
+                                                {% endfor %}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if vuln.url %}
+                                            <a href="{{ vuln.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-external-link-alt"></i> Details
+                                            </a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> <strong>Good news!</strong> No vulnerabilities found in this scan.
+                </div>
+                {% endif %}
+
+                <!-- Raw Output (Collapsible) -->
+                {% if scan.scan_output %}
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <a class="text-decoration-none" data-bs-toggle="collapse" href="#rawOutput">
+                            <i class="fas fa-code"></i> Raw Scan Output (Click to expand)
+                        </a>
+                    </div>
+                    <div id="rawOutput" class="collapse">
+                        <div class="card-body">
+                            <pre class="bg-dark text-light p-3" style="max-height: 400px; overflow-y: auto;"><code>{{ scan.scan_output }}</code></pre>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#vulnerabilitiesTable').DataTable({
+        order: [[0, 'asc']],  // Sort by severity
+        pageLength: 25,
+    });
+});
+</script>
+{% endblock %}

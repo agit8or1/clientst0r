@@ -59,6 +59,18 @@
                     <strong>About Snyk:</strong> Snyk is a comprehensive security platform that scans your dependencies and code for vulnerabilities, license issues, and security misconfigurations. It provides real-time monitoring, automatic fix suggestions, and prioritized vulnerability reports.
                 </div>
 
+                {% if has_token and settings.snyk_enabled %}
+                <div class="mb-4 d-flex gap-2">
+                    <button type="button" class="btn btn-primary" id="runScanBtn">
+                        <i class="fas fa-sync"></i> Run Scan Now
+                    </button>
+                    <a href="{% url 'core:snyk_scans' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-history"></i> View Scan History
+                    </a>
+                </div>
+                <div id="scanProgress" class="alert" style="display: none;"></div>
+                {% endif %}
+
                 <form method="post">
                     {% csrf_token %}
 
@@ -266,6 +278,82 @@ document.getElementById('testSnykBtn').addEventListener('click', function() {
         resultDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> ${error.message}`;
 
         // Re-enable button
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    });
+});
+{% endif %}
+
+// Run Scan Now functionality
+{% if has_token and settings.snyk_enabled %}
+document.getElementById('runScanBtn').addEventListener('click', function() {
+    const btn = this;
+    const originalHtml = btn.innerHTML;
+    const progressDiv = document.getElementById('scanProgress');
+
+    // Disable button
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting Scan...';
+
+    // Show progress
+    progressDiv.style.display = 'block';
+    progressDiv.className = 'alert alert-info';
+    progressDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting security scan...';
+
+    // Start scan
+    fetch('{% url "core:run_snyk_scan" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            progressDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scan in progress... This may take a few minutes.';
+
+            // Poll for status
+            const scanId = data.scan_id;
+            const pollInterval = setInterval(() => {
+                fetch(`/core/settings/snyk/scan/status/${scanId}/`)
+                    .then(r => r.json())
+                    .then(status => {
+                        if (status.completed) {
+                            clearInterval(pollInterval);
+                            btn.disabled = false;
+                            btn.innerHTML = originalHtml;
+
+                            if (status.status === 'completed') {
+                                progressDiv.className = status.critical_count > 0 || status.high_count > 0 ?
+                                    'alert alert-danger' : 'alert alert-success';
+                                progressDiv.innerHTML = `
+                                    <i class="fas fa-check-circle"></i> <strong>Scan Completed!</strong><br>
+                                    Found ${status.total_vulnerabilities} vulnerabilities:
+                                    <span class="badge bg-danger ms-2">Critical: ${status.critical_count}</span>
+                                    <span class="badge bg-warning ms-2">High: ${status.high_count}</span>
+                                    <span class="badge bg-info ms-2">Medium: ${status.medium_count}</span>
+                                    <span class="badge bg-secondary ms-2">Low: ${status.low_count}</span>
+                                    <br><br>
+                                    <a href="{% url 'core:snyk_scans' %}" class="btn btn-sm btn-primary">View Results</a>
+                                `;
+                            } else {
+                                progressDiv.className = 'alert alert-danger';
+                                progressDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>Scan Failed:</strong> ${status.error_message}`;
+                            }
+                        }
+                    });
+            }, 3000);  // Poll every 3 seconds
+        } else {
+            progressDiv.className = 'alert alert-danger';
+            progressDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> ${data.message}`;
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    })
+    .catch(error => {
+        progressDiv.className = 'alert alert-danger';
+        progressDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> ${error.message}`;
         btn.disabled = false;
         btn.innerHTML = originalHtml;
     });

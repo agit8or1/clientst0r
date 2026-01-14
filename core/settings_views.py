@@ -778,3 +778,117 @@ def test_snyk_connection(request):
             'success': False,
             'message': f'Unexpected error: {str(e)}'
         })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def snyk_scans(request):
+    """List all Snyk scans."""
+    from core.models import SnykScan
+    
+    scans = SnykScan.objects.all()[:50]  # Latest 50 scans
+    
+    # Get latest scan for dashboard
+    latest_scan = scans.first() if scans else None
+    
+    return render(request, 'core/snyk_scans.html', {
+        'scans': scans,
+        'latest_scan': latest_scan,
+        'current_tab': 'snyk',
+    })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def snyk_scan_detail(request, scan_id):
+    """View details of a specific Snyk scan."""
+    from core.models import SnykScan
+    from django.shortcuts import get_object_or_404
+    
+    scan = get_object_or_404(SnykScan, id=scan_id)
+    
+    # Parse vulnerabilities for display
+    vulnerabilities = scan.vulnerabilities.get('vulnerabilities', [])
+    
+    return render(request, 'core/snyk_scan_detail.html', {
+        'scan': scan,
+        'vulnerabilities': vulnerabilities,
+        'current_tab': 'snyk',
+    })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def run_snyk_scan(request):
+    """Trigger a manual Snyk scan."""
+    from django.http import JsonResponse
+    from django.core.management import call_command
+    import threading
+    import uuid
+    
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid request method'
+        })
+    
+    settings = SystemSetting.get_settings()
+    
+    if not settings.snyk_enabled:
+        return JsonResponse({
+            'success': False,
+            'message': 'Snyk scanning is not enabled'
+        })
+    
+    if not settings.snyk_api_token:
+        return JsonResponse({
+            'success': False,
+            'message': 'Snyk API token is not configured'
+        })
+    
+    # Generate scan ID
+    scan_id = f"manual-{uuid.uuid4().hex[:8]}"
+    
+    # Run scan in background thread
+    def run_scan():
+        try:
+            call_command('run_snyk_scan', scan_id=scan_id, user_id=request.user.id)
+        except Exception as e:
+            print(f"Scan error: {e}")
+    
+    thread = threading.Thread(target=run_scan)
+    thread.daemon = True
+    thread.start()
+    
+    return JsonResponse({
+        'success': True,
+        'message': 'Scan started successfully',
+        'scan_id': scan_id
+    })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def snyk_scan_status(request, scan_id):
+    """Get status of a running scan."""
+    from django.http import JsonResponse
+    from core.models import SnykScan
+    
+    try:
+        scan = SnykScan.objects.get(scan_id=scan_id)
+        return JsonResponse({
+            'success': True,
+            'status': scan.status,
+            'total_vulnerabilities': scan.total_vulnerabilities,
+            'critical_count': scan.critical_count,
+            'high_count': scan.high_count,
+            'medium_count': scan.medium_count,
+            'low_count': scan.low_count,
+            'completed': scan.status in ['completed', 'failed'],
+            'error_message': scan.error_message if scan.status == 'failed' else None,
+        })
+    except SnykScan.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': 'Scan not found'
+        })
