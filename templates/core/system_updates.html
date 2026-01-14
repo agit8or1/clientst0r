@@ -146,6 +146,43 @@
                     <h5 class="card-title">
                         <i class="fas fa-terminal"></i> Manual Update from CLI
                     </h5>
+
+                    <!-- Automated Script Method (Recommended) -->
+                    <div class="alert alert-success mb-4">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-star"></i> Recommended: Use the Update Script
+                        </h6>
+                        <p class="mb-2">
+                            The easiest way to update is using our automated update script. It checks everything first, then runs the update safely:
+                        </p>
+                        <div class="bg-dark text-light p-3 rounded mt-3" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
+                            <div class="mb-2">cd /path/to/your/huduglue</div>
+                            <div class="mb-2"><span class="text-muted" style="font-size: 0.85em;"># (use find command below if you don't know the path)</span></div>
+                            <div class="mb-3"></div>
+                            <div class="mb-2">./update.sh</div>
+                        </div>
+                        <p class="mt-3 mb-0 small">
+                            <strong>The script will:</strong>
+                        </p>
+                        <ul class="small mb-0">
+                            <li>✓ Check you're in the correct directory</li>
+                            <li>✓ Verify git repository and virtual environment</li>
+                            <li>✓ Warn about uncommitted changes</li>
+                            <li>✓ Pull updates from GitHub</li>
+                            <li>✓ Install dependencies</li>
+                            <li>✓ Run migrations</li>
+                            <li>✓ Collect static files</li>
+                            <li>✓ Restart the service</li>
+                            <li>✓ Show current version</li>
+                        </ul>
+                    </div>
+
+                    <!-- Manual Step-by-Step Method -->
+                    <details class="mb-3">
+                        <summary class="btn btn-outline-secondary btn-sm mb-3">
+                            <i class="fas fa-chevron-down"></i> Show Manual Step-by-Step Instructions
+                        </summary>
+
                     <p class="mb-3">
                         For advanced users who prefer manual updates via command line:
                     </p>
@@ -203,6 +240,7 @@
                             <li>If you get "externally-managed-environment" error, make sure you activated the venv first</li>
                         </ul>
                     </div>
+                    </details>
                 </div>
             </div>
         </div>
