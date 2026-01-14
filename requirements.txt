@@ -36,7 +36,7 @@ markdown==3.5.*
 bleach==6.1.*
 pytz==2024.1
 psutil==5.9.*
-packaging==24.1  # Version comparison for auto-updates
+packaging==25.0  # Version comparison for auto-updates
 
 # Azure AD / Microsoft Entra ID Integration
 msal==1.26.*
