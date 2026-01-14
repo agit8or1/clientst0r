@@ -5,6 +5,24 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.15.1] - 2026-01-14
+
+### 🔧 Bug Fixes
+
+**Snyk CLI Path Detection:**
+- Fixed "No such file or directory: 'snyk'" error when running scans
+- Added automatic Snyk binary path detection for nvm installations
+- Command now checks system PATH first, then nvm directories
+- Includes nvm node bin directory in subprocess PATH
+- Shows clear error message if Snyk CLI is not installed
+
+This ensures scans work regardless of whether Snyk CLI is installed globally or via nvm/npm.
+
+**Files Changed:**
+- `core/management/commands/run_snyk_scan.py` - Enhanced binary detection logic
+
+---
+
 ## [2.15.0] - 2026-01-14
 
 ### 🎉 Major Feature: Complete Snyk Scan Management
