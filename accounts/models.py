@@ -210,7 +210,20 @@ class UserProfile(BaseModel):
         ('monokai', 'Monokai'),
         ('gruvbox', 'Gruvbox'),
     ])
-    
+
+    # Background Settings
+    background_mode = models.CharField(max_length=20, default='none', choices=[
+        ('none', 'No Background Image'),
+        ('custom', 'Custom Upload'),
+        ('random', 'Random from Gallery'),
+    ])
+    background_image = models.ImageField(
+        upload_to='backgrounds/',
+        null=True,
+        blank=True,
+        help_text='Custom background image for your profile'
+    )
+
     # 2FA Settings
     two_factor_enabled = models.BooleanField(default=False)
     two_factor_method = models.CharField(max_length=20, choices=[

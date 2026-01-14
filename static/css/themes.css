@@ -308,17 +308,37 @@
 body {
     background-color: var(--background);
     color: var(--text-primary);
+    min-height: 100vh;
 }
 
+/* Container backgrounds */
+.container,
+.container-fluid {
+    color: var(--text-primary);
+}
+
+/* Cards */
 .card {
     background-color: var(--card-bg);
     border-color: var(--border-color);
     box-shadow: 0 0.125rem 0.25rem var(--card-shadow);
+    color: var(--text-primary);
 }
 
 .card-header {
     background-color: var(--surface);
     border-bottom-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.card-body {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.card-footer {
+    background-color: var(--surface);
+    border-top-color: var(--border-color);
 }
 
 .btn-primary {
@@ -435,4 +455,207 @@ footer {
 pre, code {
     background-color: var(--surface);
     border-color: var(--border-color);
+}
+
+/* ========================================
+   LISTS AND TABLES
+   ======================================== */
+.list-group-item {
+    background-color: var(--surface);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.list-group-item:hover {
+    background-color: var(--surface-hover);
+}
+
+.list-group-item-action:hover {
+    background-color: var(--surface-hover);
+}
+
+/* ========================================
+   BACKGROUNDS AND OVERLAYS
+   ======================================== */
+/* Background image support with theme-aware overlay */
+body.has-background {
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+}
+
+body.has-background::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--background);
+    opacity: 0.85;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Make content stand out over background */
+body.has-background .container,
+body.has-background .container-fluid {
+    position: relative;
+    z-index: 1;
+}
+
+body.has-background .card {
+    opacity: 0.98;
+    backdrop-filter: blur(10px);
+}
+
+body.has-background .navbar {
+    opacity: 0.95;
+    backdrop-filter: blur(10px);
+}
+
+/* ========================================
+   HEADINGS AND TEXT
+   ======================================== */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary);
+}
+
+.lead {
+    color: var(--text-secondary);
+}
+
+a {
+    color: var(--primary-color);
+}
+
+a:hover {
+    color: var(--primary-hover);
+}
+
+/* ========================================
+   BUTTONS
+   ======================================== */
+.btn-secondary {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background-color: var(--text-secondary);
+    border-color: var(--text-secondary);
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+}
+
+.btn-info {
+    background-color: var(--info-color);
+    border-color: var(--info-color);
+}
+
+/* ========================================
+   ALERTS
+   ======================================== */
+.alert {
+    border-color: var(--border-color);
+}
+
+.alert-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    color: #fff;
+}
+
+.alert-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: #fff;
+}
+
+.alert-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: #000;
+}
+
+/* ========================================
+   INPUT GROUPS
+   ======================================== */
+.input-group-text {
+    background-color: var(--surface);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+/* ========================================
+   BREADCRUMBS AND NAV
+   ======================================== */
+.breadcrumb-item + .breadcrumb-item::before {
+    color: var(--text-muted);
+}
+
+.breadcrumb-item a {
+    color: var(--primary-color);
+}
+
+.nav-tabs {
+    border-bottom-color: var(--border-color);
+}
+
+.nav-tabs .nav-link {
+    color: var(--text-secondary);
+    border-color: transparent;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: var(--border-color);
+}
+
+.nav-tabs .nav-link.active {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    border-bottom-color: transparent;
+    color: var(--text-primary);
+}
+
+/* ========================================
+   BADGES
+   ======================================== */
+.badge.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+.badge.bg-success {
+    background-color: var(--success-color) !important;
+}
+
+.badge.bg-danger {
+    background-color: var(--danger-color) !important;
+}
+
+.badge.bg-warning {
+    background-color: var(--warning-color) !important;
+}
+
+.badge.bg-info {
+    background-color: var(--info-color) !important;
+}
+
+.badge.bg-secondary {
+    background-color: var(--secondary-color) !important;
 }

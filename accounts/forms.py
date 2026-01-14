@@ -149,7 +149,7 @@ class UserProfileForm(forms.ModelForm):
     
     class Meta:
         model = UserProfile
-        fields = ['phone', 'title', 'department', 'timezone', 'locale', 'theme', 'email_notifications', 'notification_frequency']
+        fields = ['phone', 'title', 'department', 'timezone', 'locale', 'theme', 'background_mode', 'background_image', 'email_notifications', 'notification_frequency']
         widgets = {
             'phone': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -177,6 +177,14 @@ class UserProfileForm(forms.ModelForm):
             'theme': forms.Select(attrs={
                 'class': 'form-select',
                 'autocomplete': 'off'
+            }),
+            'background_mode': forms.Select(attrs={
+                'class': 'form-select',
+                'autocomplete': 'off'
+            }),
+            'background_image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
             }),
             'email_notifications': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
