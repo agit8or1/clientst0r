@@ -138,6 +138,49 @@
         </div>
     </div>
 
+    <!-- Manual CLI Update Instructions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-terminal"></i> Manual Update from CLI
+                    </h5>
+                    <p class="mb-3">
+                        For advanced users who prefer manual updates via command line:
+                    </p>
+                    <div class="bg-dark text-light p-3 rounded" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
+                        <div class="mb-2"><span class="text-success">#</span> Navigate to application directory</div>
+                        <div class="mb-2">cd /home/administrator</div>
+                        <div class="mb-3"></div>
+                        <div class="mb-2"><span class="text-success">#</span> Pull latest updates from GitHub</div>
+                        <div class="mb-2">git pull origin main</div>
+                        <div class="mb-3"></div>
+                        <div class="mb-2"><span class="text-success">#</span> Activate virtual environment</div>
+                        <div class="mb-2">source venv/bin/activate</div>
+                        <div class="mb-3"></div>
+                        <div class="mb-2"><span class="text-success">#</span> Install updated dependencies</div>
+                        <div class="mb-2">pip install -r requirements.txt</div>
+                        <div class="mb-3"></div>
+                        <div class="mb-2"><span class="text-success">#</span> Run database migrations</div>
+                        <div class="mb-2">python manage.py migrate</div>
+                        <div class="mb-3"></div>
+                        <div class="mb-2"><span class="text-success">#</span> Collect static files</div>
+                        <div class="mb-2">python manage.py collectstatic --noinput</div>
+                        <div class="mb-3"></div>
+                        <div class="mb-2"><span class="text-success">#</span> Restart Gunicorn service</div>
+                        <div class="mb-0">sudo systemctl restart huduglue-gunicorn.service</div>
+                    </div>
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Note:</strong> Make sure you have committed any local changes before pulling updates to avoid conflicts.
+                        Use <code>git status</code> to check for uncommitted changes.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Current Version Changelog -->
     {% if current_changelog %}
     <div class="row mb-4">
