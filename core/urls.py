@@ -46,6 +46,10 @@ urlpatterns = [
     path('settings/ai/', settings_views.settings_ai, name='settings_ai'),
     path('settings/snyk/', settings_views.settings_snyk, name='settings_snyk'),
     path('settings/snyk/test/', settings_views.test_snyk_connection, name='test_snyk_connection'),
+    path('settings/snyk/scans/', settings_views.snyk_scans, name='snyk_scans'),
+    path('settings/snyk/scans/<int:scan_id>/', settings_views.snyk_scan_detail, name='snyk_scan_detail'),
+    path('settings/snyk/scan/run/', settings_views.run_snyk_scan, name='run_snyk_scan'),
+    path('settings/snyk/scan/status/<str:scan_id>/', settings_views.snyk_scan_status, name='snyk_scan_status'),
     path('settings/system-status/', settings_views.system_status, name='system_status'),
     path('settings/maintenance/', settings_views.maintenance, name='maintenance'),
 

@@ -566,3 +566,90 @@ class ScheduledTask(models.Model):
             )
             if created:
                 task.calculate_next_run()
+
+
+class SnykScan(models.Model):
+    """Track Snyk security scan results."""
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('running', 'Running'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+    
+    SEVERITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ]
+    
+    # Scan metadata
+    scan_id = models.CharField(max_length=100, unique=True, help_text="Unique scan identifier")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.IntegerField(null=True, blank=True, help_text="Scan duration in seconds")
+    
+    # Scan results
+    total_vulnerabilities = models.IntegerField(default=0)
+    critical_count = models.IntegerField(default=0)
+    high_count = models.IntegerField(default=0)
+    medium_count = models.IntegerField(default=0)
+    low_count = models.IntegerField(default=0)
+    
+    # Raw scan output
+    scan_output = models.TextField(blank=True, help_text="Full Snyk scan output")
+    error_message = models.TextField(blank=True, help_text="Error message if scan failed")
+    
+    # Scan configuration
+    severity_threshold = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='high')
+    project_path = models.CharField(max_length=500, default='/home/administrator')
+    
+    # User who triggered the scan
+    triggered_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='snyk_scans'
+    )
+    
+    # JSON field for detailed vulnerability data
+    vulnerabilities = models.JSONField(default=dict, blank=True, help_text="Detailed vulnerability information")
+    
+    class Meta:
+        db_table = 'snyk_scans'
+        ordering = ['-started_at']
+        indexes = [
+            models.Index(fields=['-started_at']),
+            models.Index(fields=['status']),
+            models.Index(fields=['critical_count', 'high_count']),
+        ]
+    
+    def __str__(self):
+        return f"Snyk Scan {self.scan_id} - {self.status} ({self.total_vulnerabilities} issues)"
+    
+    def get_severity_counts(self):
+        """Return dict of severity counts."""
+        return {
+            'critical': self.critical_count,
+            'high': self.high_count,
+            'medium': self.medium_count,
+            'low': self.low_count,
+        }
+    
+    def has_critical_issues(self):
+        """Check if scan found critical issues."""
+        return self.critical_count > 0 or self.high_count > 0
+    
+    def get_status_badge_class(self):
+        """Return Bootstrap badge class for status."""
+        badge_map = {
+            'pending': 'bg-secondary',
+            'running': 'bg-info',
+            'completed': 'bg-success' if not self.has_critical_issues() else 'bg-danger',
+            'failed': 'bg-danger',
+        }
+        return badge_map.get(self.status, 'bg-secondary')

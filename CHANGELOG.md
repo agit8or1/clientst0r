@@ -5,6 +5,135 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.15.0] - 2026-01-14
+
+### 🎉 Major Feature: Complete Snyk Scan Management
+
+This release adds comprehensive Snyk security scanning capabilities with full scan tracking, manual scan execution, detailed vulnerability reporting, and alerting.
+
+### ✨ New Features
+
+**Scan Management:**
+- Manual scan launcher with "Run Scan Now" button
+- Real-time scan progress monitoring with live status updates
+- Automatic status polling during scan execution
+- Background scan execution (non-blocking)
+
+**Scan History & Tracking:**
+- Complete scan history with searchable/sortable table
+- Per-scan details including:
+  - Total vulnerabilities found
+  - Severity breakdown (Critical/High/Medium/Low)
+  - Scan duration and timestamps
+  - User who triggered the scan
+  - Full raw Snyk output
+
+**Scan Results Viewer:**
+- Detailed vulnerability breakdown by severity
+- Package-level vulnerability information
+- CVE identifiers with links to MITRE database
+- Direct links to Snyk vulnerability details
+- DataTables integration for filtering/sorting
+- Collapsible raw scan output
+
+**Alerting & Notifications:**
+- Visual alerts for critical/high severity findings
+- Color-coded severity badges throughout UI
+- Latest scan summary on history page
+- Real-time scan completion notifications
+
+### 🔧 Technical Implementation
+
+**New Database Model:**
+- `SnykScan` model tracks all scan execution and results
+- Stores scan metadata, status, duration, and findings
+- JSON field for detailed vulnerability data
+- Indexed for fast queries on date and severity
+
+**Management Command:**
+- `run_snyk_scan` - Execute Snyk CLI scan
+- Parses JSON output from Snyk
+- Extracts vulnerability counts by severity
+- Stores full scan results in database
+- Updates system settings with last scan timestamp
+
+**API Endpoints:**
+- `POST /core/settings/snyk/scan/run/` - Start manual scan
+- `GET /core/settings/snyk/scan/status/<scan_id>/` - Poll scan status
+- `GET /core/settings/snyk/scans/` - List all scans
+- `GET /core/settings/snyk/scans/<id>/` - View scan details
+
+**UI Components:**
+- Real-time progress indicator with spinner
+- Severity-colored badges (Critical=Red, High=Warning, etc.)
+- Responsive card-based dashboard
+- Collapsible sections for raw output
+
+### 📝 Files Added
+
+**Models & Migrations:**
+- `core/models.py` - Added `SnykScan` model
+- `core/migrations/0013_snykscan.py` - Database migration
+
+**Management Commands:**
+- `core/management/commands/run_snyk_scan.py` - Scan execution command
+
+**Views:**
+- `core/settings_views.py` - Added 4 new views:
+  - `snyk_scans()` - List scans
+  - `snyk_scan_detail()` - View scan details
+  - `run_snyk_scan()` - Trigger manual scan
+  - `snyk_scan_status()` - Get scan status
+
+**Templates:**
+- `templates/core/snyk_scans.html` - Scan history page
+- `templates/core/snyk_scan_detail.html` - Scan details page
+- `templates/core/settings_snyk.html` - Updated with scan buttons
+
+**URLs:**
+- `core/urls.py` - Added 4 new routes for scan management
+
+### 🎯 User Workflow
+
+1. **Configure Snyk** (Settings → Snyk Security)
+   - Enable Snyk scanning
+   - Add API token
+   - Test connection (green badge = configured)
+
+2. **Run Manual Scan**
+   - Click "Run Scan Now" button
+   - Watch real-time progress
+   - See results immediately upon completion
+
+3. **Review Results**
+   - View latest scan summary on history page
+   - Click "View Details" to see all vulnerabilities
+   - Filter/sort vulnerabilities by severity
+   - Click CVE links for external details
+
+4. **Monitor Over Time**
+   - Scan history shows all past scans
+   - Track vulnerability trends
+   - Identify when issues were introduced
+
+### 🔒 Security Benefits
+
+- **Proactive:** Run scans on-demand before deployments
+- **Comprehensive:** Full dependency and code vulnerability scanning
+- **Trackable:** Historical record of all security findings
+- **Actionable:** Direct links to CVE details and fixes
+- **Prioritized:** Color-coded severity for triage
+
+### 📊 Dashboard Integration Ready
+
+The scan data structure is designed for future dashboard widgets showing:
+- Current vulnerability count
+- Trend over time
+- Critical issues requiring attention
+- Time since last scan
+
+---
+
 ## [2.14.31] - 2026-01-14
 
 ### 🐛 Bug Fix
