@@ -45,6 +45,7 @@ urlpatterns = [
     path('settings/directory/', settings_views.settings_directory, name='settings_directory'),
     path('settings/ai/', settings_views.settings_ai, name='settings_ai'),
     path('settings/snyk/', settings_views.settings_snyk, name='settings_snyk'),
+    path('settings/snyk/test/', settings_views.test_snyk_connection, name='test_snyk_connection'),
     path('settings/system-status/', settings_views.system_status, name='system_status'),
     path('settings/maintenance/', settings_views.maintenance, name='maintenance'),
 

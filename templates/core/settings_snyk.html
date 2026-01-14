@@ -108,12 +108,31 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="snyk_api_token" class="form-label">Snyk API Token *</label>
-                            <input type="password" class="form-control font-monospace" id="snyk_api_token" name="snyk_api_token"
-                                   placeholder="Leave blank to keep current token">
+                            <label for="snyk_api_token" class="form-label">
+                                Snyk API Token *
+                                {% if has_token %}
+                                <span class="badge bg-success ms-2" id="tokenStatus">
+                                    <i class="fas fa-circle"></i> Token Configured
+                                </span>
+                                {% else %}
+                                <span class="badge bg-danger ms-2" id="tokenStatus">
+                                    <i class="fas fa-circle"></i> No Token
+                                </span>
+                                {% endif %}
+                            </label>
+                            <div class="input-group">
+                                <input type="password" class="form-control font-monospace" id="snyk_api_token" name="snyk_api_token"
+                                       placeholder="Leave blank to keep current token">
+                                {% if has_token %}
+                                <button type="button" class="btn btn-outline-secondary" id="testSnykBtn">
+                                    <i class="fas fa-plug"></i> Test Connection
+                                </button>
+                                {% endif %}
+                            </div>
                             <div class="form-text">
                                 Get your token at <a href="https://app.snyk.io/account" target="_blank">app.snyk.io/account</a>
                             </div>
+                            <div id="testResult" class="mt-2" style="display: none;"></div>
                         </div>
 
                         <div class="mb-3">
@@ -201,5 +220,56 @@
 document.getElementById('snyk_enabled').addEventListener('change', function() {
     document.getElementById('snykSettings').style.display = this.checked ? 'block' : 'none';
 });
+
+// Test Snyk connection
+{% if has_token %}
+document.getElementById('testSnykBtn').addEventListener('click', function() {
+    const btn = this;
+    const originalHtml = btn.innerHTML;
+    const resultDiv = document.getElementById('testResult');
+
+    // Disable button and show loading
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    resultDiv.style.display = 'none';
+
+    // Make AJAX request
+    fetch('{% url "core:test_snyk_connection" %}', {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Show result
+        resultDiv.style.display = 'block';
+        if (data.success) {
+            resultDiv.className = 'alert alert-success mt-2';
+            resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> <strong>Success!</strong> ${data.message}`;
+            if (data.user) {
+                resultDiv.innerHTML += `<br><small>Connected as: ${data.user}</small>`;
+            }
+        } else {
+            resultDiv.className = 'alert alert-danger mt-2';
+            resultDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>Failed:</strong> ${data.message}`;
+        }
+
+        // Re-enable button
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    })
+    .catch(error => {
+        // Show error
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'alert alert-danger mt-2';
+        resultDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> ${error.message}`;
+
+        // Re-enable button
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    });
+});
+{% endif %}
 </script>
 {% endblock %}

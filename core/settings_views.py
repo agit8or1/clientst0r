@@ -692,23 +692,89 @@ def settings_snyk(request):
     if request.method == 'POST':
         # Snyk Settings
         settings.snyk_enabled = request.POST.get('snyk_enabled') == 'on'
-        
+
         # Only update API token if provided
         snyk_token = request.POST.get('snyk_api_token', '').strip()
         if snyk_token:
             settings.snyk_api_token = snyk_token
-        
+
         settings.snyk_org_id = request.POST.get('snyk_org_id', '').strip()
         settings.snyk_severity_threshold = request.POST.get('snyk_severity_threshold', 'high')
         settings.snyk_scan_frequency = request.POST.get('snyk_scan_frequency', 'daily')
-        
+
         settings.updated_by = request.user
         settings.save()
 
         messages.success(request, 'Snyk security settings updated successfully.')
         return redirect('core:settings_snyk')
 
+    # Check if API token is configured
+    has_token = bool(settings.snyk_api_token)
+
     return render(request, 'core/settings_snyk.html', {
         'settings': settings,
         'current_tab': 'snyk',
+        'has_token': has_token,
     })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def test_snyk_connection(request):
+    """Test Snyk API connection."""
+    import requests
+    from django.http import JsonResponse
+
+    settings = SystemSetting.get_settings()
+
+    if not settings.snyk_api_token:
+        return JsonResponse({
+            'success': False,
+            'message': 'No Snyk API token configured'
+        })
+
+    try:
+        # Test the Snyk API with a simple authenticated endpoint
+        headers = {
+            'Authorization': f'token {settings.snyk_api_token}',
+        }
+
+        response = requests.get(
+            'https://api.snyk.io/rest/self',
+            headers=headers,
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return JsonResponse({
+                'success': True,
+                'message': 'Connection successful!',
+                'user': data.get('data', {}).get('attributes', {}).get('username', 'Unknown')
+            })
+        elif response.status_code == 401:
+            return JsonResponse({
+                'success': False,
+                'message': 'Invalid API token - authentication failed'
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': f'API returned error: {response.status_code}'
+            })
+
+    except requests.exceptions.Timeout:
+        return JsonResponse({
+            'success': False,
+            'message': 'Connection timeout - unable to reach Snyk API'
+        })
+    except requests.exceptions.RequestException as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Connection error: {str(e)}'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Unexpected error: {str(e)}'
+        })

@@ -5,6 +5,42 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.30] - 2026-01-14
+
+### ✨ New Features
+
+- **Snyk Connection Status & Testing**
+  - Added visual status indicator (green/red badge) showing if API token is configured
+  - Added "Test Connection" button to verify Snyk API connectivity
+  - Real-time connection testing with detailed success/failure messages
+  - Shows connected Snyk username on successful test
+  - Visual feedback with loading spinner during test
+
+### 🔧 Technical Details
+
+**New Endpoint:**
+- `POST /core/settings/snyk/test/` - Test Snyk API connection
+
+**API Features:**
+- Validates Snyk API token against `https://api.snyk.io/rest/self`
+- Returns JSON with success status and detailed messages
+- Handles timeout, authentication errors, and API errors gracefully
+
+**UI Improvements:**
+- Green "Token Configured" badge when token exists
+- Red "No Token" badge when token is missing
+- Test button integrated with API token input field
+- Alert messages show connection test results inline
+- Disabled button state during testing
+
+### 📝 Files Modified
+
+- `core/settings_views.py` - Added `test_snyk_connection` view
+- `core/urls.py` - Added test connection URL route
+- `templates/core/settings_snyk.html` - Added status badge, test button, and JavaScript
+
+---
+
 ## [2.14.29] - 2026-01-14
 
 ### 🐛 Bug Fix
