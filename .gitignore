@@ -116,6 +116,7 @@ Thumbs.db
 # Local development
 .local/
 .cache/
+.pip-audit-cache/
 
 # Claude/AI assistant files
 .claude/
