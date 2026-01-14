@@ -5,6 +5,83 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.16.0] - 2026-01-14
+
+### 🎉 Major Feature: One-Click Vulnerability Remediation
+
+This release adds comprehensive vulnerability remediation capabilities to the Snyk scan management system, allowing you to fix security issues directly from the web UI.
+
+### ✨ New Features
+
+**Automated Remediation System:**
+- "Remediate" button for each fixable vulnerability
+- Interactive remediation modal showing:
+  - Vulnerability details (title, severity, CVE)
+  - Current package version vs. fix version
+  - Preview of pip command that will be executed
+  - Links to full vulnerability documentation
+  - Important pre-fix considerations and warnings
+- One-click package upgrades with real-time feedback
+- Detailed output showing upgrade results
+- Post-remediation instructions (app restart, verification scan)
+
+**Enhanced Vulnerability Details:**
+- "Fix Available" column showing upgrade version with green badge
+- "No Fix Yet" indicator for vulnerabilities without patches
+- Improved package information display
+- CVE links remain for external documentation
+
+**Security & Safety:**
+- Input validation prevents command injection
+- Restricts remediation to superusers only
+- Executes in virtual environment context
+- 2-minute timeout for long-running upgrades
+- Shows full pip output for transparency
+
+### 🔧 Technical Implementation
+
+**New Backend View:**
+- `apply_snyk_remediation()` - Executes pip upgrade commands
+- Input sanitization with regex validation
+- Subprocess execution with proper error handling
+- JSON response with success status and output
+
+**New UI Components:**
+- Bootstrap modal for remediation workflow
+- jQuery/AJAX for non-blocking upgrades
+- Real-time status updates during execution
+- Collapsible output sections for detailed logs
+
+**Files Modified/Added:**
+- `templates/core/snyk_scan_detail.html` - Added remediation UI
+- `core/settings_views.py` - New remediation view
+- `core/urls.py` - New route for remediation endpoint
+
+### 💡 User Workflow
+
+1. View scan results showing vulnerabilities
+2. Click "Remediate" button next to fixable vulnerability
+3. Review fix details, CVE info, and upgrade command
+4. Click "Apply Fix" to execute upgrade
+5. View real-time output and success confirmation
+6. Restart application and run new scan to verify
+
+### 📊 Remediation Features
+
+**What Gets Fixed:**
+- Any Python package with available security patches
+- Snyk-recommended upgrade versions
+- Dependencies listed in requirements.txt
+- Virtual environment packages
+
+**What's Protected:**
+- Command injection prevention
+- Superuser-only access
+- Timeout protection (2 min)
+- Full audit trail of changes
+
+---
+
 ## [2.15.1] - 2026-01-14
 
 ### 🔧 Bug Fixes
