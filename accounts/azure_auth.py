@@ -55,10 +55,11 @@ class AzureADBackend(ModelBackend):
             if user:
                 # Log successful Azure AD login
                 AuditLog.objects.create(
-                    event_type='azure_ad_login',
+                    action='login',
                     user=user,
+                    username=user.username,
                     description=f'User {email} logged in via Azure AD',
-                    metadata={'email': email, 'upn': user_info.get('userPrincipalName')}
+                    extra_data={'email': email, 'upn': user_info.get('userPrincipalName'), 'auth_source': 'azure_ad'}
                 )
 
             return user
@@ -170,10 +171,14 @@ class AzureADBackend(ModelBackend):
 
             # Log user creation
             AuditLog.objects.create(
-                event_type='user_created_azure_ad',
+                action='create',
                 user=user,
+                username=user.username,
+                object_type='User',
+                object_id=user.id,
+                object_repr=str(user),
                 description=f'New user created from Azure AD: {email}',
-                metadata={'email': email, 'source': 'azure_ad'}
+                extra_data={'email': email, 'source': 'azure_ad'}
             )
 
             return user

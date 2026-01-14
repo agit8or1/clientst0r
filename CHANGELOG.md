@@ -5,6 +5,38 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.0] - 2026-01-14
+
+### 🐛 Bug Fixes
+
+**Azure SSO Authentication (Issue #3):**
+- Fixed `AuditLog` field mismatch error during Azure AD authentication
+- Changed `event_type` to `action` and `metadata` to `extra_data` to match model fields
+- Azure AD login now properly logs authentication events
+- User creation from Azure AD now logs correctly
+
+**Tactical RMM Sync (Issue #4):**
+- Fixed critical bug where RMM alerts failed to sync with "organization_id null" error
+- Changed `device_id` (string) to `device` (ForeignKey) in alert creation
+- Added proper device lookup before creating alerts
+- Added warning logs when device not found
+- Alerts now properly link to RMM devices with correct organization
+
+### 🔧 Technical Improvements
+
+**Error Handling:**
+- Better error messages for missing devices during alert sync
+- Graceful handling of orphaned alerts
+
+**Code Quality:**
+- Fixed incorrect field names in `accounts/azure_auth.py`
+- Fixed incorrect field types in `integrations/sync.py`
+
+### 📝 Notes
+
+- Issues #7 and #8 were already resolved in previous versions
+- Issue #5 (update failures) requires environment configuration documentation (pending)
+
 ## [2.18.0] - 2026-01-14
 
 ### 🎉 Major Feature: Dedicated Security Section

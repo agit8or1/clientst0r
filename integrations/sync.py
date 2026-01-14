@@ -569,6 +569,23 @@ class RMMSync:
     def _upsert_alert(self, alert_data):
         """Create or update RMM alert."""
         external_id = alert_data['external_id']
+        device_external_id = alert_data.get('device_id', '')
+
+        # Find the device this alert belongs to
+        device = None
+        if device_external_id:
+            try:
+                device = RMMDevice.objects.get(
+                    connection=self.connection,
+                    external_id=device_external_id
+                )
+            except RMMDevice.DoesNotExist:
+                logger.warning(f"Device {device_external_id} not found for alert {external_id}, skipping alert")
+                return None
+
+        if not device:
+            logger.warning(f"No device specified for alert {external_id}, skipping")
+            return None
 
         # Check if exists
         alert, created = RMMAlert.objects.update_or_create(
@@ -576,7 +593,7 @@ class RMMSync:
             external_id=external_id,
             defaults={
                 'organization': self.organization,
-                'device_id': alert_data.get('device_id', ''),
+                'device': device,
                 'alert_type': alert_data.get('alert_type', ''),
                 'message': alert_data.get('message', ''),
                 'severity': alert_data.get('severity', 'info'),
