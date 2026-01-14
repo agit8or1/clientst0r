@@ -176,3 +176,8 @@ SESSION_SUMMARY.md
 *_summary.md
 *_expansion_summary.md
 
+
+# Backup files
+*.backup
+*.bak
+*~
