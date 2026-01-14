@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block title %}KB Article Import - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">KB Article Import</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog"></i> Settings</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{% url 'core:settings_general' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-sliders-h"></i> General
+                </a>
+                <a href="{% url 'core:settings_security' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-shield-alt"></i> Security
+                </a>
+                <a href="{% url 'core:settings_smtp' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-envelope"></i> SMTP/Email
+                </a>
+                <a href="{% url 'core:settings_scheduler' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-clock"></i> Task Scheduler
+                </a>
+                <a href="{% url 'core:settings_directory' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-users-cog"></i> Directory Services
+                </a>
+                <a href="{% url 'core:settings_ai' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-robot"></i> AI & LLM
+                </a>
+                <a href="{% url 'core:settings_snyk' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-bug"></i> Snyk Security
+                </a>
+                <a href="{% url 'core:settings_kb_import' %}" class="list-group-item list-group-item-action active">
+                    <i class="fas fa-book-medical"></i> KB Article Import
+                </a>
+                <a href="{% url 'core:system_status' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-heartbeat"></i> System Status
+                </a>
+                <a href="{% url 'core:maintenance' %}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-tools"></i> Maintenance
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-9">
+        <!-- Current Statistics -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Current Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h2 class="text-primary mb-0" id="totalArticles">{{ total_articles }}</h2>
+                            <p class="text-muted mb-0">Total Articles</p>
+                            <small class="text-muted">All organizations</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h2 class="text-success mb-0" id="globalArticles">{{ global_articles }}</h2>
+                            <p class="text-muted mb-0">Global Articles</p>
+                            <small class="text-muted">Shared across all organizations</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h2 class="text-info mb-0">{{ categories_count }}</h2>
+                            <p class="text-muted mb-0">Categories</p>
+                            <small class="text-muted">Knowledge base topics</small>
+                        </div>
+                    </div>
+                </div>
+
+                {% if category_stats %}
+                <hr>
+                <h6 class="mt-3">Articles by Category</h6>
+                <div class="row">
+                    {% for stat in category_stats %}
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <small class="text-muted">{{ stat.name }}</small>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar" role="progressbar" style="width: {% if stat.count > 0 %}100{% else %}0{% endif %}%">
+                                {{ stat.count }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Import Options -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-download"></i> Import KB Articles</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>About KB Article Import:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li><strong>Local Generation:</strong> Generate 1,042 comprehensive IT articles locally (takes ~2-3 minutes)</li>
+                        <li><strong>GitHub Import:</strong> Download pre-generated articles from GitHub repository (faster, recommended)</li>
+                        <li>Articles are imported as "global" and shared across all organizations</li>
+                        <li>Users can delete articles they don't need without affecting other organizations</li>
+                    </ul>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h5><i class="fas fa-code"></i> Local Generation</h5>
+                                <p class="text-muted">Generate articles locally using Django management command</p>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="deleteExistingLocal">
+                                    <label class="form-check-label" for="deleteExistingLocal">
+                                        Delete existing global articles first
+                                    </label>
+                                </div>
+                                <button class="btn btn-primary" onclick="importArticles('local')">
+                                    <i class="fas fa-cogs"></i> Generate Locally
+                                </button>
+                                <div class="mt-2">
+                                    <small class="text-muted">1,042 articles across 20 categories</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h5><i class="fas fa-github"></i> GitHub Import</h5>
+                                <p class="text-muted">Download pre-generated articles from GitHub (recommended)</p>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="deleteExistingGithub">
+                                    <label class="form-check-label" for="deleteExistingGithub">
+                                        Delete existing global articles first
+                                    </label>
+                                </div>
+                                <button class="btn btn-success" onclick="importArticles('github')">
+                                    <i class="fas fa-download"></i> Import from GitHub
+                                </button>
+                                <div class="mt-2">
+                                    <small class="text-muted">Faster - fetches from repository</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Section -->
+                <div id="importProgress" class="mt-4" style="display: none;">
+                    <div class="alert alert-primary">
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm me-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div>
+                                <strong>Import in progress...</strong>
+                                <p class="mb-0" id="importMessage">Importing KB articles, please wait...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div id="importResults" class="mt-4" style="display: none;">
+                    <div class="alert" id="importAlert">
+                        <h6 id="importResultTitle"></h6>
+                        <p class="mb-0" id="importResultMessage"></p>
+                        <div id="importDetails" class="mt-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Danger Zone</h5>
+            </div>
+            <div class="card-body">
+                <h6>Delete All Global KB Articles</h6>
+                <p class="text-muted mb-3">
+                    This will permanently delete all global KB articles. Organization-specific articles will not be affected.
+                    This action cannot be undone.
+                </p>
+                <button class="btn btn-danger" onclick="deleteGlobalArticles()">
+                    <i class="fas fa-trash"></i> Delete All Global Articles
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function importArticles(source) {
+    const deleteExisting = document.getElementById('deleteExisting' + (source === 'local' ? 'Local' : 'Github')).checked;
+
+    // Show progress
+    document.getElementById('importProgress').style.display = 'block';
+    document.getElementById('importResults').style.display = 'none';
+    document.getElementById('importMessage').textContent = `Importing KB articles from ${source}...`;
+
+    // Make AJAX request
+    fetch('{% url "core:import_kb_articles" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: `source=${source}&delete_existing=${deleteExisting}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Hide progress
+        document.getElementById('importProgress').style.display = 'none';
+
+        // Show results
+        const resultsDiv = document.getElementById('importResults');
+        const alertDiv = document.getElementById('importAlert');
+        const titleElem = document.getElementById('importResultTitle');
+        const messageElem = document.getElementById('importResultMessage');
+        const detailsElem = document.getElementById('importDetails');
+
+        resultsDiv.style.display = 'block';
+
+        if (data.success) {
+            alertDiv.className = 'alert alert-success';
+            titleElem.textContent = '✓ Import Successful';
+            messageElem.textContent = data.message;
+
+            detailsElem.innerHTML = `
+                <hr>
+                <div class="row">
+                    <div class="col-md-4">
+                        <strong>Duration:</strong> ${data.duration} seconds
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Total Articles:</strong> ${data.total_articles}
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Global Articles:</strong> ${data.global_articles}
+                    </div>
+                </div>
+            `;
+
+            // Update statistics
+            document.getElementById('totalArticles').textContent = data.total_articles;
+            document.getElementById('globalArticles').textContent = data.global_articles;
+        } else {
+            alertDiv.className = 'alert alert-danger';
+            titleElem.textContent = '✗ Import Failed';
+            messageElem.textContent = data.message;
+            detailsElem.innerHTML = '';
+        }
+    })
+    .catch(error => {
+        document.getElementById('importProgress').style.display = 'none';
+        document.getElementById('importResults').style.display = 'block';
+        document.getElementById('importAlert').className = 'alert alert-danger';
+        document.getElementById('importResultTitle').textContent = '✗ Error';
+        document.getElementById('importResultMessage').textContent = 'An error occurred: ' + error;
+    });
+}
+
+function deleteGlobalArticles() {
+    if (!confirm('Are you sure you want to delete ALL global KB articles? This cannot be undone.')) {
+        return;
+    }
+
+    if (!confirm('This will permanently delete all global articles. Organization-specific articles will NOT be affected. Continue?')) {
+        return;
+    }
+
+    // Make AJAX request
+    fetch('{% url "core:delete_global_kb_articles" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultsDiv = document.getElementById('importResults');
+        const alertDiv = document.getElementById('importAlert');
+        const titleElem = document.getElementById('importResultTitle');
+        const messageElem = document.getElementById('importResultMessage');
+
+        resultsDiv.style.display = 'block';
+
+        if (data.success) {
+            alertDiv.className = 'alert alert-success';
+            titleElem.textContent = '✓ Deletion Successful';
+            messageElem.textContent = data.message;
+
+            // Update statistics
+            document.getElementById('globalArticles').textContent = '0';
+
+            // Reload page after 2 seconds
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            alertDiv.className = 'alert alert-danger';
+            titleElem.textContent = '✗ Deletion Failed';
+            messageElem.textContent = data.message;
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+</script>
+{% endblock %}
