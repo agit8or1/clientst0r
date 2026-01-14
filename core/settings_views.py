@@ -1150,3 +1150,119 @@ def restart_application(request):
             'success': False,
             'message': str(e)
         })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def settings_kb_import(request):
+    """Knowledge Base article import settings and management."""
+    from docs.models import Document, DocumentCategory
+    from django.core.management import call_command
+    from io import StringIO
+
+    # Get current statistics
+    total_articles = Document.objects.count()
+    global_articles = Document.objects.filter(organization__isnull=True).count()
+    categories = DocumentCategory.objects.all().order_by('name')
+
+    # Get category statistics
+    category_stats = []
+    for category in categories:
+        count = Document.objects.filter(
+            category=category,
+            organization__isnull=True
+        ).count()
+        category_stats.append({
+            'name': category.name,
+            'count': count
+        })
+
+    context = {
+        'current_tab': 'kb_import',
+        'total_articles': total_articles,
+        'global_articles': global_articles,
+        'category_stats': category_stats,
+        'categories_count': categories.count(),
+    }
+
+    return render(request, 'core/settings_kb_import.html', context)
+
+
+@login_required
+@user_passes_test(is_superuser)
+def import_kb_articles(request):
+    """Import KB articles from seed command."""
+    from django.http import JsonResponse
+    from django.core.management import call_command
+    from io import StringIO
+    import time
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+    source = request.POST.get('source', 'local')  # 'local' or 'github'
+    delete_existing = request.POST.get('delete_existing') == 'true'
+
+    try:
+        # Capture command output
+        out = StringIO()
+
+        # Start time tracking
+        start_time = time.time()
+
+        if source == 'github':
+            # Import from GitHub
+            call_command('fetch_kb_from_github', delete=delete_existing, stdout=out)
+        else:
+            # Import locally generated articles
+            call_command('seed_kb_articles', delete=delete_existing, stdout=out)
+
+        # Calculate duration
+        duration = time.time() - start_time
+
+        # Get updated statistics
+        from docs.models import Document
+        total_articles = Document.objects.count()
+        global_articles = Document.objects.filter(organization__isnull=True).count()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully imported KB articles from {source}',
+            'output': out.getvalue(),
+            'duration': round(duration, 2),
+            'total_articles': total_articles,
+            'global_articles': global_articles,
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Import failed: {str(e)}'
+        })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def delete_global_kb_articles(request):
+    """Delete all global KB articles."""
+    from django.http import JsonResponse
+    from docs.models import Document
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+    try:
+        # Delete only global articles (not organization-specific ones)
+        deleted_count, _ = Document.objects.filter(organization__isnull=True).delete()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Deleted {deleted_count} global KB articles',
+            'deleted_count': deleted_count
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Delete failed: {str(e)}'
+        })
