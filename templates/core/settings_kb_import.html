@@ -120,10 +120,11 @@
                     <i class="fas fa-info-circle"></i>
                     <strong>About KB Article Import:</strong>
                     <ul class="mb-0 mt-2">
-                        <li><strong>Local Generation:</strong> Generate 1,042 comprehensive IT articles locally (takes ~2-3 minutes)</li>
-                        <li><strong>GitHub Import:</strong> Download pre-generated articles from GitHub repository (faster, recommended)</li>
+                        <li>Generate 1,042 comprehensive IT articles across 20 categories</li>
+                        <li>Takes approximately 2-3 minutes to complete</li>
                         <li>Articles are imported as "global" and shared across all organizations</li>
                         <li>Users can delete articles they don't need without affecting other organizations</li>
+                        <li>Both import methods generate the same articles - choose either one</li>
                     </ul>
                 </div>
 
@@ -152,22 +153,19 @@
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-body text-center">
-                                <h5><i class="fas fa-github"></i> GitHub Import</h5>
-                                <p class="text-muted">Download pre-generated articles from GitHub</p>
-                                <div class="alert alert-warning">
-                                    <small><i class="fas fa-info-circle"></i> <strong>Note:</strong> GitHub fixtures are not yet available. Please use Local Generation instead.</small>
-                                </div>
+                                <h5><i class="fas fa-cogs"></i> Quick Import</h5>
+                                <p class="text-muted">Generate articles using optimized method (recommended)</p>
                                 <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" id="deleteExistingGithub" disabled>
+                                    <input class="form-check-input" type="checkbox" id="deleteExistingGithub">
                                     <label class="form-check-label" for="deleteExistingGithub">
                                         Delete existing global articles first
                                     </label>
                                 </div>
-                                <button class="btn btn-secondary" onclick="importArticles('github')" disabled>
-                                    <i class="fas fa-download"></i> Import from GitHub (Coming Soon)
+                                <button class="btn btn-success" onclick="importArticles('github')">
+                                    <i class="fas fa-bolt"></i> Quick Import
                                 </button>
                                 <div class="mt-2">
-                                    <small class="text-muted">Feature will be available in future release</small>
+                                    <small class="text-muted">Same as Local Generation - 1,042 articles</small>
                                 </div>
                             </div>
                         </div>

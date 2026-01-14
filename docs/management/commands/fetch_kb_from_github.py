@@ -45,9 +45,31 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('=' * 70))
-        self.stdout.write(self.style.SUCCESS('Fetching KB Articles from GitHub'))
+        self.stdout.write(self.style.SUCCESS('Generating KB Articles'))
         self.stdout.write(self.style.SUCCESS('=' * 70))
+        self.stdout.write('')
+        self.stdout.write(self.style.WARNING('Note: Generating articles locally (GitHub fixtures not yet available)'))
+        self.stdout.write('')
 
+        # Simply delegate to the seed_kb_articles command
+        # This generates the 1,042 comprehensive IT articles
+        from django.core.management import call_command
+
+        try:
+            call_command('seed_kb_articles', delete=options['delete'], stdout=self.stdout, stderr=self.stderr)
+
+            self.stdout.write('')
+            self.stdout.write(self.style.SUCCESS('=' * 70))
+            self.stdout.write(self.style.SUCCESS('KB Article Generation Complete!'))
+            self.stdout.write(self.style.SUCCESS('=' * 70))
+
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'Failed to generate articles: {e}'))
+            raise
+
+        return
+
+        # Original GitHub fetching code (disabled until fixtures are available)
         repo = options.get('repo', self.GITHUB_REPO)
         branch = options.get('branch', self.GITHUB_BRANCH)
         file_path = options.get('file', self.KB_ARTICLES_PATH)
