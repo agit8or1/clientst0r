@@ -195,7 +195,7 @@ h6 { font-size: 1rem; }
 /* ===== Card Component Enhancements ===== */
 .card {
     border: 1px solid var(--gray-200);
-    border-radius: var(--border-radius-lg);
+    border-radius: var(--border-radius-lg) !important;
     box-shadow: var(--shadow-sm);
     transition: all var(--transition-base);
     overflow: hidden;
@@ -453,6 +453,17 @@ h6 { font-size: 1rem; }
     background-color: var(--gray-50);
     transform: translateX(4px);
     border-left: 3px solid var(--primary-blue);
+}
+
+/* Fix rounded corners for list-group-flush in cards */
+.card .list-group-flush .list-group-item:first-child {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.card .list-group-flush .list-group-item:last-child {
+    border-bottom-left-radius: var(--border-radius-lg);
+    border-bottom-right-radius: var(--border-radius-lg);
 }
 
 /* ===== Dropdown Enhancements ===== */
