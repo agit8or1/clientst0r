@@ -62,15 +62,11 @@
             </div>
             <div class="card-body">
                 <div class="row text-center">
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <h3 class="text-primary mb-0">{{ stats.assets }}</h3>
                         <p class="text-muted mb-0">Assets</p>
                     </div>
-                    <div class="col-md-2">
-                        <h3 class="text-success mb-0">{{ stats.companies }}</h3>
-                        <p class="text-muted mb-0">Companies</p>
-                    </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <h3 class="text-info mb-0">{{ stats.contacts }}</h3>
                         <p class="text-muted mb-0">Contacts</p>
                     </div>
@@ -119,12 +115,6 @@
                                 <input class="form-check-input" type="radio" name="exportType" id="typeAssets" value="assets">
                                 <label class="form-check-label" for="typeAssets">
                                     Assets Only ({{ stats.assets }} items)
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="exportType" id="typeCompanies" value="companies">
-                                <label class="form-check-label" for="typeCompanies">
-                                    Companies Only ({{ stats.companies }} items)
                                 </label>
                             </div>
                             <div class="form-check">
