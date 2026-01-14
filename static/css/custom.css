@@ -207,12 +207,14 @@ h6 { font-size: 1rem; }
 }
 
 .card-header {
-    background-color: var(--gray-50);
-    border-bottom: 1px solid var(--gray-200);
+    background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 2px solid var(--gray-300);
     font-weight: 600;
     padding: var(--spacing-md) var(--spacing-lg);
     border-top-left-radius: var(--border-radius-lg) !important;
     border-top-right-radius: var(--border-radius-lg) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    color: var(--gray-800);
 }
 
 /* Force rounded corners on card headers - maximum specificity */
@@ -873,7 +875,13 @@ footer small {
     border-color: var(--gray-200);
 }
 
-[data-bs-theme="dark"] .card-header,
+[data-bs-theme="dark"] .card-header {
+    background: linear-gradient(to bottom, #1a1d23 0%, #212529 100%);
+    border-bottom: 2px solid var(--gray-300);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    color: var(--gray-900);
+}
+
 [data-bs-theme="dark"] .card-footer {
     background-color: var(--gray-50);
     border-color: var(--gray-200);
