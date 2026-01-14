@@ -33,6 +33,11 @@
     .release-notes pre {
         white-space: pre-wrap;
         word-wrap: break-word;
+        border-radius: 0.5rem;
+        background-color: transparent;
+        border: none;
+        padding: 0;
+        margin: 0;
     }
     /* Code blocks with terminal styling */
     .bg-dark.rounded {
@@ -40,6 +45,19 @@
     }
     /* Alert boxes */
     .alert {
+        border-radius: 0.5rem !important;
+    }
+    /* Tables */
+    .table-responsive {
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    .table {
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    /* Details/Summary elements */
+    details {
         border-radius: 0.5rem;
     }
 </style>
@@ -540,6 +558,22 @@
 }
 .step-item i.fa-exclamation-circle {
     color: #dc3545;
+}
+/* Modal rounded corners */
+.modal-content {
+    border-radius: 0.5rem !important;
+}
+.modal-header {
+    border-top-left-radius: 0.5rem !important;
+    border-top-right-radius: 0.5rem !important;
+}
+.modal-footer {
+    border-bottom-left-radius: 0.5rem !important;
+    border-bottom-right-radius: 0.5rem !important;
+}
+/* Progress bar */
+.progress {
+    border-radius: 0.5rem !important;
 }
 </style>
 {% endblock %}
