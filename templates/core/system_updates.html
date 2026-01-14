@@ -147,11 +147,15 @@
                         <i class="fas fa-terminal"></i> Manual Update from CLI
                     </h5>
                     <p class="mb-3">
-                        For advanced users who prefer manual updates via command line:
+                        For advanced users who prefer manual updates via command line. Run these commands in order:
                     </p>
                     <div class="bg-dark text-light p-3 rounded" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
-                        <div class="mb-2"><span class="text-success">#</span> Navigate to application directory</div>
+                        <div class="mb-2"><span class="text-success">#</span> Navigate to application directory (where manage.py is located)</div>
                         <div class="mb-2">cd /home/administrator</div>
+                        <div class="mb-3"></div>
+                        <div class="mb-2"><span class="text-success">#</span> Verify you're in the correct directory</div>
+                        <div class="mb-2">ls manage.py venv/</div>
+                        <div class="mb-2"><span class="text-muted" style="font-size: 0.85em;">(Should show: manage.py and venv/ directory)</span></div>
                         <div class="mb-3"></div>
                         <div class="mb-2"><span class="text-success">#</span> Pull latest updates from GitHub</div>
                         <div class="mb-2">git pull origin main</div>
@@ -173,8 +177,13 @@
                     </div>
                     <div class="alert alert-info mt-3 mb-0">
                         <i class="fas fa-info-circle"></i>
-                        <strong>Note:</strong> Make sure you have committed any local changes before pulling updates to avoid conflicts.
-                        Use <code>git status</code> to check for uncommitted changes.
+                        <strong>Important Notes:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>The application directory is <code>/home/administrator</code> (NOT /home/administrator/huduglue)</li>
+                            <li>You must run the <code>ls manage.py venv/</code> command to verify you're in the correct directory before proceeding</li>
+                            <li>Make sure you have committed any local changes before pulling updates to avoid conflicts</li>
+                            <li>Use <code>git status</code> to check for uncommitted changes</li>
+                        </ul>
                     </div>
                 </div>
             </div>
