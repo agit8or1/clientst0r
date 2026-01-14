@@ -179,10 +179,16 @@ class UserProfileForm(forms.ModelForm):
         all_timezones = [(tz, tz) for tz in pytz.common_timezones if tz not in dict(common_timezones).keys()]
         self.fields['timezone'].choices = common_timezones + [('---', '--- All Timezones ---')] + all_timezones
 
+        # Set initial values for User fields
         if self.user:
             self.fields['first_name'].initial = self.user.first_name
             self.fields['last_name'].initial = self.user.last_name
             self.fields['email'].initial = self.user.email
+
+        # Ensure timezone and theme show current values
+        if self.instance and self.instance.pk:
+            self.fields['timezone'].initial = self.instance.timezone
+            self.fields['theme'].initial = self.instance.theme
     
     def save(self, commit=True):
         profile = super().save(commit=False)
