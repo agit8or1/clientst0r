@@ -425,6 +425,12 @@ hr {
     color: var(--sidebar-text) !important;
 }
 
+/* Footer */
+footer {
+    background-color: var(--background-alt);
+    border-color: var(--border-color) !important;
+}
+
 /* Code blocks in documentation */
 pre, code {
     background-color: var(--surface);
