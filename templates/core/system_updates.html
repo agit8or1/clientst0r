@@ -411,9 +411,9 @@
 </div>
 
 <!-- Update Confirmation Modal -->
-<div class="modal fade" id="updateConfirmModal" tabindex="-1" aria-labelledby="updateConfirmModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
+<div class="modal fade" id="updateConfirmModal" tabindex="-1" aria-labelledby="updateConfirmModalLabel" aria-hidden="true" style="z-index: 99999 !important; pointer-events: auto !important;">
+    <div class="modal-dialog" style="z-index: 100000 !important; pointer-events: auto !important;">
+        <div class="modal-content" style="z-index: 100001 !important; pointer-events: auto !important;">
             <div class="modal-header">
                 <h5 class="modal-title" id="updateConfirmModalLabel">
                     <i class="fas fa-exclamation-triangle text-warning"></i> Confirm System Update
@@ -442,9 +442,9 @@
                 </div>
                 <p class="mb-0"><strong>Are you sure you want to proceed?</strong></p>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" onclick="startUpdate()">
+            <div class="modal-footer" style="pointer-events: auto !important; z-index: 100002 !important;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="pointer-events: auto !important; z-index: 100003 !important; cursor: pointer !important;">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="startUpdate()" style="pointer-events: auto !important; z-index: 100003 !important; cursor: pointer !important;">
                     <i class="fas fa-download"></i> Yes, Apply Update
                 </button>
             </div>

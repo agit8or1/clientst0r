@@ -414,27 +414,34 @@ body {
     color: var(--text-muted) !important;
 }
 
-/* Modals need highest z-index to appear above everything */
+/* Modals - CRITICAL: Must be clickable */
 .modal {
-    z-index: 10500 !important;
-}
-
-.modal-backdrop {
-    z-index: 10400 !important;
-    pointer-events: none !important;
-}
-
-.modal-dialog {
-    z-index: 10500 !important;
-    position: relative !important;
+    z-index: 99999 !important;
     pointer-events: auto !important;
 }
 
+/* Backdrop should NOT block clicks */
+.modal-backdrop,
+.modal-backdrop.show,
+.modal-backdrop.fade {
+    z-index: 99998 !important;
+    pointer-events: none !important;
+}
+
+/* Modal dialog must be on top and clickable */
+.modal-dialog {
+    z-index: 100000 !important;
+    position: relative !important;
+    pointer-events: auto !important;
+    margin: 1.75rem auto !important;
+}
+
+/* Modal content must capture all clicks */
 .modal-content {
     background-color: var(--card-bg) !important;
     color: var(--text-primary) !important;
     position: relative !important;
-    z-index: 10500 !important;
+    z-index: 100001 !important;
     pointer-events: auto !important;
 }
 
@@ -442,25 +449,46 @@ body {
     border-color: var(--border-color) !important;
     background-color: var(--surface) !important;
     pointer-events: auto !important;
+    z-index: 100002 !important;
 }
 
 .modal-body {
     background-color: var(--card-bg) !important;
     color: var(--text-primary) !important;
     pointer-events: auto !important;
+    z-index: 100002 !important;
 }
 
-/* Ensure ALL interactive elements in modals are clickable */
+/* ALL interactive elements MUST be clickable */
 .modal button,
 .modal .btn,
 .modal input,
 .modal select,
+.modal textarea,
 .modal a,
-.modal .btn-close {
+.modal .btn-close,
+.modal label,
+.modal .form-check-input {
     position: relative !important;
-    z-index: 10501 !important;
+    z-index: 100003 !important;
     pointer-events: auto !important;
     cursor: pointer !important;
+}
+
+/* Ensure modal is displayed properly */
+.modal.show {
+    display: block !important;
+    pointer-events: auto !important;
+}
+
+/* Fix any conflicting overflow issues */
+.modal-open {
+    overflow: auto !important;
+}
+
+.modal-open .modal {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
 }
 
 .dropdown-menu {
