@@ -19,17 +19,20 @@ def user_theme(request):
         if background_mode == 'custom' and profile.background_image:
             background_url = profile.background_image.url
         elif background_mode == 'random':
-            # Get a random background from the gallery
+            # Get a random background from the internet
+            # Using Unsplash Source API for high-quality random images
+            # Categories: nature, architecture, technology, abstract, business
             import random
-            from django.conf import settings
-            import os
 
-            bg_dir = os.path.join(settings.STATIC_ROOT or settings.BASE_DIR / 'static', 'images/backgrounds')
-            if os.path.exists(bg_dir):
-                backgrounds = [f for f in os.listdir(bg_dir) if f.endswith(('.jpg', '.jpeg', '.png', '.webp'))]
-                if backgrounds:
-                    random_bg = random.choice(backgrounds)
-                    background_url = f'/static/images/backgrounds/{random_bg}'
+            categories = ['nature', 'architecture', 'technology', 'abstract', 'business', 'minimal']
+            category = random.choice(categories)
+
+            # Use timestamp-based seed for randomization (changes every page load)
+            import time
+            seed = int(time.time() * 1000) % 10000
+
+            # Unsplash Source provides random images in various categories
+            background_url = f'https://source.unsplash.com/1920x1080/?{category}&sig={seed}'
 
     return {
         'user_theme': theme,
