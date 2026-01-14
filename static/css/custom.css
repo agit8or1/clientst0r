@@ -13,7 +13,9 @@
 
     /* Status Colors */
     --success-green: #198754;
-    --warning-yellow: #ffc107;
+    --warning-yellow: #ff8c00;
+    --warning-bg: #fff3cd;
+    --warning-text: #664d03;
     --danger-red: #dc3545;
     --info-cyan: #0dcaf0;
 
@@ -368,6 +370,18 @@ h6 { font-size: 1rem; }
     padding: 0.5rem 0.875rem;
 }
 
+/* Warning badge with better contrast */
+.badge.bg-warning,
+.bg-warning {
+    background-color: var(--warning-yellow) !important;
+    color: #000 !important;
+}
+
+.badge.text-bg-warning {
+    background-color: var(--warning-yellow) !important;
+    color: #000 !important;
+}
+
 /* ===== Alert Enhancements ===== */
 .alert {
     border-radius: var(--border-radius-lg);
@@ -378,6 +392,18 @@ h6 { font-size: 1rem; }
 
 .alert-dismissible .btn-close {
     padding: var(--spacing-md);
+}
+
+/* Warning alert with better contrast */
+.alert-warning {
+    background-color: var(--warning-bg);
+    color: var(--warning-text);
+    border-left: 4px solid var(--warning-yellow);
+}
+
+.alert-warning .alert-link {
+    color: #523e02;
+    font-weight: 600;
 }
 
 /* ===== Table Enhancements ===== */
@@ -700,7 +726,7 @@ footer small {
 }
 
 .icon-wrapper.icon-warning {
-    background-color: rgba(255, 193, 7, 0.1);
+    background-color: rgba(255, 140, 0, 0.15);
     color: var(--warning-yellow);
 }
 
@@ -874,9 +900,12 @@ footer small {
 }
 
 [data-bs-theme="dark"] .alert-warning {
-    background-color: rgba(255, 193, 7, 0.2);
-    color: #ffda6a;
-    border-color: rgba(255, 193, 7, 0.3);
+    background-color: rgba(255, 140, 0, 0.25);
+    color: #ffb84d;
+    border-left: 4px solid var(--warning-yellow);
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
 }
 
 [data-bs-theme="dark"] .alert-danger {
@@ -939,6 +968,18 @@ footer small {
 /* Icon wrapper dark mode */
 [data-bs-theme="dark"] .icon-wrapper {
     background-color: var(--gray-200);
+}
+
+/* Badge warning dark mode */
+[data-bs-theme="dark"] .badge.bg-warning,
+[data-bs-theme="dark"] .bg-warning {
+    background-color: var(--warning-yellow) !important;
+    color: #000 !important;
+}
+
+[data-bs-theme="dark"] .badge.text-bg-warning {
+    background-color: var(--warning-yellow) !important;
+    color: #000 !important;
 }
 
 /* Theme toggle button */
