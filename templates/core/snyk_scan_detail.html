@@ -95,7 +95,8 @@
                                         <th>Severity</th>
                                         <th>Title</th>
                                         <th>Package</th>
-                                        <th>Version</th>
+                                        <th>Current Version</th>
+                                        <th>Fix Available</th>
                                         <th>CVE</th>
                                         <th>Actions</th>
                                     </tr>
@@ -109,8 +110,23 @@
                                             </span>
                                         </td>
                                         <td>{{ vuln.title|default:"N/A" }}</td>
-                                        <td><code>{{ vuln.packageName|default:"N/A" }}</code></td>
-                                        <td>{{ vuln.version|default:"N/A" }}</td>
+                                        <td><code>{{ vuln.moduleName|default:vuln.packageName|default:"N/A" }}</code></td>
+                                        <td><code>{{ vuln.version|default:"N/A" }}</code></td>
+                                        <td>
+                                            {% if vuln.fixedIn %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-arrow-up"></i> {{ vuln.fixedIn.0 }}
+                                                </span>
+                                            {% elif vuln.upgradePath %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-arrow-up"></i> Upgrade Available
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">
+                                                    No Fix Yet
+                                                </span>
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             {% if vuln.identifiers.CVE %}
                                                 {% for cve in vuln.identifiers.CVE %}
@@ -123,11 +139,26 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            {% if vuln.url %}
-                                            <a href="{{ vuln.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-external-link-alt"></i> Details
-                                            </a>
-                                            {% endif %}
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                {% if vuln.url %}
+                                                <a href="{{ vuln.url }}" target="_blank" rel="noopener" class="btn btn-outline-primary">
+                                                    <i class="fas fa-external-link-alt"></i> Details
+                                                </a>
+                                                {% endif %}
+                                                {% if vuln.fixedIn %}
+                                                <button type="button" class="btn btn-outline-success remediate-btn"
+                                                        data-vuln-id="{{ vuln.id }}"
+                                                        data-package="{{ vuln.moduleName|default:vuln.packageName }}"
+                                                        data-current-version="{{ vuln.version }}"
+                                                        data-fix-version="{{ vuln.fixedIn.0 }}"
+                                                        data-title="{{ vuln.title }}"
+                                                        data-severity="{{ vuln.severity }}"
+                                                        data-cve="{% if vuln.identifiers.CVE %}{{ vuln.identifiers.CVE|join:', ' }}{% endif %}"
+                                                        data-url="{{ vuln.url }}">
+                                                    <i class="fas fa-wrench"></i> Remediate
+                                                </button>
+                                                {% endif %}
+                                            </div>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -161,6 +192,78 @@
         </div>
     </div>
 </div>
+
+<!-- Remediation Modal -->
+<div class="modal fade" id="remediateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-wrench"></i> Remediate Vulnerability
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Vulnerability Info -->
+                <div class="alert alert-warning" id="vulnInfo">
+                    <h6 class="alert-heading"><i class="fas fa-bug"></i> <span id="vulnTitle"></span></h6>
+                    <p class="mb-2">
+                        <strong>Package:</strong> <code id="vulnPackage"></code><br>
+                        <strong>Current Version:</strong> <code id="vulnCurrentVersion"></code><br>
+                        <strong>Severity:</strong> <span id="vulnSeverity" class="badge"></span>
+                    </p>
+                    <p class="mb-0" id="vulnCVEContainer" style="display: none;">
+                        <strong>CVE:</strong> <span id="vulnCVE"></span>
+                    </p>
+                </div>
+
+                <!-- Fix Information -->
+                <div class="card mb-3">
+                    <div class="card-header bg-success text-white">
+                        <i class="fas fa-check-circle"></i> Recommended Fix
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Upgrade to Version:</strong> <code id="vulnFixVersion" class="fs-5"></code></p>
+                        <p class="text-muted mb-0">
+                            This version contains the security patch that addresses the vulnerability.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Command Preview -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <i class="fas fa-terminal"></i> Remediation Command
+                    </div>
+                    <div class="card-body">
+                        <pre class="bg-dark text-light p-3 mb-0"><code id="remediateCommand"></code></pre>
+                        <small class="text-muted">This command will be executed in the virtual environment</small>
+                    </div>
+                </div>
+
+                <!-- Warning -->
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> <strong>Before Applying:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>Review the <a href="#" id="vulnDetailsLink" target="_blank">full vulnerability details</a></li>
+                        <li>Check for breaking changes in the new version</li>
+                        <li>Consider testing in a development environment first</li>
+                        <li>Application restart may be required after upgrade</li>
+                    </ul>
+                </div>
+
+                <!-- Results -->
+                <div id="remediateResults" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="applyRemediateBtn">
+                    <i class="fas fa-check"></i> Apply Fix
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -169,6 +272,138 @@ $(document).ready(function() {
     $('#vulnerabilitiesTable').DataTable({
         order: [[0, 'asc']],  // Sort by severity
         pageLength: 25,
+    });
+
+    // Handle Remediate button click
+    $('.remediate-btn').on('click', function() {
+        const btn = $(this);
+        const package = btn.data('package');
+        const currentVersion = btn.data('current-version');
+        const fixVersion = btn.data('fix-version');
+        const title = btn.data('title');
+        const severity = btn.data('severity');
+        const cve = btn.data('cve');
+        const url = btn.data('url');
+
+        // Populate modal
+        $('#vulnTitle').text(title);
+        $('#vulnPackage').text(package);
+        $('#vulnCurrentVersion').text(currentVersion);
+        $('#vulnFixVersion').text(fixVersion);
+
+        // Set severity badge
+        const severityBadge = $('#vulnSeverity');
+        severityBadge.removeClass('bg-danger bg-warning bg-info bg-secondary');
+        if (severity === 'critical') {
+            severityBadge.addClass('bg-danger');
+        } else if (severity === 'high') {
+            severityBadge.addClass('bg-warning');
+        } else if (severity === 'medium') {
+            severityBadge.addClass('bg-info');
+        } else {
+            severityBadge.addClass('bg-secondary');
+        }
+        severityBadge.text(severity.toUpperCase());
+
+        // Show/hide CVE
+        if (cve) {
+            $('#vulnCVE').text(cve);
+            $('#vulnCVEContainer').show();
+        } else {
+            $('#vulnCVEContainer').hide();
+        }
+
+        // Set details link
+        if (url) {
+            $('#vulnDetailsLink').attr('href', url);
+        }
+
+        // Set command
+        const command = `pip install "${package}==${fixVersion}"`;
+        $('#remediateCommand').text(command);
+
+        // Store data for remediation
+        $('#applyRemediateBtn').data('package', package);
+        $('#applyRemediateBtn').data('version', fixVersion);
+
+        // Reset results
+        $('#remediateResults').hide().html('');
+
+        // Show modal
+        $('#remediateModal').modal('show');
+    });
+
+    // Handle Apply Fix button
+    $('#applyRemediateBtn').on('click', function() {
+        const btn = $(this);
+        const package = btn.data('package');
+        const version = btn.data('version');
+        const originalHtml = btn.html();
+
+        // Disable button
+        btn.prop('disabled', true);
+        btn.html('<i class="fas fa-spinner fa-spin"></i> Applying Fix...');
+
+        // Hide previous results
+        $('#remediateResults').hide();
+
+        // Send AJAX request
+        $.ajax({
+            url: '{% url "core:apply_snyk_remediation" %}',
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            data: {
+                package: package,
+                version: version
+            },
+            success: function(response) {
+                const resultsDiv = $('#remediateResults');
+                if (response.success) {
+                    resultsDiv.html(`
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> <strong>Success!</strong>
+                            <p class="mb-2">${response.message}</p>
+                            <details>
+                                <summary>View Output</summary>
+                                <pre class="bg-dark text-light p-2 mt-2" style="max-height: 200px; overflow-y: auto;"><code>${response.output}</code></pre>
+                            </details>
+                            <hr>
+                            <p class="mb-0">
+                                <i class="fas fa-info-circle"></i> <strong>Next Steps:</strong>
+                                <br>• Restart the application: <code>sudo systemctl restart huduglue-gunicorn.service</code>
+                                <br>• Run a new scan to verify the fix
+                            </p>
+                        </div>
+                    `);
+                } else {
+                    resultsDiv.html(`
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> ${response.message}
+                            ${response.output ? `<details class="mt-2"><summary>View Output</summary><pre class="bg-dark text-light p-2 mt-2"><code>${response.output}</code></pre></details>` : ''}
+                        </div>
+                    `);
+                }
+                resultsDiv.show();
+
+                // Re-enable button
+                btn.prop('disabled', false);
+                btn.html('<i class="fas fa-check"></i> Fix Applied - Close Modal');
+                btn.removeClass('btn-success').addClass('btn-secondary');
+            },
+            error: function(xhr, status, error) {
+                $('#remediateResults').html(`
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> ${error}
+                    </div>
+                `).show();
+
+                // Re-enable button
+                btn.prop('disabled', false);
+                btn.html(originalHtml);
+            }
+        });
     });
 });
 </script>

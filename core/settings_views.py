@@ -892,3 +892,90 @@ def snyk_scan_status(request, scan_id):
             'success': False,
             'message': 'Scan not found'
         })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def apply_snyk_remediation(request):
+    """Apply Snyk vulnerability remediation by upgrading a package."""
+    from django.http import JsonResponse
+    import subprocess
+    import os
+    import re
+
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid request method'
+        })
+
+    package = request.POST.get('package')
+    version = request.POST.get('version')
+
+    if not package or not version:
+        return JsonResponse({
+            'success': False,
+            'message': 'Package and version are required'
+        })
+
+    # Validate package name (prevent command injection)
+    if not re.match(r'^[a-zA-Z0-9_\-\.]+$', package):
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid package name'
+        })
+
+    # Validate version (prevent command injection)
+    if not re.match(r'^[a-zA-Z0-9_\-\.]+$', version):
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid version format'
+        })
+
+    try:
+        # Get virtualenv path
+        venv_path = '/home/administrator/venv'
+        pip_path = os.path.join(venv_path, 'bin', 'pip')
+
+        if not os.path.exists(pip_path):
+            return JsonResponse({
+                'success': False,
+                'message': 'Virtual environment not found'
+            })
+
+        # Run pip install with specific version
+        cmd = [pip_path, 'install', f'{package}=={version}']
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,  # 2 minute timeout
+            cwd='/home/administrator'
+        )
+
+        # Check if successful
+        if result.returncode == 0:
+            return JsonResponse({
+                'success': True,
+                'message': f'Successfully upgraded {package} to version {version}',
+                'output': result.stdout + result.stderr
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': f'Failed to upgrade {package}',
+                'output': result.stdout + result.stderr
+            })
+
+    except subprocess.TimeoutExpired:
+        return JsonResponse({
+            'success': False,
+            'message': 'Upgrade timed out after 2 minutes'
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        })
