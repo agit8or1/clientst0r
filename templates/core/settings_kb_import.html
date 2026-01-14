@@ -250,7 +250,12 @@ function importArticles(source) {
         },
         body: `source=${source}&delete_existing=${deleteExisting}`
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         // Hide progress
         document.getElementById('importProgress').style.display = 'none';
@@ -320,7 +325,12 @@ function deleteGlobalArticles() {
             'X-CSRFToken': getCookie('csrftoken')
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         const resultsDiv = document.getElementById('importResults');
         const alertDiv = document.getElementById('importAlert');
