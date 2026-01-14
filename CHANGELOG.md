@@ -5,6 +5,43 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.29] - 2026-01-14
+
+### 🐛 Bug Fix
+
+- **Fixed Snyk Security Link Visibility**
+  - Fixed Django template syntax errors from escaped single quotes
+  - Removed extra blank lines in settings sidebar
+  - Snyk Security link now properly renders in all settings pages
+  - Corrected malformed template tags that broke rendering
+
+### 📝 Files Modified
+
+- `templates/core/settings_general.html`
+- `templates/core/settings_security.html`
+- `templates/core/settings_smtp.html`
+- `templates/core/settings_scheduler.html`
+- `templates/core/settings_directory.html`
+- `templates/core/settings_ai.html`
+
+---
+
+## [2.14.28] - 2026-01-14
+
+### 🐛 Bug Fix
+
+- **Fixed Malformed HTML in Settings Templates**
+  - Fixed nested link structure in AI & LLM sidebar entry
+  - Snyk Security link was incorrectly inserted inside AI & LLM link tags
+  - Resolved invalid HTML that caused Bootstrap styling issues
+  - Fixed visual formatting problems on settings page load
+
+### 📝 Files Modified
+
+- All settings templates with sidebar navigation
+
+---
+
 ## [2.14.27] - 2026-01-14
 
 ### 🔒 Security Enhancement: Snyk Integration
