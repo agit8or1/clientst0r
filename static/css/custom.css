@@ -722,15 +722,10 @@ footer small {
 .container {
     padding-top: var(--spacing-lg);
     padding-bottom: var(--spacing-lg);
-    max-width: 100%;
 }
 
-/* Prevent horizontal overflow */
+/* Prevent horizontal overflow on body only */
 body {
-    overflow-x: hidden;
-}
-
-.container-fluid {
     overflow-x: hidden;
 }
 
