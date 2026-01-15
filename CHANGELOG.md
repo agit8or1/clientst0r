@@ -5,6 +5,18 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.50] - 2026-01-15
+
+### 🐛 Bug Fixes
+- **Fixed:** System Status page Scheduled Tasks table header contrast
+  - Changed from `table-light` class to darker gray background (#dee2e6)
+  - Made column headers bold (font-weight: 600)
+  - Headers now clearly visible: Task, Status, Last Run, Next Run
+  - Improves readability and accessibility
+  - Files modified: `templates/core/system_status.html`
+
+---
+
 ## [2.24.49] - 2026-01-15
 
 ### 🐛 Bug Fixes
