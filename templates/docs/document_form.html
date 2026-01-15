@@ -207,10 +207,13 @@
             quillContainer.style.display = 'none';
             markdownContainer.style.display = 'block';
 
-            // Sync content from Quill to markdown textarea
+            // Load existing content into markdown textarea if not already loaded
+            if (!markdownTextarea.value && bodyTextarea.value) {
+                markdownTextarea.value = bodyTextarea.value;
+            }
+
+            // Hide Quill if it exists
             if (quillEditor) {
-                const htmlContent = quillEditor.root.innerHTML;
-                markdownTextarea.value = htmlContent;
                 document.getElementById('quill-editor').style.display = 'none';
             }
         }

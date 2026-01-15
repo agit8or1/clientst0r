@@ -3,11 +3,14 @@
 {% block title %}{{ document.title }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>{{ document.title }}</h1>
+<div class="d-flex justify-content-end mb-4">
     <div>
-        <a href="{% url 'docs:document_edit' document.slug %}" class="btn btn-secondary">Edit</a>
-        <a href="{% url 'docs:document_list' %}" class="btn btn-outline-secondary">Back to List</a>
+        <a href="{% url 'docs:document_edit' document.slug %}" class="btn btn-secondary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{% url 'docs:document_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
     </div>
 </div>
 
