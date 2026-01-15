@@ -5,6 +5,48 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.72] - 2026-01-15
+
+### 🔧 Fixed Web Auto-Update - Handle Force Push + Remove Screen Dimming
+
+**Problem 1: Web-based auto-update still failing with divergent branches**
+```
+Update failed: Command failed: From https://github.com/agit8or1/huduglue
+ * branch main -> FETCH_HEAD
+fatal: Need to specify how to reconcile divergent branches.
+```
+
+**Problem 2: Screen dimming during updates**
+Users reported that the screen dims during auto-updates, preventing interaction with other windows.
+
+**The Fix**:
+
+**1. Auto-Update Divergent Branch Handling** (`core/updater.py`):
+- Applied same intelligent update logic from `update.sh` to web-based auto-updates
+- Automatic detection and handling of force-pushed repositories
+- Flow:
+  1. `git fetch origin` - Get latest refs
+  2. Compare local vs remote commits
+  3. Detect divergence with `git merge-base --is-ancestor`
+  4. **If divergent**: Automatically `git reset --hard origin/main`
+  5. **If fast-forward**: Normal `git pull origin main`
+  6. **If up-to-date**: Skip update
+
+**2. Removed Screen Dimming** (`templates/core/system_updates.html`):
+- Changed update progress modal from `data-bs-backdrop="static"` to `data-bs-backdrop="false"`
+- Users can now interact with other windows during updates
+- Modal still prevents accidental closure with `data-bs-keyboard="false"`
+
+**Impact**:
+- ✅ Web auto-updates now handle force pushes automatically (no user prompt needed in auto-update)
+- ✅ CLI `update.sh` still prompts user for safety (interactive mode)
+- ✅ No more screen dimming during updates
+- ✅ Both update methods work after repository maintenance
+
+**Technical Details**:
+- Web auto-update runs automatically without user interaction, so it resets directly (safe because uncommitted changes are checked in pre-flight)
+- CLI update.sh still prompts user because it's interactive and users may want to review changes first
+
 ## [2.24.71] - 2026-01-15
 
 ### 🔧 Fixed Update Script - Handle Force Push Gracefully (Issue #24)

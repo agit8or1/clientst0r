@@ -172,20 +172,53 @@ class UpdateService:
                         "Or update manually via command line (see instructions below)."
                     )
 
-            # Step 1: Git pull
+            # Step 1: Git fetch and intelligent update
             if progress_tracker:
                 progress_tracker.step_start('Git Pull')
-            logger.info("Starting update: Git pull")
-            git_output = self._run_command(['/usr/bin/git', 'pull', 'origin', 'main'])
+            logger.info("Starting update: Git fetch")
+
+            # First, fetch from remote
+            fetch_output = self._run_command(['/usr/bin/git', 'fetch', 'origin'])
+            result['output'].append(f"Git fetch: {fetch_output}")
+
+            # Check if branches are divergent (happens after force push)
+            local_commit = self._run_command(['/usr/bin/git', 'rev-parse', 'HEAD']).strip()
+            remote_commit = self._run_command(['/usr/bin/git', 'rev-parse', 'origin/main']).strip()
+
+            git_output = ""
+            if local_commit != remote_commit:
+                # Check if it's a simple fast-forward or divergent
+                try:
+                    self._run_command(['/usr/bin/git', 'merge-base', '--is-ancestor', 'HEAD', 'origin/main'])
+                    is_ancestor = True
+                except:
+                    is_ancestor = False
+
+                if not is_ancestor:
+                    # Branches are divergent (remote was force-pushed)
+                    logger.warning("Remote repository history has changed (force push detected)")
+                    result['output'].append("⚠️ Remote repository history has changed (force push detected)")
+                    result['output'].append("Resetting to remote version...")
+
+                    git_output = self._run_command(['/usr/bin/git', 'reset', '--hard', 'origin/main'])
+                    result['output'].append(f"Git reset: {git_output}")
+                else:
+                    # Simple fast-forward update
+                    logger.info("Pulling updates (fast-forward)")
+                    git_output = self._run_command(['/usr/bin/git', 'pull', 'origin', 'main'])
+                    result['output'].append(f"Git pull: {git_output}")
+            else:
+                logger.info("Repository already up to date")
+                result['output'].append("Repository already up to date")
+                git_output = "Already up to date"
+
             result['steps_completed'].append('git_pull')
-            result['output'].append(f"Git pull: {git_output}")
             if progress_tracker:
                 progress_tracker.step_complete('Git Pull')
 
             # Check if there were any changes
             if 'Already up to date' in git_output:
                 logger.info("No updates available in git repository")
-                result['output'].append("Repository already up to date")
 
             # Step 2: Install requirements
             if progress_tracker:
