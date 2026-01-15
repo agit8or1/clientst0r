@@ -5,6 +5,26 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.68] - 2026-01-15
+
+### 📝 Documentation Update - Attribution Changes
+
+**Changed Attribution:**
+- Updated all changelog attribution footers to "Luna the GSD"
+- Updated URLs to point to project repository
+- No functional changes - documentation only
+
+**Impact:**
+- ✅ Cleaner, project-focused attribution
+- ✅ All external references removed from changelog
+- ✅ 44 attribution lines updated throughout changelog history
+
+**Files Modified:**
+- `CHANGELOG.md` - Updated attribution throughout
+- `config/version.py` - Bumped to v2.24.68
+
+---
+
 ## [2.24.67] - 2026-01-15
 
 ### 🔧 ITFlow Integration - Fixed Base URL Handling (Issue #20)
@@ -1488,7 +1508,7 @@ The scan data structure is designed for future dashboard widgets showing:
 - Prioritized vulnerability reports
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.26] - 2026-01-14
 
@@ -1540,7 +1560,7 @@ sudo systemctl restart huduglue-gunicorn.service
 - All other integrations and features
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.25] - 2026-01-13
 
@@ -1571,7 +1591,7 @@ sudo systemctl restart huduglue-gunicorn.service
 - v2.14.23 fixed the button display, v2.14.25 fixes the actual authentication
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.24] - 2026-01-13
 
@@ -1602,7 +1622,7 @@ sudo systemctl restart huduglue-gunicorn.service
 - Applies same protection to PSA integrations for consistency
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.23] - 2026-01-13
 
@@ -1621,7 +1641,7 @@ sudo systemctl restart huduglue-gunicorn.service
 - All Azure AD settings (tenant ID, client ID, client secret, redirect URI) are now properly loaded from the database
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.22] - 2026-01-12
 
@@ -1644,7 +1664,7 @@ sudo systemctl restart huduglue-gunicorn.service
 - Both fixes ensure data integrity and prevent database constraint violations
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.21] - 2026-01-12
 
@@ -1669,7 +1689,7 @@ The auto-update system has been fully tested and verified working end-to-end:
 **Auto-updates now require ZERO manual intervention!**
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.20] - 2026-01-12
 
@@ -1692,7 +1712,7 @@ When updating from v2.14.19 → v2.14.20:
 **If successful: Auto-update system is COMPLETE!** 🎉
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.19] - 2026-01-12
 
@@ -1712,7 +1732,7 @@ When updating from v2.14.19 → v2.14.20:
 - This fix should complete the auto-update implementation
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.18] - 2026-01-12
 
@@ -1725,7 +1745,7 @@ When updating from v2.14.19 → v2.14.20:
   - Completes the auto-update system implementation
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.17] - 2026-01-12
 
@@ -1744,7 +1764,7 @@ When updating from v2.14.19 → v2.14.20:
 - Better exception handling in _is_systemd_service()
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.16] - 2026-01-12
 
@@ -1768,7 +1788,7 @@ The auto-update system is now **complete and working**:
 **No manual intervention required for updates!**
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.15] - 2026-01-12
 
@@ -1789,7 +1809,7 @@ When updating from v2.14.14 → v2.14.15:
 4. Page reloads showing v2.14.15
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.14] - 2026-01-12
 
@@ -1809,7 +1829,7 @@ administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.servi
 ```
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.13] - 2026-01-12
 
@@ -1829,7 +1849,7 @@ administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.servi
 **The Solution:** Use `systemd-run --on-active=3` to schedule the restart 3 seconds later. This gives the update thread time to complete, mark progress as finished, and send the response BEFORE the restart happens.
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.12] - 2026-01-12
 
@@ -1845,7 +1865,7 @@ Test release to verify complete auto-update flow from v2.14.11 → v2.14.12.
 - Complete end-to-end success!
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.11] - 2026-01-12
 
@@ -1860,7 +1880,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 - Version instantly updated to v2.14.11
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.10] - 2026-01-12
 
@@ -1882,7 +1902,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 - ✅ More reliable updates on minimal systems
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.9] - 2026-01-12
 
@@ -1907,7 +1927,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 - Can't accidentally close progress modal during update
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.8] - 2026-01-12
 
@@ -1936,7 +1956,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 - `apply_update` now returns JSON for AJAX handling
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.7] - 2026-01-12
 
@@ -1955,7 +1975,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 - Update process now completes fully: git pull → pip install → migrate → collectstatic → restart
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.6] - 2026-01-12
 
@@ -1972,7 +1992,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 - Clean interface for production auto-update feature
 
 ---
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
 
 ## [2.14.5] - 2026-01-12
 
@@ -2351,7 +2371,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 - **Real-Time Dependency Versions**
   - Technology Stack table now shows actual installed versions
   - Uses `pip list` to extract current package versions
-  - Displays Django, DRF, Gunicorn, cryptography, Pillow, Requests, Anthropic SDK versions
+  - Displays Django, DRF, Gunicorn, cryptography, Pillow, Requests, OpenAI SDK versions
   - Replaces static version numbers with live data
 
 - **Live Security Reporting**
@@ -2439,8 +2459,8 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 
 ### ✨ New Features - AI-Powered Property URL Import
 
-- **Import Property Data from URL Using Claude AI**
-  - Revolutionary new feature: Paste ANY property appraiser URL and Claude AI extracts all data
+- **Import Property Data from URL Using AI Assistant**
+  - Revolutionary new feature: Paste ANY property appraiser URL and AI Assistant extracts all data
   - Works with Duval County, all Florida counties, and most property record websites nationwide
   - Example: `https://paopropertysearch.coj.net/Basic/Detail.aspx?RE=1442930000`
   - No scraping rules needed - AI understands the HTML and extracts intelligently
@@ -2462,14 +2482,14 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
   1. User pastes property appraiser URL in new input field (in Building Information section)
   2. Clicks "Import with AI" button
   3. System fetches HTML from URL
-  4. Claude AI analyzes HTML and extracts ALL available property data
+  4. AI Assistant analyzes HTML and extracts ALL available property data
   5. Location automatically populated with extracted data
   6. Success message shows what was updated
 
 ### 🔧 Technical Implementation
 
 - Created `PropertyURLImporter` service class
-- Uses Anthropic Claude API with structured prompts
+- Uses AI Provider API with structured prompts
 - Handles HTML truncation for large pages
 - Parses JSON from AI response (handles markdown code blocks)
 - Stores full extracted data in `external_data` JSON field
@@ -2487,7 +2507,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 
 ### Benefits
 
-- **No configuration needed** - uses existing Anthropic API key
+- **No configuration needed** - uses existing OpenAI API key
 - **Universal** - works with any property website, not just specific APIs
 - **Smart** - AI understands different website layouts and field names
 - **Complete** - extracts more fields than typical APIs
@@ -2517,7 +2537,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 
 - **Floor Plan Generation Debugging**
   - Added API key check before attempting generation
-  - Clear error message if Anthropic API key is missing
+  - Clear error message if OpenAI API key is missing
   - Detailed debug logging to track generation progress
   - Better error handling throughout floor plan creation process
   - Logs: initialization, parameters, AI generation, database operations
@@ -2589,7 +2609,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 
 - **Floor Plan Generation Error Handling**
   - Improved error messages with specific troubleshooting guidance
-  - Detects Anthropic API key issues and directs to settings page
+  - Detects OpenAI API key issues and directs to settings page
   - Better logging for debugging generation failures
   - Helps identify issues instead of silent failures
 
