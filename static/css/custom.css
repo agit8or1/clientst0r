@@ -181,9 +181,9 @@ h6 { font-size: 1rem; }
     }
 }
 
+/* Navbar starts compact by default, expands at larger widths */
 .navbar {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    padding: 0.5rem 1rem;
     min-height: 60px;
 }
 
@@ -207,21 +207,12 @@ h6 { font-size: 1rem; }
     }
 }
 
-.navbar-brand {
-    font-weight: 600;
-    font-size: 1.25rem;
-    transition: transform var(--transition-fast);
-    padding: 0.5rem 0;
-    flex-shrink: 0;
-}
-
 .navbar-brand:hover {
     transform: translateY(-2px);
 }
 
 .navbar-brand img {
     transition: opacity var(--transition-fast);
-    height: 30px;
     width: auto;
 }
 
@@ -236,11 +227,11 @@ h6 { font-size: 1rem; }
 
 .nav-link {
     font-weight: 500;
-    padding: 0.5rem 0.75rem !important;
+    padding: 0.35rem 0.4rem !important;
     transition: all var(--transition-fast);
     border-radius: var(--border-radius);
     white-space: nowrap;
-    font-size: 0.95rem;
+    font-size: 0.75rem;
 }
 
 .nav-link:hover {
@@ -264,25 +255,47 @@ h6 { font-size: 1rem; }
     font-size: 0.875rem;
 }
 
-/* User dropdown with ellipsis for long names */
+/* User dropdown with ellipsis for long names - compact by default */
 #userDropdown {
-    max-width: 150px;
+    max-width: 90px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 0.75rem;
 }
 
 #orgDropdown {
-    max-width: 180px;
+    max-width: 90px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 0.75rem;
 }
 
-/* Search form responsive */
+/* Search form responsive - compact by default */
 .navbar .form-control-sm {
-    width: 180px;
-    min-width: 120px;
+    width: 120px;
+    min-width: 100px;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.navbar .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+}
+
+/* Navbar compact by default */
+.navbar {
+    padding: 0.4rem 0.75rem;
+}
+
+.navbar-brand {
+    font-size: 1rem;
+}
+
+.navbar-brand img {
+    height: 24px;
 }
 
 /* Theme toggle in navbar */
@@ -290,141 +303,102 @@ h6 { font-size: 1rem; }
     margin: 0 0.25rem;
 }
 
-/* Responsive navbar adjustments for different screen sizes (when expanded) */
-/* Ultra-compact mode just above collapse breakpoint */
-@media (min-width: 1850px) and (max-width: 1949px) {
-    .nav-link {
-        padding: 0.35rem 0.4rem !important;
-        font-size: 0.75rem;
-        white-space: nowrap;
-    }
+/* Responsive navbar - starts compact, grows at larger widths */
+/* Base is ultra-compact (set above), now progressively enlarge */
 
-    .navbar-brand {
-        font-size: 1rem;
-    }
-
-    .navbar-brand img {
-        height: 24px;
-    }
-
-    /* Make search compact */
-    .navbar .form-control-sm {
-        width: 120px;
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-    }
-
-    .navbar .btn-sm {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.7rem;
-    }
-
-    /* Make user/org dropdowns compact */
-    #userDropdown,
-    #orgDropdown {
-        max-width: 90px;
-        font-size: 0.75rem;
-        padding: 0.35rem 0.4rem !important;
-    }
-
-    .dropdown-toggle::after {
-        margin-left: 0.15rem;
-        border-width: 0.25em;
-    }
-
-    /* Remove all margins between nav items */
-    .navbar-nav .nav-item {
-        margin: 0;
-    }
-
-    /* Make icons slightly smaller */
-    .nav-link i {
-        font-size: 0.85rem;
-        margin-right: 0.2rem;
-    }
-
-    /* Compact dropdown menu */
-    .navbar-nav .dropdown-menu {
-        font-size: 0.8rem;
-    }
-
-    .navbar-nav .dropdown-item {
-        padding: 0.35rem 0.75rem;
-    }
-
-    /* Reduce navbar padding */
-    .navbar {
-        padding: 0.4rem 0.75rem;
-    }
-
-    /* Make staff badge smaller */
-    .badge {
-        font-size: 0.65rem;
-        padding: 0.25rem 0.45rem;
-    }
-
-    /* Make search form more compact */
-    .navbar .d-flex {
-        margin-right: 0.3rem;
-        margin-left: 0.3rem;
-    }
+/* Still ultra-compact at 1850-1999px */
+@media (min-width: 1850px) and (max-width: 1999px) {
+    /* Keep compact defaults */
 }
 
-/* Compact mode */
-@media (min-width: 1950px) and (max-width: 2149px) {
+/* Slightly larger at 2000-2299px */
+@media (min-width: 2000px) and (max-width: 2299px) {
     .nav-link {
         padding: 0.4rem 0.5rem !important;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
     }
 
     .navbar .form-control-sm {
         width: 140px;
+        font-size: 0.8rem;
     }
 
     #userDropdown,
     #orgDropdown {
-        max-width: 110px;
+        max-width: 100px;
+        font-size: 0.8rem;
     }
 
-    .dropdown-toggle::after {
-        margin-left: 0.2rem;
+    .navbar {
+        padding: 0.45rem 0.8rem;
     }
 }
 
-/* Standard mode */
-@media (min-width: 2150px) and (max-width: 2399px) {
+/* Standard size at 2300-2599px */
+@media (min-width: 2300px) and (max-width: 2599px) {
     .nav-link {
         padding: 0.45rem 0.6rem !important;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
 
     .navbar .form-control-sm {
         width: 160px;
+        font-size: 0.85rem;
     }
 
     #userDropdown,
     #orgDropdown {
-        max-width: 130px;
+        max-width: 120px;
+        font-size: 0.85rem;
+    }
+
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+
+    .navbar-brand img {
+        height: 26px;
+    }
+
+    .navbar {
+        padding: 0.5rem 0.9rem;
     }
 }
 
-/* Comfortable mode */
-@media (min-width: 2400px) {
+/* Comfortable size at 2600px+ */
+@media (min-width: 2600px) {
     .nav-link {
         padding: 0.5rem 0.75rem !important;
-        font-size: 0.95rem;
+        font-size: 0.9rem;
     }
 
     .navbar .form-control-sm {
-        width: 200px;
+        width: 180px;
+        font-size: 0.9rem;
+        padding: 0.35rem 0.65rem;
     }
 
-    #userDropdown {
-        max-width: 160px;
-    }
-
+    #userDropdown,
     #orgDropdown {
-        max-width: 200px;
+        max-width: 140px;
+        font-size: 0.9rem;
+    }
+
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+
+    .navbar-brand img {
+        height: 28px;
+    }
+
+    .navbar {
+        padding: 0.5rem 1rem;
+    }
+
+    .navbar .btn-sm {
+        padding: 0.35rem 0.65rem;
+        font-size: 0.8rem;
     }
 }
 

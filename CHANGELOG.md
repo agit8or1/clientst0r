@@ -5,6 +5,38 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.65] - 2026-01-15
+
+### 🐛 Critical Bug Fix - Reversed Responsive Sizing Logic
+- **Fixed:** Text getting smaller at full size and LARGER when shrinking (backwards behavior)
+  - **Previous logic**: Larger widths = smaller text (WRONG)
+  - **New logic**: Larger widths = larger text (CORRECT)
+  - Changed base defaults to ultra-compact, then progressively enlarge at wider screens
+  - Files modified: `static/css/custom.css`
+
+### 🔄 How It Works Now (Correct Behavior)
+**Default (Base Styles)**: Ultra-compact
+- Font: 0.75rem
+- Search: 120px
+- Dropdowns: 90px
+- Logo: 24px
+- Padding: Minimal
+
+**As screen gets LARGER, everything GROWS**:
+- **1850-1999px**: Ultra-compact (base)
+- **2000-2299px**: Slightly larger (0.8rem, 140px search)
+- **2300-2599px**: Standard (0.85rem, 160px search, 26px logo)
+- **2600px+**: Comfortable (0.9rem, 180px search, 28px logo)
+
+### ✅ Result
+- ✅ Full size window (1920px+): Reasonably sized, readable text
+- ✅ Shrinking window: Text stays SAME SIZE or gets smaller (never larger)
+- ✅ Below 1850px: Collapses to hamburger menu
+- ✅ No more backwards scaling
+- ✅ No cutoff at any width
+
+---
+
 ## [2.24.64] - 2026-01-15
 
 ### 🐛 Critical Bug Fix - Removed Conflicting Bootstrap Class
