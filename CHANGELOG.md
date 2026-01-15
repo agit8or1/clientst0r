@@ -5,6 +5,25 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.49] - 2026-01-15
+
+### 🐛 Bug Fixes
+- **Fixed:** Task Scheduler page visibility issues
+  - Added light gray background (#f8f9fa) to Last Run and Next Run columns for better contrast
+  - Made dates bold and more readable
+  - Changed date format from "Y-m-d H:i" to "M d, Y H:i" (Jan 15, 2026 01:04)
+  - Improves readability on white backgrounds
+  - Files modified: `templates/core/settings_scheduler.html`
+
+### 📋 Clarification
+- **Note:** System Update Check task IS running correctly
+  - Task has run 70+ times successfully
+  - Runs every 60 minutes as configured
+  - If UI shows "Never", clear browser cache or restart gunicorn service
+  - Check scheduler status: `sudo systemctl status itdocs-scheduler.timer`
+
+---
+
 ## [2.24.48] - 2026-01-15
 
 ### ⚡ Performance Improvements

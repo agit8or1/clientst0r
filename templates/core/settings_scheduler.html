@@ -109,16 +109,16 @@
                                                    {% if task.enabled %}checked{% endif %}>
                                         </div>
                                     </td>
-                                    <td>
+                                    <td style="background-color: #f8f9fa;">
                                         {% if task.last_run_at %}
-                                            <small>{{ task.last_run_at|date:"Y-m-d H:i" }}</small>
+                                            <small><strong>{{ task.last_run_at|date:"M d, Y H:i" }}</strong></small>
                                         {% else %}
                                             <small class="text-muted">Never</small>
                                         {% endif %}
                                     </td>
-                                    <td>
+                                    <td style="background-color: #f8f9fa;">
                                         {% if task.next_run_at %}
-                                            <small>{{ task.next_run_at|date:"Y-m-d H:i" }}</small>
+                                            <small><strong>{{ task.next_run_at|date:"M d, Y H:i" }}</strong></small>
                                         {% else %}
                                             <small class="text-muted">-</small>
                                         {% endif %}
