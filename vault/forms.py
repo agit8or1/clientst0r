@@ -119,6 +119,13 @@ class PasswordForm(forms.ModelForm):
                 if not plaintext_password:
                     self.add_error('plaintext_password', 'Password is required')
 
+        # Validate TOTP secret format if provided (for any password type)
+        if plaintext_otp_secret:
+            # Verify it's valid base32
+            import re
+            if not re.match(r'^[A-Z2-7]+=*$', plaintext_otp_secret.replace(' ', '')):
+                self.add_error('plaintext_otp_secret', 'TOTP secret must be valid base32 format (A-Z, 2-7)')
+
         # Check password against breach database
         if plaintext_password and getattr(settings, 'HIBP_CHECK_ON_SAVE', True):
             try:
@@ -167,20 +174,19 @@ class PasswordForm(forms.ModelForm):
             if password_obj.password_type == 'otp':
                 password_obj.set_password('')
 
-        # Handle TOTP secret
-        password_type = self.cleaned_data.get('password_type')
-        if password_type == 'otp':
-            generate_new = self.cleaned_data.get('generate_new_secret')
-            plaintext_secret = self.cleaned_data.get('plaintext_otp_secret')
+        # Handle TOTP secret (for ANY password type, not just 'otp')
+        generate_new = self.cleaned_data.get('generate_new_secret')
+        plaintext_secret = self.cleaned_data.get('plaintext_otp_secret')
 
-            if generate_new:
-                # Generate new TOTP secret
-                import pyotp
-                new_secret = pyotp.random_base32()
-                password_obj.set_otp_secret(new_secret)
-            elif plaintext_secret:
-                # Use provided secret
-                password_obj.set_otp_secret(plaintext_secret)
+        if generate_new:
+            # Generate new TOTP secret
+            import pyotp
+            new_secret = pyotp.random_base32()
+            password_obj.set_otp_secret(new_secret)
+        elif plaintext_secret:
+            # Use provided secret (remove spaces for user convenience)
+            clean_secret = plaintext_secret.replace(' ', '').upper()
+            password_obj.set_otp_secret(clean_secret)
 
         if commit:
             password_obj.save()

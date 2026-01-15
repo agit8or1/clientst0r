@@ -318,24 +318,16 @@ def check_password_strength_api(request):
 @login_required
 def generate_otp_api(request, pk):
     """
-    API endpoint to generate OTP code.
+    API endpoint to generate TOTP code.
+    Works with any password that has a TOTP secret configured.
     """
     org = get_request_organization(request)
     password = get_object_or_404(Password, pk=pk, organization=org)
 
-    if password.password_type != 'otp':
-        return JsonResponse({'error': 'Not an OTP entry'}, status=400)
-
     try:
-        otp_code = password.generate_otp()
-        if otp_code:
-            # Calculate time remaining until code changes (30 second window)
-            import time
-            import pyotp
-            totp = pyotp.TOTP(password.get_otp_secret())
-            time_remaining = 30 - (int(time.time()) % 30)
-
-            # Log OTP generation for audit
+        otp_data = password.generate_otp()
+        if otp_data:
+            # Log TOTP generation for audit
             AuditLog.objects.create(
                 organization=org,
                 user=request.user,
@@ -344,16 +336,17 @@ def generate_otp_api(request, pk):
                 object_type='password',
                 object_id=password.id,
                 object_repr=password.title,
-                description=f"OTP generated for '{password.title}'",
+                description=f"TOTP code generated for '{password.title}'",
                 ip_address=request.META.get('REMOTE_ADDR'),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
             )
             return JsonResponse({
-                'otp': otp_code,
-                'time_remaining': time_remaining
+                'otp': otp_data['code'],
+                'time_remaining': otp_data['time_remaining'],
+                'issuer': otp_data['issuer']
             })
         else:
-            return JsonResponse({'error': 'OTP secret not configured'}, status=400)
+            return JsonResponse({'error': 'TOTP secret not configured for this password'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 

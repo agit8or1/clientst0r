@@ -7,6 +7,7 @@ import logging
 from typing import Dict, List
 from datetime import datetime
 from .base import BaseProvider, AuthenticationError, ProviderError
+import json
 
 logger = logging.getLogger('integrations')
 
@@ -37,6 +38,36 @@ class ITFlowProvider(BaseProvider):
             'Content-Type': 'application/json',
         }
 
+    def _safe_json(self, response):
+        """
+        Safely parse JSON response with better error handling.
+        Raises ProviderError with detailed message if parsing fails.
+        """
+        # Check if response has content
+        if not response.content:
+            raise ProviderError(
+                f"Empty response from ITFlow API (Status: {response.status_code}, "
+                f"URL: {response.url}). The API endpoint may not exist or returned no data."
+            )
+
+        # Try to parse JSON
+        try:
+            return self._safe_json(response)
+        except json.JSONDecodeError as e:
+            # Log the actual response content for debugging
+            content_preview = response.text[:500] if response.text else "(empty)"
+            logger.error(
+                f"Invalid JSON from ITFlow API. "
+                f"Status: {response.status_code}, "
+                f"URL: {response.url}, "
+                f"Content preview: {content_preview}"
+            )
+            raise ProviderError(
+                f"Invalid JSON response from ITFlow API (Status: {response.status_code}). "
+                f"The API may be misconfigured or returning HTML instead of JSON. "
+                f"Response preview: {content_preview}"
+            )
+
     def test_connection(self) -> bool:
         """Test connection by fetching clients."""
         try:
@@ -53,7 +84,7 @@ class ITFlowProvider(BaseProvider):
         try:
             # ITFlow API endpoint for clients
             response = self._make_request('GET', '/api/v1/clients')
-            data = response.json()
+            data = self._safe_json(response)
 
             # ITFlow returns array of clients
             clients = data if isinstance(data, list) else data.get('data', [])
@@ -82,7 +113,7 @@ class ITFlowProvider(BaseProvider):
         """Get single client from ITFlow."""
         try:
             response = self._make_request('GET', f'/api/v1/clients/{company_id}')
-            raw_client = response.json()
+            raw_client = self._safe_json(response)
             return self.normalize_company(raw_client)
         except Exception as e:
             logger.error(f"Error fetching ITFlow client {company_id}: {e}")
@@ -99,7 +130,7 @@ class ITFlowProvider(BaseProvider):
             else:
                 response = self._make_request('GET', '/api/v1/contacts')
 
-            data = response.json()
+            data = self._safe_json(response)
             contact_list = data if isinstance(data, list) else data.get('data', [])
 
             for raw_contact in contact_list:
@@ -126,7 +157,7 @@ class ITFlowProvider(BaseProvider):
         """Get single contact from ITFlow."""
         try:
             response = self._make_request('GET', f'/api/v1/contacts/{contact_id}')
-            raw_contact = response.json()
+            raw_contact = self._safe_json(response)
             return self.normalize_contact(raw_contact)
         except Exception as e:
             logger.error(f"Error fetching ITFlow contact {contact_id}: {e}")
@@ -143,7 +174,7 @@ class ITFlowProvider(BaseProvider):
             else:
                 response = self._make_request('GET', '/api/v1/tickets')
 
-            data = response.json()
+            data = self._safe_json(response)
             ticket_list = data if isinstance(data, list) else data.get('data', [])
 
             for raw_ticket in ticket_list:
@@ -170,7 +201,7 @@ class ITFlowProvider(BaseProvider):
         """Get single ticket from ITFlow."""
         try:
             response = self._make_request('GET', f'/api/v1/tickets/{ticket_id}')
-            raw_ticket = response.json()
+            raw_ticket = self._safe_json(response)
             return self.normalize_ticket(raw_ticket)
         except Exception as e:
             logger.error(f"Error fetching ITFlow ticket {ticket_id}: {e}")

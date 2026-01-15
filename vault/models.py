@@ -196,14 +196,30 @@ class Password(BaseModel):
     def generate_otp(self):
         """
         Generate current TOTP code.
+        Returns dict with code and seconds until expiry, or None if no secret.
         """
-        if not self.otp_secret or self.password_type != 'otp':
+        if not self.otp_secret:
             return None
 
         import pyotp
+        import time
+
         secret = self.get_otp_secret()
+        if not secret:
+            return None
+
         totp = pyotp.TOTP(secret)
-        return totp.now()
+        code = totp.now()
+
+        # Calculate seconds until next code
+        current_time = time.time()
+        time_remaining = 30 - (int(current_time) % 30)
+
+        return {
+            'code': code,
+            'time_remaining': time_remaining,
+            'issuer': self.otp_issuer or self.title
+        }
 
     @property
     def is_expired(self):

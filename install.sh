@@ -51,6 +51,19 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Try to find the actual installation directory
 INSTALL_DIR="$SCRIPT_DIR"
 
+# Detect Python version early (needed for both install and upgrade paths)
+PYTHON_VERSION=""
+if command -v python3.12 &> /dev/null; then
+    PYTHON_VERSION="3.12"
+elif command -v python3.13 &> /dev/null; then
+    PYTHON_VERSION="3.13"
+elif command -v python3.11 &> /dev/null; then
+    PYTHON_VERSION="3.11"
+else
+    # Will be detected later in Step 1
+    PYTHON_VERSION="3.12"  # Default assumption, will be updated
+fi
+
 # Check if current directory has venv/.env
 if [ ! -f "$SCRIPT_DIR/venv/bin/activate" ] && [ ! -f "$SCRIPT_DIR/.env" ]; then
     # Look for installation in common locations
@@ -191,10 +204,10 @@ if [ "$EXISTING_INSTALL" = true ]; then
                     exit 1
                 fi
 
-                python3.12 -m venv venv
+                python${PYTHON_VERSION} -m venv venv
                 if [ ! -f "venv/bin/activate" ]; then
                     print_error "Failed to create virtual environment"
-                    print_error "Install python3.12-venv: sudo apt-get install python3.12-venv"
+                    print_error "Install python${PYTHON_VERSION}-venv: sudo apt-get install python${PYTHON_VERSION}-venv"
                     exit 1
                 fi
                 print_status "Virtual environment created"
@@ -351,16 +364,46 @@ print_info "Step 1/11: Checking system prerequisites..."
 
 PACKAGES_TO_INSTALL=()
 
-# Check for Python 3.12
-if ! command -v python3.12 &> /dev/null; then
-    print_warning "Python 3.12 not found"
-    PACKAGES_TO_INSTALL+=("python3.12")
+# Detect Python version (prefer 3.12, fallback to 3.13, 3.11)
+PYTHON_VERSION=""
+if command -v python3.12 &> /dev/null; then
+    PYTHON_VERSION="3.12"
+    print_status "Found Python 3.12"
+elif command -v python3.13 &> /dev/null; then
+    PYTHON_VERSION="3.13"
+    print_status "Found Python 3.13"
+elif command -v python3.11 &> /dev/null; then
+    PYTHON_VERSION="3.11"
+    print_status "Found Python 3.11"
+else
+    # Try to detect which version is available in repos
+    print_warning "No suitable Python version found, detecting available versions..."
+    if apt-cache show python3.13 &> /dev/null; then
+        PYTHON_VERSION="3.13"
+        print_info "Python 3.13 available in repositories"
+        PACKAGES_TO_INSTALL+=("python3.13")
+    elif apt-cache show python3.12 &> /dev/null; then
+        PYTHON_VERSION="3.12"
+        print_info "Python 3.12 available in repositories"
+        PACKAGES_TO_INSTALL+=("python3.12")
+    elif apt-cache show python3.11 &> /dev/null; then
+        PYTHON_VERSION="3.11"
+        print_info "Python 3.11 available in repositories"
+        PACKAGES_TO_INSTALL+=("python3.11")
+    else
+        print_error "No compatible Python version (3.11, 3.12, or 3.13) found!"
+        print_error "Please install Python 3.11 or later:"
+        echo "  sudo apt-get install python3.12 python3.12-venv python3.12-dev"
+        exit 1
+    fi
 fi
 
+print_info "Using Python ${PYTHON_VERSION}"
+
 # Check for python3-venv
-if ! dpkg -l | grep -q python3.12-venv; then
-    print_warning "python3-venv not found"
-    PACKAGES_TO_INSTALL+=("python3.12-venv")
+if ! dpkg -l | grep -q python${PYTHON_VERSION}-venv; then
+    print_warning "python${PYTHON_VERSION}-venv not found"
+    PACKAGES_TO_INSTALL+=("python${PYTHON_VERSION}-venv")
 fi
 
 # Check for pip
@@ -387,8 +430,8 @@ if ! dpkg -l | grep -q build-essential; then
     PACKAGES_TO_INSTALL+=("build-essential")
 fi
 
-if ! dpkg -l | grep -q python3.12-dev; then
-    PACKAGES_TO_INSTALL+=("python3.12-dev")
+if ! dpkg -l | grep -q python${PYTHON_VERSION}-dev; then
+    PACKAGES_TO_INSTALL+=("python${PYTHON_VERSION}-dev")
 fi
 
 if ! dpkg -l | grep -q libssl-dev; then
@@ -443,13 +486,13 @@ if [ -d "venv" ]; then
     rm -rf venv
 fi
 
-python3.12 -m venv venv
+python${PYTHON_VERSION} -m venv venv
 if [ ! -f "venv/bin/activate" ]; then
     print_error "Failed to create virtual environment"
-    print_error "Python venv creation failed. Is python3.12-venv installed?"
+    print_error "Python venv creation failed. Is python${PYTHON_VERSION}-venv installed?"
     exit 1
 fi
-print_status "Virtual environment created"
+print_status "Virtual environment created with Python ${PYTHON_VERSION}"
 
 # Step 3: Activate virtual environment and install dependencies
 print_info "Step 3/11: Installing Python dependencies (this may take 2-3 minutes)..."
