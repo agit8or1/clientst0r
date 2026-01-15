@@ -287,7 +287,7 @@ def rmm_create(request):
     # Require organization to be selected
     if not org:
         messages.error(request, "Please select an organization first.")
-        return redirect('accounts:access_management')
+        return redirect('integrations:integration_list')
 
     if request.method == 'POST':
         form = RMMConnectionForm(request.POST, organization=org)
