@@ -5,6 +5,32 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.69] - 2026-01-15
+
+### 🔧 Repository Cleanup - Disabled Dependabot
+
+**Removed Dependabot:**
+- Deleted `.github/dependabot.yml` configuration file
+- Removed automatic dependency update pull requests
+- Cleaned up 10 dependabot branches from repository
+- Dependencies will now be managed manually
+
+**Reason:**
+- Simplified contribution model
+- Reduced automated PR noise
+- Manual control over dependency updates
+
+**Impact:**
+- ✅ No more automated dependency PRs
+- ✅ Cleaner repository branches
+- ✅ Manual dependency review and updates
+
+**Files Modified:**
+- `.github/dependabot.yml` - Deleted
+- `config/version.py` - Bumped to v2.24.69
+
+---
+
 ## [2.24.68] - 2026-01-15
 
 ### 📝 Documentation Update - Attribution Changes
