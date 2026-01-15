@@ -112,6 +112,7 @@ h6 { font-size: 1rem; }
 .navbar {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     padding: 0.5rem 1rem;
+    min-height: 60px;
 }
 
 .navbar-brand {
@@ -119,6 +120,7 @@ h6 { font-size: 1rem; }
     font-size: 1.25rem;
     transition: transform var(--transition-fast);
     padding: 0.5rem 0;
+    flex-shrink: 0;
 }
 
 .navbar-brand:hover {
@@ -127,6 +129,8 @@ h6 { font-size: 1rem; }
 
 .navbar-brand img {
     transition: opacity var(--transition-fast);
+    height: 30px;
+    width: auto;
 }
 
 .navbar-brand:hover img {
@@ -135,6 +139,7 @@ h6 { font-size: 1rem; }
 
 .navbar-nav {
     flex-wrap: nowrap;
+    align-items: center;
 }
 
 .nav-link {
@@ -182,14 +187,69 @@ h6 { font-size: 1rem; }
     white-space: nowrap;
 }
 
-/* Search form compact */
+/* Search form responsive */
 .navbar .form-control-sm {
     width: 180px;
+    min-width: 120px;
 }
 
 /* Theme toggle in navbar */
 .navbar .theme-toggle {
     margin: 0 0.25rem;
+}
+
+/* Responsive navbar adjustments for different screen sizes */
+@media (min-width: 1400px) and (max-width: 1599px) {
+    /* Compact navbar for medium-large screens */
+    .nav-link {
+        padding: 0.4rem 0.6rem !important;
+        font-size: 0.875rem;
+    }
+
+    .navbar .form-control-sm {
+        width: 140px;
+    }
+
+    #userDropdown,
+    #orgDropdown {
+        max-width: 120px;
+    }
+
+    .dropdown-toggle::after {
+        margin-left: 0.2rem;
+    }
+}
+
+@media (min-width: 1600px) and (max-width: 1799px) {
+    /* Standard spacing for large screens */
+    .nav-link {
+        padding: 0.45rem 0.65rem !important;
+        font-size: 0.9rem;
+    }
+
+    .navbar .form-control-sm {
+        width: 160px;
+    }
+}
+
+@media (min-width: 1800px) {
+    /* More comfortable spacing for extra-large screens */
+    .nav-link {
+        padding: 0.5rem 0.85rem !important;
+        font-size: 0.95rem;
+    }
+
+    .navbar .form-control-sm {
+        width: 200px;
+    }
+
+    #userDropdown {
+        max-width: 180px;
+    }
+
+    #orgDropdown {
+        max-width: 220px;
+    }
 }
 
 /* ===== Card Component Enhancements ===== */
@@ -662,6 +722,16 @@ footer small {
 .container {
     padding-top: var(--spacing-lg);
     padding-bottom: var(--spacing-lg);
+    max-width: 100%;
+}
+
+/* Prevent horizontal overflow */
+body {
+    overflow-x: hidden;
+}
+
+.container-fluid {
+    overflow-x: hidden;
 }
 
 /* ===== Empty State ===== */
@@ -699,6 +769,41 @@ footer small {
 
     .btn-group .btn {
         width: auto;
+    }
+
+    /* Mobile navbar adjustments */
+    .navbar {
+        padding: 0.5rem;
+    }
+
+    .navbar-brand img {
+        height: 24px;
+    }
+
+    .navbar-nav .nav-link {
+        padding: 0.75rem 1rem !important;
+        font-size: 1rem;
+    }
+
+    .navbar .form-control-sm {
+        width: 100%;
+    }
+}
+
+@media (max-width: 1399px) {
+    /* Ensure navbar collapses properly */
+    .navbar-collapse {
+        margin-top: 1rem;
+    }
+
+    .navbar-nav {
+        align-items: flex-start;
+    }
+
+    .navbar-nav.ms-auto {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
 }
 

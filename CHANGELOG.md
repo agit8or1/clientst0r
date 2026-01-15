@@ -5,6 +5,27 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.58] - 2026-01-15
+
+### 🎨 UI Improvements
+- **Fixed:** Navbar getting cut off at different display resolutions
+  - Added responsive breakpoints for optimal navbar spacing at all screen sizes
+  - Compact mode for 1400-1599px screens (smaller padding, font sizes)
+  - Standard mode for 1600-1799px screens (balanced spacing)
+  - Comfortable mode for 1800px+ screens (larger padding, search box)
+  - Responsive search box sizing (140px-200px based on screen width)
+  - Improved mobile navbar with proper collapsing behavior
+  - Prevented horizontal overflow with `overflow-x: hidden`
+  - Files modified: `static/css/custom.css`
+
+### 🎯 Improvements
+- **Enhanced:** Navbar brand logo sizing and flex properties for better layout
+- **Enhanced:** User and organization dropdown width adjustments per breakpoint
+- **Enhanced:** Mobile-specific navbar styling with larger touch targets
+- **Enhanced:** Collapsed navbar spacing and border separators below 1400px
+
+---
+
 ## [2.24.57] - 2026-01-15
 
 ### 🐛 Bug Fixes
