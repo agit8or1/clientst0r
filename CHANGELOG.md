@@ -5,6 +5,39 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.46] - 2026-01-15
+
+### ✨ New Features
+- **Added:** TOTP/MFA code generation for all password types (Closes #21)
+  - Any password entry can now have a TOTP secret attached
+  - Live TOTP code generator with 30-second countdown timer
+  - Works with website logins, email accounts, databases, SSH keys, API keys, etc.
+  - Auto-refresh codes when timer expires
+  - QR code generation for authenticator app setup
+  - Base32 validation for secret keys
+  - Secrets encrypted with AES-256-GCM before storage
+  - Files modified: `vault/models.py`, `vault/views.py`, `vault/forms.py`, `templates/vault/password_detail.html`
+
+### 🐛 Bug Fixes
+- **Fixed:** Debian 13 installation failure (Issue #19)
+  - Installer now auto-detects Python 3.11, 3.12, or 3.13
+  - Prefers Python 3.12, falls back to 3.13 or 3.11
+  - Full support for Debian 13 (Python 3.13), Debian 12 (3.11), Ubuntu 22.04/24.04 (3.12)
+  - Updated `install.sh` with Python version detection logic
+
+- **Fixed:** ITFlow integration JSON parsing errors (Issue #20)
+  - Added `_safe_json()` helper method with comprehensive error handling
+  - Checks for empty responses before parsing
+  - Provides detailed error messages with HTTP status, URL, and content preview
+  - Better debugging for API misconfiguration issues
+  - Replaces cryptic "Expecting value: line 1 column 1" with actionable errors
+
+### 📚 Documentation
+- Created detailed GitHub discussion replies for issues #19, #20, #21
+- Added comprehensive troubleshooting guides in issue comments
+
+---
+
 ## [2.22.0] - 2026-01-14
 
 ### ✨ New Features
