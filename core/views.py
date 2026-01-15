@@ -31,17 +31,29 @@ def about(request):
     from .security_scan import run_vulnerability_scan, get_dependency_versions
     from assets.models import Vendor, EquipmentModel
 
-    # Run security scan
-    scan_results = run_vulnerability_scan()
+    # Get or run security scan (cached for 1 hour)
+    scan_cache_key = 'about_page_security_scan'
+    scan_results = cache.get(scan_cache_key)
+    if scan_results is None:
+        scan_results = run_vulnerability_scan()
+        cache.set(scan_cache_key, scan_results, 3600)  # Cache for 1 hour
 
-    # Get dependency versions
-    dependencies = get_dependency_versions()
+    # Get dependency versions (cached for 1 hour)
+    deps_cache_key = 'about_page_dependencies'
+    dependencies = cache.get(deps_cache_key)
+    if dependencies is None:
+        dependencies = get_dependency_versions()
+        cache.set(deps_cache_key, dependencies, 3600)  # Cache for 1 hour
 
-    # Get equipment catalog statistics
-    equipment_stats = {
-        'vendor_count': Vendor.objects.filter(is_active=True).count(),
-        'model_count': EquipmentModel.objects.filter(is_active=True).count(),
-    }
+    # Get equipment catalog statistics (cached for 5 minutes)
+    stats_cache_key = 'about_page_equipment_stats'
+    equipment_stats = cache.get(stats_cache_key)
+    if equipment_stats is None:
+        equipment_stats = {
+            'vendor_count': Vendor.objects.filter(is_active=True).count(),
+            'model_count': EquipmentModel.objects.filter(is_active=True).count(),
+        }
+        cache.set(stats_cache_key, equipment_stats, 300)  # Cache for 5 minutes
 
     return render(request, 'core/about.html', {
         'version': get_version(),

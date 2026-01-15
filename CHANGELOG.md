@@ -5,6 +5,20 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.48] - 2026-01-15
+
+### ⚡ Performance Improvements
+- **Fixed:** About page slow load time (2-3+ seconds → instant)
+  - Added caching for security vulnerability scan (1 hour cache)
+  - Added caching for dependency version check (1 hour cache)
+  - Added caching for equipment statistics (5 minute cache)
+  - Page now loads instantly on subsequent visits
+  - First load still shows loading animation while cache builds
+  - **Root cause:** `pip-audit` and `pip list` were running on every page load
+  - Files modified: `core/views.py`
+
+---
+
 ## [2.24.47] - 2026-01-15
 
 ### 🎨 UI/UX Improvements
