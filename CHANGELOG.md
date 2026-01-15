@@ -5,6 +5,30 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.64] - 2026-01-15
+
+### 🐛 Critical Bug Fix - Removed Conflicting Bootstrap Class
+- **Fixed:** Navbar still cutting off on right side due to conflicting Bootstrap class
+  - Removed `navbar-expand-lg` class that was expanding navbar at 992px
+  - This was overriding our custom 1850px breakpoint
+  - Navbar now properly uses ONLY `navbar-expand-custom` class
+  - Collapse behavior now works correctly at 1850px breakpoint
+  - Files modified: `templates/base.html`
+
+### 🔍 Root Cause Analysis
+- **Problem**: Template had both `navbar-expand-lg` AND `navbar-expand-custom` classes
+- **Conflict**: Bootstrap's `navbar-expand-lg` expands at 992px (Bootstrap default)
+- **Result**: Navbar was expanded between 992px-1849px without enough space
+- **Solution**: Removed `navbar-expand-lg`, kept only `navbar-expand-custom`
+
+### ✅ Result
+- Navbar now **actually collapses at 1850px** (not 992px)
+- No more conflicting breakpoint behavior
+- Right-side elements never cut off
+- Clean hamburger menu below 1850px
+
+---
+
 ## [2.24.63] - 2026-01-15
 
 ### 🎯 Critical Fix - Increased Collapse Breakpoint to 1850px

@@ -18,7 +18,7 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body class="{% if user_background_url %}has-background{% endif %}" {% if user_background_url %}style="background-image: url('{{ user_background_url }}');"{% endif %}>
-    <nav class="navbar navbar-expand-lg navbar-expand-custom {% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}navbar-dark{% else %}navbar-light{% endif %}">
+    <nav class="navbar navbar-expand-custom {% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}navbar-dark{% else %}navbar-light{% endif %}">
         <div class="container-fluid navbar-container">
             <a class="navbar-brand" href="{% url 'home' %}">
                 <img src="{% static 'images/logo-light.svg' %}" alt="HuduGlue" height="30">
