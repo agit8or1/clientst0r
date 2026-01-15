@@ -205,8 +205,20 @@ class UpdateService:
                 else:
                     # Simple fast-forward update
                     logger.info("Pulling updates (fast-forward)")
-                    git_output = self._run_command(['/usr/bin/git', 'pull', 'origin', 'main'])
-                    result['output'].append(f"Git pull: {git_output}")
+                    try:
+                        git_output = self._run_command(['/usr/bin/git', 'pull', 'origin', 'main'])
+                        result['output'].append(f"Git pull: {git_output}")
+                    except Exception as e:
+                        # SELF-HEALING: If pull fails with divergent branches, auto-fix with reset
+                        if 'divergent branches' in str(e).lower():
+                            logger.warning("Git pull failed with divergent branches - auto-healing with reset")
+                            result['output'].append("⚠️ Git pull failed (divergent branches detected)")
+                            result['output'].append("🔧 Auto-healing: Resetting to remote version...")
+                            git_output = self._run_command(['/usr/bin/git', 'reset', '--hard', 'origin/main'])
+                            result['output'].append(f"Git reset: {git_output}")
+                            result['output'].append("✅ Auto-heal successful")
+                        else:
+                            raise  # Re-raise if it's a different error
             else:
                 logger.info("Repository already up to date")
                 result['output'].append("Repository already up to date")
@@ -323,11 +335,28 @@ class UpdateService:
 
         except Exception as e:
             logger.error(f"Update failed: {e}")
-            result['error'] = str(e)
-            result['output'].append(f"ERROR: {str(e)}")
+            error_msg = str(e)
+
+            # Special handling for divergent branches error with helpful instructions
+            if 'divergent branches' in error_msg.lower():
+                error_msg = (
+                    "Update failed due to repository history changes (force push).\n\n"
+                    "This happens when you're on an older version that doesn't have the auto-fix.\n\n"
+                    "Quick fix - run these commands in terminal:\n\n"
+                    f"cd {self.base_dir}\n"
+                    "git fetch origin\n"
+                    "git reset --hard origin/main\n"
+                    "sudo systemctl restart huduglue-gunicorn.service\n\n"
+                    "After this one-time fix, future updates will handle this automatically.\n\n"
+                    "See Issue #24 on GitHub for more details."
+                )
+                logger.error(f"Divergent branches detected. Manual fix required. See error message for instructions.")
+
+            result['error'] = error_msg
+            result['output'].append(f"ERROR: {error_msg}")
 
             if progress_tracker:
-                progress_tracker.finish(success=False, error=str(e))
+                progress_tracker.finish(success=False, error=error_msg)
 
             # Log failure to audit trail
             AuditLog.objects.create(

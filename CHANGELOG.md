@@ -5,6 +5,59 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.73] - 2026-01-15
+
+### 🔧 Self-Healing Updater - Auto-Fix Divergent Branch Errors
+
+**Problem**: Users on v2.24.71 or earlier can't update to v2.24.72+ due to chicken-and-egg problem:
+- The FIX for divergent branches is in v2.24.72
+- But they can't GET to v2.24.72 because their updater is broken
+- Manual terminal commands required to fix
+
+**The Solution**: Triple-layer protection in the updater:
+
+**Layer 1: Proactive Detection** (Already in v2.24.72)
+- Check if branches are divergent BEFORE attempting pull
+- Automatically reset if divergence detected
+- Prevents the error from happening
+
+**Layer 2: Self-Healing** (NEW in v2.24.73)
+- If git pull fails with "divergent branches" error, catch it
+- Automatically perform `git reset --hard origin/main`
+- Retry the update
+- No manual intervention needed
+
+**Layer 3: Helpful Error Message** (NEW in v2.24.73)
+- If both above layers somehow fail
+- Display clear instructions for manual fix
+- Includes exact terminal commands
+- References Issue #24 for context
+
+**What This Means**:
+- ✅ Users on ANY old version can now update automatically
+- ✅ No more "Command failed: divergent branches" blocking updates
+- ✅ Self-healing happens transparently in the background
+- ✅ Clear error messages if manual intervention is ever needed
+
+**Technical Implementation**:
+```python
+# Layer 1: Proactive check
+if branches_divergent:
+    git reset --hard origin/main
+
+# Layer 2: Self-healing catch
+try:
+    git pull origin main
+except "divergent branches":
+    git reset --hard origin/main  # Auto-heal
+
+# Layer 3: User-friendly error
+except other_error:
+    show_helpful_instructions()
+```
+
+**For Users Still Stuck**: See the new comment on Issue #24 with manual fix commands.
+
 ## [2.24.72] - 2026-01-15
 
 ### 🔧 Fixed Web Auto-Update - Handle Force Push + Remove Screen Dimming
