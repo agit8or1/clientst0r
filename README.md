@@ -1,6 +1,6 @@
 # HuduGlue 🐕
 
-[![Version 2.24.37](https://img.shields.io/badge/version-2.24.37-brightgreen)](https://github.com/agit8or1/huduglue)
+[![Version 2.24.52](https://img.shields.io/badge/version-2.24.52-brightgreen)](https://github.com/agit8or1/huduglue)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/huduglue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
@@ -9,6 +9,36 @@
 [![Security Monitoring](https://img.shields.io/badge/security-Snyk%20%7C%20HaveIBeenPwned-blue)](https://github.com/agit8or1/huduglue)
 
 A complete, self-hosted IT documentation platform designed for Managed Service Providers (MSPs) and IT departments. Built with Django 6, HuduGlue provides secure asset management, encrypted password vault, knowledge base, PSA integrations, and comprehensive monitoring tools.
+
+## 📸 Screenshots
+
+<details open>
+<summary><strong>Click to view screenshots</strong></summary>
+
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Asset Management
+![Assets](docs/screenshots/assets-list.png)
+
+### Password Vault
+![Password Vault](docs/screenshots/password-vault.png)
+
+### Knowledge Base
+![Knowledge Base](docs/screenshots/knowledge-base.png)
+
+### Integrations
+![Integrations](docs/screenshots/integrations.png)
+
+### System Status
+![System Status](docs/screenshots/system-status.png)
+
+### About Page
+![About](docs/screenshots/about-page.png)
+
+*All screenshots include demo data and are watermarked. Random background feature enabled.*
+
+</details>
 
 ## 🐕 About Luna
 
