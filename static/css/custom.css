@@ -57,12 +57,19 @@
 }
 
 /* ===== Base Styles ===== */
+html {
+    height: 100%;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 1rem;
     line-height: 1.6;
     color: var(--gray-800);
     background-color: var(--gray-50);
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Background Image Styling */
@@ -831,15 +838,27 @@ pre code {
 }
 
 /* ===== Footer ===== */
+/* Main content area should grow to push footer down */
+.container-fluid {
+    flex: 1 0 auto;
+}
+
 footer {
-    margin-top: var(--spacing-xxl);
-    padding: var(--spacing-lg) 0;
+    flex-shrink: 0;
+    margin-top: auto;
+    padding: var(--spacing-md) 0;
     background-color: var(--gray-100);
     border-top: 1px solid var(--gray-200);
 }
 
 footer small {
     color: var(--gray-600);
+    display: block;
+    line-height: 1.5;
+}
+
+footer small + small {
+    margin-top: 0.25rem;
 }
 
 /* ===== Utility Classes ===== */

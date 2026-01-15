@@ -16,6 +16,22 @@
     .select2-container {
         width: 100% !important;
     }
+    /* Adaptive editor background based on theme */
+    [data-theme="default"] #quill-editor,
+    [data-theme="purple"] #quill-editor,
+    [data-theme="green"] #quill-editor,
+    [data-theme="ocean"] #quill-editor,
+    [data-theme="sunset"] #quill-editor,
+    [data-theme="solarized"] #quill-editor {
+        background-color: transparent !important;
+    }
+    [data-theme="dark"] #quill-editor,
+    [data-theme="dracula"] #quill-editor,
+    [data-theme="monokai"] #quill-editor,
+    [data-theme="nord"] #quill-editor {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
 </style>
 {% endblock %}
 
@@ -150,7 +166,7 @@
         const editorDiv = document.createElement('div');
         editorDiv.id = 'quill-editor';
         editorDiv.style.height = '500px';
-        editorDiv.style.backgroundColor = 'white';
+        // Background color is controlled by CSS based on theme
 
         // Insert before the textarea
         bodyTextarea.parentNode.insertBefore(editorDiv, bodyTextarea);

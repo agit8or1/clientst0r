@@ -5,6 +5,27 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.77] - 2026-01-15
+
+### 🎨 UI Improvements and Bug Fixes
+
+Multiple UI fixes and enhancements based on user feedback.
+
+**Changes:**
+- **Footer**: Fixed footer positioning to always stay at bottom using flexbox layout
+- **Footer**: Fixed spacing between footer lines
+- **Password Form**: Changed button label from "Edit Password" to "Save Password" when editing
+- **Theme Toggle**: Added quick theme toggle button (moon/sun icon) in navbar for easy dark/light mode switching
+- **Document Editor**: Made Quill editor background adaptive to theme (white background in dark mode, transparent in light mode)
+
+**Files modified:**
+- templates/base.html - Added theme toggle button and JavaScript function
+- templates/vault/password_form.html - Fixed button label
+- templates/docs/document_form.html - Added adaptive editor background CSS
+- static/css/custom.css - Fixed footer positioning and spacing
+- accounts/views.py - Added toggle_theme view
+- accounts/urls.py - Added toggle_theme URL route
+
 ## [2.24.76] - 2026-01-15
 
 ### ✨ Added Project Donation Link

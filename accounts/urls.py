@@ -23,6 +23,7 @@ urlpatterns = [
     path('quick/user/', quick_views.quick_user_add, name='quick_user_add'),
     path('profile/', views.profile, name='profile'),
     path('profile/edit/', views.profile_edit, name='profile_edit'),
+    path('profile/toggle-theme/', views.toggle_theme, name='toggle_theme'),
     path('profile/password/', views.password_change, name='password_change'),
     path('profile/2fa/', views.two_factor_setup, name='two_factor_setup'),
 

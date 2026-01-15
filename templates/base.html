@@ -122,6 +122,12 @@
                             <button class="btn btn-outline-light btn-sm" type="submit"><i class="fas fa-search"></i></button>
                         </form>
                     </li>
+                    <!-- Theme Toggle -->
+                    <li class="nav-item">
+                        <button class="btn btn-link nav-link" onclick="toggleTheme()" title="Toggle Dark/Light Mode" style="border: none; background: none;">
+                            <i id="theme-icon" class="fas {% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}fa-sun{% else %}fa-moon{% endif %}"></i>
+                        </button>
+                    </li>
                     {% if current_organization %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown">
@@ -180,11 +186,10 @@
         {% block content %}{% endblock %}
     </div>
 
-    <footer class="mt-5 py-3 border-top">
+    <footer>
         <div class="container text-center">
             <small class="text-muted">HuduGlue v{{ app_version }} | Secure, Self-Hosted IT Documentation</small>
-            <br>
-            <small class="text-muted mt-2 d-block">
+            <small class="text-muted">
                 Like HuduGlue? <a href="https://mspreboot.com/donations.php" target="_blank" class="text-decoration-none">Support the project ❤️</a>
             </small>
         </div>
@@ -206,6 +211,29 @@
                 allowClear: true
             });
         });
+
+        // Theme toggle function
+        function toggleTheme() {
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            fetch('{% url "accounts:toggle_theme" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload page to apply new theme
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error toggling theme:', error);
+            });
+        }
     </script>
 
     {% block extra_js %}{% endblock %}

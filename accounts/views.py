@@ -107,6 +107,35 @@ def profile_edit(request):
 
 
 @login_required
+def toggle_theme(request):
+    """
+    Toggle between light and dark theme.
+    AJAX endpoint that switches theme and returns JSON response.
+    """
+    from django.http import JsonResponse
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    profile, created = UserProfile.objects.get_or_create(user=request.user)
+
+    # Define dark themes
+    dark_themes = ['dark', 'dracula', 'monokai', 'nord']
+
+    # Toggle theme
+    if profile.theme in dark_themes:
+        # Switch to light theme (default)
+        profile.theme = 'default'
+    else:
+        # Switch to dark theme
+        profile.theme = 'dark'
+
+    profile.save()
+
+    return JsonResponse({'success': True, 'theme': profile.theme})
+
+
+@login_required
 def password_change(request):
     """
     Change user password.
