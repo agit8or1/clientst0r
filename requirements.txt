@@ -27,7 +27,7 @@ requests==2.32.*
 urllib3==2.1.*
 
 # AI Integration
-anthropic==0.75.*
+anthropic==0.76.*
 
 # Utilities
 python-dotenv==1.0.*
