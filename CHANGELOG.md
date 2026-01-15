@@ -5,6 +5,23 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.56] - 2026-01-15
+
+### 🐛 Bug Fixes
+- **Fixed:** Tactical RMM integration "Expecting value: line 1 column 1" JSON parsing error (Issue #8)
+  - Added `_safe_json()` helper method with comprehensive error handling
+  - Provides detailed error messages for troubleshooting configuration issues
+  - Helps users identify incorrect base URLs, API key permissions, or API version mismatches
+  - Gracefully handles empty responses and HTML error pages
+  - Files modified: `integrations/providers/rmm/tactical_rmm.py`
+
+### ✅ Verified Fixes
+- **Verified:** RMM sync logger already defined in v2.14.25 (Issue #8 original error)
+  - Logger properly imported and instantiated at module level
+  - No more "name 'logger' is not defined" errors
+
+---
+
 ## [2.24.55] - 2026-01-15
 
 ### 🐛 Critical Bug Fixes

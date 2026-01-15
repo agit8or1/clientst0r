@@ -5,6 +5,7 @@ API Documentation: https://docs.tacticalrmm.com/api/
 Authentication: Bearer Token (API Key)
 """
 import logging
+import json
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from ..rmm_base import BaseRMMProvider, ProviderError, AuthenticationError
@@ -50,6 +51,41 @@ class TacticalRMMProvider(BaseRMMProvider):
             'Accept': 'application/json',
         }
 
+    def _safe_json(self, response):
+        """
+        Safely parse JSON response with better error handling.
+        Raises ProviderError with detailed message if parsing fails.
+        """
+        # Check if response has content
+        if not response.content:
+            raise ProviderError(
+                f"Empty response from Tactical RMM API (Status: {response.status_code}, "
+                f"URL: {response.url}). The API endpoint may not exist or returned no data. "
+                f"Please verify your Tactical RMM base URL is correct."
+            )
+
+        # Try to parse JSON
+        try:
+            return response.json()
+        except json.JSONDecodeError as e:
+            # Log the actual response content for debugging
+            content_preview = response.text[:500] if response.text else "(empty)"
+            logger.error(
+                f"Invalid JSON from Tactical RMM API. "
+                f"Status: {response.status_code}, "
+                f"URL: {response.url}, "
+                f"Content preview: {content_preview}"
+            )
+            raise ProviderError(
+                f"Invalid JSON response from Tactical RMM API (Status: {response.status_code}). "
+                f"The API may be misconfigured or returning HTML instead of JSON. "
+                f"Please verify:\n"
+                f"1. Your Tactical RMM base URL is correct (e.g., https://rmm.yourdomain.com)\n"
+                f"2. Your API key has the correct permissions\n"
+                f"3. The API endpoint exists on your Tactical RMM version\n"
+                f"Response preview: {content_preview}"
+            )
+
     def test_connection(self) -> bool:
         """
         Test API connectivity by listing agents (limit 1).
@@ -80,7 +116,7 @@ class TacticalRMMProvider(BaseRMMProvider):
         try:
             # Tactical RMM returns all agents in single response
             response = self._make_request('GET', '/agents/')
-            data = response.json()
+            data = self._safe_json(response)
 
             if not isinstance(data, list):
                 logger.error(f"Unexpected response format from Tactical RMM: {type(data)}")
@@ -111,7 +147,7 @@ class TacticalRMMProvider(BaseRMMProvider):
         """
         try:
             response = self._make_request('GET', f'/agents/{device_id}/')
-            return self.normalize_device(response.json())
+            return self.normalize_device(self._safe_json(response))
         except Exception as e:
             logger.error(f"Error getting Tactical RMM agent {device_id}: {e}")
             raise ProviderError(f"Failed to get device: {e}")
@@ -140,7 +176,7 @@ class TacticalRMMProvider(BaseRMMProvider):
         try:
             # Get alerts from alerts endpoint
             response = self._make_request('GET', '/alerts/')
-            data = response.json()
+            data = self._safe_json(response)
 
             if not isinstance(data, list):
                 logger.error(f"Unexpected response format from Tactical RMM alerts: {type(data)}")
@@ -183,7 +219,7 @@ class TacticalRMMProvider(BaseRMMProvider):
 
         try:
             response = self._make_request('GET', f'/software/{device_id}/')
-            data = response.json()
+            data = self._safe_json(response)
 
             if not isinstance(data, list):
                 logger.error(f"Unexpected response format from Tactical RMM software: {type(data)}")
