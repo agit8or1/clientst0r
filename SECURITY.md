@@ -1480,7 +1480,7 @@ See separate section below for copy/paste implementation guide.
 - ✅ pip-audit (PyPI vulnerability checks)
 
 ### Supply Chain Hardening
-- ✅ Dependabot configured (weekly Python + Actions updates)
+- ✅ Manual dependency management (pip-audit + pip list --outdated)
 - ✅ Pre-commit hooks (Ruff + Bandit + Gitleaks)
 - ⏳ Pin GitHub Actions to commit SHAs (optional, manual)
 

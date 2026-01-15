@@ -5,6 +5,36 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.70] - 2026-01-15
+
+### 📝 Documentation Update - Remove Dependabot References
+
+**Cleaned Up Documentation:**
+- Removed all Dependabot references from security documentation
+- Updated PHASE2_SECURITY.md to reflect manual dependency management
+- Updated SECURITY.md supply chain section
+- Renumbered sections after removing Dependabot content
+
+**Changes:**
+- Removed Section 1 (Dependabot) from PHASE2_SECURITY.md
+- Renumbered remaining sections (2→1, 3→2, 4→3, 5→4, 6→5)
+- Updated weekly maintenance checklist to manual dependency checks
+- Updated security metrics table: "Automated (Dependabot + pip-audit)" → "Manual (pip-audit + pip list)"
+- Removed Dependabot documentation link from references
+- Added pip-audit link to references
+
+**Impact:**
+- ✅ Documentation now accurately reflects manual dependency management
+- ✅ No confusing references to removed automation
+- ✅ Clear guidance for manual dependency updates
+
+**Files Modified:**
+- `docs/PHASE2_SECURITY.md` - Removed Dependabot section and references
+- `SECURITY.md` - Updated supply chain section
+- `config/version.py` - Bumped to v2.24.70
+
+---
+
 ## [2.24.69] - 2026-01-15
 
 ### 🔧 Repository Cleanup - Disabled Dependabot

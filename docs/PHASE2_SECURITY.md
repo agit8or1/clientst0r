@@ -10,32 +10,7 @@ Phase 2 builds on the security foundation from v2.20.0 with supply chain securit
 
 ## What Was Implemented
 
-### 1. Dependabot (Automated Dependency Updates)
-
-**File:** `.github/dependabot.yml`
-
-**What It Does:**
-- Weekly scans for Python dependency vulnerabilities
-- Weekly scans for GitHub Actions updates
-- Groups security updates for easier review
-- Auto-creates PRs for updates
-
-**Activate:**
-```bash
-# Already configured! GitHub will automatically start:
-# - Scanning dependencies weekly
-# - Creating PRs for security updates
-# - Grouping related updates
-```
-
-**Review PRs:**
-- Go to GitHub → Pull Requests
-- Review Dependabot PRs
-- Merge after testing
-
----
-
-### 2. Pre-commit Hooks (Local + CI Parity)
+### 1. Pre-commit Hooks (Local + CI Parity)
 
 **File:** `.pre-commit-config.yaml`
 
@@ -74,7 +49,7 @@ gitleaks................................Passed
 
 ---
 
-### 3. Security Workflow (CI/CD Pipeline)
+### 2. Security Workflow (CI/CD Pipeline)
 
 **File:** `.github/workflows/security.yml`
 
@@ -100,7 +75,7 @@ gitleaks................................Passed
 
 ---
 
-### 4. CodeQL (Deep SAST)
+### 3. CodeQL (Deep SAST)
 
 **File:** `.github/workflows/codeql.yml`
 
@@ -120,7 +95,7 @@ gitleaks................................Passed
 
 ---
 
-### 5. MariaDB Hardening
+### 4. MariaDB Hardening
 
 **Not Yet Configured** (requires manual DB changes)
 
@@ -195,7 +170,7 @@ DB_SSL_CA=/path/to/mysql-ca.pem
 
 ---
 
-### 6. Pin GitHub Actions (Supply Chain Security)
+### 5. Pin GitHub Actions (Supply Chain Security)
 
 **Status:** Using version tags (v4, v5)
 **Recommended:** Pin to commit SHAs
@@ -225,14 +200,14 @@ uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
 # Or use tool: https://github.com/mheap/pin-github-action
 ```
 
-3. Let Dependabot maintain:
-- Dependabot will create PRs for SHA updates
-- Review and merge
+3. Manually maintain:
+- Manually update SHAs when actions are updated
+- Test workflows after updates
 
 **Benefits:**
 - Prevents action hijacking (supply chain attack)
 - Immutable reference (SHA can't change)
-- Dependabot keeps SHAs updated
+- Full control over action updates
 
 ---
 
@@ -240,7 +215,6 @@ uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
 
 ### Immediate (Already Active)
 
-- ✅ **Dependabot**: Active once files are in repo
 - ✅ **Security Workflow**: Runs on next push/PR
 - ✅ **CodeQL**: Runs on next push/PR
 
@@ -319,9 +293,9 @@ git push origin main
 
 ### Weekly
 
-- [ ] Review Dependabot PRs
 - [ ] Check GitHub Security alerts
 - [ ] Review SBOM artifacts
+- [ ] Check for dependency updates (`pip list --outdated`)
 
 ### Monthly
 
@@ -412,7 +386,7 @@ pip freeze > requirements.txt
 
 | Metric | Before Phase 2 | After Phase 2 |
 |--------|----------------|---------------|
-| **Dependency Scanning** | Manual (Snyk) | Automated (Dependabot + pip-audit) |
+| **Dependency Scanning** | Manual (Snyk) | Manual (pip-audit + pip list) |
 | **SAST** | None | Semgrep + CodeQL + Bandit |
 | **Secrets Scanning** | None | Gitleaks (pre-commit + CI) |
 | **SBOM** | None | CycloneDX (automated) |
@@ -425,10 +399,10 @@ pip freeze > requirements.txt
 
 - [Semgrep Rules](https://semgrep.dev/explore)
 - [CodeQL Docs](https://codeql.github.com/docs/)
-- [Dependabot Docs](https://docs.github.com/en/code-security/dependabot)
 - [Pre-commit Hooks](https://pre-commit.com/)
 - [CycloneDX SBOM](https://cyclonedx.org/)
 - [Gitleaks](https://github.com/gitleaks/gitleaks)
+- [pip-audit](https://github.com/pypa/pip-audit)
 
 ---
 
