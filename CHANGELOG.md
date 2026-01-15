@@ -5,6 +5,25 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.54] - 2026-01-15
+
+### 🐛 Bug Fixes
+- **Fixed:** "Apply Update" button not consistently appearing when updates are available
+  - Fixed race condition with update cache timing
+  - Cache now cleared immediately when update starts (prevents stale data)
+  - Cache cleared again after success or failure (ensures cleanup)
+  - Changed `update_status_api` cache duration from 1 hour to 5 minutes (consistency)
+  - Button now appears reliably when new versions are available
+  - Files modified: `core/views.py`
+
+- **Fixed:** Navbar dropdowns getting cut off when browser window is resized
+  - Changed navbar breakpoint from `navbar-expand-xl` (1200px) to `navbar-expand-xxl` (1400px)
+  - Hamburger menu now appears earlier, preventing organization and user dropdowns from being cut off
+  - Improved responsive behavior on smaller screens
+  - Files modified: `templates/base.html`
+
+---
+
 ## [2.24.53] - 2026-01-15
 
 ### 🐛 Bug Fixes

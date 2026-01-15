@@ -156,15 +156,20 @@ def apply_update(request):
     progress = UpdateProgress()
     progress.start()
 
+    # Clear update cache IMMEDIATELY to prevent stale data during update
+    cache.delete('system_update_check')
+
     def run_update():
         """Run update in background thread."""
         try:
             result = updater.perform_update(user=request.user, progress_tracker=progress)
             if result['success']:
-                # Clear update cache
+                # Clear update cache again after success
                 cache.delete('system_update_check')
         except Exception as e:
             progress.finish(success=False, error=str(e))
+            # Clear cache even on failure to force fresh check
+            cache.delete('system_update_check')
 
     # Start update in background thread
     thread = threading.Thread(target=run_update)
@@ -190,7 +195,7 @@ def update_status_api(request):
     if not update_info:
         updater = UpdateService()
         update_info = updater.check_for_updates()
-        cache.set(cache_key, update_info, 3600)
+        cache.set(cache_key, update_info, 300)  # Cache for 5 minutes (consistent with system_updates view)
 
     return JsonResponse(update_info)
 
