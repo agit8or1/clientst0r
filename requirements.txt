@@ -31,7 +31,7 @@ anthropic==0.75.*
 
 # Utilities
 python-dotenv==1.0.*
-Pillow==10.3.*
+Pillow==11.1.*  # Updated for Python 3.13 compatibility (Debian 13)
 markdown==3.5.*
 bleach==6.1.*
 pytz==2024.1

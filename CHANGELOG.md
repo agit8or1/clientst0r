@@ -5,6 +5,18 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.51] - 2026-01-15
+
+### 🐛 Bug Fixes
+- **Fixed:** Debian 13 installation Pillow build failure (Issue #19)
+  - Updated Pillow from 10.3.* to 11.1.* for Python 3.13 compatibility
+  - Pillow 10.3 doesn't have pre-built wheels for Python 3.13, causing compilation failures
+  - Pillow 11.1 includes native Python 3.13 wheels for all platforms
+  - Resolves "Building wheel for Pillow (pyproject.toml) ... error" on Debian 13
+  - Files modified: `requirements.txt`
+
+---
+
 ## [2.24.50] - 2026-01-15
 
 ### 🐛 Bug Fixes
