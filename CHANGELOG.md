@@ -5,6 +5,30 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.47] - 2026-01-15
+
+### 🎨 UI/UX Improvements
+- **Improved:** About page user experience
+  - Added full-screen loading animation with fade transitions
+  - Resolves slow load time perception with visual feedback
+  - Smooth opacity transitions for better visual experience
+  - Files modified: `templates/core/about.html`
+
+- **Improved:** Support section visibility
+  - Moved "How to support" section to top of About page
+  - Added blue border highlighting for better visibility
+  - Makes donation/support options more prominent
+  - Files modified: `templates/core/about.html`
+
+### 🐛 Bug Fixes
+- **Fixed:** RMM integration button redirect (Issue #7)
+  - Fixed "Add RMM Integration" button redirecting to wrong page
+  - Now correctly returns to integrations list after creating connection
+  - Changed redirect from `accounts:access_management` to `integrations:integration_list`
+  - Files modified: `integrations/views.py`
+
+---
+
 ## [2.24.46] - 2026-01-15
 
 ### ✨ New Features
