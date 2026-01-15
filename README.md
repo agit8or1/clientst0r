@@ -12,31 +12,128 @@ A complete, self-hosted IT documentation platform designed for Managed Service P
 
 ## 📸 Screenshots
 
-<details open>
-<summary><strong>Click to view screenshots</strong></summary>
+*All screenshots include demo data and are watermarked. Random background feature enabled. [View full gallery →](docs/screenshots/)*
 
-### Dashboard
+<table>
+<tr>
+<td width="50%">
+
+### 🏠 Dashboard & Quick Access
 ![Dashboard](docs/screenshots/dashboard.png)
+![Quick Add](docs/screenshots/quick-add.png)
 
-### Asset Management
+</td>
+<td width="50%">
+
+### 📦 Asset Management
 ![Assets](docs/screenshots/assets-list.png)
+![Racks](docs/screenshots/racks.png)
 
-### Password Vault
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🔐 Password Vault & Security
 ![Password Vault](docs/screenshots/password-vault.png)
+![Personal Vault](docs/screenshots/personal-vault.png)
 
-### Knowledge Base
+</td>
+<td width="50%">
+
+### 📚 Documentation & Knowledge Base
 ![Knowledge Base](docs/screenshots/knowledge-base.png)
+![Diagrams](docs/screenshots/diagrams.png)
 
-### Integrations
-![Integrations](docs/screenshots/integrations.png)
+</td>
+</tr>
+<tr>
+<td width="50%">
 
-### System Status
+### 🔒 Security Dashboard
+![Security Dashboard](docs/screenshots/security-dashboard.png)
+![Vulnerability Scans](docs/screenshots/vulnerability-scans.png)
+
+</td>
+<td width="50%">
+
+### 🌐 Monitoring
+![Website Monitors](docs/screenshots/website-monitors.png)
+![Expirations](docs/screenshots/expirations.png)
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### ⚙️ System Management
+![System Updates](docs/screenshots/system-updates.png)
 ![System Status](docs/screenshots/system-status.png)
 
-### About Page
-![About](docs/screenshots/about-page.png)
+</td>
+<td width="50%">
 
-*All screenshots include demo data and are watermarked. Random background feature enabled.*
+### 🏢 Multi-Tenancy & Access
+![Organizations](docs/screenshots/organizations.png)
+![Access Management](docs/screenshots/access-management.png)
+
+</td>
+</tr>
+</table>
+
+<details>
+<summary><strong>📋 View All Screenshots (34 total)</strong></summary>
+
+### Core Features
+- [Dashboard](docs/screenshots/dashboard.png) - Main dashboard with random backgrounds
+- [Quick Add](docs/screenshots/quick-add.png) - Fast creation menu for assets, passwords, documents
+- [About](docs/screenshots/about-page.png) - System information and version details
+- [Profile](docs/screenshots/profile.png) - User profile and settings
+- [Favorites](docs/screenshots/favorites.png) - Quick access to favorited items
+
+### Asset Management
+- [Assets List](docs/screenshots/assets-list.png) - Comprehensive asset tracking
+- [Racks](docs/screenshots/racks.png) - Rack management with U-space tracking
+- [Network Closets](docs/screenshots/network-closets.png) - Network infrastructure management
+- [IPAM/Subnets](docs/screenshots/ipam-subnets.png) - IP address management
+- [VLANs](docs/screenshots/vlans.png) - VLAN configuration and tracking
+- [Locations](docs/screenshots/locations.png) - Physical location management
+
+### Password Vault
+- [Password Vault](docs/screenshots/password-vault.png) - AES-256-GCM encrypted password storage
+- [Personal Vault](docs/screenshots/personal-vault.png) - Private user password vault
+- [Secure Notes](docs/screenshots/secure-notes.png) - Encrypted ephemeral messaging
+
+### Documentation & Diagrams
+- [Knowledge Base](docs/screenshots/knowledge-base.png) - Document management system
+- [Diagrams](docs/screenshots/diagrams.png) - Draw.io integrated diagramming
+- [Floor Plans Import](docs/screenshots/floor-plans-import.png) - MagicPlan floor plan import
+
+### Workflows & Processes
+- [Workflows](docs/screenshots/workflows.png) - Process automation and tracking
+
+### Monitoring & Expirations
+- [Website Monitors](docs/screenshots/website-monitors.png) - Uptime monitoring dashboard
+- [Expirations](docs/screenshots/expirations.png) - SSL, domain, and credential expiration tracking
+
+### Security & Scanning
+- [Security Dashboard](docs/screenshots/security-dashboard.png) - Security overview and vulnerability status
+- [Vulnerability Scans](docs/screenshots/vulnerability-scans.png) - Snyk scan history
+- [Scan Configuration](docs/screenshots/scan-configuration.png) - Security scan settings
+
+### System Administration
+- [Settings](docs/screenshots/settings-general.png) - General system configuration
+- [System Status](docs/screenshots/system-status.png) - Health monitoring and scheduled tasks
+- [System Updates](docs/screenshots/system-updates.png) - One-click update system
+- [Organizations](docs/screenshots/organizations.png) - Multi-tenant organization management
+- [Access Management](docs/screenshots/access-management.png) - User and role management
+- [Integrations](docs/screenshots/integrations.png) - PSA and external integrations
+- [Import Data](docs/screenshots/import-data.png) - Bulk data import tools
+
+### MSP/Global Features (Staff Only)
+- [Global Dashboard](docs/screenshots/global-dashboard.png) - Cross-organization overview
+- [Global KB](docs/screenshots/global-kb.png) - Internal staff documentation
+- [Global Workflows](docs/screenshots/global-workflows.png) - Reusable process templates
 
 </details>
 

@@ -24,6 +24,7 @@ class Command(BaseCommand):
             {'name': 'Backup & Recovery', 'order': 6},
             {'name': 'Common Issues', 'order': 7},
             {'name': 'Hardware Setup', 'order': 8},
+            {'name': 'Linux Administration', 'order': 9},
         ]
 
         categories = {}
@@ -9341,6 +9342,6932 @@ tail -f /var/log/syslog  # Follow syslog
 # All-in-one
 glances                # Comprehensive monitor
 nmon                   # Performance monitor
+```
+'''
+        })
+
+        # ============================================================
+        # MICROSOFT 365 (6 articles)
+        # ============================================================
+
+        articles.append({
+            'category': 'Microsoft 365',
+            'title': 'Microsoft 365 User License Management with PowerShell',
+            'body': r'''# Microsoft 365 User License Management with PowerShell
+
+## Overview
+Comprehensive guide to managing Microsoft 365 licenses using PowerShell, including assignment, removal, bulk operations, and reporting.
+
+## Prerequisites
+
+```powershell
+# Install Microsoft Online Services Module
+Install-Module MSOnline -Force
+
+# OR install newer Microsoft Graph PowerShell (recommended)
+Install-Module Microsoft.Graph -Force
+
+# Connect to Microsoft 365
+Connect-MsolService
+
+# OR with Microsoft Graph
+Connect-MgGraph -Scopes "User.ReadWrite.All", "Directory.ReadWrite.All"
+```
+
+---
+
+## Understanding License SKUs
+
+### List All Available Licenses
+
+```powershell
+# Using MSOnline
+Get-MsolAccountSku
+
+# Output shows:
+# AccountSkuId                    ActiveUnits  WarningUnits  ConsumedUnits
+# contoso:ENTERPRISEPACK         500          0             342
+# contoso:POWER_BI_STANDARD      25           0             18
+# contoso:EMS                    500          0             298
+```
+
+**Common SKU Names:**
+- `ENTERPRISEPACK` = Office 365 E3
+- `ENTERPRISEPREMIUM` = Office 365 E5
+- `SPE_E3` = Microsoft 365 E3
+- `SPE_E5` = Microsoft 365 E5
+- `EXCHANGESTANDARD` = Exchange Online Plan 1
+- `EXCHANGEENTERPRISE` = Exchange Online Plan 2
+- `SHAREPOINTSTANDARD` = SharePoint Online Plan 1
+- `POWER_BI_STANDARD` = Power BI (free)
+- `POWER_BI_PRO` = Power BI Pro
+
+### View License Details
+
+```powershell
+# Get detailed service plans in a license
+Get-MsolAccountSku | Where-Object {$_.AccountSkuId -like "*ENTERPRISEPACK*"} |
+    Select-Object -ExpandProperty ServiceStatus
+
+# Shows individual services:
+# ServicePlan           ProvisioningStatus
+# EXCHANGE_S_ENTERPRISE Success
+# SHAREPOINTWAC         Success
+# TEAMS1                Success
+# MCOSTANDARD           Success
+```
+
+---
+
+## Assign Licenses to Users
+
+### Assign Single License
+
+```powershell
+# Set usage location (required before assigning licenses)
+Set-MsolUser -UserPrincipalName john@contoso.com -UsageLocation US
+
+# Assign license
+Set-MsolUserLicense -UserPrincipalName john@contoso.com `
+    -AddLicenses "contoso:ENTERPRISEPACK"
+
+# Verify assignment
+Get-MsolUser -UserPrincipalName john@contoso.com |
+    Select-Object DisplayName, Licenses
+```
+
+### Assign Multiple Licenses
+
+```powershell
+# Assign Office 365 E3 + Power BI Pro
+Set-MsolUserLicense -UserPrincipalName jane@contoso.com `
+    -AddLicenses "contoso:ENTERPRISEPACK","contoso:POWER_BI_PRO"
+```
+
+### Assign with Disabled Services
+
+```powershell
+# Create license options (disable Yammer and Sway)
+$LicenseOptions = New-MsolLicenseOptions -AccountSkuId "contoso:ENTERPRISEPACK" `
+    -DisabledPlans "YAMMER_ENTERPRISE","SWAY"
+
+# Assign license with disabled services
+Set-MsolUserLicense -UserPrincipalName bob@contoso.com `
+    -AddLicenses "contoso:ENTERPRISEPACK" `
+    -LicenseOptions $LicenseOptions
+```
+
+**Common Services to Disable:**
+- `YAMMER_ENTERPRISE` - Yammer
+- `SWAY` - Sway
+- `FORMS_PLAN_E3` - Microsoft Forms
+- `STREAM_O365_E3` - Microsoft Stream
+- `KAIZALA_O365_P3` - Kaizala Pro (retired)
+
+---
+
+## Remove Licenses
+
+### Remove Single License
+
+```powershell
+Set-MsolUserLicense -UserPrincipalName john@contoso.com `
+    -RemoveLicenses "contoso:ENTERPRISEPACK"
+```
+
+### Remove All Licenses
+
+```powershell
+# Get all licenses for user
+$UserLicenses = (Get-MsolUser -UserPrincipalName john@contoso.com).Licenses.AccountSkuId
+
+# Remove all licenses
+foreach ($License in $UserLicenses) {
+    Set-MsolUserLicense -UserPrincipalName john@contoso.com `
+        -RemoveLicenses $License
+}
+```
+
+### Replace License (Upgrade/Downgrade)
+
+```powershell
+# Upgrade from E3 to E5
+Set-MsolUserLicense -UserPrincipalName jane@contoso.com `
+    -RemoveLicenses "contoso:ENTERPRISEPACK" `
+    -AddLicenses "contoso:ENTERPRISEPREMIUM"
+```
+
+---
+
+## Bulk License Operations
+
+### Assign Licenses to Multiple Users (CSV)
+
+**Create CSV file:** `users.csv`
+```csv
+UserPrincipalName,License
+john@contoso.com,contoso:ENTERPRISEPACK
+jane@contoso.com,contoso:ENTERPRISEPACK
+bob@contoso.com,contoso:POWER_BI_PRO
+```
+
+**Script:**
+```powershell
+# Import CSV
+$Users = Import-Csv "C:\Temp\users.csv"
+
+# Assign licenses
+foreach ($User in $Users) {
+    # Set usage location if not set
+    $MsolUser = Get-MsolUser -UserPrincipalName $User.UserPrincipalName
+    if (!$MsolUser.UsageLocation) {
+        Set-MsolUser -UserPrincipalName $User.UserPrincipalName -UsageLocation US
+    }
+
+    # Assign license
+    Set-MsolUserLicense -UserPrincipalName $User.UserPrincipalName `
+        -AddLicenses $User.License
+
+    Write-Host "Assigned $($User.License) to $($User.UserPrincipalName)" -ForegroundColor Green
+}
+```
+
+### Assign License to All Users in Group
+
+```powershell
+# Get all members of a group
+$GroupMembers = Get-MsolGroupMember -GroupObjectId "12345678-1234-1234-1234-123456789012"
+
+# Assign E3 license to all members
+foreach ($Member in $GroupMembers) {
+    if ($Member.EmailAddress) {
+        Set-MsolUser -UserPrincipalName $Member.EmailAddress -UsageLocation US
+        Set-MsolUserLicense -UserPrincipalName $Member.EmailAddress `
+            -AddLicenses "contoso:ENTERPRISEPACK"
+
+        Write-Host "Licensed: $($Member.EmailAddress)"
+    }
+}
+```
+
+### Assign License to All Unlicensed Users
+
+```powershell
+# Get all unlicensed users
+$UnlicensedUsers = Get-MsolUser -All -UnlicensedUsersOnly
+
+# Assign license
+foreach ($User in $UnlicensedUsers) {
+    if (!$User.UsageLocation) {
+        Set-MsolUser -UserPrincipalName $User.UserPrincipalName -UsageLocation US
+    }
+
+    Set-MsolUserLicense -UserPrincipalName $User.UserPrincipalName `
+        -AddLicenses "contoso:ENTERPRISEPACK"
+
+    Write-Host "Licensed: $($User.UserPrincipalName)"
+}
+```
+
+---
+
+## License Reporting
+
+### List All Licensed Users
+
+```powershell
+# Get all licensed users
+Get-MsolUser -All | Where-Object {$_.IsLicensed -eq $true} |
+    Select-Object DisplayName, UserPrincipalName, Licenses
+
+# Export to CSV
+Get-MsolUser -All | Where-Object {$_.IsLicensed -eq $true} |
+    Select-Object DisplayName, UserPrincipalName,
+        @{Name="Licenses";Expression={$_.Licenses.AccountSkuId -join ", "}} |
+    Export-Csv "C:\Reports\LicensedUsers.csv" -NoTypeInformation
+```
+
+### License Usage Report
+
+```powershell
+# Get license summary
+Get-MsolAccountSku | Select-Object `
+    AccountSkuId,
+    ActiveUnits,
+    ConsumedUnits,
+    @{Name="Available";Expression={$_.ActiveUnits - $_.ConsumedUnits}},
+    @{Name="PercentUsed";Expression={[math]::Round(($_.ConsumedUnits / $_.ActiveUnits) * 100, 2)}}
+
+# Export to CSV
+Get-MsolAccountSku | Select-Object AccountSkuId, ActiveUnits, ConsumedUnits,
+    @{Name="Available";Expression={$_.ActiveUnits - $_.ConsumedUnits}} |
+    Export-Csv "C:\Reports\LicenseUsage.csv" -NoTypeInformation
+```
+
+### Users by License Type
+
+```powershell
+# Count users per license
+$LicenseSummary = @{}
+
+Get-MsolUser -All | Where-Object {$_.IsLicensed -eq $true} | ForEach-Object {
+    foreach ($License in $_.Licenses) {
+        $SKU = $License.AccountSkuId
+        if ($LicenseSummary.ContainsKey($SKU)) {
+            $LicenseSummary[$SKU]++
+        } else {
+            $LicenseSummary[$SKU] = 1
+        }
+    }
+}
+
+# Display results
+$LicenseSummary.GetEnumerator() | Sort-Object Name |
+    Format-Table Name, Value -AutoSize
+```
+
+### Users with Specific Service Disabled
+
+```powershell
+# Find users with Yammer disabled
+Get-MsolUser -All | Where-Object {
+    $_.Licenses.ServiceStatus |
+    Where-Object {$_.ServicePlan.ServiceName -eq "YAMMER_ENTERPRISE" -and $_.ProvisioningStatus -eq "Disabled"}
+} | Select-Object DisplayName, UserPrincipalName
+```
+
+### Unlicensed Users Report
+
+```powershell
+# Get all unlicensed users (excluding guests)
+Get-MsolUser -All -UnlicensedUsersOnly |
+    Where-Object {$_.UserType -ne "Guest"} |
+    Select-Object DisplayName, UserPrincipalName, Department, WhenCreated |
+    Export-Csv "C:\Reports\UnlicensedUsers.csv" -NoTypeInformation
+```
+
+---
+
+## Microsoft Graph PowerShell (Modern Approach)
+
+### Connect and Authenticate
+
+```powershell
+# Connect with required permissions
+Connect-MgGraph -Scopes "User.ReadWrite.All", "Organization.Read.All"
+
+# Verify connection
+Get-MgContext
+```
+
+### Assign License with Graph
+
+```powershell
+# Get license SKU ID
+$E3License = Get-MgSubscribedSku -All |
+    Where-Object {$_.SkuPartNumber -eq "ENTERPRISEPACK"}
+
+# Assign license
+Set-MgUserLicense -UserId "john@contoso.com" `
+    -AddLicenses @{SkuId = $E3License.SkuId} `
+    -RemoveLicenses @()
+```
+
+### Remove License with Graph
+
+```powershell
+Set-MgUserLicense -UserId "john@contoso.com" `
+    -AddLicenses @() `
+    -RemoveLicenses @($E3License.SkuId)
+```
+
+---
+
+## Automated License Management
+
+### Auto-Assign Licenses to New Users
+
+```powershell
+# Schedule this script to run daily
+
+# Get users created in last 24 hours without licenses
+$NewUsers = Get-MsolUser -All | Where-Object {
+    $_.WhenCreated -gt (Get-Date).AddDays(-1) -and
+    $_.IsLicensed -eq $false -and
+    $_.UserType -ne "Guest"
+}
+
+foreach ($User in $NewUsers) {
+    # Set usage location
+    Set-MsolUser -UserPrincipalName $User.UserPrincipalName -UsageLocation US
+
+    # Assign default license (E3)
+    Set-MsolUserLicense -UserPrincipalName $User.UserPrincipalName `
+        -AddLicenses "contoso:ENTERPRISEPACK"
+
+    Write-Host "Auto-assigned license to: $($User.UserPrincipalName)" -ForegroundColor Green
+
+    # Send notification email
+    Send-MailMessage -To "admin@contoso.com" `
+        -From "licensing@contoso.com" `
+        -Subject "License Auto-Assigned" `
+        -Body "License assigned to $($User.UserPrincipalName)" `
+        -SmtpServer "smtp.office365.com" -UseSSL
+}
+```
+
+### Remove Licenses from Disabled Users
+
+```powershell
+# Find disabled users with licenses
+$DisabledUsers = Get-MsolUser -All | Where-Object {
+    $_.BlockCredential -eq $true -and
+    $_.IsLicensed -eq $true
+}
+
+foreach ($User in $DisabledUsers) {
+    # Get all licenses
+    $Licenses = $User.Licenses.AccountSkuId
+
+    # Remove all licenses
+    foreach ($License in $Licenses) {
+        Set-MsolUserLicense -UserPrincipalName $User.UserPrincipalName `
+            -RemoveLicenses $License
+    }
+
+    Write-Host "Removed licenses from disabled user: $($User.UserPrincipalName)"
+}
+```
+
+---
+
+## Troubleshooting
+
+### Problem: "User is not eligible to have a license assigned"
+
+**Cause:** Usage location not set
+
+**Fix:**
+```powershell
+Set-MsolUser -UserPrincipalName john@contoso.com -UsageLocation US
+```
+
+### Problem: "Not enough licenses available"
+
+**Check available licenses:**
+```powershell
+Get-MsolAccountSku | Select-Object AccountSkuId, ActiveUnits, ConsumedUnits,
+    @{Name="Available";Expression={$_.ActiveUnits - $_.ConsumedUnits}}
+```
+
+**Solution:** Purchase more licenses or remove from inactive users
+
+### Problem: "License assignment failed"
+
+**Check error details:**
+```powershell
+Get-MsolUser -UserPrincipalName john@contoso.com |
+    Select-Object -ExpandProperty Licenses |
+    Select-Object -ExpandProperty ServiceStatus
+```
+
+**Common fixes:**
+- Verify account is not disabled
+- Check usage location is set
+- Ensure license is available
+- Wait 15 minutes for replication
+
+---
+
+## Best Practices
+
+### Do:
+- ✅ **Always set UsageLocation** before assigning licenses
+- ✅ **Use groups for license assignment** (Azure AD Group-Based Licensing)
+- ✅ **Document license assignments** (who gets what and why)
+- ✅ **Regular license audits** (monthly review of usage)
+- ✅ **Remove licenses from disabled users** (cost savings)
+- ✅ **Test scripts on small batch first**
+- ✅ **Log all license changes**
+
+### Don't:
+- ❌ **Don't over-provision licenses** (waste of budget)
+- ❌ **Don't assign all services if not needed** (disable unused services)
+- ❌ **Don't forget to monitor license usage**
+- ❌ **Don't assign licenses to service accounts** (use shared mailboxes instead)
+
+---
+
+## Quick Reference
+
+```powershell
+# Connect
+Connect-MsolService
+
+# List licenses
+Get-MsolAccountSku
+
+# Set usage location
+Set-MsolUser -UserPrincipalName user@domain.com -UsageLocation US
+
+# Assign license
+Set-MsolUserLicense -UserPrincipalName user@domain.com -AddLicenses "contoso:ENTERPRISEPACK"
+
+# Remove license
+Set-MsolUserLicense -UserPrincipalName user@domain.com -RemoveLicenses "contoso:ENTERPRISEPACK"
+
+# List licensed users
+Get-MsolUser -All | Where-Object {$_.IsLicensed -eq $true}
+
+# List unlicensed users
+Get-MsolUser -All -UnlicensedUsersOnly
+
+# Export license report
+Get-MsolAccountSku | Export-Csv "licenses.csv" -NoTypeInformation
+```
+
+---
+
+## Cost Optimization
+
+**Monthly Review Checklist:**
+- [ ] Identify disabled accounts with licenses
+- [ ] Find inactive users (no sign-in >90 days)
+- [ ] Review guest accounts with licenses
+- [ ] Check for duplicate licenses
+- [ ] Analyze unused services (disable or downgrade)
+- [ ] Verify departmental license allocation
+- [ ] Compare actual usage vs purchased licenses
+
+**Cost Savings Example:**
+- 500 E3 licenses @ $20/month = $10,000/month
+- Remove 50 unused licenses = $1,000/month savings = $12,000/year
+'''
+        })
+
+        articles.append({
+            'category': 'Microsoft 365',
+            'title': 'Exchange Online Mailbox Management',
+            'body': r'''# Exchange Online Mailbox Management
+
+## Overview
+Complete guide to managing Exchange Online mailboxes including creation, migration, permissions, and troubleshooting.
+
+## Prerequisites
+
+```powershell
+# Install Exchange Online Management Module
+Install-Module ExchangeOnlineManagement -Force
+
+# Connect to Exchange Online
+Connect-ExchangeOnline -UserPrincipalName admin@contoso.com
+
+# OR use modern authentication
+Connect-ExchangeOnline
+```
+
+---
+
+## Creating Mailboxes
+
+### Create User Mailbox
+
+```powershell
+# Mailbox is automatically created when assigning Exchange license
+Set-MsolUser -UserPrincipalName john@contoso.com -UsageLocation US
+Set-MsolUserLicense -UserPrincipalName john@contoso.com -AddLicenses "contoso:ENTERPRISEPACK"
+
+# Verify mailbox creation
+Get-Mailbox -Identity john@contoso.com
+```
+
+### Create Shared Mailbox
+
+```powershell
+# Create shared mailbox (free, no license required)
+New-Mailbox -Shared -Name "Support Team" `
+    -DisplayName "Support Team" `
+    -Alias support `
+    -PrimarySmtpAddress support@contoso.com
+
+# Grant Full Access permission
+Add-MailboxPermission -Identity support@contoso.com `
+    -User john@contoso.com `
+    -AccessRights FullAccess `
+    -InheritanceType All
+
+# Grant Send As permission
+Add-RecipientPermission -Identity support@contoso.com `
+    -Trustee john@contoso.com `
+    -AccessRights SendAs `
+    -Confirm:$false
+```
+
+### Create Room Mailbox
+
+```powershell
+# Create conference room mailbox
+New-Mailbox -Room -Name "Conference Room A" `
+    -DisplayName "Conference Room A" `
+    -Alias conferenceroom-a `
+    -PrimarySmtpAddress conferenceroom-a@contoso.com
+
+# Configure room settings
+Set-CalendarProcessing -Identity conferenceroom-a@contoso.com `
+    -AutomateProcessing AutoAccept `
+    -AddOrganizerToSubject $false `
+    -DeleteSubject $false `
+    -RemovePrivateProperty $false `
+    -BookingWindowInDays 180
+
+# Set capacity
+Set-Mailbox -Identity conferenceroom-a@contoso.com `
+    -ResourceCapacity 10
+```
+
+### Create Equipment Mailbox
+
+```powershell
+# Create equipment mailbox (projector, vehicle, etc.)
+New-Mailbox -Equipment -Name "Projector 1" `
+    -DisplayName "Conference Room Projector" `
+    -Alias projector1 `
+    -PrimarySmtpAddress projector1@contoso.com
+
+# Auto-accept bookings
+Set-CalendarProcessing -Identity projector1@contoso.com `
+    -AutomateProcessing AutoAccept
+```
+
+---
+
+## Mailbox Permissions
+
+### Full Access Permission
+
+```powershell
+# Grant full access (user can open mailbox)
+Add-MailboxPermission -Identity manager@contoso.com `
+    -User assistant@contoso.com `
+    -AccessRights FullAccess `
+    -InheritanceType All
+
+# Grant full access without automapping
+Add-MailboxPermission -Identity manager@contoso.com `
+    -User assistant@contoso.com `
+    -AccessRights FullAccess `
+    -AutoMapping $false
+
+# Remove full access
+Remove-MailboxPermission -Identity manager@contoso.com `
+    -User assistant@contoso.com `
+    -AccessRights FullAccess `
+    -Confirm:$false
+```
+
+### Send As Permission
+
+```powershell
+# Grant Send As (send emails appearing from mailbox)
+Add-RecipientPermission -Identity manager@contoso.com `
+    -Trustee assistant@contoso.com `
+    -AccessRights SendAs `
+    -Confirm:$false
+
+# Remove Send As
+Remove-RecipientPermission -Identity manager@contoso.com `
+    -Trustee assistant@contoso.com `
+    -AccessRights SendAs `
+    -Confirm:$false
+```
+
+### Send on Behalf Permission
+
+```powershell
+# Grant Send on Behalf (shows "on behalf of")
+Set-Mailbox -Identity manager@contoso.com `
+    -GrantSendOnBehalfTo @{Add="assistant@contoso.com"}
+
+# Remove Send on Behalf
+Set-Mailbox -Identity manager@contoso.com `
+    -GrantSendOnBehalfTo @{Remove="assistant@contoso.com"}
+```
+
+### Folder Permissions
+
+```powershell
+# Grant calendar permissions
+Add-MailboxFolderPermission -Identity "john@contoso.com:\Calendar" `
+    -User jane@contoso.com `
+    -AccessRights Editor
+
+# Common access rights:
+# - Owner: Full control
+# - Editor: Read, create, modify, delete all items
+# - Reviewer: Read only
+# - Contributor: Create items
+# - Author: Read, create, modify own items
+```
+
+---
+
+## Mailbox Configuration
+
+### Set Mailbox Quota
+
+```powershell
+# Set mailbox size limits
+Set-Mailbox -Identity john@contoso.com `
+    -ProhibitSendQuota 49GB `
+    -ProhibitSendReceiveQuota 50GB `
+    -IssueWarningQuota 48GB
+
+# Set archive quota
+Set-Mailbox -Identity john@contoso.com `
+    -ArchiveQuota 100GB `
+    -ArchiveWarningQuota 90GB
+```
+
+### Enable Archive Mailbox
+
+```powershell
+# Enable online archive
+Enable-Mailbox -Identity john@contoso.com -Archive
+
+# Verify archive enabled
+Get-Mailbox -Identity john@contoso.com |
+    Select-Object DisplayName, ArchiveStatus, ArchiveGuid
+```
+
+### Configure Litigation Hold
+
+```powershell
+# Enable litigation hold (preserves all items)
+Set-Mailbox -Identity john@contoso.com `
+    -LitigationHoldEnabled $true `
+    -LitigationHoldDuration 2555  # Days (7 years)
+
+# Verify hold
+Get-Mailbox -Identity john@contoso.com |
+    Select-Object DisplayName, LitigationHoldEnabled, LitigationHoldDuration
+```
+
+### Email Forwarding
+
+```powershell
+# Forward emails to another address
+Set-Mailbox -Identity john@contoso.com `
+    -ForwardingSmtpAddress "external@example.com" `
+    -DeliverToMailboxAndForward $true
+
+# Forward to internal user
+Set-Mailbox -Identity john@contoso.com `
+    -ForwardingAddress "jane@contoso.com" `
+    -DeliverToMailboxAndForward $true
+
+# Disable forwarding
+Set-Mailbox -Identity john@contoso.com `
+    -ForwardingSmtpAddress $null `
+    -ForwardingAddress $null
+```
+
+### Out of Office (Automatic Replies)
+
+```powershell
+# Set automatic reply
+Set-MailboxAutoReplyConfiguration -Identity john@contoso.com `
+    -AutoReplyState Enabled `
+    -InternalMessage "I'm out of office until Monday." `
+    -ExternalMessage "I'm currently away. For urgent matters, contact support@contoso.com"
+
+# Set with date range
+Set-MailboxAutoReplyConfiguration -Identity john@contoso.com `
+    -AutoReplyState Scheduled `
+    -StartTime "12/20/2024 5:00 PM" `
+    -EndTime "01/02/2025 8:00 AM" `
+    -InternalMessage "Out for holidays" `
+    -ExternalMessage "Out for holidays"
+
+# Disable automatic reply
+Set-MailboxAutoReplyConfiguration -Identity john@contoso.com `
+    -AutoReplyState Disabled
+```
+
+---
+
+## Mailbox Migration
+
+### Migrate from On-Premises Exchange
+
+```powershell
+# Create migration endpoint
+New-MigrationEndpoint -ExchangeRemoteMove `
+    -Name "OnPrem-Endpoint" `
+    -Autodiscover `
+    -EmailAddress admin@contoso.com `
+    -Credentials (Get-Credential)
+
+# Create migration batch
+New-MigrationBatch -Name "Batch1-Users" `
+    -SourceEndpoint "OnPrem-Endpoint" `
+    -TargetDeliveryDomain "contoso.mail.onmicrosoft.com" `
+    -CSVData ([System.IO.File]::ReadAllBytes("C:\migration-users.csv")) `
+    -AutoStart
+
+# Monitor migration
+Get-MigrationBatch | Get-MigrationUser |
+    Select-Object Identity, Status, PercentageComplete
+
+# Complete migration
+Complete-MigrationBatch -Identity "Batch1-Users"
+```
+
+### Migrate from Gmail (IMAP)
+
+```powershell
+# Create IMAP endpoint
+$Endpoint = New-MigrationEndpoint -IMAP `
+    -Name "Gmail" `
+    -RemoteServer "imap.gmail.com" `
+    -Port 993 `
+    -Security SSL
+
+# Create CSV: EmailAddress,UserName,Password
+# john@contoso.com,john@gmail.com,app-specific-password
+
+# Create migration batch
+New-MigrationBatch -Name "Gmail-Migration" `
+    -SourceEndpoint "Gmail" `
+    -TargetDeliveryDomain "contoso.mail.onmicrosoft.com" `
+    -CSVData ([System.IO.File]::ReadAllBytes("C:\gmail-users.csv")) `
+    -AutoStart
+```
+
+---
+
+## Mailbox Reports
+
+### Mailbox Size Report
+
+```powershell
+# Get mailbox sizes
+Get-Mailbox -ResultSize Unlimited | Get-MailboxStatistics |
+    Select-Object DisplayName,
+        @{Name="MailboxSize(GB)";Expression={[math]::Round(($_.TotalItemSize.Value.ToBytes() / 1GB), 2)}},
+        ItemCount,
+        LastLogonTime |
+    Sort-Object "MailboxSize(GB)" -Descending |
+    Export-Csv "C:\Reports\MailboxSizes.csv" -NoTypeInformation
+```
+
+### Inactive Mailboxes Report
+
+```powershell
+# Find mailboxes not accessed in 90 days
+Get-Mailbox -ResultSize Unlimited | Get-MailboxStatistics |
+    Where-Object {$_.LastLogonTime -lt (Get-Date).AddDays(-90)} |
+    Select-Object DisplayName, LastLogonTime,
+        @{Name="DaysSinceLastLogon";Expression={(New-TimeSpan -Start $_.LastLogonTime -End (Get-Date)).Days}} |
+    Sort-Object LastLogonTime |
+    Export-Csv "C:\Reports\InactiveMailboxes.csv" -NoTypeInformation
+```
+
+### Shared Mailbox Report
+
+```powershell
+# List all shared mailboxes with permissions
+Get-Mailbox -RecipientTypeDetails SharedMailbox -ResultSize Unlimited |
+    ForEach-Object {
+        $Mailbox = $_
+        $Permissions = Get-MailboxPermission -Identity $Mailbox.Identity |
+            Where-Object {$_.User -notlike "NT AUTHORITY\*" -and $_.IsInherited -eq $false}
+
+        foreach ($Perm in $Permissions) {
+            [PSCustomObject]@{
+                SharedMailbox = $Mailbox.DisplayName
+                User = $Perm.User
+                AccessRights = $Perm.AccessRights -join ","
+            }
+        }
+    } | Export-Csv "C:\Reports\SharedMailboxPermissions.csv" -NoTypeInformation
+```
+
+### Forwarding Report
+
+```powershell
+# Find mailboxes with forwarding enabled
+Get-Mailbox -ResultSize Unlimited |
+    Where-Object {$_.ForwardingSmtpAddress -ne $null -or $_.ForwardingAddress -ne $null} |
+    Select-Object DisplayName, PrimarySmtpAddress, ForwardingSmtpAddress, ForwardingAddress, DeliverToMailboxAndForward |
+    Export-Csv "C:\Reports\Forwarding.csv" -NoTypeInformation
+```
+
+---
+
+## Troubleshooting
+
+### Problem: Mailbox not appearing in address list
+
+```powershell
+# Check hidden from address lists
+Get-Mailbox -Identity john@contoso.com |
+    Select-Object DisplayName, HiddenFromAddressListsEnabled
+
+# Unhide
+Set-Mailbox -Identity john@contoso.com -HiddenFromAddressListsEnabled $false
+```
+
+### Problem: Cannot send emails
+
+```powershell
+# Check send limits
+Get-Mailbox -Identity john@contoso.com |
+    Select-Object RecipientLimits, MaxSendSize, MaxReceiveSize
+
+# Increase send limit
+Set-Mailbox -Identity john@contoso.com -MaxSendSize 35MB
+```
+
+### Problem: Mailbox full
+
+```powershell
+# Check mailbox size
+Get-MailboxStatistics -Identity john@contoso.com |
+    Select-Object DisplayName, TotalItemSize, ItemCount, DatabaseName
+
+# Enable archive
+Enable-Mailbox -Identity john@contoso.com -Archive
+
+# Increase quota (if allowed by license)
+Set-Mailbox -Identity john@contoso.com -ProhibitSendReceiveQuota 100GB
+```
+
+### Problem: Delayed mailbox creation
+
+```powershell
+# Force mailbox creation (usually takes 15-30 minutes)
+# Verify license assigned
+Get-MsolUser -UserPrincipalName john@contoso.com |
+    Select-Object DisplayName, IsLicensed, Licenses
+
+# Wait and check again
+Start-Sleep -Seconds 300
+Get-Mailbox -Identity john@contoso.com
+```
+
+---
+
+## Best Practices
+
+### Do:
+- ✅ **Use shared mailboxes** for team accounts (free, no license)
+- ✅ **Enable archive mailboxes** before users hit quota
+- ✅ **Set litigation hold** for compliance/legal requirements
+- ✅ **Regular permission audits** (who has access to what)
+- ✅ **Monitor mailbox sizes** (prevent quota issues)
+- ✅ **Document delegated access** (maintain security)
+- ✅ **Use distribution groups** instead of individual forwarding
+
+### Don't:
+- ❌ **Don't share mailbox passwords** (use delegation instead)
+- ❌ **Don't exceed 50GB for shared mailboxes** (convert to licensed mailbox)
+- ❌ **Don't forward to personal email** (data loss risk)
+- ❌ **Don't grant unnecessary Full Access** (use specific folders)
+- ❌ **Don't delete mailboxes immediately** (convert to shared or inactive)
+
+---
+
+## Quick Reference
+
+```powershell
+# Connect
+Connect-ExchangeOnline
+
+# Create shared mailbox
+New-Mailbox -Shared -Name "Support" -PrimarySmtpAddress support@contoso.com
+
+# Grant permissions
+Add-MailboxPermission -Identity mailbox@contoso.com -User user@contoso.com -AccessRights FullAccess
+
+# Enable archive
+Enable-Mailbox -Identity user@contoso.com -Archive
+
+# Set forwarding
+Set-Mailbox -Identity user@contoso.com -ForwardingAddress forward@contoso.com
+
+# Get mailbox size
+Get-MailboxStatistics -Identity user@contoso.com
+
+# List all mailboxes
+Get-Mailbox -ResultSize Unlimited
+
+# Export mailbox list
+Get-Mailbox -ResultSize Unlimited | Export-Csv "mailboxes.csv" -NoTypeInformation
+```
+'''
+        })
+
+        articles.append({
+            'category': 'Active Directory',
+            'title': 'Active Directory Backup and Disaster Recovery',
+            'body': r'''# Active Directory Backup and Disaster Recovery
+
+## Overview
+Comprehensive guide to backing up and recovering Active Directory Domain Controllers including System State backups, authoritative restores, and disaster recovery procedures.
+
+## Backup Types
+
+### System State Backup
+**Includes:**
+- Active Directory database (NTDS.DIT)
+- SYSVOL folder
+- Registry
+- Boot files
+- System files
+- COM+ registration database
+
+### Types of AD Restores:
+1. **Non-Authoritative Restore**: DC restored, then replicates latest changes from other DCs
+2. **Authoritative Restore**: Marks restored objects as authoritative, replicates to other DCs
+3. **Primary Restore**: First DC restored in forest (all DCs offline)
+
+---
+
+## Windows Server Backup
+
+### Install Windows Server Backup
+
+```powershell
+# Install feature
+Install-WindowsFeature Windows-Server-Backup -IncludeManagementTools
+
+# Verify installation
+Get-WindowsFeature Windows-Server-Backup
+```
+
+### Perform System State Backup
+
+```powershell
+# Backup System State to local disk
+wbadmin start systemstatebackup -backupTarget:E: -quiet
+
+# Backup to network share
+wbadmin start systemstatebackup `
+    -backupTarget:\\backup-server\DCBackups\DC01 `
+    -quiet
+
+# Backup with verbose output
+wbadmin start systemstatebackup -backupTarget:E: -quiet
+```
+
+### Schedule Daily System State Backups
+
+```powershell
+# Create scheduled task for daily backup at 11 PM
+$Action = New-ScheduledTaskAction -Execute "wbadmin.exe" `
+    -Argument "start systemstatebackup -backupTarget:E: -quiet"
+
+$Trigger = New-ScheduledTaskTrigger -Daily -At "11:00PM"
+
+$Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" `
+    -LogonType ServiceAccount -RunLevel Highest
+
+Register-ScheduledTask -TaskName "Daily AD Backup" `
+    -Action $Action `
+    -Trigger $Trigger `
+    -Principal $Principal `
+    -Description "Daily System State backup of Domain Controller"
+```
+
+### View Backup History
+
+```powershell
+# List all backups
+wbadmin get versions
+
+# Get details of specific backup
+wbadmin get versions -backupTarget:E:
+
+# Sample output:
+# Backup time: 1/14/2024 11:00 PM
+# Backup location: Disk labeled Backup(E:)
+# Version identifier: 01/14/2024-23:00
+```
+
+---
+
+## Non-Authoritative Restore
+
+Use when DC fails but other DCs are healthy. Restored DC will replicate latest changes from partners.
+
+### Steps:
+
+**1. Boot into Directory Services Restore Mode (DSRM)**
+
+```
+1. Restart DC
+2. Press F8 during boot
+3. Select "Directory Services Restore Mode"
+4. Login with DSRM password
+```
+
+**2. Identify Backup to Restore**
+
+```cmd
+wbadmin get versions -backupTarget:E:
+```
+
+**3. Perform Non-Authoritative Restore**
+
+```cmd
+# Restore System State
+wbadmin start systemstaterecovery `
+    -version:01/14/2024-23:00 `
+    -backupTarget:E: `
+    -quiet
+
+# Restart in normal mode
+shutdown /r /t 0
+```
+
+**4. Verify Replication**
+
+```powershell
+# After reboot, check replication
+repadmin /showrepl
+repadmin /replsummary
+```
+
+---
+
+## Authoritative Restore
+
+Use when recovering deleted objects (users, groups, OUs) that should override changes on other DCs.
+
+### Restore Deleted User
+
+**1. Boot into DSRM and perform non-authoritative restore first**
+
+```cmd
+wbadmin start systemstaterecovery -version:01/14/2024-23:00 -backupTarget:E: -quiet
+```
+
+**2. Before rebooting, mark object as authoritative**
+
+```cmd
+# Start ntdsutil
+ntdsutil
+
+# Activate instance
+activate instance ntds
+
+# Enter authoritative restore mode
+authoritative restore
+
+# Restore specific user
+restore object "CN=John Doe,OU=Users,OU=Employees,DC=contoso,DC=local"
+
+# OR restore entire OU
+restore subtree "OU=Employees,DC=contoso,DC=local"
+
+# Exit ntdsutil
+quit
+quit
+```
+
+**3. Reboot normally**
+
+```cmd
+shutdown /r /t 0
+```
+
+**Object will replicate with higher version number to all DCs**
+
+### Restore Deleted Group
+
+```cmd
+ntdsutil
+activate instance ntds
+authoritative restore
+restore object "CN=IT Admins,OU=Groups,DC=contoso,DC=local"
+quit
+quit
+```
+
+### Restore Entire Organizational Unit
+
+```cmd
+ntdsutil
+activate instance ntds
+authoritative restore
+restore subtree "OU=Finance,DC=contoso,DC=local"
+quit
+quit
+```
+
+---
+
+## Active Directory Recycle Bin (Preferred Method)
+
+**Requirements:**
+- Forest functional level: Windows Server 2008 R2 or higher
+- Must be enabled before objects are deleted
+
+### Enable AD Recycle Bin
+
+```powershell
+# Enable Recycle Bin (one-way operation - cannot be disabled!)
+Enable-ADOptionalFeature -Identity 'Recycle Bin Feature' `
+    -Scope ForestOrConfigurationSet `
+    -Target 'contoso.local' `
+    -Confirm:$false
+
+# Verify enabled
+Get-ADOptionalFeature -Filter {Name -like "Recycle Bin*"}
+```
+
+### Restore Deleted Objects with Recycle Bin
+
+```powershell
+# View recently deleted objects
+Get-ADObject -Filter {IsDeleted -eq $true} -IncludeDeletedObjects |
+    Select-Object Name, ObjectClass, WhenChanged, DistinguishedName
+
+# Restore specific user
+Get-ADObject -Filter {DisplayName -eq "John Doe"} `
+    -IncludeDeletedObjects |
+    Restore-ADObject
+
+# Restore by distinguished name
+Get-ADObject -Identity "CN=John Doe\0ADEL:12345678-1234-1234-1234-123456789012,CN=Deleted Objects,DC=contoso,DC=local" `
+    -IncludeDeletedObjects |
+    Restore-ADObject
+
+# Restore entire OU
+Get-ADObject -Filter {lastKnownParent -eq "OU=Finance,DC=contoso,DC=local"} `
+    -IncludeDeletedObjects |
+    Restore-ADObject
+
+# Restore all objects deleted in last 24 hours
+$Yesterday = (Get-Date).AddDays(-1)
+Get-ADObject -Filter {IsDeleted -eq $true -and WhenChanged -gt $Yesterday} `
+    -IncludeDeletedObjects |
+    Restore-ADObject
+```
+
+---
+
+## Full Forest Recovery
+
+Use when all DCs are offline/corrupted. Rebuild entire forest from backups.
+
+### Recovery Steps:
+
+**1. Restore First DC (PDC Emulator)**
+
+```
+1. Disconnect network
+2. Boot into DSRM
+3. Perform non-authoritative restore
+4. Mark database as primary restore:
+```
+
+```cmd
+ntdsutil
+activate instance ntds
+files
+authoritative restore
+restore database verifynow
+quit
+quit
+```
+
+**2. Mark FSMO Roles**
+
+```powershell
+# After reboot, seize all FSMO roles
+Move-ADDirectoryServerOperationMasterRole -Identity "DC01" `
+    -OperationMasterRole PDCEmulator,RIDMaster,InfrastructureMaster,SchemaMaster,DomainNamingMaster `
+    -Force
+```
+
+**3. Clean Metadata of Failed DCs**
+
+```powershell
+# Remove old DC metadata
+ntdsutil
+metadata cleanup
+connections
+connect to server DC01
+quit
+select operation target
+list domains
+select domain 0
+list sites
+select site 0
+list servers in site
+select server 1  # (Old DC to remove)
+quit
+remove selected server
+quit
+quit
+```
+
+**4. Build Additional DCs**
+
+```powershell
+# Promote new DCs after first DC is operational
+Install-WindowsFeature AD-Domain-Services -IncludeManagementTools
+
+Install-ADDSDomainController `
+    -DomainName "contoso.local" `
+    -Credential (Get-Credential "CONTOSO\Administrator") `
+    -InstallDns:$true `
+    -Force
+```
+
+---
+
+## Backup Best Practices
+
+### Backup Schedule
+
+**Recommended:**
+- **Daily**: System State backup
+- **Weekly**: Full server backup
+- **Monthly**: Offsite backup copy
+- **Retention**: 180 days minimum (AD tombstone lifetime)
+
+```powershell
+# Example: Daily at 11 PM, keep 7 backups
+wbadmin start backup `
+    -backupTarget:E: `
+    -include:C:,D: `
+    -systemState `
+    -quiet
+
+# Delete backups older than 7 days
+wbadmin delete systemstatebackup -keepVersions:7 -backupTarget:E: -quiet
+```
+
+### Multiple DC Backups
+
+**Golden Rule:** Backup at least 2 DCs in each domain
+- Primary: PDC Emulator
+- Secondary: Any other DC
+
+**Why?** Redundancy if one backup is corrupted
+
+### Verify Backups
+
+```powershell
+# Test backup integrity monthly
+wbadmin start sysrecovery `
+    -version:01/14/2024-23:00 `
+    -backupTarget:E: `
+    -recreateDisks `
+    -quiet
+
+# Document restore procedures
+# Perform test restore quarterly
+```
+
+---
+
+## DSRM Password Management
+
+### Set DSRM Password
+
+```powershell
+# Set DSRM password on local DC
+ntdsutil
+set dsrm password
+reset password on server null
+# Enter new password twice
+quit
+quit
+```
+
+### Sync DSRM Password with Domain Admin
+
+```powershell
+# Sync DSRM password with current user account password
+ntdsutil
+set dsrm password
+sync from domain account administrator
+quit
+quit
+```
+
+### Best Practices:
+- ✅ Document DSRM password securely (password vault)
+- ✅ Change DSRM password annually
+- ✅ Use complex password (20+ characters)
+- ✅ Store in secure location separate from DCs
+
+---
+
+## Disaster Recovery Checklist
+
+### Before Disaster:
+- [ ] Multiple DCs per domain (minimum 2)
+- [ ] Daily System State backups
+- [ ] Offsite backup copies
+- [ ] Document FSMO role holders
+- [ ] Document DSRM passwords
+- [ ] Test restore procedures quarterly
+- [ ] Maintain AD documentation
+
+### During Recovery:
+- [ ] Assess scope of failure
+- [ ] Isolate network if needed
+- [ ] Identify backup to restore
+- [ ] Boot into DSRM
+- [ ] Perform appropriate restore type
+- [ ] Verify replication after restore
+- [ ] Update documentation
+
+### After Recovery:
+- [ ] Run dcdiag on all DCs
+- [ ] Verify FSMO roles
+- [ ] Check replication health
+- [ ] Review event logs
+- [ ] Update disaster recovery plan
+- [ ] Document lessons learned
+
+---
+
+## Common Scenarios
+
+### Scenario 1: Accidentally Deleted 50 Users
+
+**Solution:** AD Recycle Bin (if enabled)
+```powershell
+Get-ADObject -Filter {IsDeleted -eq $true -and ObjectClass -eq "user"} `
+    -IncludeDeletedObjects |
+    Restore-ADObject
+```
+
+**Alternative:** Authoritative restore from backup
+
+### Scenario 2: DC Hardware Failure
+
+**Solution:** Non-authoritative restore on new hardware
+1. Install Windows Server on new hardware
+2. Restore System State from backup
+3. DC will replicate latest changes from partners
+
+### Scenario 3: All DCs Offline (Ransomware)
+
+**Solution:** Full forest recovery
+1. Isolate network
+2. Restore first DC (PDC Emulator) from clean backup
+3. Seize FSMO roles
+4. Clean metadata of failed DCs
+5. Build replacement DCs
+
+---
+
+## Quick Reference
+
+```cmd
+# Backup System State
+wbadmin start systemstatebackup -backupTarget:E: -quiet
+
+# List backups
+wbadmin get versions
+
+# Non-authoritative restore (in DSRM)
+wbadmin start systemstaterecovery -version:01/14/2024-23:00 -backupTarget:E: -quiet
+
+# Authoritative restore (in DSRM, before reboot)
+ntdsutil
+activate instance ntds
+authoritative restore
+restore object "CN=User,OU=Users,DC=contoso,DC=local"
+quit
+quit
+
+# Restore with AD Recycle Bin
+Get-ADObject -Filter {DisplayName -eq "John Doe"} -IncludeDeletedObjects | Restore-ADObject
+
+# Set DSRM password
+ntdsutil
+set dsrm password
+reset password on server null
+quit
+quit
+```
+
+---
+
+## Additional Tools
+
+### Veeam Backup for Microsoft 365
+- Application-aware AD backups
+- Granular object restore
+- No DSRM required
+
+### Quest Recovery Manager for Active Directory
+- GUI-based restore
+- Object-level recovery
+- Compare and rollback
+
+### Semperis Directory Services Protector
+- Real-time AD monitoring
+- Automated threat detection
+- Rapid recovery
+'''
+        })
+
+        articles.append({
+            'category': 'Active Directory',
+            'title': 'Active Directory Replication Troubleshooting',
+            'body': r'''# Active Directory Replication Troubleshooting
+
+## Overview
+Comprehensive guide to diagnosing and resolving Active Directory replication issues including tools, common problems, and step-by-step solutions.
+
+## Replication Basics
+
+### What Replicates:
+- Directory database (NTDS.DIT)
+- SYSVOL (Group Policies, login scripts)
+- Schema changes
+- Configuration partition
+- Application partitions (DNS)
+
+### Replication Topology:
+- **Intrasite**: Fast, automatic every 15 seconds
+- **Intersite**: Scheduled, configurable (default: every 180 minutes)
+- **Knowledge Consistency Checker (KCC)**: Auto-creates replication topology
+
+---
+
+## Replication Monitoring Tools
+
+### repadmin - Primary Diagnostic Tool
+
+```cmd
+# Show replication status for all DCs
+repadmin /replsummary
+
+# Show detailed replication partners
+repadmin /showrepl
+
+# Show replication status for specific DC
+repadmin /showrepl DC01
+
+# Check replication health
+repadmin /replicate DC02 DC01 "DC=contoso,DC=local"
+
+# Force replication between two DCs
+repadmin /syncall /AeD
+
+# Show replication queue
+repadmin /queue
+```
+
+### dcdiag - Health Diagnostics
+
+```cmd
+# Run all tests on local DC
+dcdiag
+
+# Run all tests on specific DC
+dcdiag /s:DC01
+
+# Test replication specifically
+dcdiag /test:replications
+
+# Comprehensive test including DNS
+dcdiag /v /c /d /e /s:DC01
+
+# Test specific domain controller
+dcdiag /test:replications /s:DC01 /v
+```
+
+---
+
+## Check Replication Status
+
+### Quick Health Check
+
+```powershell
+# PowerShell: Check all DCs
+Get-ADReplicationPartnerMetadata -Target * -Scope Server |
+    Select-Object Server, Partner, LastReplicationSuccess, LastReplicationResult |
+    Sort-Object LastReplicationSuccess
+
+# Show replication failures
+Get-ADReplicationFailure -Target * -Scope Server
+```
+
+### View Replication Summary
+
+```cmd
+repadmin /replsum
+
+# Output shows:
+# Source DSA: DC01
+# Largest Delta: 2h:35m
+# Fails/Total: 0/12 (0%)
+```
+
+### Check Specific Partition
+
+```cmd
+# Check domain partition
+repadmin /showrepl DC01 "DC=contoso,DC=local"
+
+# Check configuration partition
+repadmin /showrepl DC01 "CN=Configuration,DC=contoso,DC=local"
+
+# Check schema partition
+repadmin /showrepl DC01 "CN=Schema,CN=Configuration,DC=contoso,DC=local"
+```
+
+---
+
+## Common Replication Errors
+
+### Error 8524: "The DSA operation is unable to proceed"
+
+**Cause:** DNS resolution failure
+
+**Fix:**
+```cmd
+# Verify DNS resolution
+nslookup DC01.contoso.local
+
+# Register DC in DNS
+ipconfig /registerdns
+
+# Restart Netlogon service
+net stop netlogon && net start netlogon
+
+# Force DC to re-register
+nltest /dsregdns
+```
+
+### Error 8453: "Replication access was denied"
+
+**Cause:** Permissions or security settings
+
+**Fix:**
+```powershell
+# Check if DC computer account is in Domain Controllers group
+Get-ADGroupMember "Domain Controllers" | Select Name
+
+# Reset secure channel
+nltest /sc_reset:contoso.local
+
+# Reset DC password
+netdom resetpwd /server:DC01 /userd:administrator /passwordd:*
+```
+
+### Error 1722: "The RPC server is unavailable"
+
+**Cause:** Network connectivity, firewall, or RPC service issues
+
+**Fix:**
+```cmd
+# Test network connectivity
+ping DC01
+ping -a DC01
+
+# Test RPC connectivity
+portqry -n DC01 -e 135
+
+# Verify required firewall ports open:
+# - RPC: 135
+# - RPC Dynamic: 49152-65535
+# - LDAP: 389
+# - LDAPS: 636
+# - SMB: 445
+# - Kerberos: 88
+# - DNS: 53
+
+# Restart RPC service
+net stop rpcss && net start rpcss
+```
+
+### Error 8606: "Insufficient attributes were given to create an object"
+
+**Cause:** Corrupted metadata or schema mismatch
+
+**Fix:**
+```cmd
+# Clean up metadata
+ntdsutil
+metadata cleanup
+connections
+connect to server DC01
+quit
+select operation target
+list domains
+select domain 0
+list sites
+select site 0
+list servers in site
+select server 1 (old/failed DC)
+quit
+remove selected server
+quit
+quit
+
+# Force replication
+repadmin /syncall /AeD
+```
+
+### Error 8614: "The directory service cannot replicate with this server"
+
+**Cause:** Incompatible functional levels or schema versions
+
+**Fix:**
+```powershell
+# Check functional levels
+Get-ADForest | Select ForestMode
+Get-ADDomain | Select DomainMode
+
+# Check schema version
+Get-ADObject (Get-ADRootDSE).schemaNamingContext -Property objectVersion
+
+# Upgrade functional level if needed
+Set-ADDomainMode -Identity contoso.local -DomainMode Windows2016Domain
+Set-ADForestMode -Identity contoso.local -ForestMode Windows2016Forest
+```
+
+---
+
+## SYSVOL Replication Issues
+
+### Check SYSVOL State
+
+```cmd
+# Verify SYSVOL shared
+net share
+
+# Check FRS replication (older)
+ntfrsutl ds
+
+# Check DFSR replication (newer)
+dfsrdiag replicationstate
+
+# Get DFSR health report
+dfsrdiag /testdfsrhealth /member:DC01 /rgname:"Domain System Volume"
+```
+
+### DFSR Not Replicating
+
+**Check DFSR service:**
+```cmd
+# Verify DFSR service running
+sc query DFSR
+
+# Start if stopped
+net start DFSR
+
+# Check DFSR backlog
+dfsrdiag backlog /rgname:"Domain System Volume" /rfname:"SYSVOL Share" /sendingmember:DC01 /receivingmember:DC02
+```
+
+### Authoritative SYSVOL Restore
+
+```cmd
+# On authoritative DC
+net stop dfsr
+net start dfsr
+
+# Set authoritative flag
+repadmin /syncall DC01 /d /e /P
+
+# On non-authoritative DCs
+net stop dfsr
+# Delete SYSVOL contents (backup first!)
+# Start DFSR
+net start dfsr
+```
+
+---
+
+## Force Replication
+
+### Force All Partitions
+
+```cmd
+# Force inbound replication from all partners
+repadmin /syncall DC01 /AeD
+
+# Flags explained:
+# /A = All partitions
+# /e = Enterprise (all DCs in forest)
+# /D = Identify servers by DN (not GUID)
+```
+
+### Force Specific Partition
+
+```cmd
+# Force replication of domain partition
+repadmin /replicate DC02 DC01 "DC=contoso,DC=local"
+
+# Force configuration partition
+repadmin /replicate DC02 DC01 "CN=Configuration,DC=contoso,DC=local"
+
+# Force schema partition
+repadmin /replicate DC02 DC01 "CN=Schema,CN=Configuration,DC=contoso,DC=local"
+```
+
+---
+
+## Replication Topology Issues
+
+### View Replication Topology
+
+```cmd
+# Show connection objects
+repadmin /showconn DC01
+
+# Show bridgehead servers
+repadmin /bridgeheads
+
+# Show sites and site links
+repadmin /siteoptions
+```
+
+### Rebuild Replication Topology
+
+```cmd
+# Force KCC to recalculate topology
+repadmin /kcc DC01
+
+# Rebuild entire topology
+repadmin /kcc * /async
+```
+
+### Check for Lingering Objects
+
+```cmd
+# Scan for lingering objects
+repadmin /removelingeringobjects DC01 12345678-1234-1234-1234-123456789012 "DC=contoso,DC=local" /advisory_mode
+
+# Remove lingering objects
+repadmin /removelingeringobjects DC01 12345678-1234-1234-1234-123456789012 "DC=contoso,DC=local"
+```
+
+---
+
+## Performance Optimization
+
+### Check Replication Performance
+
+```cmd
+# Show replication latency
+repadmin /showrepl /csv > replication-status.csv
+
+# Analyze in PowerShell
+Import-Csv replication-status.csv |
+    Where-Object {$_."Last Success" -lt (Get-Date).AddHours(-24)} |
+    Select-Object "Source DSA", "Naming Context", "Last Success"
+```
+
+### Optimize Site Links
+
+```powershell
+# Reduce replication interval (default: 180 minutes)
+Get-ADReplicationSiteLink -Filter * |
+    Set-ADReplicationSiteLink -ReplicationFrequencyInMinutes 60
+
+# Enable change notification for intersite replication
+Get-ADReplicationSiteLink -Filter * |
+    Set-ADReplicationSiteLink -Options "USE_NOTIFY"
+```
+
+---
+
+## Event Log Analysis
+
+### Key Event IDs
+
+**Success:**
+- **1126**: NTFRS successfully joined the replica set
+- **13516**: DFSR successfully established connection
+
+**Errors:**
+- **13508**: DFSR couldn't communicate with partner
+- **5805**: Session setup failed (authentication)
+- **1864**: Replication link failed
+- **2042**: Too much time since last replication
+
+### View Replication Events
+
+```powershell
+# Get recent replication errors (last 24 hours)
+Get-EventLog -LogName "Directory Service" -After (Get-Date).AddDays(-1) |
+    Where-Object {$_.EventID -in @(1864,2042,5805)} |
+    Select-Object TimeGenerated, EntryType, Message |
+    Format-List
+
+# Get DFSR replication events
+Get-EventLog -LogName "DFS Replication" -After (Get-Date).AddDays(-1) |
+    Where-Object {$_.EventID -in @(13508,13516)} |
+    Format-List
+```
+
+---
+
+## Disaster Recovery Scenarios
+
+### Scenario 1: New DC Not Replicating
+
+**Steps:**
+1. Verify DNS resolution
+2. Check network connectivity
+3. Verify firewall ports
+4. Force replication
+5. Check event logs
+
+```cmd
+# Test DNS
+nslookup DC02.contoso.local
+
+# Test connectivity
+ping DC02
+Test-NetConnection DC02 -Port 389
+
+# Force replication
+repadmin /replicate DC01 DC02 "DC=contoso,DC=local"
+
+# Check status
+repadmin /showrepl DC02
+```
+
+### Scenario 2: Replication Stopped Hours Ago
+
+**Steps:**
+1. Check network
+2. Verify services running
+3. Check event logs
+4. Force replication
+5. Monitor
+
+```cmd
+# Check AD services
+sc query NTDS
+sc query DFSR
+sc query DNS
+
+# Restart services if needed
+net stop NTDS && net start NTDS
+
+# Force full sync
+repadmin /syncall /AeD
+```
+
+### Scenario 3: SYSVOL Not Replicating
+
+**Steps:**
+1. Check DFSR/FRS service
+2. Verify SYSVOL share
+3. Check backlog
+4. Force SYSVOL sync
+
+```cmd
+# Check SYSVOL
+net share
+
+# Check DFSR
+sc query DFSR
+
+# Check backlog
+dfsrdiag backlog /rgname:"Domain System Volume" /rfname:"SYSVOL Share" /sendingmember:DC01 /receivingmember:DC02
+
+# Force sync
+dfsrdiag syncnow /partner:DC01 /rgname:"Domain System Volume" /time:1
+```
+
+---
+
+## Monitoring & Reporting
+
+### Daily Health Check Script
+
+```powershell
+# Check replication health across all DCs
+$DCs = Get-ADDomainController -Filter *
+
+foreach ($DC in $DCs) {
+    Write-Host "Checking $($DC.Name)..." -ForegroundColor Yellow
+
+    # Run replication test
+    $Result = dcdiag /test:replications /s:$DC.Name
+
+    if ($Result -match "failed") {
+        Write-Host "FAILED on $($DC.Name)" -ForegroundColor Red
+        Send-MailMessage -To "admin@contoso.com" `
+            -From "monitoring@contoso.com" `
+            -Subject "AD Replication Failure" `
+            -Body "Replication failed on $($DC.Name)" `
+            -SmtpServer "smtp.contoso.com"
+    } else {
+        Write-Host "OK on $($DC.Name)" -ForegroundColor Green
+    }
+}
+```
+
+### Generate Replication Report
+
+```powershell
+# Comprehensive replication report
+$Report = @()
+
+Get-ADReplicationPartnerMetadata -Target * -Scope Server | ForEach-Object {
+    $Report += [PSCustomObject]@{
+        Server = $_.Server
+        Partner = $_.Partner
+        LastSuccess = $_.LastReplicationSuccess
+        LastAttempt = $_.LastReplicationAttempt
+        Consecutive Failures = $_.ConsecutiveReplicationFailures
+        LastResult = $_.LastReplicationResult
+    }
+}
+
+$Report | Export-Csv "C:\Reports\AD-Replication-$(Get-Date -Format 'yyyy-MM-dd').csv" -NoTypeInformation
+```
+
+---
+
+## Best Practices
+
+### Do:
+- ✅ **Monitor replication daily** (automated health checks)
+- ✅ **Multiple DCs per site** (minimum 2)
+- ✅ **Document topology** (site links, costs)
+- ✅ **Regular dcdiag tests** (weekly minimum)
+- ✅ **Maintain time sync** (critical for Kerberos/replication)
+- ✅ **Firewall exceptions** for all required ports
+- ✅ **Fast network links** between sites (>512 Kbps)
+
+### Don't:
+- ❌ **Don't ignore replication errors** (investigate immediately)
+- ❌ **Don't force seize FSMO** unless absolutely necessary
+- ❌ **Don't manually edit replication topology** (let KCC manage)
+- ❌ **Don't have only one DC** (single point of failure)
+- ❌ **Don't disable replication compression** (wastes bandwidth)
+
+---
+
+## Quick Reference
+
+```cmd
+# Check replication status
+repadmin /replsummary
+repadmin /showrepl
+
+# Run diagnostics
+dcdiag /test:replications
+
+# Force replication
+repadmin /syncall /AeD
+
+# Check replication queue
+repadmin /queue
+
+# View partners
+repadmin /showconn
+
+# Check SYSVOL
+net share
+dfsrdiag replicationstate
+
+# Remove lingering objects
+repadmin /removelingeringobjects DC01 <GUID> "DC=contoso,DC=local" /advisory_mode
+
+# View events
+Get-EventLog -LogName "Directory Service" -Newest 50
+```
+
+---
+
+## Required Firewall Ports
+
+| Protocol | Port | Service |
+|----------|------|---------|
+| TCP/UDP | 53 | DNS |
+| TCP | 88 | Kerberos |
+| TCP/UDP | 389 | LDAP |
+| TCP | 636 | LDAPS |
+| TCP/UDP | 445 | SMB |
+| TCP | 135 | RPC Endpoint Mapper |
+| TCP | 49152-65535 | RPC Dynamic Ports |
+| TCP/UDP | 464 | Kerberos Password |
+| TCP | 3268 | Global Catalog |
+| TCP | 3269 | Global Catalog SSL |
+'''
+        })
+
+        articles.append({
+            'category': 'Active Directory',
+            'title': 'Active Directory Password Policies and Fine-Grained Password Policies',
+            'body': r'''# Active Directory Password Policies and Fine-Grained Password Policies
+
+## Overview
+Complete guide to managing password policies in Active Directory including domain-wide policies and Fine-Grained Password Policies (FGPP) for specific users/groups.
+
+## Domain Password Policy (Default)
+
+### View Current Policy
+
+```powershell
+# View default domain policy
+Get-ADDefaultDomainPasswordPolicy
+
+# Output shows:
+# ComplexityEnabled: True
+# LockoutDuration: 00:30:00
+# LockoutObservationWindow: 00:30:00
+# LockoutThreshold: 5
+# MaxPasswordAge: 42.00:00:00 (42 days)
+# MinPasswordAge: 1.00:00:00 (1 day)
+# MinPasswordLength: 7
+# PasswordHistoryCount: 24
+# ReversibleEncryptionEnabled: False
+```
+
+### Modify Default Policy
+
+```powershell
+# Set password requirements
+Set-ADDefaultDomainPasswordPolicy -Identity contoso.local `
+    -MinPasswordLength 12 `
+    -ComplexityEnabled $true `
+    -MaxPasswordAge "90.00:00:00" `
+    -MinPasswordAge "1.00:00:00" `
+    -PasswordHistoryCount 24
+
+# Set account lockout
+Set-ADDefaultDomainPasswordPolicy -Identity contoso.local `
+    -LockoutThreshold 5 `
+    -LockoutDuration "00:30:00" `
+    -LockoutObservationWindow "00:30:00"
+```
+
+### Password Policy Settings Explained
+
+**MinPasswordLength:**
+- Minimum characters required
+- Recommended: 12-14 characters
+- Industry standard: 14+
+
+**ComplexityEnabled:**
+- Requires 3 of 4: uppercase, lowercase, numbers, special characters
+- Cannot contain username
+- Recommended: $true
+
+**MaxPasswordAge:**
+- How long until password must be changed
+- Recommended: 90-180 days (or never with MFA)
+- NIST recommends: No expiration if using long passphrases + MFA
+
+**MinPasswordAge:**
+- Prevents immediate password changes
+- Prevents bypassing password history
+- Recommended: 1 day
+
+**PasswordHistoryCount:**
+- Number of old passwords remembered
+- Cannot reuse passwords in history
+- Recommended: 24
+
+**LockoutThreshold:**
+- Failed login attempts before lockout
+- 0 = never lock (not recommended)
+- Recommended: 5-10
+
+**LockoutDuration:**
+- How long account stays locked
+- 0 = administrator must unlock
+- Recommended: 30 minutes
+
+**Lockout ObservationWindow:**
+- Time window for failed attempts counter
+- Resets after this time
+- Recommended: 30 minutes
+
+---
+
+## Fine-Grained Password Policies (FGPP)
+
+**Requirements:**
+- Domain functional level: Windows Server 2008 or higher
+- Applied to users or global security groups
+- Can have multiple policies with different precedence
+
+### Create FGPP
+
+```powershell
+# Create policy for executives (stricter)
+New-ADFineGrainedPasswordPolicy `
+    -Name "Executive-Policy" `
+    -Precedence 10 `
+    -ComplexityEnabled $true `
+    -Description "Password policy for executives" `
+    -DisplayName "Executive Password Policy" `
+    -LockoutDuration "01:00:00" `
+    -LockoutObservationWindow "01:00:00" `
+    -LockoutThreshold 3 `
+    -MaxPasswordAge "60.00:00:00" `
+    -MinPasswordAge "1.00:00:00" `
+    -MinPasswordLength 16 `
+    -PasswordHistoryCount 24 `
+    -ReversibleEncryptionEnabled $false
+```
+
+### Apply FGPP to Group
+
+```powershell
+# Apply to security group
+Add-ADFineGrainedPasswordPolicySubject `
+    -Identity "Executive-Policy" `
+    -Subjects "CN=Executives,OU=Groups,DC=contoso,DC=local"
+```
+
+### Apply FGPP to Individual User
+
+```powershell
+# Apply to specific user
+Add-ADFineGrainedPasswordPolicySubject `
+    -Identity "Executive-Policy" `
+    -Subjects "CN=John CEO,OU=Users,DC=contoso,DC=local"
+```
+
+---
+
+## Common FGPP Scenarios
+
+### Policy for Service Accounts
+
+```powershell
+# Create lenient policy for service accounts
+New-ADFineGrainedPasswordPolicy `
+    -Name "Service-Accounts-Policy" `
+    -Precedence 100 `
+    -ComplexityEnabled $true `
+    -MinPasswordLength 32 `
+    -MaxPasswordAge "0" `
+    -MinPasswordAge "0" `
+    -PasswordHistoryCount 5 `
+    -LockoutThreshold 0 `
+    -ReversibleEncryptionEnabled $false
+
+# Apply to service accounts group
+Add-ADFineGrainedPasswordPolicySubject `
+    -Identity "Service-Accounts-Policy" `
+    -Subjects "CN=Service Accounts,OU=Groups,DC=contoso,DC=local"
+```
+
+### Policy for Privileged Users (IT Admins)
+
+```powershell
+# Strict policy for IT administrators
+New-ADFineGrainedPasswordPolicy `
+    -Name "IT-Admin-Policy" `
+    -Precedence 1 `
+    -ComplexityEnabled $true `
+    -MinPasswordLength 20 `
+    -MaxPasswordAge "30.00:00:00" `
+    -MinPasswordAge "1.00:00:00" `
+    -PasswordHistoryCount 50 `
+    -LockoutThreshold 3 `
+    -LockoutDuration "02:00:00" `
+    -LockoutObservationWindow "02:00:00"
+
+# Apply to Domain Admins
+Add-ADFineGrainedPasswordPolicySubject `
+    -Identity "IT-Admin-Policy" `
+    -Subjects "CN=Domain Admins,CN=Users,DC=contoso,DC=local"
+```
+
+### Policy for Standard Users
+
+```powershell
+# Balanced policy for regular employees
+New-ADFineGrainedPasswordPolicy `
+    -Name "Standard-User-Policy" `
+    -Precedence 50 `
+    -ComplexityEnabled $true `
+    -MinPasswordLength 14 `
+    -MaxPasswordAge "90.00:00:00" `
+    -MinPasswordAge "1.00:00:00" `
+    -PasswordHistoryCount 24 `
+    -LockoutThreshold 5 `
+    -LockoutDuration "00:30:00" `
+    -LockoutObservationWindow "00:30:00"
+
+# Apply to all users group
+Add-ADFineGrainedPasswordPolicySubject `
+    -Identity "Standard-User-Policy" `
+    -Subjects "CN=Domain Users,CN=Users,DC=contoso,DC=local"
+```
+
+---
+
+## Managing FGPPs
+
+### View All FGPPs
+
+```powershell
+# List all fine-grained policies
+Get-ADFineGrainedPasswordPolicy -Filter *
+
+# View specific policy details
+Get-ADFineGrainedPasswordPolicy -Identity "Executive-Policy" |
+    Format-List
+```
+
+### Check Which Policy Applies to User
+
+```powershell
+# See resultant policy for user
+Get-ADUserResultantPasswordPolicy -Identity john.doe
+
+# Output shows which policy applies (if any)
+# If null, default domain policy applies
+```
+
+### View Users Affected by Policy
+
+```powershell
+# Get subjects (users/groups) for policy
+Get-ADFineGrainedPasswordPolicySubject -Identity "Executive-Policy"
+
+# Get all users who inherit policy
+$Policy = Get-ADFineGrainedPasswordPolicy -Identity "Executive-Policy"
+$Policy | Get-ADFineGrainedPasswordPolicySubject |
+    ForEach-Object {
+        if ($_.ObjectClass -eq "group") {
+            Get-ADGroupMember $_.Name -Recursive
+        } else {
+            $_
+        }
+    } | Select-Object Name, SamAccountName
+```
+
+### Modify Existing FGPP
+
+```powershell
+# Update policy settings
+Set-ADFineGrainedPasswordPolicy -Identity "Executive-Policy" `
+    -MinPasswordLength 18 `
+    -MaxPasswordAge "45.00:00:00"
+
+# Change precedence
+Set-ADFineGrainedPasswordPolicy -Identity "Executive-Policy" `
+    -Precedence 5
+```
+
+### Remove FGPP
+
+```powershell
+# Remove subject from policy
+Remove-ADFineGrainedPasswordPolicySubject `
+    -Identity "Executive-Policy" `
+    -Subjects "CN=John CEO,OU=Users,DC=contoso,DC=local"
+
+# Delete policy entirely
+Remove-ADFineGrainedPasswordPolicy -Identity "Executive-Policy" -Confirm:$false
+```
+
+---
+
+## Precedence and Conflicts
+
+### How Precedence Works:
+1. **Lower number = higher priority** (Precedence 1 > Precedence 100)
+2. User directly assigned FGPP always wins over group-inherited
+3. If user in multiple groups with FGPPs, lowest precedence wins
+4. If no FGPP applies, default domain policy applies
+
+### Example Scenario:
+```
+User: John Doe
+Groups: Domain Users, Executives, IT Admins
+
+Policies Applied:
+- IT-Admin-Policy (Precedence 1) → via IT Admins group
+- Executive-Policy (Precedence 10) → via Executives group
+- Standard-User-Policy (Precedence 50) → via Domain Users group
+
+Resultant Policy: IT-Admin-Policy (lowest precedence number)
+```
+
+### Check Effective Policy
+
+```powershell
+# Determine which policy applies
+Get-ADUserResultantPasswordPolicy -Identity john.doe
+
+# If output shows "IT-Admin-Policy", that's the effective policy
+```
+
+---
+
+## Password Policy Best Practices
+
+### Modern Recommendations (NIST 800-63B):
+
+**Do:**
+- ✅ **Minimum 12-14 characters** (longer is better)
+- ✅ **No forced expiration** (if using MFA + long passphrases)
+- ✅ **Check against breach databases** (HaveIBeenPwned)
+- ✅ **Allow all special characters** (including spaces)
+- ✅ **Enable MFA** for all accounts
+- ✅ **Use passphrases** instead of complex passwords
+
+**Don't:**
+- ❌ **Don't require frequent changes** (leads to weak passwords)
+- ❌ **Don't ban common patterns** that reduce usability
+- ❌ **Don't require complex rules** (P@ssw0rd! is still weak)
+- ❌ **Don't limit password length** (allow 64+ characters)
+
+### Recommended Policy Templates
+
+**Standard Enterprise:**
+```
+Minimum Length: 14 characters
+Complexity: Enabled
+Max Age: 180 days (or never with MFA)
+Min Age: 1 day
+History: 24 passwords
+Lockout: 5 attempts, 30 minute duration
+```
+
+**High Security (Admins):**
+```
+Minimum Length: 20 characters
+Complexity: Enabled
+Max Age: 30 days
+Min Age: 1 day
+History: 50 passwords
+Lockout: 3 attempts, 2 hour duration
+```
+
+**Service Accounts:**
+```
+Minimum Length: 32 characters (generated)
+Complexity: Enabled
+Max Age: Never (0)
+Min Age: 0
+History: 5 passwords
+Lockout: Disabled (0)
+```
+
+---
+
+## Reporting & Auditing
+
+### Users with Expiring Passwords
+
+```powershell
+# Find users with passwords expiring in next 7 days
+Search-ADAccount -UsersOnly -PasswordExpiring -TimeSpan "7.00:00:00" |
+    Select-Object Name, SamAccountName, PasswordExpired, PasswordLastSet |
+    Export-Csv "C:\Reports\Expiring-Passwords.csv" -NoTypeInformation
+```
+
+### Users with Passwords That Never Expire
+
+```powershell
+# Find users with non-expiring passwords
+Get-ADUser -Filter {PasswordNeverExpires -eq $true -and Enabled -eq $true} |
+    Select-Object Name, SamAccountName, PasswordLastSet, PasswordNeverExpires |
+    Export-Csv "C:\Reports\Never-Expire-Passwords.csv" -NoTypeInformation
+```
+
+### Users with Expired Passwords
+
+```powershell
+# Find users with expired passwords
+Search-ADAccount -UsersOnly -PasswordExpired |
+    Select-Object Name, SamAccountName, PasswordExpired, PasswordLastSet |
+    Export-Csv "C:\Reports\Expired-Passwords.csv" -NoTypeInformation
+```
+
+### Locked Out Users
+
+```powershell
+# Find currently locked out users
+Search-ADAccount -LockedOut |
+    Select-Object Name, SamAccountName, LockedOut, LastBadPasswordAttempt |
+    Export-Csv "C:\Reports\Locked-Out-Users.csv" -NoTypeInformation
+```
+
+---
+
+## Troubleshooting
+
+### Problem: FGPP not applying to user
+
+**Check:**
+```powershell
+# Verify policy exists
+Get-ADFineGrainedPasswordPolicy -Identity "Policy-Name"
+
+# Check if user/group is in policy
+Get-ADFineGrainedPasswordPolicySubject -Identity "Policy-Name"
+
+# Check user's resultant policy
+Get-ADUserResultantPasswordPolicy -Identity john.doe
+
+# Verify domain functional level
+Get-ADDomain | Select DomainMode
+# Must be Windows2008Domain or higher
+```
+
+### Problem: User passwords expiring too quickly
+
+**Check:**
+```powershell
+# Check user's password policy
+$User = Get-ADUser john.doe -Properties msDS-ResultantPSO
+if ($User.'msDS-ResultantPSO') {
+    Get-ADFineGrainedPasswordPolicy -Identity $User.'msDS-ResultantPSO'
+} else {
+    Get-ADDefaultDomainPasswordPolicy
+}
+
+# Check password last set date
+Get-ADUser john.doe -Properties PasswordLastSet |
+    Select Name, PasswordLastSet
+```
+
+### Problem: Cannot create FGPP
+
+**Check domain functional level:**
+```powershell
+Get-ADDomain | Select DomainMode
+
+# Raise if needed (irreversible!)
+Set-ADDomainMode -Identity contoso.local -DomainMode Windows2016Domain
+```
+
+---
+
+## Quick Reference
+
+```powershell
+# View default domain policy
+Get-ADDefaultDomainPasswordPolicy
+
+# Create FGPP
+New-ADFineGrainedPasswordPolicy -Name "Policy-Name" -Precedence 10 -MinPasswordLength 14
+
+# Apply to group
+Add-ADFineGrainedPasswordPolicySubject -Identity "Policy-Name" -Subjects "GroupName"
+
+# Check user's effective policy
+Get-ADUserResultantPasswordPolicy -Identity username
+
+# List all FGPPs
+Get-ADFineGrainedPasswordPolicy -Filter *
+
+# Find expiring passwords
+Search-ADAccount -PasswordExpiring -TimeSpan "7.00:00:00"
+
+# Find locked accounts
+Search-ADAccount -LockedOut
+
+# Unlock user
+Unlock-ADAccount -Identity john.doe
+```
+'''
+        })
+
+        # Article 27: SharePoint Online Site Management
+        articles.append({
+            'category': 'Microsoft 365',
+            'title': 'SharePoint Online Site Management',
+            'body': r'''# SharePoint Online Site Management
+
+## Overview
+Comprehensive guide to creating and managing SharePoint Online sites, including site collections, permissions, and content management.
+
+## Prerequisites
+```powershell
+# Install SharePoint Online Management Shell
+Install-Module -Name Microsoft.Online.SharePoint.PowerShell -Force
+
+# Connect to SharePoint Online
+$adminUrl = "https://contoso-admin.sharepoint.com"
+Connect-SPOSite -Url $adminUrl
+```
+
+## Creating Sites
+
+### Create Communication Site
+```powershell
+# Modern communication site
+New-SPOSite -Url "https://contoso.sharepoint.com/sites/CompanyNews" `
+    -Owner admin@contoso.com `
+    -StorageQuota 1024 `
+    -Title "Company News" `
+    -Template SITEPAGEPUBLISHING#0
+
+# Communication site with design
+New-SPOSite -Url "https://contoso.sharepoint.com/sites/IT" `
+    -Owner admin@contoso.com `
+    -StorageQuota 2048 `
+    -Title "IT Department" `
+    -Template SITEPAGEPUBLISHING#0 `
+    -WebTemplate SITEPAGEPUBLISHING
+```
+
+### Create Team Site
+```powershell
+# Modern team site (connected to Microsoft 365 Group)
+New-SPOSite -Url "https://contoso.sharepoint.com/sites/ProjectAlpha" `
+    -Owner admin@contoso.com `
+    -StorageQuota 5120 `
+    -Title "Project Alpha" `
+    -Template STS#3
+
+# Classic team site
+New-SPOSite -Url "https://contoso.sharepoint.com/sites/Archive" `
+    -Owner admin@contoso.com `
+    -StorageQuota 10240 `
+    -Title "Archive Site" `
+    -Template STS#0 `
+    -LocaleId 1033
+```
+
+## Site Collection Management
+
+### List All Sites
+```powershell
+# Get all site collections
+Get-SPOSite -Limit All
+
+# Filter by template
+Get-SPOSite -Limit All -Template "STS#3"
+
+# Get sites with specific criteria
+Get-SPOSite -Limit All -Filter {Url -like "*project*"}
+
+# Get detailed site information
+Get-SPOSite -Identity "https://contoso.sharepoint.com/sites/IT" -Detailed
+```
+
+### Modify Site Properties
+```powershell
+# Change site title and storage
+Set-SPOSite -Identity "https://contoso.sharepoint.com/sites/IT" `
+    -Title "IT Services" `
+    -StorageQuota 5120
+
+# Change site owner
+Set-SPOSite -Identity "https://contoso.sharepoint.com/sites/IT" `
+    -Owner newowner@contoso.com
+
+# Enable/disable sharing
+Set-SPOSite -Identity "https://contoso.sharepoint.com/sites/IT" `
+    -SharingCapability ExternalUserAndGuestSharing
+
+# Disable external sharing
+Set-SPOSite -Identity "https://contoso.sharepoint.com/sites/Confidential" `
+    -SharingCapability Disabled
+```
+
+### Delete Sites
+```powershell
+# Move to recycle bin
+Remove-SPOSite -Identity "https://contoso.sharepoint.com/sites/OldProject"
+
+# Permanently delete from recycle bin
+Remove-SPODeletedSite -Identity "https://contoso.sharepoint.com/sites/OldProject"
+
+# Restore from recycle bin
+Restore-SPODeletedSite -Identity "https://contoso.sharepoint.com/sites/OldProject"
+```
+
+## Permission Management
+
+### Site Collection Administrators
+```powershell
+# Add site collection admin
+Set-SPOUser -Site "https://contoso.sharepoint.com/sites/IT" `
+    -LoginName john@contoso.com `
+    -IsSiteCollectionAdmin $true
+
+# Remove site collection admin
+Set-SPOUser -Site "https://contoso.sharepoint.com/sites/IT" `
+    -LoginName john@contoso.com `
+    -IsSiteCollectionAdmin $false
+
+# List all site collection admins
+Get-SPOUser -Site "https://contoso.sharepoint.com/sites/IT" `
+    -Limit All | Where-Object {$_.IsSiteAdmin -eq $true}
+```
+
+### External Sharing
+```powershell
+# Allow external sharing for specific site
+Set-SPOSite -Identity "https://contoso.sharepoint.com/sites/Partners" `
+    -SharingCapability ExternalUserAndGuestSharing `
+    -DefaultSharingLinkType AnonymousAccess
+
+# Block external sharing
+Set-SPOSite -Identity "https://contoso.sharepoint.com/sites/HR" `
+    -SharingCapability Disabled
+
+# Get external users
+Get-SPOExternalUser -SiteUrl "https://contoso.sharepoint.com/sites/Partners"
+
+# Remove external user
+Remove-SPOExternalUser -UniqueIds @("user1@external.com", "user2@external.com")
+```
+
+## Storage Management
+
+### Check Storage Usage
+```powershell
+# Get storage usage for all sites
+Get-SPOSite -Limit All | Select-Object Url, StorageUsageCurrent, StorageQuota | `
+    Sort-Object -Property StorageUsageCurrent -Descending
+
+# Sites exceeding 80% storage
+Get-SPOSite -Limit All | Where-Object {
+    ($_.StorageUsageCurrent / $_.StorageQuota) -gt 0.8
+} | Select-Object Url, StorageUsageCurrent, StorageQuota
+```
+
+### Modify Storage Quotas
+```powershell
+# Increase storage quota
+Set-SPOSite -Identity "https://contoso.sharepoint.com/sites/IT" `
+    -StorageQuota 10240
+
+# Set warning level
+Set-SPOSite -Identity "https://contoso.sharepoint.com/sites/IT" `
+    -StorageQuota 10240 `
+    -StorageQuotaWarningLevel 8192
+
+# Bulk update storage for multiple sites
+Get-SPOSite -Limit All -Filter {Template -eq "STS#3"} | ForEach-Object {
+    Set-SPOSite -Identity $_.Url -StorageQuota 5120
+}
+```
+
+## Hub Sites
+
+### Create Hub Site
+```powershell
+# Register site as hub
+Register-SPOHubSite -Site "https://contoso.sharepoint.com/sites/IntranetHub" `
+    -DisplayName "Corporate Intranet"
+
+# Get hub site info
+Get-SPOHubSite -Identity "https://contoso.sharepoint.com/sites/IntranetHub"
+
+# Associate site with hub
+Add-SPOHubSiteAssociation -Site "https://contoso.sharepoint.com/sites/IT" `
+    -HubSite "https://contoso.sharepoint.com/sites/IntranetHub"
+
+# Remove hub site association
+Remove-SPOHubSiteAssociation -Site "https://contoso.sharepoint.com/sites/IT"
+```
+
+### Hub Site Permissions
+```powershell
+# Grant hub site join permissions to group
+Grant-SPOHubSiteRights -Identity "https://contoso.sharepoint.com/sites/IntranetHub" `
+    -Principals "IT-Admins@contoso.com" `
+    -Rights Join
+
+# Revoke hub site permissions
+Revoke-SPOHubSiteRights -Identity "https://contoso.sharepoint.com/sites/IntranetHub" `
+    -Principals "IT-Admins@contoso.com"
+```
+
+## Content Management
+
+### Document Library Management
+```powershell
+# Using PnP PowerShell (more features)
+Install-Module PnP.PowerShell -Force
+
+# Connect to site
+Connect-PnPOnline -Url "https://contoso.sharepoint.com/sites/IT" -Interactive
+
+# Create document library
+New-PnPList -Title "Project Documents" -Template DocumentLibrary
+
+# Upload file
+Add-PnPFile -Path "C:\Docs\Policy.pdf" -Folder "Shared Documents"
+
+# Download file
+Get-PnPFile -Url "/sites/IT/Shared Documents/Policy.pdf" `
+    -Path "C:\Downloads\Policy.pdf" -AsFile
+
+# Set file properties
+Set-PnPListItem -List "Documents" -Identity 1 -Values @{
+    "Title" = "IT Policy Document"
+    "Department" = "IT"
+}
+```
+
+### Version Control
+```powershell
+# Enable versioning
+Set-PnPList -Identity "Documents" -EnableVersioning $true `
+    -MajorVersions 50 -MinorVersions 10
+
+# Get file versions
+Get-PnPFileVersion -Url "/sites/IT/Shared Documents/Policy.pdf"
+
+# Restore file version
+Restore-PnPFileVersion -Url "/sites/IT/Shared Documents/Policy.pdf" `
+    -Identity 3
+```
+
+## Site Templates
+
+### Save Site as Template
+```powershell
+# Using PnP PowerShell
+Connect-PnPOnline -Url "https://contoso.sharepoint.com/sites/Template" -Interactive
+
+# Extract template
+Get-PnPSiteTemplate -Out "C:\Templates\ITTemplate.pnp" `
+    -Handlers Lists, Fields, ContentTypes, Files
+
+# Apply template to new site
+Connect-PnPOnline -Url "https://contoso.sharepoint.com/sites/NewSite" -Interactive
+Invoke-PnPSiteTemplate -Path "C:\Templates\ITTemplate.pnp"
+```
+
+## Search Configuration
+
+### Configure Search
+```powershell
+# Get search configuration
+$searchConfig = Get-SPOSite -Identity "https://contoso.sharepoint.com/sites/IT" | `
+    Select-Object -ExpandProperty SearchBoxInNavBar
+
+# Enable/disable search
+Set-SPOSite -Identity "https://contoso.sharepoint.com/sites/IT" `
+    -SearchBoxInNavBar $true
+```
+
+## Compliance and Retention
+
+### Apply Retention Label
+```powershell
+# Using Security & Compliance PowerShell
+Connect-IPPSSession
+
+# Create retention label
+New-ComplianceTag -Name "Financial-7Years" `
+    -RetentionAction Keep `
+    -RetentionDuration 2555 `
+    -Comment "Financial records retention"
+
+# Publish retention label
+New-RetentionCompliancePolicy -Name "FinancialPolicy" `
+    -SharePointLocation "https://contoso.sharepoint.com/sites/Finance"
+```
+
+## Troubleshooting
+
+### Site Access Issues
+```powershell
+# Check if site exists
+Get-SPOSite -Identity "https://contoso.sharepoint.com/sites/IT" -ErrorAction SilentlyContinue
+
+# Check user permissions
+Get-SPOUser -Site "https://contoso.sharepoint.com/sites/IT" `
+    -LoginName john@contoso.com
+
+# Check site lock state
+Get-SPOSite -Identity "https://contoso.sharepoint.com/sites/IT" | Select-Object LockState
+
+# Unlock site
+Set-SPOSite -Identity "https://contoso.sharepoint.com/sites/IT" -LockState Unlock
+```
+
+### Storage Issues
+```powershell
+# Find large files
+Connect-PnPOnline -Url "https://contoso.sharepoint.com/sites/IT" -Interactive
+
+Get-PnPFolder -Url "/sites/IT/Shared Documents" -Recursive | ForEach-Object {
+    Get-PnPFolderItem -FolderSiteRelativeUrl $_.ServerRelativeUrl -ItemType File
+} | Where-Object {$_.Length -gt 100MB} | Sort-Object -Property Length -Descending
+```
+
+### Sync Issues
+```powershell
+# Check if sync is blocked
+Get-SPOTenantSyncClientRestriction
+
+# Enable sync for specific domain
+Set-SPOTenantSyncClientRestriction -Enable -DomainGuids "12345678-1234-1234-1234-123456789012"
+```
+
+## Best Practices
+
+1. **Site Structure:**
+   - Use hub sites for related site collections
+   - Limit site collection depth to 3 levels
+   - Use descriptive URLs (avoid spaces)
+
+2. **Permissions:**
+   - Use Microsoft 365 Groups for team sites
+   - Minimize unique permissions
+   - Regularly audit external sharing
+
+3. **Storage:**
+   - Set appropriate quotas per site purpose
+   - Enable versioning with limits
+   - Use retention policies to manage old content
+
+4. **Governance:**
+   - Document site creation policies
+   - Use site templates for consistency
+   - Implement naming conventions
+
+5. **Performance:**
+   - Avoid large lists (>5000 items without indexing)
+   - Use metadata navigation
+   - Enable content approval for libraries
+
+---
+
+## Quick Reference
+
+```powershell
+# Create site
+New-SPOSite -Url "URL" -Owner "email" -StorageQuota 1024 -Title "Name"
+
+# List all sites
+Get-SPOSite -Limit All
+
+# Modify site
+Set-SPOSite -Identity "URL" -StorageQuota 5120
+
+# Delete site
+Remove-SPOSite -Identity "URL"
+
+# Add site admin
+Set-SPOUser -Site "URL" -LoginName "email" -IsSiteCollectionAdmin $true
+
+# Create hub site
+Register-SPOHubSite -Site "URL"
+
+# Check storage
+Get-SPOSite -Limit All | Select-Object Url, StorageUsageCurrent, StorageQuota
+
+# Connect with PnP
+Connect-PnPOnline -Url "URL" -Interactive
+
+# Upload file
+Add-PnPFile -Path "C:\file.pdf" -Folder "Documents"
+```
+'''
+        })
+
+        # Article 28: Microsoft Teams Administration
+        articles.append({
+            'category': 'Microsoft 365',
+            'title': 'Microsoft Teams Administration',
+            'body': r'''# Microsoft Teams Administration
+
+## Overview
+Comprehensive guide to managing Microsoft Teams, including team creation, policies, channels, and governance.
+
+## Prerequisites
+```powershell
+# Install Microsoft Teams PowerShell module
+Install-Module -Name MicrosoftTeams -Force
+
+# Connect to Microsoft Teams
+Connect-MicrosoftTeams
+```
+
+## Creating and Managing Teams
+
+### Create Team
+```powershell
+# Create team from scratch
+$team = New-Team -DisplayName "IT Department" `
+    -Description "IT team collaboration space" `
+    -Visibility Private `
+    -Owner admin@contoso.com
+
+# Create team from existing Microsoft 365 Group
+New-Team -GroupId "12345678-1234-1234-1234-123456789012"
+
+# Create team with template
+New-Team -DisplayName "Project Alpha" `
+    -Template "com.microsoft.teams.template.ManageAProject" `
+    -Visibility Private
+```
+
+### List Teams
+```powershell
+# Get all teams in organization
+Get-Team
+
+# Get teams for specific user
+Get-Team -User john@contoso.com
+
+# Get team details
+Get-Team -GroupId "12345678-1234-1234-1234-123456789012"
+
+# Get team with members
+$team = Get-Team -DisplayName "IT Department"
+Get-TeamUser -GroupId $team.GroupId
+```
+
+### Modify Team Settings
+```powershell
+# Update team properties
+Set-Team -GroupId "12345678-1234-1234-1234-123456789012" `
+    -DisplayName "IT Services Department" `
+    -Description "Updated description" `
+    -Visibility Public
+
+# Enable/disable features
+Set-Team -GroupId "12345678-1234-1234-1234-123456789012" `
+    -AllowGiphy $true `
+    -GiphyContentRating Moderate `
+    -AllowCustomMemes $true `
+    -AllowUserEditMessages $true `
+    -AllowUserDeleteMessages $false
+
+# Guest settings
+Set-Team -GroupId "12345678-1234-1234-1234-123456789012" `
+    -AllowGuestCreateUpdateChannels $false `
+    -AllowGuestDeleteChannels $false
+```
+
+### Archive and Delete Teams
+```powershell
+# Archive team (read-only)
+Set-TeamArchiveState -GroupId "12345678-1234-1234-1234-123456789012" -Archived $true
+
+# Unarchive team
+Set-TeamArchiveState -GroupId "12345678-1234-1234-1234-123456789012" -Archived $false
+
+# Delete team (soft delete)
+Remove-Team -GroupId "12345678-1234-1234-1234-123456789012"
+```
+
+## Member Management
+
+### Add Members
+```powershell
+# Add member
+Add-TeamUser -GroupId "12345678-1234-1234-1234-123456789012" `
+    -User john@contoso.com `
+    -Role Member
+
+# Add owner
+Add-TeamUser -GroupId "12345678-1234-1234-1234-123456789012" `
+    -User sarah@contoso.com `
+    -Role Owner
+
+# Bulk add members
+$users = @("user1@contoso.com", "user2@contoso.com", "user3@contoso.com")
+foreach ($user in $users) {
+    Add-TeamUser -GroupId "12345678-1234-1234-1234-123456789012" `
+        -User $user -Role Member
+}
+```
+
+### Remove Members
+```powershell
+# Remove user
+Remove-TeamUser -GroupId "12345678-1234-1234-1234-123456789012" `
+    -User john@contoso.com
+
+# List members
+Get-TeamUser -GroupId "12345678-1234-1234-1234-123456789012"
+
+# List owners only
+Get-TeamUser -GroupId "12345678-1234-1234-1234-123456789012" -Role Owner
+```
+
+## Channel Management
+
+### Create Channels
+```powershell
+# Create standard channel
+New-TeamChannel -GroupId "12345678-1234-1234-1234-123456789012" `
+    -DisplayName "Projects" `
+    -Description "Project discussions"
+
+# Create private channel
+New-TeamChannel -GroupId "12345678-1234-1234-1234-123456789012" `
+    -DisplayName "HR Confidential" `
+    -Description "HR discussions" `
+    -MembershipType Private
+
+# Create shared channel (external collaboration)
+New-TeamChannel -GroupId "12345678-1234-1234-1234-123456789012" `
+    -DisplayName "Partner Collaboration" `
+    -Description "Partner discussions" `
+    -MembershipType Shared
+```
+
+### Manage Channels
+```powershell
+# List channels
+Get-TeamChannel -GroupId "12345678-1234-1234-1234-123456789012"
+
+# Update channel
+Set-TeamChannel -GroupId "12345678-1234-1234-1234-123456789012" `
+    -CurrentDisplayName "Projects" `
+    -NewDisplayName "Active Projects"
+
+# Delete channel
+Remove-TeamChannel -GroupId "12345678-1234-1234-1234-123456789012" `
+    -DisplayName "Old Projects"
+```
+
+### Private Channel Membership
+```powershell
+# Add user to private channel
+Add-TeamChannelUser -GroupId "12345678-1234-1234-1234-123456789012" `
+    -DisplayName "HR Confidential" `
+    -User john@contoso.com `
+    -Role Owner
+
+# Remove user from private channel
+Remove-TeamChannelUser -GroupId "12345678-1234-1234-1234-123456789012" `
+    -DisplayName "HR Confidential" `
+    -User john@contoso.com
+
+# List channel members
+Get-TeamChannelUser -GroupId "12345678-1234-1234-1234-123456789012" `
+    -DisplayName "HR Confidential"
+```
+
+## Teams Policies
+
+### Messaging Policies
+```powershell
+# Create messaging policy
+New-CsTeamsMessagingPolicy -Identity "RestrictedMessaging" `
+    -AllowUserEditMessage $false `
+    -AllowUserDeleteMessage $false `
+    -AllowUserChat $true `
+    -AllowRemoveUser $false `
+    -AllowGiphy $false
+
+# Apply policy to user
+Grant-CsTeamsMessagingPolicy -Identity john@contoso.com `
+    -PolicyName "RestrictedMessaging"
+
+# List messaging policies
+Get-CsTeamsMessagingPolicy
+```
+
+### Meeting Policies
+```powershell
+# Create meeting policy
+New-CsTeamsMeetingPolicy -Identity "SecureMeetings" `
+    -AllowAnonymousUsersToStartMeeting $false `
+    -AutoAdmittedUsers "EveryoneInCompany" `
+    -AllowCloudRecording $true `
+    -AllowTranscription $true `
+    -AllowScreenSharing "EntireScreen"
+
+# Apply policy
+Grant-CsTeamsMeetingPolicy -Identity john@contoso.com `
+    -PolicyName "SecureMeetings"
+
+# List meeting policies
+Get-CsTeamsMeetingPolicy
+```
+
+### Calling Policies
+```powershell
+# Create calling policy
+New-CsTeamsCallingPolicy -Identity "InternalOnly" `
+    -AllowPrivateCalling $true `
+    -AllowVoicemail "AlwaysEnabled" `
+    -AllowCallForwardingToUser $true `
+    -AllowCallForwardingToPhone $false
+
+# Apply policy
+Grant-CsTeamsCallingPolicy -Identity john@contoso.com `
+    -PolicyName "InternalOnly"
+```
+
+### App Policies
+```powershell
+# Create app setup policy
+New-CsTeamsAppSetupPolicy -Identity "StandardApps" `
+    -AllowUserPinning $true `
+    -AllowSideLoading $false
+
+# Pin apps for users
+$apps = @("com.microsoft.teamspace.tab.planner", "com.microsoft.teamspace.tab.wiki")
+Set-CsTeamsAppSetupPolicy -Identity "StandardApps" `
+    -PinnedAppBarApps $apps
+
+# Apply policy
+Grant-CsTeamsAppSetupPolicy -Identity john@contoso.com `
+    -PolicyName "StandardApps"
+```
+
+## External Access and Guest Settings
+
+### Configure External Access
+```powershell
+# Allow external domains
+Set-CsExternalAccessPolicy -Identity Global `
+    -EnableFederationAccess $true `
+    -EnablePublicCloudAccess $true
+
+# Allow specific domains
+New-CsAllowedDomain -Identity "partner.com"
+
+# Block specific domains
+New-CsBlockedDomain -Identity "competitor.com"
+
+# List allowed domains
+Get-CsAllowedDomain
+```
+
+### Guest Access Configuration
+```powershell
+# Enable guest access
+Set-CsTeamsClientConfiguration -Identity Global `
+    -AllowGuestUser $true
+
+# Configure guest permissions
+Set-CsTeamsGuestMessagingConfiguration -Identity Global `
+    -AllowUserEditMessage $true `
+    -AllowUserDeleteMessage $false `
+    -AllowUserChat $true `
+    -AllowGiphy $false
+
+# Guest calling settings
+Set-CsTeamsGuestCallingConfiguration -Identity Global `
+    -AllowPrivateCalling $true `
+    -AllowScreenSharing "EntireScreen"
+
+# Guest meeting settings
+Set-CsTeamsGuestMeetingConfiguration -Identity Global `
+    -AllowMeetNow $true `
+    -AllowIPVideo $true
+```
+
+## Compliance and Security
+
+### Data Loss Prevention (DLP)
+```powershell
+# Using Security & Compliance PowerShell
+Connect-IPPSSession
+
+# Create DLP policy for Teams
+New-DlpCompliancePolicy -Name "Teams-SSN-Policy" `
+    -Mode Enable `
+    -TeamsLocation All
+
+# Create DLP rule
+New-DlpComplianceRule -Name "Block-SSN" `
+    -Policy "Teams-SSN-Policy" `
+    -ContentContainsSensitiveInformation @{Name="U.S. Social Security Number"} `
+    -BlockAccess $true
+```
+
+### Retention Policies
+```powershell
+# Create Teams retention policy
+New-RetentionCompliancePolicy -Name "TeamsRetention-7Years" `
+    -TeamsChannelLocation All `
+    -TeamsChatLocation All
+
+# Create retention rule
+New-RetentionComplianceRule -Name "Keep7Years" `
+    -Policy "TeamsRetention-7Years" `
+    -RetentionDuration 2555 `
+    -RetentionComplianceAction Keep
+```
+
+### eDiscovery
+```powershell
+# Create eDiscovery case
+New-ComplianceCase -Name "Investigation-2024" `
+    -Description "Internal investigation"
+
+# Add Teams locations to case hold
+New-CaseHoldPolicy -Name "HoldTeams" `
+    -Case "Investigation-2024" `
+    -TeamsChannelLocation "IT Department" `
+    -TeamsChatLocation "john@contoso.com"
+```
+
+## Reporting and Analytics
+
+### Teams Usage Reports
+```powershell
+# Get team activity report
+Get-TeamUser -GroupId "12345678-1234-1234-1234-123456789012" | Measure-Object
+
+# Check inactive teams (requires Graph API)
+Connect-MgGraph -Scopes "Group.Read.All"
+
+$teams = Get-MgGroup -Filter "resourceProvisioningOptions/Any(x:x eq 'Team')" -All
+foreach ($team in $teams) {
+    $lastActivity = Get-MgReportTeamActivityDetail -Period D30
+    # Process activity data
+}
+```
+
+### User Activity Reports
+```powershell
+# Teams user activity (via Admin Center or Graph API)
+# Example: Get user activity for past 30 days
+$report = Get-MgReportTeamUserActivityUserDetail -Period D30
+$report | Where-Object {$_.LastActivityDate -lt (Get-Date).AddDays(-30)}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Issue: User can't see team**
+```powershell
+# Check team membership
+Get-TeamUser -GroupId "12345678-1234-1234-1234-123456789012" | `
+    Where-Object {$_.User -eq "john@contoso.com"}
+
+# Add user if missing
+Add-TeamUser -GroupId "12345678-1234-1234-1234-123456789012" `
+    -User john@contoso.com -Role Member
+```
+
+**Issue: External access not working**
+```powershell
+# Check external access policy
+Get-CsExternalAccessPolicy
+
+# Check if domain is blocked
+Get-CsBlockedDomain | Where-Object {$_.Domain -eq "partner.com"}
+
+# Check tenant federation configuration
+Get-CsTenantFederationConfiguration
+```
+
+**Issue: Meeting policy not applying**
+```powershell
+# Check user's effective policy
+Get-CsOnlineUser -Identity john@contoso.com | `
+    Select-Object DisplayName, TeamsMeetingPolicy
+
+# Force policy application
+Grant-CsTeamsMeetingPolicy -Identity john@contoso.com `
+    -PolicyName "SecureMeetings"
+```
+
+## Best Practices
+
+1. **Team Structure:**
+   - Use clear naming conventions
+   - Limit teams per user (recommended: <100)
+   - Archive inactive teams after 6 months
+
+2. **Permissions:**
+   - Minimum 2 owners per team
+   - Use private channels for sensitive discussions
+   - Review guest access quarterly
+
+3. **Governance:**
+   - Implement team creation policy
+   - Use expiration policies for project teams
+   - Document team purpose and lifecycle
+
+4. **Performance:**
+   - Limit channels per team (<50)
+   - Use tags instead of @mentions for large teams
+   - Archive old teams instead of deleting
+
+5. **Security:**
+   - Enable MFA for all users
+   - Use conditional access policies
+   - Implement DLP policies
+   - Regular security audits
+
+---
+
+## Quick Reference
+
+```powershell
+# Connect
+Connect-MicrosoftTeams
+
+# Create team
+New-Team -DisplayName "Name" -Visibility Private
+
+# Add member
+Add-TeamUser -GroupId "ID" -User "email" -Role Member
+
+# Create channel
+New-TeamChannel -GroupId "ID" -DisplayName "Channel"
+
+# Apply policy
+Grant-CsTeamsMessagingPolicy -Identity "email" -PolicyName "PolicyName"
+
+# List teams
+Get-Team
+
+# Archive team
+Set-TeamArchiveState -GroupId "ID" -Archived $true
+
+# Get team details
+Get-Team -GroupId "ID"
+Get-TeamUser -GroupId "ID"
+Get-TeamChannel -GroupId "ID"
+```
+'''
+        })
+
+        # Article 29: OneDrive for Business Management
+        articles.append({
+            'category': 'Microsoft 365',
+            'title': 'OneDrive for Business Management and Administration',
+            'body': r'''# OneDrive for Business Management and Administration
+
+## Overview
+Comprehensive guide to managing OneDrive for Business, including user provisioning, storage management, sharing policies, and sync configuration.
+
+## Prerequisites
+```powershell
+# Install SharePoint Online Management Shell
+Install-Module -Name Microsoft.Online.SharePoint.PowerShell -Force
+
+# Install Microsoft Graph PowerShell
+Install-Module Microsoft.Graph -Force
+
+# Connect to SharePoint Online
+$adminUrl = "https://contoso-admin.sharepoint.com"
+Connect-SPOService -Url $adminUrl
+```
+
+## User Provisioning and Configuration
+
+### Create OneDrive for User
+```powershell
+# Provision OneDrive for single user
+Request-SPOPersonalSite -UserEmails @("john@contoso.com")
+
+# Bulk provision OneDrive for multiple users
+$users = Get-MsolUser -All | Where-Object {$_.isLicensed -eq $true}
+$emails = $users.UserPrincipalName
+Request-SPOPersonalSite -UserEmails $emails
+
+# Check provisioning status
+Get-SPOSite -IncludePersonalSite $true -Limit All | `
+    Where-Object {$_.Url -like "*-my.sharepoint.com/personal/*"}
+```
+
+### Get User's OneDrive URL
+```powershell
+# Get OneDrive URL for user
+$user = "john@contoso.com"
+$OneDriveUrl = "https://contoso-my.sharepoint.com/personal/" + `
+    $user.Replace("@","_").Replace(".","_")
+
+Write-Host "OneDrive URL: $OneDriveUrl"
+
+# List user's OneDrive site
+Get-SPOSite -Identity $OneDriveUrl -Detailed
+```
+
+## Storage Management
+
+### Check Storage Usage
+```powershell
+# Get all OneDrive sites with storage details
+Get-SPOSite -IncludePersonalSite $true -Limit All | `
+    Where-Object {$_.Url -like "*-my.sharepoint.com/personal/*"} | `
+    Select-Object Owner, Url, StorageUsageCurrent, StorageQuota | `
+    Sort-Object -Property StorageUsageCurrent -Descending
+
+# Find OneDrive sites exceeding 80% storage
+Get-SPOSite -IncludePersonalSite $true -Limit All | `
+    Where-Object {$_.Url -like "*-my.sharepoint.com/personal/*"} | `
+    Where-Object {($_.StorageUsageCurrent / $_.StorageQuota) -gt 0.8} | `
+    Select-Object Owner, Url, StorageUsageCurrent, StorageQuota
+```
+
+### Modify Storage Quotas
+```powershell
+# Set default storage quota for all new OneDrive sites
+Set-SPOTenant -OneDriveStorageQuota 5120
+
+# Increase storage for specific user
+Set-SPOSite -Identity "https://contoso-my.sharepoint.com/personal/john_contoso_com" `
+    -StorageQuota 10240
+
+# Bulk update storage for all OneDrive sites
+Get-SPOSite -IncludePersonalSite $true -Limit All | `
+    Where-Object {$_.Url -like "*-my.sharepoint.com/personal/*"} | ForEach-Object {
+        Set-SPOSite -Identity $_.Url -StorageQuota 5120
+    }
+
+# Set warning level
+Set-SPOSite -Identity "https://contoso-my.sharepoint.com/personal/john_contoso_com" `
+    -StorageQuotaWarningLevel 4096
+```
+
+## Sharing and External Access
+
+### Configure Sharing Settings
+```powershell
+# Get tenant-wide sharing settings
+Get-SPOTenant | Select-Object SharingCapability, OneDriveSharingCapability
+
+# Set OneDrive sharing capability
+Set-SPOTenant -OneDriveSharingCapability ExternalUserAndGuestSharing
+
+# Options:
+# - Disabled: No external sharing
+# - ExistingExternalUserSharingOnly: Only existing external users
+# - ExternalUserSharingOnly: New and existing external users
+# - ExternalUserAndGuestSharing: Anyone with link
+
+# Disable external sharing for specific user
+Set-SPOSite -Identity "https://contoso-my.sharepoint.com/personal/john_contoso_com" `
+    -SharingCapability Disabled
+```
+
+### Manage Sharing Links
+```powershell
+# Set default link type
+Set-SPOTenant -DefaultSharingLinkType Internal
+
+# Options:
+# - None: Most permissive link (default)
+# - Direct: Specific people
+# - Internal: People in organization
+# - AnonymousAccess: Anyone with the link
+
+# Set default link permission
+Set-SPOTenant -DefaultLinkPermission View
+
+# Prevent anonymous links
+Set-SPOTenant -RequireAnonymousLinksExpireInDays 30
+
+# Require sign-in for shared files
+Set-SPOTenant -RequireAcceptingAccountMatchInvitedAccount $true
+```
+
+### Audit External Sharing
+```powershell
+# List externally shared files (requires Microsoft Graph)
+Connect-MgGraph -Scopes "Sites.Read.All"
+
+$oneDriveUrl = "https://contoso-my.sharepoint.com/personal/john_contoso_com"
+$site = Get-MgSite -Search $oneDriveUrl
+
+# Get shared items
+$sharedItems = Get-MgSiteListItemActivity -SiteId $site.Id
+$sharedItems | Where-Object {$_.Access.ExternalShared -eq $true}
+
+# Revoke external access for specific file
+# Use SharePoint UI or PnP PowerShell for granular control
+```
+
+## Sync Client Management
+
+### Configure Sync Restrictions
+```powershell
+# Allow sync only from domain-joined PCs
+Set-SPOTenantSyncClientRestriction -Enable -DomainGuids "12345678-1234-1234-1234-123456789012"
+
+# Get current sync restrictions
+Get-SPOTenantSyncClientRestriction
+
+# Disable sync restrictions
+Set-SPOTenantSyncClientRestriction -Disable
+
+# Block sync from specific file types
+Set-SPOTenant -ExcludedFileExtensionsForSyncClient "exe;dll;vbs"
+
+# Configure Files On-Demand (Windows 10+)
+# Enabled by default - no PowerShell command needed
+# Users can control via OneDrive settings
+
+# Block personal OneDrive sync on corporate devices
+# Requires Intune or Group Policy
+```
+
+### Known Folder Move (KFM)
+```powershell
+# Enable Known Folder Move via Group Policy or Intune
+# This PowerShell checks KFM status for user
+
+# Using PnP PowerShell to check KFM status
+Connect-PnPOnline -Url "https://contoso-my.sharepoint.com/personal/john_contoso_com" -Interactive
+
+# Check if Documents/Desktop/Pictures are in OneDrive
+$folders = Get-PnPFolder -Identity "/"
+$folders | Where-Object {$_.Name -in @("Documents","Desktop","Pictures")}
+
+# Users enable KFM through OneDrive client settings
+# Admins deploy via:
+# - Group Policy: Computer Config > Admin Templates > OneDrive
+# - Intune: Devices > Configuration profiles > OneDrive settings
+```
+
+## Access Delegation
+
+### Grant Site Collection Admin Access
+```powershell
+# Add secondary admin to user's OneDrive
+Set-SPOUser -Site "https://contoso-my.sharepoint.com/personal/john_contoso_com" `
+    -LoginName admin@contoso.com `
+    -IsSiteCollectionAdmin $true
+
+# Remove admin access
+Set-SPOUser -Site "https://contoso-my.sharepoint.com/personal/john_contoso_com" `
+    -LoginName admin@contoso.com `
+    -IsSiteCollectionAdmin $false
+
+# List all admins
+Get-SPOUser -Site "https://contoso-my.sharepoint.com/personal/john_contoso_com" | `
+    Where-Object {$_.IsSiteAdmin -eq $true}
+```
+
+### Access OneDrive When User Leaves
+```powershell
+# Option 1: Add secondary admin before user leaves
+Set-SPOUser -Site "https://contoso-my.sharepoint.com/personal/former_employee_contoso_com" `
+    -LoginName manager@contoso.com `
+    -IsSiteCollectionAdmin $true
+
+# Option 2: Transfer ownership of shared folders
+# Requires connecting as admin and manually transferring files
+
+# Option 3: Use retention policy to preserve data
+# Security & Compliance Center > Retention policies
+```
+
+## Compliance and Security
+
+### Apply Retention Policies
+```powershell
+# Using Security & Compliance PowerShell
+Connect-IPPSSession
+
+# Create retention policy for OneDrive
+New-RetentionCompliancePolicy -Name "OneDrive-7Years" `
+    -OneDriveLocation All
+
+# Create retention rule
+New-RetentionComplianceRule -Name "Keep7Years" `
+    -Policy "OneDrive-7Years" `
+    -RetentionDuration 2555 `
+    -RetentionComplianceAction Keep
+
+# Apply policy to specific users
+New-RetentionCompliancePolicy -Name "Executives-Permanent" `
+    -OneDriveLocation "ceo@contoso.com","cfo@contoso.com"
+```
+
+### Data Loss Prevention (DLP)
+```powershell
+# Create DLP policy for OneDrive
+New-DlpCompliancePolicy -Name "OneDrive-PII-Protection" `
+    -Mode Enable `
+    -OneDriveLocation All
+
+# Create DLP rule to detect credit card numbers
+New-DlpComplianceRule -Name "Block-CreditCards" `
+    -Policy "OneDrive-PII-Protection" `
+    -ContentContainsSensitiveInformation @{Name="Credit Card Number"} `
+    -BlockAccess $true `
+    -NotifyUser Owner
+
+# Apply DLP policy to specific users
+New-DlpCompliancePolicy -Name "Finance-DLP" `
+    -Mode Enable `
+    -OneDriveLocation "finance@contoso.com","accounting@contoso.com"
+```
+
+### Sensitivity Labels
+```powershell
+# Create sensitivity label
+New-Label -DisplayName "Confidential" `
+    -Name "Confidential" `
+    -Tooltip "Confidential company data" `
+    -SiteAndGroupProtectionEnabled $true
+
+# Publish label policy
+New-LabelPolicy -Name "ConfidentialPolicy" `
+    -Labels "Confidential" `
+    -ModernGroupLocation All `
+    -OneDriveLocation All
+```
+
+## Backup and Recovery
+
+### Restore Deleted Files
+```powershell
+# Using PnP PowerShell
+Connect-PnPOnline -Url "https://contoso-my.sharepoint.com/personal/john_contoso_com" -Interactive
+
+# List deleted files in recycle bin
+Get-PnPRecycleBinItem
+
+# Restore specific file
+Get-PnPRecycleBinItem | Where-Object {$_.Title -eq "Important.docx"} | `
+    Restore-PnPRecycleBinItem -Force
+
+# Restore all files from recycle bin
+Get-PnPRecycleBinItem | Restore-PnPRecycleBinItem -Force
+
+# Empty recycle bin
+Clear-PnPRecycleBinItem -All -Force
+```
+
+### Version History
+```powershell
+# Using PnP PowerShell
+Connect-PnPOnline -Url "https://contoso-my.sharepoint.com/personal/john_contoso_com" -Interactive
+
+# Get file versions
+Get-PnPFileVersion -Url "/personal/john_contoso_com/Documents/Report.docx"
+
+# Restore previous version
+Restore-PnPFileVersion -Url "/personal/john_contoso_com/Documents/Report.docx" `
+    -Identity 5
+
+# Configure version limits
+Set-PnPList -Identity "Documents" `
+    -EnableVersioning $true `
+    -MajorVersions 500 `
+    -EnableMinorVersions $false
+```
+
+## Migration to OneDrive
+
+### Migrate from File Shares
+```powershell
+# Using SharePoint Migration Tool (SPMT)
+# Download from: https://aka.ms/spmt
+
+# PowerShell example using SPMT API
+Install-Module -Name Microsoft.SharePoint.MigrationTool.PowerShell
+
+# Register migration job
+Register-SPMTMigration `
+    -MigrationType File `
+    -SourcePath "\\fileserver\users\john" `
+    -TargetSiteUrl "https://contoso-my.sharepoint.com/personal/john_contoso_com" `
+    -TargetList "Documents"
+
+# Start migration
+Start-SPMTMigration
+
+# Check migration status
+Get-SPMTMigration
+```
+
+## Reporting and Analytics
+
+### OneDrive Usage Reports
+```powershell
+# Using Microsoft Graph
+Connect-MgGraph -Scopes "Reports.Read.All"
+
+# Get OneDrive usage report for past 30 days
+$report = Get-MgReportOneDriveUsageAccountDetail -Period D30
+$report | Select-Object UserPrincipalName, StorageUsedInBytes, LastActivityDate | `
+    Format-Table
+
+# Get inactive OneDrive sites
+$report | Where-Object {
+    $_.LastActivityDate -lt (Get-Date).AddDays(-90)
+} | Select-Object UserPrincipalName, LastActivityDate
+
+# Export report to CSV
+$report | Export-Csv -Path "C:\Reports\OneDrive-Usage.csv" -NoTypeInformation
+```
+
+### File Activity Reports
+```powershell
+# Get file activity for past 7 days
+$activity = Get-MgReportOneDriveActivityUserDetail -Period D7
+
+# Users who haven't synced recently
+$activity | Where-Object {$_.SyncedFileCount -eq 0} | `
+    Select-Object UserPrincipalName, LastActivityDate
+```
+
+## Troubleshooting
+
+### Common Sync Issues
+
+**Issue: Sync client not working**
+```powershell
+# Check if sync is blocked
+Get-SPOTenantSyncClientRestriction
+
+# Verify user has OneDrive license
+Get-MsolUser -UserPrincipalName john@contoso.com | Select-Object Licenses
+
+# Check OneDrive provisioning
+Get-SPOSite -Identity "https://contoso-my.sharepoint.com/personal/john_contoso_com"
+```
+
+**Issue: Files not syncing**
+- Check file name (no special characters: \ / : * ? " < > |)
+- Check file path length (<400 characters)
+- Check file size (<250 GB per file)
+- Check if file type is blocked
+
+```powershell
+# Check blocked file types
+Get-SPOTenant | Select-Object ExcludedFileExtensionsForSyncClient
+```
+
+**Issue: Storage quota exceeded**
+```powershell
+# Check user's storage usage
+Get-SPOSite -Identity "https://contoso-my.sharepoint.com/personal/john_contoso_com" | `
+    Select-Object StorageUsageCurrent, StorageQuota, StorageQuotaWarningLevel
+
+# Increase quota
+Set-SPOSite -Identity "https://contoso-my.sharepoint.com/personal/john_contoso_com" `
+    -StorageQuota 10240
+```
+
+### Access Denied Issues
+```powershell
+# Check if site exists and is accessible
+Get-SPOSite -Identity "https://contoso-my.sharepoint.com/personal/john_contoso_com"
+
+# Check user permissions
+Get-SPOUser -Site "https://contoso-my.sharepoint.com/personal/john_contoso_com" | `
+    Where-Object {$_.LoginName -eq "john@contoso.com"}
+
+# Grant access as secondary admin
+Set-SPOUser -Site "https://contoso-my.sharepoint.com/personal/john_contoso_com" `
+    -LoginName admin@contoso.com `
+    -IsSiteCollectionAdmin $true
+```
+
+## Best Practices
+
+1. **Storage Management:**
+   - Set appropriate default quotas (1-5 TB)
+   - Monitor usage monthly
+   - Use retention policies to manage old files
+   - Enable versioning with limits (500 versions)
+
+2. **Security:**
+   - Require MFA for all users
+   - Use conditional access policies
+   - Implement DLP policies for sensitive data
+   - Limit external sharing
+   - Set expiration on anonymous links
+
+3. **Sync:**
+   - Deploy Known Folder Move (Desktop/Documents/Pictures)
+   - Enable Files On-Demand to save local storage
+   - Block personal OneDrive on corporate devices
+   - Restrict sync to domain-joined PCs
+
+4. **Governance:**
+   - Document sharing policies
+   - Train users on proper file naming
+   - Regular access reviews
+   - Audit external sharing quarterly
+
+5. **Performance:**
+   - Keep file paths under 400 characters
+   - Avoid special characters in file names
+   - Use sync selectively (not entire OneDrive)
+   - Enable Files On-Demand
+
+---
+
+## Quick Reference
+
+```powershell
+# Connect
+Connect-SPOService -Url "https://contoso-admin.sharepoint.com"
+
+# Provision OneDrive
+Request-SPOPersonalSite -UserEmails @("user@contoso.com")
+
+# Get OneDrive URL
+# https://contoso-my.sharepoint.com/personal/user_contoso_com
+
+# Check storage
+Get-SPOSite -Identity "OneDriveURL" | Select StorageUsageCurrent, StorageQuota
+
+# Increase quota
+Set-SPOSite -Identity "OneDriveURL" -StorageQuota 10240
+
+# Add admin
+Set-SPOUser -Site "OneDriveURL" -LoginName "admin@contoso.com" -IsSiteCollectionAdmin $true
+
+# Configure sharing
+Set-SPOTenant -OneDriveSharingCapability ExternalUserSharingOnly
+
+# Set default storage
+Set-SPOTenant -OneDriveStorageQuota 5120
+
+# Block file types from sync
+Set-SPOTenant -ExcludedFileExtensionsForSyncClient "exe;dll"
+
+# Get usage report
+Get-MgReportOneDriveUsageAccountDetail -Period D30
+```
+'''
+        })
+
+        # Article 30: Printer Configuration and Troubleshooting
+        articles.append({
+            'category': 'Hardware Setup',
+            'title': 'Network Printer Configuration and Troubleshooting',
+            'body': r'''# Network Printer Configuration and Troubleshooting
+
+## Overview
+Comprehensive guide to installing, configuring, and troubleshooting network printers in Windows environments, including print server setup and driver management.
+
+## Prerequisites
+- Administrative access to Windows Server or workstation
+- Printer IP address or hostname
+- Printer drivers (downloadable from manufacturer)
+- Network connectivity to printer
+
+## Installing Network Printers
+
+### Method 1: Add via IP Address (TCP/IP Port)
+```powershell
+# Add printer port
+Add-PrinterPort -Name "IP_192.168.1.100" `
+    -PrinterHostAddress "192.168.1.100"
+
+# Install printer driver
+Add-PrinterDriver -Name "HP Universal Printing PCL 6"
+
+# Add printer
+Add-Printer -Name "Finance HP LaserJet" `
+    -DriverName "HP Universal Printing PCL 6" `
+    -PortName "IP_192.168.1.100"
+```
+
+### Method 2: Add via Hostname
+```powershell
+# Add printer using hostname
+Add-PrinterPort -Name "PRINTER01" `
+    -PrinterHostAddress "printer01.contoso.local"
+
+Add-Printer -Name "IT Department Printer" `
+    -DriverName "Lexmark Universal v2 PS3" `
+    -PortName "PRINTER01"
+```
+
+### Method 3: Add via GUI
+```cmd
+Control Panel > Devices and Printers > Add a printer
+- Select "Add a network, wireless or Bluetooth printer"
+- Choose "The printer that I want isn't listed"
+- Select "Add a printer using a TCP/IP address or hostname"
+- Enter IP address: 192.168.1.100
+- Install driver when prompted
+```
+
+## Windows Print Server Setup
+
+### Install Print Services Role
+```powershell
+# Install Print Server role
+Install-WindowsFeature -Name Print-Server -IncludeManagementTools
+
+# Verify installation
+Get-WindowsFeature -Name Print-*
+```
+
+### Add Shared Network Printers
+```powershell
+# Add printer to print server
+Add-Printer -Name "Sales Color Printer" `
+    -DriverName "Xerox Global Print Driver PS" `
+    -PortName "IP_192.168.1.101" `
+    -Shared `
+    -ShareName "Sales-Color" `
+    -Location "Building A, Floor 2" `
+    -Comment "Sales department color printer"
+
+# Set printer permissions
+$printer = Get-Printer -Name "Sales Color Printer"
+Set-PrinterPermission -PrinterName $printer.Name `
+    -UserName "CONTOSO\Sales-Users" `
+    -PermissionType Print
+
+# List all shared printers
+Get-Printer | Where-Object {$_.Shared -eq $true}
+```
+
+### Deploy Printers via Group Policy
+```powershell
+# On print server: Share printer
+Set-Printer -Name "Finance HP LaserJet" -Shared $true -ShareName "Finance-HP"
+
+# In Group Policy Management Console (GPMC):
+# 1. Create/Edit GPO: User Configuration > Preferences > Control Panel Settings > Printers
+# 2. Right-click Printers > New > Shared Printer
+# 3. Action: Create
+# 4. Share path: \\printserver\Finance-HP
+# 5. Link GPO to OU containing user accounts
+
+# Verify deployed printers on client
+gpupdate /force
+Get-Printer | Where-Object {$_.Type -eq "Connection"}
+```
+
+## Driver Management
+
+### Install Printer Drivers
+```powershell
+# Download driver from manufacturer first, then install
+
+# Install driver using INF file
+pnputil /add-driver "C:\Drivers\HP\hpcu225u.inf" /install
+
+# Add driver to print server driver store
+Add-PrinterDriver -Name "HP Universal Printing PCL 6" `
+    -InfPath "C:\Drivers\HP\hpcu225u.inf"
+
+# List installed printer drivers
+Get-PrinterDriver | Select-Object Name, Manufacturer, DriverVersion | Format-Table
+
+# Remove old driver
+Remove-PrinterDriver -Name "Old HP Driver"
+```
+
+### Update Printer Drivers
+```powershell
+# Export list of current drivers
+Get-PrinterDriver | Export-Csv -Path "C:\Temp\PrinterDrivers.csv"
+
+# Remove old driver
+Remove-PrinterDriver -Name "HP LaserJet 4250 PCL 5"
+
+# Add new driver
+Add-PrinterDriver -Name "HP Universal Printing PCL 6" `
+    -InfPath "C:\Drivers\HP_Universal\hpcu225u.inf"
+
+# Update printer to use new driver
+$printers = Get-Printer | Where-Object {$_.DriverName -eq "HP LaserJet 4250 PCL 5"}
+foreach ($printer in $printers) {
+    Set-Printer -Name $printer.Name -DriverName "HP Universal Printing PCL 6"
+}
+```
+
+## Printer Configuration
+
+### Set Printer Defaults
+```powershell
+# Set default printer for current user
+Set-Printer -Name "Finance HP LaserJet" -DefaultPrinter
+
+# Configure printer properties
+Set-PrintConfiguration -PrinterName "Finance HP LaserJet" `
+    -Color $false `
+    -DuplexingMode TwoSidedLongEdge `
+    -PaperSize A4
+
+# Get current printer configuration
+Get-PrintConfiguration -PrinterName "Finance HP LaserJet"
+```
+
+### Configure Printer Pooling
+```powershell
+# Add multiple ports to single printer (load balancing)
+Add-PrinterPort -Name "IP_192.168.1.101"
+Add-PrinterPort -Name "IP_192.168.1.102"
+Add-PrinterPort -Name "IP_192.168.1.103"
+
+# Enable printer pooling (via Print Management Console)
+# Print Management > Print Servers > [Server] > Printers
+# Right-click printer > Properties > Ports tab
+# Check "Enable printer pooling"
+# Select all ports for the pool
+```
+
+### Set Printer Security
+```powershell
+# Get current permissions
+Get-Printer -Name "Finance HP LaserJet" -Full | Select-Object PermissionSDDL
+
+# Grant print permission to group
+$printer = Get-Printer -Name "Finance HP LaserJet"
+$acl = Get-Acl -Path "Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\Printers\$($printer.Name)"
+
+$rule = New-Object System.Security.AccessControl.RegistryAccessRule(
+    "CONTOSO\Finance-Users",
+    "Print",
+    "Allow"
+)
+$acl.AddAccessRule($rule)
+Set-Acl -Path "Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\Printers\$($printer.Name)" -AclObject $acl
+
+# Or via Print Management Console:
+# Right-click printer > Properties > Security tab
+# Add users/groups and assign permissions
+```
+
+## Print Queue Management
+
+### View and Manage Print Jobs
+```powershell
+# List all print jobs
+Get-PrintJob -PrinterName "Finance HP LaserJet"
+
+# Cancel specific print job
+Remove-PrintJob -PrinterName "Finance HP LaserJet" -ID 15
+
+# Cancel all print jobs
+Get-PrintJob -PrinterName "Finance HP LaserJet" | Remove-PrintJob
+
+# Pause printer
+Suspend-Printer -Name "Finance HP LaserJet"
+
+# Resume printer
+Resume-Printer -Name "Finance HP LaserJet"
+
+# Restart Print Spooler service
+Restart-Service -Name Spooler
+```
+
+### Clear Stuck Print Queue
+```cmd
+# Stop Print Spooler
+net stop spooler
+
+# Delete spooler files
+del /Q /F %systemroot%\System32\spool\PRINTERS\*.*
+
+# Start Print Spooler
+net start spooler
+```
+
+## Troubleshooting
+
+### Printer Offline Issues
+
+**Check 1: Network connectivity**
+```powershell
+# Ping printer
+Test-Connection -ComputerName 192.168.1.100 -Count 4
+
+# Test printer port
+Test-NetConnection -ComputerName 192.168.1.100 -Port 9100
+
+# Check if printer responds to SNMP (port 161)
+Test-NetConnection -ComputerName 192.168.1.100 -Port 161
+```
+
+**Check 2: Printer status**
+```powershell
+# Get printer status
+Get-Printer -Name "Finance HP LaserJet" | Select-Object Name, PrinterStatus, JobCount
+
+# Check if printer is paused
+Get-Printer | Where-Object {$_.PrinterStatus -eq "Paused"}
+
+# Resume printer
+Resume-Printer -Name "Finance HP LaserJet"
+```
+
+**Check 3: Print Spooler service**
+```powershell
+# Check spooler status
+Get-Service -Name Spooler
+
+# Restart spooler
+Restart-Service -Name Spooler
+
+# Set spooler to automatic startup
+Set-Service -Name Spooler -StartupType Automatic
+```
+
+### Driver Issues
+
+**Issue: Driver not compatible**
+```powershell
+# Check current driver version
+Get-PrinterDriver -Name "HP Universal Printing PCL 6" | `
+    Select-Object Name, Manufacturer, DriverVersion
+
+# Download correct driver for OS version
+# Windows 10/11: Use Type 4 (v4) drivers
+# Windows Server: Use Type 3 (v3) drivers if v4 not available
+
+# Remove incompatible driver
+Remove-PrinterDriver -Name "Old Driver Name"
+
+# Install compatible driver
+Add-PrinterDriver -Name "HP Universal Printing PCL 6" `
+    -InfPath "C:\Drivers\HP\hpcu225u.inf"
+```
+
+**Issue: Corrupt printer driver**
+```powershell
+# Remove all printers using the driver
+Get-Printer | Where-Object {$_.DriverName -eq "Problem Driver"} | Remove-Printer
+
+# Remove driver
+Remove-PrinterDriver -Name "Problem Driver"
+
+# Clean driver store
+pnputil /delete-driver oem##.inf /uninstall
+
+# Reinstall driver
+Add-PrinterDriver -Name "New Driver" -InfPath "C:\Drivers\Driver.inf"
+```
+
+### Print Job Stuck
+
+**Solution 1: Cancel job via PowerShell**
+```powershell
+# List stuck jobs
+Get-PrintJob -PrinterName "Finance HP LaserJet"
+
+# Cancel job
+Remove-PrintJob -PrinterName "Finance HP LaserJet" -ID 20
+```
+
+**Solution 2: Restart Print Spooler**
+```powershell
+Stop-Service -Name Spooler -Force
+Start-Service -Name Spooler
+```
+
+**Solution 3: Clear print queue manually**
+```cmd
+net stop spooler
+del /Q /F %systemroot%\System32\spool\PRINTERS\*.*
+net start spooler
+```
+
+### Slow Printing
+
+**Check 1: Network speed**
+```powershell
+# Check network adapter speed
+Get-NetAdapter | Select-Object Name, LinkSpeed, Status
+
+# Test bandwidth to printer (large test print)
+# If slow, check for:
+# - Network congestion
+# - 100Mbps vs 1Gbps link
+# - WiFi vs wired connection
+```
+
+**Check 2: Print server resources**
+```powershell
+# Check CPU usage
+Get-Counter -Counter "\Processor(_Total)\% Processor Time"
+
+# Check memory
+Get-Counter -Counter "\Memory\Available MBytes"
+
+# Check disk I/O
+Get-Counter -Counter "\PhysicalDisk(_Total)\Avg. Disk Queue Length"
+```
+
+**Check 3: Driver settings**
+- Use PCL instead of PostScript
+- Disable advanced printing features
+- Use printer's built-in fonts
+- Reduce print quality for drafts
+
+### Access Denied
+
+**Issue: User can't print**
+```powershell
+# Check printer permissions
+$printer = Get-Printer -Name "Finance HP LaserJet"
+
+# Add user to printer permissions (via GUI)
+# Print Management > Printers > Right-click > Properties > Security
+# Add user/group with "Print" permission
+
+# Or use ICACLS (advanced)
+icacls "\\printserver\Finance-HP" /grant "CONTOSO\User:(OI)(CI)RX"
+```
+
+## Monitoring and Reporting
+
+### Print Auditing
+```powershell
+# Enable print auditing via Group Policy
+# Computer Config > Windows Settings > Security Settings > Advanced Audit Policy
+# Enable: Audit Object Access
+
+# View print jobs in Event Viewer
+Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational" | `
+    Where-Object {$_.Id -eq 307} | `
+    Select-Object TimeCreated, Message | Format-List
+
+# Export print job history
+Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational" | `
+    Where-Object {$_.Id -eq 307} | `
+    Select-Object TimeCreated, @{N='User';E={$_.Properties[2].Value}}, `
+        @{N='Document';E={$_.Properties[3].Value}}, `
+        @{N='Printer';E={$_.Properties[4].Value}}, `
+        @{N='Pages';E={$_.Properties[7].Value}} | `
+    Export-Csv -Path "C:\Reports\PrintJobs.csv" -NoTypeInformation
+```
+
+## Best Practices
+
+1. **Standardization:**
+   - Use universal printer drivers when possible
+   - Standardize on PCL or PostScript
+   - Use consistent naming convention
+
+2. **Security:**
+   - Require PIN/password for sensitive documents (Follow-Me printing)
+   - Implement user authentication at device
+   - Audit print jobs regularly
+   - Limit color printing to authorized users
+
+3. **Management:**
+   - Deploy printers via Group Policy
+   - Use print server for centralized management
+   - Monitor toner/ink levels via SNMP
+   - Schedule regular maintenance
+
+4. **Performance:**
+   - Use direct IP printing for large print jobs
+   - Enable printer pooling for high-volume printers
+   - Place print server close to printers (network-wise)
+
+5. **Troubleshooting:**
+   - Keep drivers updated
+   - Document printer configurations
+   - Monitor Event Viewer for errors
+   - Test after Windows updates
+
+---
+
+## Quick Reference
+
+```powershell
+# Add network printer
+Add-PrinterPort -Name "IP_192.168.1.100" -PrinterHostAddress "192.168.1.100"
+Add-Printer -Name "PrinterName" -DriverName "DriverName" -PortName "IP_192.168.1.100"
+
+# List printers
+Get-Printer
+
+# View print jobs
+Get-PrintJob -PrinterName "PrinterName"
+
+# Cancel print job
+Remove-PrintJob -PrinterName "PrinterName" -ID 15
+
+# Restart Print Spooler
+Restart-Service -Name Spooler
+
+# Clear print queue
+net stop spooler && del /Q /F %systemroot%\System32\spool\PRINTERS\*.* && net start spooler
+
+# Test printer connectivity
+Test-Connection -ComputerName 192.168.1.100
+Test-NetConnection -ComputerName 192.168.1.100 -Port 9100
+
+# Install driver
+Add-PrinterDriver -Name "DriverName" -InfPath "C:\Drivers\driver.inf"
+
+# Share printer
+Set-Printer -Name "PrinterName" -Shared $true -ShareName "SharedName"
+```
+'''
+        })
+
+        # Article 31: VLAN Configuration
+        articles.append({
+            'category': 'Network Troubleshooting',
+            'title': 'VLAN Configuration and Inter-VLAN Routing',
+            'body': r'''# VLAN Configuration and Inter-VLAN Routing
+
+## Overview
+Comprehensive guide to configuring VLANs (Virtual Local Area Networks) on network switches and implementing inter-VLAN routing for network segmentation and security.
+
+## VLAN Basics
+
+### What are VLANs?
+- Logical separation of broadcast domains within a physical network
+- Improve network performance by reducing broadcast traffic
+- Enhance security by isolating sensitive systems
+- Simplify network management
+
+### VLAN Types:
+1. **Data VLAN** - User data traffic
+2. **Voice VLAN** - VoIP phone traffic
+3. **Management VLAN** - Switch/router management
+4. **Native VLAN** - Untagged traffic on trunk ports (default VLAN 1)
+
+### Common VLAN Assignments:
+- VLAN 1: Default/Native (avoid using for production)
+- VLAN 10: Management
+- VLAN 20: Users/Workstations
+- VLAN 30: Servers
+- VLAN 40: Guests
+- VLAN 50: Voice/VoIP
+- VLAN 99: Unused ports (black hole)
+
+## Cisco Switch VLAN Configuration
+
+### Create VLANs
+```cisco
+! Enter global configuration mode
+Switch> enable
+Switch# configure terminal
+
+! Create VLAN 10 for Management
+Switch(config)# vlan 10
+Switch(config-vlan)# name Management
+Switch(config-vlan)# exit
+
+! Create VLAN 20 for Users
+Switch(config)# vlan 20
+Switch(config-vlan)# name Users
+Switch(config-vlan)# exit
+
+! Create VLAN 30 for Servers
+Switch(config)# vlan 30
+Switch(config-vlan)# name Servers
+Switch(config-vlan)# exit
+
+! Create VLAN 40 for Guests
+Switch(config)# vlan 40
+Switch(config-vlan)# name Guests
+Switch(config-vlan)# exit
+
+! Verify VLANs
+Switch# show vlan brief
+```
+
+### Assign Ports to VLANs (Access Ports)
+```cisco
+! Configure port as access port in VLAN 20
+Switch(config)# interface FastEthernet0/1
+Switch(config-if)# switchport mode access
+Switch(config-if)# switchport access vlan 20
+Switch(config-if)# description User Workstation
+Switch(config-if)# exit
+
+! Configure multiple ports at once
+Switch(config)# interface range FastEthernet0/2-10
+Switch(config-if-range)# switchport mode access
+Switch(config-if-range)# switchport access vlan 20
+Switch(config-if-range)# exit
+
+! Configure server ports
+Switch(config)# interface range GigabitEthernet0/1-4
+Switch(config-if-range)# switchport mode access
+Switch(config-if-range)# switchport access vlan 30
+Switch(config-if-range)# description Servers
+Switch(config-if-range)# exit
+```
+
+### Configure Trunk Ports
+```cisco
+! Configure trunk port to another switch
+Switch(config)# interface GigabitEthernet0/24
+Switch(config-if)# switchport mode trunk
+Switch(config-if)# switchport trunk allowed vlan 10,20,30,40
+Switch(config-if)# switchport trunk native vlan 99
+Switch(config-if)# description Trunk to Core Switch
+Switch(config-if)# exit
+
+! Verify trunk configuration
+Switch# show interfaces trunk
+```
+
+### Voice VLAN Configuration
+```cisco
+! Configure port for IP phone + PC (access + voice VLAN)
+Switch(config)# interface FastEthernet0/5
+Switch(config-if)# switchport mode access
+Switch(config-if)# switchport access vlan 20
+Switch(config-if)# switchport voice vlan 50
+Switch(config-if)# description IP Phone + PC
+Switch(config-if)# exit
+```
+
+### Secure Unused Ports
+```cisco
+! Put unused ports in black hole VLAN
+Switch(config)# vlan 99
+Switch(config-vlan)# name Unused
+Switch(config-vlan)# exit
+
+Switch(config)# interface range FastEthernet0/11-23
+Switch(config-if-range)# switchport mode access
+Switch(config-if-range)# switchport access vlan 99
+Switch(config-if-range)# shutdown
+Switch(config-if-range)# exit
+```
+
+## Inter-VLAN Routing
+
+### Method 1: Router on a Stick
+```cisco
+! On Router - configure subinterfaces for each VLAN
+Router(config)# interface GigabitEthernet0/0
+Router(config-if)# no shutdown
+Router(config-if)# exit
+
+! Subinterface for VLAN 20 (Users)
+Router(config)# interface GigabitEthernet0/0.20
+Router(config-subif)# encapsulation dot1Q 20
+Router(config-subif)# ip address 192.168.20.1 255.255.255.0
+Router(config-subif)# description Users VLAN
+Router(config-subif)# exit
+
+! Subinterface for VLAN 30 (Servers)
+Router(config)# interface GigabitEthernet0/0.30
+Router(config-subif)# encapsulation dot1Q 30
+Router(config-subif)# ip address 192.168.30.1 255.255.255.0
+Router(config-subif)# description Servers VLAN
+Router(config-subif)# exit
+
+! Subinterface for VLAN 40 (Guests)
+Router(config)# interface GigabitEthernet0/0.40
+Router(config-subif)# encapsulation dot1Q 40
+Router(config-subif)# ip address 192.168.40.1 255.255.255.0
+Router(config-subif)# description Guests VLAN
+Router(config-subif)# exit
+
+! On Switch - configure trunk to router
+Switch(config)# interface GigabitEthernet0/1
+Switch(config-if)# switchport mode trunk
+Switch(config-if)# switchport trunk allowed vlan 20,30,40
+Switch(config-if)# description Trunk to Router
+Switch(config-if)# exit
+```
+
+### Method 2: Layer 3 Switch (SVI)
+```cisco
+! Enable IP routing on Layer 3 switch
+Switch(config)# ip routing
+
+! Create SVIs (Switch Virtual Interfaces) for each VLAN
+Switch(config)# interface vlan 20
+Switch(config-if)# ip address 192.168.20.1 255.255.255.0
+Switch(config-if)# description Users Gateway
+Switch(config-if)# no shutdown
+Switch(config-if)# exit
+
+Switch(config)# interface vlan 30
+Switch(config-if)# ip address 192.168.30.1 255.255.255.0
+Switch(config-if)# description Servers Gateway
+Switch(config-if)# no shutdown
+Switch(config-if)# exit
+
+Switch(config)# interface vlan 40
+Switch(config-if)# ip address 192.168.40.1 255.255.255.0
+Switch(config-if)# description Guests Gateway
+Switch(config-if)# no shutdown
+Switch(config-if)# exit
+
+! Verify routing
+Switch# show ip route
+Switch# show ip interface brief
+```
+
+## DHCP for VLANs
+
+### Configure DHCP on Router
+```cisco
+! DHCP pool for VLAN 20 (Users)
+Router(config)# ip dhcp excluded-address 192.168.20.1 192.168.20.10
+Router(config)# ip dhcp pool VLAN20
+Router(dhcp-config)# network 192.168.20.0 255.255.255.0
+Router(dhcp-config)# default-router 192.168.20.1
+Router(dhcp-config)# dns-server 8.8.8.8 8.8.4.4
+Router(dhcp-config)# exit
+
+! DHCP pool for VLAN 30 (Servers)
+Router(config)# ip dhcp excluded-address 192.168.30.1 192.168.30.50
+Router(config)# ip dhcp pool VLAN30
+Router(dhcp-config)# network 192.168.30.0 255.255.255.0
+Router(dhcp-config)# default-router 192.168.30.1
+Router(dhcp-config)# dns-server 192.168.30.10
+Router(dhcp-config)# exit
+```
+
+### DHCP Relay (IP Helper)
+```cisco
+! If DHCP server is in VLAN 30, configure relay on SVIs
+Switch(config)# interface vlan 20
+Switch(config-if)# ip helper-address 192.168.30.10
+Switch(config-if)# exit
+
+Switch(config)# interface vlan 40
+Switch(config-if)# ip helper-address 192.168.30.10
+Switch(config-if)# exit
+```
+
+## Access Control Between VLANs
+
+### ACL to Restrict Traffic
+```cisco
+! Deny Guest VLAN from accessing Server VLAN
+Router(config)# access-list 100 deny ip 192.168.40.0 0.0.0.255 192.168.30.0 0.0.0.255
+Router(config)# access-list 100 permit ip any any
+
+! Apply ACL to VLAN 40 interface
+Router(config)# interface GigabitEthernet0/0.40
+Router(config-subif)# ip access-group 100 in
+Router(config-subif)# exit
+```
+
+## Verification Commands
+
+### Show VLAN Information
+```cisco
+! List all VLANs
+Switch# show vlan brief
+
+! Show detailed VLAN info
+Switch# show vlan id 20
+
+! Show VLAN assignments by interface
+Switch# show vlan
+
+! Show interface VLAN membership
+Switch# show interfaces FastEthernet0/1 switchport
+```
+
+### Show Trunk Information
+```cisco
+! Show trunk ports
+Switch# show interfaces trunk
+
+! Show allowed VLANs on trunk
+Switch# show interfaces GigabitEthernet0/24 trunk
+```
+
+### Show Routing (Layer 3 Switch)
+```cisco
+! Show routing table
+Switch# show ip route
+
+! Show SVI status
+Switch# show ip interface brief
+
+! Show specific VLAN interface
+Switch# show interface vlan 20
+```
+
+## Troubleshooting VLANs
+
+### Issue: Devices in same VLAN can't communicate
+
+**Check 1: Verify VLAN exists**
+```cisco
+Switch# show vlan brief
+! Ensure VLAN is created
+```
+
+**Check 2: Verify port assignments**
+```cisco
+Switch# show interfaces FastEthernet0/1 switchport
+! Check "Access Mode VLAN" line
+```
+
+**Check 3: Check trunk ports**
+```cisco
+Switch# show interfaces trunk
+! Ensure VLAN is allowed on trunk
+```
+
+### Issue: Devices in different VLANs can't communicate
+
+**Check 1: Verify inter-VLAN routing is configured**
+```cisco
+! On router - check subinterfaces
+Router# show ip interface brief
+
+! On Layer 3 switch - check SVIs
+Switch# show ip interface brief
+Switch# show ip route
+```
+
+**Check 2: Verify trunking**
+```cisco
+Switch# show interfaces trunk
+! Ensure all VLANs are allowed
+```
+
+**Check 3: Check for ACLs blocking traffic**
+```cisco
+Router# show access-lists
+Router# show ip interface GigabitEthernet0/0.20 | include access list
+```
+
+### Issue: VLAN not passing through trunk
+
+**Solution: Add VLAN to trunk allowed list**
+```cisco
+Switch(config)# interface GigabitEthernet0/24
+Switch(config-if)# switchport trunk allowed vlan add 50
+Switch(config-if)# exit
+```
+
+### Issue: Native VLAN mismatch
+```cisco
+! Check native VLAN on both ends
+Switch# show interfaces GigabitEthernet0/24 switchport | include Native
+
+! Change native VLAN if mismatched
+Switch(config)# interface GigabitEthernet0/24
+Switch(config-if)# switchport trunk native vlan 99
+Switch(config-if)# exit
+```
+
+## Best Practices
+
+1. **VLAN Design:**
+   - Use VLAN ranges consistently across network
+   - Document VLAN assignments
+   - Use descriptive VLAN names
+   - Don't use VLAN 1 for production
+
+2. **Security:**
+   - Shutdown unused ports and assign to black hole VLAN
+   - Change native VLAN from default (VLAN 1)
+   - Use separate management VLAN
+   - Implement ACLs between sensitive VLANs
+   - Disable DTP (Dynamic Trunking Protocol)
+
+3. **Trunking:**
+   - Manually configure trunk mode (don't rely on DTP)
+   - Explicitly allow only necessary VLANs on trunks
+   - Set native VLAN to unused VLAN (e.g., 99)
+   - Use 802.1Q encapsulation (industry standard)
+
+4. **Inter-VLAN Routing:**
+   - Use Layer 3 switches for better performance
+   - Implement proper subnetting
+   - Consider routing capacity and bottlenecks
+   - Use HSRP/VRRP for gateway redundancy
+
+5. **Documentation:**
+   - Maintain VLAN database spreadsheet
+   - Document port assignments
+   - Label physical ports
+   - Keep network diagrams updated
+
+---
+
+## Quick Reference
+
+```cisco
+! Create VLAN
+vlan 20
+name Users
+
+! Assign access port
+interface FastEthernet0/1
+switchport mode access
+switchport access vlan 20
+
+! Configure trunk
+interface GigabitEthernet0/24
+switchport mode trunk
+switchport trunk allowed vlan 10,20,30,40
+switchport trunk native vlan 99
+
+! Inter-VLAN routing (Router on Stick)
+interface GigabitEthernet0/0.20
+encapsulation dot1Q 20
+ip address 192.168.20.1 255.255.255.0
+
+! Inter-VLAN routing (Layer 3 Switch)
+ip routing
+interface vlan 20
+ip address 192.168.20.1 255.255.255.0
+no shutdown
+
+! Verification
+show vlan brief
+show interfaces trunk
+show ip interface brief
+show ip route
+
+! DHCP relay
+interface vlan 20
+ip helper-address 192.168.30.10
+```
+
+### Example Network Design
+
+**Small Office (50-100 users):**
+- VLAN 10: Management (192.168.10.0/24)
+- VLAN 20: Users (192.168.20.0/24)
+- VLAN 30: Servers (192.168.30.0/24)
+- VLAN 40: Guests (192.168.40.0/24)
+- VLAN 50: VoIP (192.168.50.0/24)
+- VLAN 99: Unused/Native (192.168.99.0/24)
+
+**Routing:** Layer 3 switch with SVIs for each VLAN
+
+**Security:**
+- Guests can't access internal VLANs (ACL)
+- Management VLAN only accessible from IT subnet
+- Servers VLAN restricted to necessary services
+'''
+        })
+
+        # Article 32: Wireless Network Setup
+        articles.append({
+            'category': 'Network Troubleshooting',
+            'title': 'Enterprise Wireless Network Setup and Troubleshooting',
+            'body': r'''# Enterprise Wireless Network Setup and Troubleshooting
+
+## Overview
+Comprehensive guide to deploying and managing enterprise wireless networks, including access point configuration, security, and troubleshooting.
+
+## Wireless Network Planning
+
+### Site Survey
+**Before deployment:**
+1. **Physical Survey:**
+   - Walk the facility with WiFi analyzer app
+   - Identify dead zones and weak signal areas
+   - Note sources of interference (microwaves, Bluetooth devices)
+   - Check building materials (concrete, metal studs affect signal)
+
+2. **Channel Survey:**
+   - Scan for existing SSIDs and channels
+   - Identify congested channels
+   - Check for rogue access points
+
+3. **Capacity Planning:**
+   - Expected number of devices per AP
+   - Bandwidth requirements per user
+   - Application requirements (video, VoIP need more bandwidth)
+   - Coverage vs capacity (overlap APs for high-density areas)
+
+### Access Point Placement
+
+**Coverage Guidelines:**
+- **Office environments:** 1 AP per 2,500-5,000 sq ft
+- **High-density areas:** 1 AP per 20-50 users
+- **Ceiling height:** Optimal at 10-12 feet
+- **Avoid:** Metal obstacles, elevator shafts, HVAC equipment
+
+**Channel Planning (2.4 GHz):**
+- Use only channels 1, 6, and 11 (non-overlapping)
+- Neighboring APs should use different channels
+- Avoid DFS channels if possible
+
+**Channel Planning (5 GHz):**
+- Many non-overlapping channels available
+- 20 MHz channel width for higher density
+- 40/80 MHz for higher throughput (fewer channels)
+
+## Cisco Wireless Controller Configuration
+
+### Initial Setup Wizard
+```cisco
+! Connect to WLC via console
+(Cisco Controller) > ?
+
+! Initial setup
+System Name: WLC-01
+Admin Username: admin
+Admin Password: ********
+Management Interface IP: 192.168.10.10
+Management Interface Netmask: 255.255.255.0
+Management Interface Default Router: 192.168.10.1
+Management Interface VLAN: 10
+Management Interface Port: 1
+Management Interface DHCP Server: 192.168.10.1
+
+Virtual Gateway IP Address: 1.1.1.1
+Mobility/RF Group Name: HQ-Wireless
+
+SSID: CorpWiFi
+```
+
+### Create WLANs (SSIDs)
+```cisco
+! Login via web interface or CLI
+
+! Create Corporate WLAN
+(Cisco Controller) > config wlan create 1 CorpWiFi CorpWiFi
+(Cisco Controller) > config wlan security wpa enable 1
+(Cisco Controller) > config wlan security wpa akm 802.1x enable 1
+(Cisco Controller) > config wlan radius auth add 1 192.168.10.20 1812 ascii SecretKey123
+(Cisco Controller) > config wlan interface 1 management
+(Cisco Controller) > config wlan enable 1
+
+! Create Guest WLAN
+(Cisco Controller) > config wlan create 2 GuestWiFi GuestWiFi
+(Cisco Controller) > config wlan security wpa enable 2
+(Cisco Controller) > config wlan security wpa akm psk enable 2
+(Cisco Controller) > config wlan security wpa akm psk set-psk ascii GuestPass2024 2
+(Cisco Controller) > config wlan interface 2 guest-vlan
+(Cisco Controller) > config wlan enable 2
+```
+
+### VLAN Configuration
+```cisco
+! Create interface for Corporate WiFi (VLAN 20)
+(Cisco Controller) > config interface create corporate-wifi 20
+(Cisco Controller) > config interface address management-vlan 192.168.20.1 255.255.255.0 192.168.20.254
+(Cisco Controller) > config interface vlan corporate-wifi 20
+(Cisco Controller) > config interface dhcp corporate-wifi primary 192.168.20.1
+
+! Create interface for Guest WiFi (VLAN 40)
+(Cisco Controller) > config interface create guest-wifi 40
+(Cisco Controller) > config interface address guest-vlan 192.168.40.1 255.255.255.0 192.168.40.254
+(Cisco Controller) > config interface vlan guest-wifi 40
+(Cisco Controller) > config interface dhcp guest-wifi primary 192.168.40.1
+```
+
+## Standalone Access Point Configuration (Cisco)
+
+### Basic Setup
+```cisco
+! Connect to AP via console or Telnet (default IP: 10.0.0.1)
+AP> enable
+AP# configure terminal
+
+! Set hostname
+AP(config)# hostname AP-Floor2-01
+
+! Configure management interface
+AP(config)# interface BVI1
+AP(config-if)# ip address 192.168.10.50 255.255.255.0
+AP(config-if)# exit
+AP(config)# ip default-gateway 192.168.10.1
+
+! Set management VLAN
+AP(config)# dot11 vlan-name management vlan 10
+```
+
+### Configure SSIDs
+```cisco
+! Create Corporate SSID (2.4 GHz)
+AP(config)# dot11 ssid CorpWiFi
+AP(config-ssid)# vlan 20
+AP(config-ssid)# authentication open
+AP(config-ssid)# authentication key-management wpa version 2
+AP(config-ssid)# wpa-psk ascii SecurePassword123
+AP(config-ssid)# exit
+
+! Apply to radio interface
+AP(config)# interface Dot11Radio0
+AP(config-if)# encryption mode ciphers aes-ccm
+AP(config-if)# ssid CorpWiFi
+AP(config-if)# no shutdown
+AP(config-if)# exit
+
+! Create Corporate SSID (5 GHz)
+AP(config)# interface Dot11Radio1
+AP(config-if)# encryption mode ciphers aes-ccm
+AP(config-if)# ssid CorpWiFi
+AP(config-if)# no shutdown
+AP(config-if)# exit
+```
+
+## UniFi Access Point Setup
+
+### Controller Setup
+1. Install UniFi Controller on Windows/Linux server
+2. Access web interface: https://controller-ip:8443
+3. Run setup wizard:
+   - Create admin account
+   - Configure site name
+   - Adopt access points
+
+### Adopt Access Points
+```bash
+# SSH to UniFi AP
+ssh ubnt@<AP-IP>
+# Default password: ubnt
+
+# Set controller address
+set-inform http://<controller-ip>:8080/inform
+
+# Exit and wait for adoption
+exit
+
+# From controller, click "Adopt" on discovered AP
+```
+
+### Create WiFi Networks
+1. Settings > Wireless Networks > Create New
+2. **Corporate Network:**
+   - Name: CorpWiFi
+   - Security: WPA2 Enterprise
+   - RADIUS Profile: Select configured RADIUS server
+   - VLAN: 20
+3. **Guest Network:**
+   - Name: GuestWiFi
+   - Security: WPA2 Personal
+   - Password: GuestPass2024
+   - Guest Policy: Enable
+   - VLAN: 40
+
+## Wireless Security
+
+### WPA2-Enterprise (802.1X)
+**Components:**
+- RADIUS server (FreeRADIUS, Microsoft NPS, Cisco ISE)
+- Certificate authority for server certs
+- Supplicant on client devices
+
+**Windows NPS Setup:**
+```powershell
+# Install NPS role
+Install-WindowsFeature -Name NPAS -IncludeManagementTools
+
+# Configure RADIUS client (AP or WLC)
+# Open NPS console
+# RADIUS Clients and Servers > New
+# Friendly name: Wireless-Controller
+# Address: 192.168.10.10
+# Shared secret: SecretKey123
+
+# Configure Network Policy
+# Network Policies > New
+# Policy name: Wireless-Corporate
+# Conditions: Windows Groups = Domain Users
+# Constraints: Authentication Methods = PEAP (EAP-MSCHAP v2)
+# Settings: RADIUS Attributes = Tunnel-Type = VLAN, Tunnel-Medium-Type = 802, Tunnel-Pvt-Group-ID = 20
+```
+
+### WPA2-Personal (PSK)
+```cisco
+! On Cisco WLC
+config wlan security wpa akm psk enable 2
+config wlan security wpa akm psk set-psk ascii SecurePassword123! 2
+
+! Best practices for PSK:
+! - Minimum 20 characters
+! - Mix of upper, lower, numbers, symbols
+! - Change every 90 days
+! - Don't share with guests (use separate network)
+```
+
+### WPA3
+```cisco
+! Enable WPA3 on Cisco WLC (version 8.5+)
+config wlan security wpa enable 1
+config wlan security wpa wpa3 enable 1
+config wlan security wpa wpa3 sae enable 1
+
+! Allow WPA2 for transition period
+config wlan security wpa wpa2 enable 1
+```
+
+### Guest Network Isolation
+```cisco
+! On Cisco WLC - prevent guests from seeing each other
+config wlan peer-blocking enable 2
+
+! On UniFi - enable Guest Policies
+# Settings > Wireless Networks > GuestWiFi
+# Guest Policy: Enabled
+# [ ] Allow access to local network resources
+```
+
+## Troubleshooting
+
+### Issue: Users can't connect to WiFi
+
+**Check 1: SSID broadcast**
+```cisco
+! Verify SSID is enabled
+show wlan summary
+
+! Enable if disabled
+config wlan enable 1
+```
+
+**Check 2: Authentication**
+```cisco
+! Check RADIUS server reachability
+ping 192.168.10.20
+
+! Test RADIUS authentication
+test aaa radius auth 192.168.10.20 username password
+
+! Check RADIUS logs
+debug aaa all enable
+```
+
+**Check 3: DHCP**
+```cisco
+! Verify DHCP server is configured
+show interface detailed management
+
+! Test DHCP from client perspective
+# On Windows client
+ipconfig /release
+ipconfig /renew
+```
+
+### Issue: Slow WiFi performance
+
+**Check 1: Channel utilization**
+```cisco
+! On Cisco WLC
+show ap auto-rf 802.11b summary
+show ap auto-rf 802.11a summary
+
+! Look for high channel utilization (>50%)
+! Change channels if needed
+config 802.11b channel ap <AP-Name> <channel>
+```
+
+**Check 2: Client count per AP**
+```cisco
+! Check clients per AP
+show client summary
+
+! Ideal: <30 clients per AP (2.4GHz), <50 per AP (5GHz)
+```
+
+**Check 3: RF interference**
+- Use WiFi analyzer (Ekahau, inSSIDer, WiFi Analyzer app)
+- Check for non-WiFi interference (microwave, Bluetooth)
+- Adjust AP power levels if too high (causes co-channel interference)
+
+### Issue: Intermittent disconnections
+
+**Check 1: Roaming issues**
+```cisco
+! Check roaming settings
+show client detail <MAC-address>
+
+! Verify client transitions between APs
+debug client <MAC-address>
+
+! Adjust roaming parameters
+config wlan mobility anchor add 1 <controller-IP>
+```
+
+**Check 2: Power save mode**
+```cisco
+! Disable power save on client
+# Windows: Network adapter properties > Power Management > Uncheck "Allow computer to turn off device"
+# macOS: System Preferences > Battery > Turn off "Power Nap"
+```
+
+**Check 3: Client compatibility**
+```cisco
+! Check data rates
+show wlan 1
+
+! Disable low data rates to improve performance
+config 802.11b rate disabled 1Mbps 2Mbps 5.5Mbps
+```
+
+### Issue: Can't reach network resources after connecting
+
+**Check 1: VLAN assignment**
+```cisco
+! Verify WLAN is mapped to correct VLAN
+show wlan 1
+
+! Check VLAN interface
+show interface detailed corporate-wifi
+```
+
+**Check 2: Default gateway**
+```cisco
+! On client, verify gateway
+ipconfig /all  # Windows
+ifconfig       # Linux/Mac
+
+! Verify gateway is reachable
+ping 192.168.20.1
+```
+
+**Check 3: DNS**
+```powershell
+# Test DNS resolution
+nslookup google.com
+
+# If fails, manually set DNS
+# Windows: Network adapter properties > IPv4 > DNS Servers
+```
+
+## Monitoring and Reporting
+
+### Real-Time Monitoring
+```cisco
+! On Cisco WLC
+show client summary
+show ap summary
+show wlan summary
+show network summary
+
+! Monitor specific client
+show client detail <MAC-address>
+
+! View RF coverage
+show ap auto-rf 802.11b <AP-Name>
+```
+
+### Client Statistics
+```bash
+# UniFi Controller
+# Insights > WiFi > WiFi Experience
+# - Connection success rate
+# - Signal strength heatmap
+# - Client distribution
+
+# Cisco WLC
+show client stats <MAC-address>
+```
+
+## Best Practices
+
+1. **Coverage:**
+   - Perform site survey before deployment
+   - Plan for 20-30% cell overlap
+   - Use 5 GHz for capacity, 2.4 GHz for coverage
+
+2. **Security:**
+   - Always use WPA2 or WPA3
+   - Use WPA2-Enterprise for corporate
+   - Separate guest network with isolation
+   - Disable WPS, WEP, open networks
+   - Hidden SSIDs don't improve security
+
+3. **Performance:**
+   - Use 5 GHz band when possible
+   - Disable low data rates (1, 2, 5.5 Mbps)
+   - Set transmit power appropriately (not max)
+   - Use 20 MHz channels in high-density areas
+
+4. **Management:**
+   - Use centralized controller
+   - Enable automatic RF optimization
+   - Regular firmware updates
+   - Monitor client experience metrics
+
+5. **Capacity:**
+   - 20-30 devices per AP (light usage)
+   - 10-15 devices per AP (heavy usage)
+   - Plan for device growth (IoT, BYOD)
+
+---
+
+## Quick Reference
+
+```cisco
+# Cisco WLC Commands
+show wlan summary
+show ap summary
+show client summary
+config wlan enable 1
+config wlan disable 1
+config 802.11b channel ap AP-Name 11
+show ap auto-rf 802.11b summary
+
+# Client Troubleshooting
+show client detail <MAC>
+debug client <MAC>
+show client stats <MAC>
+test aaa radius auth <server-ip> username password
+
+# UniFi Controller
+# Insights > WiFi > WiFi Experience
+# Devices > Access Points > [AP] > RF Environment
+# Clients > [Client] > Experience Score
+```
+
+### Common WiFi Issues Quick Fixes
+- **Can't connect:** Check SSID broadcast, password, RADIUS
+- **Slow speed:** Check channel utilization, reduce power, enable 5GHz
+- **Dropping:** Adjust roaming, disable power save, update drivers
+- **No DHCP:** Check VLAN assignment, verify DHCP server
+- **No internet:** Check gateway, DNS, firewall rules
+'''
+        })
+
+        # Article 33: Server Performance Troubleshooting
+        articles.append({
+            'category': 'Common Issues',
+            'title': 'Windows Server Performance Troubleshooting',
+            'body': r'''# Windows Server Performance Troubleshooting
+
+## Overview
+Comprehensive guide to diagnosing and resolving Windows Server performance issues, including CPU, memory, disk, and network bottlenecks.
+
+## Performance Monitoring Tools
+
+### Performance Monitor (perfmon)
+```powershell
+# Launch Performance Monitor
+perfmon
+
+# Create Data Collector Set
+# Performance Monitor > Data Collector Sets > User Defined > New
+# Select counters: Processor, Memory, Disk, Network
+# Set sample interval: 15 seconds
+# Duration: 5-10 minutes during issue
+```
+
+### Resource Monitor (resmon)
+```powershell
+# Launch Resource Monitor
+resmon
+
+# Real-time monitoring of:
+# - CPU usage per process
+# - Memory consumption
+# - Disk activity (read/write per process)
+# - Network activity per process
+```
+
+### Task Manager
+```powershell
+# Launch Task Manager
+taskmgr
+
+# Performance tab shows:
+# - CPU utilization
+# - Memory usage
+# - Disk activity
+# - Network throughput
+```
+
+## CPU Performance Issues
+
+### Identify High CPU Usage
+```powershell
+# Get top CPU consuming processes
+Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 Name, CPU, Id
+
+# Monitor CPU usage in real-time
+Get-Counter '\Processor(_Total)\% Processor Time' -Continuous
+
+# Check per-core utilization
+Get-Counter '\Processor(*)\% Processor Time'
+
+# Identify threads causing high CPU
+Get-Process -Id <PID> | Select-Object Threads | Format-List
+```
+
+### Common CPU Issues
+
+**Issue 1: Single process consuming 100% CPU**
+```powershell
+# Identify the process
+Get-Process | Sort-Object CPU -Descending | Select-Object -First 5
+
+# Check if process is legitimate
+Get-Process -Name <ProcessName> | Select-Object Path, Company, Product
+
+# If malware suspected, scan with Windows Defender
+Start-MpScan -ScanType FullScan
+
+# Stop runaway process (use caution)
+Stop-Process -Name <ProcessName> -Force
+```
+
+**Issue 2: System process high CPU**
+```powershell
+# Check Windows Update activity
+Get-WindowsUpdateLog
+
+# Check Windows Search indexing
+Get-Service -Name WSearch
+
+# Rebuild search index if needed
+Stop-Service WSearch
+Remove-Item -Path "C:\ProgramData\Microsoft\Search\Data\Applications\Windows\*" -Recurse -Force
+Start-Service WSearch
+
+# Check for failed updates
+Get-WindowsUpdate -NotInstalled
+
+# Check event logs for errors
+Get-EventLog -LogName System -Newest 50 -EntryType Error
+```
+
+**Issue 3: Antivirus scanning causing high CPU**
+```powershell
+# Check Windows Defender status
+Get-MpComputerStatus
+
+# Exclude specific folders from scanning (use caution)
+Add-MpPreference -ExclusionPath "C:\TempData"
+
+# Schedule scans during off-hours
+Set-MpPreference -ScanScheduleDay 0  # Sunday
+Set-MpPreference -ScanScheduleTime 02:00:00
+```
+
+## Memory Performance Issues
+
+### Check Memory Usage
+```powershell
+# Get total and available memory
+Get-Counter '\Memory\Available MBytes'
+Get-Counter '\Memory\% Committed Bytes In Use'
+
+# Check for memory leaks
+Get-Counter '\Memory\Pool Nonpaged Bytes'
+Get-Counter '\Memory\Pool Paged Bytes'
+
+# Identify processes using most memory
+Get-Process | Sort-Object WorkingSet -Descending | Select-Object -First 10 Name, @{N='Memory(MB)';E={[math]::Round($_.WorkingSet/1MB,2)}}, Id
+```
+
+### Common Memory Issues
+
+**Issue 1: High memory usage / Low available memory**
+```powershell
+# Check committed memory
+Get-Counter '\Memory\% Committed Bytes In Use'
+# If >80%, server needs more RAM or process optimization
+
+# Check paging activity
+Get-Counter '\Memory\Pages/sec'
+# If >1000 consistently, add more RAM
+
+# Identify memory hogs
+Get-Process | Sort-Object WorkingSet -Descending | Select-Object -First 10
+
+# Check for memory leaks (monitor over time)
+$process = Get-Process -Name <ProcessName>
+while ($true) {
+    Write-Host "$($process.Name): $([math]::Round($process.WorkingSet/1MB,2)) MB"
+    Start-Sleep -Seconds 60
+    $process.Refresh()
+}
+```
+
+**Issue 2: SQL Server consuming all memory**
+```powershell
+# SQL Server by design uses all available RAM
+# Set max server memory in SQL Server
+
+# Connect to SQL Server
+sqlcmd -S localhost -E
+
+# Set max memory (e.g., 16GB on 24GB server)
+sp_configure 'show advanced options', 1;
+RECONFIGURE;
+sp_configure 'max server memory', 16384;
+RECONFIGURE;
+GO
+```
+
+**Issue 3: Memory leak in application**
+```powershell
+# Monitor process memory over time
+$processName = "ApplicationName"
+$logFile = "C:\Temp\MemoryLog.csv"
+"Time,Memory(MB)" | Out-File $logFile
+
+while ($true) {
+    $process = Get-Process -Name $processName -ErrorAction SilentlyContinue
+    if ($process) {
+        $memory = [math]::Round($process.WorkingSet/1MB,2)
+        "$((Get-Date).ToString('yyyy-MM-dd HH:mm:ss')),$memory" | Out-File $logFile -Append
+    }
+    Start-Sleep -Seconds 300  # Log every 5 minutes
+}
+
+# If memory consistently increases, restart service/application
+Restart-Service -Name <ServiceName>
+```
+
+## Disk Performance Issues
+
+### Check Disk Performance
+```powershell
+# Check disk queue length (should be <2 per disk)
+Get-Counter '\PhysicalDisk(*)\Avg. Disk Queue Length'
+
+# Check disk response time (should be <15ms for SSD, <20ms for HDD)
+Get-Counter '\PhysicalDisk(*)\Avg. Disk sec/Read'
+Get-Counter '\PhysicalDisk(*)\Avg. Disk sec/Write'
+
+# Check disk utilization
+Get-Counter '\PhysicalDisk(*)\% Disk Time'
+
+# Identify processes causing disk I/O
+# Use Resource Monitor (resmon) > Disk tab
+```
+
+### Common Disk Issues
+
+**Issue 1: High disk queue length / Slow disk response**
+```powershell
+# Check disk queue
+Get-Counter '\PhysicalDisk(_Total)\Avg. Disk Queue Length'
+# If >2 consistently, disk is bottleneck
+
+# Identify top disk users (use Resource Monitor or)
+# Process Explorer from Sysinternals
+
+# Check for disk errors
+Get-PhysicalDisk | Get-StorageReliabilityCounter | Select-Object DeviceId, Wear, Temperature, ReadErrorsTotal, WriteErrorsTotal
+
+# Run CHKDSK if errors found
+chkdsk C: /F /R
+# Requires reboot
+
+# Defragment if HDD (NOT for SSD)
+Optimize-Volume -DriveLetter C -Analyze
+Optimize-Volume -DriveLetter C -Defrag
+```
+
+**Issue 2: Disk space running low**
+```powershell
+# Check disk space
+Get-PSDrive -PSProvider FileSystem
+
+# Find large files
+Get-ChildItem C:\ -Recurse -ErrorAction SilentlyContinue |
+    Where-Object {$_.Length -gt 1GB} |
+    Sort-Object Length -Descending |
+    Select-Object FullName, @{N='Size(GB)';E={[math]::Round($_.Length/1GB,2)}}
+
+# Clear temp files
+Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
+
+# Clean Windows Update cache
+Stop-Service wuauserv
+Remove-Item -Path "C:\Windows\SoftwareDistribution\Download\*" -Recurse -Force
+Start-Service wuauserv
+
+# Run Disk Cleanup
+cleanmgr /sagerun:1
+```
+
+**Issue 3: SQL Server database files growing**
+```powershell
+# Check SQL database sizes
+sqlcmd -S localhost -E -Q "EXEC sp_MSforeachdb 'USE [?]; EXEC sp_spaceused'"
+
+# Shrink database (use caution, can cause fragmentation)
+sqlcmd -S localhost -E -Q "DBCC SHRINKDATABASE (DatabaseName, 10)"
+
+# Shrink transaction log
+sqlcmd -S localhost -E -Q "USE DatabaseName; DBCC SHRINKFILE (LogFileName, 1024)"
+```
+
+## Network Performance Issues
+
+### Check Network Performance
+```powershell
+# Check network utilization
+Get-Counter '\Network Interface(*)\Bytes Total/sec'
+
+# Check current bandwidth usage
+Get-NetAdapterStatistics | Select-Object Name, ReceivedBytes, SentBytes
+
+# Test network speed to remote host
+Test-Connection -ComputerName 192.168.1.100 -Count 10
+
+# Check for packet loss
+Test-Connection -ComputerName 192.168.1.100 -Count 100 | Measure-Object -Property ResponseTime -Average -Maximum -Minimum
+```
+
+### Common Network Issues
+
+**Issue 1: High network latency**
+```powershell
+# Trace route to destination
+tracert google.com
+
+# Check DNS resolution time
+Measure-Command {Resolve-DnsName google.com}
+
+# Flush DNS cache
+Clear-DnsClientCache
+
+# Check for network adapter errors
+Get-NetAdapterStatistics | Select-Object Name, ReceivedErrors, SentErrors
+
+# Reset network adapter
+Restart-NetAdapter -Name "Ethernet"
+```
+
+**Issue 2: Slow file transfer to network share**
+```powershell
+# Check SMB version
+Get-SmbConnection
+
+# Enable SMB3 compression (Windows Server 2022+)
+Set-SmbClientConfiguration -EnableCompression $true
+
+# Check SMB bandwidth throttling
+Get-SmbBandwidthLimit
+
+# Test file copy speed
+Measure-Command {Copy-Item -Path "C:\TestFile.zip" -Destination "\\server\share\"}
+```
+
+## Application-Specific Issues
+
+### IIS Performance Issues
+```powershell
+# Check IIS application pool status
+Import-Module WebAdministration
+Get-IISAppPool
+
+# Check worker process memory
+Get-Process w3wp | Select-Object Id, @{N='Memory(MB)';E={[math]::Round($_.WorkingSet/1MB,2)}}
+
+# Restart application pool
+Restart-WebAppPool -Name "DefaultAppPool"
+
+# Check IIS logs for errors
+Get-Content "C:\inetpub\logs\LogFiles\W3SVC1\*.log" | Select-String "500"
+```
+
+### SQL Server Performance Issues
+```powershell
+# Check SQL Server CPU usage
+Get-Counter '\SQLServer:SQL Statistics\Batch Requests/sec'
+
+# Check for blocking
+sqlcmd -S localhost -E -Q "EXEC sp_who2"
+
+# Check for slow queries (requires Query Store enabled)
+sqlcmd -S localhost -E -Q "SELECT TOP 10 * FROM sys.dm_exec_query_stats ORDER BY total_elapsed_time DESC"
+
+# Update statistics
+sqlcmd -S localhost -E -Q "USE DatabaseName; EXEC sp_updatestats"
+
+# Rebuild indexes
+sqlcmd -S localhost -E -Q "USE DatabaseName; EXEC sp_MSforeachtable @command1='DBCC DBREINDEX(''?'')'"
+```
+
+## Event Log Analysis
+
+### Check for Errors
+```powershell
+# System errors in last 24 hours
+Get-EventLog -LogName System -After (Get-Date).AddDays(-1) -EntryType Error |
+    Group-Object -Property Source |
+    Sort-Object Count -Descending
+
+# Application errors
+Get-EventLog -LogName Application -After (Get-Date).AddDays(-1) -EntryType Error |
+    Group-Object -Property Source |
+    Sort-Object Count -Descending
+
+# Check specific error ID
+Get-EventLog -LogName System -InstanceId 7031  # Service crash
+```
+
+## Performance Baselines
+
+### Create Performance Baseline
+```powershell
+# Collect baseline data during normal operation
+$counters = @(
+    '\Processor(_Total)\% Processor Time',
+    '\Memory\Available MBytes',
+    '\PhysicalDisk(_Total)\Avg. Disk Queue Length',
+    '\PhysicalDisk(_Total)\Avg. Disk sec/Read',
+    '\Network Interface(*)\Bytes Total/sec'
+)
+
+Get-Counter -Counter $counters -SampleInterval 60 -MaxSamples 60 |
+    Export-Counter -Path "C:\Baseline.blg"
+
+# Import and analyze baseline
+$baseline = Import-Counter -Path "C:\Baseline.blg"
+$baseline.CounterSamples | Group-Object Path | ForEach-Object {
+    [PSCustomObject]@{
+        Counter = $_.Name
+        Average = ($_.Group | Measure-Object -Property CookedValue -Average).Average
+        Max = ($_.Group | Measure-Object -Property CookedValue -Maximum).Maximum
+    }
+}
+```
+
+## Best Practices
+
+1. **Monitoring:**
+   - Establish performance baselines during normal operation
+   - Set up alerts for CPU >80%, Memory <10% free, Disk Queue >2
+   - Monitor trends over time, not just point-in-time
+   - Use Performance Monitor for detailed analysis
+
+2. **Proactive Maintenance:**
+   - Regular Windows Updates
+   - Defragment HDDs monthly (not SSDs)
+   - Clean temp files weekly
+   - Check disk health monthly
+   - Review Event Viewer for warnings
+
+3. **Resource Allocation:**
+   - Right-size VMs (not too large or small)
+   - Allocate appropriate memory to applications
+   - Use separate disks for OS, apps, and data
+   - Plan for 20-30% headroom
+
+4. **Application Optimization:**
+   - Keep applications updated
+   - Configure appropriate caching
+   - Optimize database queries
+   - Use connection pooling
+
+5. **Documentation:**
+   - Document normal performance metrics
+   - Track changes that affect performance
+   - Maintain runbook for common issues
+
+---
+
+## Quick Reference
+
+```powershell
+# CPU
+Get-Process | Sort-Object CPU -Descending | Select-Object -First 10
+Get-Counter '\Processor(_Total)\% Processor Time'
+
+# Memory
+Get-Process | Sort-Object WorkingSet -Descending | Select-Object -First 10
+Get-Counter '\Memory\Available MBytes'
+
+# Disk
+Get-Counter '\PhysicalDisk(_Total)\Avg. Disk Queue Length'
+Get-Counter '\PhysicalDisk(_Total)\% Disk Time'
+
+# Network
+Get-Counter '\Network Interface(*)\Bytes Total/sec'
+Test-Connection -ComputerName server -Count 10
+
+# Services
+Get-Service | Where-Object {$_.Status -eq 'Stopped' -and $_.StartType -eq 'Automatic'}
+Restart-Service -Name ServiceName
+
+# Event Logs
+Get-EventLog -LogName System -EntryType Error -Newest 50
+Get-EventLog -LogName Application -EntryType Error -Newest 50
+
+# Resource Monitor
+resmon
+
+# Performance Monitor
+perfmon
+```
+
+### Performance Thresholds
+- **CPU:** >80% sustained = issue
+- **Memory:** <10% available = issue
+- **Disk Queue:** >2 = bottleneck
+- **Disk Response:** >20ms = slow
+- **Network:** Packet loss >1% = issue
+'''
+        })
+
+        # Article 34: VMware vSphere Basics
+        articles.append({
+            'category': 'Common Issues',
+            'title': 'VMware vSphere Administration Basics',
+            'body': r'''# VMware vSphere Administration Basics
+
+## Overview
+Comprehensive guide to VMware vSphere administration, including ESXi host management, virtual machine operations, and common troubleshooting tasks.
+
+## vSphere Architecture
+
+### Components
+- **ESXi:** Hypervisor installed on physical servers
+- **vCenter Server:** Centralized management platform
+- **vSphere Client:** Web-based management interface
+- **Datastores:** Storage repositories for VMs
+- **Virtual Switches:** Network infrastructure for VMs
+
+### Accessing vSphere
+
+**vCenter Web Client:**
+```
+URL: https://vcenter.contoso.local/ui
+Username: administrator@vsphere.local
+Password: ********
+```
+
+**ESXi Host Direct:**
+```
+URL: https://esxi01.contoso.local/ui
+Username: root
+Password: ********
+```
+
+## Virtual Machine Management
+
+### Create Virtual Machine
+
+**Via vSphere Client:**
+1. Right-click datacenter/cluster > New Virtual Machine
+2. Select creation type: "New virtual machine"
+3. Configure:
+   - Name: SERVER01
+   - Folder: Production
+   - Compute resource: Select host/cluster
+   - Storage: Select datastore
+   - Compatibility: ESXi 7.0 and later
+   - Guest OS: Windows Server 2022
+   - Customize hardware:
+     - CPU: 4 vCPUs
+     - Memory: 16 GB
+     - Hard disk: 100 GB (Thin provisioned)
+     - Network: VM Network (VLAN 20)
+     - CD/DVD: Datastore ISO file
+4. Finish and power on
+
+**Via PowerCLI:**
+```powershell
+# Connect to vCenter
+Connect-VIServer -Server vcenter.contoso.local -User administrator@vsphere.local
+
+# Create new VM
+New-VM -Name "SERVER01" `
+    -VMHost "esxi01.contoso.local" `
+    -Datastore "Datastore01" `
+    -DiskGB 100 `
+    -DiskStorageFormat Thin `
+    -MemoryGB 16 `
+    -NumCpu 4 `
+    -GuestId windows2019srv_64Guest `
+    -NetworkName "VM Network"
+
+# Mount ISO
+Get-VM "SERVER01" | Get-CDDrive | Set-CDDrive -IsoPath "[Datastore01] ISO/Windows2022.iso" -Connected $true -Confirm:$false
+
+# Power on VM
+Start-VM -VM "SERVER01"
+```
+
+### Manage Virtual Machine
+
+**Power Operations:**
+```powershell
+# Power on VM
+Start-VM -VM "SERVER01"
+
+# Graceful shutdown (requires VMware Tools)
+Shutdown-VMGuest -VM "SERVER01" -Confirm:$false
+
+# Power off VM (hard power off)
+Stop-VM -VM "SERVER01" -Confirm:$false
+
+# Restart VM
+Restart-VMGuest -VM "SERVER01" -Confirm:$false
+
+# Suspend VM
+Suspend-VM -VM "SERVER01" -Confirm:$false
+```
+
+**Modify VM Resources:**
+```powershell
+# Increase CPU (VM must be powered off)
+Set-VM -VM "SERVER01" -NumCpu 8 -Confirm:$false
+
+# Increase memory (hot-add if enabled)
+Set-VM -VM "SERVER01" -MemoryGB 32 -Confirm:$false
+
+# Add hard disk
+New-HardDisk -VM "SERVER01" -CapacityGB 200 -StorageFormat Thin
+
+# Expand existing hard disk (VM must be powered off)
+Get-HardDisk -VM "SERVER01" | Where-Object {$_.Name -eq "Hard disk 1"} | Set-HardDisk -CapacityGB 150 -Confirm:$false
+
+# Add network adapter
+New-NetworkAdapter -VM "SERVER01" -NetworkName "VM Network VLAN30" -Type Vmxnet3 -StartConnected
+```
+
+**Snapshots:**
+```powershell
+# Create snapshot
+New-Snapshot -VM "SERVER01" -Name "Before Windows Update" -Description "Pre-patch baseline" -Memory
+
+# List snapshots
+Get-Snapshot -VM "SERVER01"
+
+# Revert to snapshot
+Set-VM -VM "SERVER01" -Snapshot "Before Windows Update" -Confirm:$false
+
+# Remove snapshot (consolidate)
+Get-Snapshot -VM "SERVER01" -Name "Before Windows Update" | Remove-Snapshot -Confirm:$false
+
+# Remove all snapshots
+Get-Snapshot -VM "SERVER01" | Remove-Snapshot -Confirm:$false
+```
+
+## ESXi Host Management
+
+### Host Configuration
+
+**Check ESXi version:**
+```powershell
+# Via PowerCLI
+Get-VMHost | Select-Object Name, Version, Build
+
+# Via ESXi shell
+vmware -vl
+```
+
+**Configure NTP:**
+```powershell
+# Add NTP servers
+Get-VMHost | Add-VmHostNtpServer -NtpServer "pool.ntp.org"
+
+# Start NTP service
+Get-VMHost | Get-VMHostService | Where-Object {$_.Key -eq "ntpd"} | Start-VMHostService
+
+# Set NTP to start automatically
+Get-VMHost | Get-VMHostService | Where-Object {$_.Key -eq "ntpd"} | Set-VMHostService -Policy "on"
+```
+
+**Configure DNS:**
+```powershell
+Get-VMHost | Get-VMHostNetwork | Set-VMHostNetwork -DnsAddress 192.168.1.10, 192.168.1.11 -DomainName "contoso.local" -SearchDomain "contoso.local"
+```
+
+**Enable SSH:**
+```powershell
+Get-VMHost | Get-VMHostService | Where-Object {$_.Key -eq "TSM-SSH"} | Start-VMHostService
+Get-VMHost | Get-VMHostService | Where-Object {$_.Key -eq "TSM-SSH"} | Set-VMHostService -Policy "on"
+```
+
+### Maintenance Mode
+
+**Enter maintenance mode:**
+```powershell
+# Migrate or shut down VMs before entering maintenance mode
+Set-VMHost -VMHost "esxi01.contoso.local" -State Maintenance
+```
+
+**Exit maintenance mode:**
+```powershell
+Set-VMHost -VMHost "esxi01.contoso.local" -State Connected
+```
+
+### Patching ESXi
+
+**Via vSphere Update Manager (VUM):**
+1. Home > Lifecycle Manager
+2. Import patches
+3. Create baseline
+4. Attach baseline to hosts
+5. Remediate (applies patches)
+
+**Manual patching:**
+```bash
+# Upload patch bundle to datastore via SCP
+
+# SSH to ESXi host
+esxcli software vib install -d /vmfs/volumes/Datastore01/patches/VMware-ESXi-7.0U3-update.zip
+
+# Reboot host
+reboot
+```
+
+## Storage Management
+
+### Datastores
+
+**Add NFS datastore:**
+```powershell
+New-Datastore -Nfs -VMHost "esxi01.contoso.local" `
+    -Name "NFS-Datastore01" `
+    -Path "/export/vmware" `
+    -NfsHost "nas01.contoso.local"
+```
+
+**Add iSCSI datastore:**
+```powershell
+# Add iSCSI adapter
+Get-VMHost "esxi01.contoso.local" | Get-VMHostStorage | Set-VMHostStorage -SoftwareIScsiEnabled $true
+
+# Add iSCSI target
+Get-VMHost "esxi01.contoso.local" | Get-VMHostHba -Type iSCSI | New-IScsiHbaTarget -Address "192.168.1.50"
+
+# Rescan storage
+Get-VMHost "esxi01.contoso.local" | Get-VMHostStorage -RescanAllHba
+```
+
+**Increase datastore size:**
+```powershell
+# Expand underlying LUN first (on storage array)
+
+# Rescan storage
+Get-VMHost | Get-VMHostStorage -RescanAllHba
+
+# Expand datastore
+Get-Datastore "Datastore01" | Set-Datastore -CapacityGB 500
+```
+
+### Storage vMotion
+
+**Migrate VM to different datastore:**
+```powershell
+# Storage vMotion (VM stays powered on)
+Get-VM "SERVER01" | Move-VM -Datastore "Datastore02"
+
+# Check storage vMotion progress
+Get-Task | Where-Object {$_.Name -eq "RelocateVM_Task"}
+```
+
+## Networking
+
+### Virtual Switches
+
+**Create standard switch:**
+```powershell
+# Create vSwitch
+New-VirtualSwitch -VMHost "esxi01.contoso.local" -Name "vSwitch1" -Nic vmnic2
+
+# Create port group
+New-VirtualPortGroup -VirtualSwitch "vSwitch1" -Name "VM Network VLAN30" -VLanId 30
+```
+
+**Configure distributed switch (vDS):**
+```powershell
+# Create distributed switch
+New-VDSwitch -Name "DSwitch01" -Location (Get-Datacenter "DC01") -NumUplinkPorts 4
+
+# Add hosts to vDS
+$vds = Get-VDSwitch "DSwitch01"
+Add-VDSwitchVMHost -VDSwitch $vds -VMHost "esxi01.contoso.local"
+
+# Create distributed port group
+New-VDPortgroup -VDSwitch $vds -Name "Production-VLAN20" -NumPorts 128 -VlanId 20
+```
+
+## vMotion
+
+### Live Migration
+
+**Migrate VM to different host:**
+```powershell
+# vMotion (migrate compute)
+Move-VM -VM "SERVER01" -Destination "esxi02.contoso.local"
+
+# Combined vMotion and Storage vMotion
+Move-VM -VM "SERVER01" -Destination "esxi02.contoso.local" -Datastore "Datastore02"
+```
+
+**Requirements for vMotion:**
+- Shared storage (or vSAN)
+- vMotion network configured on all hosts
+- Same CPU vendor (Intel/AMD) or EVC enabled
+- Compatible virtual hardware version
+
+## High Availability (HA)
+
+### Configure HA Cluster
+```powershell
+# Create cluster
+New-Cluster -Name "Production-Cluster" -Location (Get-Datacenter "DC01") -HAEnabled
+
+# Add hosts to cluster
+Add-VMHost -Name "esxi01.contoso.local" -Location (Get-Cluster "Production-Cluster") -User root -Password ******
+
+# Configure HA settings
+Get-Cluster "Production-Cluster" | Set-Cluster -HAAdmissionControlEnabled $true -HARestartPriority High -Confirm:$false
+```
+
+### HA Behavior
+- Automatically restarts VMs if host fails
+- Monitors VM health
+- Requires shared storage
+- Admission control prevents resource over-commitment
+
+## Distributed Resource Scheduler (DRS)
+
+### Configure DRS
+```powershell
+# Enable DRS on cluster
+Get-Cluster "Production-Cluster" | Set-Cluster -DrsEnabled $true -DrsAutomationLevel FullyAutomated -Confirm:$false
+
+# Set DRS rules
+# VM-to-host affinity rule: Keep VM on specific host
+New-DrsVMHostRule -Cluster "Production-Cluster" -Name "SQL-to-Host1" -VM (Get-VM "SQL-SERVER") -VMHost (Get-VMHost "esxi01.contoso.local") -Type ShouldRunOn
+
+# VM-to-VM anti-affinity: Keep VMs on separate hosts
+New-DrsVMAffinityRule -Cluster "Production-Cluster" -Name "Separate-DCs" -VM (Get-VM "DC01","DC02") -KeepTogether $false
+```
+
+## Troubleshooting
+
+### VM Performance Issues
+
+**Check VM resource usage:**
+```powershell
+# CPU usage
+Get-VM | Select-Object Name, NumCpu, @{N='CPU Usage (%)';E={[math]::Round($_.ExtensionData.Summary.QuickStats.OverallCpuUsage / ($_.NumCpu * 1000) * 100, 2)}}
+
+# Memory usage
+Get-VM | Select-Object Name, MemoryGB, @{N='Memory Usage (GB)';E={[math]::Round($_.ExtensionData.Summary.QuickStats.GuestMemoryUsage/1KB,2)}}
+
+# Check for CPU ready time (indicates contention)
+# High CPU ready (>5%) = host is overcommitted
+```
+
+**VMware Tools issues:**
+```powershell
+# Check VMware Tools status
+Get-VM | Select-Object Name, @{N='Tools Status';E={$_.ExtensionData.Guest.ToolsStatus}}
+
+# Update VMware Tools
+Get-VM "SERVER01" | Update-Tools
+
+# Mount VMware Tools installer
+Get-VM "SERVER01" | Get-CDDrive | Set-CDDrive -IsoPath ([Environment]::GetFolderPath("ProgramFiles") + "\VMware\VMware Tools\windows.iso") -Connected $true
+```
+
+### Host Issues
+
+**Check host health:**
+```powershell
+# Check host connection state
+Get-VMHost | Select-Object Name, ConnectionState, PowerState
+
+# Check host alarms
+Get-VMHost | Get-AlarmDefinition
+
+# Check host hardware status
+Get-VMHost | Get-VMHostHardware
+```
+
+**ESXi not responding:**
+```bash
+# Connect via console/iLO/iDRAC
+
+# Check management network
+esxcli network ip interface list
+esxcli network ip interface ipv4 get
+
+# Restart management agents
+/etc/init.d/hostd restart
+/etc/init.d/vpxa restart
+
+# Check logs
+tail -f /var/log/vmkernel.log
+tail -f /var/log/hostd.log
+```
+
+### Storage Issues
+
+**VM won't power on - file locked:**
+```powershell
+# Find which host has the lock
+Get-VM "SERVER01" | Get-HardDisk | Select-Object Filename
+
+# SSH to each host and check
+vmkfstools -D /vmfs/volumes/Datastore01/SERVER01/SERVER01.vmdk
+
+# If host is down, force remove lock (use caution!)
+vmkfstools -B /vmfs/volumes/Datastore01/SERVER01/SERVER01.vmdk
+```
+
+**Datastore low on space:**
+```powershell
+# Check datastore usage
+Get-Datastore | Select-Object Name, @{N='Capacity(GB)';E={[math]::Round($_.CapacityGB,2)}}, @{N='Free(GB)';E={[math]::Round($_.FreeSpaceGB,2)}}, @{N='Used%';E={[math]::Round(($_.CapacityGB - $_.FreeSpaceGB) / $_.CapacityGB * 100, 2)}}
+
+# Find large VM files
+Get-Datastore | ForEach-Object {
+    Get-ChildItem -Path "vmstores:\$($_.Name)" -Recurse |
+    Sort-Object Length -Descending |
+    Select-Object -First 10 FullName, @{N='Size(GB)';E={[math]::Round($_.Length/1GB,2)}}
+}
+
+# Remove old snapshots
+Get-VM | Get-Snapshot | Where-Object {$_.Created -lt (Get-Date).AddDays(-7)} | Remove-Snapshot -Confirm:$false
+```
+
+## Best Practices
+
+1. **Virtual Machine:**
+   - Install VMware Tools on all VMs
+   - Use VMXNET3 network adapters for best performance
+   - Use paravirtual SCSI controllers
+   - Thin provision disks when possible
+   - Regular snapshot management (don't keep long-term)
+
+2. **ESXi Host:**
+   - Keep ESXi patched and updated
+   - Configure NTP for time sync
+   - Enable HA and DRS in clusters
+   - Use separate physical NICs for management, vMotion, and VM traffic
+   - Document host configuration
+
+3. **Storage:**
+   - Monitor datastore capacity (alert at 80%)
+   - Use Storage vMotion to balance datastores
+   - Don't fill datastores beyond 80%
+   - Use separate datastores for production and test
+
+4. **Networking:**
+   - Use distributed switches for easier management
+   - Configure network redundancy (NIC teaming)
+   - Separate VLANs for management, vMotion, storage, and VMs
+   - Enable jumbo frames for vMotion and storage networks
+
+5. **Backup:**
+   - Use image-based backups (Veeam, Commvault, etc.)
+   - Test restores regularly
+   - Backup vCenter database
+   - Document vCenter configuration
+
+---
+
+## Quick Reference
+
+```powershell
+# Connect to vCenter
+Connect-VIServer -Server vcenter.contoso.local
+
+# VM operations
+Get-VM
+Start-VM -VM "SERVER01"
+Stop-VM -VM "SERVER01"
+Restart-VMGuest -VM "SERVER01"
+New-Snapshot -VM "SERVER01" -Name "Snapshot1"
+
+# Host operations
+Get-VMHost
+Get-VMHost | Select Name, ConnectionState, PowerState
+Set-VMHost -State Maintenance
+
+# Storage
+Get-Datastore
+Get-VM "SERVER01" | Move-VM -Datastore "Datastore02"
+
+# Networking
+Get-VirtualSwitch
+Get-VirtualPortGroup
+New-VirtualPortGroup -Name "VLAN30" -VLanId 30
+
+# vMotion
+Move-VM -VM "SERVER01" -Destination "esxi02.contoso.local"
+
+# Cluster
+Get-Cluster
+Get-Cluster | Set-Cluster -HAEnabled $true -DrsEnabled $true
+```
+'''
+        })
+
+        # Article 35: Linux Server Administration
+        articles.append({
+            'category': 'Linux Administration',
+            'title': 'Linux Server Administration Essentials',
+            'body': r'''# Linux Server Administration Essentials
+
+## Overview
+Comprehensive guide to Linux server administration covering user management, package management, system monitoring, and common troubleshooting tasks for Ubuntu/Debian and Red Hat/CentOS systems.
+
+## User and Permission Management
+
+### User Management
+```bash
+# Create user
+sudo adduser john
+sudo useradd -m -s /bin/bash john  # Alternative method
+
+# Set password
+sudo passwd john
+
+# Delete user
+sudo deluser john --remove-home
+sudo userdel -r john  # Alternative
+
+# Modify user
+sudo usermod -aG sudo john  # Add to sudo group
+sudo usermod -s /bin/zsh john  # Change shell
+
+# List users
+cat /etc/passwd
+getent passwd
+
+# Check user info
+id john
+groups john
+```
+
+### Group Management
+```bash
+# Create group
+sudo groupadd developers
+
+# Add user to group
+sudo usermod -aG developers john
+
+# Remove user from group
+sudo gpasswd -d john developers
+
+# List groups
+cat /etc/group
+getent group
+
+# List users in group
+getent group developers
+```
+
+### File Permissions
+```bash
+# Change permissions (numeric)
+chmod 755 /path/to/file  # rwxr-xr-x
+chmod 644 /path/to/file  # rw-r--r--
+chmod 600 /path/to/file  # rw-------
+
+# Change permissions (symbolic)
+chmod u+x /path/to/file  # Add execute for user
+chmod go-w /path/to/file  # Remove write for group/others
+chmod a+r /path/to/file  # Add read for all
+
+# Change ownership
+sudo chown john:developers /path/to/file
+sudo chown -R john:developers /path/to/directory  # Recursive
+
+# Set SUID/SGID
+chmod u+s /path/to/binary  # SUID (4755)
+chmod g+s /path/to/directory  # SGID (2755)
+
+# Sticky bit (only owner can delete)
+chmod +t /shared/directory  # Sticky bit (1777)
+```
+
+### sudo Configuration
+```bash
+# Edit sudoers file (ALWAYS use visudo)
+sudo visudo
+
+# Grant full sudo access
+john ALL=(ALL:ALL) ALL
+
+# Allow specific commands without password
+john ALL=(ALL) NOPASSWD: /usr/bin/apt update, /usr/bin/apt upgrade
+
+# Allow group sudo access
+%developers ALL=(ALL:ALL) ALL
+
+# View sudo privileges
+sudo -l
+```
+
+## Package Management
+
+### Ubuntu/Debian (apt)
+```bash
+# Update package lists
+sudo apt update
+
+# Upgrade installed packages
+sudo apt upgrade
+sudo apt full-upgrade  # More aggressive, handles dependencies better
+
+# Install package
+sudo apt install nginx
+
+# Remove package
+sudo apt remove nginx  # Keeps config files
+sudo apt purge nginx  # Removes config files
+sudo apt autoremove  # Remove unused dependencies
+
+# Search for package
+apt search nginx
+apt-cache search nginx
+
+# Show package info
+apt show nginx
+
+# List installed packages
+apt list --installed
+dpkg -l
+
+# Check if package is installed
+dpkg -l | grep nginx
+
+# Install from .deb file
+sudo dpkg -i package.deb
+sudo apt install -f  # Fix dependencies
+```
+
+### Red Hat/CentOS (yum/dnf)
+```bash
+# Update package lists
+sudo yum check-update
+sudo dnf check-update  # RHEL 8+
+
+# Upgrade packages
+sudo yum update
+sudo dnf upgrade  # RHEL 8+
+
+# Install package
+sudo yum install httpd
+sudo dnf install httpd  # RHEL 8+
+
+# Remove package
+sudo yum remove httpd
+sudo dnf remove httpd  # RHEL 8+
+
+# Search for package
+yum search nginx
+dnf search nginx  # RHEL 8+
+
+# Show package info
+yum info nginx
+dnf info nginx  # RHEL 8+
+
+# List installed packages
+yum list installed
+dnf list installed  # RHEL 8+
+
+# Clean cache
+sudo yum clean all
+sudo dnf clean all  # RHEL 8+
+```
+
+## Service Management (systemd)
+
+### Service Control
+```bash
+# Start service
+sudo systemctl start nginx
+
+# Stop service
+sudo systemctl stop nginx
+
+# Restart service
+sudo systemctl restart nginx
+
+# Reload configuration
+sudo systemctl reload nginx
+
+# Enable service (start at boot)
+sudo systemctl enable nginx
+
+# Disable service
+sudo systemctl disable nginx
+
+# Check service status
+systemctl status nginx
+systemctl is-active nginx
+systemctl is-enabled nginx
+
+# View service logs
+sudo journalctl -u nginx
+sudo journalctl -u nginx -f  # Follow logs
+sudo journalctl -u nginx --since "1 hour ago"
+```
+
+### List and Manage Services
+```bash
+# List all services
+systemctl list-units --type=service
+systemctl list-units --type=service --state=running
+
+# List failed services
+systemctl --failed
+
+# View service file
+systemctl cat nginx
+
+# Edit service file
+sudo systemctl edit nginx  # Creates override
+sudo systemctl edit --full nginx  # Edit original
+
+# Reload systemd after editing
+sudo systemctl daemon-reload
+```
+
+## System Monitoring
+
+### Process Management
+```bash
+# View processes
+ps aux
+ps aux | grep nginx
+pgrep nginx
+
+# Interactive process viewer
+top
+htop  # More user-friendly (install: sudo apt install htop)
+
+# Kill process
+kill <PID>
+kill -9 <PID>  # Force kill
+pkill nginx  # Kill by name
+killall nginx  # Kill all instances
+```
+
+### Resource Monitoring
+```bash
+# CPU and memory usage
+top
+htop
+
+# Memory usage
+free -h
+cat /proc/meminfo
+
+# Disk usage
+df -h  # Disk space
+du -sh /path/to/directory  # Directory size
+du -sh /*  # Size of root directories
+
+# Disk I/O
+iostat
+iotop  # Interactive (install: sudo apt install iotop)
+
+# Network usage
+iftop  # Install: sudo apt install iftop
+nethogs  # Install: sudo apt install nethogs
+
+# System load
+uptime
+cat /proc/loadavg
+```
+
+### System Information
+```bash
+# OS information
+cat /etc/os-release
+lsb_release -a
+
+# Kernel version
+uname -r
+uname -a
+
+# CPU information
+lscpu
+cat /proc/cpuinfo
+
+# Memory information
+cat /proc/meminfo
+
+# Disk information
+lsblk
+fdisk -l
+
+# Hardware information
+lshw
+lspci  # PCI devices
+lsusb  # USB devices
+```
+
+## Networking
+
+### Network Configuration
+```bash
+# View network interfaces
+ip addr show
+ip a
+ifconfig  # Older command
+
+# View routing table
+ip route show
+route -n
+
+# View DNS servers
+cat /etc/resolv.conf
+
+# Test connectivity
+ping google.com
+ping -c 4 8.8.8.8  # Send 4 packets
+
+# Trace route
+traceroute google.com
+mtr google.com  # Better traceroute
+
+# Check open ports
+sudo netstat -tulpn
+sudo ss -tulpn  # Newer alternative
+sudo lsof -i  # List open files (network)
+
+# Test port connectivity
+telnet 192.168.1.100 80
+nc -zv 192.168.1.100 80  # netcat
+```
+
+### Firewall (ufw - Ubuntu)
+```bash
+# Enable firewall
+sudo ufw enable
+
+# Disable firewall
+sudo ufw disable
+
+# Check status
+sudo ufw status
+sudo ufw status verbose
+
+# Allow port
+sudo ufw allow 22/tcp
+sudo ufw allow ssh
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Deny port
+sudo ufw deny 23/tcp
+
+# Delete rule
+sudo ufw delete allow 80/tcp
+
+# Allow from specific IP
+sudo ufw allow from 192.168.1.100
+
+# Reset firewall
+sudo ufw reset
+```
+
+### Firewall (firewalld - RHEL/CentOS)
+```bash
+# Check status
+sudo firewall-cmd --state
+sudo firewall-cmd --list-all
+
+# Open port
+sudo firewall-cmd --zone=public --add-port=80/tcp --permanent
+sudo firewall-cmd --zone=public --add-service=http --permanent
+
+# Remove port
+sudo firewall-cmd --zone=public --remove-port=80/tcp --permanent
+
+# Reload firewall
+sudo firewall-cmd --reload
+
+# List open ports
+sudo firewall-cmd --list-ports
+
+# List allowed services
+sudo firewall-cmd --list-services
+```
+
+## Disk Management
+
+### Partitioning
+```bash
+# List disks and partitions
+lsblk
+sudo fdisk -l
+
+# Create partition (interactive)
+sudo fdisk /dev/sdb
+# Commands: n (new), p (primary), w (write)
+
+# Create filesystem
+sudo mkfs.ext4 /dev/sdb1  # ext4
+sudo mkfs.xfs /dev/sdb1  # xfs
+
+# Mount filesystem
+sudo mkdir /mnt/data
+sudo mount /dev/sdb1 /mnt/data
+
+# Unmount
+sudo umount /mnt/data
+
+# Add to fstab for permanent mount
+echo "/dev/sdb1 /mnt/data ext4 defaults 0 2" | sudo tee -a /etc/fstab
+
+# Check filesystem
+sudo fsck /dev/sdb1
+```
+
+### LVM (Logical Volume Manager)
+```bash
+# Create physical volume
+sudo pvcreate /dev/sdb
+
+# Create volume group
+sudo vgcreate vg_data /dev/sdb
+
+# Create logical volume
+sudo lvcreate -L 50G -n lv_data vg_data
+
+# Format logical volume
+sudo mkfs.ext4 /dev/vg_data/lv_data
+
+# Mount logical volume
+sudo mkdir /mnt/lv_data
+sudo mount /dev/vg_data/lv_data /mnt/lv_data
+
+# Extend logical volume
+sudo lvextend -L +10G /dev/vg_data/lv_data
+sudo resize2fs /dev/vg_data/lv_data  # ext4
+```
+
+## Log Management
+
+### View Logs
+```bash
+# System logs
+sudo tail -f /var/log/syslog  # Ubuntu/Debian
+sudo tail -f /var/log/messages  # RHEL/CentOS
+
+# Authentication logs
+sudo tail -f /var/log/auth.log  # Ubuntu/Debian
+sudo tail -f /var/log/secure  # RHEL/CentOS
+
+# Kernel logs
+dmesg
+dmesg -w  # Follow mode
+sudo tail -f /var/log/kern.log
+
+# Journalctl (systemd logs)
+sudo journalctl -xe  # Recent logs with explanations
+sudo journalctl -f  # Follow logs
+sudo journalctl --since "1 hour ago"
+sudo journalctl --since "2024-01-01"
+sudo journalctl -u nginx  # Service-specific logs
+sudo journalctl -p err  # Error-level logs only
+```
+
+### Log Rotation
+```bash
+# Configure logrotate
+sudo nano /etc/logrotate.d/myapp
+
+# Example configuration:
+/var/log/myapp/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 www-data www-data
+}
+
+# Test logrotate
+sudo logrotate -d /etc/logrotate.d/myapp  # Dry run
+sudo logrotate -f /etc/logrotate.d/myapp  # Force rotation
+```
+
+## SSH Configuration
+
+### SSH Server
+```bash
+# Edit SSH config
+sudo nano /etc/ssh/sshd_config
+
+# Recommended settings:
+Port 2222  # Change from default 22
+PermitRootLogin no
+PasswordAuthentication no  # Use key-based auth only
+PubkeyAuthentication yes
+
+# Restart SSH service
+sudo systemctl restart sshd
+```
+
+### SSH Keys
+```bash
+# Generate SSH key pair
+ssh-keygen -t rsa -b 4096 -C "john@contoso.com"
+ssh-keygen -t ed25519 -C "john@contoso.com"  # Modern, recommended
+
+# Copy public key to remote server
+ssh-copy-id user@server.com
+
+# Manual method
+cat ~/.ssh/id_rsa.pub | ssh user@server.com "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+
+# Set correct permissions
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+```
+
+## Cron Jobs (Scheduled Tasks)
+
+### Crontab Management
+```bash
+# Edit crontab for current user
+crontab -e
+
+# Crontab syntax: minute hour day month weekday command
+# Examples:
+0 2 * * * /path/to/backup.sh  # Daily at 2 AM
+*/15 * * * * /path/to/check.sh  # Every 15 minutes
+0 0 * * 0 /path/to/weekly.sh  # Weekly on Sunday at midnight
+0 3 1 * * /path/to/monthly.sh  # Monthly on 1st at 3 AM
+
+# List crontabs
+crontab -l
+
+# Remove crontab
+crontab -r
+
+# Edit crontab for specific user
+sudo crontab -u john -e
+
+# System-wide cron jobs
+# Place scripts in:
+/etc/cron.daily/
+/etc/cron.weekly/
+/etc/cron.monthly/
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Issue: Disk full**
+```bash
+# Check disk usage
+df -h
+
+# Find large files
+sudo du -sh /* | sort -h
+sudo find / -type f -size +100M
+
+# Clear old logs
+sudo journalctl --vacuum-time=7d
+sudo rm /var/log/*.gz
+```
+
+**Issue: High CPU/Memory usage**
+```bash
+# Find CPU-intensive processes
+top
+ps aux --sort=-%cpu | head -10
+
+# Find memory-intensive processes
+ps aux --sort=-%mem | head -10
+
+# Kill process
+sudo kill -9 <PID>
+```
+
+**Issue: Service won't start**
+```bash
+# Check service status
+systemctl status servicename
+
+# Check logs
+journalctl -u servicename -n 50
+
+# Check configuration syntax
+nginx -t  # For nginx
+apachectl configtest  # For Apache
+
+# Check file permissions
+ls -l /path/to/service/files
+```
+
+**Issue: Can't connect via SSH**
+```bash
+# Check if SSH service is running
+systemctl status sshd
+
+# Check firewall
+sudo ufw status
+sudo firewall-cmd --list-all
+
+# Check SSH logs
+sudo tail -f /var/log/auth.log
+
+# Verify SSH is listening
+sudo netstat -tulpn | grep :22
+```
+
+## Best Practices
+
+1. **Security:**
+   - Keep system updated: sudo apt update && sudo apt upgrade
+   - Use SSH keys instead of passwords
+   - Disable root SSH login
+   - Configure firewall (ufw/firewalld)
+   - Regular security audits
+
+2. **User Management:**
+   - Use sudo instead of root
+   - Least privilege principle
+   - Remove unused accounts
+   - Strong password policies
+
+3. **System Maintenance:**
+   - Monitor disk space
+   - Rotate logs
+   - Review failed services
+   - Schedule backups
+   - Document changes
+
+4. **Monitoring:**
+   - Set up monitoring (Nagios, Zabbix, Prometheus)
+   - Configure alerts
+   - Regular log reviews
+   - Performance baselines
+
+5. **Backup:**
+   - Regular backups
+   - Test restores
+   - Off-site backups
+   - Document recovery procedures
+
+---
+
+## Quick Reference
+
+```bash
+# User management
+sudo adduser username
+sudo usermod -aG sudo username
+sudo deluser username
+
+# Package management
+sudo apt update && sudo apt upgrade  # Ubuntu/Debian
+sudo yum update  # RHEL/CentOS
+
+# Service management
+sudo systemctl start/stop/restart servicename
+sudo systemctl enable/disable servicename
+systemctl status servicename
+
+# System monitoring
+top / htop
+free -h
+df -h
+ps aux
+
+# Networking
+ip addr show
+ip route show
+sudo ufw allow 80/tcp  # Ubuntu
+sudo firewall-cmd --add-port=80/tcp --permanent  # RHEL
+
+# Logs
+sudo journalctl -u servicename -f
+sudo tail -f /var/log/syslog
+
+# Permissions
+chmod 755 file
+sudo chown user:group file
+
+# SSH
+ssh-keygen -t ed25519
+ssh-copy-id user@server
 ```
 '''
         })
