@@ -5,6 +5,21 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.76] - 2026-01-15
+
+### ✨ Added Project Donation Link
+
+Added a donation link in the footer to support the MSP Reboot community project.
+
+**Changes:**
+- Footer now includes: "Like HuduGlue? Support the project ❤️"
+- Links to: https://mspreboot.com/donations.php
+- Opens in new tab
+- Subtle, non-intrusive placement
+
+**Files modified:**
+- templates/base.html - Added donation link to footer
+
 ## [2.24.75] - 2026-01-15
 
 ### 🔧 Fixed CLI update.sh - Eliminate git pull
