@@ -5,6 +5,26 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.100] - 2026-01-16
+
+### 🐛 Bug Fix
+
+**Update Progress Bar - Fixed Reset Issue:**
+- **Fixed** update progress bar resetting to 0/5 after gunicorn restart
+- **Issue**: Progress would show 1→2→3→4→5 then suddenly drop back to 0
+- **Root cause**: Django's default in-memory cache gets wiped when gunicorn restarts during step 5
+- **Solution**: Switched UpdateProgress to use file-based storage in /tmp
+- **Result**: Progress now persists across service restarts and shows accurate completion (5/5)
+
+**Technical Details:**
+- Update progress is stored as JSON in `/tmp/huduglue_update_progress_{id}.json`
+- File persists across gunicorn/nginx restarts
+- Automatic cleanup via clear() method after update completes
+- Graceful fallback to default values if file can't be read/written
+
+**Changes:**
+- core/update_progress.py - Replaced Django cache with file-based storage
+
 ## [2.24.99] - 2026-01-16
 
 ### ✨ Feature Enhancement

@@ -1,17 +1,21 @@
 """
 Real-time update progress tracking.
+Uses file-based storage to persist across service restarts.
 """
 import json
 import time
-from django.core.cache import cache
+import os
+from pathlib import Path
+from django.conf import settings
 
 
 class UpdateProgress:
-    """Track and report update progress."""
+    """Track and report update progress using file-based storage."""
 
     def __init__(self, update_id='current'):
         self.update_id = update_id
-        self.cache_key = f'update_progress_{update_id}'
+        # Store progress in /tmp which persists across gunicorn restarts
+        self.progress_file = Path(f'/tmp/huduglue_update_progress_{update_id}.json')
 
     def start(self):
         """Initialize progress tracking."""
@@ -26,11 +30,24 @@ class UpdateProgress:
 
     def set_progress(self, data):
         """Update progress data."""
-        cache.set(self.cache_key, data, 600)  # 10 minute TTL
+        try:
+            with open(self.progress_file, 'w') as f:
+                json.dump(data, f)
+        except Exception as e:
+            # Fallback to no progress tracking if file write fails
+            pass
 
     def get_progress(self):
         """Get current progress."""
-        return cache.get(self.cache_key) or {
+        try:
+            if self.progress_file.exists():
+                with open(self.progress_file, 'r') as f:
+                    return json.load(f)
+        except Exception:
+            pass
+
+        # Return default if file doesn't exist or can't be read
+        return {
             'status': 'idle',
             'current_step': '',
             'steps_completed': [],
@@ -78,4 +95,8 @@ class UpdateProgress:
 
     def clear(self):
         """Clear progress data."""
-        cache.delete(self.cache_key)
+        try:
+            if self.progress_file.exists():
+                self.progress_file.unlink()
+        except Exception:
+            pass
