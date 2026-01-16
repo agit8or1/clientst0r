@@ -2,8 +2,7 @@
 Core views - Documentation and About pages
 """
 from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
@@ -11,6 +10,11 @@ from django.core.cache import cache
 from config.version import get_version, get_full_version
 from .updater import UpdateService
 from audit.models import AuditLog
+
+
+def is_superuser(user):
+    """Check if user is a superuser."""
+    return user.is_superuser
 
 
 @login_required
@@ -51,7 +55,8 @@ def about(request):
     })
 
 
-@staff_member_required
+@login_required
+@user_passes_test(is_superuser)
 def system_updates(request):
     """
     System updates page - check for and apply updates.
@@ -107,7 +112,8 @@ def system_updates(request):
     })
 
 
-@staff_member_required
+@login_required
+@user_passes_test(is_superuser)
 @require_http_methods(["POST"])
 def check_updates_now(request):
     """
@@ -142,7 +148,8 @@ def check_updates_now(request):
     return redirect('core:system_updates')
 
 
-@staff_member_required
+@login_required
+@user_passes_test(is_superuser)
 @require_http_methods(["POST"])
 def apply_update(request):
     """
@@ -183,7 +190,8 @@ def apply_update(request):
     })
 
 
-@staff_member_required
+@login_required
+@user_passes_test(is_superuser)
 def update_status_api(request):
     """
     API endpoint for checking update status (for AJAX polling).
@@ -200,7 +208,8 @@ def update_status_api(request):
     return JsonResponse(update_info)
 
 
-@staff_member_required
+@login_required
+@user_passes_test(is_superuser)
 def update_progress_api(request):
     """
     API endpoint for checking update progress (for AJAX polling).

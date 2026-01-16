@@ -5,6 +5,37 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.102] - 2026-01-16
+
+### 🎨 UI/UX Improvements & Security
+
+**Login Page Redesign:**
+- **Redesigned** login page with modern, professional styling
+- **Added** gradient background and improved card-based layout
+- **Improved** form styling with better focus states and validation
+- **Added** HuduGlue branding with shield icon
+- **Enhanced** mobile responsiveness
+
+**Fixed Django Admin Redirect Issue:**
+- **Fixed** System Updates page redirecting to Django admin login
+- **Replaced** `@staff_member_required` with `@login_required` + `@user_passes_test(is_superuser)`
+- **Fixed** session timeout now redirects to proper HuduGlue login (not Django admin)
+- **Result**: Consistent login experience across the application
+
+**Cleaned Up Repository:**
+- **Removed** old development documentation files
+- **Deleted** `docs/GITHUB_ISSUE_3_RESPONSE.txt` (issue response notes)
+- **Deleted** `docs/ISSUE_3_AZURE_SSO_FIX.md` (resolved issue docs)
+- **Deleted** `docs/GITHUB_SETUP_MANUAL_STEPS.md` (obsolete setup guide)
+- **Deleted** `docs/PHASE2_SECURITY.md` (completed planning doc)
+- **Disabled** donations link in footer (temporarily)
+
+**Changes:**
+- core/views.py - Replaced Django admin decorators with proper login checks
+- templates/two_factor/_base_focus.html - New modern login page template
+- templates/base.html - Commented out donations link
+- Cleaned up 4 old documentation files
+
 ## [2.24.101] - 2026-01-16
 
 ### 🐛 Bug Fix
