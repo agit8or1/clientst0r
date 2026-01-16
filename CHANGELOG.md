@@ -5,6 +5,27 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.104] - 2026-01-16
+
+### 🎨 UI Improvements
+
+**Login Page Color Scheme:**
+- **Changed** login page gradient from purple to professional blue
+- **Updated** background gradient: Purple (#667eea → #764ba2) to Blue (#1e3a8a → #3b82f6)
+- **Updated** button gradient to match blue theme
+- **Updated** logo icon gradient to match blue theme
+- **Updated** focus border and shadow colors to blue
+- **Result**: More professional, corporate-friendly login appearance
+
+**Before This Release:**
+- Login page used purple/violet gradient (#667eea, #764ba2)
+- Purple color scheme may not fit all corporate environments
+
+**After This Release:**
+- Professional blue gradient that matches common corporate branding
+- Clean, neutral color scheme suitable for any environment
+- Consistent with Bootstrap's primary blue color
+
 ## [2.24.103] - 2026-01-16
 
 ### 🔧 PSA Integration Improvements
