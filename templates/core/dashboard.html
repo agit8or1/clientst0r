@@ -90,6 +90,18 @@
             </div>
             <div class="list-group list-group-flush" style="max-height: 280px; overflow-y: auto;">
                 {% for log in recent_logs %}
+                {% with object_url=log.get_object_url %}
+                {% if object_url %}
+                <a href="{{ object_url }}" class="list-group-item list-group-item-action py-2">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-fill">
+                            <small><strong>{{ log.object_repr|truncatewords:5 }}</strong></small><br>
+                            <small class="text-muted">{{ log.object_type|title }} • {{ log.timestamp|timesince }} ago</small>
+                        </div>
+                        <i class="fas fa-arrow-right text-muted"></i>
+                    </div>
+                </a>
+                {% else %}
                 <div class="list-group-item py-2">
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="flex-fill">
@@ -99,6 +111,8 @@
                         <i class="fas fa-eye text-muted"></i>
                     </div>
                 </div>
+                {% endif %}
+                {% endwith %}
                 {% empty %}
                 <div class="list-group-item text-center py-3 text-muted">
                     <i class="fas fa-inbox"></i> No recent activity

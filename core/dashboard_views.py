@@ -52,14 +52,24 @@ def dashboard(request):
         'monitors': WebsiteMonitor.objects.filter(organization=org).count(),
     }
 
-    # Recent items (last 10 items accessed/modified)
-    recent_logs = AuditLog.objects.filter(
+    # Recent items (last 10 unique items accessed/modified)
+    # Get all recent read logs, then deduplicate by object
+    all_recent = AuditLog.objects.filter(
         organization=org,
         user=request.user,
         action='read'
     ).exclude(
         object_type=''
-    ).order_by('-timestamp')[:10]
+    ).order_by('-timestamp')[:50]  # Get more to ensure we have 10 unique
+
+    # Deduplicate by object_type + object_id
+    seen = set()
+    recent_logs = []
+    for log in all_recent:
+        key = (log.object_type, log.object_id)
+        if key not in seen and len(recent_logs) < 10:
+            seen.add(key)
+            recent_logs.append(log)
 
     # Expiring soon (next 30 days)
     now = timezone.now()

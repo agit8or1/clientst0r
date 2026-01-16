@@ -5,6 +5,37 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.79] - 2026-01-16
+
+### ✨ UX Improvements
+
+Enhanced user interface based on user feedback.
+
+**My Recent Widget:**
+- **Clickable items** - Recent activity items now link directly to the object (password, asset, document, etc.)
+- **Remove duplicates** - Shows only unique items (no duplicate entries if you viewed same item multiple times)
+- **Better icons** - Clickable items show arrow icon instead of eye icon
+
+**Navbar Enhancements:**
+- **Bigger logo** - Increased logo height from 30px to 40px for better visibility
+- **Improved layout** - Better spacing and centering of navbar elements
+
+**Pagination Improvements:**
+- **Clearer active page** - Active/current page number now stands out with bolder blue color and heavier font weight
+- **Better hover states** - Improved hover effects on pagination buttons
+- **Dark mode support** - Pagination colors properly adapt to dark themes
+
+**Copy Buttons:**
+- Already implemented on password detail pages (Username, Password, 2FA/OTP codes all have one-click copy)
+
+**Changes:**
+- core/dashboard_views.py - Deduplicate recent activity items
+- audit/models.py - Added get_object_url() method to generate links from audit logs
+- templates/core/dashboard.html - Made recent items clickable
+- static/css/custom.css - Enhanced navbar and pagination styling
+
+**Note:** Search autocomplete feature deferred to v2.25 for proper implementation.
+
 ## [2.24.78] - 2026-01-16
 
 ### 🐛 Critical Bug Fixes

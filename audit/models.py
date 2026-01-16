@@ -62,6 +62,38 @@ class AuditLog(models.Model):
     def __str__(self):
         return f"{self.username} - {self.action} - {self.object_type}:{self.object_id} at {self.timestamp}"
 
+    def get_object_url(self):
+        """
+        Generate URL for the logged object based on object_type and object_id.
+        Returns None if URL cannot be generated.
+        """
+        from django.urls import reverse, NoReverseMatch
+
+        if not self.object_type or not self.object_id:
+            return None
+
+        # Map object types to URL patterns
+        url_mapping = {
+            'password': ('vault:password_detail', 'pk'),
+            'asset': ('assets:asset_detail', 'pk'),
+            'document': ('docs:document_detail', 'slug'),  # Note: documents use slug
+            'websitemonitor': ('monitoring:website_monitor_detail', 'pk'),
+            'expiration': ('monitoring:expiration_detail', 'pk'),
+            'process': ('processes:process_detail', 'pk'),
+            'diagram': ('docs:diagram_detail', 'pk'),
+            'globalknowledge': ('docs:global_kb_detail', 'pk'),
+        }
+
+        obj_type_lower = self.object_type.lower()
+        if obj_type_lower in url_mapping:
+            url_name, param_name = url_mapping[obj_type_lower]
+            try:
+                return reverse(url_name, kwargs={param_name: self.object_id})
+            except NoReverseMatch:
+                return None
+
+        return None
+
     @classmethod
     def log(cls, user, action, organization=None, object_type='', object_id=None, object_repr='',
             description='', ip_address=None, user_agent='', path='', extra_data=None, success=True):
