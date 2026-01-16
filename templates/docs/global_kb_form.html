@@ -16,6 +16,96 @@
     .select2-container {
         width: 100% !important;
     }
+
+    /* Dark mode support for Select2 */
+    [data-theme="dark"] .select2-container--bootstrap-5 .select2-selection {
+        background-color: #2b3035 !important;
+        border-color: #495057 !important;
+        color: #dee2e6 !important;
+    }
+
+    [data-theme="dark"] .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+        background-color: #495057 !important;
+        border-color: #6c757d !important;
+        color: #fff !important;
+    }
+
+    [data-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown {
+        background-color: #2b3035 !important;
+        border-color: #495057 !important;
+    }
+
+    [data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option {
+        background-color: #2b3035 !important;
+        color: #dee2e6 !important;
+    }
+
+    [data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option--highlighted {
+        background-color: #0d6efd !important;
+        color: #fff !important;
+    }
+
+    [data-theme="dark"] .select2-container--bootstrap-5 .select2-search__field {
+        background-color: #2b3035 !important;
+        border-color: #495057 !important;
+        color: #dee2e6 !important;
+    }
+
+    [data-theme="dark"] .select2-container--bootstrap-5 .select2-selection__choice__remove {
+        color: #fff !important;
+    }
+
+    /* Dark mode support for Quill editor */
+    [data-theme="dark"] .ql-toolbar.ql-snow {
+        background-color: #f8f9fa !important;
+        border-color: #495057 !important;
+    }
+
+    [data-theme="dark"] .ql-container.ql-snow {
+        background-color: #2b3035 !important;
+        border-color: #495057 !important;
+        color: #dee2e6 !important;
+    }
+
+    [data-theme="dark"] .ql-editor {
+        color: #dee2e6 !important;
+    }
+
+    [data-theme="dark"] .ql-editor.ql-blank::before {
+        color: #6c757d !important;
+    }
+
+    /* Make toolbar buttons black on light background for visibility */
+    [data-theme="dark"] .ql-toolbar.ql-snow .ql-stroke {
+        stroke: #000000 !important;
+    }
+
+    [data-theme="dark"] .ql-toolbar.ql-snow .ql-fill {
+        fill: #000000 !important;
+    }
+
+    [data-theme="dark"] .ql-toolbar.ql-snow .ql-picker-label {
+        color: #000000 !important;
+    }
+
+    [data-theme="dark"] .ql-toolbar.ql-snow button:hover,
+    [data-theme="dark"] .ql-toolbar.ql-snow button:focus,
+    [data-theme="dark"] .ql-toolbar.ql-snow button.ql-active {
+        background-color: #e9ecef !important;
+    }
+
+    [data-theme="dark"] .ql-snow .ql-picker-options {
+        background-color: #2b3035 !important;
+        border-color: #495057 !important;
+    }
+
+    [data-theme="dark"] .ql-snow .ql-picker-item {
+        color: #dee2e6 !important;
+    }
+
+    [data-theme="dark"] .ql-snow .ql-picker-item:hover {
+        background-color: #495057 !important;
+    }
 </style>
 {% endblock %}
 
@@ -165,7 +255,6 @@
         const editorDiv = document.createElement('div');
         editorDiv.id = 'quill-editor';
         editorDiv.style.height = '500px';
-        editorDiv.style.backgroundColor = 'white';
 
         // Insert before the textarea
         bodyTextarea.parentNode.insertBefore(editorDiv, bodyTextarea);

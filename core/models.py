@@ -429,6 +429,7 @@ class ScheduledTask(models.Model):
         ('ssl_expiry_check', 'SSL Certificate Expiry Check'),
         ('domain_expiry_check', 'Domain Expiry Check'),
         ('update_check', 'System Update Check'),
+        ('cleanup_stuck_scans', 'Cleanup Stuck Security Scans'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -557,6 +558,12 @@ class ScheduledTask(models.Model):
                 'interval_minutes': 1440,  # Once per day
                 'enabled': True,
             },
+            {
+                'task_type': 'cleanup_stuck_scans',
+                'description': 'Find and mark stuck security scans as timed out (scans running > 2 hours)',
+                'interval_minutes': 60,  # Every hour
+                'enabled': True,
+            },
         ]
 
         for task_data in defaults:
@@ -621,7 +628,12 @@ class SnykScan(models.Model):
     
     # JSON field for detailed vulnerability data
     vulnerabilities = models.JSONField(default=dict, blank=True, help_text="Detailed vulnerability information")
-    
+
+    # Vulnerability tracking
+    new_vulnerabilities_count = models.IntegerField(default=0, help_text="New vulnerabilities not in previous scan")
+    resolved_vulnerabilities_count = models.IntegerField(default=0, help_text="Vulnerabilities resolved since last scan")
+    recurring_vulnerabilities_count = models.IntegerField(default=0, help_text="Vulnerabilities present in previous scan")
+
     class Meta:
         db_table = 'snyk_scans'
         ordering = ['-started_at']
@@ -658,3 +670,130 @@ class SnykScan(models.Model):
             'timeout': 'bg-warning',
         }
         return badge_map.get(self.status, 'bg-secondary')
+
+    def compare_with_previous_scan(self):
+        """
+        Compare this scan's vulnerabilities with the previous completed scan.
+
+        Returns:
+            dict: {
+                'new': list of new vulnerability IDs,
+                'resolved': list of resolved vulnerability IDs,
+                'recurring': list of recurring vulnerability IDs
+            }
+        """
+        # Get the previous completed scan
+        previous_scan = SnykScan.objects.filter(
+            status='completed',
+            completed_at__lt=self.started_at
+        ).order_by('-completed_at').first()
+
+        if not previous_scan:
+            # No previous scan to compare with
+            current_vulns = self.vulnerabilities.get('vulnerabilities', [])
+            current_ids = {v.get('id') for v in current_vulns if v.get('id')}
+            return {
+                'new': list(current_ids),
+                'resolved': [],
+                'recurring': []
+            }
+
+        # Extract vulnerability IDs from both scans
+        current_vulns = self.vulnerabilities.get('vulnerabilities', [])
+        previous_vulns = previous_scan.vulnerabilities.get('vulnerabilities', [])
+
+        current_ids = {v.get('id') for v in current_vulns if v.get('id')}
+        previous_ids = {v.get('id') for v in previous_vulns if v.get('id')}
+
+        # Calculate differences
+        new_ids = current_ids - previous_ids
+        resolved_ids = previous_ids - current_ids
+        recurring_ids = current_ids & previous_ids
+
+        return {
+            'new': list(new_ids),
+            'resolved': list(resolved_ids),
+            'recurring': list(recurring_ids)
+        }
+
+    def update_vulnerability_tracking(self):
+        """Update the new/resolved/recurring vulnerability counts based on comparison with previous scan."""
+        comparison = self.compare_with_previous_scan()
+
+        self.new_vulnerabilities_count = len(comparison['new'])
+        self.resolved_vulnerabilities_count = len(comparison['resolved'])
+        self.recurring_vulnerabilities_count = len(comparison['recurring'])
+
+        self.save(update_fields=[
+            'new_vulnerabilities_count',
+            'resolved_vulnerabilities_count',
+            'recurring_vulnerabilities_count'
+        ])
+
+    def is_stuck(self, timeout_hours=2):
+        """
+        Check if scan is stuck (running/pending for too long).
+
+        Args:
+            timeout_hours: Hours after which a scan is considered stuck (default: 2)
+
+        Returns:
+            bool: True if scan is stuck
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+
+        # Only check scans in pending or running state
+        if self.status not in ['pending', 'running']:
+            return False
+
+        # Check if started_at is more than timeout_hours ago
+        now = timezone.now()
+        timeout_threshold = now - timedelta(hours=timeout_hours)
+
+        return self.started_at < timeout_threshold
+
+    def mark_as_timeout(self):
+        """Mark this scan as timed out."""
+        from django.utils import timezone
+
+        self.status = 'timeout'
+        self.completed_at = timezone.now()
+        self.error_message = 'Scan timed out - took longer than expected to complete'
+
+        # Calculate duration if not already set
+        if not self.duration_seconds and self.started_at:
+            duration = timezone.now() - self.started_at
+            self.duration_seconds = int(duration.total_seconds())
+
+        self.save(update_fields=['status', 'completed_at', 'error_message', 'duration_seconds'])
+
+    @classmethod
+    def cleanup_stuck_scans(cls, timeout_hours=2):
+        """
+        Find and mark all stuck scans as timed out.
+
+        Args:
+            timeout_hours: Hours after which a scan is considered stuck (default: 2)
+
+        Returns:
+            int: Number of scans marked as timed out
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.now()
+        timeout_threshold = now - timedelta(hours=timeout_hours)
+
+        # Find all stuck scans
+        stuck_scans = cls.objects.filter(
+            status__in=['pending', 'running'],
+            started_at__lt=timeout_threshold
+        )
+
+        count = 0
+        for scan in stuck_scans:
+            scan.mark_as_timeout()
+            count += 1
+
+        return count

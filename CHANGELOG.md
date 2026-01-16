@@ -5,6 +5,47 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.80] - 2026-01-16
+
+### 🔒 Security Enhancements
+
+Improved Snyk vulnerability scanning and tracking.
+
+**Stuck Scan Detection & Cleanup:**
+- **Automatic cleanup** - Scans stuck in 'running' or 'pending' state for >2 hours are automatically marked as 'timeout'
+- **Manual cleanup command** - `python manage.py cleanup_stuck_scans --timeout-hours 2`
+- **Scheduled task** - Automatic cleanup runs every hour via scheduled task
+- **Methods added** - `is_stuck()`, `mark_as_timeout()`, `cleanup_stuck_scans()` on SnykScan model
+
+**Vulnerability Tracking:**
+- **New vs. Recurring** - Scans now compare with previous scan to identify new vulnerabilities vs. recurring ones
+- **Resolved tracking** - Shows vulnerabilities that were fixed since last scan
+- **Better output** - Scan results show breakdown: "New: 3, Recurring: 15, Resolved: 2"
+- **UI enhancements** - Scan detail page displays new/recurring/resolved counts with color-coded cards
+- **Smart warnings** - Distinguishes between "New critical vulnerabilities" vs "Recurring vulnerabilities still present"
+
+**Benefits:**
+- No more confusion about "repeated code vulns" - you can now see that vulnerabilities are recurring (not new) when you run updates
+- Stuck scans are automatically cleaned up instead of cluttering the scan history
+- Better visibility into security posture changes over time
+
+**Changes:**
+- core/models.py - Added vulnerability tracking fields and comparison methods
+- core/management/commands/run_snyk_scan.py - Update tracking after each scan
+- core/management/commands/cleanup_stuck_scans.py - New cleanup command
+- core/migrations/0015_add_vulnerability_tracking.py - Database migration
+- templates/core/snyk_scan_detail.html - Display new/recurring/resolved counts
+
+### 🎨 Theme Fixes
+
+**Global KB Dark Mode:**
+- **Fixed HTML editor** - Removed hardcoded white background in Quill editor
+- **Tags dropdown** - Select2 tags now properly styled in dark mode (no more white-on-white text)
+- **Toolbar buttons** - Quill toolbar icons now black on light background for visibility
+
+**Changes:**
+- templates/docs/global_kb_form.html - Added dark mode CSS and removed white background
+
 ## [2.24.79] - 2026-01-16
 
 ### ✨ UX Improvements

@@ -146,21 +146,43 @@ class Command(BaseCommand):
             scan.scan_output = result.stdout[:10000]  # Store first 10k chars
             scan.vulnerabilities = output_data
             scan.save()
-            
+
+            # Compare with previous scan and update tracking
+            scan.update_vulnerability_tracking()
+
             # Update last scan time in settings
             settings.snyk_last_scan = end_time
             settings.save()
-            
-            self.stdout.write(self.style.SUCCESS(
-                f'Scan completed: {scan.total_vulnerabilities} vulnerabilities found '
-                f'(Critical: {scan.critical_count}, High: {scan.high_count}, '
-                f'Medium: {scan.medium_count}, Low: {scan.low_count})'
-            ))
-            
-            if scan.has_critical_issues():
-                self.stdout.write(self.style.WARNING(
-                    'WARNING: Critical or high severity vulnerabilities detected!'
+
+            # Display results with new/recurring breakdown
+            if scan.new_vulnerabilities_count > 0 or scan.recurring_vulnerabilities_count > 0:
+                self.stdout.write(self.style.SUCCESS(
+                    f'Scan completed: {scan.total_vulnerabilities} vulnerabilities found '
+                    f'(Critical: {scan.critical_count}, High: {scan.high_count}, '
+                    f'Medium: {scan.medium_count}, Low: {scan.low_count})'
                 ))
+                self.stdout.write(
+                    f'  • New: {scan.new_vulnerabilities_count}'
+                )
+                self.stdout.write(
+                    f'  • Recurring: {scan.recurring_vulnerabilities_count}'
+                )
+                if scan.resolved_vulnerabilities_count > 0:
+                    self.stdout.write(self.style.SUCCESS(
+                        f'  • Resolved: {scan.resolved_vulnerabilities_count}'
+                    ))
+            else:
+                self.stdout.write(self.style.SUCCESS('Scan completed: No vulnerabilities found'))
+
+            if scan.has_critical_issues():
+                if scan.new_vulnerabilities_count > 0:
+                    self.stdout.write(self.style.WARNING(
+                        'WARNING: New critical or high severity vulnerabilities detected!'
+                    ))
+                else:
+                    self.stdout.write(self.style.WARNING(
+                        'WARNING: Recurring critical or high severity vulnerabilities still present!'
+                    ))
             
         except subprocess.TimeoutExpired:
             scan.status = 'timeout'

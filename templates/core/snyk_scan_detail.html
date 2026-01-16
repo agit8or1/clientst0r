@@ -25,7 +25,7 @@
             </div>
             <div class="card-body">
                 <!-- Scan Summary -->
-                <div class="row mb-4">
+                <div class="row mb-3">
                     <div class="col-md-3">
                         <div class="card bg-light">
                             <div class="card-body text-center">
@@ -59,6 +59,39 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Vulnerability Tracking -->
+                {% if scan.status == 'completed' %}
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <h3 class="mb-0 text-primary">{{ scan.new_vulnerabilities_count }}</h3>
+                                <small class="text-muted"><i class="fas fa-plus-circle"></i> New Vulnerabilities</small>
+                                <p class="mb-0 mt-1"><small class="text-muted">Not in previous scan</small></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <h3 class="mb-0 text-warning">{{ scan.recurring_vulnerabilities_count }}</h3>
+                                <small class="text-muted"><i class="fas fa-redo"></i> Recurring Issues</small>
+                                <p class="mb-0 mt-1"><small class="text-muted">Present in previous scan</small></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <h3 class="mb-0 text-success">{{ scan.resolved_vulnerabilities_count }}</h3>
+                                <small class="text-muted"><i class="fas fa-check-circle"></i> Resolved</small>
+                                <p class="mb-0 mt-1"><small class="text-muted">Fixed since last scan</small></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
 
                 <!-- Scan Metadata -->
                 <div class="card mb-4">
