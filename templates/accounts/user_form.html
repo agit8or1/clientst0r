@@ -169,6 +169,8 @@
                     </div>
                     {% endif %}
 
+                    {% endif %}
+
                     <div class="d-flex justify-content-end gap-2 mt-4">
                         <a href="{% if user_obj %}{% url 'accounts:user_detail' user_obj.id %}{% else %}{% url 'accounts:user_list' %}{% endif %}" class="btn btn-secondary">
                             <i class="fas fa-times"></i> Cancel

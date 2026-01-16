@@ -5,6 +5,52 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.92] - 2026-01-16
+
+### 🐛 Bug Fixes
+
+**User Edit Template Fix:**
+- **Fixed** unclosed `{% if %}` tag causing TemplateSyntaxError on user edit page
+- **Error**: "Invalid block tag on line 315: 'endblock', expected 'elif', 'else' or 'endif'"
+- **Location**: /accounts/users/ID/edit/
+- **Solution**: Added missing `{% endif %}` to close system permissions block
+
+**UI Improvements:**
+- **Fixed** update progress modal positioning - now appears lower on screen (margin-top: 120px)
+- **Issue**: Top of progress monitor was getting cut off during system updates
+- **User can now see**: Full modal header and progress bar without scrolling
+
+**Changes:**
+- templates/accounts/user_form.html - Added missing endif tag on line 172
+- templates/core/system_updates.html - Adjusted modal position to prevent top cutoff
+
+## [2.24.91] - 2026-01-16
+
+### ✅ Data Integrity
+
+**Organization Cascade Deletion:**
+- **Verified** all organization relationships properly cascade delete
+- **Added** comprehensive documentation of cascade deletion behavior
+- **Created** test command to verify cascade deletion: `python manage.py test_org_cascade_deletion`
+- **Added** pre-deletion warnings in Django admin showing data counts
+- **Confirmed** audit logs are preserved with SET_NULL (compliance requirement)
+
+**What Gets Deleted When Organization is Deleted:**
+- All assets, passwords, documents, contacts, processes, locations, integrations
+- All PSA/RMM synced data (companies, contacts, tickets, devices, alerts)
+- All monitoring (website monitors, expirations, racks, VLANs, subnets)
+- All files/attachments, API keys, import jobs, memberships
+
+**What Gets Preserved:**
+- Audit logs (set to NULL organization for compliance/legal requirements)
+- Shared locations (co-location facilities used by multiple orgs)
+- Global documents/templates (visible to all organizations)
+
+**Changes:**
+- core/admin.py - Added delete warning with data counts
+- core/management/commands/test_org_cascade_deletion.py - New test command
+- docs/ORGANIZATION_CASCADE_DELETION.md - Complete documentation (50+ models analyzed)
+
 ## [2.24.90] - 2026-01-16
 
 ### 🐛 Bug Fix

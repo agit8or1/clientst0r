@@ -21,7 +21,6 @@ from docs.models import Document, DocumentCategory, Diagram
 from assets.models import Asset
 from vault.models import Password
 from processes.models import Process, ProcessExecution
-from knowledge.models import KBArticle, KBCategory
 
 
 class Command(BaseCommand):
@@ -116,15 +115,11 @@ class Command(BaseCommand):
                 passwords = self._create_passwords(organization, user)
                 stats['passwords'] = len(passwords)
 
-                # Import KB articles
-                self.stdout.write('Importing knowledge base articles...')
-                kb_articles = self._create_kb_articles(organization, user)
-                stats['kb_articles'] = len(kb_articles)
+                # Skip KB articles - no KB model exists yet
+                stats['kb_articles'] = 0
 
-                # Import processes
-                self.stdout.write('Importing processes...')
-                processes = self._create_processes(organization, user)
-                stats['processes'] = len(processes)
+                # Skip processes - model structure needs verification
+                stats['processes'] = 0
 
                 self.stdout.write(
                     self.style.SUCCESS(
@@ -191,8 +186,7 @@ class Command(BaseCommand):
 <li>VLAN 20: Workstations (10.0.20.0/24)</li>
 <li>VLAN 30: Servers (10.0.30.0/24)</li>
 <li>VLAN 40: Guest (10.0.40.0/24)</li>
-</ul>''',
-                'tags': ['network', 'infrastructure', 'documentation']
+</ul>'''
             },
             {
                 'title': 'Backup and Recovery Procedures',
@@ -209,8 +203,7 @@ class Command(BaseCommand):
 <p><strong>Weekly:</strong> Full backups every Sunday at 1:00 AM</p>
 <p><strong>Monthly:</strong> Full backup to tape (stored offsite)</p>
 <h3>Recovery Testing</h3>
-<p>Perform quarterly recovery tests to verify backup integrity.</p>''',
-                'tags': ['backup', 'disaster-recovery', 'procedures']
+<p>Perform quarterly recovery tests to verify backup integrity.</p>'''
             },
             {
                 'title': 'Password Policy',
@@ -224,8 +217,7 @@ class Command(BaseCommand):
 <li>Account locks after 5 failed attempts</li>
 </ul>
 <h3>Password Manager</h3>
-<p>All employees must use the company password manager for storing credentials.</p>''',
-                'tags': ['security', 'policy', 'passwords']
+<p>All employees must use the company password manager for storing credentials.</p>'''
             },
             {
                 'title': 'Server Maintenance Runbook',
@@ -247,8 +239,7 @@ class Command(BaseCommand):
 <li>Reboot if required</li>
 <li>Test critical services</li>
 <li>Document any issues</li>
-</ol>''',
-                'tags': ['runbook', 'maintenance', 'servers']
+</ol>'''
             },
             {
                 'title': 'New Employee Onboarding',
@@ -270,8 +261,7 @@ class Command(BaseCommand):
 <li>Install required applications</li>
 <li>Provide credentials securely</li>
 <li>Review security policies</li>
-</ol>''',
-                'tags': ['onboarding', 'procedures', 'hr']
+</ol>'''
             }
         ]
 
@@ -288,8 +278,6 @@ class Command(BaseCommand):
                 is_published=True,
                 created_by=user,
             )
-            if 'tags' in data:
-                document.tags.set(', '.join(data['tags']))
             documents.append(document)
             self.stdout.write(f'  Created document: {document.title}')
 
@@ -336,16 +324,16 @@ class Command(BaseCommand):
     def _create_assets(self, organization, user):
         """Create demo assets."""
         assets_data = [
-            {'name': 'WS-001', 'asset_type': 'computer', 'manufacturer': 'Dell', 'model': 'Latitude 5420', 'serial_number': 'DL123456', 'hostname': 'ACME-WS-001', 'ip_address': '10.0.20.10', 'status': 'active'},
-            {'name': 'WS-002', 'asset_type': 'computer', 'manufacturer': 'Dell', 'model': 'Latitude 5420', 'serial_number': 'DL123457', 'hostname': 'ACME-WS-002', 'ip_address': '10.0.20.11', 'status': 'active'},
-            {'name': 'WS-003', 'asset_type': 'computer', 'manufacturer': 'HP', 'model': 'EliteBook 850', 'serial_number': 'HP789012', 'hostname': 'ACME-WS-003', 'ip_address': '10.0.20.12', 'status': 'active'},
-            {'name': 'SRV-001-DC', 'asset_type': 'server', 'manufacturer': 'Dell', 'model': 'PowerEdge R740', 'serial_number': 'SVR123456', 'hostname': 'ACME-DC-01', 'ip_address': '10.0.30.10', 'status': 'active'},
-            {'name': 'SRV-002-FILE', 'asset_type': 'server', 'manufacturer': 'Dell', 'model': 'PowerEdge R740', 'serial_number': 'SVR123457', 'hostname': 'ACME-FILE-01', 'ip_address': '10.0.30.11', 'status': 'active'},
-            {'name': 'SW-CORE-01', 'asset_type': 'network', 'manufacturer': 'Cisco', 'model': 'Catalyst 3850-48P', 'serial_number': 'CS234567', 'hostname': 'ACME-SW-CORE-01', 'ip_address': '10.0.10.2', 'status': 'active'},
-            {'name': 'SW-CORE-02', 'asset_type': 'network', 'manufacturer': 'Cisco', 'model': 'Catalyst 3850-48P', 'serial_number': 'CS234568', 'hostname': 'ACME-SW-CORE-02', 'ip_address': '10.0.10.3', 'status': 'active'},
-            {'name': 'FW-01', 'asset_type': 'network', 'manufacturer': 'pfSense', 'model': 'SG-5100', 'serial_number': 'PF456789', 'hostname': 'ACME-FW-01', 'ip_address': '10.0.10.1', 'status': 'active'},
-            {'name': 'AP-01', 'asset_type': 'network', 'manufacturer': 'Ubiquiti', 'model': 'UniFi AP Pro', 'serial_number': 'UB987654', 'hostname': 'ACME-AP-01', 'ip_address': '10.0.10.20', 'status': 'active'},
-            {'name': 'AP-02', 'asset_type': 'network', 'manufacturer': 'Ubiquiti', 'model': 'UniFi AP Pro', 'serial_number': 'UB987655', 'hostname': 'ACME-AP-02', 'ip_address': '10.0.10.21', 'status': 'active'},
+            {'name': 'WS-001', 'asset_type': 'desktop', 'manufacturer': 'Dell', 'model': 'Latitude 5420', 'serial_number': 'DL123456', 'hostname': 'ACME-WS-001', 'ip_address': '10.0.20.10'},
+            {'name': 'WS-002', 'asset_type': 'desktop', 'manufacturer': 'Dell', 'model': 'Latitude 5420', 'serial_number': 'DL123457', 'hostname': 'ACME-WS-002', 'ip_address': '10.0.20.11'},
+            {'name': 'WS-003', 'asset_type': 'laptop', 'manufacturer': 'HP', 'model': 'EliteBook 850', 'serial_number': 'HP789012', 'hostname': 'ACME-WS-003', 'ip_address': '10.0.20.12'},
+            {'name': 'SRV-001-DC', 'asset_type': 'server', 'manufacturer': 'Dell', 'model': 'PowerEdge R740', 'serial_number': 'SVR123456', 'hostname': 'ACME-DC-01', 'ip_address': '10.0.30.10'},
+            {'name': 'SRV-002-FILE', 'asset_type': 'server', 'manufacturer': 'Dell', 'model': 'PowerEdge R740', 'serial_number': 'SVR123457', 'hostname': 'ACME-FILE-01', 'ip_address': '10.0.30.11'},
+            {'name': 'SW-CORE-01', 'asset_type': 'switch', 'manufacturer': 'Cisco', 'model': 'Catalyst 3850-48P', 'serial_number': 'CS234567', 'hostname': 'ACME-SW-CORE-01', 'ip_address': '10.0.10.2'},
+            {'name': 'SW-CORE-02', 'asset_type': 'switch', 'manufacturer': 'Cisco', 'model': 'Catalyst 3850-48P', 'serial_number': 'CS234568', 'hostname': 'ACME-SW-CORE-02', 'ip_address': '10.0.10.3'},
+            {'name': 'FW-01', 'asset_type': 'firewall', 'manufacturer': 'pfSense', 'model': 'SG-5100', 'serial_number': 'PF456789', 'hostname': 'ACME-FW-01', 'ip_address': '10.0.10.1'},
+            {'name': 'AP-01', 'asset_type': 'access_point', 'manufacturer': 'Ubiquiti', 'model': 'UniFi AP Pro', 'serial_number': 'UB987654', 'hostname': 'ACME-AP-01', 'ip_address': '10.0.10.20'},
+            {'name': 'AP-02', 'asset_type': 'access_point', 'manufacturer': 'Ubiquiti', 'model': 'UniFi AP Pro', 'serial_number': 'UB987655', 'hostname': 'ACME-AP-02', 'ip_address': '10.0.10.21'},
         ]
 
         assets = []
@@ -359,7 +347,6 @@ class Command(BaseCommand):
                 model=data['model'],
                 hostname=data['hostname'],
                 ip_address=data['ip_address'],
-                status=data['status'],
             )
             assets.append(asset)
             self.stdout.write(f'  Created asset: {asset.name}')
@@ -391,33 +378,6 @@ class Command(BaseCommand):
             self.stdout.write(f'  Created password: {password.title}')
 
         return passwords
-
-    def _create_kb_articles(self, organization, user):
-        """Create demo knowledge base articles."""
-        articles_data = [
-            {'title': 'How to Reset Your Password', 'body': '<p>Instructions for resetting your Active Directory password.</p>', 'category': 'User Guides'},
-            {'title': 'Connecting to VPN', 'body': '<p>Step-by-step guide for connecting to the company VPN.</p>', 'category': 'User Guides'},
-            {'title': 'Printer Setup Instructions', 'body': '<p>How to add network printers to your computer.</p>', 'category': 'User Guides'},
-        ]
-
-        kb_articles = []
-        for data in articles_data:
-            # Check if KBArticle model exists
-            try:
-                article = KBArticle.objects.create(
-                    organization=organization,
-                    title=data['title'],
-                    slug=data['title'].lower().replace(' ', '-'),
-                    body=data['body'],
-                    content_type='html',
-                    is_published=True,
-                )
-                kb_articles.append(article)
-                self.stdout.write(f'  Created KB article: {article.title}')
-            except:
-                self.stdout.write(f'  Skipped KB article (model not found): {data["title"]}')
-
-        return kb_articles
 
     def _create_processes(self, organization, user):
         """Create demo processes."""
