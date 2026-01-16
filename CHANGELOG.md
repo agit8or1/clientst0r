@@ -5,6 +5,21 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.109] - 2026-01-16
+
+### 🐛 Bug Fixes
+
+**Fixed Navbar Hamburger Icon Visibility:**
+- **Fixed** navbar hamburger menu icon invisible in light mode (GitHub Issue #24)
+- **Added** explicit CSS styling for `.navbar-toggler-icon` with white SVG icon
+- **Added** border styling for `.navbar-toggler` using theme colors
+- **Result**: Hamburger menu icon now visible on all themes (light and dark)
+
+**Why This Matters:**
+- Users can now see and click the hamburger menu icon in light mode
+- Fixes long-standing issue where mobile/collapsed menu was invisible
+- Consistent navbar experience across all color themes
+
 ## [2.24.108] - 2026-01-16
 
 ### 🐛 Bug Fixes & Logging Improvements
