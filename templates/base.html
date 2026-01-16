@@ -18,15 +18,12 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body class="{% if user_background_url %}has-background{% endif %}" {% if user_background_url %}style="background-image: url('{{ user_background_url }}');"{% endif %}>
-    <nav class="navbar navbar-expand-custom {% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}navbar-dark{% else %}navbar-light{% endif %}">
+    <nav class="navbar navbar-expand {% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}navbar-dark{% else %}navbar-light{% endif %}">
         <div class="container-fluid navbar-container">
             <a class="navbar-brand" href="{% url 'home' %}">
                 <img src="{% static 'images/logo-light.svg' %}" alt="HuduGlue" height="30">
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="navbar-collapse" id="navbarNav">
                 {% if user.is_authenticated %}
                 <ul class="navbar-nav">
                     <li class="nav-item"><a class="nav-link" href="{% url 'core:dashboard' %}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>

@@ -5,6 +5,24 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.110] - 2026-01-16
+
+### 🔧 UI Changes
+
+**Navbar Always Expanded - Removed Collapsible Hamburger Menu:**
+- **Changed** navbar from `navbar-expand-custom` to `navbar-expand` (never collapses)
+- **Removed** hamburger toggle button entirely
+- **Removed** collapse behavior - navbar always shows all items horizontally
+- **Result**: Navbar no longer collapses on smaller screens, always displays full horizontal menu
+
+**Why This Change:**
+- User preference: "I do not want a nav bar to go up and down"
+- Eliminates the collapsible menu behavior that was causing confusion
+- Provides consistent navigation experience across all screen sizes
+- All menu items always visible - no hidden hamburger menu
+
+**Note:** On very narrow screens, navbar items may wrap to multiple rows if needed, but will never collapse into a hamburger menu.
+
 ## [2.24.109] - 2026-01-16
 
 ### 🐛 Bug Fixes
