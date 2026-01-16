@@ -1215,7 +1215,7 @@ def cleanup_old_snyk_scans(request):
 
     try:
         # Get all scans ordered by completion time (newest first)
-        all_scans = SnykScan.objects.all().order_by('-completed_at', '-created_at')
+        all_scans = SnykScan.objects.all().order_by('-completed_at', '-started_at')
         total_count = all_scans.count()
 
         if total_count <= 30:
