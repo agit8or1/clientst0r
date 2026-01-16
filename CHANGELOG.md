@@ -5,6 +5,39 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.89] - 2026-01-16
+
+### ✨ Enhancement
+
+**Integration Setup Improvements:**
+- **Added** RangerMSP credentials to PSA connection form
+- **Created** comprehensive Integration Setup Guide with exact connection parameters
+- **Documented** API endpoints, authentication methods, and setup steps for all 13 integrations
+- **Specified** exact base URL formats for each provider (cloud vs self-hosted)
+- **Included** troubleshooting guide and security best practices
+
+**PSA Integrations Documented:**
+- ConnectWise Manage (OAuth + API Keys, region-specific URLs)
+- Autotask PSA (webservices zones 1-20)
+- HaloPSA (OAuth2 client credentials)
+- Kaseya BMS (API key/secret)
+- Syncro (subdomain + API key)
+- Freshservice (domain + API key)
+- Zendesk (email + token + subdomain)
+- ITFlow (self-hosted API key)
+- **RangerMSP (cloud/self-hosted API key)** - ADDED
+
+**RMM Integrations Documented:**
+- NinjaOne (OAuth2 with refresh token, multi-region)
+- Datto RMM (platform API key/secret)
+- ConnectWise Automate (basic auth)
+- Atera (X-API-KEY header)
+- Tactical RMM (self-hosted API key)
+
+**Changes:**
+- integrations/forms.py - Added RangerMSP credential fields to PSAConnectionForm
+- docs/INTEGRATION_SETUP_GUIDE.md - Complete setup guide for all integrations
+
 ## [2.24.88] - 2026-01-16
 
 ### 🐛 Bug Fix

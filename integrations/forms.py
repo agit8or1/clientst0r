@@ -122,6 +122,18 @@ class PSAConnectionForm(forms.ModelForm):
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Your ITFlow API key'})
     )
 
+    # RangerMSP (CommitCRM) credentials
+    ranger_api_key = forms.CharField(
+        label='API Key',
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Your RangerMSP API key'})
+    )
+    ranger_account_id = forms.CharField(
+        label='Account ID (Optional)',
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'For cloud-hosted instances'})
+    )
+
     class Meta:
         model = PSAConnection
         fields = ['provider_type', 'name', 'base_url', 'sync_enabled', 'sync_companies',
@@ -178,6 +190,9 @@ class PSAConnectionForm(forms.ModelForm):
                 self.fields['zendesk_subdomain'].initial = creds.get('subdomain', '')
             elif provider == 'itflow':
                 self.fields['itflow_api_key'].initial = creds.get('api_key', '')
+            elif provider == 'rangermsp':
+                self.fields['ranger_api_key'].initial = creds.get('api_key', '')
+                self.fields['ranger_account_id'].initial = creds.get('account_id', '')
 
     def clean(self):
         cleaned_data = super().clean()
@@ -222,6 +237,9 @@ class PSAConnectionForm(forms.ModelForm):
         elif provider_type == 'itflow':
             if not cleaned_data.get('itflow_api_key'):
                 self.add_error('itflow_api_key', 'This field is required for ITFlow')
+        elif provider_type == 'rangermsp':
+            if not cleaned_data.get('ranger_api_key'):
+                self.add_error('ranger_api_key', 'This field is required for RangerMSP')
 
         return cleaned_data
 
@@ -279,6 +297,11 @@ class PSAConnectionForm(forms.ModelForm):
         elif provider_type == 'itflow':
             credentials = {
                 'api_key': self.cleaned_data.get('itflow_api_key', ''),
+            }
+        elif provider_type == 'rangermsp':
+            credentials = {
+                'api_key': self.cleaned_data.get('ranger_api_key', ''),
+                'account_id': self.cleaned_data.get('ranger_account_id', ''),
             }
 
         connection.set_credentials(credentials)
