@@ -1632,3 +1632,54 @@ def _format_for_itglue(data):
         ]
 
     return formatted
+
+
+@login_required
+@user_passes_test(is_superuser)
+def import_demo_data(request):
+    """Import Acme Corporation demo data."""
+    from django.http import JsonResponse
+    from django.core.management import call_command
+    import threading
+
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid request method'
+        })
+
+    organization_id = request.POST.get('organization_id')
+
+    if not organization_id:
+        return JsonResponse({
+            'success': False,
+            'message': 'Organization ID is required'
+        })
+
+    try:
+        organization = Organization.objects.get(id=organization_id)
+    except Organization.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': 'Organization not found'
+        })
+
+    # Run import in background thread
+    def run_import():
+        try:
+            call_command(
+                'import_demo_data',
+                organization=str(organization.id),
+                user=request.user.username
+            )
+        except Exception as e:
+            print(f"Demo data import error: {e}")
+
+    thread = threading.Thread(target=run_import)
+    thread.daemon = True
+    thread.start()
+
+    return JsonResponse({
+        'success': True,
+        'message': f'Demo data import started for {organization.name}. This may take a few minutes...'
+    })

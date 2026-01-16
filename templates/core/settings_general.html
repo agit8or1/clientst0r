@@ -106,6 +106,122 @@
                 </form>
             </div>
         </div>
+
+        <!-- Demo Data Import -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-database"></i> Demo Data Import</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">
+                    Import complete demo data for "Acme Corporation" including documents, diagrams, assets, passwords, KB articles, and processes.
+                    This is useful for testing and demonstration purposes.
+                </p>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> <strong>What will be imported:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>IT Procedures, Security Policies, and Runbooks</li>
+                        <li>Network and Rack Diagrams</li>
+                        <li>Workstations, Servers, and Network Equipment</li>
+                        <li>Sample Passwords (demo credentials)</li>
+                        <li>Knowledge Base Articles</li>
+                        <li>IT Processes with execution history</li>
+                    </ul>
+                </div>
+
+                <div class="mb-3">
+                    <label for="demo_organization" class="form-label">Select Organization *</label>
+                    <select class="form-select" id="demo_organization" required>
+                        <option value="">-- Select Organization --</option>
+                        {% for org in user.organization_memberships.all %}
+                        <option value="{{ org.organization.id }}">{{ org.organization.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">Demo data will be imported into this organization</div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong>
+                    This will add demo data to the selected organization. Make sure you select the correct organization.
+                </div>
+
+                <div id="importDemoResults" style="display: none;"></div>
+
+                <button type="button" class="btn btn-primary" id="importDemoBtn">
+                    <i class="fas fa-download"></i> Import Demo Data
+                </button>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+$(document).ready(function() {
+    $('#importDemoBtn').on('click', function() {
+        const btn = $(this);
+        const organizationId = $('#demo_organization').val();
+        const resultsDiv = $('#importDemoResults');
+
+        if (!organizationId) {
+            alert('Please select an organization');
+            return;
+        }
+
+        if (!confirm('Are you sure you want to import demo data? This will add multiple items to the selected organization.')) {
+            return;
+        }
+
+        // Disable button
+        btn.prop('disabled', true);
+        btn.html('<i class="fas fa-spinner fa-spin"></i> Importing...');
+        resultsDiv.hide();
+
+        // Send AJAX request
+        $.ajax({
+            url: '{% url "core:import_demo_data" %}',
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            data: {
+                organization_id: organizationId
+            },
+            success: function(response) {
+                if (response.success) {
+                    resultsDiv.html(`
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> <strong>Success!</strong>
+                            <p class="mb-0">${response.message}</p>
+                        </div>
+                    `);
+                } else {
+                    resultsDiv.html(`
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> ${response.message}
+                        </div>
+                    `);
+                }
+                resultsDiv.show();
+
+                // Re-enable button
+                btn.prop('disabled', false);
+                btn.html('<i class="fas fa-download"></i> Import Demo Data');
+            },
+            error: function(xhr, status, error) {
+                resultsDiv.html(`
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> ${error}
+                    </div>
+                `).show();
+
+                // Re-enable button
+                btn.prop('disabled', false);
+                btn.html('<i class="fas fa-download"></i> Import Demo Data');
+            }
+        });
+    });
+});
+</script>
+
 {% endblock %}

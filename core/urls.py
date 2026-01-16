@@ -65,6 +65,9 @@ urlpatterns = [
     path('settings/system-status/', settings_views.system_status, name='system_status'),
     path('settings/maintenance/', settings_views.maintenance, name='maintenance'),
 
+    # Demo Data Import (superuser only)
+    path('settings/demo-data/import/', settings_views.import_demo_data, name='import_demo_data'),
+
     # System Updates (staff only)
     path('settings/updates/', views.system_updates, name='system_updates'),
     path('settings/updates/check/', views.check_updates_now, name='check_updates_now'),

@@ -5,6 +5,39 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.81] - 2026-01-16
+
+### ✨ New Features
+
+**Demo Data Import:**
+- **Acme Corporation Demo** - Import complete demo company data from GitHub
+- **One-click import** - Simple UI in General Settings to import demo data
+- **Comprehensive data** - Includes documents, diagrams, assets, passwords, KB articles, and processes
+- **Organization selection** - Import into any organization
+- **Background processing** - Import runs in background thread to avoid blocking
+
+**What's Imported:**
+- IT Procedures, Security Policies, and Runbooks
+- Network and Rack Diagrams
+- Workstations, Servers, and Network Equipment
+- Sample Passwords (demo credentials)
+- Knowledge Base Articles
+- IT Processes with execution history
+
+**Use Cases:**
+- Testing and demonstration
+- Onboarding and training
+- Exploring HuduGlue features with realistic data
+
+**Commands:**
+- `python manage.py import_demo_data --organization <org_id>` - CLI import command
+
+**Changes:**
+- core/management/commands/import_demo_data.py - New import command
+- core/settings_views.py - Added import_demo_data view
+- core/urls.py - Added demo data import route
+- templates/core/settings_general.html - Added demo import UI
+
 ## [2.24.80] - 2026-01-16
 
 ### 🔒 Security Enhancements
