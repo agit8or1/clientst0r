@@ -11,13 +11,18 @@
         display: block;
     }
     .provider-info {
-        background-color: #f8f9fa;
-        border-left: 4px solid #0d6efd;
+        background-color: var(--surface-hover, #f8f9fa);
+        border-left: 4px solid var(--primary-color, #0d6efd);
         padding: 1rem;
         margin-bottom: 1rem;
+        border-radius: 0.25rem;
     }
     .provider-docs-link {
         font-size: 0.9rem;
+        color: var(--primary-color, #0d6efd);
+    }
+    .provider-docs-link:hover {
+        color: var(--primary-hover, #0b5ed7);
     }
 </style>
 {% endblock %}
@@ -151,6 +156,19 @@
                         <p class="mb-0"><small>ITFlow is an open-source PSA and documentation platform. Generate an API key from your ITFlow admin panel under Settings → API Keys.</small></p>
                         <a href="https://docs.itflow.org/api" target="_blank" class="provider-docs-link">
                             <i class="fas fa-external-link-alt"></i> View ITFlow API Documentation
+                        </a>
+                    </div>
+
+                    <div id="info-rangermsp" class="provider-info credential-section">
+                        <h5><i class="fas fa-info-circle"></i> RangerMSP Setup</h5>
+                        <p class="mb-2">To connect to RangerMSP (CommitCRM), you'll need:</p>
+                        <ul class="mb-2">
+                            <li><strong>API Key:</strong> Your RangerMSP API key</li>
+                            <li><strong>Account ID:</strong> (Optional) For cloud-hosted instances</li>
+                            <li><strong>Base URL:</strong> Your RangerMSP instance URL</li>
+                        </ul>
+                        <a href="https://www.rangermsp.com/api" target="_blank" class="provider-docs-link">
+                            <i class="fas fa-external-link-alt"></i> View RangerMSP API Documentation
                         </a>
                     </div>
 
@@ -357,6 +375,25 @@
                         </div>
                     </div>
 
+                    <!-- RangerMSP Credentials -->
+                    <div id="creds-rangermsp" class="credential-section">
+                        <div class="mb-3">
+                            <label for="{{ form.ranger_api_key.id_for_label }}" class="form-label">API Key *</label>
+                            {{ form.ranger_api_key }}
+                            {% if form.ranger_api_key.errors %}
+                            <div class="invalid-feedback d-block">{{ form.ranger_api_key.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.ranger_account_id.id_for_label }}" class="form-label">Account ID (Optional)</label>
+                            {{ form.ranger_account_id }}
+                            {% if form.ranger_account_id.errors %}
+                            <div class="invalid-feedback d-block">{{ form.ranger_account_id.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">For cloud-hosted instances only</small>
+                        </div>
+                    </div>
+
                     <hr class="my-4">
                     <h4 class="mb-3">Sync Settings</h4>
 
@@ -432,7 +469,8 @@
         'syncro': 'syncro',
         'freshservice': 'freshservice',
         'zendesk': 'zendesk',
-        'itflow': 'itflow'
+        'itflow': 'itflow',
+        'rangermsp': 'rangermsp'
     };
 
     function updateVisibleSections() {

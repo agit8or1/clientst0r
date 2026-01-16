@@ -5,6 +5,33 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.103] - 2026-01-16
+
+### 🔧 PSA Integration Improvements
+
+**Fixed UI Contrast Issues:**
+- **Fixed** PSA integration form white background contrast issue in dark mode
+- **Updated** `.provider-info` boxes to use theme-aware CSS variables
+- **Added** proper color inheritance for dark/light themes
+- **Improved** link colors to respect theme settings
+- **Result**: Better accessibility and consistent theming across all color schemes
+
+**Added RangerMSP Support:**
+- **Added** RangerMSP (CommitCRM) provider info section with setup instructions
+- **Added** RangerMSP credential fields (API Key, Account ID)
+- **Updated** JavaScript provider mapping to include RangerMSP
+- **Result**: Complete PSA-specific field support for all 9 PSA providers
+
+**Before This Release:**
+- Info boxes had hardcoded light backgrounds causing poor contrast in dark mode
+- RangerMSP was in the provider list but missing its credential input fields
+- Provider-specific fields were present but hard to see in some themes
+
+**After This Release:**
+- All info boxes respect user's theme choice (dark/light/purple/green/etc.)
+- RangerMSP now has complete credential input support
+- Consistent, accessible UI across all themes
+
 ## [2.24.102] - 2026-01-16
 
 ### 🎨 UI/UX Improvements & Security
