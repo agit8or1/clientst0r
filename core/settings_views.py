@@ -1640,7 +1640,7 @@ def import_demo_data(request):
     """Import Acme Corporation demo data - automatically creates 'Acme Corporation' org."""
     from django.http import JsonResponse
     from django.core.management import call_command
-    from accounts.models import OrganizationMembership
+    from accounts.models import Membership
     import threading
 
     if request.method != 'POST':
@@ -1659,11 +1659,11 @@ def import_demo_data(request):
     )
 
     # Add current user to the organization if not already a member
-    if not OrganizationMembership.objects.filter(
+    if not Membership.objects.filter(
         user=request.user,
         organization=organization
     ).exists():
-        OrganizationMembership.objects.create(
+        Membership.objects.create(
             user=request.user,
             organization=organization,
             role='admin'

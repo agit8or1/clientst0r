@@ -5,6 +5,18 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.85] - 2026-01-16
+
+### 🐛 Hotfix
+
+**Demo Import 500 Error:**
+- **Fixed** ImportError causing 500 error on demo data import
+- **Issue:** Used incorrect model name `OrganizationMembership` instead of `Membership`
+- **Result:** Demo import now works correctly
+
+**Changes:**
+- core/settings_views.py - Fixed import from `OrganizationMembership` to `Membership`
+
 ## [2.24.84] - 2026-01-16
 
 ### ✨ Enhancement
