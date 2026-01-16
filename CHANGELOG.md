@@ -5,6 +5,35 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.105] - 2026-01-16
+
+### 🔒 Security Fixes
+
+**Fixed Cryptography Vulnerability (GHSA-79v4-65xg-pq4g):**
+- **Updated** cryptography from 43.0.3 to 44.0.3 (fixes OpenSSL CVE)
+- **Updated** msal from 1.26.* to 1.34.* (required for cryptography 44.x compatibility)
+- **Resolved** pip-audit vulnerability: GHSA-79v4-65xg-pq4g
+- **Result**: Zero known vulnerabilities in dependencies
+
+**What Changed:**
+- `cryptography>=43.0.0,<44.0.0` → `cryptography>=44.0.1,<45.0.0`
+- `msal==1.26.*` → `msal==1.34.*`
+
+**Why This Matters:**
+- Fixes OpenSSL vulnerability in cryptography's statically linked wheels
+- Ensures Snyk scans will pass without known vulnerabilities
+- Maintains Azure AD/Microsoft Entra ID compatibility with updated MSAL
+
+**Before This Release:**
+- cryptography 43.0.3 had known OpenSSL vulnerability
+- MSAL 1.26.0 blocked cryptography updates
+- pip-audit reported 1 known vulnerability
+
+**After This Release:**
+- cryptography 44.0.3 with patched OpenSSL
+- MSAL 1.34.0 fully compatible with cryptography 44.x
+- pip-audit reports zero vulnerabilities
+
 ## [2.24.104] - 2026-01-16
 
 ### 🎨 UI Improvements
