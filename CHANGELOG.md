@@ -5,6 +5,29 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.78] - 2026-01-16
+
+### 🐛 Critical Bug Fixes
+
+Fixed multiple critical UI and functionality issues.
+
+**Password Form Bug Fixed:**
+- **CRITICAL**: Fixed password form not saving/creating passwords
+- Issue: Password field was rendered multiple times (once per password type section), creating duplicate HTML inputs with same ID
+- This caused form submission to fail or send empty password values
+- Solution: Moved to single shared password field that shows/hides based on password type
+
+**Dark Mode UI Fixes:**
+- Fixed Select2 tags dropdown not visible in dark mode (white text on white background)
+- Fixed document editor (Quill) background and toolbar visibility in dark mode
+- Toolbar icons now properly visible (black on light background)
+- Tags dropdown now has proper dark background with visible white text
+
+**Changes:**
+- templates/vault/password_form.html - Refactored to use single password field, hide for OTP type
+- templates/docs/document_form.html - Added comprehensive Quill + Select2 dark mode styling
+- static/css/custom.css - Added global Select2 dark mode styles
+
 ## [2.24.77] - 2026-01-15
 
 ### 🎨 UI Improvements and Bug Fixes

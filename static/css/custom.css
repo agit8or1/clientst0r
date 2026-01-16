@@ -1444,3 +1444,53 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
 [data-bs-theme="dark"] .navbar-dark .dropdown-menu {
     background-color: var(--gray-100);
 }
+
+/* ===== Select2 Dark Mode Styling ===== */
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-selection,
+[data-theme="dracula"] .select2-container--bootstrap-5 .select2-selection,
+[data-theme="monokai"] .select2-container--bootstrap-5 .select2-selection,
+[data-theme="nord"] .select2-container--bootstrap-5 .select2-selection {
+    background-color: #2b2b2b !important;
+    border-color: #495057 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown,
+[data-theme="dracula"] .select2-container--bootstrap-5 .select2-dropdown,
+[data-theme="monokai"] .select2-container--bootstrap-5 .select2-dropdown,
+[data-theme="nord"] .select2-container--bootstrap-5 .select2-dropdown {
+    background-color: #2b2b2b !important;
+    border-color: #495057 !important;
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option,
+[data-theme="dracula"] .select2-container--bootstrap-5 .select2-results__option,
+[data-theme="monokai"] .select2-container--bootstrap-5 .select2-results__option,
+[data-theme="nord"] .select2-container--bootstrap-5 .select2-results__option {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option--highlighted,
+[data-theme="dracula"] .select2-container--bootstrap-5 .select2-results__option--highlighted,
+[data-theme="monokai"] .select2-container--bootstrap-5 .select2-results__option--highlighted,
+[data-theme="nord"] .select2-container--bootstrap-5 .select2-results__option--highlighted {
+    background-color: #375a7f !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-selection__choice,
+[data-theme="dracula"] .select2-container--bootstrap-5 .select2-selection__choice,
+[data-theme="monokai"] .select2-container--bootstrap-5 .select2-selection__choice,
+[data-theme="nord"] .select2-container--bootstrap-5 .select2-selection__choice {
+    background-color: #375a7f !important;
+    border-color: #2a4763 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .select2-search__field,
+[data-theme="dracula"] .select2-search__field,
+[data-theme="monokai"] .select2-search__field,
+[data-theme="nord"] .select2-search__field {
+    background-color: #2b2b2b !important;
+    color: #ffffff !important;
+}
