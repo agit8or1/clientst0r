@@ -5,6 +5,28 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.111] - 2026-01-16
+
+### 🐛 Bug Fixes
+
+**Fixed Google Maps API Key Save Error:**
+- **Fixed** FileNotFoundError when trying to save Google Maps API key in settings (GitHub Issue #25)
+- **Added** automatic creation of parent directory for .env file if it doesn't exist
+- **Added** `env_path.parent.mkdir(parents=True, exist_ok=True)` before writing to .env
+- **Result**: Settings AI page now properly creates .env file if missing
+
+**Why This Matters:**
+- Users can now save Google Maps API keys without errors
+- Fresh installations without .env file can now save API keys
+- Applies to all AI/API key settings (Anthropic, Google Maps, Regrid, Attom)
+
+**Technical Details:**
+- Issue was at line 748 in core/settings_views.py
+- Code was writing to .env without checking if file/directory existed
+- Fix ensures directory structure exists before writing
+
+Fixes #25
+
 ## [2.24.110] - 2026-01-16
 
 ### 🔧 UI Changes

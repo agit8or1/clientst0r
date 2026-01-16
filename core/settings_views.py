@@ -744,7 +744,8 @@ def settings_ai(request):
                 # Add new key
                 lines.append(f'{key}={value}\n')
 
-        # Write back to .env
+        # Write back to .env (create parent directory if needed)
+        env_path.parent.mkdir(parents=True, exist_ok=True)
         with open(env_path, 'w') as f:
             f.writelines(lines)
 
