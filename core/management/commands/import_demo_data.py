@@ -316,24 +316,177 @@ class Command(BaseCommand):
 
     def _create_diagrams(self, organization, user):
         """Create demo diagrams."""
+
+        # Network diagram with visual topology
+        network_diagram_xml = '''<mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="internet" value="Internet" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+      <mxGeometry x="340" y="40" width="140" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="firewall" value="pfSense Firewall&#xa;10.0.10.1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+      <mxGeometry x="350" y="160" width="120" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="switch1" value="Core Switch 1&#xa;10.0.10.2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+      <mxGeometry x="250" y="260" width="120" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="switch2" value="Core Switch 2&#xa;10.0.10.3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+      <mxGeometry x="450" y="260" width="120" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="dc" value="Domain Controller&#xa;ACME-DC-01&#xa;10.0.30.10" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+      <mxGeometry x="140" y="380" width="120" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="fileserver" value="File Server&#xa;ACME-FILE-01&#xa;10.0.30.11" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+      <mxGeometry x="350" y="380" width="120" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="workstations" value="Workstations&#xa;VLAN 20&#xa;10.0.20.0/24" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+      <mxGeometry x="560" y="380" width="120" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="edge1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" edge="1" parent="1" source="internet" target="firewall">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="edge2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" edge="1" parent="1" source="firewall" target="switch1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="edge3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" edge="1" parent="1" source="firewall" target="switch2">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="edge4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="switch1" target="dc">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="edge5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="switch2" target="fileserver">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="edge6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="switch2" target="workstations">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>'''
+
+        # Rack diagram showing equipment layout
+        rack_diagram_xml = '''<mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="600" pageHeight="900">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="rack" value="42U Server Rack" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="200" y="50" width="200" height="700" as="geometry"/>
+    </mxCell>
+    <mxCell id="pdu1" value="1U - PDU 1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+      <mxGeometry x="210" y="60" width="180" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="switch1" value="2U - Switch CORE-01" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+      <mxGeometry x="210" y="85" width="180" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="switch2" value="2U - Switch CORE-02" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+      <mxGeometry x="210" y="130" width="180" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="patch" value="1U - Patch Panel" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+      <mxGeometry x="210" y="175" width="180" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="blank1" value="1U - Blank" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#999999;" vertex="1" parent="1">
+      <mxGeometry x="210" y="200" width="180" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="dc" value="4U - SRV-001-DC&#xa;Dell PowerEdge R740&#xa;Domain Controller" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+      <mxGeometry x="210" y="225" width="180" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="file" value="4U - SRV-002-FILE&#xa;Dell PowerEdge R740&#xa;File Server" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+      <mxGeometry x="210" y="310" width="180" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="ups" value="3U - UPS Battery Backup" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+      <mxGeometry x="210" y="680" width="180" height="60" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>'''
+
+        # Flowchart for ticket resolution process
+        flowchart_diagram_xml = '''<mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="start" value="New Ticket Received" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;arcSize=50;" vertex="1" parent="1">
+      <mxGeometry x="340" y="40" width="140" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="review" value="Review Ticket Details" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+      <mxGeometry x="340" y="140" width="140" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="priority" value="High Priority?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+      <mxGeometry x="350" y="240" width="120" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="escalate" value="Escalate to Senior Tech" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+      <mxGeometry x="180" y="260" width="120" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="assign" value="Assign to Technician" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+      <mxGeometry x="520" y="260" width="120" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="work" value="Work on Issue" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+      <mxGeometry x="350" y="380" width="120" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="resolved" value="Issue Resolved?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+      <mxGeometry x="350" y="480" width="120" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="document" value="Document Solution" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+      <mxGeometry x="350" y="620" width="120" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="close" value="Close Ticket" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;arcSize=50;" vertex="1" parent="1">
+      <mxGeometry x="350" y="720" width="120" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;endArrow=classic;" edge="1" parent="1" source="start" target="review">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" edge="1" parent="1" source="review" target="priority">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e3" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" edge="1" parent="1" source="priority" target="escalate">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e4" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" edge="1" parent="1" source="priority" target="assign">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" edge="1" parent="1" source="escalate" target="work">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" edge="1" parent="1" source="assign" target="work">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" edge="1" parent="1" source="work" target="resolved">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e8" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" edge="1" parent="1" source="resolved" target="document">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e9" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="resolved" target="work">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="550" y="530"/>
+          <mxPoint x="550" y="410"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;" edge="1" parent="1" source="document" target="close">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>'''
+
         diagrams_data = [
             {
                 'title': 'Main Office Network Diagram',
                 'diagram_type': 'network',
                 'description': 'Network topology for Acme Corporation main office',
-                'diagram_xml': '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>'
+                'diagram_xml': network_diagram_xml
             },
             {
                 'title': 'Server Rack Layout',
                 'diagram_type': 'rack',
                 'description': 'Physical layout of server rack equipment',
-                'diagram_xml': '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>'
+                'diagram_xml': rack_diagram_xml
             },
             {
                 'title': 'Ticket Resolution Flowchart',
                 'diagram_type': 'flowchart',
                 'description': 'Process flow for resolving support tickets',
-                'diagram_xml': '<mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>'
+                'diagram_xml': flowchart_diagram_xml
             }
         ]
 

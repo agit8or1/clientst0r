@@ -5,6 +5,25 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.98] - 2026-01-16
+
+### 🐛 Bug Fix
+
+**Demo Data Import - Real Diagrams Added:**
+- **Fixed** demo diagrams being empty/blank after import
+- **Added** real, detailed diagram content for all three diagram types
+- **Issue**: Diagrams were created with minimal XML (only base structure)
+- **Root cause**: Placeholder XML had no visual elements or connections
+- **Solution**: Added complete mxGraph XML with shapes, connections, and styling
+
+**Diagram Content:**
+- 📊 **Network Diagram** (3,480 chars): Complete network topology showing Internet → Firewall → Core Switches → Servers/Workstations with IP addresses and color-coded components
+- 🔧 **Rack Layout** (2,536 chars): 42U server rack with PDUs, switches, patch panel, servers (DC, File), and UPS positioning
+- 📈 **Flowchart** (5,062 chars): Ticket resolution process with decision diamonds, workflow paths, and visual routing
+
+**Changes:**
+- core/management/commands/import_demo_data.py - Added complete mxGraph XML diagrams
+
 ## [2.24.97] - 2026-01-16
 
 ### 🐛 Bug Fix
