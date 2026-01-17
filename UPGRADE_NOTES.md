@@ -1,5 +1,40 @@
 # HuduGlue Upgrade Notes
 
+## 🧪 v2.24.120 - Test Release for Complete Update Flow
+
+### What's New:
+This is a test release to verify the complete one-click update system works end-to-end!
+
+### What to Test:
+
+**On Systems WITHOUT Sudo Configured:**
+1. Go to **Admin → System Updates**
+2. You should see a **RED ALERT** with the exact sudo command
+3. Copy and run the command shown
+4. Refresh the page - alert should disappear
+5. Click "Check for Updates" - should show v2.24.120 available
+6. Click "Apply Update" - should update automatically
+
+**On Systems WITH Sudo Already Configured:**
+1. Go to **Admin → System Updates**
+2. No red alert (sudo already configured)
+3. Click "Check for Updates" - should show v2.24.120 available
+4. Click "Apply Update" - should update automatically
+
+**What Happens Automatically:**
+- ✅ Pulls v2.24.120 code
+- ✅ Runs migrations
+- ✅ **Runs Gunicorn fix script (if present)**
+- ✅ Installs dependencies
+- ✅ Collects static files
+- ✅ Restarts Gunicorn service
+
+### Version Changes:
+- v2.24.120: Test release (version bump only)
+- All functionality from v2.24.119 included
+
+---
+
 ## 💡 v2.24.119 - Sudo Setup Alert in Web UI!
 
 ### What's New:
