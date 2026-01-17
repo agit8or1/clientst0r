@@ -75,6 +75,9 @@ def system_updates(request):
     # Get git status
     git_status = updater.get_git_status()
 
+    # Check if passwordless sudo is configured (for web-based updates)
+    sudo_configured = updater._check_passwordless_sudo()
+
     # Get recent update logs
     recent_updates = AuditLog.objects.filter(
         action__in=['system_update', 'system_update_failed', 'update_check']
@@ -105,6 +108,7 @@ def system_updates(request):
         'version': get_version(),
         'update_info': update_info,
         'git_status': git_status,
+        'sudo_configured': sudo_configured,
         'recent_updates': recent_updates,
         'current_changelog': current_changelog,
         'newer_changelogs': newer_changelogs,

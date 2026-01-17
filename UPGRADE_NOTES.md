@@ -1,5 +1,34 @@
 # HuduGlue Upgrade Notes
 
+## 💡 v2.24.119 - Sudo Setup Alert in Web UI!
+
+### What's New:
+The System Updates page now shows a PROMINENT ALERT if passwordless sudo is not configured, with the exact command users need to run!
+
+### Update Process (Same as v2.24.118):
+
+**Web UI (Easiest):**
+1. **Admin dropdown → System Updates**
+2. If you see a red alert, **copy and run the command shown** (one-time setup)
+3. **Refresh the page**
+4. **Click "Check for Updates"**
+5. **Click "Apply Update"**
+6. **Done!**
+
+### What Changed in v2.24.119:
+- ✅ Added sudo configuration check to System Updates page
+- ✅ Shows prominent red alert if sudo is not configured
+- ✅ Displays exact command users need to run
+- ✅ Clear instructions: run command → refresh page → click update
+- ✅ No more guessing or hidden errors!
+
+### Perfect For:
+- Users who don't read documentation
+- Clear guidance right in the UI where it's needed
+- One-time setup is obvious and easy to follow
+
+---
+
 ## 🚀 v2.24.118 - ONE-CLICK UPDATE with Automatic Fix!
 
 ### What's New:

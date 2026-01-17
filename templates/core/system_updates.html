@@ -81,6 +81,37 @@
         </div>
     </div>
 
+    <!-- Sudo Configuration Alert -->
+    {% if not sudo_configured %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-danger" role="alert">
+                <h5 class="alert-heading">
+                    <i class="fas fa-exclamation-triangle"></i> One-Time Setup Required for Web-Based Updates
+                </h5>
+                <p>
+                    To enable one-click updates from the web UI, you need to configure passwordless sudo.
+                    This is a <strong>one-time setup</strong> that allows the web interface to restart the Gunicorn service automatically.
+                </p>
+                <p class="mb-2"><strong>Run this command once on your server:</strong></p>
+                <div class="bg-dark text-light p-3 rounded" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
+                    <div class="mb-2">sudo tee /etc/sudoers.d/huduglue-auto-update > /dev/null <<'SUDOERS'</div>
+                    <div class="mb-2">administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.service, /bin/systemctl status huduglue-gunicorn.service, /bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/huduglue-gunicorn.service</div>
+                    <div class="mb-2">SUDOERS</div>
+                    <div class="mb-3"></div>
+                    <div class="mb-2">sudo chmod 0440 /etc/sudoers.d/huduglue-auto-update</div>
+                </div>
+                <p class="mt-3 mb-0">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>After running this command:</strong> Refresh this page and you'll be able to click "Apply Update" to update with a single click!
+                    <br>
+                    <small class="text-muted">Without this setup, you'll need to update manually via command line each time.</small>
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Current Version -->
     <div class="row mb-4">
         <div class="col-md-6">
