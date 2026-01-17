@@ -1,5 +1,35 @@
 # HuduGlue Upgrade Notes
 
+## 🔍 v2.24.122 - Diagnostic Script to Find the Problem!
+
+### What's New:
+Added a diagnostic script that tells you EXACTLY what's wrong and how to fix it!
+
+### Run This on Your Remote Server:
+
+```bash
+cd /home/administrator
+git pull origin main
+./diagnose_gunicorn_fix.sh
+```
+
+### What the Diagnostic Does:
+1. ✅ Checks if .env file exists and has APP_MASTER_KEY
+2. ✅ Checks if Gunicorn service file exists
+3. ✅ Checks if EnvironmentFile is configured (THE FIX)
+4. ✅ Tests if sudo permissions are configured
+5. ✅ Tells you EXACTLY what command to run to fix it
+
+### The Script Will Tell You:
+- **If fix is already applied:** Just restart Gunicorn
+- **If sudo not configured:** Shows exact command to configure it
+- **If fix needs to be applied:** Tells you to run `./scripts/fix_gunicorn_env.sh`
+
+### Why This Helps:
+The red alert in the web UI only checks if `systemctl status` works, but the fix needs `sudo tee` permission. This diagnostic checks BOTH!
+
+---
+
 ## 🔧 v2.24.121 - FIXED: Gunicorn Fix Script Now Works with Sudo Permissions!
 
 ### What Was Fixed:
