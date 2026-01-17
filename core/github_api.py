@@ -205,6 +205,14 @@ def format_bug_report_body(description, steps_to_reproduce, system_info, reporte
     """
     body_parts = []
 
+    # Reporter Information (at the top for visibility)
+    body_parts.append("> **Reported by:** " + reporter_info.get('username', 'Unknown'))
+    if reporter_info.get('organization'):
+        body_parts.append(f"> **Organization:** {reporter_info['organization']}")
+    if reporter_info.get('email'):
+        body_parts.append(f"> **Email:** {reporter_info['email']}")
+    body_parts.append("")
+
     # Description section
     body_parts.append("## Description")
     body_parts.append(description)
@@ -224,15 +232,6 @@ def format_bug_report_body(description, steps_to_reproduce, system_info, reporte
     body_parts.append(f"- **Operating System**: {system_info.get('os', 'Unknown')}")
     body_parts.append(f"- **Browser**: {system_info.get('browser', 'Unknown')}")
     body_parts.append(f"- **Timestamp**: {system_info.get('timestamp', 'Unknown')}")
-    body_parts.append("")
-
-    # Reporter Information
-    body_parts.append("## Reported By")
-    body_parts.append(f"- **User**: {reporter_info.get('username', 'Unknown')}")
-    if reporter_info.get('email'):
-        body_parts.append(f"- **Email**: {reporter_info['email']}")
-    if reporter_info.get('organization'):
-        body_parts.append(f"- **Organization**: {reporter_info['organization']}")
     body_parts.append("")
 
     body_parts.append("---")

@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.core.cache import cache
+from django_ratelimit.decorators import ratelimit
 from config.version import get_version, get_full_version
 from .updater import UpdateService
 from audit.models import AuditLog
@@ -228,9 +229,11 @@ def update_progress_api(request):
 
 
 @login_required
+@ratelimit(key='user', rate='5/h', method='POST', block=True)
 def report_bug(request):
     """
-    Bug reporting endpoint - creates GitHub issues with user-provided or system credentials.
+    Bug reporting endpoint - creates GitHub issues using system credentials.
+    Rate limited to 5 reports per user per hour to prevent abuse.
     """
     from django.http import JsonResponse
     from .github_api import GitHubIssueCreator, format_bug_report_body, GitHubAPIError
@@ -245,7 +248,21 @@ def report_bug(request):
             'success': False,
             'message': 'Invalid request method'
         }, status=405)
-    
+
+    # Check if rate limited
+    if getattr(request, 'limited', False):
+        logger.warning(f"Bug report rate limit exceeded for user {request.user.username}")
+        AuditLog.objects.create(
+            user=request.user,
+            action='bug_report_rate_limited',
+            resource_type='bug_report',
+            details=f'User exceeded rate limit (5 reports per hour)'
+        )
+        return JsonResponse({
+            'success': False,
+            'message': 'Rate limit exceeded. You can only submit 5 bug reports per hour. Please wait before submitting another report.'
+        }, status=429)
+
     # Get form data
     title = request.POST.get('title', '').strip()
     description = request.POST.get('description', '').strip()
@@ -344,16 +361,33 @@ def report_bug(request):
                 )
             except GitHubAPIError as e:
                 # Issue was created but screenshot upload failed - still return success
+                logger.warning(f"Screenshot upload failed for bug report: {e}")
                 pass
-        
+
+        # Log successful bug report submission
+        AuditLog.objects.create(
+            user=request.user,
+            action='bug_report_submitted',
+            resource_type='bug_report',
+            details=f'GitHub Issue #{issue_number} created: {title}'
+        )
+        logger.info(f"Bug report submitted by {request.user.username}: Issue #{issue_number}")
+
         return JsonResponse({
             'success': True,
             'message': f'Bug report submitted successfully! Issue #{issue_number} created.',
             'issue_number': issue_number,
             'issue_url': issue_url
         })
-        
+
     except GitHubAPIError as e:
+        logger.error(f"GitHub API error in bug report: {e}")
+        AuditLog.objects.create(
+            user=request.user,
+            action='bug_report_failed',
+            resource_type='bug_report',
+            details=f'GitHub API error: {str(e)}'
+        )
         return JsonResponse({
             'success': False,
             'message': f'Failed to create GitHub issue: {str(e)}'
@@ -362,6 +396,12 @@ def report_bug(request):
         logger.error(f"Unexpected error in report_bug: {e}")
         import traceback
         logger.error(traceback.format_exc())
+        AuditLog.objects.create(
+            user=request.user,
+            action='bug_report_error',
+            resource_type='bug_report',
+            details=f'Unexpected error: {str(e)}'
+        )
         return JsonResponse({
             'success': False,
             'message': f'An unexpected error occurred: {str(e)}'
