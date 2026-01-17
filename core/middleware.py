@@ -29,8 +29,8 @@ class CurrentOrganizationMiddleware:
             if org_id:
                 try:
                     org = Organization.objects.get(id=org_id, is_active=True)
-                    # Staff users have access to all orgs, org users need membership
-                    if request.is_staff_user:
+                    # Superusers and staff users have access to all orgs, org users need membership
+                    if request.user.is_superuser or request.is_staff_user:
                         request.current_organization = org
                     elif hasattr(request.user, 'memberships'):
                         if request.user.memberships.filter(organization=org, is_active=True).exists():
@@ -40,16 +40,19 @@ class CurrentOrganizationMiddleware:
 
             # If no org selected, auto-select first available org
             if not request.current_organization:
-                if request.is_staff_user:
-                    # Staff users: select first active organization
+                if request.user.is_superuser or request.is_staff_user:
+                    # Superusers and staff users: select first active organization
                     first_org = Organization.objects.filter(is_active=True).first()
                     if first_org:
                         request.current_organization = first_org
                         request.session['current_organization_id'] = first_org.id
                         request.session.modified = True
                 elif hasattr(request.user, 'memberships'):
-                    # Org users: select first membership
-                    memberships = request.user.memberships.filter(is_active=True).select_related('organization')
+                    # Org users: select first membership with active organization
+                    memberships = request.user.memberships.filter(
+                        is_active=True,
+                        organization__is_active=True
+                    ).select_related('organization')
                     if memberships.exists():
                         request.current_organization = memberships.first().organization
                         request.session['current_organization_id'] = request.current_organization.id

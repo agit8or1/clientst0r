@@ -38,14 +38,17 @@ def organization_context(request):
 
     # Add user's organizations for org switcher
     if request.user.is_authenticated:
-        # Staff users see all organizations
-        if getattr(request, 'is_staff_user', False):
+        # Superusers and staff users see all organizations
+        if request.user.is_superuser or getattr(request, 'is_staff_user', False):
             from .models import Organization
             context['user_organizations'] = list(Organization.objects.filter(is_active=True).order_by('name'))
         # Org users see only their memberships
         elif hasattr(request.user, 'memberships'):
             context['user_organizations'] = [
-                m.organization for m in request.user.memberships.filter(is_active=True).select_related('organization').order_by('organization__name')
+                m.organization for m in request.user.memberships.filter(
+                    is_active=True,
+                    organization__is_active=True
+                ).select_related('organization').order_by('organization__name')
             ]
         else:
             context['user_organizations'] = []

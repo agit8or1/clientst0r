@@ -1,5 +1,38 @@
 # HuduGlue Upgrade Notes
 
+## 🔧 v2.24.126 - Fixed Organization Dropdown Not Showing All Orgs
+
+### What's Fixed:
+Fixed issue where organization dropdown wasn't showing all available organizations for some users.
+
+### Problems Resolved:
+1. **Superusers not seeing all organizations** - Superusers were not automatically seeing all orgs unless they were also marked as staff users
+2. **Inactive organizations appearing** - Org users could see organizations that were marked as inactive if they had an active membership
+3. **Middleware not respecting superuser status** - Organization middleware wasn't checking `is_superuser` flag
+
+### Changes Made:
+- **Context Processor**: Added `request.user.is_superuser` check to show all organizations
+- **Context Processor**: Added `organization__is_active=True` filter for org users
+- **Middleware**: Added `is_superuser` check for organization access
+- **Middleware**: Added `organization__is_active=True` filter when auto-selecting organization
+
+### Who This Affects:
+- **Superusers**: Now properly see all active organizations in dropdown
+- **Org Users**: No longer see inactive organizations even if they have memberships
+
+### Technical Details:
+Before: Only staff users (user_type=STAFF) saw all organizations
+After: Both superusers AND staff users see all organizations
+
+### Upgrade:
+```bash
+cd /home/administrator
+git pull origin main
+sudo systemctl restart huduglue-gunicorn.service
+```
+
+---
+
 ## 🐛 v2.24.125 - Fixed Document Form Validation Errors
 
 ### What's Fixed:
