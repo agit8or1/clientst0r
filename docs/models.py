@@ -42,22 +42,33 @@ class DocumentCategory(BaseModel):
 
 class Document(BaseModel):
     """
-    Knowledge base document with HTML or Markdown body.
+    Knowledge base document with HTML or Markdown body, or uploaded file.
     """
     CONTENT_TYPES = [
         ('html', 'HTML (WYSIWYG)'),
         ('markdown', 'Markdown'),
+        ('file', 'Uploaded File'),
     ]
 
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='documents', null=True, blank=True, help_text='Organization for org-specific docs. NULL for global KB articles.')
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255)
-    body = models.TextField()
+    body = models.TextField(blank=True)  # Now optional for file uploads
     content_type = models.CharField(max_length=20, choices=CONTENT_TYPES, default='html')
     is_published = models.BooleanField(default=True)
     is_template = models.BooleanField(default=False, help_text='Is this a reusable template?')
     is_archived = models.BooleanField(default=False)
     is_global = models.BooleanField(default=False, help_text='Global KB - visible to all organizations')
+
+    # File upload fields
+    file = models.FileField(
+        upload_to='documents/files/%Y/%m/',
+        null=True,
+        blank=True,
+        help_text='Uploaded file (PDF, DOCX, images, etc.)'
+    )
+    file_size = models.BigIntegerField(null=True, blank=True, help_text='File size in bytes')
+    file_type = models.CharField(max_length=100, blank=True, help_text='MIME type of uploaded file')
 
     # Relations
     category = models.ForeignKey(DocumentCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents')

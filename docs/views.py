@@ -114,7 +114,7 @@ def document_create(request):
             messages.warning(request, 'Template not found.')
 
     if request.method == 'POST':
-        form = DocumentForm(request.POST, organization=org)
+        form = DocumentForm(request.POST, request.FILES, organization=org)
         if form.is_valid():
             document = form.save(commit=False)
             document.organization = org
@@ -122,6 +122,17 @@ def document_create(request):
             document.created_by = request.user
             document.last_modified_by = request.user
             document.is_template = False  # Ensure created docs are not templates
+
+            # Handle file upload
+            if document.content_type == 'file' and document.file:
+                document.file_size = document.file.size
+                document.file_type = document.file.content_type
+                # Auto-generate title from filename if not provided
+                if not document.title or document.title == '':
+                    import os
+                    document.title = os.path.splitext(document.file.name)[0]
+                    document.slug = slugify(document.title)
+
             document.save()
             form.save_m2m()
             messages.success(request, f"Document '{document.title}' created successfully.")
@@ -153,10 +164,16 @@ def document_edit(request, slug):
     document = get_object_or_404(Document, slug=slug, organization=org)
 
     if request.method == 'POST':
-        form = DocumentForm(request.POST, instance=document, organization=org)
+        form = DocumentForm(request.POST, request.FILES, instance=document, organization=org)
         if form.is_valid():
             document = form.save(commit=False)
             document.last_modified_by = request.user
+
+            # Handle file upload
+            if document.content_type == 'file' and document.file:
+                document.file_size = document.file.size
+                document.file_type = document.file.content_type
+
             document.save()
             form.save_m2m()
             messages.success(request, f"Document '{document.title}' updated successfully.")

@@ -98,6 +98,16 @@
         background-color: #2b2b2b !important;
         border-color: #495057 !important;
     }
+
+    /* Hide the actual file input, we'll use the drop zone */
+    #document-file {
+        display: none;
+    }
+
+    /* Drop zone styling */
+    #drop-zone:hover {
+        background-color: rgba(13, 110, 253, 0.05);
+    }
     [data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option,
     [data-theme="dracula"] .select2-container--bootstrap-5 .select2-results__option,
     [data-theme="monokai"] .select2-container--bootstrap-5 .select2-results__option,
@@ -187,8 +197,29 @@
                             <textarea id="markdown-textarea" class="form-control" rows="20"></textarea>
                         </div>
 
+                        <!-- File Upload -->
+                        <div id="file-upload-container" style="display: none;">
+                            <div id="drop-zone" class="border border-2 border-dashed rounded p-5 text-center" style="cursor: pointer; transition: all 0.3s;">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Drag & Drop or Click to Upload</h5>
+                                <p class="text-muted small mb-3">Supported: PDF, Word, Excel, PowerPoint, Images, ZIP (max 50MB)</p>
+                                {{ form.file }}
+                                <div id="file-info" class="mt-3" style="display: none;">
+                                    <i class="fas fa-file me-2"></i>
+                                    <span id="file-name"></span>
+                                    <span id="file-size" class="text-muted small ms-2"></span>
+                                    <button type="button" class="btn btn-sm btn-danger ms-2" id="remove-file">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         {% if form.body.errors %}
                         <div class="invalid-feedback d-block">{{ form.body.errors }}</div>
+                        {% endif %}
+                        {% if form.file.errors %}
+                        <div class="invalid-feedback d-block">{{ form.file.errors }}</div>
                         {% endif %}
                     </div>
 
@@ -240,8 +271,15 @@
     const bodyTextarea = document.getElementById('document-body');
     const quillContainer = document.getElementById('tinymce-editor-container');
     const markdownContainer = document.getElementById('markdown-editor-container');
+    const fileUploadContainer = document.getElementById('file-upload-container');
     const markdownTextarea = document.getElementById('markdown-textarea');
     const form = document.getElementById('document-form');
+    const fileInput = document.getElementById('document-file');
+    const dropZone = document.getElementById('drop-zone');
+    const fileInfo = document.getElementById('file-info');
+    const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
+    const removeFileBtn = document.getElementById('remove-file');
 
     let quillEditor = null;
 
@@ -300,21 +338,33 @@
             // Show WYSIWYG
             quillContainer.style.display = 'block';
             markdownContainer.style.display = 'none';
+            fileUploadContainer.style.display = 'none';
 
             if (!quillEditor) {
                 initQuill();
             } else {
                 document.getElementById('quill-editor').style.display = 'block';
             }
-        } else {
+        } else if (contentType === 'markdown') {
             // Show Markdown textarea
             quillContainer.style.display = 'none';
             markdownContainer.style.display = 'block';
+            fileUploadContainer.style.display = 'none';
 
             // Load existing content into markdown textarea if not already loaded
             if (!markdownTextarea.value && bodyTextarea.value) {
                 markdownTextarea.value = bodyTextarea.value;
             }
+
+            // Hide Quill if it exists
+            if (quillEditor) {
+                document.getElementById('quill-editor').style.display = 'none';
+            }
+        } else if (contentType === 'file') {
+            // Show File Upload
+            quillContainer.style.display = 'none';
+            markdownContainer.style.display = 'none';
+            fileUploadContainer.style.display = 'block';
 
             // Hide Quill if it exists
             if (quillEditor) {
@@ -329,21 +379,111 @@
     // Listen for content type changes
     contentTypeSelect.addEventListener('change', toggleEditor);
 
+    // File upload drag and drop functionality
+    if (dropZone && fileInput) {
+        // Make drop zone clickable
+        dropZone.addEventListener('click', function(e) {
+            if (e.target !== removeFileBtn && !e.target.closest('#remove-file')) {
+                fileInput.click();
+            }
+        });
+
+        // File input change handler
+        fileInput.addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                displayFileInfo(this.files[0]);
+            }
+        });
+
+        // Drag and drop handlers
+        dropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.style.borderColor = '#0d6efd';
+            this.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+        });
+
+        dropZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.style.borderColor = '#dee2e6';
+            this.style.backgroundColor = 'transparent';
+        });
+
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.style.borderColor = '#dee2e6';
+            this.style.backgroundColor = 'transparent';
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                displayFileInfo(files[0]);
+            }
+        });
+
+        // Remove file handler
+        if (removeFileBtn) {
+            removeFileBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                fileInput.value = '';
+                fileInfo.style.display = 'none';
+            });
+        }
+    }
+
+    // Display file info
+    function displayFileInfo(file) {
+        fileName.textContent = file.name;
+        fileSize.textContent = '(' + formatFileSize(file.size) + ')';
+        fileInfo.style.display = 'block';
+    }
+
+    // Format file size
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
     // Before form submit, ensure content is synced and validate
     form.addEventListener('submit', function(e) {
+        const contentType = contentTypeSelect.value;
+
         // Sync content from visible editor to hidden textarea
-        if (contentTypeSelect.value === 'html' && quillEditor) {
+        if (contentType === 'html' && quillEditor) {
             bodyTextarea.value = quillEditor.root.innerHTML;
-        } else if (contentTypeSelect.value === 'markdown') {
+        } else if (contentType === 'markdown') {
             bodyTextarea.value = markdownTextarea.value;
         }
 
-        // Validate that content is not empty
-        const content = bodyTextarea.value.trim();
-        if (!content || content === '<p><br></p>') {
-            e.preventDefault();
-            alert('Please enter document content before submitting.');
-            return false;
+        // Validate based on content type
+        if (contentType === 'file') {
+            // Validate file is selected
+            if (!fileInput.files || fileInput.files.length === 0) {
+                e.preventDefault();
+                alert('Please select a file to upload.');
+                return false;
+            }
+
+            // Validate file size (50MB max)
+            const maxSize = 50 * 1024 * 1024; // 50MB
+            if (fileInput.files[0].size > maxSize) {
+                e.preventDefault();
+                alert('File size must be less than 50MB.');
+                return false;
+            }
+        } else {
+            // Validate that content is not empty for HTML/Markdown
+            const content = bodyTextarea.value.trim();
+            if (!content || content === '<p><br></p>') {
+                e.preventDefault();
+                alert('Please enter document content before submitting.');
+                return false;
+            }
         }
     });
 
