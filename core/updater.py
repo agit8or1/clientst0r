@@ -50,7 +50,7 @@ class UpdateService:
             url = f'{self.github_api}/{self.repo_owner}/{self.repo_name}/tags'
             logger.info(f"Fetching tags from: {url}")
 
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=30)  # Increased timeout for slow connections
             logger.info(f"GitHub API response status: {response.status_code}")
             response.raise_for_status()
 
@@ -106,14 +106,15 @@ class UpdateService:
             try:
                 release_response = requests.get(
                     f'{self.github_api}/{self.repo_owner}/{self.repo_name}/releases/tags/v{latest_version}',
-                    timeout=5
+                    timeout=15  # Increased timeout
                 )
                 if release_response.status_code == 200:
                     release_data = release_response.json()
                     release_notes = release_data.get('body', 'No release notes available')
                     published_at = release_data.get('published_at')
-            except:
-                pass  # Release doesn't exist, that's ok
+            except Exception as e:
+                logger.debug(f"Could not fetch release notes: {e}")
+                pass  # Release doesn't exist or network issue, that's ok
 
             return {
                 'update_available': update_available,
@@ -125,13 +126,34 @@ class UpdateService:
                 'checked_at': timezone.now().isoformat(),
             }
 
+        except requests.Timeout as e:
+            logger.warning(f"GitHub API timeout while checking for updates: {e}")
+            return {
+                'update_available': False,
+                'latest_version': None,
+                'current_version': self.current_version,
+                'error': 'Unable to reach GitHub API (connection timeout). Please check your internet connection or try again later.',
+                'error_type': 'timeout',
+                'checked_at': timezone.now().isoformat(),
+            }
+        except requests.ConnectionError as e:
+            logger.warning(f"GitHub API connection error while checking for updates: {e}")
+            return {
+                'update_available': False,
+                'latest_version': None,
+                'current_version': self.current_version,
+                'error': 'Unable to connect to GitHub. Please check your internet connection or firewall settings.',
+                'error_type': 'connection',
+                'checked_at': timezone.now().isoformat(),
+            }
         except requests.RequestException as e:
             logger.error(f"Failed to check for updates: {e}")
             return {
                 'update_available': False,
                 'latest_version': None,
                 'current_version': self.current_version,
-                'error': str(e),
+                'error': f'Error checking for updates: {str(e)}',
+                'error_type': 'general',
                 'checked_at': timezone.now().isoformat(),
             }
 
