@@ -115,8 +115,10 @@
                 <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
                     <!-- Global KB Link -->
-                    {% if global_kb_enabled and (is_staff_user or user.is_superuser) %}
-                    <li class="nav-item"><a class="nav-link" href="{% url 'docs:global_kb_list' %}"><i class="fas fa-book"></i> Global KB</a></li>
+                    {% if global_kb_enabled %}
+                        {% if is_staff_user or user.is_superuser %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'docs:global_kb_list' %}"><i class="fas fa-book"></i> Global KB</a></li>
+                        {% endif %}
                     {% endif %}
                     <!-- Search Form -->
                     <li class="nav-item">

@@ -1,6 +1,47 @@
 # HuduGlue Upgrade Notes
 
-## 🔧 v2.24.126 - Fixed Organization Dropdown Not Showing All Orgs
+## 🚨 v2.24.127 - HOTFIX: Critical Template Syntax Error
+
+### What's Fixed:
+**CRITICAL BUG**: Fixed template syntax error that broke all pages in v2.24.126.
+
+### The Problem:
+v2.24.126 introduced a Django template syntax error using parentheses in an if statement:
+```django
+{% if global_kb_enabled and (is_staff_user or user.is_superuser) %}
+```
+
+Django templates don't support parentheses for grouping logic, causing:
+```
+TemplateSyntaxError: Could not parse the remainder: '(is_staff_user' from '(is_staff_user'
+```
+
+### The Fix:
+Nested the if statements properly:
+```django
+{% if global_kb_enabled %}
+    {% if is_staff_user or user.is_superuser %}
+        ...
+    {% endif %}
+{% endif %}
+```
+
+### Impact:
+- **v2.24.126**: Broke ALL pages with base.html template
+- **v2.24.127**: Fixed - all pages working again
+
+### Upgrade Immediately:
+```bash
+cd /home/administrator
+git pull origin main
+sudo systemctl restart huduglue-gunicorn.service
+```
+
+**If you're on v2.24.126, upgrade to v2.24.127 immediately!**
+
+---
+
+## 🔧 v2.24.126 - Fixed Organization Dropdown Not Showing All Orgs (BROKEN - DO NOT USE)
 
 ### What's Fixed:
 Fixed issue where organization dropdown wasn't showing all available organizations for some users.
