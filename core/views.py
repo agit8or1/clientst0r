@@ -1,6 +1,7 @@
 """
 Core views - Documentation and About pages
 """
+import logging
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
@@ -10,6 +11,8 @@ from django.core.cache import cache
 from config.version import get_version, get_full_version
 from .updater import UpdateService
 from audit.models import AuditLog
+
+logger = logging.getLogger(__name__)
 
 
 def is_superuser(user):
@@ -375,11 +378,3 @@ def report_bug(request):
             'success': False,
             'message': f'An unexpected error occurred: {str(e)}'
         }, status=500)
-        # Get system GitHub PAT
-        system_settings = SystemSetting.get_settings()
-        token = system_settings.github_pat
-        if not token:
-            return JsonResponse({
-                'success': False,
-                'message': 'System GitHub PAT is not configured. Please configure it in Settings or use your own GitHub account.'
-            }, status=400)

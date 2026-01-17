@@ -1,27 +1,25 @@
 """
-GitHub API integration for bug reporting.
-Handles creating issues and uploading attachments to GitHub.
+GitHub API integration for bug reporting
 """
 import requests
-from typing import Optional, Dict, Any
-from django.conf import settings
 import base64
+import logging
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class GitHubAPIError(Exception):
-    """Raised when GitHub API requests fail."""
+    """Exception raised for GitHub API errors"""
     pass
 
 
 class GitHubIssueCreator:
-    """
-    Helper class for creating GitHub issues via the GitHub API.
-    Supports both system-wide PAT and user-provided credentials.
-    """
+    """Helper class for creating GitHub issues via API"""
 
-    def __init__(self, token: str, repo: str = 'agit8or1/huduglue'):
+    def __init__(self, token, repo='agit8or1/huduglue'):
         """
-        Initialize GitHub API client.
+        Initialize GitHub issue creator
 
         Args:
             token: GitHub Personal Access Token
@@ -29,43 +27,41 @@ class GitHubIssueCreator:
         """
         self.token = token
         self.repo = repo
-        self.api_base = 'https://api.github.com'
-        self.headers = {
-            'Authorization': f'token {token}',
-            'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': f'HuduGlue/{settings.VERSION if hasattr(settings, "VERSION") else "dev"}'
-        }
+        self.api_url = f'https://api.github.com/repos/{repo}/issues'
 
-    def validate_token(self) -> bool:
+    def validate_token(self):
         """
-        Validate that the GitHub token has access to the repository.
+        Validate the GitHub token
 
         Returns:
-            True if token is valid and has access, False otherwise
+            bool: True if token is valid, False otherwise
         """
-        url = f'{self.api_base}/repos/{self.repo}'
+        headers = {
+            'Authorization': f'token {self.token}',
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'HuduGlue-BugReporter'
+        }
+
+        # Test by checking if we can access the repository
+        repo_url = f'https://api.github.com/repos/{self.repo}'
+
         try:
-            response = requests.get(url, headers=self.headers, timeout=10)
+            response = requests.get(repo_url, headers=headers, timeout=10)
             return response.status_code == 200
-        except requests.RequestException:
+        except Exception:
             return False
 
-    def create_issue(
-        self,
-        title: str,
-        body: str,
-        labels: Optional[list] = None
-    ) -> Dict[str, Any]:
+    def create_issue(self, title, body, labels=None):
         """
-        Create a new GitHub issue.
+        Create a GitHub issue
 
         Args:
             title: Issue title
             body: Issue body (markdown formatted)
-            labels: List of label names to apply
+            labels: List of label names (default: ['bug', 'user-reported'])
 
         Returns:
-            Dict with issue details including 'number' and 'html_url'
+            dict: Issue data with 'number', 'html_url', 'url'
 
         Raises:
             GitHubAPIError: If issue creation fails
@@ -73,7 +69,12 @@ class GitHubIssueCreator:
         if labels is None:
             labels = ['bug', 'user-reported']
 
-        url = f'{self.api_base}/repos/{self.repo}/issues'
+        headers = {
+            'Authorization': f'token {self.token}',
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'HuduGlue-BugReporter'
+        }
+
         data = {
             'title': title,
             'body': body,
@@ -81,147 +82,160 @@ class GitHubIssueCreator:
         }
 
         try:
-            response = requests.post(
-                url,
-                json=data,
-                headers=self.headers,
-                timeout=30
-            )
+            response = requests.post(self.api_url, json=data, headers=headers, timeout=30)
 
             if response.status_code == 201:
-                return response.json()
+                issue_data = response.json()
+                return {
+                    'number': issue_data['number'],
+                    'html_url': issue_data['html_url'],
+                    'url': issue_data['url']
+                }
+            elif response.status_code == 401:
+                raise GitHubAPIError('Invalid GitHub token. Please check your credentials.')
+            elif response.status_code == 403:
+                raise GitHubAPIError('GitHub API rate limit exceeded or token lacks permissions.')
+            elif response.status_code == 404:
+                raise GitHubAPIError(f'Repository {self.repo} not found or token lacks access.')
             else:
-                error_msg = f"GitHub API error: {response.status_code}"
-                try:
-                    error_data = response.json()
-                    if 'message' in error_data:
-                        error_msg += f" - {error_data['message']}"
-                except:
-                    pass
-                raise GitHubAPIError(error_msg)
+                error_msg = response.json().get('message', 'Unknown error')
+                raise GitHubAPIError(f'GitHub API error: {error_msg}')
 
-        except requests.RequestException as e:
-            raise GitHubAPIError(f"Network error creating issue: {str(e)}")
+        except requests.exceptions.Timeout:
+            raise GitHubAPIError('Request to GitHub timed out. Please try again.')
+        except requests.exceptions.ConnectionError:
+            raise GitHubAPIError('Unable to connect to GitHub. Please check your internet connection.')
+        except GitHubAPIError:
+            raise
+        except Exception as e:
+            raise GitHubAPIError(f'Unexpected error: {str(e)}')
 
-    def upload_image_to_issue(
-        self,
-        issue_number: int,
-        image_data: bytes,
-        filename: str
-    ) -> str:
+    def upload_image_to_issue(self, issue_number, image_data, filename):
         """
-        Upload an image as a comment attachment to an issue.
+        Upload an image as a comment to an existing issue
 
-        Note: GitHub doesn't have a direct image upload API, so we'll
-        add the image as a base64 encoded markdown comment.
+        Note: GitHub's API doesn't support direct image uploads to issues.
+        This creates a comment noting that a screenshot was provided.
+        Users can manually upload screenshots by drag-and-drop on GitHub.
 
         Args:
-            issue_number: The issue number to attach to
-            image_data: Raw image bytes
+            issue_number: GitHub issue number
+            image_data: Image file content (bytes)
             filename: Original filename
 
-        Returns:
-            URL of the created comment
-
         Raises:
-            GitHubAPIError: If upload fails
+            GitHubAPIError: If comment creation fails
         """
-        url = f'{self.api_base}/repos/{self.repo}/issues/{issue_number}/comments'
+        comment_url = f'{self.api_url}/{issue_number}/comments'
 
-        # Encode image as base64 and create markdown
-        b64_image = base64.b64encode(image_data).decode('utf-8')
-
-        # Determine image type from filename
-        extension = filename.lower().split('.')[-1]
-        mime_types = {
-            'png': 'image/png',
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'gif': 'image/gif',
-            'webp': 'image/webp'
+        headers = {
+            'Authorization': f'token {self.token}',
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'HuduGlue-BugReporter'
         }
-        mime_type = mime_types.get(extension, 'image/png')
 
-        # Create markdown with embedded image
-        comment_body = f"**Screenshot: {filename}**\n\n"
-        comment_body += f"![{filename}](data:{mime_type};base64,{b64_image})"
+        # Create a comment noting the screenshot
+        comment_body = f'📎 **Screenshot attached**: `{filename}`\n\n_Note: Please drag-and-drop the screenshot image into this issue for full display._'
 
         data = {'body': comment_body}
 
         try:
-            response = requests.post(
-                url,
-                json=data,
-                headers=self.headers,
-                timeout=30
-            )
+            response = requests.post(comment_url, json=data, headers=headers, timeout=30)
 
-            if response.status_code == 201:
-                return response.json()['html_url']
-            else:
-                raise GitHubAPIError(f"Failed to upload image: {response.status_code}")
+            if response.status_code != 201:
+                raise GitHubAPIError('Failed to add screenshot reference to issue')
 
-        except requests.RequestException as e:
-            raise GitHubAPIError(f"Network error uploading image: {str(e)}")
+        except requests.exceptions.Timeout:
+            raise GitHubAPIError('Request to GitHub timed out while uploading screenshot reference')
+        except requests.exceptions.ConnectionError:
+            raise GitHubAPIError('Unable to connect to GitHub while uploading screenshot reference')
+        except GitHubAPIError:
+            raise
+        except Exception as e:
+            raise GitHubAPIError(f'Unexpected error uploading screenshot reference: {str(e)}')
 
-    def get_rate_limit(self) -> Dict[str, Any]:
+    def test_connection(self):
         """
-        Get current API rate limit status.
+        Test if the GitHub token is valid
 
         Returns:
-            Dict with rate limit information
+            tuple: (success: bool, message: str)
         """
-        url = f'{self.api_base}/rate_limit'
+        headers = {
+            'Authorization': f'token {self.token}',
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'HuduGlue-BugReporter'
+        }
+
+        # Test by checking if we can access the repository
+        repo_url = f'https://api.github.com/repos/{self.repo}'
+
         try:
-            response = requests.get(url, headers=self.headers, timeout=10)
+            response = requests.get(repo_url, headers=headers, timeout=10)
+
             if response.status_code == 200:
-                return response.json()
-            return {}
-        except requests.RequestException:
-            return {}
+                return True, 'GitHub connection successful'
+            elif response.status_code == 401:
+                return False, 'Invalid GitHub token'
+            elif response.status_code == 404:
+                return False, f'Repository {self.repo} not found or token lacks access'
+            else:
+                return False, f'GitHub API returned status {response.status_code}'
+
+        except requests.exceptions.Timeout:
+            return False, 'Connection to GitHub timed out'
+        except requests.exceptions.ConnectionError:
+            return False, 'Unable to connect to GitHub'
+        except Exception as e:
+            return False, f'Error: {str(e)}'
 
 
-def format_bug_report_body(
-    description: str,
-    steps_to_reproduce: str,
-    system_info: Dict[str, str],
-    reporter_info: Dict[str, str]
-) -> str:
+def format_bug_report_body(description, steps_to_reproduce, system_info, reporter_info):
     """
-    Format a bug report issue body in markdown.
+    Format the bug report body as markdown
 
     Args:
-        description: Detailed bug description
-        steps_to_reproduce: Steps to reproduce the issue
-        system_info: System information dict
-        reporter_info: Reporter information dict
+        description: Bug description
+        steps_to_reproduce: Steps to reproduce the bug
+        system_info: Dict with system information (version, python, etc.)
+        reporter_info: Dict with reporter information (username, email, org)
 
     Returns:
-        Markdown-formatted issue body
+        str: Formatted markdown body
     """
-    body = "## Description\n\n"
-    body += f"{description}\n\n"
+    body_parts = []
 
-    if steps_to_reproduce and steps_to_reproduce.strip():
-        body += "## Steps to Reproduce\n\n"
-        body += f"{steps_to_reproduce}\n\n"
+    # Description section
+    body_parts.append("## Description")
+    body_parts.append(description)
+    body_parts.append("")
 
-    body += "## System Information\n\n"
-    body += f"- **HuduGlue Version**: {system_info.get('version', 'Unknown')}\n"
-    body += f"- **Django Version**: {system_info.get('django_version', 'Unknown')}\n"
-    body += f"- **Python Version**: {system_info.get('python_version', 'Unknown')}\n"
-    body += f"- **Browser**: {system_info.get('browser', 'Unknown')}\n"
-    body += f"- **OS**: {system_info.get('os', 'Unknown')}\n"
-    body += f"- **Date**: {system_info.get('timestamp', 'Unknown')}\n\n"
+    # Steps to reproduce (if provided)
+    if steps_to_reproduce:
+        body_parts.append("## Steps to Reproduce")
+        body_parts.append(steps_to_reproduce)
+        body_parts.append("")
 
-    body += "## Reporter Information\n\n"
-    body += f"- **Reported By**: {reporter_info.get('username', 'Unknown')}\n"
+    # System Information
+    body_parts.append("## System Information")
+    body_parts.append(f"- **HuduGlue Version**: {system_info.get('version', 'Unknown')}")
+    body_parts.append(f"- **Django Version**: {system_info.get('django_version', 'Unknown')}")
+    body_parts.append(f"- **Python Version**: {system_info.get('python_version', 'Unknown')}")
+    body_parts.append(f"- **Operating System**: {system_info.get('os', 'Unknown')}")
+    body_parts.append(f"- **Browser**: {system_info.get('browser', 'Unknown')}")
+    body_parts.append(f"- **Timestamp**: {system_info.get('timestamp', 'Unknown')}")
+    body_parts.append("")
+
+    # Reporter Information
+    body_parts.append("## Reported By")
+    body_parts.append(f"- **User**: {reporter_info.get('username', 'Unknown')}")
     if reporter_info.get('email'):
-        body += f"- **Email**: {reporter_info.get('email')}\n"
+        body_parts.append(f"- **Email**: {reporter_info['email']}")
     if reporter_info.get('organization'):
-        body += f"- **Organization**: {reporter_info.get('organization')}\n"
+        body_parts.append(f"- **Organization**: {reporter_info['organization']}")
+    body_parts.append("")
 
-    body += "\n---\n"
-    body += "_This bug report was submitted via HuduGlue's built-in bug reporting feature._\n"
+    body_parts.append("---")
+    body_parts.append("_This bug report was submitted via HuduGlue's built-in bug reporting feature._")
 
-    return body
+    return "\n".join(body_parts)
