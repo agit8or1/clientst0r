@@ -1,30 +1,79 @@
-# HuduGlue Security Documentation
+# HuduGlue Security Policy
 
-## Overview
+## Reporting Security Vulnerabilities
+
+**We take security seriously.** If you discover a security vulnerability in HuduGlue, please report it responsibly.
+
+### How to Report
+
+**Preferred Method:**
+- Use GitHub's Security Advisories: [Report a vulnerability](https://github.com/agit8or1/huduglue/security/advisories/new)
+
+**Alternative Contact:**
+- Email: Create an issue on GitHub with the label "security" (do not include sensitive details in public issues)
+
+### What to Include
+
+Please provide as much information as possible:
+- Type of vulnerability (e.g., XSS, SQL injection, authentication bypass)
+- Step-by-step instructions to reproduce the issue
+- Affected versions
+- Potential impact and severity assessment
+- Proof-of-concept or exploit code (if applicable)
+- Suggested fix (if you have one)
+
+### Response Timeline
+
+- **Initial Response**: Within 48 hours
+- **Status Update**: Within 7 days
+- **Fix Timeline**: Critical issues within 30 days, others within 90 days
+- **Public Disclosure**: After patch is released and users have reasonable time to update (typically 30 days)
+
+### Supported Versions
+
+| Version | Supported          |
+| ------- | ------------------ |
+| 2.24.x  | :white_check_mark: |
+| 2.23.x  | :white_check_mark: |
+| < 2.23  | :x:                |
+
+We provide security updates for the current major version and one previous major version. Please update to the latest version to receive security patches.
+
+### Disclosure Policy
+
+- **Responsible Disclosure**: We request 90 days before public disclosure
+- **Credit**: We will credit researchers in release notes (unless you prefer to remain anonymous)
+- **CVE Assignment**: For critical vulnerabilities, we will request CVE assignment
+- **Security Advisories**: Published on GitHub Security Advisories
+
+---
+
+## Security Documentation
+
+**Version:** 2.24.148
+**Last Updated:** 2026-01-18
+**Architecture:** Django 6.0.1 + DRF + Gunicorn + MariaDB + Anthropic AI
 
 HuduGlue implements defense-in-depth security with multiple layers of protection based on OWASP best practices, Django security guidelines, and enterprise SaaS security requirements.
-
-**Version:** 2.24.37
-**Last Updated:** 2026-01-14
-**Architecture:** Django 6.0.1 + DRF + Gunicorn + MariaDB + Anthropic AI
 
 ---
 
 ## Table of Contents
 
-1. [Security Features](#security-features)
-2. [Production Security Checklist](#production-security-checklist)
-3. [Environment Configuration](#environment-configuration)
-4. [Tenant Isolation](#tenant-isolation)
-5. [API Security](#api-security)
-6. [AI Endpoint Protection](#ai-endpoint-protection)
-7. [Secrets Management](#secrets-management)
-8. [Security Headers](#security-headers)
-9. [Rate Limiting & Throttling](#rate-limiting--throttling)
-10. [Authentication & Authorization](#authentication--authorization)
-11. [Monitoring & Auditing](#monitoring--auditing)
-12. [Incident Response](#incident-response)
-13. [Phase 2: Advanced Security](#phase-2-advanced-security)
+1. [Reporting Security Vulnerabilities](#reporting-security-vulnerabilities)
+2. [Security Features](#security-features)
+3. [Production Security Checklist](#production-security-checklist)
+4. [Environment Configuration](#environment-configuration)
+5. [Tenant Isolation](#tenant-isolation)
+6. [API Security](#api-security)
+7. [AI Endpoint Protection](#ai-endpoint-protection)
+8. [Secrets Management](#secrets-management)
+9. [Security Headers](#security-headers)
+10. [Rate Limiting & Throttling](#rate-limiting--throttling)
+11. [Authentication & Authorization](#authentication--authorization)
+12. [Monitoring & Auditing](#monitoring--auditing)
+13. [Incident Response](#incident-response)
+14. [Phase 2: Advanced Security](#phase-2-advanced-security)
 
 ---
 
@@ -1402,8 +1451,8 @@ See separate section below for copy/paste implementation guide.
 
 ---
 
-**Last Updated:** 2026-01-14
-**Version:** 2.24.37
+**Last Updated:** 2026-01-18
+**Version:** 2.24.148
 **Maintainer:** HuduGlue Security Team
 
 ---
