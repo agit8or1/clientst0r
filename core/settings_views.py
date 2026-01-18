@@ -1776,12 +1776,12 @@ def import_demo_data(request):
         # Validate that encryption actually works before proceeding
         logger.info("Validating encryption functionality...")
         try:
-            from vault.encryption_v2 import encrypt_password, decrypt_password
-            test_password = "test-encryption-validation"
-            encrypted = encrypt_password(test_password)
-            decrypted = decrypt_password(encrypted)
-            if decrypted != test_password:
-                raise ValueError("Decrypted password doesn't match original")
+            from vault.encryption_v2 import encrypt_v2, decrypt_v2
+            test_data = "test-encryption-validation-12345"
+            encrypted = encrypt_v2(test_data)
+            decrypted = decrypt_v2(encrypted)
+            if decrypted != test_data:
+                raise ValueError("Decrypted data doesn't match original")
             logger.info("✓ Encryption validation passed")
         except Exception as e:
             logger.error(f"Encryption validation failed: {e}")
