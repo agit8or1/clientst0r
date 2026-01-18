@@ -1680,23 +1680,60 @@ def import_demo_data(request):
 
     logger.info(f"Demo data import requested by user: {request.user.username}")
 
-    # Validate APP_MASTER_KEY is configured for password encryption
+    # Auto-generate APP_MASTER_KEY if not configured
     import os
+    import base64
+    from pathlib import Path
+
     master_key = os.getenv('APP_MASTER_KEY', '')
     if not master_key or len(master_key) < 40:
-        logger.error("Demo data import failed: APP_MASTER_KEY not configured")
-        return JsonResponse({
-            'success': False,
-            'message': (
-                '✗ APP_MASTER_KEY is not configured!\n\n'
-                'Demo data import requires a valid APP_MASTER_KEY for encrypting passwords.\n\n'
-                'To fix this:\n'
-                '1. Generate a secure key: python -c "import os, base64; print(base64.b64encode(os.urandom(32)).decode())"\n'
-                '2. Add to your .env file: APP_MASTER_KEY=<generated-key-here>\n'
-                '3. Restart your application\n'
-                '4. Try importing again'
-            )
-        })
+        logger.warning("APP_MASTER_KEY not configured, auto-generating...")
+
+        # Generate a secure 32-byte key
+        new_key = base64.b64encode(os.urandom(32)).decode()
+
+        # Try to write to .env file
+        env_path = Path(settings.BASE_DIR) / '.env'
+        try:
+            # Read existing .env content
+            env_content = ''
+            if env_path.exists():
+                with open(env_path, 'r') as f:
+                    env_content = f.read()
+
+            # Check if APP_MASTER_KEY line exists (commented or not)
+            if 'APP_MASTER_KEY' in env_content:
+                # Replace existing line
+                import re
+                env_content = re.sub(
+                    r'^#?\s*APP_MASTER_KEY=.*$',
+                    f'APP_MASTER_KEY={new_key}',
+                    env_content,
+                    flags=re.MULTILINE
+                )
+            else:
+                # Add new line at the end
+                if env_content and not env_content.endswith('\n'):
+                    env_content += '\n'
+                env_content += f'\n# Auto-generated encryption key for passwords and sensitive data\n'
+                env_content += f'APP_MASTER_KEY={new_key}\n'
+
+            # Write back to .env
+            with open(env_path, 'w') as f:
+                f.write(env_content)
+
+            # Set in current process environment
+            os.environ['APP_MASTER_KEY'] = new_key
+
+            logger.info(f"✓ Auto-generated and saved APP_MASTER_KEY to {env_path}")
+            logger.warning("IMPORTANT: Restart the application to ensure the key is loaded on next startup")
+
+        except Exception as e:
+            logger.error(f"Failed to write APP_MASTER_KEY to .env: {e}")
+            return JsonResponse({
+                'success': False,
+                'message': f'✗ Failed to auto-generate APP_MASTER_KEY: {str(e)}\n\nPlease check file permissions on .env file.'
+            })
 
     # Get or create Acme Corporation organization
     organization, created = Organization.objects.get_or_create(
