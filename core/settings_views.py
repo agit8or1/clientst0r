@@ -1685,12 +1685,34 @@ def import_demo_data(request):
     import base64
     from pathlib import Path
 
-    master_key = os.getenv('APP_MASTER_KEY', '')
+    master_key = os.getenv('APP_MASTER_KEY', '').strip()
+
+    # Also check what Django settings has (might be different from os.environ)
+    settings_key = getattr(settings, 'APP_MASTER_KEY', '').strip() if hasattr(settings, 'APP_MASTER_KEY') else ''
+
+    # Use whichever is set and valid
+    if settings_key and len(settings_key) >= 40:
+        master_key = settings_key
+
     if not master_key or len(master_key) < 40:
         logger.warning("APP_MASTER_KEY not configured, auto-generating...")
 
         # Generate a secure 32-byte key
         new_key = base64.b64encode(os.urandom(32)).decode()
+
+        # Validate the key we just generated (sanity check)
+        try:
+            test_decode = base64.b64decode(new_key)
+            if len(test_decode) != 32:
+                raise ValueError(f"Generated key decoded to {len(test_decode)} bytes, expected 32")
+        except Exception as e:
+            logger.error(f"Generated invalid key: {e}")
+            return JsonResponse({
+                'success': False,
+                'message': f'✗ Failed to generate valid encryption key: {str(e)}'
+            })
+
+        logger.info(f"Generated new APP_MASTER_KEY: {new_key[:10]}... ({len(new_key)} chars)")
 
         # Try to write to .env file
         env_path = Path(settings.BASE_DIR) / '.env'
@@ -1701,22 +1723,24 @@ def import_demo_data(request):
                 with open(env_path, 'r') as f:
                     env_content = f.read()
 
-            # Check if APP_MASTER_KEY line exists (commented or not)
-            if 'APP_MASTER_KEY' in env_content:
-                # Replace existing line
-                import re
-                env_content = re.sub(
-                    r'^#?\s*APP_MASTER_KEY=.*$',
-                    f'APP_MASTER_KEY={new_key}',
-                    env_content,
-                    flags=re.MULTILINE
-                )
-            else:
-                # Add new line at the end
-                if env_content and not env_content.endswith('\n'):
-                    env_content += '\n'
-                env_content += f'\n# Auto-generated encryption key for passwords and sensitive data\n'
-                env_content += f'APP_MASTER_KEY={new_key}\n'
+            # Remove any existing APP_MASTER_KEY lines (including comments)
+            import re
+            env_content = re.sub(
+                r'^#?\s*APP_MASTER_KEY=.*$\n?',
+                '',
+                env_content,
+                flags=re.MULTILINE
+            )
+
+            # Remove any trailing whitespace and ensure single newline at end
+            env_content = env_content.rstrip()
+            if env_content:
+                env_content += '\n'
+
+            # Add new APP_MASTER_KEY at the end
+            env_content += f'\n# Auto-generated encryption key for passwords and sensitive data\n'
+            env_content += f'# WARNING: Never change this key after data is encrypted!\n'
+            env_content += f'APP_MASTER_KEY={new_key}\n'
 
             # Write back to .env
             with open(env_path, 'w') as f:
@@ -1726,7 +1750,17 @@ def import_demo_data(request):
             os.environ['APP_MASTER_KEY'] = new_key
             settings.APP_MASTER_KEY = new_key  # Update Django settings for current process
 
+            # Verify it was set correctly
+            verify_key = getattr(settings, 'APP_MASTER_KEY', None)
+            if verify_key != new_key:
+                logger.error(f"Failed to update settings.APP_MASTER_KEY! Got: {verify_key[:10] if verify_key else 'None'}...")
+                return JsonResponse({
+                    'success': False,
+                    'message': '✗ Failed to update APP_MASTER_KEY in Django settings. Please restart the application and try again.'
+                })
+
             logger.info(f"✓ Auto-generated and saved APP_MASTER_KEY to {env_path}")
+            logger.info(f"✓ Verified settings.APP_MASTER_KEY = {verify_key[:10]}... ({len(verify_key)} chars)")
             logger.warning("IMPORTANT: Restart the application to ensure the key is loaded on next startup")
 
         except Exception as e:
