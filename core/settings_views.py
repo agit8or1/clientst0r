@@ -1678,167 +1678,182 @@ def import_demo_data(request):
             'message': 'Invalid request method'
         })
 
-    logger.info(f"Demo data import requested by user: {request.user.username}")
+    # Wrap entire function in try/except to ensure we always return JSON
+    try:
+        logger.info(f"Demo data import requested by user: {request.user.username}")
 
-    # Auto-generate APP_MASTER_KEY if not configured
-    import os
-    import base64
-    from pathlib import Path
+        # Auto-generate APP_MASTER_KEY if not configured
+        import os
+        import base64
+        from pathlib import Path
 
-    master_key = os.getenv('APP_MASTER_KEY', '').strip()
+        master_key = os.getenv('APP_MASTER_KEY', '').strip()
 
-    # Also check what Django settings has (might be different from os.environ)
-    settings_key = getattr(settings, 'APP_MASTER_KEY', '').strip() if hasattr(settings, 'APP_MASTER_KEY') else ''
+        # Also check what Django settings has (might be different from os.environ)
+        settings_key = getattr(settings, 'APP_MASTER_KEY', '').strip() if hasattr(settings, 'APP_MASTER_KEY') else ''
 
-    # Use whichever is set and valid
-    if settings_key and len(settings_key) >= 40:
-        master_key = settings_key
+        # Use whichever is set and valid
+        if settings_key and len(settings_key) >= 40:
+            master_key = settings_key
 
-    if not master_key or len(master_key) < 40:
-        logger.warning("APP_MASTER_KEY not configured, auto-generating...")
+        if not master_key or len(master_key) < 40:
+            logger.warning("APP_MASTER_KEY not configured, auto-generating...")
 
-        # Generate a secure 32-byte key
-        new_key = base64.b64encode(os.urandom(32)).decode()
+            # Generate a secure 32-byte key
+            new_key = base64.b64encode(os.urandom(32)).decode()
 
-        # Validate the key we just generated (sanity check)
-        try:
-            test_decode = base64.b64decode(new_key)
-            if len(test_decode) != 32:
-                raise ValueError(f"Generated key decoded to {len(test_decode)} bytes, expected 32")
-        except Exception as e:
-            logger.error(f"Generated invalid key: {e}")
-            return JsonResponse({
-                'success': False,
-                'message': f'✗ Failed to generate valid encryption key: {str(e)}'
-            })
-
-        logger.info(f"Generated new APP_MASTER_KEY: {new_key[:10]}... ({len(new_key)} chars)")
-
-        # Try to write to .env file
-        env_path = Path(settings.BASE_DIR) / '.env'
-        try:
-            # Read existing .env content
-            env_content = ''
-            if env_path.exists():
-                with open(env_path, 'r') as f:
-                    env_content = f.read()
-
-            # Remove any existing APP_MASTER_KEY lines (including comments)
-            import re
-            env_content = re.sub(
-                r'^#?\s*APP_MASTER_KEY=.*$\n?',
-                '',
-                env_content,
-                flags=re.MULTILINE
-            )
-
-            # Remove any trailing whitespace and ensure single newline at end
-            env_content = env_content.rstrip()
-            if env_content:
-                env_content += '\n'
-
-            # Add new APP_MASTER_KEY at the end
-            env_content += f'\n# Auto-generated encryption key for passwords and sensitive data\n'
-            env_content += f'# WARNING: Never change this key after data is encrypted!\n'
-            env_content += f'APP_MASTER_KEY={new_key}\n'
-
-            # Write back to .env
-            with open(env_path, 'w') as f:
-                f.write(env_content)
-
-            # Set in current process environment AND Django settings
-            os.environ['APP_MASTER_KEY'] = new_key
-            settings.APP_MASTER_KEY = new_key  # Update Django settings for current process
-
-            # Verify it was set correctly
-            verify_key = getattr(settings, 'APP_MASTER_KEY', None)
-            if verify_key != new_key:
-                logger.error(f"Failed to update settings.APP_MASTER_KEY! Got: {verify_key[:10] if verify_key else 'None'}...")
+            # Validate the key we just generated (sanity check)
+            try:
+                test_decode = base64.b64decode(new_key)
+                if len(test_decode) != 32:
+                    raise ValueError(f"Generated key decoded to {len(test_decode)} bytes, expected 32")
+            except Exception as e:
+                logger.error(f"Generated invalid key: {e}")
                 return JsonResponse({
                     'success': False,
-                    'message': '✗ Failed to update APP_MASTER_KEY in Django settings. Please restart the application and try again.'
+                    'message': f'✗ Failed to generate valid encryption key: {str(e)}'
                 })
 
-            logger.info(f"✓ Auto-generated and saved APP_MASTER_KEY to {env_path}")
-            logger.info(f"✓ Verified settings.APP_MASTER_KEY = {verify_key[:10]}... ({len(verify_key)} chars)")
-            logger.warning("IMPORTANT: Restart the application to ensure the key is loaded on next startup")
+            logger.info(f"Generated new APP_MASTER_KEY: {new_key[:10]}... ({len(new_key)} chars)")
 
-        except Exception as e:
-            logger.error(f"Failed to write APP_MASTER_KEY to .env: {e}")
+            # Try to write to .env file
+            env_path = Path(settings.BASE_DIR) / '.env'
+            try:
+                # Read existing .env content
+                env_content = ''
+                if env_path.exists():
+                    with open(env_path, 'r') as f:
+                        env_content = f.read()
+
+                # Remove any existing APP_MASTER_KEY lines (including comments)
+                import re
+                env_content = re.sub(
+                    r'^#?\s*APP_MASTER_KEY=.*$\n?',
+                    '',
+                    env_content,
+                    flags=re.MULTILINE
+                )
+
+                # Remove any trailing whitespace and ensure single newline at end
+                env_content = env_content.rstrip()
+                if env_content:
+                    env_content += '\n'
+
+                # Add new APP_MASTER_KEY at the end
+                env_content += f'\n# Auto-generated encryption key for passwords and sensitive data\n'
+                env_content += f'# WARNING: Never change this key after data is encrypted!\n'
+                env_content += f'APP_MASTER_KEY={new_key}\n'
+
+                # Write back to .env
+                with open(env_path, 'w') as f:
+                    f.write(env_content)
+
+                # Set in current process environment AND Django settings
+                os.environ['APP_MASTER_KEY'] = new_key
+                settings.APP_MASTER_KEY = new_key  # Update Django settings for current process
+
+                # Verify it was set correctly
+                verify_key = getattr(settings, 'APP_MASTER_KEY', None)
+                if verify_key != new_key:
+                    logger.error(f"Failed to update settings.APP_MASTER_KEY! Got: {verify_key[:10] if verify_key else 'None'}...")
+                    return JsonResponse({
+                        'success': False,
+                        'message': '✗ Failed to update APP_MASTER_KEY in Django settings. Please restart the application and try again.'
+                    })
+
+                logger.info(f"✓ Auto-generated and saved APP_MASTER_KEY to {env_path}")
+                logger.info(f"✓ Verified settings.APP_MASTER_KEY = {verify_key[:10]}... ({len(verify_key)} chars)")
+                logger.warning("IMPORTANT: Restart the application to ensure the key is loaded on next startup")
+
+            except Exception as e:
+                logger.error(f"Failed to write APP_MASTER_KEY to .env: {e}")
+                return JsonResponse({
+                    'success': False,
+                    'message': f'✗ Failed to auto-generate APP_MASTER_KEY: {str(e)}\n\nPlease check file permissions on .env file.'
+                })
+
+        # Get or create Acme Corporation organization
+        organization, created = Organization.objects.get_or_create(
+            name='Acme Corporation',
+            defaults={
+                'description': 'Demo company with sample data for testing and demonstration',
+                'is_active': True,
+            }
+        )
+
+        if created:
+            logger.info(f"Created new 'Acme Corporation' organization (ID: {organization.id})")
+        else:
+            logger.info(f"Using existing 'Acme Corporation' organization (ID: {organization.id})")
+
+        # Add current user to the organization if not already a member
+        membership_created = False
+        if not Membership.objects.filter(
+            user=request.user,
+            organization=organization
+        ).exists():
+            Membership.objects.create(
+                user=request.user,
+                organization=organization,
+                role='admin'
+            )
+            membership_created = True
+            logger.info(f"Added user {request.user.username} as admin to Acme Corporation")
+        else:
+            logger.info(f"User {request.user.username} already member of Acme Corporation")
+
+        # Run import synchronously (it's fast enough) for better error handling and feedback
+        logger.info(f"Starting demo data import for organization ID {organization.id}")
+        try:
+            # Capture stdout and stderr from management command
+            stdout_buffer = io.StringIO()
+            stderr_buffer = io.StringIO()
+
+            with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
+                call_command(
+                    'import_demo_data',
+                    organization=str(organization.id),
+                    user=request.user.username,
+                    force=True  # Always force when importing from web UI
+                )
+
+            logger.info(f"✓ Demo data import completed successfully for organization ID {organization.id}")
+
+            # Update session to automatically switch to Acme Corporation
+            request.session['current_organization_id'] = organization.id
+            request.session.modified = True
+
+            action = 'created' if created else 'using existing'
+            membership_msg = ' Added you as admin to the organization.' if membership_created else ''
+
             return JsonResponse({
-                'success': False,
-                'message': f'✗ Failed to auto-generate APP_MASTER_KEY: {str(e)}\n\nPlease check file permissions on .env file.'
+                'success': True,
+                'message': f'✓ Demo data imported successfully! {action.capitalize()} "Acme Corporation" organization.{membership_msg} Automatically switched to Acme Corporation - refresh the page to see: equipment catalog (22+ vendors), 5 documents, 3 diagrams, 10 assets, 5 passwords, and 5 workflows.',
+                'organization_id': organization.id,
+                'organization_name': organization.name,
+                'auto_switched': True
             })
 
-    # Get or create Acme Corporation organization
-    organization, created = Organization.objects.get_or_create(
-        name='Acme Corporation',
-        defaults={
-            'description': 'Demo company with sample data for testing and demonstration',
-            'is_active': True,
-        }
-    )
+        except Exception as e:
+            logger.error(f"✗ Demo data import FAILED for organization ID {organization.id}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
-    if created:
-        logger.info(f"Created new 'Acme Corporation' organization (ID: {organization.id})")
-    else:
-        logger.info(f"Using existing 'Acme Corporation' organization (ID: {organization.id})")
-
-    # Add current user to the organization if not already a member
-    membership_created = False
-    if not Membership.objects.filter(
-        user=request.user,
-        organization=organization
-    ).exists():
-        Membership.objects.create(
-            user=request.user,
-            organization=organization,
-            role='admin'
-        )
-        membership_created = True
-        logger.info(f"Added user {request.user.username} as admin to Acme Corporation")
-    else:
-        logger.info(f"User {request.user.username} already member of Acme Corporation")
-
-    # Run import synchronously (it's fast enough) for better error handling and feedback
-    logger.info(f"Starting demo data import for organization ID {organization.id}")
-    try:
-        # Capture stdout and stderr from management command
-        stdout_buffer = io.StringIO()
-        stderr_buffer = io.StringIO()
-
-        with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
-            call_command(
-                'import_demo_data',
-                organization=str(organization.id),
-                user=request.user.username,
-                force=True  # Always force when importing from web UI
-            )
-
-        logger.info(f"✓ Demo data import completed successfully for organization ID {organization.id}")
-
-        # Update session to automatically switch to Acme Corporation
-        request.session['current_organization_id'] = organization.id
-        request.session.modified = True
-
-        action = 'created' if created else 'using existing'
-        membership_msg = ' Added you as admin to the organization.' if membership_created else ''
-
-        return JsonResponse({
-            'success': True,
-            'message': f'✓ Demo data imported successfully! {action.capitalize()} "Acme Corporation" organization.{membership_msg} Automatically switched to Acme Corporation - refresh the page to see: equipment catalog (22+ vendors), 5 documents, 3 diagrams, 10 assets, 5 passwords, and 5 workflows.',
-            'organization_id': organization.id,
-            'organization_name': organization.name,
-            'auto_switched': True
-        })
+            return JsonResponse({
+                'success': False,
+                'message': f'Demo data import failed: {str(e)}. Check logs for details.',
+                'error': str(e)
+            })
 
     except Exception as e:
-        logger.error(f"✗ Demo data import FAILED for organization ID {organization.id}: {e}")
+        # Catch-all exception handler for any unhandled errors
+        logger.error(f"✗ CRITICAL ERROR in demo data import: {e}")
         import traceback
         logger.error(traceback.format_exc())
 
         return JsonResponse({
             'success': False,
-            'message': f'Demo data import failed: {str(e)}. Check logs for details.',
-            'error': str(e)
+            'message': f'Critical error during demo data import: {str(e)}. Check server logs for details.',
+            'error': str(e),
+            'traceback': traceback.format_exc()
         })
