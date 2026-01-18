@@ -19,12 +19,12 @@ qrcode==7.4.*
 pyotp==2.9.*
 
 # WSGI Server
-gunicorn==22.0.*
+gunicorn==23.0.*  # Updated from 22.0.* to fix CVE-2024-6827 (HTTP Request Smuggling)
 whitenoise==6.6.*
 
 # PSA Integration HTTP clients
 requests==2.32.*
-urllib3==2.1.*
+urllib3==2.6.*  # Updated from 2.1.* to fix SNYK-PYTHON-URLLIB3-14192442 (Data Amplification)
 
 # AI Integration
 anthropic==0.75.*
