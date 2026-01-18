@@ -312,17 +312,25 @@ class UpdateService:
                     progress_tracker.step_start('Restart Service')
                 logger.info("Restarting systemd service")
 
-                # Schedule restart to happen after response is sent
-                # Using systemd-run to avoid killing ourselves mid-update
-                import time
                 try:
+                    # Reload systemd daemon first to pick up any service file changes
+                    try:
+                        daemon_reload = self._run_command(['/usr/bin/sudo', '/usr/bin/systemctl', 'daemon-reload'])
+                        logger.info(f"Systemd daemon reloaded: {daemon_reload}")
+                        result['output'].append("✓ Systemd daemon reloaded")
+                    except Exception as e:
+                        logger.warning(f"Daemon reload failed (non-critical): {e}")
+
+                    # Restart the service immediately
+                    # Using systemd-run with --on-active=1 for immediate restart after this request completes
                     restart_output = self._run_command([
-                        '/usr/bin/sudo', '/usr/bin/systemd-run', '--on-active=3',
+                        '/usr/bin/sudo', '/usr/bin/systemd-run', '--on-active=1',
                         '/usr/bin/systemctl', 'restart', 'huduglue-gunicorn.service'
                     ])
                     logger.info(f"Service restart scheduled: {restart_output}")
                     result['steps_completed'].append('restart_service')
-                    result['output'].append(f"Service restart scheduled (3s delay): {restart_output}")
+                    result['output'].append(f"✓ Service restart scheduled (1s delay): {restart_output}")
+                    result['output'].append("⚠️  Please wait 5-10 seconds, then refresh the page to see the new version")
                     if progress_tracker:
                         progress_tracker.step_complete('Restart Service')
                 except Exception as e:
