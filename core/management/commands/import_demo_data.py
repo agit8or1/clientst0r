@@ -121,7 +121,15 @@ class Command(BaseCommand):
                     'passwords': 0,
                     'kb_articles': 0,
                     'processes': 0,
+                    'vendors': 0,
+                    'equipment_models': 0,
                 }
+
+                # Import equipment catalog first (global, not org-specific)
+                self.stdout.write('Importing equipment catalog...')
+                equipment_stats = self._import_equipment_catalog()
+                stats['vendors'] = equipment_stats['vendors']
+                stats['equipment_models'] = equipment_stats['equipment_models']
 
                 # Import categories first
                 self.stdout.write('Creating document categories...')
@@ -160,6 +168,8 @@ class Command(BaseCommand):
                         '\n✓ Successfully imported Acme Corporation demo data:'
                     )
                 )
+                self.stdout.write(f'  • Vendors: {stats["vendors"]}')
+                self.stdout.write(f'  • Equipment Models: {stats["equipment_models"]}')
                 self.stdout.write(f'  • Documents: {stats["documents"]}')
                 self.stdout.write(f'  • Diagrams: {stats["diagrams"]}')
                 self.stdout.write(f'  • Assets: {stats["assets"]}')
@@ -174,6 +184,83 @@ class Command(BaseCommand):
             import traceback
             traceback.print_exc()
             raise
+
+    def _import_equipment_catalog(self):
+        """Import equipment catalog from JSON file."""
+        from assets.models import Vendor, EquipmentModel
+        from django.conf import settings
+        from pathlib import Path
+        import json
+
+        stats = {'vendors': 0, 'equipment_models': 0}
+
+        # Check if catalog already has data
+        vendor_count = Vendor.objects.filter(is_active=True).count()
+        if vendor_count > 0:
+            self.stdout.write(f'  ✓ Equipment catalog already populated ({vendor_count} vendors)')
+            stats['vendors'] = vendor_count
+            stats['equipment_models'] = EquipmentModel.objects.filter(is_active=True).count()
+            return stats
+
+        # Load equipment catalog JSON
+        catalog_path = Path(settings.BASE_DIR) / 'data' / 'equipment_updates.json'
+        if not catalog_path.exists():
+            self.stdout.write(
+                self.style.WARNING(f'  ⚠ Equipment catalog file not found: {catalog_path}')
+            )
+            return stats
+
+        try:
+            with open(catalog_path, 'r') as f:
+                data = json.load(f)
+
+            vendors_data = data.get('vendors', [])
+            for vendor_data in vendors_data:
+                vendor, created = Vendor.objects.get_or_create(
+                    name=vendor_data['name'],
+                    defaults={
+                        'slug': slugify(vendor_data['name']),
+                        'website': vendor_data.get('website', ''),
+                        'support_url': vendor_data.get('support_url', ''),
+                        'support_phone': vendor_data.get('support_phone', ''),
+                        'description': vendor_data.get('description', ''),
+                        'is_active': True,
+                    }
+                )
+                if created:
+                    stats['vendors'] += 1
+
+                # Create equipment models for this vendor
+                for equip_data in vendor_data.get('equipment', []):
+                    equipment, created = EquipmentModel.objects.get_or_create(
+                        vendor=vendor,
+                        model_name=equip_data['model_name'],
+                        defaults={
+                            'slug': slugify(f"{vendor.name}-{equip_data['model_name']}"),
+                            'model_number': equip_data.get('model_number', ''),
+                            'equipment_type': equip_data.get('equipment_type', 'other'),
+                            'description': equip_data.get('description', ''),
+                            'is_rackmount': equip_data.get('is_rackmount', False),
+                            'rack_units': equip_data.get('rack_units'),
+                            'specifications': equip_data.get('specifications', {}),
+                            'datasheet_url': equip_data.get('datasheet_url', ''),
+                            'is_active': True,
+                        }
+                    )
+                    if created:
+                        stats['equipment_models'] += 1
+
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f'  ✓ Imported {stats["vendors"]} vendors and {stats["equipment_models"]} equipment models'
+                )
+            )
+        except Exception as e:
+            self.stdout.write(
+                self.style.WARNING(f'  ⚠ Failed to import equipment catalog: {e}')
+            )
+
+        return stats
 
     def _create_categories(self, organization):
         """Create document categories."""

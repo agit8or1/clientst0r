@@ -1736,7 +1736,7 @@ def import_demo_data(request):
 
         return JsonResponse({
             'success': True,
-            'message': f'✓ Demo data imported successfully! {action.capitalize()} "Acme Corporation" organization.{membership_msg} Automatically switched to Acme Corporation - refresh the page to see: 5 documents, 3 diagrams, 10 assets, 5 passwords, and 5 workflows.',
+            'message': f'✓ Demo data imported successfully! {action.capitalize()} "Acme Corporation" organization.{membership_msg} Automatically switched to Acme Corporation - refresh the page to see: equipment catalog (22+ vendors), 5 documents, 3 diagrams, 10 assets, 5 passwords, and 5 workflows.',
             'organization_id': organization.id,
             'organization_name': organization.name,
             'auto_switched': True
