@@ -3,6 +3,7 @@ Monitoring Models - Website/SSL monitoring, Expiration tracking, Rack Management
 """
 from django.db import models
 from django.contrib.auth.models import User
+from django.conf import settings
 from core.models import Organization, BaseModel
 from core.utils import OrganizationManager
 from assets.models import Asset
@@ -122,17 +123,20 @@ class WebsiteMonitor(BaseModel):
                     ip_str = socket.gethostbyname(hostname)
                     ip = ipaddress.ip_address(ip_str)
 
-                    # Block private IP ranges
-                    if ip.is_private:
-                        return False, f"Cannot monitor private IP addresses: {ip_str}"
+                    # Check if private IP monitoring is allowed via configuration
+                    allow_private_ips = getattr(settings, 'ALLOW_PRIVATE_IP_INTEGRATIONS', False)
 
-                    # Block loopback addresses
-                    if ip.is_loopback:
-                        return False, f"Cannot monitor loopback addresses: {ip_str}"
+                    # Block private IP ranges unless explicitly allowed
+                    if ip.is_private and not allow_private_ips:
+                        return False, f"Cannot monitor private IP addresses: {ip_str}. Set ALLOW_PRIVATE_IP_INTEGRATIONS=True in .env to allow."
 
-                    # Block link-local addresses
-                    if ip.is_link_local:
-                        return False, f"Cannot monitor link-local addresses: {ip_str}"
+                    # Block loopback addresses unless explicitly allowed
+                    if ip.is_loopback and not allow_private_ips:
+                        return False, f"Cannot monitor loopback addresses: {ip_str}. Set ALLOW_PRIVATE_IP_INTEGRATIONS=True to allow localhost monitoring."
+
+                    # Block link-local addresses unless explicitly allowed
+                    if ip.is_link_local and not allow_private_ips:
+                        return False, f"Cannot monitor link-local addresses: {ip_str}. Set ALLOW_PRIVATE_IP_INTEGRATIONS=True to allow."
 
                 except socket.gaierror:
                     # Hostname doesn't resolve - allow it (will fail naturally)

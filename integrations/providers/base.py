@@ -8,6 +8,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from typing import List, Dict, Optional
 from datetime import datetime
+from django.conf import settings
 
 logger = logging.getLogger('integrations')
 
@@ -80,17 +81,31 @@ class BaseProvider:
                 ip_str = socket.gethostbyname(parsed.hostname)
                 ip = ipaddress.ip_address(ip_str)
 
+                # Check if private IP integrations are allowed via configuration
+                allow_private_ips = getattr(settings, 'ALLOW_PRIVATE_IP_INTEGRATIONS', False)
+
                 # Block private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
-                if ip.is_private:
-                    raise ProviderError(f"Cannot connect to private IP addresses: {ip_str}")
+                # unless explicitly allowed in configuration
+                if ip.is_private and not allow_private_ips:
+                    raise ProviderError(
+                        f"Cannot connect to private IP addresses: {ip_str}. "
+                        f"To connect to self-hosted services on private networks, set "
+                        f"ALLOW_PRIVATE_IP_INTEGRATIONS=True in your .env file."
+                    )
 
-                # Block loopback addresses (127.0.0.0/8)
-                if ip.is_loopback:
-                    raise ProviderError(f"Cannot connect to loopback addresses: {ip_str}")
+                # Block loopback addresses (127.0.0.0/8) unless explicitly allowed
+                if ip.is_loopback and not allow_private_ips:
+                    raise ProviderError(
+                        f"Cannot connect to loopback addresses: {ip_str}. "
+                        f"Set ALLOW_PRIVATE_IP_INTEGRATIONS=True to allow localhost connections."
+                    )
 
-                # Block link-local addresses (169.254.0.0/16)
-                if ip.is_link_local:
-                    raise ProviderError(f"Cannot connect to link-local addresses: {ip_str}")
+                # Block link-local addresses (169.254.0.0/16) unless explicitly allowed
+                if ip.is_link_local and not allow_private_ips:
+                    raise ProviderError(
+                        f"Cannot connect to link-local addresses: {ip_str}. "
+                        f"Set ALLOW_PRIVATE_IP_INTEGRATIONS=True to allow link-local connections."
+                    )
 
             except socket.gaierror:
                 # Hostname doesn't resolve - this is OK, will fail naturally on connection

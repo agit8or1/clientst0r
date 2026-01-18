@@ -325,6 +325,12 @@ HIBP_BLOCK_BREACHED = os.getenv('HIBP_BLOCK_BREACHED', 'False').lower() == 'true
 HIBP_SCAN_FREQUENCIES = [2, 4, 8, 16, 24]
 HIBP_DEFAULT_SCAN_FREQUENCY = int(os.getenv('HIBP_SCAN_FREQUENCY', '24'))
 
+# Integration Security (SSRF Protection)
+# WARNING: Enabling this setting disables SSRF protection for integrations and monitoring
+# Only enable if you need to connect to self-hosted services on private networks (RFC1918)
+# Private IP ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+ALLOW_PRIVATE_IP_INTEGRATIONS = os.getenv('ALLOW_PRIVATE_IP_INTEGRATIONS', 'False').lower() == 'true'
+
 # AI and External API Configuration
 # Claude AI (Anthropic) for floor plan generation
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
