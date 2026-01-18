@@ -1680,6 +1680,24 @@ def import_demo_data(request):
 
     logger.info(f"Demo data import requested by user: {request.user.username}")
 
+    # Validate APP_MASTER_KEY is configured for password encryption
+    import os
+    master_key = os.getenv('APP_MASTER_KEY', '')
+    if not master_key or len(master_key) < 40:
+        logger.error("Demo data import failed: APP_MASTER_KEY not configured")
+        return JsonResponse({
+            'success': False,
+            'message': (
+                '✗ APP_MASTER_KEY is not configured!\n\n'
+                'Demo data import requires a valid APP_MASTER_KEY for encrypting passwords.\n\n'
+                'To fix this:\n'
+                '1. Generate a secure key: python -c "import os, base64; print(base64.b64encode(os.urandom(32)).decode())"\n'
+                '2. Add to your .env file: APP_MASTER_KEY=<generated-key-here>\n'
+                '3. Restart your application\n'
+                '4. Try importing again'
+            )
+        })
+
     # Get or create Acme Corporation organization
     organization, created = Organization.objects.get_or_create(
         name='Acme Corporation',

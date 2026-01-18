@@ -86,6 +86,30 @@ class Command(BaseCommand):
         self.stdout.write(f'Importing into organization: {organization.name}')
         self.stdout.write(f'Created by user: {user.username}')
 
+        # Validate APP_MASTER_KEY is configured for password encryption
+        from django.conf import settings
+        master_key = os.getenv('APP_MASTER_KEY', '')
+        if not master_key or len(master_key) < 40:
+            self.stdout.write(
+                self.style.ERROR(
+                    '\n✗ ERROR: APP_MASTER_KEY is not configured or invalid!\n'
+                    '\n'
+                    'Demo data import requires a valid APP_MASTER_KEY for encrypting passwords.\n'
+                    '\n'
+                    'To fix this:\n'
+                    '1. Generate a secure key:\n'
+                    '   python -c "import os, base64; print(base64.b64encode(os.urandom(32)).decode())"\n'
+                    '\n'
+                    '2. Add to your .env file:\n'
+                    '   APP_MASTER_KEY=<generated-key-here>\n'
+                    '\n'
+                    '3. Restart your application\n'
+                    '\n'
+                    '4. Re-run this import\n'
+                )
+            )
+            return
+
         # Check if data already exists
         existing_docs = organization.documents.filter(
             title__in=['Network Infrastructure Overview', 'Backup and Recovery Procedures', 'Security Policy', 'Server Maintenance Runbook', 'New Employee Onboarding']
