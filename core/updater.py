@@ -303,7 +303,43 @@ class UpdateService:
             if progress_tracker:
                 progress_tracker.step_complete('Collect Static Files')
 
-            # Step 5: Restart service (if running under systemd)
+            # Step 5: Generate diagram previews for any diagrams without them
+            if progress_tracker:
+                progress_tracker.step_start('Generate Diagram Previews')
+            logger.info("Generating diagram previews...")
+            try:
+                preview_output = self._run_command([
+                    self._get_python_path(), 'manage.py', 'generate_diagram_previews'
+                ], timeout=60)
+                result['steps_completed'].append('generate_diagram_previews')
+                result['output'].append(f"✓ Diagram previews generated")
+                logger.info(f"Diagram preview generation: {preview_output[:200]}")
+            except Exception as e:
+                # Non-critical, continue with update
+                logger.warning(f"Diagram preview generation failed (non-critical): {e}")
+                result['output'].append(f"⚠ Diagram preview generation skipped: {str(e)[:100]}")
+            if progress_tracker:
+                progress_tracker.step_complete('Generate Diagram Previews')
+
+            # Step 6: Generate workflow diagrams for workflows without diagrams
+            if progress_tracker:
+                progress_tracker.step_start('Generate Workflow Diagrams')
+            logger.info("Generating workflow diagrams...")
+            try:
+                workflow_output = self._run_command([
+                    self._get_python_path(), 'manage.py', 'generate_workflow_diagrams'
+                ], timeout=60)
+                result['steps_completed'].append('generate_workflow_diagrams')
+                result['output'].append(f"✓ Workflow diagrams generated")
+                logger.info(f"Workflow diagram generation: {workflow_output[:200]}")
+            except Exception as e:
+                # Non-critical, continue with update
+                logger.warning(f"Workflow diagram generation failed (non-critical): {e}")
+                result['output'].append(f"⚠ Workflow diagram generation skipped: {str(e)[:100]}")
+            if progress_tracker:
+                progress_tracker.step_complete('Generate Workflow Diagrams')
+
+            # Step 7: Restart service (if running under systemd)
             is_systemd = self._is_systemd_service()
             logger.info(f"Systemd service check result: {is_systemd}")
 

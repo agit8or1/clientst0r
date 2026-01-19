@@ -108,7 +108,7 @@ class ITFlowProvider(BaseProvider):
     def test_connection(self) -> bool:
         """Test connection by fetching clients."""
         try:
-            response = self._make_request('GET', '/clients')
+            response = self._make_request('GET', '/clients/read.php')
             return response.status_code == 200
         except Exception as e:
             logger.error(f"ITFlow connection test failed: {e}")
@@ -119,8 +119,8 @@ class ITFlowProvider(BaseProvider):
         companies = []
 
         try:
-            # ITFlow API endpoint for clients
-            response = self._make_request('GET', '/clients')
+            # ITFlow API endpoint for clients (uses read.php)
+            response = self._make_request('GET', '/clients/read.php')
             data = self._safe_json(response)
 
             # ITFlow returns array of clients
@@ -149,7 +149,7 @@ class ITFlowProvider(BaseProvider):
     def get_company(self, company_id: str) -> Dict:
         """Get single client from ITFlow."""
         try:
-            response = self._make_request('GET', f'/clients/{company_id}')
+            response = self._make_request('GET', f'/clients/read.php?client_id={company_id}')
             raw_client = self._safe_json(response)
             return self.normalize_company(raw_client)
         except Exception as e:
@@ -163,9 +163,9 @@ class ITFlowProvider(BaseProvider):
         try:
             # Get all contacts or filter by client
             if company_id:
-                response = self._make_request('GET', f'/clients/{company_id}/contacts')
+                response = self._make_request('GET', f'/contacts/read.php?contact_client_id={company_id}')
             else:
-                response = self._make_request('GET', '/contacts')
+                response = self._make_request('GET', '/contacts/read.php')
 
             data = self._safe_json(response)
             contact_list = data if isinstance(data, list) else data.get('data', [])
@@ -193,7 +193,7 @@ class ITFlowProvider(BaseProvider):
     def get_contact(self, contact_id: str) -> Dict:
         """Get single contact from ITFlow."""
         try:
-            response = self._make_request('GET', f'/contacts/{contact_id}')
+            response = self._make_request('GET', f'/contacts/read.php?contact_id={contact_id}')
             raw_contact = self._safe_json(response)
             return self.normalize_contact(raw_contact)
         except Exception as e:
@@ -207,9 +207,9 @@ class ITFlowProvider(BaseProvider):
         try:
             # Get tickets, optionally filtered by client
             if company_id:
-                response = self._make_request('GET', f'/clients/{company_id}/tickets')
+                response = self._make_request('GET', f'/tickets/read.php?ticket_client_id={company_id}')
             else:
-                response = self._make_request('GET', '/tickets')
+                response = self._make_request('GET', '/tickets/read.php')
 
             data = self._safe_json(response)
             ticket_list = data if isinstance(data, list) else data.get('data', [])
@@ -237,7 +237,7 @@ class ITFlowProvider(BaseProvider):
     def get_ticket(self, ticket_id: str) -> Dict:
         """Get single ticket from ITFlow."""
         try:
-            response = self._make_request('GET', f'/tickets/{ticket_id}')
+            response = self._make_request('GET', f'/tickets/read.php?ticket_id={ticket_id}')
             raw_ticket = self._safe_json(response)
             return self.normalize_ticket(raw_ticket)
         except Exception as e:
