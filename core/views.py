@@ -229,7 +229,7 @@ def update_progress_api(request):
 
 
 @login_required
-@ratelimit(key='user', rate='10/h', method='POST', block=True)
+@ratelimit(key='user', rate='10/h', method='POST', block=False)
 def report_bug(request):
     """
     Bug reporting endpoint - generates pre-filled GitHub issue URL.
