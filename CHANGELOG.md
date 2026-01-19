@@ -5,6 +5,18 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.168] - 2026-01-19
+
+### 🎨 UI/UX Improvements
+
+**Global Dashboard:**
+- **Made** Total Assets card clickable (links to asset list)
+- **Made** Total Documents card clickable (links to document list)
+- **Made** Total Passwords card clickable (links to password list)
+- **Made** Total Monitors card clickable (links to monitor list)
+- **Added** hover effects and pointer cursor to all clickable cards
+- **Improved** visual feedback with scale animation on hover
+
 ## [2.24.167] - 2026-01-19
 
 ### 🐛 Bug Fixes

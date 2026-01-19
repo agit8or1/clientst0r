@@ -41,46 +41,52 @@
         </a>
     </div>
     <div class="col-md-3 col-sm-6">
-        <div class="card bg-info text-white h-100">
-            <div class="card-body py-2 px-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="mb-0">{{ stats.total_assets }}</h4>
-                        <small>Total Assets</small>
+        <a href="{% url 'assets:asset_list' %}" class="text-decoration-none">
+            <div class="card bg-info text-white h-100" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">{{ stats.total_assets }}</h4>
+                            <small>Total Assets</small>
+                        </div>
+                        <i class="fas fa-box fa-lg opacity-50"></i>
                     </div>
-                    <i class="fas fa-box fa-lg opacity-50"></i>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
     <div class="col-md-3 col-sm-6">
-        <div class="card bg-warning text-dark h-100">
-            <div class="card-body py-2 px-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="mb-0">{{ stats.total_documents }}</h4>
-                        <small>Total Documents</small>
+        <a href="{% url 'docs:document_list' %}" class="text-decoration-none">
+            <div class="card bg-warning text-dark h-100" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">{{ stats.total_documents }}</h4>
+                            <small>Total Documents</small>
+                        </div>
+                        <i class="fas fa-file-alt fa-lg opacity-50"></i>
                     </div>
-                    <i class="fas fa-file-alt fa-lg opacity-50"></i>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 
 <div class="row g-2 mb-3">
     <div class="col-md-3 col-sm-6">
-        <div class="card bg-danger text-white h-100">
-            <div class="card-body py-2 px-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="mb-0">{{ stats.total_passwords }}</h4>
-                        <small>Total Passwords</small>
+        <a href="{% url 'vault:password_list' %}" class="text-decoration-none">
+            <div class="card bg-danger text-white h-100" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">{{ stats.total_passwords }}</h4>
+                            <small>Total Passwords</small>
+                        </div>
+                        <i class="fas fa-key fa-lg opacity-50"></i>
                     </div>
-                    <i class="fas fa-key fa-lg opacity-50"></i>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
     <div class="col-md-3 col-sm-6">
         <a href="{% url 'processes:global_process_list' %}" class="text-decoration-none">
@@ -98,17 +104,19 @@
         </a>
     </div>
     <div class="col-md-3 col-sm-6">
-        <div class="card bg-dark text-white h-100">
-            <div class="card-body py-2 px-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="mb-0">{{ stats.total_monitors }}</h4>
-                        <small>Total Monitors</small>
+        <a href="{% url 'monitoring:website_monitor_list' %}" class="text-decoration-none">
+            <div class="card bg-dark text-white h-100" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">{{ stats.total_monitors }}</h4>
+                            <small>Total Monitors</small>
+                        </div>
+                        <i class="fas fa-chart-line fa-lg opacity-50"></i>
                     </div>
-                    <i class="fas fa-chart-line fa-lg opacity-50"></i>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
     <div class="col-md-3 col-sm-6">
         <div class="card border-primary">
