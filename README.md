@@ -143,382 +143,51 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 
 ## ✨ Key Features
 
-### 🔐 Security First
-- **Azure AD / Microsoft Entra ID SSO** - Single Sign-On with Microsoft accounts (NEW in 2.12.0)
-- **LDAP/Active Directory** - Enterprise directory integration
-- **Enforced TOTP 2FA** - Two-factor authentication required for all users (bypassed for SSO)
-- **AES-GCM Encryption** - Military-grade encryption for all sensitive data
-- **Argon2 Password Hashing** - Industry-standard password security
-- **Password Breach Detection** - HaveIBeenPwned integration with k-anonymity (your passwords never leave your server)
-- **Snyk Security Scanning** - Automated vulnerability scanning for Python and JavaScript dependencies with web UI
-- **Automated CVE Scanning** - Continuous vulnerability monitoring and security advisory checks
-- **Brute-Force Protection** - Account lockout after failed attempts
-- **Rate Limiting** - All endpoints protected
-- **Security Headers** - CSP, HSTS, X-Frame-Options, and more
-- **SQL Injection Prevention** - Parameterized queries throughout
-- **SSRF Protection** - URL validation for external connections
-- **Path Traversal Prevention** - Strict file validation
-- **IDOR Protection** - Object access validation
+### 🔐 Security & Authentication
+- **Azure AD / Microsoft Entra ID SSO** with auto-user creation
+- **LDAP/Active Directory** enterprise integration
+- **Enforced TOTP 2FA** with SSO bypass
+- **AES-GCM Encryption** for all sensitive data
+- **Password Breach Detection** via HaveIBeenPwned (k-anonymity)
+- **Snyk Security Scanning** with automated CVE detection
+- **Rate Limiting**, CSRF, XSS, SQL injection, SSRF, path traversal protection
 
-### 🏢 Multi-Tenancy & RBAC
-- **Organization Isolation** - Complete data separation
-- **42 Granular Permissions** - Across 10 categories
-- **MSP User Types** - Staff users (global) and Organization users (scoped)
-- **Role Templates** - Reusable permission sets
-- **Four-Tier Access** - Owner, Admin, Editor, Read-Only
+### 🏢 Multi-Tenancy & Access Control
+- **Complete Organization Isolation** with 42 granular permissions
+- **Four-Tier Access Levels** - Owner, Admin, Editor, Read-Only
+- **MSP User Types** - Staff (global) and Organization (scoped) users
 
-### 📦 Core Features
+### 📦 Core Platform
+- **Auto-Update System** - One-click web updates (20-30 seconds, no SSH)
+- **Asset Management** - Comprehensive tracking with NetBox-style rack visualization
+- **Password Vault** - AES-GCM encrypted with breach detection and personal vaults
+- **Documentation** - Per-org docs with version control, templates, and global MSP knowledge base
+- **Diagrams & Floor Plans** - Draw.io integration, MagicPlan import, auto-generated flowcharts
+- **Infrastructure** - IPAM, rack visualization, network documentation, cable/power management
+- **Monitoring** - Website uptime, SSL certificates, domain expiration, custom alerts
+- **Workflows** - Process automation with audit logging, PSA integration, execution tracking
 
-#### Auto-Update System (NEW in 2.14.21!)
-- **One-Click Updates** - Update HuduGlue directly from the web interface
-- **Real-Time Progress** - Animated progress modal showing all 5 update steps
-- **Automatic Service Restart** - Service restarts automatically after update
-- **Zero Downtime** - Updates complete in 20-30 seconds with automatic reload
-- **Background Execution** - Updates run in background thread, no browser timeouts
-- **Smart Dependency Management** - Only installs missing packages, no unnecessary rebuilds
-- **Version Detection** - Automatic detection of new releases from GitHub
-- **Safety Features** - Delayed restart using systemd-run to prevent self-termination
-- **No SSH Required** - Non-technical users can update without command line access
+### 🔌 Integrations
+- **8 PSA Providers** - ConnectWise, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow
+- **5 RMM Providers** - Tactical RMM (full), NinjaOne, Datto, Atera, CW Automate (infrastructure ready)
+- **Organization Auto-Import** - Automatically create orgs from PSA companies or RMM sites
+- **Asset Mapping** - Auto-link RMM devices to assets
 
-#### Asset Management
-- **Comprehensive Asset Tracking** - Track all IT assets with custom fields, relationships, and lifecycle management
-- **Rackmount Tracking** - NetBox-style rack visualization with U-space management
-- **Asset Relationships** - Link related assets (server → VM, switch → port, etc.)
-- **Custom Fields** - Flexible metadata for any asset type
-- **Asset Templates** - Predefined configurations for common asset types
-- **Bulk Operations** - Import, export, and update multiple assets at once
+**For complete feature details, see [FEATURES.md](FEATURES.md)**
 
-#### Password Vault & Security
-- **AES-GCM Encrypted Vault** - Military-grade encryption for all passwords
-- **Folder Organization** - Organize passwords by category, client, or custom structure
-- **Password Breach Detection** - Automatic checking against HaveIBeenPwned database
-- **Personal Vault** - Private password storage per user (separate from org passwords)
-- **Password Strength Analysis** - Real-time password quality checking
-- **Expiration Tracking** - Automatic alerts for expiring credentials
-- **Secure Notes** - Encrypted ephemeral messaging system
+## 🆕 What's New
 
-#### Documentation & Knowledge Base
-- **Per-Organization Docs** - Isolated documentation per client/organization
-- **Categories & Tags** - Flexible organization with categories and tagging
-- **Version Control** - Full document version history with rollback
-- **Rich Text Editor** - Markdown support with WYSIWYG editing
-- **Global Knowledge Base** - Staff-only internal documentation (MSP KB)
-- **Document Templates** - Reusable templates for common documentation types
-- **Full-Text Search** - Fast search across all documentation
+### Latest Release - v2.24.159 (January 2026)
 
-#### Diagrams & Floor Plans
-- **Draw.io Integration** - Full-featured diagramming with Draw.io embedded editor
-- **Diagram Templates** - Pre-built templates for network, rack, and flowchart diagrams
-- **Version History** - Track diagram changes with automatic versioning
-- **Export Formats** - PNG, SVG, XML export options
-- **Floor Plan Generation** - AI-powered floor plan creation from building data
-- **MagicPlan Import** - Import floor plans directly from MagicPlan mobile app
-- **Location Linking** - Link floor plans to specific locations/buildings
+**Recent Highlights:**
+- **Workflow Automation** - One-click launch with automatic assignment, complete audit logging, PSA ticket integration
+- **Execution Tracking** - Full history view with filtering, color-coded status badges, progress bars
+- **Auto-Update System** - One-click web updates with real-time progress (20-30 seconds, no SSH required)
+- **Azure AD SSO** - Single sign-on with Microsoft accounts
+- **Organization Auto-Import** - Automatically create organizations from PSA/RMM systems
+- **Security Scanning** - Snyk vulnerability scanning, HaveIBeenPwned password breach detection
 
-#### Locations & Facilities
-- **Multi-Location Management** - Track multiple offices, data centers, warehouses
-- **Geocoding** - Automatic GPS coordinate lookup from addresses
-- **Property Data Integration** - Fetch building information from external sources
-- **Satellite Imagery** - Automatic satellite image download via Google Maps API
-- **Floor Plan Management** - Multiple floor plans per location with dimensions
-- **Location Types** - Office, Warehouse, Data Center, Retail, Branch, etc.
-- **Shared Locations** - Co-location facilities shared across multiple organizations
-
-#### Infrastructure Management
-- **Rack Visualization** - NetBox-style rack diagrams with U-space allocation
-- **IPAM (IP Address Management)** - Subnet tracking, IP allocation, CIDR management
-- **Network Documentation** - Switch, router, firewall configuration tracking
-- **Cable Management** - Track patch cables, fiber runs, and connections
-- **Power Distribution** - PDU tracking and power capacity planning
-
-#### Monitoring & Alerts
-- **Website Monitoring** - Uptime checks with configurable intervals
-- **SSL Certificate Tracking** - Automatic SSL expiration monitoring and alerts
-- **Domain Expiration** - Track domain renewal dates
-- **Expiration Dashboard** - Centralized view of all expiring items
-- **Custom Alerts** - Configurable notification thresholds
-- **Monitoring History** - Track uptime/downtime trends over time
-
-#### Workflows & Process Automation (v2.24.155-159)
-- **One-Click Launch** - Prominent "Launch Workflow" button with automatic assignment
-- **Complete Audit Logging** - Every action tracked (who, what, when) with timeline view
-- **PSA Ticket Integration** - Link workflows to PSA tickets with automatic completion summaries
-- **Execution List View** - See all workflow launches across organization with filtering
-- **Sequential Runbooks** - Step-by-step process documentation
-- **Entity Linking** - Link processes to assets, passwords, diagrams, docs
-- **Execution Tracking** - Track process runs with timestamps, notes, and progress bars
-- **Process Templates** - Reusable templates for common procedures
-- **Interactive Checklist** - Live progress tracking with stage completion
-- **Stage Duration Tracking** - Time tracking for each process step
-- **Note Visibility Control** - Choose internal/public visibility for PSA ticket notes
-- **Auto-Generated Flowcharts** - Convert workflows to Draw.io diagrams
-
-#### Data Import & Migration
-- **IT Glue Import** - Full data migration from IT Glue platform
-- **Hudu Import** - Complete Hudu data migration support
-- **MagicPlan Floor Plans** - Import floor plans from MagicPlan JSON exports
-- **Multi-Organization Import** - Import all organizations at once or selectively
-- **Fuzzy Matching** - Intelligent organization name matching (e.g., "ABC LLC" → "ABC Corporation")
-- **Dry Run Mode** - Preview imports before committing changes
-- **Duplicate Prevention** - Automatic detection and prevention of duplicate records
-- **Progress Tracking** - Real-time import status with detailed logs
-- **Import History** - Track all import jobs with statistics and error logs
-
-#### Contact Management
-- **Organization-Specific Contacts** - Contact database per client
-- **Contact Types** - Primary, Billing, Technical, Emergency contacts
-- **Contact Relationships** - Link contacts to assets, locations, and tickets
-- **Communication History** - Track interactions with contacts
-
-#### Audit & Compliance
-- **Complete Audit Logging** - Every action tracked with user, timestamp, and details
-- **Audit Search** - Search audit logs by user, action, date range
-- **Compliance Reports** - Generate reports for compliance requirements
-- **Data Retention** - Configurable audit log retention policies
-
-### 🔌 PSA Integrations (8 Providers)
-Full implementations for:
-- **ConnectWise Manage** - Companies, Contacts, Tickets, Projects, Agreements
-- **Autotask PSA** - Companies, Contacts, Tickets, Projects, Agreements
-- **HaloPSA** - Companies, Contacts, Tickets, OAuth2
-- **Kaseya BMS** - Companies, Contacts, Tickets, Projects, Agreements
-- **Syncro** - Customers, Contacts, Tickets
-- **Freshservice** - Departments, Requesters, Tickets
-- **Zendesk** - Organizations, Users, Tickets
-- **ITFlow** - Open-source PSA with full API support
-- **Alga PSA** - Placeholder ready (open-source MSP PSA)
-
-**NEW in 2.12.0: Organization Auto-Import**
-- Automatically create HuduGlue organizations from PSA companies
-- Optional name prefixes (e.g., "PSA-CompanyName")
-- Smart duplicate prevention with external ID tracking
-- Sync metadata (phone, address, website)
-
-### 🖥️ RMM Integrations (5 Providers)
-**Phase 1 Infrastructure Complete (v2.24.x)** - Ready for provider implementations:
-- **Base Models & Architecture** - RMMConnection, RMMDevice, RMMAlert, RMMSoftware models with encryption
-- **Provider Registry** - Extensible provider system with BaseRMMProvider abstract class
-- **Admin Interface** - Full Django admin integration for RMM management
-- **Database Schema** - Complete migrations and indexes for optimal performance
-- **Tactical RMM** (Fully Implemented) - Device management, alerts, software inventory, WebSocket updates
-- **NinjaOne** (Infrastructure Ready) - OAuth 2.0 authentication, device sync, monitoring
-- **Datto RMM** (Infrastructure Ready) - API key authentication, device inventory, alerts
-- **Atera** (Infrastructure Ready) - Agent management, ticketing integration
-- **ConnectWise Automate** (Infrastructure Ready) - Computer management, script execution
-- **Auto Asset Mapping** - Automatically link RMM devices to asset records based on serial number and hostname
-- **Scheduled Sync** - Automatic device synchronization on configurable intervals
-- **Device Monitoring** - Track online/offline status, last seen timestamps
-
-**NEW in 2.12.0: Organization Auto-Import**
-- Automatically create HuduGlue organizations from RMM sites/clients
-- Optional name prefixes (e.g., "RMM-SiteName")
-- Smart duplicate prevention with external ID tracking
-- Sync site metadata and contact information
-- **Software Inventory** - Sync installed software from RMM platforms
-- **Alert Integration** - Pull RMM alerts and monitoring data
-
-## 🆕 What's New in v2.24
-
-### Latest Release - January 2026
-
-**v2.24.159** - 🚀 **Automatic Workflow Assignment** (Latest Release)
-- **Simplified Launch** - Removed "Assign To" field from workflow launch form
-- **Auto-Assignment** - Workflows automatically assigned to user who launches them
-- **Cleaner UX** - Streamlined workflow execution creation process
-- **Info Message** - Clear notification that workflow will be assigned to you
-
-**v2.24.158** - 📊 **Workflow Execution List View & Bug Fixes**
-- **Complete History** - View all workflow launches across organization in one place
-- **Advanced Filtering** - Filter by status, workflow, and assigned user
-- **Visual Dashboard** - Color-coded status badges, progress bars, overdue warnings
-- **Quick Actions** - Jump to execution details or audit log from list
-- **Fixed** ProcessExecutionForm organization filtering errors
-- **Fixed** User membership query using correct relationship
-
-**v2.24.157** - 🎨 **Enhanced Workflow Launch Experience**
-- **Renamed** "Start Execution" to "Launch Workflow" throughout UI
-- **Prominent Button** - Large green "Launch Workflow" button with rocket icon 🚀
-- **PSA Integration** - Select PSA ticket and set note visibility directly at launch
-- **Better Separation** - Clear distinction between viewing templates and launching executions
-
-**v2.24.156** - 🔐 **PSA Note Visibility Control**
-- **Internal/Public Toggle** - Choose whether PSA completion notes are private or customer-visible
-- **Default Public** - Notes visible to customers by default
-- **Checkbox Control** - Simple checkbox in launch form to make notes internal
-
-**v2.24.155** - 📋 **Complete Workflow Audit Logging & PSA Integration**
-- **Comprehensive Audit Log** - Every workflow action tracked with user, timestamp, IP address
-- **Timeline View** - Beautiful chronological activity feed grouped by date
-- **Color-Coded Events** - Green (completed), yellow (uncompleted), red (failed), blue (other)
-- **PSA Ticket Integration** - Link workflows to PSA tickets at launch time
-- **Auto-Update PSA** - Completion summary automatically posted to PSA ticket when workflow finishes
-- **Change History** - Old/new values stored in JSON for all updates
-- **Dual Logging** - Logs to both workflow-specific audit log and system-wide audit log
-- **Supported PSAs** - ITFlow, ConnectWise Manage, Syncro (with internal/public note control)
-- **PSAManager Class** - Unified interface for all PSA ticket operations with encryption
-
-**v2.24.154** - 🎨 **Diagram Preview Generation Fixes**
-- **Fixed** FileField empty detection for diagram previews on remote server
-- **Added** --force flag to updater for diagram preview generation
-- **Improved** Q object filtering for better SQLite/PostgreSQL compatibility
-
-**v2.24.153** - 📱 **Document Previews & Workflow Flowcharts**
-- **Document Card View** - Visual preview cards for all knowledge base documents
-- **One-Click Flowcharts** - Generate workflow diagrams directly from process pages
-- **Auto-Generate on Update** - Workflow diagrams regenerate during system updates
-
-**v2.24.37** - 📚 **Comprehensive Professional KB Article Library**
-- **Windows Administration Articles** - 4 comprehensive guides (1,576 lines of professional content):
-  - How to Reset Windows Local Administrator Password (5 methods including Utilman.exe replacement)
-  - Optimize Windows 10/11 Performance - Complete optimization guide
-  - Create and Manage Group Policy Objects (10 common GPO configurations)
-  - Configure and Troubleshoot Windows Updates - Complete guide with error fixes
-- **Professional Formatting** - Emoji icons for organization, syntax-highlighted code blocks
-- **Step-by-Step Procedures** - Comprehensive troubleshooting and best practices
-- **Real-World MSP Content** - Ready-to-use documentation for client support
-
-**v2.24.36** - 🎨 **Enhanced UI Visibility & Navigation**
-- **Breadcrumb Backgrounds** - Standalone breadcrumbs now have gradient backgrounds for better readability
-- **Dark Mode Support** - Breadcrumb styling adapts to dark theme
-- **Improved Contrast** - All UI elements now meet WCAG accessibility standards
-
-**v2.24.35** - 🐛 **UI Color Corrections**
-- **Snyk Page Improvements** - Changed alert colors from warning to info for better context
-- **Visual Consistency** - Standardized alert usage across all settings pages
-
-**v2.24.34** - 🔧 **Database Compatibility & Menu Standardization**
-- **SQLite Support** - Fixed maintenance page database queries for SQLite compatibility
-- **Cross-Database Queries** - Added database-agnostic table size queries (MySQL/PostgreSQL/SQLite)
-- **Settings Navigation** - Standardized all settings pages to 12-item menu
-- **System Updates Header** - Added background card for better visibility
-
-**v2.24.33-25** - 🎨 **Comprehensive UI Polish**
-- **Rounded Corners** - Fixed card headers with gradient backgrounds across entire application
-- **Enhanced Visibility** - Card headers now have depth with subtle shadows and gradients
-- **CSS Refactoring** - Improved specificity and consistency for all Bootstrap components
-
-## 🆕 What's New in v2.14
-
-### Previous Releases - January 2026
-
-**v2.14.21** - 🎉 **Auto-Update System Complete!** (Latest Release)
-- **One-Click Web Updates** - Update HuduGlue directly from the web interface without SSH access
-- **Real-Time Progress Tracking** - Animated modal shows all 5 steps with live status updates
-- **Automatic Service Restart** - Service restarts automatically using systemd-run with 3-second delay
-- **Zero Manual Intervention** - Complete end-to-end automation from git pull to service reload
-- **Smart Dependency Management** - Only installs missing packages, avoids rebuilding compiled packages
-- **Production Ready** - Fully tested and verified working in v2.14.19 → v2.14.20 update
-- **Better UX** - Clear messaging about restart timing (may take up to a minute)
-- **Total Update Time** - 20-30 seconds from start to finish
-
-**Technical Implementation:**
-- Background thread execution prevents browser timeouts
-- Full path resolution for all system commands (`/usr/bin/sudo`, `/usr/bin/systemd-run`, `/usr/bin/systemctl`)
-- AJAX polling for progress updates every second
-- Passwordless sudo permissions configured via `/etc/sudoers.d/huduglue-auto-update`
-- Industry-standard delayed restart approach prevents process self-termination
-
-**v2.14.5** - ITFlow PSA Integration
-- **New Integration** - Complete ITFlow PSA provider implementation
-- **Fixed Error** - "Unknown provider type: itflow" now resolved
-- **Full Support** - Clients, contacts, and tickets synchronization
-
-**v2.14.4** - Member Edit IntegrityError Fix
-- **Fixed Critical Bug** - IntegrityError when editing organization members
-- **User Field Protection** - Prevents accidental user reassignment during edit
-- **Cleaner Forms** - User selection only shown when creating new memberships
-
-**v2.14.3** - Role Management & User Edit Fixes
-- **Fixed Role Management** - ADMIN role can now manage roles (not just OWNER)
-- **Fixed User Editing** - Corrected redirect from non-existent 'home' route
-- **Admin User Setup** - Automatically creates OWNER membership if missing
-
-**v2.14.2** - Encryption Error Handling
-- **Better Error Messages** for malformed encryption keys
-- **User-Friendly Instructions** showing exact commands to fix issues
-- **Comprehensive Coverage** across all encryption points (PSA, RMM, Passwords)
-
-**v2.14.1** - Critical Bug Fixes
-- **Fixed IntegrityError** when changing admin password (auth_source field)
-- **Enhanced Installer** with .env validation and permission checks
-- **Better Error Messages** showing exact fix commands for common issues
-- Added comprehensive session documentation
-
-**v2.14.0** - Enhanced Update System with Changelog Display
-- **Changelog Integration**
-  - Display current version's changelog on System Updates page
-  - Show changelogs for all available newer versions
-  - Helps users understand what they're running and what updates will bring
-  - Automatically parses CHANGELOG.md for version-specific content
-
-**v2.13.0** - Auto-Update System
-- **Auto-Update System with Web Interface**
-  - Check for updates from GitHub releases
-  - Manual update trigger from Admin → System Updates
-  - Automatic hourly update checks
-  - One-click update: git pull, pip install, migrate, collectstatic, restart
-  - Version comparison using semantic versioning
-  - Beautiful UI showing current vs. available version
-  - Git status monitoring (branch, commit, clean working tree)
-  - Release notes display from GitHub
-  - Update history tracking with audit log
-  - Staff-only access with confirmation modal
-  - Graceful failure handling
-
-**v2.12.0** - Azure SSO & Organization Auto-Import
-- **Azure AD / Microsoft Entra ID SSO** - Complete single sign-on implementation
-  - "Sign in with Microsoft" button on login page
-  - Auto-create user accounts from Azure AD
-  - Bypasses 2FA for SSO users (already authenticated)
-  - Full setup guide in Admin settings
-- **Organization Auto-Import from PSA/RMM**
-  - Automatically create orgs from PSA companies or RMM sites
-  - Configurable name prefixes
-  - Smart duplicate prevention
-  - Tracks external IDs in custom fields
-- **Fixed RMM/PSA IntegrityError** - organization_id null error resolved
-- **Alga PSA placeholder** - Ready for future integration
-- **Cryptography compatibility fix** - Resolved installation issues
-
-## 🆕 What's New in v2.11
-
-### Recent Updates (January 2026)
-
-**v2.11.7** - Bug Fixes & UI Improvements
-- Fixed visible ">" artifact on all pages (CSRF token meta tag issue)
-- Fixed About page TemplateSyntaxError with hyphenated package names
-- Improved floor plan generation loading overlay contrast
-- Renamed "Processes" to "Workflows" throughout UI for better clarity
-- Fixed template variable mismatch causing workflow list errors
-- Added comprehensive demo data documentation to installation guide
-- Timezone display now correctly shows Eastern Time (EST/EDT)
-
-**v2.11.6** - Security & CVE Scanning
-- **Live CVE vulnerability scanning** on About page with real-time results
-- Resolved all 10 known security vulnerabilities through package upgrades:
-  - cryptography 41.0.7 → 44.0.1 (4 CVEs fixed)
-  - djangorestframework 3.14.0 → 3.15.2 (1 CVE fixed)
-  - gunicorn 21.2.0 → 22.0.0 (2 CVEs fixed)
-  - pillow 10.2.0 → 10.3.0 (1 CVE fixed)
-  - requests 2.31.0 → 2.32.4 (2 CVEs fixed)
-- Real-time dependency version display on About page
-- Integrated pip-audit for automated vulnerability detection
-- **Result: Zero known vulnerabilities** ✓
-
-**v2.11.5** - Location Intelligence & Password Security
-- Location-aware property appraiser suggestions (adapts to county/state)
-- Password breach detection integration with HaveIBeenPwned
-- Scheduled password breach scanning (configurable intervals: 2-24 hours)
-- Floor plan generation progress feedback with visual overlay
-- Smarter property diagram help text based on location
-
-**Earlier v2.11.x Features:**
-- Workflows (formerly Processes) with sequential execution tracking
-- Enhanced diagram versioning and template system
-- Password strength analysis and expiration tracking
-- Website monitoring with SSL certificate tracking
-- Multi-location management with geocoding
-- Scheduled task system (no Redis required - systemd timers)
+**For complete version history, see [CHANGELOG.md](CHANGELOG.md)**
 
 ## 🚀 Quick Start
 
