@@ -154,14 +154,14 @@ class ProcessExecutionForm(forms.ModelForm):
             # Filter assigned_to to organization members
             from django.contrib.auth.models import User
             org_users = User.objects.filter(
-                profile__organization=self.organization
+                profile__organization__id=self.organization.id
             ).order_by('username')
             self.fields['assigned_to'].queryset = org_users
 
             # Filter PSA tickets by organization and open status
             from integrations.models import PSATicket
             self.fields['psa_ticket'].queryset = PSATicket.objects.filter(
-                connection__organization=self.organization,
+                connection__organization__id=self.organization.id,
                 status__in=['open', 'in_progress']
             ).select_related('connection').order_by('-created_at')[:100]  # Limit to 100 recent tickets
             self.fields['psa_ticket'].label_from_instance = lambda obj: f"[{obj.connection.provider}] {obj.ticket_number} - {obj.subject[:50]}"
