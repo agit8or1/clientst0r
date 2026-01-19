@@ -80,6 +80,22 @@
                         <div class="d-flex align-items-center justify-content-center h-100">
                             <i class="fas fa-file-pdf fa-5x text-danger"></i>
                         </div>
+                    {% elif 'word' in doc.file_type or 'document' in doc.file_type %}
+                        <div class="d-flex align-items-center justify-content-center h-100">
+                            <i class="fas fa-file-word fa-5x text-primary"></i>
+                        </div>
+                    {% elif 'excel' in doc.file_type or 'spreadsheet' in doc.file_type %}
+                        <div class="d-flex align-items-center justify-content-center h-100">
+                            <i class="fas fa-file-excel fa-5x text-success"></i>
+                        </div>
+                    {% elif 'powerpoint' in doc.file_type or 'presentation' in doc.file_type %}
+                        <div class="d-flex align-items-center justify-content-center h-100">
+                            <i class="fas fa-file-powerpoint fa-5x text-warning"></i>
+                        </div>
+                    {% elif 'zip' in doc.file_type or 'compressed' in doc.file_type %}
+                        <div class="d-flex align-items-center justify-content-center h-100">
+                            <i class="fas fa-file-archive fa-5x text-secondary"></i>
+                        </div>
                     {% else %}
                         <div class="d-flex align-items-center justify-content-center h-100">
                             <i class="fas fa-file fa-5x text-muted"></i>
@@ -119,7 +135,10 @@
             <div class="card-footer bg-transparent border-top-0 p-2 pt-0">
                 <div class="btn-group btn-group-sm w-100">
                     <a href="{% url 'docs:document_detail' doc.slug %}" class="btn btn-outline-primary btn-sm py-0" style="font-size: 0.7rem;"><i class="fas fa-eye"></i></a>
+                    {% if has_write_permission %}
                     <a href="{% url 'docs:document_edit' doc.slug %}" class="btn btn-outline-secondary btn-sm py-0" style="font-size: 0.7rem;"><i class="fas fa-edit"></i></a>
+                    <button type="button" class="btn btn-outline-danger btn-sm py-0" style="font-size: 0.7rem;" onclick="deleteDocument('{{ doc.slug }}', '{{ doc.title|escapejs }}')"><i class="fas fa-trash"></i></button>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -155,12 +174,26 @@
                             </td>
                             <td>
                                 {% if doc.content_type == 'file' %}
-                                    <span class="badge bg-success"><i class="fas fa-paperclip"></i> File</span>
-                                    {% if doc.file_size %}<small class="text-muted">({{ doc.file_size|filesizeformat }})</small>{% endif %}
+                                    {% if 'pdf' in doc.file_type %}
+                                        <i class="fas fa-file-pdf fa-lg text-danger"></i> PDF
+                                    {% elif 'word' in doc.file_type or 'document' in doc.file_type %}
+                                        <i class="fas fa-file-word fa-lg text-primary"></i> Word
+                                    {% elif 'excel' in doc.file_type or 'spreadsheet' in doc.file_type %}
+                                        <i class="fas fa-file-excel fa-lg text-success"></i> Excel
+                                    {% elif 'powerpoint' in doc.file_type or 'presentation' in doc.file_type %}
+                                        <i class="fas fa-file-powerpoint fa-lg text-warning"></i> PowerPoint
+                                    {% elif 'image' in doc.file_type %}
+                                        <i class="fas fa-file-image fa-lg text-info"></i> Image
+                                    {% elif 'zip' in doc.file_type or 'compressed' in doc.file_type %}
+                                        <i class="fas fa-file-archive fa-lg text-secondary"></i> Archive
+                                    {% else %}
+                                        <i class="fas fa-file fa-lg text-muted"></i> File
+                                    {% endif %}
+                                    {% if doc.file_size %}<br><small class="text-muted">({{ doc.file_size|filesizeformat }})</small>{% endif %}
                                 {% elif doc.content_type == 'markdown' %}
-                                    <span class="badge bg-info"><i class="fab fa-markdown"></i> Markdown</span>
+                                    <i class="fab fa-markdown fa-lg text-info"></i> Markdown
                                 {% else %}
-                                    <span class="badge bg-primary"><i class="fas fa-code"></i> HTML</span>
+                                    <i class="fas fa-code fa-lg text-primary"></i> HTML
                                 {% endif %}
                             </td>
                             <td>
@@ -177,7 +210,10 @@
                             <td>
                                 <div class="btn-group btn-group-sm">
                                     <a href="{% url 'docs:document_detail' doc.slug %}" class="btn btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
+                                    {% if has_write_permission %}
                                     <a href="{% url 'docs:document_edit' doc.slug %}" class="btn btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
+                                    <button type="button" class="btn btn-outline-danger" title="Delete" onclick="deleteDocument('{{ doc.slug }}', '{{ doc.title|escapejs }}')"><i class="fas fa-trash"></i></button>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -437,6 +473,36 @@ $(document).ready(function() {
         progressBar.classList.add('progress-bar-animated');
         progressBar.classList.remove('bg-success');
     });
+
+    // Delete document function
+    window.deleteDocument = async function(slug, title) {
+        if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const response = await fetch(`/docs/${slug}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                alert(result.message);
+                window.location.reload();
+            } else {
+                const errorText = await response.text();
+                alert(`Failed to delete document: ${errorText}`);
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert(`Error deleting document: ${error.message}`);
+        }
+    };
 
     // Initialize DataTable
     let table = null;

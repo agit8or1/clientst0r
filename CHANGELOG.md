@@ -5,6 +5,24 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.178] - 2026-01-19
+
+### ✨ Features
+
+**Document Delete Functionality:**
+- **Added** delete buttons to both card and table views in documents list
+- **Added** proper write permission checks before showing delete buttons
+- **Added** AJAX delete with confirmation dialog
+- **Added** `@require_write` decorator to `document_delete` view for security
+- **Supports** AJAX and standard requests
+
+**Enhanced File Type Display:**
+- **Added** specific icons for different file types (PDF, Word, Excel, PowerPoint, Archive)
+- **Added** color-coded icons (PDF: red, Word: blue, Excel: green, PowerPoint: orange, Archive: gray)
+- **Added** image preview thumbnails in card view for uploaded images
+- **Displays** file type icons in both card and table views
+- **Shows** file size for all uploaded files
+
 ## [2.24.177] - 2026-01-19
 
 ### 🔧 Debug

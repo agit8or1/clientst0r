@@ -195,7 +195,7 @@ def document_edit(request, slug):
 @require_write
 def document_delete(request, slug):
     """
-    Delete document.
+    Delete document. Requires write permission.
     """
     org = get_request_organization(request)
     document = get_object_or_404(Document, slug=slug, organization=org)
@@ -204,6 +204,11 @@ def document_delete(request, slug):
         title = document.title
         document.delete()
         messages.success(request, f"Document '{title}' deleted successfully.")
+
+        # Handle AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': f"Document '{title}' deleted successfully."})
+
         return redirect('docs:document_list')
 
     return render(request, 'docs/document_confirm_delete.html', {
