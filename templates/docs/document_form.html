@@ -140,6 +140,12 @@
                 <h3 class="mb-0"><i class="fas fa-file-alt"></i> {{ action }} Document</h3>
             </div>
             <div class="card-body">
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                    <i class="fas fa-info-circle"></i> <strong>Upload Files:</strong>
+                    Select <strong>"Uploaded File"</strong> from the Editor dropdown below to upload PDFs, images, Word/Excel documents, and other files (max 50MB).
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+
                 <form method="post" id="document-form" enctype="multipart/form-data">
                     {% csrf_token %}
 
@@ -173,8 +179,13 @@
                             {% if form.title.errors %}<div class="invalid-feedback d-block">{{ form.title.errors }}</div>{% endif %}
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label for="{{ form.content_type.id_for_label }}" class="form-label">Editor *</label>
+                            <label for="{{ form.content_type.id_for_label }}" class="form-label">
+                                Editor * <i class="fas fa-question-circle text-muted" title="Select 'Uploaded File' to upload PDFs, images, documents"></i>
+                            </label>
                             {{ form.content_type }}
+                            {% if form.content_type.help_text %}
+                            <small class="form-text text-muted">{{ form.content_type.help_text }}</small>
+                            {% endif %}
                             {% if form.content_type.errors %}<div class="invalid-feedback d-block">{{ form.content_type.errors }}</div>{% endif %}
                         </div>
                         <div class="col-md-3 mb-3">

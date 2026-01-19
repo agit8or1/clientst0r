@@ -5,6 +5,23 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.171] - 2026-01-19
+
+### 🎨 UI/UX Improvements
+
+**Document Upload Discoverability:**
+- **Added** prominent blue alert box at top of document form explaining file upload
+- **Added** help icon next to "Editor" dropdown with tooltip
+- **Enhanced** help text with emojis for visual distinction (📄 HTML | 📝 Markdown | 📎 File)
+- **Added** additional file type support (.bmp, .webp images)
+- **Improved** user guidance for first-time document uploaders
+
+**To Upload Files:**
+1. Navigate to Documents → New Document
+2. Select "Uploaded File" from the Editor dropdown
+3. Drag & drop or click the upload zone
+4. Supports: PDF, Word, Excel, PowerPoint, images, ZIP (max 50MB)
+
 ## [2.24.170] - 2026-01-19
 
 ### 🎨 UI/UX Improvements

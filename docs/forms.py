@@ -13,7 +13,7 @@ class DocumentForm(forms.ModelForm):
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Document Title'}),
             'body': forms.Textarea(attrs={'class': 'form-control', 'rows': 20, 'id': 'document-body', 'data-required': 'true'}),
             'content_type': forms.Select(attrs={'class': 'form-select', 'id': 'content-type-select'}),
-            'file': forms.FileInput(attrs={'class': 'form-control', 'id': 'document-file', 'accept': '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.svg,.zip'}),
+            'file': forms.FileInput(attrs={'class': 'form-control', 'id': 'document-file', 'accept': '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.svg,.zip,.bmp,.webp'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
             'is_published': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_template': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -21,7 +21,7 @@ class DocumentForm(forms.ModelForm):
             'tags': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
         }
         help_texts = {
-            'content_type': 'Choose HTML for WYSIWYG editor, Markdown, or upload a file',
+            'content_type': '📄 HTML for rich text editor | 📝 Markdown for code/text | 📎 Uploaded File for PDFs, images, Office docs',
             'file': 'Upload PDF, Word, Excel, images, or other files (max 50MB)',
             'is_template': 'Make this a reusable template',
             'is_archived': 'Archive this document (hidden from main list)',
