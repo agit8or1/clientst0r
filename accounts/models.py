@@ -217,6 +217,7 @@ class UserProfile(BaseModel):
         ('none', 'No Background Image'),
         ('preset', 'Preset Abstract Backgrounds'),
         ('random', 'Random from Internet'),
+        ('solid_color', 'Solid Color'),
     ])
     background_image = models.ImageField(
         upload_to='backgrounds/',
@@ -224,23 +225,29 @@ class UserProfile(BaseModel):
         blank=True,
         help_text='Custom background image for your profile'
     )
+    background_color = models.CharField(
+        max_length=7,
+        default='#1a1a2e',
+        blank=True,
+        help_text='Solid background color (hex code)'
+    )
     preset_background = models.CharField(
         max_length=50,
         default='abstract-1',
         blank=True,
         choices=[
             ('abstract-1', 'Purple Gradient'),
-            ('abstract-2', 'Blue Wave'),
-            ('abstract-3', 'Orange Sunset'),
-            ('abstract-4', 'Green Aurora'),
+            ('abstract-2', 'Blue Gradient'),
+            ('abstract-3', 'Orange Coral'),
+            ('abstract-4', 'Teal Wave'),
             ('abstract-5', 'Pink Nebula'),
             ('abstract-6', 'Cyan Fluid'),
             ('abstract-7', 'Red Geometric'),
-            ('abstract-8', 'Teal Gradient'),
-            ('abstract-9', 'Yellow Light'),
-            ('abstract-10', 'Indigo Smoke'),
+            ('abstract-8', 'Blue Teal'),
+            ('abstract-9', 'Yellow Gold'),
+            ('abstract-10', 'Indigo Dark'),
             ('abstract-11', 'Magenta Flow'),
-            ('abstract-12', 'Navy Waves'),
+            ('abstract-12', 'Navy Space'),
         ],
         help_text='Select a preset abstract background'
     )

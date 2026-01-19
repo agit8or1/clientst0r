@@ -114,10 +114,25 @@
                         <small class="form-text text-muted">
                             Choose how your background appears:<br>
                             • <strong>No Background</strong> - Clean, solid color background from theme<br>
+                            • <strong>Solid Color</strong> - Choose a custom solid color<br>
                             • <strong>Preset Abstract Backgrounds</strong> - Choose from 12 curated abstract images<br>
                             • <strong>Custom Upload</strong> - Upload your own background image<br>
                             • <strong>Random from Internet</strong> - Get a beautiful random image each page load
                         </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.background_color.id_for_label }}" class="form-label">
+                            <i class="fas fa-fill-drip"></i> Solid Background Color
+                        </label>
+                        <div class="d-flex align-items-center gap-2">
+                            {{ form.background_color }}
+                            <span class="text-muted small">Click to choose color</span>
+                        </div>
+                        {% if form.background_color.errors %}
+                        <div class="invalid-feedback d-block">{{ form.background_color.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Select a solid color (only used when "Solid Color" is selected above)</small>
                     </div>
 
                     <div class="mb-3">
