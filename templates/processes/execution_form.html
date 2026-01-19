@@ -22,13 +22,8 @@
                 <form method="post">
                     {% csrf_token %}
 
-                    <div class="mb-3">
-                        <label for="{{ form.assigned_to.id_for_label }}" class="form-label">Assign To</label>
-                        {{ form.assigned_to }}
-                        {% if form.assigned_to.errors %}
-                        <div class="text-danger small">{{ form.assigned_to.errors }}</div>
-                        {% endif %}
-                        <small class="form-text text-muted">User responsible for completing this process</small>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> This workflow will be assigned to you automatically.
                     </div>
 
                     <div class="mb-3">

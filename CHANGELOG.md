@@ -5,6 +5,23 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.159] - 2026-01-19
+
+### ✨ Features
+
+**Automatic Workflow Assignment:**
+- **Removed** "Assign To" field from workflow launch form
+- **Automatic** workflow assignments - workflows are now automatically assigned to the user who launches them
+- **Simplified** launch experience - fewer fields to fill out
+- **Added** informational message explaining automatic assignment
+
+### 🎨 UI/UX Improvements
+
+**Workflow Launch:**
+- **Cleaner** launch form with auto-assignment notification
+- **Streamlined** workflow execution creation
+- **Updated** audit log description to say "launched workflow" instead of "created execution"
+
 ## [2.24.158] - 2026-01-19
 
 ### ✨ Features

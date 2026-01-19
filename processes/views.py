@@ -411,6 +411,7 @@ def execution_create(request, slug):
             execution = form.save(commit=False)
             execution.process = process
             execution.organization = org
+            execution.assigned_to = request.user  # Automatically assign to launcher
             execution.started_by = request.user
             execution.started_at = timezone.now()
             execution.status = 'in_progress'
@@ -429,17 +430,14 @@ def execution_create(request, slug):
                 execution=execution,
                 action_type='execution_created',
                 user=request.user,
-                description=f"{request.user.username} created execution of '{process.title}' assigned to {execution.assigned_to.username}",
+                description=f"{request.user.username} launched workflow '{process.title}'",
                 request=request
             )
 
             messages.success(request, f"Started execution of '{process.title}'.")
             return redirect('processes:execution_detail', pk=execution.pk)
     else:
-        form = ProcessExecutionForm(
-            organization=org,
-            initial={'assigned_to': request.user}
-        )
+        form = ProcessExecutionForm(organization=org)
 
     return render(request, 'processes/execution_form.html', {
         'form': form,
