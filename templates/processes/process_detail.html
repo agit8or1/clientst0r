@@ -21,10 +21,10 @@
             <i class="fas fa-rocket"></i> Launch Workflow
         </a>
         {% if not process.is_global %}
-        <a href="{% url 'processes:process_edit' process.slug %}" class="btn btn-outline-secondary">
+        <a href="{% url 'processes:process_edit' process.slug %}" class="btn btn-secondary">
             <i class="fas fa-edit"></i> Edit
         </a>
-        <a href="{% url 'processes:process_delete' process.slug %}" class="btn btn-outline-danger">
+        <a href="{% url 'processes:process_delete' process.slug %}" class="btn btn-danger">
             <i class="fas fa-trash"></i> Delete
         </a>
         {% endif %}

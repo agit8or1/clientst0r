@@ -83,11 +83,11 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{% url 'processes:process_detail' workflow.slug %}" class="btn btn-sm btn-outline-primary" title="View">
+                        <a href="{% url 'processes:process_detail' workflow.slug %}" class="btn btn-sm btn-primary" title="View">
                             <i class="fas fa-eye"></i>
                         </a>
                         {% if not workflow.is_global %}
-                        <a href="{% url 'processes:process_edit' workflow.slug %}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                        <a href="{% url 'processes:process_edit' workflow.slug %}" class="btn btn-sm btn-secondary" title="Edit">
                             <i class="fas fa-edit"></i>
                         </a>
                         {% endif %}
