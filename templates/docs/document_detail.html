@@ -3,11 +3,17 @@
 {% block title %}{{ document.title }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-end mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{{ document.title }}</h1>
     <div>
+        {% if has_write_permission %}
         <a href="{% url 'docs:document_edit' document.slug %}" class="btn btn-secondary">
             <i class="fas fa-edit"></i> Edit
         </a>
+        <button type="button" class="btn btn-danger" onclick="deleteDocument('{{ document.slug }}', '{{ document.title|escapejs }}')">
+            <i class="fas fa-trash"></i> Delete
+        </button>
+        {% endif %}
         <a href="{% url 'docs:document_list' %}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left"></i> Back to List
         </a>
@@ -63,9 +69,43 @@
 <ul class="list-group">
     {% for version in versions %}
     <li class="list-group-item">
-        Version {{ version.version_number }} - {{ version.created_at|date:"Y-m-d H:i" }} by {{ version.created_by.username }}
+        Version {{ version.version_number }} - {{ version.created_at|date:"Y-m-d H:i" }} by {{ version.created_by.username %}
     </li>
     {% endfor %}
 </ul>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Delete document function
+async function deleteDocument(slug, title) {
+    if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const response = await fetch(`/docs/${slug}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
+            }
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            alert(result.message);
+            window.location.href = '{% url "docs:document_list" %}';
+        } else {
+            const errorText = await response.text();
+            alert(`Failed to delete document: ${errorText}`);
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        alert(`Error deleting document: ${error.message}`);
+    }
+}
+</script>
 {% endblock %}

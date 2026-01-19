@@ -5,6 +5,18 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.180] - 2026-01-19
+
+### 🐛 Bug Fixes
+
+**Document Delete Permission Fix:**
+- **Fixed** delete buttons not showing due to missing `has_write_permission` context variable
+- **Added** write permission check to `document_list` view
+- **Added** write permission check to `document_detail` view
+- **Added** delete button to document detail page
+- **Added** delete JavaScript function to document detail page
+- **Delete buttons** now properly appear only for users with write permission
+
 ## [2.24.179] - 2026-01-19
 
 ### 🐛 Bug Fixes

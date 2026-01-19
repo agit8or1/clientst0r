@@ -55,6 +55,16 @@ def document_list(request):
     from core.models import Tag
     tags = Tag.objects.filter(organization=org).order_by('name')
 
+    # Check if user has write permission
+    has_write_permission = False
+    if request.user.is_superuser or request.user.is_staff:
+        has_write_permission = True
+    else:
+        from core.decorators import get_user_membership
+        membership = get_user_membership(request)
+        if membership and membership.can_write():
+            has_write_permission = True
+
     return render(request, 'docs/document_list.html', {
         'org_docs': documents,
         'org': org,
@@ -63,6 +73,7 @@ def document_list(request):
         'selected_category': category_id,
         'selected_tag': tag_id,
         'query': query,
+        'has_write_permission': has_write_permission,
     })
 
 
@@ -77,10 +88,21 @@ def document_detail(request, slug):
     # Get versions
     versions = document.versions.all()[:10]  # Last 10 versions
 
+    # Check if user has write permission
+    has_write_permission = False
+    if request.user.is_superuser or request.user.is_staff:
+        has_write_permission = True
+    else:
+        from core.decorators import get_user_membership
+        membership = get_user_membership(request)
+        if membership and membership.can_write():
+            has_write_permission = True
+
     return render(request, 'docs/document_detail.html', {
         'document': document,
         'rendered_body': document.render_markdown(),
         'versions': versions,
+        'has_write_permission': has_write_permission,
     })
 
 
