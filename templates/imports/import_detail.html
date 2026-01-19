@@ -88,9 +88,13 @@
                             <p><strong>Source Type:</strong> {{ job.get_source_type_display }}</p>
                             <p><strong>Source URL:</strong> <code>{{ job.source_url }}</code></p>
                             <p><strong>Target Organization:</strong>
+                                {% if job.target_organization %}
                                 <a href="{% url 'accounts:organization_detail' job.target_organization.pk %}">
                                     {{ job.target_organization.name }}
                                 </a>
+                                {% else %}
+                                <span class="text-muted">All Organizations</span>
+                                {% endif %}
                             </p>
                         </div>
                         <div class="col-md-6">
