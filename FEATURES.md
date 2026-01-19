@@ -251,7 +251,7 @@ Complete feature documentation for HuduGlue - Self-hosted IT documentation platf
 - **IP Status** - Active, Reserved, Available
 - **Network Planning** - Visual network organization
 
-## 📋 Workflows & Process Automation (NEW in v2.24.155)
+## 📋 Workflows & Process Automation (v2.24.155-159)
 
 ### Process/Workflow Management
 - **Process Templates** - Create reusable workflow templates
@@ -259,56 +259,104 @@ Complete feature documentation for HuduGlue - Self-hosted IT documentation platf
 - **Process Categories** - Organize by type (onboarding, offboarding, deployment, maintenance, incident, backup, security, change)
 - **Global Processes** - Superuser-created templates available to all organizations
 - **Organization Processes** - Org-specific custom workflows
-- **Process Execution** - Track workflow runs from start to completion
+- **Tagging System** - Organize workflows with custom tags
+- **Published/Archived States** - Control workflow visibility
+- **Template Mode** - Mark workflows as reusable templates for cloning
 
-### Workflow Execution Tracking
+### Workflow Launch & Execution (v2.24.157-159)
+- **One-Click Launch** - Prominent "Launch Workflow" button with rocket icon 🚀
+- **Automatic Assignment** - Workflows automatically assigned to launcher (v2.24.159)
+- **Launch Form** - Simple form with:
+  - Due date (optional)
+  - Notes (optional)
+  - PSA ticket linking (optional)
+  - Note visibility control (internal/public)
 - **Execution Status** - Not Started, In Progress, Completed, Failed, Cancelled
 - **Stage Completion** - Track which steps are complete
-- **User Assignment** - Assign executions to specific users
-- **Due Date Tracking** - Set deadlines for workflow completion
+- **Due Date Tracking** - Set deadlines with overdue warnings
 - **Progress Percentage** - Real-time completion tracking
 - **Stage Requirements** - Mark stages as requiring confirmation
+- **Estimated Duration** - Set time estimates per stage
 
-### Comprehensive Audit Logging (NEW in v2.24.155)
+### Execution List View (NEW in v2.24.158)
+- **Complete Execution History** - View all workflow launches across organization
+- **Advanced Filtering**:
+  - Filter by status (Not Started, In Progress, Completed, Failed, Cancelled)
+  - Filter by workflow
+  - Filter by assigned user
+- **Visual Dashboard**:
+  - Color-coded status badges
+  - Progress bars showing completion percentage
+  - Overdue warnings for past-due workflows
+  - PSA ticket associations displayed
+- **Quick Actions**:
+  - View execution details
+  - View audit log
+- **Sortable Columns** - Sort by workflow, status, assignee, start date, due date
+
+### Comprehensive Audit Logging (v2.24.155)
 - **Complete Activity Timeline** - Every action logged with timestamp and user
 - **Audit Log Events**:
-  - Execution created/started/completed/failed/cancelled
-  - Stage completed/uncompleted
-  - Stage notes added
-  - Execution notes updated
+  - Workflow launched (who launched it, when)
+  - Stage completed/uncompleted (who, when, with notes)
   - Status changes with before/after values
+  - Notes updated
   - Due date changes
+  - PSA ticket updates
 - **Timeline View** - Chronological activity feed grouped by date
 - **Action Details** - User, IP address, timestamp, description
-- **Change History** - Old/new values for updates
-- **Color-Coded Events** - Visual indicators (green=completed, yellow=uncompleted, red=failed)
+- **Change History** - Old/new values stored in JSON for all updates
+- **Color-Coded Events** - Visual indicators (green=completed, yellow=uncompleted, red=failed, blue=other)
 - **Stage-Specific Tracking** - Links actions to specific workflow stages
+- **Dual Logging** - Logs to both workflow-specific audit log and system-wide audit log
 
-### PSA Ticket Integration (NEW in v2.24.155)
-- **Ticket Linking** - Link workflow executions to PSA tickets
+### PSA Ticket Integration (v2.24.155-156)
+- **Ticket Linking** - Link workflow executions to PSA tickets at launch time
 - **Automatic Updates** - Post completion summary to PSA ticket when workflow finishes
-- **Completion Summary** - Includes:
+- **Note Visibility Control** (v2.24.156) - Choose whether completion notes are:
+  - **Public** - Visible to customer (default)
+  - **Internal** - Private, only visible to internal staff
+- **Completion Summary** - Automatically posts to PSA ticket:
+  - Workflow title and completion status
   - All completed steps with timestamps
   - User who completed each stage
-  - Workflow title and completion status
+  - Formatted for readability
 - **Supported PSA Platforms**:
-  - ITFlow
-  - ConnectWise Manage
-  - Syncro
-  - (More providers: Autotask, HaloPSA coming soon)
-- **Internal/Public Notes** - Control note visibility in PSA system
+  - **ITFlow** - Full API integration with ticket comments
+  - **ConnectWise Manage** - Service ticket notes with internal/public control
+  - **Syncro** - Ticket comments with visibility control
+  - (More providers: Autotask, HaloPSA - framework ready)
+- **Error Handling** - PSA failures don't block workflow completion
+- **Credential Security** - PSA credentials encrypted with AES-256-GCM
 
 ### Flowchart Generation
 - **Auto-Generate Diagrams** - Convert workflows to draw.io flowcharts
 - **Visual Workflow** - Rectangle nodes for steps, diamond nodes for decision points
 - **One-Click Generation** - Generate/regenerate from workflow detail page
 - **Color-Coded Stages** - Alternating colors for visual clarity
+- **Automatic Layout** - Vertical flow with proper spacing
 
 ### Interactive Checklist Mode
 - **Live Progress Tracking** - Check off stages as you complete them
+- **Stage Completion** - AJAX-powered "Mark Complete" buttons
 - **Stage Uncomplete** - Uncheck stages if needed (tracked in audit log)
 - **Execution Lock** - Cannot modify completed executions
-- **Real-Time Updates** - AJAX-powered progress updates
+- **Real-Time Updates** - Progress bar updates immediately
+- **Stage Notes** - Add notes when completing stages
+- **Entity Linking** - Each stage can link to:
+  - Knowledge base documents
+  - Passwords/credentials
+  - Secure notes
+  - Assets
+- **Quick Access** - View linked entities directly from execution view
+
+### Workflow Features
+- **Entity Linking Per Stage** - Link documents, passwords, secure notes, or assets to workflow steps
+- **Required Confirmation** - Mark critical stages as requiring explicit confirmation
+- **Stage Reordering** - Drag and drop to reorganize workflow steps
+- **Bulk Stage Management** - Inline formsets for adding/editing multiple stages
+- **Stage Descriptions** - Rich text instructions for each step
+- **Progress Visualization** - Bootstrap progress bars with percentage display
 
 ## 🔌 PSA Integrations
 

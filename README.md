@@ -1,6 +1,6 @@
 # HuduGlue 🐕
 
-[![Version 2.24.52](https://img.shields.io/badge/version-2.24.52-brightgreen)](https://github.com/agit8or1/huduglue)
+[![Version 2.24.159](https://img.shields.io/badge/version-2.24.159-brightgreen)](https://github.com/agit8or1/huduglue)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/huduglue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
@@ -239,13 +239,19 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 - **Custom Alerts** - Configurable notification thresholds
 - **Monitoring History** - Track uptime/downtime trends over time
 
-#### Processes & Workflows
+#### Workflows & Process Automation (v2.24.155-159)
+- **One-Click Launch** - Prominent "Launch Workflow" button with automatic assignment
+- **Complete Audit Logging** - Every action tracked (who, what, when) with timeline view
+- **PSA Ticket Integration** - Link workflows to PSA tickets with automatic completion summaries
+- **Execution List View** - See all workflow launches across organization with filtering
 - **Sequential Runbooks** - Step-by-step process documentation
 - **Entity Linking** - Link processes to assets, passwords, diagrams, docs
-- **Execution Tracking** - Track process runs with timestamps and notes
+- **Execution Tracking** - Track process runs with timestamps, notes, and progress bars
 - **Process Templates** - Reusable templates for common procedures
-- **Checklist Mode** - Interactive checklist for executing processes
+- **Interactive Checklist** - Live progress tracking with stage completion
 - **Stage Duration Tracking** - Time tracking for each process step
+- **Note Visibility Control** - Choose internal/public visibility for PSA ticket notes
+- **Auto-Generated Flowcharts** - Convert workflows to Draw.io diagrams
 
 #### Data Import & Migration
 - **IT Glue Import** - Full data migration from IT Glue platform
@@ -315,7 +321,53 @@ Full implementations for:
 
 ### Latest Release - January 2026
 
-**v2.24.37** - 📚 **Comprehensive Professional KB Article Library** (Latest Release)
+**v2.24.159** - 🚀 **Automatic Workflow Assignment** (Latest Release)
+- **Simplified Launch** - Removed "Assign To" field from workflow launch form
+- **Auto-Assignment** - Workflows automatically assigned to user who launches them
+- **Cleaner UX** - Streamlined workflow execution creation process
+- **Info Message** - Clear notification that workflow will be assigned to you
+
+**v2.24.158** - 📊 **Workflow Execution List View & Bug Fixes**
+- **Complete History** - View all workflow launches across organization in one place
+- **Advanced Filtering** - Filter by status, workflow, and assigned user
+- **Visual Dashboard** - Color-coded status badges, progress bars, overdue warnings
+- **Quick Actions** - Jump to execution details or audit log from list
+- **Fixed** ProcessExecutionForm organization filtering errors
+- **Fixed** User membership query using correct relationship
+
+**v2.24.157** - 🎨 **Enhanced Workflow Launch Experience**
+- **Renamed** "Start Execution" to "Launch Workflow" throughout UI
+- **Prominent Button** - Large green "Launch Workflow" button with rocket icon 🚀
+- **PSA Integration** - Select PSA ticket and set note visibility directly at launch
+- **Better Separation** - Clear distinction between viewing templates and launching executions
+
+**v2.24.156** - 🔐 **PSA Note Visibility Control**
+- **Internal/Public Toggle** - Choose whether PSA completion notes are private or customer-visible
+- **Default Public** - Notes visible to customers by default
+- **Checkbox Control** - Simple checkbox in launch form to make notes internal
+
+**v2.24.155** - 📋 **Complete Workflow Audit Logging & PSA Integration**
+- **Comprehensive Audit Log** - Every workflow action tracked with user, timestamp, IP address
+- **Timeline View** - Beautiful chronological activity feed grouped by date
+- **Color-Coded Events** - Green (completed), yellow (uncompleted), red (failed), blue (other)
+- **PSA Ticket Integration** - Link workflows to PSA tickets at launch time
+- **Auto-Update PSA** - Completion summary automatically posted to PSA ticket when workflow finishes
+- **Change History** - Old/new values stored in JSON for all updates
+- **Dual Logging** - Logs to both workflow-specific audit log and system-wide audit log
+- **Supported PSAs** - ITFlow, ConnectWise Manage, Syncro (with internal/public note control)
+- **PSAManager Class** - Unified interface for all PSA ticket operations with encryption
+
+**v2.24.154** - 🎨 **Diagram Preview Generation Fixes**
+- **Fixed** FileField empty detection for diagram previews on remote server
+- **Added** --force flag to updater for diagram preview generation
+- **Improved** Q object filtering for better SQLite/PostgreSQL compatibility
+
+**v2.24.153** - 📱 **Document Previews & Workflow Flowcharts**
+- **Document Card View** - Visual preview cards for all knowledge base documents
+- **One-Click Flowcharts** - Generate workflow diagrams directly from process pages
+- **Auto-Generate on Update** - Workflow diagrams regenerate during system updates
+
+**v2.24.37** - 📚 **Comprehensive Professional KB Article Library**
 - **Windows Administration Articles** - 4 comprehensive guides (1,576 lines of professional content):
   - How to Reset Windows Local Administrator Password (5 methods including Utilman.exe replacement)
   - Optimize Windows 10/11 Performance - Complete optimization guide
@@ -751,7 +803,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📊 Project Status
 
-- **Version**: 2.24.37
+- **Version**: 2.24.159
 - **Release Date**: January 2026
 - **Status**: Production Ready
 - **Maintained**: Yes
