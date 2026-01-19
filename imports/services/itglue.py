@@ -273,7 +273,8 @@ class ITGlueImportService(BaseImportService):
         return Document.objects.create(
             organization=self.organization,
             title=attrs.get('name', 'Imported Document'),
-            content=attrs.get('body', ''),
+            body=attrs.get('body', ''),
+            content_type='markdown',  # ITGlue documents are typically Markdown
             created_by=None,  # Will be set to import user
         )
 

@@ -270,7 +270,8 @@ class HuduImportService(BaseImportService):
         return Document.objects.create(
             organization=self.organization,
             title=item.get('name', 'Imported Document'),
-            content=item.get('content', ''),
+            body=item.get('content', ''),
+            content_type='markdown',  # Hudu articles are typically Markdown
             created_by=None,  # Will be set to import user
         )
 

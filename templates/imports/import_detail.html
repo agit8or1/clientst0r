@@ -88,7 +88,7 @@
                             <p><strong>Source Type:</strong> {{ job.get_source_type_display }}</p>
                             <p><strong>Source URL:</strong> <code>{{ job.source_url }}</code></p>
                             <p><strong>Target Organization:</strong>
-                                <a href="{% url 'core:organization_detail' job.target_organization.pk %}">
+                                <a href="{% url 'accounts:organization_detail' job.target_organization.pk %}">
                                     {{ job.target_organization.name }}
                                 </a>
                             </p>

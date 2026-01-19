@@ -339,7 +339,18 @@
                     'X-CSRFToken': '{{ csrf_token }}'
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json();
+                } else {
+                    // If not JSON, return text to see what the error is
+                    return response.text().then(text => {
+                        throw new Error('Server returned non-JSON response. Please try again or contact support.');
+                    });
+                }
+            })
             .then(data => {
                 if (data.success) {
                     // Open GitHub issue creation page in new tab
@@ -359,13 +370,13 @@
                     }, 3000);
                 } else {
                     alertDiv.className = 'alert alert-danger';
-                    alertDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${data.message}`;
+                    alertDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${data.message || 'An error occurred while submitting the bug report.'}`;
                     alertDiv.style.display = 'block';
                 }
             })
             .catch(error => {
                 alertDiv.className = 'alert alert-danger';
-                alertDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> An error occurred: ${error.message}`;
+                alertDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${error.message || 'An unexpected error occurred. Please try again.'}`;
                 alertDiv.style.display = 'block';
             })
             .finally(() => {

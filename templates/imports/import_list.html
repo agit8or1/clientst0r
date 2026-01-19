@@ -41,7 +41,7 @@
                                 <small class="text-muted">{{ job.source_url }}</small>
                             </td>
                             <td>
-                                <a href="{% url 'core:organization_detail' job.target_organization.pk %}">
+                                <a href="{% url 'accounts:organization_detail' job.target_organization.pk %}">
                                     {{ job.target_organization.name }}
                                 </a>
                             </td>
