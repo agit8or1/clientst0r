@@ -114,9 +114,21 @@
                         <small class="form-text text-muted">
                             Choose how your background appears:<br>
                             • <strong>No Background</strong> - Clean, solid color background from theme<br>
+                            • <strong>Preset Abstract Backgrounds</strong> - Choose from 12 curated abstract images<br>
                             • <strong>Custom Upload</strong> - Upload your own background image<br>
                             • <strong>Random from Internet</strong> - Get a beautiful random image each page load
                         </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.preset_background.id_for_label }}" class="form-label">
+                            <i class="fas fa-palette"></i> Preset Background
+                        </label>
+                        {{ form.preset_background }}
+                        {% if form.preset_background.errors %}
+                        <div class="invalid-feedback d-block">{{ form.preset_background.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Select an abstract background (only used when "Preset Abstract Backgrounds" is selected above)</small>
                     </div>
 
                     <div class="mb-3">

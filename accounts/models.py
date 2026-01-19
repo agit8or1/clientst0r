@@ -215,6 +215,7 @@ class UserProfile(BaseModel):
     background_mode = models.CharField(max_length=20, default='none', choices=[
         ('custom', 'Custom Upload'),
         ('none', 'No Background Image'),
+        ('preset', 'Preset Abstract Backgrounds'),
         ('random', 'Random from Internet'),
     ])
     background_image = models.ImageField(
@@ -222,6 +223,26 @@ class UserProfile(BaseModel):
         null=True,
         blank=True,
         help_text='Custom background image for your profile'
+    )
+    preset_background = models.CharField(
+        max_length=50,
+        default='abstract-1',
+        blank=True,
+        choices=[
+            ('abstract-1', 'Purple Gradient'),
+            ('abstract-2', 'Blue Wave'),
+            ('abstract-3', 'Orange Sunset'),
+            ('abstract-4', 'Green Aurora'),
+            ('abstract-5', 'Pink Nebula'),
+            ('abstract-6', 'Cyan Fluid'),
+            ('abstract-7', 'Red Geometric'),
+            ('abstract-8', 'Teal Gradient'),
+            ('abstract-9', 'Yellow Light'),
+            ('abstract-10', 'Indigo Smoke'),
+            ('abstract-11', 'Magenta Flow'),
+            ('abstract-12', 'Navy Waves'),
+        ],
+        help_text='Select a preset abstract background'
     )
 
     # 2FA Settings
