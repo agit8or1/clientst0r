@@ -58,18 +58,18 @@
 <!-- View Toggle -->
 <div class="d-flex justify-content-end mb-3">
     <div class="btn-group btn-group-sm" role="group">
-        <button type="button" class="btn btn-outline-secondary active" id="cardViewBtn"><i class="fas fa-th"></i> Card</button>
-        <button type="button" class="btn btn-outline-secondary" id="tableViewBtn"><i class="fas fa-list"></i> Table</button>
+        <button type="button" class="btn btn-outline-secondary" id="cardViewBtn"><i class="fas fa-th"></i> Card</button>
+        <button type="button" class="btn btn-outline-secondary active" id="tableViewBtn"><i class="fas fa-list"></i> Table</button>
     </div>
 </div>
 
 <!-- Card View -->
-<div id="cardView" class="row">
+<div id="cardView" class="row" style="display: none;">
     {% for doc in org_docs %}
-    <div class="col-md-4 col-lg-3 mb-4">
+    <div class="col-md-3 col-lg-2 mb-3">
         <div class="card h-100 shadow-sm">
             <!-- Preview/Thumbnail -->
-            <div class="position-relative" style="height: 200px; overflow: hidden; background: #f8f9fa;">
+            <div class="position-relative" style="height: 120px; overflow: hidden; background: #f8f9fa;">
                 {% if doc.content_type == 'file' and doc.file %}
                     {% if 'image' in doc.file_type %}
                         <img src="{{ doc.file.url }}" class="w-100 h-100" style="object-fit: cover;" alt="{{ doc.title }}">
@@ -101,30 +101,22 @@
                 </div>
             </div>
 
-            <div class="card-body">
-                <h6 class="card-title">
-                    <a href="{% url 'docs:document_detail' doc.slug %}" class="text-decoration-none">{{ doc.title|truncatechars:40 }}</a>
+            <div class="card-body p-2">
+                <h6 class="card-title mb-1" style="font-size: 0.85rem;">
+                    <a href="{% url 'docs:document_detail' doc.slug %}" class="text-decoration-none">{{ doc.title|truncatechars:30 }}</a>
                 </h6>
-                {% if doc.category %}
-                <p class="small text-muted mb-1"><i class="fas fa-folder"></i> {{ doc.category.name }}</p>
-                {% endif %}
                 {% if doc.content_type == 'file' and doc.file_size %}
-                <p class="small text-muted mb-2"><i class="fas fa-hdd"></i> {{ doc.file_size|filesizeformat }}</p>
+                <p class="small text-muted mb-1" style="font-size: 0.7rem;"><i class="fas fa-hdd"></i> {{ doc.file_size|filesizeformat }}</p>
                 {% endif %}
-                <div class="d-flex gap-1 flex-wrap mb-2">
-                    {% for tag in doc.tags.all|slice:":3" %}
-                    <span class="badge" style="background-color: {{ tag.color }}; font-size: 0.7rem;">{{ tag.name }}</span>
-                    {% endfor %}
-                </div>
-                <p class="small text-muted mb-0">
-                    <i class="far fa-clock"></i> {{ doc.updated_at|date:"M d, Y" }}
+                <p class="small text-muted mb-0" style="font-size: 0.7rem;">
+                    <i class="far fa-clock"></i> {{ doc.updated_at|date:"M d" }}
                 </p>
             </div>
 
-            <div class="card-footer bg-transparent border-top-0 pt-0">
+            <div class="card-footer bg-transparent border-top-0 p-2 pt-0">
                 <div class="btn-group btn-group-sm w-100">
-                    <a href="{% url 'docs:document_detail' doc.slug %}" class="btn btn-outline-primary"><i class="fas fa-eye"></i> View</a>
-                    <a href="{% url 'docs:document_edit' doc.slug %}" class="btn btn-outline-secondary"><i class="fas fa-edit"></i> Edit</a>
+                    <a href="{% url 'docs:document_detail' doc.slug %}" class="btn btn-outline-primary btn-sm py-0" style="font-size: 0.7rem;"><i class="fas fa-eye"></i></a>
+                    <a href="{% url 'docs:document_edit' doc.slug %}" class="btn btn-outline-secondary btn-sm py-0" style="font-size: 0.7rem;"><i class="fas fa-edit"></i></a>
                 </div>
             </div>
         </div>
@@ -132,8 +124,8 @@
     {% endfor %}
 </div>
 
-<!-- Table View (Hidden by default) -->
-<div id="tableView" class="row" style="display: none;">
+<!-- Table View (Default) -->
+<div id="tableView" class="row">
     <div class="col-md-12 mb-4">
         <div class="card">
             <div class="card-header py-2">
@@ -238,10 +230,12 @@ $(document).ready(function() {
         }
     });
 
-    // Restore view mode from localStorage
-    const savedView = localStorage.getItem('docViewMode');
+    // Restore view mode from localStorage or default to table
+    const savedView = localStorage.getItem('docViewMode') || 'table';
     if (savedView === 'table') {
         $('#tableViewBtn').click();
+    } else {
+        $('#cardViewBtn').click();
     }
 });
 </script>

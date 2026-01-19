@@ -5,6 +5,18 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.24.170] - 2026-01-19
+
+### 🎨 UI/UX Improvements
+
+**Document List Layout:**
+- **Changed** default view from card to table for better scalability
+- **Reduced** card preview height from 200px to 120px
+- **Increased** cards per row from 3-4 to 6 (col-lg-2)
+- **Condensed** card padding and font sizes for more compact display
+- **Optimized** for handling 50+ documents with pagination and search
+- Table view now loads immediately with DataTable features enabled
+
 ## [2.24.169] - 2026-01-19
 
 ### 🐛 Bug Fixes
