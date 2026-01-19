@@ -134,6 +134,18 @@ class PSAConnectionForm(forms.ModelForm):
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'For cloud-hosted instances'})
     )
 
+    # Alga PSA credentials
+    alga_api_key = forms.CharField(
+        label='API Key',
+        required=False,
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Your Alga PSA API key'})
+    )
+    alga_tenant_id = forms.CharField(
+        label='Tenant ID',
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Your tenant/organization UUID'})
+    )
+
     class Meta:
         model = PSAConnection
         fields = ['provider_type', 'name', 'base_url', 'sync_enabled', 'sync_companies',
@@ -193,6 +205,9 @@ class PSAConnectionForm(forms.ModelForm):
             elif provider == 'rangermsp':
                 self.fields['ranger_api_key'].initial = creds.get('api_key', '')
                 self.fields['ranger_account_id'].initial = creds.get('account_id', '')
+            elif provider == 'alga_psa':
+                self.fields['alga_api_key'].initial = creds.get('api_key', '')
+                self.fields['alga_tenant_id'].initial = creds.get('tenant_id', '')
 
     def clean(self):
         cleaned_data = super().clean()
@@ -240,6 +255,11 @@ class PSAConnectionForm(forms.ModelForm):
         elif provider_type == 'rangermsp':
             if not cleaned_data.get('ranger_api_key'):
                 self.add_error('ranger_api_key', 'This field is required for RangerMSP')
+        elif provider_type == 'alga_psa':
+            required_fields = ['alga_api_key', 'alga_tenant_id']
+            for field in required_fields:
+                if not cleaned_data.get(field):
+                    self.add_error(field, 'This field is required for Alga PSA')
 
         return cleaned_data
 
@@ -302,6 +322,11 @@ class PSAConnectionForm(forms.ModelForm):
             credentials = {
                 'api_key': self.cleaned_data.get('ranger_api_key', ''),
                 'account_id': self.cleaned_data.get('ranger_account_id', ''),
+            }
+        elif provider_type == 'alga_psa':
+            credentials = {
+                'api_key': self.cleaned_data.get('alga_api_key', ''),
+                'tenant_id': self.cleaned_data.get('alga_tenant_id', ''),
             }
 
         connection.set_credentials(credentials)
