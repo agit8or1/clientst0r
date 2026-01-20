@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from core.middleware import get_request_organization
 from core.decorators import require_admin
-from .models import PSAConnection, PSACompany, PSAContact, PSATicket, RMMConnection, RMMDevice
+from .models import PSAConnection, PSACompany, PSAContact, PSATicket, RMMConnection, RMMDevice, RMMAlert, RMMSoftware
 from .forms import PSAConnectionForm, RMMConnectionForm
 from .sync import PSASync
 from .providers import get_provider
