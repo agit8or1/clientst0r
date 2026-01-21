@@ -299,6 +299,11 @@ class TacticalRMMProvider(BaseRMMProvider):
             'mac_address': '',  # Tactical RMM doesn't expose MAC in main agent data
             'is_online': raw_data.get('online', False),
             'last_seen': last_seen,
+            # Site/Client information for organization mapping
+            'site_name': raw_data.get('site_name', ''),
+            'site_id': str(raw_data.get('site', '')) if raw_data.get('site') else '',
+            'client_name': raw_data.get('client_name', ''),
+            'client_id': str(raw_data.get('client', '')) if raw_data.get('client') else '',
             'raw_data': raw_data,
         }
 

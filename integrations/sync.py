@@ -15,6 +15,7 @@ from .models import (
 )
 from .providers import get_provider
 from .providers.rmm import get_rmm_provider
+from .org_import import import_organization_from_rmm
 from audit.models import AuditLog
 
 logger = logging.getLogger('integrations')
@@ -354,6 +355,7 @@ class RMMSync:
             'devices': {'created': 0, 'updated': 0, 'mapped': 0, 'errors': 0},
             'alerts': {'created': 0, 'updated': 0, 'errors': 0},
             'software': {'created': 0, 'updated': 0, 'deleted': 0, 'errors': 0},
+            'organizations': {'created': 0, 'updated': 0, 'errors': 0},
         }
 
     def sync_all(self):
@@ -437,12 +439,16 @@ class RMMSync:
             for device_data in devices_data:
                 try:
                     with transaction.atomic():
-                        device = self._upsert_device(device_data)
-                        
+                        # Determine target organization for this device
+                        target_org = self._determine_target_organization(device_data)
+
+                        # Create/update device with the determined organization
+                        device = self._upsert_device(device_data, target_org)
+
                         # Auto-map to assets if enabled
                         if self.connection.map_to_assets:
                             self._map_device_to_asset(device)
-                            
+
                 except Exception as e:
                     logger.error(f"Error syncing device {device_data.get('external_id')}: {e}")
                     self.stats['devices']['errors'] += 1
@@ -519,8 +525,77 @@ class RMMSync:
             logger.error(f"Error in software sync: {e}")
             raise
 
-    def _upsert_device(self, device_data):
-        """Create or update RMM device."""
+    def _determine_target_organization(self, device_data):
+        """
+        Determine which organization this device should belong to.
+
+        If import_organizations is enabled, attempts to import/find organization
+        from RMM site/client data. Falls back to connection organization.
+
+        Args:
+            device_data: Normalized device data from provider
+
+        Returns:
+            Organization instance
+        """
+        if not self.connection.import_organizations:
+            # Organization import disabled - use connection's organization
+            return self.organization
+
+        # Extract site/client information from device
+        site_id = device_data.get('site_id', '') or device_data.get('client_id', '')
+        site_name = device_data.get('site_name', '') or device_data.get('client_name', '')
+
+        if not site_id or not site_name:
+            # No site/client info available - fallback to connection org
+            logger.debug(f"Device {device_data.get('external_id')} has no site/client info, using connection org")
+            return self.organization
+
+        # Build site data for organization import
+        site_data = {
+            'external_id': site_id,
+            'name': site_name,
+            'description': f"Imported from {self.connection.get_provider_type_display()}",
+        }
+
+        try:
+            # Check if organization already exists before importing
+            from .org_import import find_existing_organization_by_rmm_id
+            existing_org = find_existing_organization_by_rmm_id(self.connection, site_id)
+
+            # Attempt to import/find organization
+            imported_org = import_organization_from_rmm(self.connection, site_data)
+
+            if imported_org:
+                # Track if this was a create or update
+                if existing_org:
+                    self.stats['organizations']['updated'] += 1
+                    logger.debug(f"Updated existing organization {imported_org.name} for site {site_name}")
+                else:
+                    self.stats['organizations']['created'] += 1
+                    logger.info(f"Created new organization {imported_org.name} for site {site_name}")
+
+                logger.info(f"Device {device_data.get('device_name')} mapped to organization {imported_org.name}")
+                return imported_org
+            else:
+                # Import returned None - fallback to connection org
+                logger.warning(f"Failed to import organization for site {site_name}, using connection org")
+                return self.organization
+
+        except Exception as e:
+            logger.error(f"Error importing organization for site {site_name}: {e}")
+            self.stats['organizations']['errors'] += 1
+            # On error, fallback to connection org
+            return self.organization
+
+    def _upsert_device(self, device_data, target_org):
+        """
+        Create or update RMM device.
+
+        Args:
+            device_data: Normalized device data from provider
+            target_org: Organization to assign device to
+        """
         external_id = device_data['external_id']
 
         # Check if exists
@@ -528,7 +603,7 @@ class RMMSync:
             connection=self.connection,
             external_id=external_id,
             defaults={
-                'organization': self.organization,
+                'organization': target_org,
                 'device_name': device_data['device_name'],
                 'device_type': device_data['device_type'],
                 'manufacturer': device_data.get('manufacturer', ''),
@@ -557,7 +632,7 @@ class RMMSync:
             external_type='device',
             external_id=external_id,
             defaults={
-                'organization': self.organization,
+                'organization': target_org,
                 'local_type': 'rmm_device',
                 'local_id': device.id,
                 'external_hash': data_hash,
