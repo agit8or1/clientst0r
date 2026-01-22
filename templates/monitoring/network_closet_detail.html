@@ -20,13 +20,14 @@
     align-items: center;
     padding: 0 6px;
     font-size: 0.7rem;
-    color: #adb5bd;
+    color: #e9ecef;
 }
 .closet-unit-number {
     width: 24px;
     text-align: center;
     font-weight: bold;
     font-size: 0.65rem;
+    color: #f8f9fa;
 }
 .closet-device {
     color: white;
@@ -44,6 +45,10 @@
 }
 [data-bs-theme="dark"] .closet-unit {
     background: #1a1d23;
+    color: #e6edf3;
+}
+[data-bs-theme="dark"] .closet-unit-number {
+    color: #f0f6fc;
 }
 </style>
 {% endblock %}
@@ -202,22 +207,20 @@
                 <div class="mt-4">
                     <h6><i class="fas fa-th"></i> Visual Layout</h6>
                     <div class="closet-visual">
-                        {% for u in closet.units_display|slice:"::-1" %}
-                        {% with device=closet.get_device_at_unit|slice:":"|get_index:u %}
+                        {% for unit_num, device in unit_map.items reversed %}
                         {% if device %}
                         <div class="closet-unit closet-device {% if device.units > 1 %}closet-device-multi{% endif %}"
                              style="background-color: {{ device.color }};"
                              title="{{ device.name }}">
-                            <span class="closet-unit-number">{{ u }}</span>
+                            <span class="closet-unit-number">{{ unit_num }}</span>
                             <span class="flex-grow-1 text-truncate">{{ device.name }}</span>
                         </div>
                         {% else %}
                         <div class="closet-unit">
-                            <span class="closet-unit-number">{{ u }}</span>
+                            <span class="closet-unit-number">{{ unit_num }}</span>
                             <span class="flex-grow-1"></span>
                         </div>
                         {% endif %}
-                        {% endwith %}
                         {% endfor %}
                     </div>
                 </div>

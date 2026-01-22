@@ -63,13 +63,17 @@ class RackForm(forms.ModelForm):
     class Meta:
         model = Rack
         fields = [
-            'name', 'rack_type', 'datacenter', 'aisle', 'location', 'units', 'width_inches', 'depth_inches',
-            'power_capacity_watts', 'cooling_capacity_btu', 'notes',
+            'name', 'rack_type', 'datacenter', 'building', 'floor', 'room', 'aisle', 'location',
+            'units', 'width_inches', 'depth_inches', 'power_capacity_watts', 'cooling_capacity_btu',
+            'pdu_count', 'patch_panel_count', 'total_port_count', 'ambient_temp_f', 'notes',
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'rack_type': forms.Select(attrs={'class': 'form-control'}),
             'datacenter': forms.TextInput(attrs={'class': 'form-control'}),
+            'building': forms.TextInput(attrs={'class': 'form-control'}),
+            'floor': forms.TextInput(attrs={'class': 'form-control'}),
+            'room': forms.TextInput(attrs={'class': 'form-control'}),
             'aisle': forms.TextInput(attrs={'class': 'form-control'}),
             'location': forms.TextInput(attrs={'class': 'form-control'}),
             'units': forms.NumberInput(attrs={'class': 'form-control'}),
@@ -77,6 +81,10 @@ class RackForm(forms.ModelForm):
             'depth_inches': forms.NumberInput(attrs={'class': 'form-control'}),
             'power_capacity_watts': forms.NumberInput(attrs={'class': 'form-control'}),
             'cooling_capacity_btu': forms.NumberInput(attrs={'class': 'form-control'}),
+            'pdu_count': forms.NumberInput(attrs={'class': 'form-control'}),
+            'patch_panel_count': forms.NumberInput(attrs={'class': 'form-control'}),
+            'total_port_count': forms.NumberInput(attrs={'class': 'form-control'}),
+            'ambient_temp_f': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 

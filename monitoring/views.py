@@ -663,9 +663,20 @@ def network_closet_detail(request, pk):
     # Get devices in this closet
     devices = RackDevice.objects.filter(rack=closet).order_by('start_unit')
 
+    # Build unit map for visual representation
+    unit_map = {}
+    for u in range(1, closet.units + 1):
+        unit_map[u] = None
+
+    # Map devices to their units
+    for device in devices:
+        for u in range(device.start_unit, device.end_unit + 1):
+            unit_map[u] = device
+
     return render(request, 'monitoring/network_closet_detail.html', {
         'closet': closet,
         'devices': devices,
+        'unit_map': unit_map,
     })
 
 
