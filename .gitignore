@@ -163,7 +163,6 @@ screenshots/
 screenshots_selected/
 core/management/commands/create_test_data.py
 snap/
-.github/
 docs/GITHUB_ISSUE_3_RESPONSE.txt
 
 # Claude AI files (do not commit)
