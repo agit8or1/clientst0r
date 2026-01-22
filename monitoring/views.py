@@ -244,6 +244,12 @@ def rack_create(request):
             rack.save()
             messages.success(request, f'Rack "{rack.name}" created.')
             return redirect('monitoring:rack_detail', pk=rack.pk)
+        else:
+            # Log form errors for debugging
+            import logging
+            logger = logging.getLogger('monitoring')
+            logger.error(f"Rack form validation failed: {form.errors}")
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = RackForm(organization=org)
 
@@ -639,6 +645,12 @@ def network_closet_create(request):
             closet.save()
             messages.success(request, f'Network closet "{closet.name}" created.')
             return redirect('monitoring:network_closet_detail', pk=closet.pk)
+        else:
+            # Log form errors for debugging
+            import logging
+            logger = logging.getLogger('monitoring')
+            logger.error(f"Network closet form validation failed: {form.errors}")
+            messages.error(request, 'Please correct the errors below.')
     else:
         # Pre-populate form with network_closet type
         form = RackForm(organization=org, initial={'rack_type': 'network_closet'})
