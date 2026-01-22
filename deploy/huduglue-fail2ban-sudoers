@@ -1,5 +1,5 @@
 # Sudoers configuration for HuduGlue fail2ban integration
-# Install: sudo cp deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
+# Install: sudo cp /home/administrator/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
 # Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban
 
 # Allow administrator user to run fail2ban-client without password

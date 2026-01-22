@@ -596,6 +596,44 @@ EOF
 print_status "Environment file created (.env)"
 print_info "Secure random database password generated"
 
+# Step 5.5: Generate sudoers files with correct paths
+echo ""
+print_info "Step 5.5/11: Generating sudoers files..."
+
+# Create deploy directory if it doesn't exist
+mkdir -p "$INSTALL_DIR/deploy"
+
+# Generate huduglue-install-sudoers
+cat > "$INSTALL_DIR/deploy/huduglue-install-sudoers" <<SUDOEOF
+# Sudoers configuration for HuduGlue automatic fail2ban installation
+# Install: sudo cp $INSTALL_DIR/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install
+# Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-install
+
+# Allow $USER user to install and configure fail2ban without password
+$USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
+$USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y fail2ban
+$USER ALL=(ALL) NOPASSWD: /bin/systemctl enable fail2ban
+$USER ALL=(ALL) NOPASSWD: /bin/systemctl start fail2ban
+$USER ALL=(ALL) NOPASSWD: /bin/systemctl status fail2ban
+$USER ALL=(ALL) NOPASSWD: /bin/cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
+$USER ALL=(ALL) NOPASSWD: /bin/chmod 0440 /etc/sudoers.d/huduglue-fail2ban
+SUDOEOF
+
+# Generate huduglue-fail2ban-sudoers
+cat > "$INSTALL_DIR/deploy/huduglue-fail2ban-sudoers" <<FBSUDOEOF
+# Sudoers configuration for HuduGlue fail2ban integration
+# Install: sudo cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
+# Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban
+
+# Allow $USER user to run fail2ban-client without password
+$USER ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
+FBSUDOEOF
+
+print_status "Sudoers files generated with correct paths for user: $USER"
+print_info "Files created:"
+print_info "  • $INSTALL_DIR/deploy/huduglue-install-sudoers"
+print_info "  • $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers"
+
 # Step 6: Database setup
 echo ""
 print_info "Step 6/11: Database setup..."

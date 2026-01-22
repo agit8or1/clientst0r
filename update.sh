@@ -183,6 +183,49 @@ else
 fi
 
 echo ""
+echo -e "${YELLOW}Step 3.5: Regenerating Sudoers Files${NC}"
+echo "-----------------------------------"
+
+info "Generating sudoers files with correct paths..."
+
+# Get current user and install directory
+CURRENT_USER="$USER"
+INSTALL_DIR="$(pwd)"
+
+# Create deploy directory if it doesn't exist
+mkdir -p "$INSTALL_DIR/deploy"
+
+# Generate huduglue-install-sudoers
+cat > "$INSTALL_DIR/deploy/huduglue-install-sudoers" <<SUDOEOF
+# Sudoers configuration for HuduGlue automatic fail2ban installation
+# Install: sudo cp $INSTALL_DIR/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install
+# Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-install
+
+# Allow $CURRENT_USER user to install and configure fail2ban without password
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y fail2ban
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl enable fail2ban
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl start fail2ban
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl status fail2ban
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/chmod 0440 /etc/sudoers.d/huduglue-fail2ban
+SUDOEOF
+
+# Generate huduglue-fail2ban-sudoers
+cat > "$INSTALL_DIR/deploy/huduglue-fail2ban-sudoers" <<FBSUDOEOF
+# Sudoers configuration for HuduGlue fail2ban integration
+# Install: sudo cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
+# Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban
+
+# Allow $CURRENT_USER user to run fail2ban-client without password
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
+FBSUDOEOF
+
+success "Sudoers files regenerated for user: $CURRENT_USER"
+info "  • $INSTALL_DIR/deploy/huduglue-install-sudoers"
+info "  • $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers"
+
+echo ""
 echo -e "${YELLOW}Step 4: Database Migrations${NC}"
 echo "-----------------------------------"
 
