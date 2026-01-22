@@ -1,0 +1,19 @@
+# Gitleaks Configuration
+title = "HuduGlue Gitleaks Config"
+
+[allowlist]
+description = "Allowlist for false positives"
+paths = [
+    '''templates/api/apikey_list\.html''',
+    '''templates/core/documentation\.html''',
+]
+
+# Allowlist specific patterns that are just examples
+regexes = [
+    '''YOUR_API_KEY_HERE''',
+    '''your_key''',
+    '''example''',
+]
+
+# Allowlist commits that only contain documentation
+commits = []
