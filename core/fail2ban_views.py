@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.conf import settings
 import subprocess
 import re
 import logging
@@ -52,10 +53,14 @@ def is_fail2ban_installed():
 def fail2ban_status(request):
     """Fail2ban status and management page."""
 
+    # Get sudoers path for installation instructions
+    sudoers_path = settings.BASE_DIR / 'deploy' / 'huduglue-install-sudoers'
+
     # Check if fail2ban is installed
     if not is_fail2ban_installed():
         context = {
             'fail2ban_installed': False,
+            'sudoers_path': sudoers_path,
         }
         return render(request, 'core/fail2ban_status.html', context)
 
@@ -251,9 +256,10 @@ def fail2ban_install(request):
         )
 
         if test_result.returncode != 0:
+            sudoers_path = settings.BASE_DIR / 'deploy' / 'huduglue-install-sudoers'
             messages.error(
                 request,
-                'Sudo access not configured. Please run: sudo cp ~/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install && sudo chmod 0440 /etc/sudoers.d/huduglue-install'
+                f'Sudo access not configured. Please run: sudo cp {sudoers_path} /etc/sudoers.d/huduglue-install && sudo chmod 0440 /etc/sudoers.d/huduglue-install'
             )
             return redirect('core:fail2ban_status')
 

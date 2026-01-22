@@ -726,9 +726,10 @@ def settings_ai(request):
     """AI and LLM settings - Anthropic, OpenAI, etc."""
     import os
     from pathlib import Path
+    from django.conf import settings as django_settings
 
-    # Read current values from .env file
-    env_path = Path('/home/administrator/.env')
+    # Read current values from .env file (located in project root)
+    env_path = django_settings.BASE_DIR / '.env'
     env_values = {}
     if env_path.exists():
         with open(env_path, 'r') as f:

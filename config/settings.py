@@ -75,12 +75,12 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'core.security_headers_middleware.SecurityHeadersMiddleware',  # Enhanced security headers
-    'core.firewall_middleware.FirewallMiddleware',  # IP and GeoIP firewall
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'core.csrf_middleware.MultiDomainCsrfViewMiddleware',  # Custom CSRF for multi-domain support
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.firewall_middleware.FirewallMiddleware',  # IP and GeoIP firewall (after auth for request.user)
     'django_otp.middleware.OTPMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
