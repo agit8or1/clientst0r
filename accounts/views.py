@@ -35,6 +35,9 @@ def switch_organization(request, org_id):
             return redirect('core:dashboard')
 
     request.session['current_organization_id'] = org.id
+    # Clear global view mode when switching to an organization
+    if 'global_view_mode' in request.session:
+        del request.session['global_view_mode']
     request.session.modified = True  # Force session save
     messages.success(request, f"Switched to {org.name}")
     return redirect('core:dashboard')
@@ -50,10 +53,11 @@ def switch_to_global_view(request):
         messages.error(request, "You don't have permission to access global view.")
         return redirect('core:dashboard')
 
-    # Clear organization context
+    # Clear organization context and enable global view mode
     if 'current_organization_id' in request.session:
         del request.session['current_organization_id']
-        request.session.modified = True
+    request.session['global_view_mode'] = True
+    request.session.modified = True
 
     messages.success(request, "Switched to Global View")
     return redirect('core:global_dashboard')
