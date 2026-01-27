@@ -138,7 +138,7 @@
                             <i id="theme-icon" class="fas {% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}fa-sun{% else %}fa-moon{% endif %}"></i>
                         </button>
                     </li>
-                    {% if current_organization or user.is_superuser %}
+                    {% if current_organization or user.is_superuser or is_staff_user %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" style="background-color: rgba(255,255,255,0.1); padding: 0.5rem 1rem; border-radius: 0.375rem;">
                             {% if current_organization %}
@@ -152,7 +152,7 @@
                         <ul class="dropdown-menu dropdown-menu-end" style="min-width: 250px;">
                             <li class="dropdown-header"><i class="fas fa-exchange-alt me-2"></i>Switch View</li>
                             <li><hr class="dropdown-divider"></li>
-                            {% if user.is_superuser %}
+                            {% if user.is_superuser or is_staff_user %}
                             <li>
                                 <a class="dropdown-item {% if not current_organization %}active fw-bold{% endif %}" href="{% url 'accounts:switch_to_global_view' %}" style="{% if not current_organization %}background-color: rgba(13, 110, 253, 0.15);{% endif %}">
                                     {% if not current_organization %}

@@ -47,9 +47,12 @@ def switch_organization(request, org_id):
 def switch_to_global_view(request):
     """
     Switch to global view (clear organization context).
-    Superuser only.
+    Available to superusers and staff users (MSP techs), not tenant users.
     """
-    if not request.user.is_superuser:
+    # Check if user is staff (MSP tech) or superuser
+    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
+
+    if not (request.user.is_superuser or is_staff):
         messages.error(request, "You don't have permission to access global view.")
         return redirect('core:dashboard')
 
