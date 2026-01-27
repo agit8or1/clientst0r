@@ -16,6 +16,7 @@ urlpatterns = [
     path('auth/azure/status/', oauth_views.azure_status, name='azure_status'),
 
     path('switch/<int:org_id>/', views.switch_organization, name='switch_organization'),
+    path('switch-global/', views.switch_to_global_view, name='switch_to_global_view'),
     path('access-management/', views.access_management, name='access_management'),
 
     # Quick Add

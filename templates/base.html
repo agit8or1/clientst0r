@@ -138,19 +138,38 @@
                             <i id="theme-icon" class="fas {% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}fa-sun{% else %}fa-moon{% endif %}"></i>
                         </button>
                     </li>
-                    {% if current_organization %}
+                    {% if current_organization or user.is_superuser %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" style="background-color: rgba(255,255,255,0.1); padding: 0.5rem 1rem; border-radius: 0.375rem;">
+                            {% if current_organization %}
                             <i class="fas fa-building me-2"></i>
                             <strong>{{ current_organization.name }}</strong>
+                            {% else %}
+                            <i class="fas fa-globe me-2"></i>
+                            <strong>Global View</strong>
+                            {% endif %}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" style="min-width: 250px;">
-                            <li class="dropdown-header"><i class="fas fa-exchange-alt me-2"></i>Switch Organization</li>
+                            <li class="dropdown-header"><i class="fas fa-exchange-alt me-2"></i>Switch View</li>
                             <li><hr class="dropdown-divider"></li>
+                            {% if user.is_superuser %}
+                            <li>
+                                <a class="dropdown-item {% if not current_organization %}active fw-bold{% endif %}" href="{% url 'accounts:switch_to_global_view' %}" style="{% if not current_organization %}background-color: rgba(13, 110, 253, 0.15);{% endif %}">
+                                    {% if not current_organization %}
+                                    <i class="fas fa-check-circle me-2 text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-globe me-2 text-primary"></i>
+                                    {% endif %}
+                                    Global View
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li class="dropdown-header">Organizations</li>
+                            {% endif %}
                             {% for org in user_organizations %}
                             <li>
-                                <a class="dropdown-item {% if org.id == current_organization.id %}active fw-bold{% endif %}" href="{% url 'accounts:switch_organization' org.id %}" style="{% if org.id == current_organization.id %}background-color: rgba(13, 110, 253, 0.15);{% endif %}">
-                                    {% if org.id == current_organization.id %}
+                                <a class="dropdown-item {% if current_organization and org.id == current_organization.id %}active fw-bold{% endif %}" href="{% url 'accounts:switch_organization' org.id %}" style="{% if current_organization and org.id == current_organization.id %}background-color: rgba(13, 110, 253, 0.15);{% endif %}">
+                                    {% if current_organization and org.id == current_organization.id %}
                                     <i class="fas fa-check-circle me-2 text-success"></i>
                                     {% else %}
                                     <i class="fas fa-building me-2 text-muted"></i>

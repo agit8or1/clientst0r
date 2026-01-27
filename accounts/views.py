@@ -41,6 +41,25 @@ def switch_organization(request, org_id):
 
 
 @login_required
+def switch_to_global_view(request):
+    """
+    Switch to global view (clear organization context).
+    Superuser only.
+    """
+    if not request.user.is_superuser:
+        messages.error(request, "You don't have permission to access global view.")
+        return redirect('core:dashboard')
+
+    # Clear organization context
+    if 'current_organization_id' in request.session:
+        del request.session['current_organization_id']
+        request.session.modified = True
+
+    messages.success(request, "Switched to Global View")
+    return redirect('core:global_dashboard')
+
+
+@login_required
 def access_management(request):
     """
     Access Management dashboard - consolidated view for orgs, users, members, roles.
