@@ -139,12 +139,24 @@
                     </li>
                     {% if current_organization %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown">
-                            {{ current_organization.name }}
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" style="background-color: rgba(255,255,255,0.1); padding: 0.5rem 1rem; border-radius: 0.375rem;">
+                            <i class="fas fa-building me-2"></i>
+                            <strong>{{ current_organization.name }}</strong>
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
+                        <ul class="dropdown-menu dropdown-menu-end" style="min-width: 250px;">
+                            <li class="dropdown-header"><i class="fas fa-exchange-alt me-2"></i>Switch Organization</li>
+                            <li><hr class="dropdown-divider"></li>
                             {% for org in user_organizations %}
-                            <li><a class="dropdown-item" href="{% url 'accounts:switch_organization' org.id %}">{{ org.name }}</a></li>
+                            <li>
+                                <a class="dropdown-item {% if org.id == current_organization.id %}active fw-bold{% endif %}" href="{% url 'accounts:switch_organization' org.id %}" style="{% if org.id == current_organization.id %}background-color: rgba(13, 110, 253, 0.15);{% endif %}">
+                                    {% if org.id == current_organization.id %}
+                                    <i class="fas fa-check-circle me-2 text-success"></i>
+                                    {% else %}
+                                    <i class="fas fa-building me-2 text-muted"></i>
+                                    {% endif %}
+                                    {{ org.name }}
+                                </a>
+                            </li>
                             {% endfor %}
                         </ul>
                     </li>
