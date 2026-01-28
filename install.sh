@@ -219,6 +219,35 @@ if [ "$EXISTING_INSTALL" = true ]; then
             pip install --upgrade pip -q
             pip install -r requirements.txt --upgrade --progress-bar on
 
+            # Check and install Snyk CLI if missing
+            print_info "Checking for Snyk CLI..."
+            if ! command -v snyk &> /dev/null; then
+                print_warning "Snyk CLI not found, attempting installation..."
+                if command -v npm &> /dev/null; then
+                    sudo npm install -g snyk --silent || print_warning "Failed to install Snyk CLI (optional)"
+
+                    # Create symlink if snyk is in NVM but not in system PATH
+                    if ! command -v snyk &> /dev/null && [ -d "$HOME/.nvm/versions/node" ]; then
+                        SNYK_PATH=$(find "$HOME/.nvm/versions/node/" -name snyk -type f 2>/dev/null | head -1)
+                        if [ -n "$SNYK_PATH" ] && [ -f "$SNYK_PATH" ]; then
+                            print_info "Creating system-wide symlink for Snyk CLI..."
+                            sudo ln -sf "$SNYK_PATH" /usr/local/bin/snyk && print_status "Snyk CLI linked to /usr/local/bin/snyk"
+                        fi
+                    fi
+
+                    if command -v snyk &> /dev/null; then
+                        print_status "Snyk CLI installed successfully"
+                    else
+                        print_warning "Snyk CLI installation failed - security scanning will be unavailable"
+                    fi
+                else
+                    print_warning "npm not available - skipping Snyk CLI installation"
+                    print_warning "Install with: sudo apt-get install nodejs npm && sudo npm install -g snyk"
+                fi
+            else
+                print_status "Snyk CLI already installed"
+            fi
+
             # Run migrations
             print_info "Running database migrations..."
             python3 manage.py migrate
