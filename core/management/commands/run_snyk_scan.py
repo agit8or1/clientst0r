@@ -117,9 +117,13 @@ class Command(BaseCommand):
                 node_bin = os.path.dirname(snyk_path)
                 env['PATH'] = f"{node_bin}:{env.get('PATH', '')}"
 
+            # Get project directory dynamically
+            from django.conf import settings as django_settings
+            project_dir = str(django_settings.BASE_DIR)
+
             result = subprocess.run(
                 cmd,
-                cwd='/home/administrator',
+                cwd=project_dir,
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minute timeout
