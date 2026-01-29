@@ -479,7 +479,12 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error loading map data:', error);
-            messageText.textContent = 'Unable to load map. Please try again later.';
+            // Check if it's a 400 error (no organization context)
+            if (error.message && error.message.includes('400')) {
+                messageText.textContent = 'Select an organization to view location map.';
+            } else {
+                messageText.textContent = 'Unable to load map. Ensure you have locations with addresses and coordinates.';
+            }
             messageDiv.style.display = 'block';
             mapDiv.style.display = 'none';
             // Hide device toggle if error

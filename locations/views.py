@@ -113,6 +113,11 @@ def location_create(request):
     """Create new location with optional AI-assisted setup."""
     organization = request.current_organization
 
+    # Require organization context for creating locations
+    if not organization:
+        messages.error(request, 'Organization context required to create locations.')
+        return redirect('accounts:organization_list')
+
     if request.method == 'POST':
         form = LocationForm(request.POST, request.FILES, organization=organization)
 
@@ -821,10 +826,14 @@ def send_navigation_link(request, location_id):
     location = get_object_or_404(Location, id=location_id)
     organization = request.current_organization
 
-    # Check access
-    if organization and not location.can_organization_access(organization):
-        messages.error(request, "You don't have access to this location.")
-        return redirect('locations:location_list')
+    # Check access - allow superusers/staff to access any location in global view
+    if organization:
+        if not location.can_organization_access(organization):
+            messages.error(request, "You don't have access to this location.")
+            return redirect('locations:location_list')
+    elif not (request.user.is_superuser or request.is_staff_user):
+        messages.error(request, "Organization context required.")
+        return redirect('accounts:organization_list')
 
     if request.method == 'POST':
         form = SendNavigationLinkForm(request.POST)

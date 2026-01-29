@@ -19,10 +19,10 @@ def switch_organization(request, org_id):
     """
     org = get_object_or_404(Organization, id=org_id, is_active=True)
 
-    # Staff users can access any organization
+    # Superusers and staff users can access any organization
     is_staff = hasattr(request.user, 'profile') and request.user.profile.is_staff_user()
 
-    if not is_staff:
+    if not (request.user.is_superuser or is_staff):
         # Verify regular user has membership
         membership = Membership.objects.filter(
             user=request.user,
