@@ -45,6 +45,18 @@ Complete feature documentation for HuduGlue - Self-hosted IT documentation platf
 - **Security Event Tracking** - Failed logins, permission changes, credential access
 - **Export Capabilities** - CSV/JSON export for compliance
 
+### Firewall & Intrusion Prevention
+- **iptables Firewall Management** - Web-based firewall rule management
+- **GeoIP Country Blocking** - Block traffic from specific countries
+- **IP Whitelist/Blacklist** - Manage allowed and blocked IP addresses
+- **Firewall Logging** - Track blocked connection attempts
+- **Fail2ban Integration** - Automated intrusion prevention system
+  - Ban management (view, unban individual IPs, unban all)
+  - Jail status monitoring
+  - IP check functionality
+  - Auto-installation during updates
+  - Sudoers configuration for web management
+
 ## 🏢 Multi-Tenancy & RBAC
 
 ### Organization Management
@@ -109,6 +121,16 @@ Complete feature documentation for HuduGlue - Self-hosted IT documentation platf
 - **Auto-lock** - Passwords automatically masked
 - **Copy to Clipboard** - One-click secure copy
 - **TOTP Code Generation** - Built-in 2FA code generator with QR codes
+
+### Bitwarden/Vaultwarden Import
+- **Complete Import Support** - Import passwords from Bitwarden/Vaultwarden JSON exports
+- **All Item Types** - Supports login items, secure notes, cards, and identity items
+- **Folder Preservation** - Imports folders with optional prefix
+- **Custom Fields** - Preserves all custom fields from Bitwarden
+- **TOTP Secrets** - Imports and encrypts 2FA/TOTP secrets
+- **Update Existing** - Option to update existing passwords with matching title/username
+- **Detailed Statistics** - Shows created/updated/skipped counts
+- **Error Handling** - Comprehensive error reporting with partial import success
 
 ### Personal Vault
 - **User-Specific Encryption** - Each user has their own private vault
@@ -198,6 +220,25 @@ Complete feature documentation for HuduGlue - Self-hosted IT documentation platf
 - **Utilization Tracking** - Subnet usage statistics
 - **IP Status** - Active, Reserved, Available
 - **Network Planning** - Visual network organization
+
+## 📍 Location Management & Navigation
+
+### Location Features
+- **Location Tracking** - Manage physical locations for organizations
+- **Address Management** - Full address details with geocoding support
+- **Coordinates Support** - Latitude/longitude for precise positioning
+- **Location Types** - Headquarters, branch office, data center, remote site, customer site
+- **Status Tracking** - Active, planned, inactive, closed
+- **Primary Location** - Designate headquarters
+
+### SMS/Navigation Links
+- **Multi-Provider SMS** - Send SMS via Twilio, Plivo, Vonage/Nexmo, Telnyx, or AWS SNS
+- **Navigation Services** - Support for Google Maps, Apple Maps, and Waze
+- **SMS Configuration** - Web-based provider settings with encrypted credentials
+- **E.164 Format** - Automatic phone number validation
+- **Delivery Options** - Send via email, SMS, or both
+- **Custom Messages** - Add personalized message to navigation links
+- **Map Service Selection** - Choose specific service or send all navigation links
 
 ## 📋 Workflows & Process Automation
 

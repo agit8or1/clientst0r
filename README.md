@@ -1,6 +1,6 @@
 # HuduGlue 🐕
 
-[![Version 2.25.1](https://img.shields.io/badge/version-2.25.1-brightgreen)](https://github.com/agit8or1/huduglue)
+[![Version 2.27.1](https://img.shields.io/badge/version-2.27.1-brightgreen)](https://github.com/agit8or1/huduglue)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/huduglue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
@@ -160,12 +160,16 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 ### 📦 Core Platform
 - **Auto-Update System** - One-click web updates (20-30 seconds, no SSH)
 - **Asset Management** - Comprehensive tracking with NetBox-style rack visualization
-- **Password Vault** - AES-GCM encrypted with breach detection and personal vaults
+- **Password Vault** - AES-GCM encrypted with breach detection, personal vaults, and Bitwarden import
+- **Bitwarden Import** - Import passwords from Bitwarden/Vaultwarden JSON exports (logins, notes, cards, identities, folders, custom fields, TOTP)
+- **SMS/Navigation** - Send location navigation links via SMS (Twilio, Plivo, Vonage, Telnyx, AWS SNS)
 - **Documentation** - Per-org docs with version control, templates, and global MSP knowledge base
 - **Diagrams & Floor Plans** - Draw.io integration, MagicPlan import, auto-generated flowcharts
 - **Infrastructure** - IPAM, rack visualization, network documentation, cable/power management
 - **Monitoring** - Website uptime, SSL certificates, domain expiration, custom alerts
 - **Workflows** - Process automation with audit logging, PSA integration, execution tracking
+- **Firewall Management** - iptables firewall rules, GeoIP country blocking, IP whitelist/blacklist
+- **Intrusion Prevention** - Fail2ban integration with ban management and IP checking
 
 ### 🔌 Integrations
 - **8 PSA Providers** - ConnectWise, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow
@@ -177,7 +181,14 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 
 ## 🆕 What's New
 
-### Latest Release - v2.25.1 (January 2026)
+### Latest Release - v2.27.1 (January 2026)
+
+**🎉 New in v2.27:**
+- **Bitwarden/Vaultwarden Import** - Import passwords from Bitwarden/Vaultwarden JSON exports with full support for all item types (logins, notes, cards, identities), folders, custom fields, and TOTP secrets
+- **SMS/Navigation Links** - Send location navigation links via SMS using Twilio, Plivo, Vonage, Telnyx, or AWS SNS for Google Maps, Apple Maps, and Waze
+- **Global View Improvements** - Superusers can now access workflow executions and locations without organization context
+- **Firewall & GeoIP** - iptables-based firewall management with country blocking capabilities
+- **Fail2ban Integration** - Automated intrusion prevention with ban/unban management
 
 **Recent Highlights:**
 - **User-Configurable Tooltips** - Per-user tooltip preferences with helpful hints throughout the interface
