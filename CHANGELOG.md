@@ -5,6 +5,33 @@ All notable changes to HuduGlue will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.25.1] - 2026-01-29
+
+### ✨ New Features
+
+**User-Configurable Tooltips:**
+- **Per-User Preference** - Users can enable/disable tooltips in profile settings
+- **Global Tooltip System** - Bootstrap tooltips automatically initialized based on user preference
+- **Interface Help Section** - New section in profile edit page for UI preferences
+- **Helpful Hints** - Tooltips added to key navigation elements and dashboard features
+
+### 🔧 Technical Changes
+
+**Database:**
+- Added `tooltips_enabled` BooleanField to UserProfile model (default=True)
+- Migration: `accounts.0011_add_tooltips_enabled`
+
+**Backend:**
+- Updated accounts context processor to expose `tooltips_enabled` to all templates
+- Added `tooltips_enabled` to UserProfileForm fields
+- Tooltip preference persists per user profile across sessions
+
+**Frontend:**
+- Global tooltip initialization script in base.html
+- Tooltips respect user preference (conditionally initialized)
+- Added tooltips to: Dashboard device toggle, location map view all, theme toggle, quick add button
+- Used Bootstrap 5 tooltip data attributes (data-bs-toggle, data-bs-placement)
+
 ## [2.25.0] - 2026-01-29
 
 ### ✨ New Features

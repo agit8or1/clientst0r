@@ -1,5 +1,36 @@
 # HuduGlue Upgrade Notes
 
+## 💡 v2.25.1 - User-Configurable Tooltips
+
+### What's New:
+Users can now enable or disable helpful tooltips throughout the interface from their profile settings.
+
+### Features Added:
+- **Per-User Tooltip Preference** - Enable/disable tooltips in profile settings under "Interface Help"
+- **Global Tooltip System** - Automatically initializes Bootstrap tooltips based on user preference
+- **Helpful Hints** - Tooltips on key navigation elements (Quick Add, theme toggle) and dashboard features (device toggle, map controls)
+- **Default Enabled** - Tooltips enabled by default for all users
+
+### Database Changes:
+- Added `tooltips_enabled` boolean field to UserProfile model (default=True)
+
+### Upgrade:
+```bash
+cd /home/administrator
+git pull origin main
+python manage.py migrate  # Runs migration accounts.0011_add_tooltips_enabled
+sudo systemctl restart huduglue-gunicorn.service
+```
+
+### Usage:
+1. Update to v2.25.1 and run migration
+2. Go to Profile → Edit Profile
+3. Scroll to "Interface Help" section
+4. Toggle "Enable Helpful Tooltips" checkbox
+5. Save changes
+
+---
+
 ## 🗺️ v2.25.0 - RMM Device Location Mapping
 
 ### What's New:
