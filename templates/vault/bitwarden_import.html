@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Import from Bitwarden/Vaultwarden - Password Vault{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'vault:password_list' %}">Password Vault</a></li>
+        <li class="breadcrumb-item active">Import from Bitwarden</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-file-import"></i> Import from Bitwarden/Vaultwarden</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Before You Import</h6>
+                    <p class="small mb-2"><strong>1. Export from Bitwarden/Vaultwarden:</strong></p>
+                    <ul class="small mb-2">
+                        <li>Open Bitwarden/Vaultwarden web vault or desktop app</li>
+                        <li>Go to Tools → Export Vault</li>
+                        <li>Select <strong>File Format: .json</strong></li>
+                        <li>Click "Export Vault" and save the file</li>
+                    </ul>
+                    <p class="small mb-2"><strong>2. Security Note:</strong></p>
+                    <ul class="small mb-0">
+                        <li>The exported JSON file contains your passwords in <strong>plaintext</strong></li>
+                        <li>Delete the export file after importing</li>
+                        <li>All passwords will be encrypted upon import</li>
+                    </ul>
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.json_file.id_for_label }}" class="form-label">
+                            {{ form.json_file.label }} <span class="text-danger">*</span>
+                        </label>
+                        {{ form.json_file }}
+                        {% if form.json_file.help_text %}
+                        <div class="form-text">{{ form.json_file.help_text }}</div>
+                        {% endif %}
+                        {% if form.json_file.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.json_file.errors|join:", " }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.folder_prefix.id_for_label }}" class="form-label">
+                            {{ form.folder_prefix.label }}
+                        </label>
+                        {{ form.folder_prefix }}
+                        {% if form.folder_prefix.help_text %}
+                        <div class="form-text">{{ form.folder_prefix.help_text }}</div>
+                        {% endif %}
+                        {% if form.folder_prefix.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.folder_prefix.errors|join:", " }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        {{ form.update_existing }}
+                        <label class="form-check-label" for="{{ form.update_existing.id_for_label }}">
+                            {{ form.update_existing.label }}
+                        </label>
+                        {% if form.update_existing.help_text %}
+                        <div class="form-text">{{ form.update_existing.help_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="alert alert-warning">
+                        <h6 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> What Will Be Imported</h6>
+                        <ul class="small mb-0">
+                            <li><strong>Folders:</strong> Will be created with optional prefix</li>
+                            <li><strong>Login Items:</strong> Username, password, URL, TOTP secrets</li>
+                            <li><strong>Secure Notes:</strong> Will be imported as "Other" type passwords</li>
+                            <li><strong>Cards:</strong> Credit card data stored in custom fields</li>
+                            <li><strong>Identity Items:</strong> Identity data stored in custom fields</li>
+                            <li><strong>Custom Fields:</strong> Preserved from Bitwarden items</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-file-import"></i> Import Vault
+                        </button>
+                        <a href="{% url 'vault:password_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-question-circle"></i> Frequently Asked Questions</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Q: Will duplicate passwords be created?</strong>
+                    <p class="small mb-0">A: No. If "Update Existing Passwords" is checked, passwords with matching title and username will be updated instead of duplicated. Otherwise, new passwords will be created.</p>
+                </div>
+                <div class="mb-3">
+                    <strong>Q: Can I import multiple times?</strong>
+                    <p class="small mb-0">A: Yes. Use the "Update Existing Passwords" option to refresh existing passwords with new data from Bitwarden.</p>
+                </div>
+                <div class="mb-3">
+                    <strong>Q: What happens to my Bitwarden vault?</strong>
+                    <p class="small mb-0">A: Nothing. This is a one-way import. Your Bitwarden vault remains unchanged.</p>
+                </div>
+                <div class="mb-0">
+                    <strong>Q: Are TOTP/2FA secrets imported?</strong>
+                    <p class="small mb-0">A: Yes. TOTP secrets from Bitwarden login items will be encrypted and imported.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

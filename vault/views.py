@@ -534,3 +534,73 @@ def personal_vault_delete(request, pk):
     return render(request, 'vault/personal_vault_confirm_delete.html', {
         'item': item,
     })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def bitwarden_import(request):
+    """Import passwords from Bitwarden/Vaultwarden JSON export."""
+    from .bitwarden_import import import_bitwarden_json
+    from .forms import BitwardenImportForm
+    
+    org = get_request_organization(request)
+    if not org:
+        messages.error(request, 'Organization context required.')
+        return redirect('accounts:organization_list')
+    
+    if request.method == 'POST':
+        form = BitwardenImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                json_file = form.cleaned_data['json_file']
+                folder_prefix = form.cleaned_data.get('folder_prefix', '')
+                update_existing = form.cleaned_data.get('update_existing', False)
+                
+                # Read file content
+                file_content = json_file.read()
+                
+                # Perform import
+                stats = import_bitwarden_json(
+                    file_content,
+                    org,
+                    request.user,
+                    folder_prefix,
+                    update_existing
+                )
+                
+                # Display results
+                if stats['errors']:
+                    messages.warning(
+                        request,
+                        f"Import completed with errors. "
+                        f"Created: {stats['passwords_created']}, "
+                        f"Updated: {stats['passwords_updated']}, "
+                        f"Skipped: {stats['passwords_skipped']}, "
+                        f"Folders: {stats['folders_created']}"
+                    )
+                    for error in stats['errors'][:5]:  # Show first 5 errors
+                        messages.error(request, error)
+                    if len(stats['errors']) > 5:
+                        messages.error(request, f"...and {len(stats['errors']) - 5} more errors")
+                else:
+                    messages.success(
+                        request,
+                        f"Successfully imported {stats['passwords_created']} passwords "
+                        f"and {stats['folders_created']} folders. "
+                        f"Updated: {stats['passwords_updated']}, Skipped: {stats['passwords_skipped']}"
+                    )
+                
+                return redirect('vault:password_list')
+                
+            except Exception as e:
+                import logging
+                logger = logging.getLogger('vault')
+                logger.error(f"Bitwarden import failed: {str(e)}", exc_info=True)
+                messages.error(request, f"Import failed: {str(e)}")
+    else:
+        form = BitwardenImportForm()
+    
+    return render(request, 'vault/bitwarden_import.html', {
+        'form': form,
+        'current_organization': org,
+    })

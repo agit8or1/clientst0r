@@ -463,18 +463,27 @@ def execution_create(request, slug):
 def execution_list(request):
     """List all workflow executions for the organization"""
     org = get_request_organization(request)
-    if not org:
-        messages.error(request, 'Organization context required.')
-        return redirect('accounts:organization_list')
 
-    # Get all executions for this org
-    executions = ProcessExecution.objects.filter(
-        organization=org
-    ).select_related(
-        'process', 'assigned_to', 'started_by'
-    ).prefetch_related(
-        'stage_completions'
-    ).order_by('-created_at')
+    # Allow superusers/staff to view all executions in global view
+    if not org:
+        if request.user.is_superuser or request.is_staff_user:
+            executions = ProcessExecution.objects.all().select_related(
+                'process', 'assigned_to', 'started_by', 'organization'
+            ).prefetch_related(
+                'stage_completions'
+            ).order_by('-created_at')
+        else:
+            messages.error(request, 'Organization context required.')
+            return redirect('accounts:organization_list')
+    else:
+        # Get all executions for this org
+        executions = ProcessExecution.objects.filter(
+            organization=org
+        ).select_related(
+            'process', 'assigned_to', 'started_by'
+        ).prefetch_related(
+            'stage_completions'
+        ).order_by('-created_at')
 
     # Filter by status if requested
     status_filter = request.GET.get('status')
@@ -492,16 +501,24 @@ def execution_list(request):
         executions = executions.filter(process__id=process_filter)
 
     # Get unique processes for filter dropdown
-    processes = Process.objects.filter(
-        Q(organization=org) | Q(is_global=True)
-    ).order_by('title')
+    if org:
+        processes = Process.objects.filter(
+            Q(organization=org) | Q(is_global=True)
+        ).order_by('title')
+    else:
+        # Global view - show all processes
+        processes = Process.objects.all().order_by('title')
 
     # Get unique users for filter dropdown
     from django.contrib.auth.models import User
-    users = User.objects.filter(
-        memberships__organization=org,
-        memberships__is_active=True
-    ).distinct().order_by('username')
+    if org:
+        users = User.objects.filter(
+            memberships__organization=org,
+            memberships__is_active=True
+        ).distinct().order_by('username')
+    else:
+        # Global view - show all users
+        users = User.objects.all().order_by('username')
 
     return render(request, 'processes/execution_list.html', {
         'executions': executions,
@@ -518,7 +535,14 @@ def execution_list(request):
 def execution_detail(request, pk):
     """View execution with stage completion tracking"""
     org = get_request_organization(request)
-    execution = get_object_or_404(ProcessExecution, pk=pk, organization=org)
+
+    # Allow superusers/staff to view any execution in global view
+    if org:
+        execution = get_object_or_404(ProcessExecution, pk=pk, organization=org)
+    elif request.user.is_superuser or request.is_staff_user:
+        execution = get_object_or_404(ProcessExecution, pk=pk)
+    else:
+        execution = get_object_or_404(ProcessExecution, pk=pk, organization=org)
 
     # Get stage completions
     completions = execution.stage_completions.all().select_related('stage')
@@ -540,7 +564,14 @@ def execution_detail(request, pk):
 def execution_audit_log(request, pk):
     """View audit log for a specific execution"""
     org = get_request_organization(request)
-    execution = get_object_or_404(ProcessExecution, pk=pk, organization=org)
+
+    # Allow superusers/staff to view any execution in global view
+    if org:
+        execution = get_object_or_404(ProcessExecution, pk=pk, organization=org)
+    elif request.user.is_superuser or request.is_staff_user:
+        execution = get_object_or_404(ProcessExecution, pk=pk)
+    else:
+        execution = get_object_or_404(ProcessExecution, pk=pk, organization=org)
 
     # Get all audit logs for this execution
     audit_logs = execution.audit_logs.select_related('user', 'stage').all()
@@ -567,7 +598,12 @@ def execution_audit_log(request, pk):
 def execution_delete(request, pk):
     """Delete a workflow execution (admin only)"""
     org = get_request_organization(request)
-    execution = get_object_or_404(ProcessExecution, pk=pk, organization=org)
+
+    # Allow superusers to delete any execution in global view
+    if org:
+        execution = get_object_or_404(ProcessExecution, pk=pk, organization=org)
+    else:
+        execution = get_object_or_404(ProcessExecution, pk=pk)
 
     # Store execution details for message
     process_title = execution.process.title

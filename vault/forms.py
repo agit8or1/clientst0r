@@ -231,3 +231,53 @@ class PasswordForm(forms.ModelForm):
                     logger.warning(f"Could not create breach check record: {e}")
 
         return password_obj
+
+class BitwardenImportForm(forms.Form):
+    """Form for importing Bitwarden/Vaultwarden JSON export."""
+    
+    json_file = forms.FileField(
+        label='Bitwarden Export File',
+        help_text='Upload your Bitwarden/Vaultwarden JSON export file',
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.json'
+        })
+    )
+    
+    folder_prefix = forms.CharField(
+        label='Folder Prefix',
+        required=False,
+        max_length=50,
+        help_text='Optional prefix for imported folder names (e.g., "BW-")',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., BW-'
+        })
+    )
+    
+    update_existing = forms.BooleanField(
+        label='Update Existing Passwords',
+        required=False,
+        initial=False,
+        help_text='If checked, passwords with matching title and username will be updated',
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        })
+    )
+    
+    def clean_json_file(self):
+        """Validate JSON file."""
+        json_file = self.cleaned_data.get('json_file')
+        
+        if not json_file:
+            return json_file
+        
+        # Check file size (max 10MB)
+        if json_file.size > 10 * 1024 * 1024:
+            raise forms.ValidationError('File size must be less than 10MB')
+        
+        # Check file extension
+        if not json_file.name.endswith('.json'):
+            raise forms.ValidationError('File must be a JSON file (.json)')
+        
+        return json_file
