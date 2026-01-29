@@ -21,9 +21,6 @@ urlpatterns = [
     path('api/generate/', views.generate_password_api, name='generate_password_api'),
     path('api/strength/', views.check_password_strength_api, name='check_strength_api'),
 
-    # Import/Export
-    path('import/bitwarden/', views.bitwarden_import, name='bitwarden_import'),
-
     # Personal Vault (encrypted notes)
     path('personal/', views.personal_vault_list, name='personal_vault_list'),
     path('personal/create/', views.personal_vault_create, name='personal_vault_create'),

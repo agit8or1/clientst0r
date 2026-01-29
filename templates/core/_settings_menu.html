@@ -59,6 +59,9 @@ Usage: {% include "core/_settings_menu.html" with active_page="general" %}
         <a href="{% url 'core:settings_kb_import' %}" class="list-group-item list-group-item-action {% if active_page == 'kb_import' %}active{% endif %}">
             <i class="fas fa-database"></i> Demo Data
         </a>
+        <a href="{% url 'core:vault_import' %}" class="list-group-item list-group-item-action {% if active_page == 'vault_import' %}active{% endif %}">
+            <i class="fas fa-file-import"></i> Vault Import
+        </a>
         <a href="{% url 'core:settings_data_export' %}" class="list-group-item list-group-item-action {% if active_page == 'data_export' %}active{% endif %}">
             <i class="fas fa-file-export"></i> Data Export
         </a>

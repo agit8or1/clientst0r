@@ -1950,3 +1950,14 @@ def settings_sms(request):
         'settings': settings_obj,
         'current_tab': 'sms',
     })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def vault_import(request):
+    """
+    Vault import page - wrapper for Bitwarden import in admin section.
+    Delegates to vault.views.bitwarden_import.
+    """
+    from vault.views import bitwarden_import
+    return bitwarden_import(request)

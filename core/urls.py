@@ -84,6 +84,7 @@ urlpatterns = [
     path('settings/kb-import/delete/', settings_views.delete_global_kb_articles, name='delete_global_kb_articles'),
     path('settings/data-export/', settings_views.settings_data_export, name='settings_data_export'),
     path('settings/data-export/export/', settings_views.export_data, name='export_data'),
+    path('settings/vault-import/', settings_views.vault_import, name='vault_import'),
     path('settings/restart-app/', settings_views.restart_application, name='restart_application'),
     path('settings/system-status/', settings_views.system_status, name='system_status'),
     path('settings/maintenance/', settings_views.maintenance, name='maintenance'),
