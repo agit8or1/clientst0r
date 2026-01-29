@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}SMS Provider Settings - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">SMS Provider Settings</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-3">
+        {% include "core/_settings_menu.html" with active_page="sms" %}
+    </div>
+
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-mobile-alt"></i> SMS Provider Settings</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Configure SMS provider to send navigation links and notifications via text message.
+                </p>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="sms_enabled" name="sms_enabled" {% if settings.sms_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="sms_enabled">
+                            <strong>Enable SMS Functionality</strong>
+                        </label>
+                        <div class="form-text">Enable SMS sending for navigation links and notifications</div>
+                    </div>
+
+                    <hr>
+
+                    <h6 class="mb-3">SMS Provider Configuration</h6>
+
+                    <div class="mb-3">
+                        <label for="sms_provider" class="form-label">SMS Provider</label>
+                        <select class="form-select" id="sms_provider" name="sms_provider">
+                            <option value="twilio" {% if settings.sms_provider == 'twilio' %}selected{% endif %}>Twilio</option>
+                            <option value="plivo" {% if settings.sms_provider == 'plivo' %}selected{% endif %}>Plivo</option>
+                            <option value="sinch" {% if settings.sms_provider == 'sinch' %}selected{% endif %}>Sinch</option>
+                            <option value="vonage" {% if settings.sms_provider == 'vonage' %}selected{% endif %}>Vonage/Nexmo</option>
+                            <option value="aws_sns" {% if settings.sms_provider == 'aws_sns' %}selected{% endif %}>AWS SNS</option>
+                            <option value="telnyx" {% if settings.sms_provider == 'telnyx' %}selected{% endif %}>Telnyx</option>
+                        </select>
+                        <div class="form-text">Choose your SMS service provider</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="sms_account_sid" class="form-label">Account SID / API Key</label>
+                        <input type="text" class="form-control" id="sms_account_sid" name="sms_account_sid" value="{{ settings.sms_account_sid }}" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                        <div class="form-text">Your provider's account identifier</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="sms_auth_token" class="form-label">Auth Token / API Secret</label>
+                        <input type="password" class="form-control" id="sms_auth_token" name="sms_auth_token" placeholder="Leave blank to keep current token">
+                        <div class="form-text">Authentication token or secret key (leave blank to keep existing, stored encrypted)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="sms_from_number" class="form-label">From Phone Number</label>
+                        <input type="tel" class="form-control" id="sms_from_number" name="sms_from_number" value="{{ settings.sms_from_number }}" placeholder="+15551234567" pattern="\+[0-9]{1,15}">
+                        <div class="form-text">Your provider's phone number in E.164 format (e.g., +15551234567)</div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading"><i class="fas fa-info-circle"></i> Provider Setup Help</h6>
+                        <p class="small mb-2"><strong>Twilio:</strong> Sign up at twilio.com, get Account SID and Auth Token from Console</p>
+                        <p class="small mb-2"><strong>Plivo:</strong> Register at plivo.com, get Auth ID and Auth Token from Dashboard</p>
+                        <p class="small mb-2"><strong>Vonage:</strong> Create account at vonage.com, get API Key and Secret from Dashboard</p>
+                        <p class="small mb-0"><strong>Telnyx:</strong> Sign up at telnyx.com, get API Key from Mission Control Portal</p>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Settings
+                        </button>
+                        <a href="{% url 'core:settings_general' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-question-circle"></i> Usage</h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">Once SMS is configured, you can:</p>
+                <ul class="small mb-0">
+                    <li>Send navigation links for locations via SMS to technicians or clients</li>
+                    <li>Receive SMS notifications for critical events (if configured)</li>
+                    <li>Use SMS delivery in workflows and automation</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

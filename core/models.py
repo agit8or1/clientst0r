@@ -384,6 +384,25 @@ class SystemSetting(models.Model):
     # Bug Reporting
     github_pat = models.CharField(max_length=500, blank=True, help_text='GitHub Personal Access Token for bug reporting (encrypted)')
 
+    # SMS Provider Settings
+    sms_provider = models.CharField(
+        max_length=20,
+        default='twilio',
+        choices=[
+            ('twilio', 'Twilio'),
+            ('plivo', 'Plivo'),
+            ('sinch', 'Sinch'),
+            ('vonage', 'Vonage/Nexmo'),
+            ('aws_sns', 'AWS SNS'),
+            ('telnyx', 'Telnyx'),
+        ],
+        help_text='SMS provider for sending navigation links and notifications'
+    )
+    sms_enabled = models.BooleanField(default=False, help_text='Enable SMS functionality')
+    sms_account_sid = models.CharField(max_length=255, blank=True, help_text='SMS provider account SID/API key')
+    sms_auth_token = models.CharField(max_length=500, blank=True, help_text='SMS provider auth token (encrypted)')
+    sms_from_number = models.CharField(max_length=20, blank=True, help_text='From phone number (E.164 format, e.g., +15551234567)')
+
     # Feature Toggles
     monitoring_enabled = models.BooleanField(default=True, help_text='Enable Monitoring feature (Website & Service Monitoring)')
     global_kb_enabled = models.BooleanField(default=True, help_text='Enable Global Knowledge Base (Staff-only shared KB)')

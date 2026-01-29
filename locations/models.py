@@ -260,6 +260,43 @@ class Location(BaseModel):
             return f"https://www.google.com/maps/search/?api=1&query={self.latitude},{self.longitude}"
         return f"https://www.google.com/maps/search/?api=1&query={self.full_address.replace(' ', '+')}"
 
+    @property
+    def apple_maps_url(self):
+        """Get Apple Maps URL for this location."""
+        if self.has_coordinates:
+            return f"https://maps.apple.com/?q={self.name}&ll={self.latitude},{self.longitude}"
+        # Apple Maps can also use address
+        import urllib.parse
+        address = urllib.parse.quote(self.full_address)
+        return f"https://maps.apple.com/?address={address}"
+
+    @property
+    def waze_url(self):
+        """Get Waze URL for this location."""
+        if self.has_coordinates:
+            return f"https://waze.com/ul?ll={self.latitude},{self.longitude}&navigate=yes"
+        return None  # Waze requires coordinates
+
+    @property
+    def google_maps_navigate_url(self):
+        """Get Google Maps navigation URL (opens directly to navigation mode)."""
+        if self.has_coordinates:
+            return f"https://www.google.com/maps/dir/?api=1&destination={self.latitude},{self.longitude}&travelmode=driving"
+        import urllib.parse
+        destination = urllib.parse.quote(self.full_address)
+        return f"https://www.google.com/maps/dir/?api=1&destination={destination}&travelmode=driving"
+
+    def get_all_navigation_urls(self):
+        """Get all available navigation URLs for this location."""
+        urls = {
+            'google_maps': self.google_maps_url,
+            'google_maps_navigate': self.google_maps_navigate_url,
+            'apple_maps': self.apple_maps_url,
+        }
+        if self.waze_url:
+            urls['waze'] = self.waze_url
+        return urls
+
     def get_property_appraiser_info(self):
         """Get property appraiser information based on location's county/state."""
         state = self.state.upper() if self.state else ''

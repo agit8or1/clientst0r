@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.conf import settings
 
 from .models import Location, LocationFloorPlan
-from .forms import LocationForm, LocationFloorPlanForm
+from .forms import LocationForm, LocationFloorPlanForm, SendNavigationLinkForm
 from .services import (
     get_geocoding_service,
     get_property_service,
@@ -801,3 +801,114 @@ def global_location_map_data(request):
         'type': 'FeatureCollection',
         'features': features
     })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def send_navigation_link(request, location_id):
+    """Send navigation link for location via email or SMS."""
+    location = get_object_or_404(Location, id=location_id)
+    organization = request.current_organization
+
+    # Check access
+    if organization and not location.can_organization_access(organization):
+        messages.error(request, "You don't have access to this location.")
+        return redirect('locations:location_list')
+
+    if request.method == 'POST':
+        form = SendNavigationLinkForm(request.POST)
+        if form.is_valid():
+            method = form.cleaned_data['method']
+            map_service = form.cleaned_data['map_service']
+            recipient_email = form.cleaned_data.get('recipient_email')
+            recipient_phone = form.cleaned_data.get('recipient_phone')
+            custom_message = form.cleaned_data.get('message', '')
+
+            # Get navigation URLs
+            nav_urls = location.get_all_navigation_urls()
+
+            # Determine which URL(s) to send
+            if map_service == 'all':
+                urls_to_send = nav_urls
+            else:
+                urls_to_send = {map_service: nav_urls.get(map_service)}
+
+            # Build message
+            if custom_message:
+                message_body = f"{custom_message}\n\n"
+            else:
+                message_body = f"Navigation to {location.name}\n{location.full_address}\n\n"
+
+            for service_name, url in urls_to_send.items():
+                if url:
+                    service_label = service_name.replace('_', ' ').title()
+                    message_body += f"{service_label}: {url}\n"
+
+            success = False
+            error_messages = []
+
+            # Send via email
+            if method in ['email', 'both']:
+                try:
+                    from django.core.mail import send_mail
+                    from core.models import SystemSetting
+
+                    settings = SystemSetting.get_settings()
+
+                    send_mail(
+                        subject=f"Navigation to {location.name}",
+                        message=message_body,
+                        from_email=settings.smtp_from_email or 'noreply@example.com',
+                        recipient_list=[recipient_email],
+                        fail_silently=False
+                    )
+                    messages.success(request, f"Navigation link sent to {recipient_email}")
+                    success = True
+                except Exception as e:
+                    error_msg = f"Failed to send email: {str(e)}"
+                    error_messages.append(error_msg)
+                    logger.error(error_msg)
+
+            # Send via SMS
+            if method in ['sms', 'both']:
+                try:
+                    from core.sms import send_sms
+
+                    result = send_sms(recipient_phone, message_body)
+
+                    if result['success']:
+                        messages.success(request, f"Navigation link sent to {recipient_phone}")
+                        success = True
+                    else:
+                        error_msg = f"Failed to send SMS: {result.get('error', 'Unknown error')}"
+                        error_messages.append(error_msg)
+                        logger.error(error_msg)
+                except Exception as e:
+                    error_msg = f"Failed to send SMS: {str(e)}"
+                    error_messages.append(error_msg)
+                    logger.error(error_msg)
+
+            if error_messages:
+                for error in error_messages:
+                    messages.error(request, error)
+
+            if success:
+                return redirect('locations:location_detail', location_id=location.id)
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = SendNavigationLinkForm()
+
+    # Check if SMS is enabled
+    from core.models import SystemSetting
+    system_settings = SystemSetting.get_settings()
+    sms_enabled = system_settings.sms_enabled
+
+    context = {
+        'location': location,
+        'form': form,
+        'sms_enabled': sms_enabled,
+        'nav_urls': location.get_all_navigation_urls(),
+    }
+
+    return render(request, 'locations/send_navigation_link.html', context)

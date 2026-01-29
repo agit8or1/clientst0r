@@ -12,7 +12,10 @@
         {% endif %}
     </h1>
     <div>
-        <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-warning">
+        <a href="{% url 'locations:send_navigation_link' location.id %}" class="btn btn-primary me-2" data-bs-toggle="tooltip" title="Send navigation link via email or SMS">
+            <i class="fas fa-location-arrow"></i> Send Navigation
+        </a>
+        <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-warning me-2">
             <i class="fas fa-edit"></i> Edit
         </a>
         <a href="{% url 'locations:location_delete' location.id %}" class="btn btn-danger">

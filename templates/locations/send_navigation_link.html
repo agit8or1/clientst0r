@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Send Navigation Link - {{ location.name }} - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-location-arrow"></i> Send Navigation Link</h2>
+    <a href="{% url 'locations:location_detail' location.id %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Location
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-map-marked-alt"></i> {{ location.name }}</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    <i class="fas fa-map-marker-alt"></i> {{ location.full_address }}
+                </p>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label">Send Method</label>
+                        <div class="btn-group w-100" role="group">
+                            {% for value, label in form.method.field.choices %}
+                            <input type="radio" class="btn-check" name="method" id="method_{{ value }}" value="{{ value }}" {% if form.method.value == value or forloop.first and not form.method.value %}checked{% endif %}>
+                            <label class="btn btn-outline-primary" for="method_{{ value }}">
+                                <i class="fas fa-{% if value == 'email' %}envelope{% elif value == 'sms' %}mobile-alt{% else %}paper-plane{% endif %}"></i>
+                                {{ label }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {% if form.method.errors %}
+                        <div class="invalid-feedback d-block">{{ form.method.errors }}</div>
+                        {% endif %}
+                        {% if not sms_enabled %}
+                        <small class="form-text text-warning">
+                            <i class="fas fa-exclamation-triangle"></i> SMS is not configured. Configure SMS settings in Admin → Settings to enable SMS delivery.
+                        </small>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.map_service.id_for_label }}" class="form-label">Map Service</label>
+                        {{ form.map_service }}
+                        {% if form.map_service.errors %}
+                        <div class="invalid-feedback d-block">{{ form.map_service.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Choose which navigation service to use</small>
+                    </div>
+
+                    <div class="mb-3" id="email-field">
+                        <label for="{{ form.recipient_email.id_for_label }}" class="form-label">
+                            <i class="fas fa-envelope"></i> {{ form.recipient_email.label }}
+                        </label>
+                        {{ form.recipient_email }}
+                        {% if form.recipient_email.errors %}
+                        <div class="invalid-feedback d-block">{{ form.recipient_email.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3" id="phone-field" style="display: none;">
+                        <label for="{{ form.recipient_phone.id_for_label }}" class="form-label">
+                            <i class="fas fa-mobile-alt"></i> {{ form.recipient_phone.label }}
+                        </label>
+                        {{ form.recipient_phone }}
+                        {% if form.recipient_phone.errors %}
+                        <div class="invalid-feedback d-block">{{ form.recipient_phone.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.recipient_phone.help_text }}</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.message.id_for_label }}" class="form-label">{{ form.message.label }}</label>
+                        {{ form.message }}
+                        {% if form.message.errors %}
+                        <div class="invalid-feedback d-block">{{ form.message.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Add a custom message (e.g., "Meet me here at 3pm")</small>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Send Navigation Link
+                        </button>
+                        <a href="{% url 'locations:location_detail' location.id %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-info-circle"></i> Available Navigation Links</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-3">Preview of navigation links that will be sent:</p>
+
+                {% for service_name, url in nav_urls.items %}
+                <div class="mb-2">
+                    <strong>{{ service_name|title|replace:"_":" " }}</strong><br>
+                    <a href="{{ url }}" target="_blank" class="small text-break">{{ url|truncatechars:60 }}</a>
+                </div>
+                {% endfor %}
+
+                {% if not location.has_coordinates %}
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Note:</strong> This location doesn't have GPS coordinates. Some navigation services (like Waze) require coordinates.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-question-circle"></i> How It Works</h6>
+            </div>
+            <div class="card-body small">
+                <p><strong>Email:</strong> Sends navigation links via email that can be opened on any device.</p>
+                <p><strong>SMS:</strong> Sends navigation links via text message. Links will automatically open in the device's default map app.</p>
+                <p class="mb-0"><strong>Both:</strong> Sends to both email and SMS for redundancy.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const methodRadios = document.getElementsByName('method');
+    const emailField = document.getElementById('email-field');
+    const phoneField = document.getElementById('phone-field');
+
+    function updateVisibility() {
+        const selectedMethod = document.querySelector('input[name="method"]:checked').value;
+
+        if (selectedMethod === 'email') {
+            emailField.style.display = 'block';
+            phoneField.style.display = 'none';
+        } else if (selectedMethod === 'sms') {
+            emailField.style.display = 'none';
+            phoneField.style.display = 'block';
+        } else { // both
+            emailField.style.display = 'block';
+            phoneField.style.display = 'block';
+        }
+    }
+
+    methodRadios.forEach(radio => {
+        radio.addEventListener('change', updateVisibility);
+    });
+
+    // Initial state
+    updateVisibility();
+});
+</script>
+{% endblock %}

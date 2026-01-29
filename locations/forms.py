@@ -92,3 +92,85 @@ class LocationFloorPlanForm(forms.ModelForm):
             'include_network': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'include_furniture': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+
+class SendNavigationLinkForm(forms.Form):
+    """Form for sending location navigation links via email or SMS."""
+
+    METHOD_CHOICES = [
+        ('email', 'Email'),
+        ('sms', 'SMS'),
+        ('both', 'Both Email and SMS'),
+    ]
+
+    MAP_SERVICE_CHOICES = [
+        ('google_maps', 'Google Maps'),
+        ('google_maps_navigate', 'Google Maps (Navigation)'),
+        ('apple_maps', 'Apple Maps'),
+        ('waze', 'Waze'),
+        ('all', 'All Services'),
+    ]
+
+    method = forms.ChoiceField(
+        choices=METHOD_CHOICES,
+        initial='email',
+        widget=forms.RadioSelect,
+        label='Send via'
+    )
+
+    map_service = forms.ChoiceField(
+        choices=MAP_SERVICE_CHOICES,
+        initial='google_maps_navigate',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Map Service'
+    )
+
+    recipient_email = forms.EmailField(
+        required=False,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'recipient@example.com'
+        }),
+        label='Email Address'
+    )
+
+    recipient_phone = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '+15551234567',
+            'pattern': r'\+[0-9]{1,15}'
+        }),
+        label='Phone Number (E.164 format)',
+        help_text='Must start with + and country code (e.g., +15551234567 for US)'
+    )
+
+    message = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Optional custom message...'
+        }),
+        label='Custom Message (Optional)'
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        method = cleaned_data.get('method')
+        recipient_email = cleaned_data.get('recipient_email')
+        recipient_phone = cleaned_data.get('recipient_phone')
+
+        # Validate that appropriate fields are filled based on method
+        if method in ['email', 'both']:
+            if not recipient_email:
+                self.add_error('recipient_email', 'Email address is required for email delivery')
+
+        if method in ['sms', 'both']:
+            if not recipient_phone:
+                self.add_error('recipient_phone', 'Phone number is required for SMS delivery')
+            elif not recipient_phone.startswith('+'):
+                self.add_error('recipient_phone', 'Phone number must start with + and include country code')
+
+        return cleaned_data
+

@@ -29,4 +29,7 @@ urlpatterns = [
     # Map data endpoints
     path('map-data/', views.location_map_data, name='location_map_data'),
     path('global-map-data/', views.global_location_map_data, name='global_location_map_data'),
+
+    # Send navigation link
+    path('<int:location_id>/send-navigation/', views.send_navigation_link, name='send_navigation_link'),
 ]

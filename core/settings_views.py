@@ -1918,3 +1918,35 @@ def import_demo_data(request):
             'error': str(e),
             'traceback': traceback.format_exc()
         })
+
+
+@login_required
+@user_passes_test(is_superuser)
+def settings_sms(request):
+    """SMS provider settings for sending navigation links and notifications."""
+    settings_obj = SystemSetting.get_settings()
+
+    if request.method == 'POST':
+        # Update SMS settings
+        settings_obj.sms_enabled = request.POST.get('sms_enabled') == 'on'
+        settings_obj.sms_provider = request.POST.get('sms_provider', settings_obj.sms_provider)
+        settings_obj.sms_account_sid = request.POST.get('sms_account_sid', settings_obj.sms_account_sid)
+        settings_obj.sms_from_number = request.POST.get('sms_from_number', settings_obj.sms_from_number)
+
+        # Only update auth token if provided
+        sms_auth_token = request.POST.get('sms_auth_token', '').strip()
+        if sms_auth_token:
+            # Encrypt auth token before storing
+            from vault.encryption import encrypt
+            settings_obj.sms_auth_token = encrypt(sms_auth_token)
+
+        settings_obj.updated_by = request.user
+        settings_obj.save()
+
+        messages.success(request, 'SMS settings updated successfully.')
+        return redirect('core:settings_sms')
+
+    return render(request, 'core/settings_sms.html', {
+        'settings': settings_obj,
+        'current_tab': 'sms',
+    })
