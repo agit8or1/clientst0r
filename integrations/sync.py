@@ -675,6 +675,8 @@ class RMMSync:
                 'hostname': device_data.get('hostname', ''),
                 'ip_address': device_data.get('ip_address'),
                 'mac_address': device_data.get('mac_address', ''),
+                'latitude': device_data.get('latitude'),
+                'longitude': device_data.get('longitude'),
                 'is_online': device_data.get('is_online', False),
                 'last_seen': device_data.get('last_seen'),
                 'raw_data': device_data.get('raw_data', {}),

@@ -551,6 +551,117 @@ def rmm_device_detail(request, pk):
 
 
 @login_required
+def rmm_device_map_data(request):
+    """Return GeoJSON for RMM devices with location data (organization-specific)."""
+    organization = request.current_organization
+
+    if not organization:
+        return JsonResponse({'error': 'No organization selected'}, status=400)
+
+    # Get all devices for this organization with coordinates
+    devices = RMMDevice.objects.filter(
+        organization=organization,
+        latitude__isnull=False,
+        longitude__isnull=False
+    ).select_related('connection').values(
+        'id', 'device_name', 'device_type', 'manufacturer', 'model',
+        'latitude', 'longitude', 'is_online', 'last_seen',
+        'connection__id', 'connection__name'
+    )
+
+    # Build GeoJSON feature collection
+    features = []
+    for device in devices:
+        # Determine marker color based on status
+        color = 'green' if device['is_online'] else 'red'
+
+        features.append({
+            'type': 'Feature',
+            'geometry': {
+                'type': 'Point',
+                'coordinates': [float(device['longitude']), float(device['latitude'])]
+            },
+            'properties': {
+                'id': device['id'],
+                'name': device['device_name'],
+                'type': device['device_type'],
+                'manufacturer': device['manufacturer'],
+                'model': device['model'],
+                'is_online': device['is_online'],
+                'last_seen': device['last_seen'].isoformat() if device['last_seen'] else None,
+                'connection_id': device['connection__id'],
+                'connection_name': device['connection__name'],
+                'url': f"/integrations/rmm/devices/{device['id']}/",
+                'marker_type': 'device',
+                'marker_color': color
+            }
+        })
+
+    return JsonResponse({
+        'type': 'FeatureCollection',
+        'features': features
+    })
+
+
+@login_required
+def global_rmm_device_map_data(request):
+    """Return GeoJSON for RMM devices with location data (all organizations, superusers and staff only)."""
+    # Check if user is staff (MSP tech) or superuser
+    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
+
+    if not (request.user.is_superuser or is_staff):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+
+    from core.models import Organization
+
+    # Get all devices with coordinates across all organizations
+    devices = RMMDevice.objects.filter(
+        latitude__isnull=False,
+        longitude__isnull=False
+    ).select_related('connection', 'organization').values(
+        'id', 'device_name', 'device_type', 'manufacturer', 'model',
+        'latitude', 'longitude', 'is_online', 'last_seen',
+        'connection__id', 'connection__name',
+        'organization__id', 'organization__name'
+    )
+
+    # Build GeoJSON feature collection
+    features = []
+    for device in devices:
+        # Determine marker color based on status
+        color = 'green' if device['is_online'] else 'red'
+
+        features.append({
+            'type': 'Feature',
+            'geometry': {
+                'type': 'Point',
+                'coordinates': [float(device['longitude']), float(device['latitude'])]
+            },
+            'properties': {
+                'id': device['id'],
+                'name': device['device_name'],
+                'type': device['device_type'],
+                'manufacturer': device['manufacturer'],
+                'model': device['model'],
+                'is_online': device['is_online'],
+                'last_seen': device['last_seen'].isoformat() if device['last_seen'] else None,
+                'connection_id': device['connection__id'],
+                'connection_name': device['connection__name'],
+                'organization_id': device['organization__id'],
+                'organization_name': device['organization__name'],
+                'url': f"/integrations/rmm/devices/{device['id']}/",
+                'marker_type': 'device',
+                'marker_color': color
+            }
+        })
+
+    return JsonResponse({
+        'type': 'FeatureCollection',
+        'features': features
+    })
+
+
+@login_required
 @require_POST
 def rmm_trigger_sync(request, pk):
     """Manually trigger RMM sync for a connection."""

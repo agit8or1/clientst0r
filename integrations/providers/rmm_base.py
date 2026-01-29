@@ -187,6 +187,46 @@ class BaseRMMProvider(BaseProvider):
         except (ValueError, AttributeError):
             return None
 
+    def _parse_location(self, location_string: Optional[str]) -> tuple[Optional[float], Optional[float]]:
+        """
+        Parse location string to latitude and longitude.
+        Supports formats like "lat,lon" or "-32.238923,101.393939".
+
+        Args:
+            location_string: Location string from RMM (e.g., "lat,lon")
+
+        Returns:
+            Tuple of (latitude, longitude) or (None, None) if invalid
+        """
+        if not location_string:
+            return None, None
+
+        try:
+            # Handle string format "lat,lon"
+            if isinstance(location_string, str) and ',' in location_string:
+                parts = location_string.strip().split(',')
+                if len(parts) == 2:
+                    latitude = float(parts[0].strip())
+                    longitude = float(parts[1].strip())
+
+                    # Validate ranges
+                    if -90 <= latitude <= 90 and -180 <= longitude <= 180:
+                        return latitude, longitude
+
+            # Handle dict format {"lat": x, "lon": y} or {"latitude": x, "longitude": y}
+            elif isinstance(location_string, dict):
+                lat = location_string.get('lat') or location_string.get('latitude')
+                lon = location_string.get('lon') or location_string.get('longitude')
+                if lat is not None and lon is not None:
+                    latitude = float(lat)
+                    longitude = float(lon)
+                    if -90 <= latitude <= 90 and -180 <= longitude <= 180:
+                        return latitude, longitude
+        except (ValueError, TypeError, AttributeError):
+            pass
+
+        return None, None
+
     def _paginate(self, method, endpoint, params=None, page_param='page', page_size_param='pageSize',
                   per_page=100, max_pages=None):
         """

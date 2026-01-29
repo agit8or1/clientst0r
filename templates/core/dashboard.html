@@ -84,7 +84,12 @@
 <div class="card mb-3">
     <div class="card-header py-1 d-flex justify-content-between align-items-center">
         <h6 class="mb-0 small"><i class="fas fa-map-marked-alt"></i> Location Map</h6>
-        <a href="{% url 'locations:location_list' %}" class="btn btn-sm btn-link py-0">View All</a>
+        <div>
+            <button id="toggle-devices" class="btn btn-sm btn-outline-primary me-2" title="Toggle RMM devices on map">
+                <i class="fas fa-laptop"></i> <span id="device-toggle-text">Show Devices</span>
+            </button>
+            <a href="{% url 'locations:location_list' %}" class="btn btn-sm btn-link py-0">View All</a>
+        </div>
     </div>
     <div class="card-body p-0">
         <div id="location-map" style="height: 350px; width: 100%;"></div>
@@ -284,13 +289,137 @@
 
 {% block extra_js %}
 <script>
-// Initialize location map
+// Initialize location map with device layer support
 document.addEventListener('DOMContentLoaded', function() {
     const mapDiv = document.getElementById('location-map');
     const messageDiv = document.getElementById('map-message');
     const messageText = document.getElementById('map-message-text');
+    const toggleButton = document.getElementById('toggle-devices');
+    const toggleText = document.getElementById('device-toggle-text');
 
-    // Fetch location data
+    let map = null;
+    let deviceLayer = null;
+    let showDevices = false;
+    const locationMarkers = [];
+    const deviceMarkers = [];
+
+    // Define marker colors based on status
+    function getLocationMarkerColor(status, is_primary) {
+        if (is_primary) return '#ffc107'; // Yellow/gold for HQ
+        switch(status) {
+            case 'active': return '#28a745'; // Green
+            case 'inactive': return '#6c757d'; // Gray
+            case 'planned': return '#17a2b8'; // Blue
+            case 'closed': return '#dc3545'; // Red
+            default: return '#007bff'; // Default blue
+        }
+    }
+
+    // Create custom marker icon for locations
+    function createLocationIcon(color) {
+        return L.divIcon({
+            className: 'custom-map-marker',
+            html: `<div style="background-color: ${color}; width: 25px; height: 25px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><div style="transform: rotate(45deg); margin-top: 4px; margin-left: 7px;"><i class="fas fa-building" style="font-size: 10px; color: #fff;"></i></div></div>`,
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
+        });
+    }
+
+    // Create custom marker icon for devices
+    function createDeviceIcon(isOnline) {
+        const color = isOnline ? '#28a745' : '#dc3545'; // Green for online, red for offline
+        return L.divIcon({
+            className: 'custom-map-marker-device',
+            html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-laptop" style="font-size: 8px; color: #fff;"></i></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+            popupAnchor: [0, -10]
+        });
+    }
+
+    // Load and display device layer
+    function loadDeviceLayer() {
+        if (deviceLayer) {
+            // Remove existing device layer
+            deviceMarkers.forEach(marker => map.removeLayer(marker));
+            deviceMarkers.length = 0;
+            deviceLayer = null;
+        }
+
+        if (!showDevices) return;
+
+        // Fetch device data
+        fetch('{% url "integrations:rmm_device_map_data" %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.features && data.features.length > 0) {
+                    data.features.forEach(feature => {
+                        const coord = feature.geometry.coordinates;
+                        const props = feature.properties;
+
+                        const marker = L.marker([coord[1], coord[0]], {
+                            icon: createDeviceIcon(props.is_online)
+                        }).addTo(map);
+
+                        // Create popup content for device
+                        const statusBadge = props.is_online ?
+                            '<span class="badge bg-success">Online</span>' :
+                            '<span class="badge bg-danger">Offline</span>';
+
+                        const lastSeen = props.last_seen ?
+                            new Date(props.last_seen).toLocaleString() :
+                            'Never';
+
+                        const popupContent = `
+                            <div style="min-width: 200px;">
+                                <h6 class="mb-1">
+                                    <i class="fas fa-laptop text-primary"></i>
+                                    <strong>${props.name}</strong>
+                                </h6>
+                                <p class="mb-1 small">
+                                    <strong>Type:</strong> ${props.type}<br>
+                                    ${props.manufacturer ? `<strong>Manufacturer:</strong> ${props.manufacturer}<br>` : ''}
+                                    ${props.model ? `<strong>Model:</strong> ${props.model}<br>` : ''}
+                                    <strong>Status:</strong> ${statusBadge}<br>
+                                    <strong>Last Seen:</strong> ${lastSeen}
+                                </p>
+                                <a href="${props.url}" class="btn btn-sm btn-primary"><i class="fas fa-eye"></i> View Device</a>
+                            </div>
+                        `;
+                        marker.bindPopup(popupContent);
+                        deviceMarkers.push(marker);
+                    });
+
+                    console.log(`Loaded ${deviceMarkers.length} devices on map`);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading device data:', error);
+            });
+    }
+
+    // Toggle device layer
+    if (toggleButton) {
+        toggleButton.addEventListener('click', function() {
+            showDevices = !showDevices;
+            if (showDevices) {
+                toggleButton.classList.remove('btn-outline-primary');
+                toggleButton.classList.add('btn-primary');
+                toggleText.textContent = 'Hide Devices';
+                loadDeviceLayer();
+            } else {
+                toggleButton.classList.remove('btn-primary');
+                toggleButton.classList.add('btn-outline-primary');
+                toggleText.textContent = 'Show Devices';
+                // Remove device markers
+                deviceMarkers.forEach(marker => map.removeLayer(marker));
+                deviceMarkers.length = 0;
+            }
+        });
+    }
+
+    // Fetch location data and initialize map
     fetch('{% url "locations:location_map_data" %}')
         .then(response => response.json())
         .then(data => {
@@ -300,7 +429,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 mapDiv.style.display = 'block';
 
                 // Initialize map
-                const map = L.map('location-map').setView([39.8283, -98.5795], 4); // Center of USA
+                map = L.map('location-map').setView([39.8283, -98.5795], 4); // Center of USA
 
                 // Add OpenStreetMap tiles
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -308,38 +437,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     maxZoom: 19
                 }).addTo(map);
 
-                // Define marker colors based on status
-                function getMarkerColor(status, is_primary) {
-                    if (is_primary) return '#ffc107'; // Yellow/gold for HQ
-                    switch(status) {
-                        case 'active': return '#28a745'; // Green
-                        case 'inactive': return '#6c757d'; // Gray
-                        case 'planned': return '#17a2b8'; // Blue
-                        case 'closed': return '#dc3545'; // Red
-                        default: return '#007bff'; // Default blue
-                    }
-                }
-
-                // Create custom marker icons
-                function createCustomIcon(color) {
-                    return L.divIcon({
-                        className: 'custom-map-marker',
-                        html: `<div style="background-color: ${color}; width: 25px; height: 25px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><div style="transform: rotate(45deg); margin-top: 4px; margin-left: 7px;"><i class="fas fa-building" style="font-size: 10px; color: #fff;"></i></div></div>`,
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34]
-                    });
-                }
-
                 // Add markers for each location
-                const markers = [];
                 data.features.forEach(feature => {
                     const coord = feature.geometry.coordinates;
                     const props = feature.properties;
-                    const color = getMarkerColor(props.status, props.is_primary);
+                    const color = getLocationMarkerColor(props.status, props.is_primary);
 
                     const marker = L.marker([coord[1], coord[0]], {
-                        icon: createCustomIcon(color)
+                        icon: createLocationIcon(color)
                     }).addTo(map);
 
                     // Create popup content
@@ -355,12 +460,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     `;
                     marker.bindPopup(popupContent);
-                    markers.push(marker);
+                    locationMarkers.push(marker);
                 });
 
-                // Fit bounds to show all markers
-                if (markers.length > 0) {
-                    const group = L.featureGroup(markers);
+                // Fit bounds to show all location markers
+                if (locationMarkers.length > 0) {
+                    const group = L.featureGroup(locationMarkers);
                     map.fitBounds(group.getBounds().pad(0.1));
                 }
             } else {
@@ -368,6 +473,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 messageText.textContent = 'No locations with coordinates. Add locations with addresses to see them on the map.';
                 messageDiv.style.display = 'block';
                 mapDiv.style.display = 'none';
+                // Hide device toggle if no map
+                if (toggleButton) toggleButton.style.display = 'none';
             }
         })
         .catch(error => {
@@ -375,6 +482,8 @@ document.addEventListener('DOMContentLoaded', function() {
             messageText.textContent = 'Unable to load map. Please try again later.';
             messageDiv.style.display = 'block';
             mapDiv.style.display = 'none';
+            // Hide device toggle if error
+            if (toggleButton) toggleButton.style.display = 'none';
         });
 });
 </script>

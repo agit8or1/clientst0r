@@ -304,6 +304,11 @@ class TacticalRMMProvider(BaseRMMProvider):
             from django.utils.text import slugify
             client_id = slugify(client_name)
 
+        # Parse location data if available
+        # Check for location in various possible fields
+        location_data = raw_data.get('location') or raw_data.get('gps_location') or raw_data.get('coordinates')
+        latitude, longitude = self._parse_location(location_data)
+
         return {
             'external_id': str(raw_data['agent_id']),
             'device_name': raw_data.get('hostname', ''),
@@ -316,6 +321,8 @@ class TacticalRMMProvider(BaseRMMProvider):
             'hostname': raw_data.get('hostname', ''),
             'ip_address': ip_address,
             'mac_address': '',  # Tactical RMM doesn't expose MAC in main agent data
+            'latitude': latitude,
+            'longitude': longitude,
             'is_online': raw_data.get('online', False),
             'last_seen': last_seen,
             # Site/Client information for organization mapping
