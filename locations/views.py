@@ -31,7 +31,14 @@ def location_list(request):
     """List all locations for current organization."""
     organization = request.current_organization
 
-    locations = Location.objects.filter(organization=organization).select_related('organization')
+    # Build query - allow superusers/staff to see all locations in global view
+    if organization:
+        locations = Location.objects.filter(organization=organization).select_related('organization')
+    elif request.user.is_superuser or request.is_staff_user:
+        locations = Location.objects.all().select_related('organization')
+    else:
+        # Regular users must have an organization context
+        locations = Location.objects.filter(organization=organization).select_related('organization')
 
     # Filtering
     status_filter = request.GET.get('status')
@@ -67,11 +74,15 @@ def location_list(request):
 def location_detail(request, location_id):
     """Display location details with map, satellite imagery, and floor plans."""
     organization = request.current_organization
-    location = get_object_or_404(
-        Location,
-        id=location_id,
-        organization=organization
-    )
+
+    # Build query - allow superusers/staff to access all locations in global view
+    if organization:
+        location = get_object_or_404(Location, id=location_id, organization=organization)
+    elif request.user.is_superuser or request.is_staff_user:
+        location = get_object_or_404(Location, id=location_id)
+    else:
+        # Regular users must have an organization context
+        location = get_object_or_404(Location, id=location_id, organization=organization)
 
     # Get floor plans for this location
     floor_plans = location.floor_plans.all()
