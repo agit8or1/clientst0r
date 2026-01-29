@@ -274,6 +274,12 @@ class UserProfile(BaseModel):
         ('weekly', 'Weekly Digest'),
     ], default='realtime')
 
+    # UI Preferences
+    tooltips_enabled = models.BooleanField(
+        default=True,
+        help_text='Show helpful tooltips throughout the interface'
+    )
+
     # Authentication Source (for SSO tracking)
     auth_source = models.CharField(
         max_length=20,

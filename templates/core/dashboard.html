@@ -85,10 +85,10 @@
     <div class="card-header py-1 d-flex justify-content-between align-items-center">
         <h6 class="mb-0 small"><i class="fas fa-map-marked-alt"></i> Location Map</h6>
         <div>
-            <button id="toggle-devices" class="btn btn-sm btn-outline-primary me-2" title="Toggle RMM devices on map">
+            <button id="toggle-devices" class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="Show or hide RMM devices with location data on the map">
                 <i class="fas fa-laptop"></i> <span id="device-toggle-text">Show Devices</span>
             </button>
-            <a href="{% url 'locations:location_list' %}" class="btn btn-sm btn-link py-0">View All</a>
+            <a href="{% url 'locations:location_list' %}" class="btn btn-sm btn-link py-0" data-bs-toggle="tooltip" data-bs-placement="top" title="View and manage all physical locations">View All</a>
         </div>
     </div>
     <div class="card-body p-0">
