@@ -19,7 +19,7 @@
 <!-- Stats Cards -->
 <div class="row g-2 mb-3">
     <div class="col-md-3">
-        <a href="{% url 'vault:password_list' %}" class="text-decoration-none">
+        <a href="{% url 'vault:password_list' %}" class="text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" title="View all passwords in the vault">
             <div class="card bg-primary text-white h-100" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
                 <div class="card-body py-2 px-3">
                     <div class="d-flex justify-content-between align-items-center">
@@ -34,7 +34,7 @@
         </a>
     </div>
     <div class="col-md-3">
-        <a href="{% url 'assets:asset_list' %}" class="text-decoration-none">
+        <a href="{% url 'assets:asset_list' %}" class="text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" title="View and manage all assets">
             <div class="card bg-success text-white h-100" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
                 <div class="card-body py-2 px-3">
                     <div class="d-flex justify-content-between align-items-center">
@@ -49,7 +49,7 @@
         </a>
     </div>
     <div class="col-md-3">
-        <a href="{% url 'docs:document_list' %}" class="text-decoration-none">
+        <a href="{% url 'docs:document_list' %}" class="text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" title="View documentation and knowledge base">
             <div class="card bg-info text-white h-100" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
                 <div class="card-body py-2 px-3">
                     <div class="d-flex justify-content-between align-items-center">
@@ -64,7 +64,7 @@
         </a>
     </div>
     <div class="col-md-3">
-        <a href="{% url 'monitoring:website_monitor_list' %}" class="text-decoration-none">
+        <a href="{% url 'monitoring:website_monitor_list' %}" class="text-decoration-none" data-bs-toggle="tooltip" data-bs-placement="top" title="View website and service monitors">
             <div class="card bg-warning text-dark h-100" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
                 <div class="card-body py-2 px-3">
                     <div class="d-flex justify-content-between align-items-center">
