@@ -327,6 +327,7 @@ def organization_list(request):
 def organization_create(request):
     """
     Create new organization. User becomes owner automatically.
+    Issue #56: Auto-create location option.
     """
     if request.method == 'POST':
         form = OrganizationForm(request.POST)
@@ -341,7 +342,29 @@ def organization_create(request):
                 is_active=True
             )
 
-            messages.success(request, f"Organization '{org.name}' created successfully. You are now the owner.")
+            # Issue #56: Auto-create location if requested
+            auto_create = form.cleaned_data.get('auto_create_location', False)
+            if auto_create and org.street_address and org.city and org.state and org.postal_code:
+                from locations.models import Location
+                location_name = form.cleaned_data.get('location_name') or 'Headquarters'
+
+                Location.objects.create(
+                    organization=org,
+                    name=location_name,
+                    location_type='office',
+                    street_address=org.street_address,
+                    street_address_2=org.street_address_2 or '',
+                    city=org.city,
+                    state=org.state,
+                    postal_code=org.postal_code,
+                    country=org.country,
+                    status='active',
+                    is_primary=True
+                )
+                messages.success(request, f"Organization '{org.name}' created with primary location '{location_name}'. You are now the owner.")
+            else:
+                messages.success(request, f"Organization '{org.name}' created successfully. You are now the owner.")
+
             return redirect('accounts:organization_detail', org_id=org.id)
     else:
         form = OrganizationForm()

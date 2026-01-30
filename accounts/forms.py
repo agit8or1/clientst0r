@@ -12,6 +12,23 @@ import pytz
 class OrganizationForm(forms.ModelForm):
     """Form for creating and editing organizations."""
 
+    # Issue #56: Auto-create location option
+    auto_create_location = forms.BooleanField(
+        required=False,
+        initial=True,
+        label='Auto-create Primary Location',
+        help_text='Automatically create a primary location using the organization address',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    location_name = forms.CharField(
+        required=False,
+        max_length=255,
+        label='Location Name',
+        initial='Headquarters',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Headquarters, Main Office'}),
+        help_text='Name for the auto-created location (only used if auto-create is checked)'
+    )
+
     class Meta:
         model = Organization
         fields = [
