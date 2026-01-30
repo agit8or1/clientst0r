@@ -84,31 +84,14 @@
 <div class="card mb-3">
     <div class="card-header py-1 d-flex justify-content-between align-items-center">
         <h6 class="mb-0 small"><i class="fas fa-map-marked-alt"></i> Location Map</h6>
-        <div class="position-relative">
+        <div>
             <button id="toggle-devices" class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="Show or hide RMM devices with location data on the map">
                 <i class="fas fa-laptop"></i> <span id="device-toggle-text">Show Devices</span>
             </button>
-            <button class="btn btn-sm btn-outline-secondary me-2" id="map-settings-btn" title="Map Settings" style="display: none;">
-                <i class="fas fa-cog"></i> Settings
+            <button id="toggle-dragging" class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="Enable or disable map dragging" style="display: none;">
+                <i class="fas fa-lock"></i> <span id="dragging-toggle-text">Unlock Dragging</span>
             </button>
             <a href="{% url 'locations:location_list' %}" class="btn btn-sm btn-link py-0" data-bs-toggle="tooltip" data-bs-placement="top" title="View and manage all physical locations">View All</a>
-            <!-- Map Settings Panel -->
-            <div id="map-settings-panel" class="card shadow-sm position-absolute" style="display: none; top: 100%; right: 0; min-width: 250px; z-index: 10000; margin-top: 5px;">
-                <div class="card-body p-3">
-                    <h6 class="mb-3"><i class="fas fa-map"></i> Map Settings</h6>
-                    <div class="mb-3">
-                        <label for="map-zoom-slider" class="form-label small mb-1">Zoom Level: <span id="zoom-level-display">{{ map_default_zoom }}</span></label>
-                        <input type="range" class="form-range" id="map-zoom-slider" min="1" max="18" value="{{ map_default_zoom }}">
-                        <small class="text-muted">1=World, 18=Street</small>
-                    </div>
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="map-dragging-toggle" {% if map_dragging_enabled %}checked{% endif %}>
-                        <label class="form-check-label small" for="map-dragging-toggle">
-                            Enable Dragging
-                        </label>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
     <div class="card-body p-0">
@@ -466,7 +449,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     scrollWheelZoom: true,
                     touchZoom: true,
                     doubleClickZoom: true,
-                    boxZoom: true
+                    boxZoom: true,
+                    zoomControl: true  // Show built-in +/- zoom buttons
                 }).setView([39.8283, -98.5795], {{ map_default_zoom }}); // Center of USA
 
                 // Add OpenStreetMap tiles
@@ -507,82 +491,40 @@ document.addEventListener('DOMContentLoaded', function() {
                     map.fitBounds(group.getBounds().pad(0.1));
                 }
 
-                // Show map settings button (now in card header)
-                const settingsBtn = document.getElementById('map-settings-btn');
-                const settingsPanel = document.getElementById('map-settings-panel');
-                const zoomSlider = document.getElementById('map-zoom-slider');
-                const zoomDisplay = document.getElementById('zoom-level-display');
-                const draggingToggle = document.getElementById('map-dragging-toggle');
+                // Setup dragging toggle button
+                const draggingToggleBtn = document.getElementById('toggle-dragging');
+                const draggingToggleText = document.getElementById('dragging-toggle-text');
 
-                // Show the settings button
-                settingsBtn.style.display = 'inline-block';
+                // Show the dragging toggle button
+                draggingToggleBtn.style.display = 'inline-block';
 
-                console.log('Map controls initialized (in header):', {
-                    settingsBtn: settingsBtn,
-                    settingsPanel: settingsPanel,
-                    buttonVisible: settingsBtn.style.display
-                });
+                // Check if dragging is currently enabled
+                let draggingEnabled = {{ map_dragging_enabled|lower }};
 
-                // Load saved preferences from localStorage, or use server defaults
-                const savedZoom = localStorage.getItem('mapDefaultZoom');
-                const savedDragging = localStorage.getItem('mapDraggingEnabled');
-
-                // Initialize zoom (use saved or current map zoom)
-                const initialZoom = savedZoom ? parseInt(savedZoom) : map.getZoom();
-                zoomSlider.value = initialZoom;
-                zoomDisplay.textContent = initialZoom;
-                if (savedZoom) {
-                    map.setZoom(initialZoom);
+                // Update button state
+                function updateDraggingButton() {
+                    if (draggingEnabled) {
+                        draggingToggleBtn.classList.remove('btn-outline-secondary');
+                        draggingToggleBtn.classList.add('btn-success');
+                        draggingToggleBtn.innerHTML = '<i class="fas fa-unlock"></i> <span id="dragging-toggle-text">Dragging Enabled</span>';
+                    } else {
+                        draggingToggleBtn.classList.remove('btn-success');
+                        draggingToggleBtn.classList.add('btn-outline-secondary');
+                        draggingToggleBtn.innerHTML = '<i class="fas fa-lock"></i> <span id="dragging-toggle-text">Dragging Disabled</span>';
+                    }
                 }
 
-                // Initialize dragging (use saved or server default)
-                if (savedDragging !== null) {
-                    const draggingEnabled = savedDragging === 'true';
-                    draggingToggle.checked = draggingEnabled;
+                updateDraggingButton();
+
+                // Toggle dragging when button clicked
+                draggingToggleBtn.addEventListener('click', function() {
+                    draggingEnabled = !draggingEnabled;
                     if (draggingEnabled) {
                         map.dragging.enable();
                     } else {
                         map.dragging.disable();
                     }
-                } else {
-                    // No saved preference, use current state from server config
-                    draggingToggle.checked = {{ map_dragging_enabled|lower }};
-                }
-
-                // Toggle settings panel
-                settingsBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Settings button clicked!');
-                    const isVisible = settingsPanel.style.display === 'block';
-                    settingsPanel.style.display = isVisible ? 'none' : 'block';
-                    console.log('Panel visibility toggled to:', settingsPanel.style.display);
-                });
-
-                // Close panel when clicking outside
-                document.addEventListener('click', function(e) {
-                    if (!settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) {
-                        settingsPanel.style.display = 'none';
-                    }
-                });
-
-                // Zoom slider
-                zoomSlider.addEventListener('input', function() {
-                    const zoom = parseInt(this.value);
-                    zoomDisplay.textContent = zoom;
-                    map.setZoom(zoom);
-                    localStorage.setItem('mapDefaultZoom', zoom);
-                });
-
-                // Dragging toggle
-                draggingToggle.addEventListener('change', function() {
-                    if (this.checked) {
-                        map.dragging.enable();
-                        localStorage.setItem('mapDraggingEnabled', 'true');
-                    } else {
-                        map.dragging.disable();
-                        localStorage.setItem('mapDraggingEnabled', 'false');
-                    }
+                    updateDraggingButton();
                 });
 
             } else {
