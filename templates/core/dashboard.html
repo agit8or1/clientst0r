@@ -98,7 +98,7 @@
         </div>
     </div>
     <div class="card-body p-0">
-        <div id="location-map" style="height: 350px; width: 100%;"></div>
+        <div id="location-map" style="height: 350px; width: 100%; position: relative; z-index: 1; cursor: grab;"></div>
         <div id="map-message" class="text-center py-5 text-muted" style="display: none;">
             <i class="fas fa-map-marker-alt fa-2x mb-2"></i><br>
             <span id="map-message-text">Loading map...</span>
@@ -538,14 +538,28 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (draggingEnabled) {
                             map.dragging.enable();
                             console.log('Map dragging enabled');
+                            console.log('Drag handler enabled:', map.dragging.enabled());
+                            console.log('Drag handler exists:', !!map.dragging._draggable);
+                            // Change cursor to indicate dragging is possible
+                            document.getElementById('location-map').style.cursor = 'grab';
                         } else {
                             map.dragging.disable();
                             console.log('Map dragging disabled');
+                            console.log('Drag handler enabled:', map.dragging.enabled());
+                            // Change cursor to indicate dragging is locked
+                            document.getElementById('location-map').style.cursor = 'default';
                         }
                         updateDraggingButton();
                     });
 
+                    // Test: Add a mousedown listener to see if events are reaching the map
+                    document.getElementById('location-map').addEventListener('mousedown', function(e) {
+                        console.log('Mousedown on map container detected!');
+                    });
+
                     console.log('Dragging toggle button initialized');
+                    console.log('Map object:', map);
+                    console.log('Map dragging handler:', map.dragging);
                 }
 
                 // Setup satellite view toggle button
