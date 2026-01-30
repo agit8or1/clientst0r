@@ -174,11 +174,33 @@
                 <h5 class="mb-0"><i class="fas fa-map-marked-alt"></i> Global Location Map</h5>
                 <span class="text-muted small">All Organizations</span>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body p-0" style="position: relative;">
                 <div id="global-location-map" style="height: 500px; width: 100%;"></div>
                 <div id="global-map-message" class="text-center py-5 text-muted" style="display: none;">
                     <i class="fas fa-map-marker-alt fa-3x mb-3"></i><br>
                     <span id="global-map-message-text">Loading map...</span>
+                </div>
+                <!-- Map Controls -->
+                <div id="global-map-controls" style="position: absolute; top: 10px; right: 10px; z-index: 1000; display: none;">
+                    <button class="btn btn-sm btn-light shadow-sm" id="global-map-settings-btn" title="Map Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <div id="global-map-settings-panel" class="card shadow-sm" style="display: none; position: absolute; top: 35px; right: 0; min-width: 250px;">
+                        <div class="card-body p-3">
+                            <h6 class="mb-3"><i class="fas fa-map"></i> Map Settings</h6>
+                            <div class="mb-3">
+                                <label for="global-map-zoom-slider" class="form-label small mb-1">Zoom Level: <span id="global-zoom-level-display">{{ map_default_zoom }}</span></label>
+                                <input type="range" class="form-range" id="global-map-zoom-slider" min="1" max="18" value="{{ map_default_zoom }}">
+                                <small class="text-muted">1=World, 18=Street</small>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="global-map-dragging-toggle" {% if map_dragging_enabled %}checked{% endif %}>
+                                <label class="form-check-label small" for="global-map-dragging-toggle">
+                                    Enable Dragging
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -426,6 +448,67 @@ document.addEventListener('DOMContentLoaded', function() {
                     const group = L.featureGroup(markers);
                     map.fitBounds(group.getBounds().pad(0.1));
                 }
+
+                // Show map controls
+                document.getElementById('global-map-controls').style.display = 'block';
+
+                // Map settings controls
+                const settingsBtn = document.getElementById('global-map-settings-btn');
+                const settingsPanel = document.getElementById('global-map-settings-panel');
+                const zoomSlider = document.getElementById('global-map-zoom-slider');
+                const zoomDisplay = document.getElementById('global-zoom-level-display');
+                const draggingToggle = document.getElementById('global-map-dragging-toggle');
+
+                // Load saved preferences from localStorage
+                const savedZoom = localStorage.getItem('globalMapDefaultZoom');
+                const savedDragging = localStorage.getItem('globalMapDraggingEnabled');
+
+                if (savedZoom) {
+                    zoomSlider.value = savedZoom;
+                    zoomDisplay.textContent = savedZoom;
+                    map.setZoom(parseInt(savedZoom));
+                }
+                if (savedDragging !== null) {
+                    const draggingEnabled = savedDragging === 'true';
+                    draggingToggle.checked = draggingEnabled;
+                    if (draggingEnabled) {
+                        map.dragging.enable();
+                    } else {
+                        map.dragging.disable();
+                    }
+                }
+
+                // Toggle settings panel
+                settingsBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
+                });
+
+                // Close panel when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
+                        settingsPanel.style.display = 'none';
+                    }
+                });
+
+                // Zoom slider
+                zoomSlider.addEventListener('input', function() {
+                    const zoom = parseInt(this.value);
+                    zoomDisplay.textContent = zoom;
+                    map.setZoom(zoom);
+                    localStorage.setItem('globalMapDefaultZoom', zoom);
+                });
+
+                // Dragging toggle
+                draggingToggle.addEventListener('change', function() {
+                    if (this.checked) {
+                        map.dragging.enable();
+                        localStorage.setItem('globalMapDraggingEnabled', 'true');
+                    } else {
+                        map.dragging.disable();
+                        localStorage.setItem('globalMapDraggingEnabled', 'false');
+                    }
+                });
 
                 // Create legend for organizations
                 const legend = L.control({position: 'bottomright'});

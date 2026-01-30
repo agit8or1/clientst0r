@@ -91,11 +91,33 @@
             <a href="{% url 'locations:location_list' %}" class="btn btn-sm btn-link py-0" data-bs-toggle="tooltip" data-bs-placement="top" title="View and manage all physical locations">View All</a>
         </div>
     </div>
-    <div class="card-body p-0">
+    <div class="card-body p-0" style="position: relative;">
         <div id="location-map" style="height: 350px; width: 100%;"></div>
         <div id="map-message" class="text-center py-5 text-muted" style="display: none;">
             <i class="fas fa-map-marker-alt fa-2x mb-2"></i><br>
             <span id="map-message-text">Loading map...</span>
+        </div>
+        <!-- Map Controls -->
+        <div id="map-controls" style="position: absolute; top: 10px; right: 10px; z-index: 1000; display: none;">
+            <button class="btn btn-sm btn-light shadow-sm" id="map-settings-btn" title="Map Settings">
+                <i class="fas fa-cog"></i>
+            </button>
+            <div id="map-settings-panel" class="card shadow-sm" style="display: none; position: absolute; top: 35px; right: 0; min-width: 250px;">
+                <div class="card-body p-3">
+                    <h6 class="mb-3"><i class="fas fa-map"></i> Map Settings</h6>
+                    <div class="mb-3">
+                        <label for="map-zoom-slider" class="form-label small mb-1">Zoom Level: <span id="zoom-level-display">{{ map_default_zoom }}</span></label>
+                        <input type="range" class="form-range" id="map-zoom-slider" min="1" max="18" value="{{ map_default_zoom }}">
+                        <small class="text-muted">1=World, 18=Street</small>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="map-dragging-toggle" {% if map_dragging_enabled %}checked{% endif %}>
+                        <label class="form-check-label small" for="map-dragging-toggle">
+                            Enable Dragging
+                        </label>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -486,6 +508,68 @@ document.addEventListener('DOMContentLoaded', function() {
                     const group = L.featureGroup(locationMarkers);
                     map.fitBounds(group.getBounds().pad(0.1));
                 }
+
+                // Show map controls
+                document.getElementById('map-controls').style.display = 'block';
+
+                // Map settings controls
+                const settingsBtn = document.getElementById('map-settings-btn');
+                const settingsPanel = document.getElementById('map-settings-panel');
+                const zoomSlider = document.getElementById('map-zoom-slider');
+                const zoomDisplay = document.getElementById('zoom-level-display');
+                const draggingToggle = document.getElementById('map-dragging-toggle');
+
+                // Load saved preferences from localStorage
+                const savedZoom = localStorage.getItem('mapDefaultZoom');
+                const savedDragging = localStorage.getItem('mapDraggingEnabled');
+
+                if (savedZoom) {
+                    zoomSlider.value = savedZoom;
+                    zoomDisplay.textContent = savedZoom;
+                    map.setZoom(parseInt(savedZoom));
+                }
+                if (savedDragging !== null) {
+                    const draggingEnabled = savedDragging === 'true';
+                    draggingToggle.checked = draggingEnabled;
+                    if (draggingEnabled) {
+                        map.dragging.enable();
+                    } else {
+                        map.dragging.disable();
+                    }
+                }
+
+                // Toggle settings panel
+                settingsBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
+                });
+
+                // Close panel when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
+                        settingsPanel.style.display = 'none';
+                    }
+                });
+
+                // Zoom slider
+                zoomSlider.addEventListener('input', function() {
+                    const zoom = parseInt(this.value);
+                    zoomDisplay.textContent = zoom;
+                    map.setZoom(zoom);
+                    localStorage.setItem('mapDefaultZoom', zoom);
+                });
+
+                // Dragging toggle
+                draggingToggle.addEventListener('change', function() {
+                    if (this.checked) {
+                        map.dragging.enable();
+                        localStorage.setItem('mapDraggingEnabled', 'true');
+                    } else {
+                        map.dragging.disable();
+                        localStorage.setItem('mapDraggingEnabled', 'false');
+                    }
+                });
+
             } else {
                 // No locations with coordinates
                 messageText.textContent = 'No locations with coordinates. Add locations with addresses to see them on the map.';
