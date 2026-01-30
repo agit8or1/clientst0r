@@ -329,7 +329,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Prevent duplicate initialization
     if (mapDiv._mapInitialized) {
-        console.warn('⚠️ Map already initialized, skipping duplicate initialization');
         return;
     }
     mapDiv._mapInitialized = true;
@@ -457,14 +456,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Setup dragging toggle button
                 const draggingToggleBtn = document.getElementById('global-toggle-dragging');
                 if (draggingToggleBtn) {
-                    // Show the dragging toggle button
                     draggingToggleBtn.style.display = 'inline-block';
 
-                    // Check if dragging is currently enabled from map state
                     let draggingEnabled = map.dragging.enabled();
-                    console.log('Initial dragging state:', draggingEnabled);
 
-                    // Update button state
                     function updateDraggingButton() {
                         const iconHtml = draggingEnabled ? '<i class="fas fa-unlock"></i>' : '<i class="fas fa-lock"></i>';
                         const textHtml = draggingEnabled ? 'Dragging Enabled' : 'Dragging Disabled';
@@ -474,81 +469,23 @@ document.addEventListener('DOMContentLoaded', function() {
                             'btn btn-sm btn-outline-secondary me-2';
 
                         draggingToggleBtn.innerHTML = iconHtml + ' <span id="global-dragging-toggle-text">' + textHtml + '</span>';
-                        console.log('Button updated - dragging is now:', draggingEnabled);
                     }
 
                     updateDraggingButton();
 
-                    // Toggle dragging when button clicked
                     draggingToggleBtn.addEventListener('click', function(e) {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('Dragging toggle clicked, current state:', draggingEnabled);
                         draggingEnabled = !draggingEnabled;
                         if (draggingEnabled) {
                             map.dragging.enable();
-                            console.log('Map dragging enabled');
-                            console.log('Drag handler enabled:', map.dragging.enabled());
-                            console.log('Drag handler exists:', !!map.dragging._draggable);
-                            // Change cursor to indicate dragging is possible
                             document.getElementById('global-location-map').style.cursor = 'grab';
                         } else {
                             map.dragging.disable();
-                            console.log('Map dragging disabled');
-                            console.log('Drag handler enabled:', map.dragging.enabled());
-                            // Change cursor to indicate dragging is locked
                             document.getElementById('global-location-map').style.cursor = 'default';
                         }
                         updateDraggingButton();
                     });
-
-                    // Test: Add a mousedown listener to see if events are reaching the map
-                    document.getElementById('global-location-map').addEventListener('mousedown', function(e) {
-                        console.log('Mousedown on map container detected!');
-                        console.log('Is dragging currently enabled?', map.dragging.enabled());
-                    });
-
-                    // Add drag event listeners to Leaflet's drag handler
-                    map.on('dragstart', function(e) {
-                        console.log('✅ DRAG START EVENT FIRED!');
-                        // Get map container and panes
-                        const container = map.getContainer();
-                        const mapPane = map.getPane('mapPane');
-                        const tilePane = map.getPane('tilePane');
-
-                        console.log('Map container:', container);
-                        console.log('Map pane:', mapPane);
-                        console.log('Map pane style:', window.getComputedStyle(mapPane));
-                        console.log('Map pane transform at start:', mapPane.style.transform);
-                        console.log('Tile pane:', tilePane);
-                    });
-
-                    map.on('drag', function(e) {
-                        console.log('✅ DRAGGING...');
-                        // Check if the map pane transform is being updated
-                        const mapPane = map.getPane('mapPane');
-                        if (mapPane) {
-                            console.log('Map pane transform:', mapPane.style.transform);
-                        }
-                    });
-
-                    map.on('dragend', function(e) {
-                        console.log('✅ DRAG END EVENT FIRED!');
-                        const mapPane = map.getPane('mapPane');
-                        if (mapPane) {
-                            console.log('Map pane transform at end:', mapPane.style.transform);
-                        }
-                    });
-
-                    // Check if touchZoom is interfering
-                    console.log('Touch zoom enabled:', map.touchZoom.enabled());
-                    console.log('Scroll wheel zoom enabled:', map.scrollWheelZoom.enabled());
-                    console.log('Box zoom enabled:', map.boxZoom.enabled());
-                    console.log('Keyboard enabled:', map.keyboard.enabled());
-
-                    console.log('Dragging toggle button initialized');
-                    console.log('Map object:', map);
-                    console.log('Map dragging handler:', map.dragging);
                 }
 
                 // Setup satellite view toggle button
