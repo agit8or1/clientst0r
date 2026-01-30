@@ -318,6 +318,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const mapDiv = document.getElementById('global-location-map');
     const messageDiv = document.getElementById('global-map-message');
     const messageText = document.getElementById('global-map-message-text');
+    let map = null;
 
     // Fetch global location data
     fetch('{% url "locations:global_location_map_data" %}')
@@ -328,8 +329,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 messageDiv.style.display = 'none';
                 mapDiv.style.display = 'block';
 
-                // Initialize map
-                const map = L.map('global-location-map').setView([39.8283, -98.5795], 4); // Center of USA
+                // Initialize map (remove existing instance if present)
+                if (map) {
+                    map.remove();
+                    map = null;
+                }
+                map = L.map('global-location-map').setView([39.8283, -98.5795], 4); // Center of USA
 
                 // Add OpenStreetMap tiles
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

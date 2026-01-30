@@ -257,19 +257,114 @@
                         </div>
                     </div>
 
-                    <div class="d-flex justify-content-end gap-2">
-                        <a href="{% if document %}{% url 'docs:document_detail' document.slug %}{% else %}{% url 'docs:document_list' %}{% endif %}" class="btn btn-secondary">
-                            <i class="fas fa-times"></i> Cancel
-                        </a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> {{ action }} Document
-                        </button>
+                    <div class="d-flex justify-content-between gap-2">
+                        <div>
+                            {% if action == 'Edit' %}
+                            <button type="button" class="btn btn-info" id="ai-enhance-btn" data-bs-toggle="modal" data-bs-target="#aiEnhanceModal">
+                                <i class="fas fa-magic"></i> Enhance with AI
+                            </button>
+                            {% endif %}
+                            <a href="{% url 'docs:ai_assistant' %}" class="btn btn-outline-info">
+                                <i class="fas fa-robot"></i> AI Assistant
+                            </a>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% if document %}{% url 'docs:document_detail' document.slug %}{% else %}{% url 'docs:document_list' %}{% endif %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> {{ action }} Document
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<!-- AI Enhancement Modal -->
+<div class="modal fade" id="aiEnhanceModal" tabindex="-1" aria-labelledby="aiEnhanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="aiEnhanceModalLabel"><i class="fas fa-magic"></i> Enhance Documentation with AI</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Select how you'd like AI to enhance your documentation:</p>
+
+                <div class="list-group mb-3">
+                    <button type="button" class="list-group-item list-group-item-action enhancement-option" data-type="grammar">
+                        <div class="d-flex w-100 align-items-center">
+                            <i class="fas fa-spell-check fa-2x me-3 text-primary"></i>
+                            <div>
+                                <h6 class="mb-1">Fix Grammar & Spelling</h6>
+                                <p class="mb-0 small text-muted">Improve grammar, spelling, and punctuation while maintaining structure</p>
+                            </div>
+                        </div>
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action enhancement-option" data-type="expand">
+                        <div class="d-flex w-100 align-items-center">
+                            <i class="fas fa-expand-arrows-alt fa-2x me-3 text-success"></i>
+                            <div>
+                                <h6 class="mb-1">Expand & Add Details</h6>
+                                <p class="mb-0 small text-muted">Add more details, examples, and best practices</p>
+                            </div>
+                        </div>
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action enhancement-option" data-type="simplify">
+                        <div class="d-flex w-100 align-items-center">
+                            <i class="fas fa-compress-arrows-alt fa-2x me-3 text-info"></i>
+                            <div>
+                                <h6 class="mb-1">Simplify Language</h6>
+                                <p class="mb-0 small text-muted">Make it easier to read while maintaining technical accuracy</p>
+                            </div>
+                        </div>
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action enhancement-option" data-type="technical">
+                        <div class="d-flex w-100 align-items-center">
+                            <i class="fas fa-cogs fa-2x me-3 text-warning"></i>
+                            <div>
+                                <h6 class="mb-1">Add Technical Details</h6>
+                                <p class="mb-0 small text-muted">Enhance with more technical specifications and implementation notes</p>
+                            </div>
+                        </div>
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action enhancement-option" data-type="consistency">
+                        <div class="d-flex w-100 align-items-center">
+                            <i class="fas fa-balance-scale fa-2x me-3 text-secondary"></i>
+                            <div>
+                                <h6 class="mb-1">Improve Consistency</h6>
+                                <p class="mb-0 small text-muted">Fix inconsistencies in terminology, formatting, and structure</p>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+
+                <div id="ai-enhance-loading" class="text-center" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Enhancing...</span>
+                    </div>
+                    <p class="mt-2">Enhancing documentation with AI... This may take 10-20 seconds.</p>
+                </div>
+
+                <div id="ai-enhance-result" class="alert alert-success" style="display: none;">
+                    <i class="fas fa-check-circle"></i> Enhancement complete! Your content has been updated.
+                    <div id="ai-changes-made" class="mt-2 small"></div>
+                </div>
+
+                <div id="ai-enhance-error" class="alert alert-danger" style="display: none;">
+                    <i class="fas fa-exclamation-circle"></i> <span id="ai-enhance-error-message"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -533,5 +628,99 @@
             width: '100%'
         });
     });
+
+    // AI Enhancement functionality
+    document.querySelectorAll('.enhancement-option').forEach(button => {
+        button.addEventListener('click', function() {
+            const enhancementType = this.dataset.type;
+            enhanceWithAI(enhancementType);
+        });
+    });
+
+    function enhanceWithAI(enhancementType) {
+        // Get current content
+        const contentType = document.getElementById('{{ form.content_type.id_for_label }}').value;
+        const title = document.getElementById('{{ form.title.id_for_label }}').value;
+        let content = '';
+
+        if (contentType === 'html') {
+            content = tinymce.activeEditor ? tinymce.activeEditor.getContent() : '';
+        } else if (contentType === 'markdown') {
+            content = markdownEditor ? markdownEditor.getText() : '';
+        } else {
+            alert('AI enhancement is only available for HTML and Markdown content.');
+            return;
+        }
+
+        if (!content || content.trim() === '' || content === '<p><br></p>') {
+            alert('Please add some content before enhancing with AI.');
+            return;
+        }
+
+        // Show loading
+        document.getElementById('ai-enhance-loading').style.display = 'block';
+        document.getElementById('ai-enhance-result').style.display = 'none';
+        document.getElementById('ai-enhance-error').style.display = 'none';
+        document.querySelectorAll('.enhancement-option').forEach(btn => btn.disabled = true);
+
+        // Call API
+        fetch('{% url "docs:ai_enhance" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                title: title,
+                content: content,
+                enhancement_type: enhancementType
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            document.getElementById('ai-enhance-loading').style.display = 'none';
+            document.querySelectorAll('.enhancement-option').forEach(btn => btn.disabled = false);
+
+            if (result.success) {
+                // Update content
+                if (contentType === 'html' && tinymce.activeEditor) {
+                    tinymce.activeEditor.setContent(result.content);
+                } else if (contentType === 'markdown' && markdownEditor) {
+                    markdownEditor.setText(result.content);
+                }
+
+                // Update title if changed
+                if (result.title && result.title !== title) {
+                    document.getElementById('{{ form.title.id_for_label }}').value = result.title;
+                }
+
+                // Show success message
+                const resultDiv = document.getElementById('ai-enhance-result');
+                resultDiv.style.display = 'block';
+
+                if (result.changes_made && result.changes_made.length > 0) {
+                    const changesDiv = document.getElementById('ai-changes-made');
+                    changesDiv.innerHTML = '<strong>Changes made:</strong><ul class="mb-0">' +
+                        result.changes_made.map(change => '<li>' + change + '</li>').join('') +
+                        '</ul>';
+                }
+
+                // Auto-close modal after 3 seconds
+                setTimeout(() => {
+                    bootstrap.Modal.getInstance(document.getElementById('aiEnhanceModal')).hide();
+                }, 3000);
+            } else {
+                // Show error
+                document.getElementById('ai-enhance-error-message').textContent = result.error || 'Failed to enhance documentation';
+                document.getElementById('ai-enhance-error').style.display = 'block';
+            }
+        })
+        .catch(error => {
+            document.getElementById('ai-enhance-loading').style.display = 'none';
+            document.querySelectorAll('.enhancement-option').forEach(btn => btn.disabled = false);
+            document.getElementById('ai-enhance-error-message').textContent = 'Network error: ' + error.message;
+            document.getElementById('ai-enhance-error').style.display = 'none';
+        });
+    }
 </script>
 {% endblock %}

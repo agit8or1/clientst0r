@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}AI Documentation Assistant - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'docs:document_list' %}">Documentation</a></li>
+            <li class="breadcrumb-item active">AI Assistant</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-robot"></i> AI Documentation Assistant</h1>
+        <a href="{% url 'docs:document_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Documents
+        </a>
+    </div>
+
+    {% if not has_ai %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i> Claude API is not configured.
+        Please configure in <a href="{% url 'core:settings_ai' %}">Settings → AI</a>.
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Template Selection -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-layer-group"></i> Documentation Templates</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">Select a template to get started with predefined guidelines and best practices.</p>
+                    <div class="list-group" id="template-list">
+                        <button type="button" class="list-group-item list-group-item-action template-btn" data-template="none">
+                            <div class="d-flex w-100 align-items-center">
+                                <i class="fas fa-file-alt fa-fw me-2"></i>
+                                <div>
+                                    <strong>Custom / Freeform</strong>
+                                    <div class="small text-muted">No template - write your own prompt</div>
+                                </div>
+                            </div>
+                        </button>
+                        {% for key, template in templates.items %}
+                        <button type="button" class="list-group-item list-group-item-action template-btn"
+                                data-template="{{ key }}"
+                                data-example="{{ template.example_prompt }}">
+                            <div class="d-flex w-100 align-items-center">
+                                <i class="fas {{ template.icon }} fa-fw me-2"></i>
+                                <div>
+                                    <strong>{{ template.name }}</strong>
+                                    <div class="small text-muted">{{ template.description }}</div>
+                                </div>
+                            </div>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generation Form -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-magic"></i> Generate Documentation</h5>
+                </div>
+                <div class="card-body">
+                    <form id="ai-generation-form">
+                        <input type="hidden" id="template-type" name="template_type" value="">
+
+                        <div class="mb-3">
+                            <label for="prompt" class="form-label">
+                                <strong>What would you like to document?</strong>
+                            </label>
+                            <textarea class="form-control" id="prompt" name="prompt" rows="6" required
+                                      placeholder="Describe what you want to document. Be as specific as possible.
+
+Example: Document the process for creating user accounts from on-premises Active Directory with M365 sync via Entra ID, including prerequisites, step-by-step instructions, common issues, and best practices."></textarea>
+                            <div class="form-text">
+                                Be specific about what you want documented. Include details about the scenario, environment, and any special requirements.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="context" class="form-label">
+                                <strong>Additional Context (Optional)</strong>
+                            </label>
+                            <textarea class="form-control" id="context" name="context" rows="4"
+                                      placeholder="Provide any additional context, existing configurations, specific requirements, or constraints.
+
+Example: Our environment has 3 domain controllers, uses Azure AD Connect for sync, and requires MFA for all users."></textarea>
+                            <div class="form-text">
+                                Include information about your specific environment, existing systems, or requirements that should be considered.
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary" {% if not has_ai %}disabled{% endif %}>
+                                <i class="fas fa-magic"></i> Generate Documentation
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="clear-btn">
+                                <i class="fas fa-eraser"></i> Clear
+                            </button>
+                            <button type="button" class="btn btn-outline-info" id="use-example-btn" disabled>
+                                <i class="fas fa-lightbulb"></i> Use Example
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Loading indicator -->
+                    <div id="loading-indicator" class="text-center mt-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Generating...</span>
+                        </div>
+                        <p class="mt-2">Generating documentation with AI... This may take 15-30 seconds.</p>
+                    </div>
+
+                    <!-- Results -->
+                    <div id="results-container" class="mt-4" style="display: none;">
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> Documentation generated successfully!
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="result-title" class="form-label"><strong>Title</strong></label>
+                            <input type="text" class="form-control" id="result-title" readonly>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="result-content" class="form-label"><strong>Generated Content</strong></label>
+                            <textarea class="form-control" id="result-content" rows="20" readonly></textarea>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-success" id="save-document-btn">
+                                <i class="fas fa-save"></i> Save as New Document
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="copy-btn">
+                                <i class="fas fa-copy"></i> Copy to Clipboard
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="regenerate-btn">
+                                <i class="fas fa-redo"></i> Generate Again
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Error display -->
+                    <div id="error-container" class="alert alert-danger mt-4" style="display: none;">
+                        <i class="fas fa-exclamation-circle"></i> <span id="error-message"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-lightbulb"></i> Tips for Best Results</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li><strong>Be Specific:</strong> Include details about your environment, technology stack, and requirements.</li>
+                        <li><strong>Use Templates:</strong> Select a template on the left for predefined guidelines and structure.</li>
+                        <li><strong>Provide Context:</strong> The more context you provide, the more relevant and accurate the documentation will be.</li>
+                        <li><strong>Review & Edit:</strong> Always review the generated content and customize it for your needs.</li>
+                        <li><strong>Iterate:</strong> If the first result isn't perfect, try adding more details and regenerate.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('ai-generation-form');
+    const promptInput = document.getElementById('prompt');
+    const contextInput = document.getElementById('context');
+    const templateTypeInput = document.getElementById('template-type');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const resultsContainer = document.getElementById('results-container');
+    const errorContainer = document.getElementById('error-container');
+    const useExampleBtn = document.getElementById('use-example-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const copyBtn = document.getElementById('copy-btn');
+    const saveBtn = document.getElementById('save-document-btn');
+    const regenerateBtn = document.getElementById('regenerate-btn');
+
+    let currentTemplate = 'none';
+    let currentExamplePrompt = '';
+    let generatedTitle = '';
+    let generatedContent = '';
+
+    // Template selection
+    document.querySelectorAll('.template-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Update active state
+            document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            // Get template data
+            currentTemplate = this.dataset.template;
+            currentExamplePrompt = this.dataset.example || '';
+
+            // Update hidden input
+            templateTypeInput.value = currentTemplate === 'none' ? '' : currentTemplate;
+
+            // Enable/disable example button
+            if (currentExamplePrompt) {
+                useExampleBtn.disabled = false;
+            } else {
+                useExampleBtn.disabled = true;
+            }
+        });
+    });
+
+    // Use example prompt
+    useExampleBtn.addEventListener('click', function() {
+        if (currentExamplePrompt) {
+            promptInput.value = currentExamplePrompt;
+        }
+    });
+
+    // Clear form
+    clearBtn.addEventListener('click', function() {
+        promptInput.value = '';
+        contextInput.value = '';
+        resultsContainer.style.display = 'none';
+        errorContainer.style.display = 'none';
+    });
+
+    // Copy to clipboard
+    copyBtn.addEventListener('click', function() {
+        const content = document.getElementById('result-content').value;
+        navigator.clipboard.writeText(content).then(() => {
+            const icon = this.querySelector('i');
+            const originalClass = icon.className;
+            icon.className = 'fas fa-check';
+            setTimeout(() => {
+                icon.className = originalClass;
+            }, 2000);
+        });
+    });
+
+    // Regenerate
+    regenerateBtn.addEventListener('click', function() {
+        resultsContainer.style.display = 'none';
+        form.dispatchEvent(new Event('submit'));
+    });
+
+    // Save as document
+    saveBtn.addEventListener('click', function() {
+        // Create form and submit to document create page with pre-filled data
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{% url "docs:document_create" %}';
+
+        // Add CSRF token
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = '{{ csrf_token }}';
+        form.appendChild(csrfInput);
+
+        // Add title
+        const titleInput = document.createElement('input');
+        titleInput.type = 'hidden';
+        titleInput.name = 'title';
+        titleInput.value = generatedTitle;
+        form.appendChild(titleInput);
+
+        // Add content
+        const contentInput = document.createElement('input');
+        contentInput.type = 'hidden';
+        contentInput.name = 'body';
+        contentInput.value = generatedContent;
+        form.appendChild(contentInput);
+
+        // Add content type
+        const contentTypeInput = document.createElement('input');
+        contentTypeInput.type = 'hidden';
+        contentTypeInput.name = 'content_type';
+        contentTypeInput.value = 'markdown';
+        form.appendChild(contentTypeInput);
+
+        // Add is_published
+        const publishedInput = document.createElement('input');
+        publishedInput.type = 'hidden';
+        publishedInput.name = 'is_published';
+        publishedInput.value = 'true';
+        form.appendChild(publishedInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    });
+
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const prompt = promptInput.value.trim();
+        if (!prompt) {
+            alert('Please enter a prompt describing what you want to document.');
+            return;
+        }
+
+        // Hide previous results/errors
+        resultsContainer.style.display = 'none';
+        errorContainer.style.display = 'none';
+
+        // Show loading
+        loadingIndicator.style.display = 'block';
+
+        // Prepare request data
+        const data = {
+            prompt: prompt,
+            template_type: templateTypeInput.value,
+            context: contextInput.value.trim() || null
+        };
+
+        // Call API
+        fetch('{% url "docs:ai_generate" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            loadingIndicator.style.display = 'none';
+
+            if (result.success) {
+                // Show results
+                generatedTitle = result.title;
+                generatedContent = result.content;
+
+                document.getElementById('result-title').value = result.title;
+                document.getElementById('result-content').value = result.content;
+                resultsContainer.style.display = 'block';
+            } else {
+                // Show error
+                document.getElementById('error-message').textContent = result.error || 'Failed to generate documentation';
+                errorContainer.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            loadingIndicator.style.display = 'none';
+            document.getElementById('error-message').textContent = 'Network error: ' + error.message;
+            errorContainer.style.display = 'block';
+        });
+    });
+});
+</script>
+{% endblock %}

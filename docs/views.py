@@ -1101,3 +1101,144 @@ def category_delete(request, pk):
         'category': category,
         'doc_count': doc_count,
     })
+
+
+# AI Documentation Features
+
+@login_required
+def ai_assistant(request):
+    """
+    AI Documentation Assistant - Generate documentation from prompts with templates.
+    """
+    from .services.ai_documentation_generator import DOCUMENTATION_TEMPLATES
+    from django.conf import settings
+
+    org = get_request_organization(request)
+
+    # Check if AI is configured
+    if not settings.ANTHROPIC_API_KEY:
+        messages.error(request, 'Claude API is not configured. Please configure in Settings → AI.')
+        return redirect('docs:document_list')
+
+    return render(request, 'docs/ai_assistant.html', {
+        'templates': DOCUMENTATION_TEMPLATES,
+        'has_ai': bool(settings.ANTHROPIC_API_KEY),
+    })
+
+
+@login_required
+@require_http_methods(['POST'])
+def ai_generate(request):
+    """
+    Generate documentation using AI.
+    """
+    from .services.ai_documentation_generator import AIDocumentationGenerator
+    from django.conf import settings
+    import json
+
+    if not settings.ANTHROPIC_API_KEY:
+        return JsonResponse({
+            'success': False,
+            'error': 'Claude API is not configured'
+        }, status=400)
+
+    try:
+        data = json.loads(request.body)
+        prompt = data.get('prompt', '')
+        template_type = data.get('template_type')
+        context = data.get('context')
+
+        if not prompt:
+            return JsonResponse({
+                'success': False,
+                'error': 'Prompt is required'
+            }, status=400)
+
+        generator = AIDocumentationGenerator()
+        result = generator.generate_documentation(prompt, template_type, context)
+
+        return JsonResponse(result)
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(['POST'])
+def ai_enhance(request):
+    """
+    Enhance existing documentation using AI.
+    """
+    from .services.ai_documentation_generator import AIDocumentationGenerator
+    from django.conf import settings
+    import json
+
+    if not settings.ANTHROPIC_API_KEY:
+        return JsonResponse({
+            'success': False,
+            'error': 'Claude API is not configured'
+        }, status=400)
+
+    try:
+        data = json.loads(request.body)
+        title = data.get('title', '')
+        content = data.get('content', '')
+        enhancement_type = data.get('enhancement_type', 'grammar')
+
+        if not content:
+            return JsonResponse({
+                'success': False,
+                'error': 'Content is required'
+            }, status=400)
+
+        generator = AIDocumentationGenerator()
+        result = generator.enhance_documentation(title, content, enhancement_type)
+
+        return JsonResponse(result)
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(['POST'])
+def ai_validate(request):
+    """
+    Validate documentation quality using AI.
+    """
+    from .services.ai_documentation_generator import AIDocumentationGenerator
+    from django.conf import settings
+    import json
+
+    if not settings.ANTHROPIC_API_KEY:
+        return JsonResponse({
+            'success': False,
+            'error': 'Claude API is not configured'
+        }, status=400)
+
+    try:
+        data = json.loads(request.body)
+        content = data.get('content', '')
+
+        if not content:
+            return JsonResponse({
+                'success': False,
+                'error': 'Content is required'
+            }, status=400)
+
+        generator = AIDocumentationGenerator()
+        result = generator.validate_documentation(content)
+
+        return JsonResponse(result)
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

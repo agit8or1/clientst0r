@@ -38,6 +38,12 @@ urlpatterns = [
     path('diagrams/<slug:slug>/delete/', views.diagram_delete, name='diagram_delete'),
     path('diagrams/<int:pk>/save/', views.diagram_save, name='diagram_save'),
 
+    # AI Documentation Features
+    path('ai/assistant/', views.ai_assistant, name='ai_assistant'),
+    path('ai/generate/', views.ai_generate, name='ai_generate'),
+    path('ai/enhance/', views.ai_enhance, name='ai_enhance'),
+    path('ai/validate/', views.ai_validate, name='ai_validate'),
+
     # Documents (must be last due to slug catch-all)
     path('<slug:slug>/', views.document_detail, name='document_detail'),
     path('<slug:slug>/edit/', views.document_edit, name='document_edit'),
