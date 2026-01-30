@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Secret Note Expired - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-times-circle"></i> Secret Note Unavailable</h5>
+            </div>
+            <div class="card-body text-center py-5">
+                <i class="fas fa-hourglass-end fa-4x text-muted mb-3"></i>
+                <h4>This secret note is no longer available</h4>
+                <p class="text-muted">
+                    The note may have expired, been deleted, or already been read (if set to self-destruct after first read).
+                </p>
+                <a href="{% url 'core:dashboard' %}" class="btn btn-primary mt-3">
+                    <i class="fas fa-home"></i> Go to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

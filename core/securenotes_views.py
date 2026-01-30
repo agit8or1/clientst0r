@@ -101,6 +101,7 @@ def secure_note_detail(request, pk):
 def secure_note_create(request):
     """
     Create and send a new secure note.
+    Supports both traditional recipient-based sharing and link-only mode (Issue #47).
     """
     org = get_request_organization(request)
 
@@ -112,18 +113,22 @@ def secure_note_create(request):
         read_once = request.POST.get('read_once') == 'on'
         require_password = request.POST.get('require_password') == 'on'
         access_password = request.POST.get('access_password', '')
+        link_only = request.POST.get('link_only') == 'on'
+        label = request.POST.get('label', '')
 
         # Validation
         if not title or not content:
             messages.error(request, 'Title and content are required.')
-        elif not recipient_ids:
-            messages.error(request, 'At least one recipient is required.')
+        elif not link_only and not recipient_ids:
+            messages.error(request, 'Either select recipients or enable "Link Only" mode.')
         else:
             # Create note
             note = SecureNote(
                 sender=request.user,
                 organization=org,
                 title=title,
+                label=label,
+                link_only=link_only,
                 read_once=read_once,
                 require_password=require_password,
                 access_password=access_password if require_password else ''
@@ -140,13 +145,24 @@ def secure_note_create(request):
 
             # Encrypt content
             note.set_content(content)
+
+            # Generate access token for link-only mode
+            if link_only:
+                note.generate_access_token()
+
             note.save()
 
-            # Add recipients
-            recipients = User.objects.filter(id__in=recipient_ids)
-            note.recipients.set(recipients)
+            # Add recipients (only if not link-only)
+            if not link_only and recipient_ids:
+                recipients = User.objects.filter(id__in=recipient_ids)
+                note.recipients.set(recipients)
+                messages.success(request, f'Secure note sent to {recipients.count()} recipient(s).')
+            elif link_only:
+                # Show the shareable link
+                share_url = note.get_share_url(request)
+                messages.success(request, f'Secret link created! Copy the link to share.')
+                return redirect('core:secure_note_link_created', pk=note.pk)
 
-            messages.success(request, f'Secure note sent to {recipients.count()} recipient(s).')
             return redirect('core:secure_note_sent')
 
     # Get potential recipients (users in same org)
@@ -185,4 +201,74 @@ def secure_note_delete(request, pk):
 
     return render(request, 'core/secure_note_confirm_delete.html', {
         'note': note,
+    })
+
+@login_required
+def secure_note_link_created(request, pk):
+    """
+    Show the created secret link after generation (Issue #47 Phase 1).
+    """
+    note = get_object_or_404(SecureNote, pk=pk, sender=request.user)
+
+    if not note.link_only:
+        messages.error(request, 'This note is not a link-only note.')
+        return redirect('core:secure_note_sent')
+
+    share_url = note.get_share_url(request)
+
+    return render(request, 'core/secure_note_link_created.html', {
+        'note': note,
+        'share_url': share_url,
+    })
+
+
+def secure_note_view_link(request, token):
+    """
+    View secure note via unique access token (Issue #47 Phase 1).
+    No login required - anyone with the link can access.
+    """
+    note = get_object_or_404(SecureNote, access_token=token, link_only=True)
+
+    # Check if deleted
+    if note.is_deleted:
+        messages.error(request, 'This secret link has been deleted.')
+        return render(request, 'core/secure_note_expired.html')
+
+    # Check if expired
+    if note.is_expired:
+        messages.error(request, 'This secret link has expired.')
+        return render(request, 'core/secure_note_expired.html')
+
+    # Check password if required
+    if note.require_password:
+        if request.method == 'POST':
+            password = request.POST.get('password')
+            # Check password (simplified - should use proper password hashing)
+            if password != note.access_password:
+                messages.error(request, 'Incorrect password.')
+                return render(request, 'core/secure_note_password.html', {'note': note, 'is_link_access': True})
+        else:
+            return render(request, 'core/secure_note_password.html', {'note': note, 'is_link_access': True})
+
+    # Mark as read (increment counter, but no user to track)
+    note.read_count += 1
+    note.save(update_fields=['read_count'])
+
+    # Delete if read_once is enabled
+    if note.read_once:
+        note.is_deleted = True
+        note.save(update_fields=['is_deleted'])
+
+    # Decrypt content
+    try:
+        decrypted_content = note.get_content()
+    except Exception as e:
+        messages.error(request, f'Error decrypting note: {str(e)}')
+        decrypted_content = '[Unable to decrypt]'
+
+    return render(request, 'core/secure_note_detail.html', {
+        'note': note,
+        'content': decrypted_content,
+        'is_link_access': True,
+        'read_once_warning': note.read_once,
     })

@@ -39,6 +39,8 @@ urlpatterns = [
     path('secure-notes/create/', securenotes_views.secure_note_create, name='secure_note_create'),
     path('secure-notes/<int:pk>/', securenotes_views.secure_note_detail, name='secure_note_detail'),
     path('secure-notes/<int:pk>/delete/', securenotes_views.secure_note_delete, name='secure_note_delete'),
+    path('secure-notes/<int:pk>/link/', securenotes_views.secure_note_link_created, name='secure_note_link_created'),
+    path('secret/<str:token>/', securenotes_views.secure_note_view_link, name='secure_note_view_link'),
 
     # Security (superuser only)
     path('security/', settings_views.security_dashboard, name='security_dashboard'),

@@ -17,8 +17,24 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label">Label <span class="badge bg-info">New</span></label>
+                        <input type="text" name="label" class="form-control" placeholder="e.g., 'Database Credentials', 'Temp Access for John'">
+                        <small class="text-muted">Optional: Add a label to help you track and organize secret links</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input type="checkbox" name="link_only" class="form-check-input" id="link_only">
+                            <label class="form-check-label" for="link_only">
+                                <strong>Generate Link Only</strong> <span class="badge bg-success">Issue #47</span>
+                            </label>
+                        </div>
+                        <small class="text-muted">Create a secret link without sending to specific recipients - share via chat, Slack, Teams, etc.</small>
+                    </div>
+
+                    <div class="mb-3" id="recipients_field">
                         <label class="form-label">Recipients *</label>
-                        <select name="recipients" class="form-select" multiple size="5" required>
+                        <select name="recipients" class="form-select" multiple size="5" id="recipients_select">
                             {% for user in users %}
                             <option value="{{ user.id }}">{{ user.username }} - {{ user.get_full_name|default:user.email }}</option>
                             {% endfor %}
@@ -96,6 +112,22 @@
 <script>
 document.getElementById('require_password').addEventListener('change', function() {
     document.getElementById('password_field').style.display = this.checked ? 'block' : 'none';
+});
+
+// Handle link-only mode toggle
+document.getElementById('link_only').addEventListener('change', function() {
+    const recipientsField = document.getElementById('recipients_field');
+    const recipientsSelect = document.getElementById('recipients_select');
+
+    if (this.checked) {
+        // Link-only mode: hide recipients and make it optional
+        recipientsField.style.display = 'none';
+        recipientsSelect.removeAttribute('required');
+    } else {
+        // Normal mode: show recipients and make it required
+        recipientsField.style.display = 'block';
+        recipientsSelect.setAttribute('required', 'required');
+    }
 });
 </script>
 {% endblock %}

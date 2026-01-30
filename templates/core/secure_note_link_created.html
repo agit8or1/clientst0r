@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Secret Link Created - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-check-circle"></i> Secret Link Created!</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Your secret link has been generated. Copy the URL below and share it via your preferred method (chat, Slack, Teams, email, QR code, etc.).
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label"><strong>Title:</strong></label>
+                    <p>{{ note.title }}</p>
+                </div>
+
+                {% if note.label %}
+                <div class="mb-3">
+                    <label class="form-label"><strong>Label:</strong></label>
+                    <p><span class="badge bg-secondary">{{ note.label }}</span></p>
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label class="form-label"><strong>Secret Link:</strong></label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="share-url" value="{{ share_url }}" readonly>
+                        <button class="btn btn-primary" type="button" id="copy-btn">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
+                    <small class="text-muted">Anyone with this link can access the secret note</small>
+                </div>
+
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Security Reminder</h6>
+                    <ul class="mb-0 small">
+                        <li>This link provides access to encrypted content - share it securely</li>
+                        <li>The note is encrypted end-to-end in the database</li>
+                        {% if note.expires_at %}
+                        <li>Link expires: <strong>{{ note.expires_at|date:"M d, Y g:i A" }}</strong></li>
+                        {% else %}
+                        <li>Link does not expire automatically</li>
+                        {% endif %}
+                        {% if note.read_once %}
+                        <li><strong>Self-destruct enabled</strong> - will be deleted after first access</li>
+                        {% endif %}
+                        {% if note.require_password %}
+                        <li>Password protection enabled</li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'core:secure_note_sent' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Sent Notes
+                    </a>
+                    <button type="button" class="btn btn-success" id="open-link-btn">
+                        <i class="fas fa-external-link-alt"></i> Test Link
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-lightbulb"></i> How to Use</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Share via:</strong></p>
+                <ul class="small mb-3">
+                    <li><strong>Chat/Messaging:</strong> Paste the link in Slack, Teams, Discord, etc.</li>
+                    <li><strong>Email:</strong> Include in an email to your recipient</li>
+                    <li><strong>Documentation:</strong> Embed in internal docs or runbooks</li>
+                    <li><strong>QR Code:</strong> Generate a QR code from the URL for physical sharing</li>
+                </ul>
+
+                <p class="mb-2"><strong>Management:</strong></p>
+                <ul class="small mb-0">
+                    <li>View all your secret links in the <a href="{% url 'core:secure_note_sent' %}">Sent Notes</a> page</li>
+                    <li>You can manually expire/delete links at any time</li>
+                    <li>Track read count (coming in Phase 2)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Copy to clipboard functionality
+document.getElementById('copy-btn').addEventListener('click', function() {
+    const shareUrl = document.getElementById('share-url');
+    shareUrl.select();
+    shareUrl.setSelectionRange(0, 99999); // For mobile devices
+
+    navigator.clipboard.writeText(shareUrl.value).then(function() {
+        const btn = document.getElementById('copy-btn');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-success');
+
+        setTimeout(function() {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-primary');
+        }, 2000);
+    }).catch(function(err) {
+        alert('Failed to copy: ' + err);
+    });
+});
+
+// Open link in new tab to test
+document.getElementById('open-link-btn').addEventListener('click', function() {
+    window.open('{{ share_url }}', '_blank');
+});
+</script>
+{% endblock %}

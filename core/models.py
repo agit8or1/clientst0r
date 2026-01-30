@@ -228,6 +228,11 @@ class SecureNote(BaseModel):
     # Content
     title = models.CharField(max_length=255)
     encrypted_content = models.TextField()  # Encrypted message body
+    label = models.CharField(max_length=255, blank=True, help_text='Optional label for tracking/organizing secret links')
+
+    # Link-only mode (Issue #47)
+    link_only = models.BooleanField(default=False, help_text='Link-only mode: no recipients, share via URL')
+    access_token = models.CharField(max_length=64, unique=True, blank=True, help_text='Unique token for link-only access')
 
     # Security settings
     expires_at = models.DateTimeField(null=True, blank=True, help_text='Auto-delete after this time')
@@ -263,6 +268,22 @@ class SecureNote(BaseModel):
             return ''
         return decrypt(self.encrypted_content)
 
+    def generate_access_token(self):
+        """Generate a unique cryptographically secure access token for link-only mode."""
+        import secrets
+        self.access_token = secrets.token_urlsafe(48)
+        return self.access_token
+
+    def get_share_url(self, request=None):
+        """Get the shareable URL for link-only mode."""
+        if not self.link_only or not self.access_token:
+            return None
+        from django.urls import reverse
+        path = reverse('core:secure_note_view_link', kwargs={'token': self.access_token})
+        if request:
+            return request.build_absolute_uri(path)
+        return path
+
     def mark_as_read(self, user):
         """Mark note as read by user."""
         if user not in self.read_by.all():
@@ -280,6 +301,9 @@ class SecureNote(BaseModel):
         if self.is_deleted:
             return False
         if self.sender == user:
+            return True
+        # Link-only notes can be read by anyone with the link
+        if self.link_only:
             return True
         return user in self.recipients.all()
 
