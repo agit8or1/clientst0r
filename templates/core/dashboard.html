@@ -440,7 +440,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     delete mapDiv._leaflet_id;
                 }
 
-                map = L.map('location-map').setView([39.8283, -98.5795], 4); // Center of USA
+                // Create map with configured settings
+                map = L.map('location-map', {
+                    dragging: {{ map_dragging_enabled|lower }},
+                    scrollWheelZoom: true,
+                    touchZoom: true,
+                    doubleClickZoom: true,
+                    boxZoom: true
+                }).setView([39.8283, -98.5795], {{ map_default_zoom }}); // Center of USA
 
                 // Add OpenStreetMap tiles
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

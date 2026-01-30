@@ -358,6 +358,10 @@ MAPBOX_ACCESS_TOKEN = os.getenv('MAPBOX_ACCESS_TOKEN', '')
 # Bing Maps API (alternative mapping provider)
 BING_MAPS_API_KEY = os.getenv('BING_MAPS_API_KEY', '')
 
+# Map display settings
+MAP_DEFAULT_ZOOM = int(os.getenv('MAP_DEFAULT_ZOOM', '4'))  # Default zoom level for dashboard maps
+MAP_DRAGGING_ENABLED = os.getenv('MAP_DRAGGING_ENABLED', 'true').lower() == 'true'  # Enable map dragging
+
 # Property data APIs
 REGRID_API_KEY = os.getenv('REGRID_API_KEY', '')  # Regrid (formerly Loveland) parcel data
 ATTOM_API_KEY = os.getenv('ATTOM_API_KEY', '')    # AttomData property records

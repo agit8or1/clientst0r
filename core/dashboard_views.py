@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Count, Q
+from django.conf import settings
 from datetime import timedelta
 from core.middleware import get_request_organization
 from vault.models import Password
@@ -123,6 +124,8 @@ def dashboard(request):
         'monitors_active': monitors_active,
         'activity_feed': activity_feed,
         'has_2fa': has_2fa,
+        'map_default_zoom': settings.MAP_DEFAULT_ZOOM,
+        'map_dragging_enabled': settings.MAP_DRAGGING_ENABLED,
     })
 
 
@@ -209,4 +212,6 @@ def global_dashboard(request):
         'process_stats': process_stats,
         'total_attachments': total_attachments,
         'total_storage': total_storage,
+        'map_default_zoom': settings.MAP_DEFAULT_ZOOM,
+        'map_dragging_enabled': settings.MAP_DRAGGING_ENABLED,
     })
