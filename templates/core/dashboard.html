@@ -510,7 +510,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 // Show map controls
-                document.getElementById('map-controls').style.display = 'block';
+                const mapControlsDiv = document.getElementById('map-controls');
+                mapControlsDiv.style.display = 'block';
+
+                // Prevent Leaflet from handling clicks on controls
+                L.DomEvent.disableClickPropagation(mapControlsDiv);
 
                 // Map settings controls
                 const settingsBtn = document.getElementById('map-settings-btn');
@@ -518,6 +522,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const zoomSlider = document.getElementById('map-zoom-slider');
                 const zoomDisplay = document.getElementById('zoom-level-display');
                 const draggingToggle = document.getElementById('map-dragging-toggle');
+
+                console.log('Map controls initialized:', {settingsBtn, settingsPanel, zoomSlider});
 
                 // Load saved preferences from localStorage, or use server defaults
                 const savedZoom = localStorage.getItem('mapDefaultZoom');
@@ -547,9 +553,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Toggle settings panel
                 settingsBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
                     e.stopPropagation();
+                    console.log('Settings button clicked!');
                     const isVisible = settingsPanel.style.display === 'block';
                     settingsPanel.style.display = isVisible ? 'none' : 'block';
+                    console.log('Panel visibility toggled to:', settingsPanel.style.display);
                 });
 
                 // Close panel when clicking outside

@@ -450,7 +450,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 // Show map controls
-                document.getElementById('global-map-controls').style.display = 'block';
+                const mapControlsDiv = document.getElementById('global-map-controls');
+                mapControlsDiv.style.display = 'block';
+
+                // Prevent Leaflet from handling clicks on controls
+                L.DomEvent.disableClickPropagation(mapControlsDiv);
 
                 // Map settings controls
                 const settingsBtn = document.getElementById('global-map-settings-btn');
@@ -458,6 +462,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const zoomSlider = document.getElementById('global-map-zoom-slider');
                 const zoomDisplay = document.getElementById('global-zoom-level-display');
                 const draggingToggle = document.getElementById('global-map-dragging-toggle');
+
+                console.log('Global map controls initialized:', {settingsBtn, settingsPanel, zoomSlider});
 
                 // Load saved preferences from localStorage, or use server defaults
                 const savedZoom = localStorage.getItem('globalMapDefaultZoom');
@@ -487,9 +493,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Toggle settings panel
                 settingsBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
                     e.stopPropagation();
+                    console.log('Global map settings button clicked!');
                     const isVisible = settingsPanel.style.display === 'block';
                     settingsPanel.style.display = isVisible ? 'none' : 'block';
+                    console.log('Global panel visibility toggled to:', settingsPanel.style.display);
                 });
 
                 // Close panel when clicking outside
