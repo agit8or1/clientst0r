@@ -1299,20 +1299,27 @@ def install_nodejs_npm(request):
     import os
 
     try:
+        # Set up environment with system paths for utilities (curl, tar, gzip, etc.)
+        env = os.environ.copy()
+        system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+        env['PATH'] = system_paths
+        env['HOME'] = '/home/administrator'
+
         # Check if nvm is installed
         nvm_dir = '/home/administrator/.nvm'
 
         if not os.path.exists(nvm_dir):
             # Install nvm first
             install_nvm_script = """
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | /bin/bash
 """
             result = subprocess.run(
                 ['/bin/bash', '-c', install_nvm_script],
                 capture_output=True,
                 text=True,
                 timeout=60,
-                cwd='/home/administrator'
+                cwd='/home/administrator',
+                env=env
             )
 
             if result.returncode != 0:
@@ -1336,7 +1343,8 @@ npm install -g npm@latest
             capture_output=True,
             text=True,
             timeout=300,  # 5 minutes
-            cwd='/home/administrator'
+            cwd='/home/administrator',
+            env=env
         )
 
         if result.returncode == 0:
