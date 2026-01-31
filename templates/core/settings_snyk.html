@@ -399,6 +399,9 @@ function checkSnykVersion() {
     fetch('{% url "core:check_snyk_version" %}')
         .then(response => response.json())
         .then(data => {
+            // Debug logging
+            console.log('Snyk version check response:', data);
+
             if (data.success) {
                 currentVersionEl.textContent = data.current_version || 'Not installed';
                 latestVersionEl.textContent = data.latest_version || 'Unknown';

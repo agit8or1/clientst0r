@@ -1032,20 +1032,32 @@ def check_snyk_version(request):
 
     def find_command(cmd):
         """Find command in common locations."""
+        import glob
+
+        # Check nvm installations (any node version)
+        nvm_pattern = f'/home/administrator/.nvm/versions/node/*/bin/{cmd}'
+        nvm_matches = glob.glob(nvm_pattern)
+        if nvm_matches:
+            # Use the first match (or could sort and use latest version)
+            for path in nvm_matches:
+                if os.path.isfile(path) and os.access(path, os.X_OK):
+                    return path
+
         # Common paths to check
         paths = [
-            f'/home/administrator/.nvm/versions/node/v22.21.1/bin/{cmd}',
             f'/usr/local/bin/{cmd}',
             f'/usr/bin/{cmd}',
             f'/home/administrator/.local/bin/{cmd}',
+            f'/opt/homebrew/bin/{cmd}',  # macOS homebrew
         ]
 
         # Also check PATH
         path_env = os.environ.get('PATH', '')
         for path_dir in path_env.split(':'):
-            full_path = os.path.join(path_dir, cmd)
-            if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                return full_path
+            if path_dir:  # Skip empty strings
+                full_path = os.path.join(path_dir, cmd)
+                if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                    return full_path
 
         # Check our predefined paths
         for path in paths:
@@ -1101,13 +1113,24 @@ def check_snyk_version(request):
                 # Fallback to string comparison if packaging module not available
                 update_available = latest_version != current_version
 
+        # Debug info
+        import glob
+        nvm_snyk_matches = glob.glob('/home/administrator/.nvm/versions/node/*/bin/snyk')
+        nvm_npm_matches = glob.glob('/home/administrator/.nvm/versions/node/*/bin/npm')
+
         return JsonResponse({
             'success': True,
             'current_version': current_version,
             'latest_version': latest_version,
             'update_available': update_available,
             'snyk_path': snyk_path,
-            'npm_path': npm_path
+            'npm_path': npm_path,
+            'debug': {
+                'nvm_snyk_matches': nvm_snyk_matches,
+                'nvm_npm_matches': nvm_npm_matches,
+                'snyk_exists': os.path.exists(snyk_path) if snyk_path else False,
+                'npm_exists': os.path.exists(npm_path) if npm_path else False,
+            }
         })
 
     except Exception as e:
@@ -1128,20 +1151,32 @@ def upgrade_snyk_cli(request):
 
     def find_command(cmd):
         """Find command in common locations."""
+        import glob
+
+        # Check nvm installations (any node version)
+        nvm_pattern = f'/home/administrator/.nvm/versions/node/*/bin/{cmd}'
+        nvm_matches = glob.glob(nvm_pattern)
+        if nvm_matches:
+            # Use the first match (or could sort and use latest version)
+            for path in nvm_matches:
+                if os.path.isfile(path) and os.access(path, os.X_OK):
+                    return path
+
         # Common paths to check
         paths = [
-            f'/home/administrator/.nvm/versions/node/v22.21.1/bin/{cmd}',
             f'/usr/local/bin/{cmd}',
             f'/usr/bin/{cmd}',
             f'/home/administrator/.local/bin/{cmd}',
+            f'/opt/homebrew/bin/{cmd}',  # macOS homebrew
         ]
 
         # Also check PATH
         path_env = os.environ.get('PATH', '')
         for path_dir in path_env.split(':'):
-            full_path = os.path.join(path_dir, cmd)
-            if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                return full_path
+            if path_dir:  # Skip empty strings
+                full_path = os.path.join(path_dir, cmd)
+                if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                    return full_path
 
         # Check our predefined paths
         for path in paths:
