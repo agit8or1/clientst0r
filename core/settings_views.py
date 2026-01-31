@@ -1028,41 +1028,68 @@ def check_snyk_version(request):
     from django.http import JsonResponse
     import subprocess
     import re
+    import os
+
+    def find_command(cmd):
+        """Find command in common locations."""
+        # Common paths to check
+        paths = [
+            f'/home/administrator/.nvm/versions/node/v22.21.1/bin/{cmd}',
+            f'/usr/local/bin/{cmd}',
+            f'/usr/bin/{cmd}',
+            f'/home/administrator/.local/bin/{cmd}',
+        ]
+
+        # Also check PATH
+        path_env = os.environ.get('PATH', '')
+        for path_dir in path_env.split(':'):
+            full_path = os.path.join(path_dir, cmd)
+            if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                return full_path
+
+        # Check our predefined paths
+        for path in paths:
+            if os.path.isfile(path) and os.access(path, os.X_OK):
+                return path
+
+        return None
 
     try:
+        # Find npm and snyk binaries
+        snyk_path = find_command('snyk')
+        npm_path = find_command('npm')
+
         # Check current installed version
-        try:
-            result = subprocess.run(
-                ['snyk', '--version'],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            if result.returncode == 0:
-                # Parse version from output (e.g., "1.1234.0")
-                version_match = re.search(r'(\d+\.\d+\.\d+)', result.stdout)
-                current_version = version_match.group(1) if version_match else result.stdout.strip()
-            else:
-                current_version = None
-        except FileNotFoundError:
-            current_version = None
-        except Exception:
-            current_version = None
+        current_version = None
+        if snyk_path:
+            try:
+                result = subprocess.run(
+                    [snyk_path, '--version'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                if result.returncode == 0:
+                    # Parse version from output (e.g., "1.1234.0")
+                    version_match = re.search(r'(\d+\.\d+\.\d+)', result.stdout)
+                    current_version = version_match.group(1) if version_match else result.stdout.strip()
+            except Exception:
+                pass
 
         # Check latest version from npm
-        try:
-            result = subprocess.run(
-                ['npm', 'view', 'snyk', 'version'],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            if result.returncode == 0:
-                latest_version = result.stdout.strip()
-            else:
-                latest_version = None
-        except Exception:
-            latest_version = None
+        latest_version = None
+        if npm_path:
+            try:
+                result = subprocess.run(
+                    [npm_path, 'view', 'snyk', 'version'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                if result.returncode == 0:
+                    latest_version = result.stdout.strip()
+            except Exception:
+                pass
 
         # Determine if update is available
         update_available = False
@@ -1078,7 +1105,9 @@ def check_snyk_version(request):
             'success': True,
             'current_version': current_version,
             'latest_version': latest_version,
-            'update_available': update_available
+            'update_available': update_available,
+            'snyk_path': snyk_path,
+            'npm_path': npm_path
         })
 
     except Exception as e:
@@ -1095,28 +1124,67 @@ def upgrade_snyk_cli(request):
     """Upgrade Snyk CLI to the latest version."""
     from django.http import JsonResponse
     import subprocess
+    import os
+
+    def find_command(cmd):
+        """Find command in common locations."""
+        # Common paths to check
+        paths = [
+            f'/home/administrator/.nvm/versions/node/v22.21.1/bin/{cmd}',
+            f'/usr/local/bin/{cmd}',
+            f'/usr/bin/{cmd}',
+            f'/home/administrator/.local/bin/{cmd}',
+        ]
+
+        # Also check PATH
+        path_env = os.environ.get('PATH', '')
+        for path_dir in path_env.split(':'):
+            full_path = os.path.join(path_dir, cmd)
+            if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                return full_path
+
+        # Check our predefined paths
+        for path in paths:
+            if os.path.isfile(path) and os.access(path, os.X_OK):
+                return path
+
+        return None
 
     try:
+        # Find npm and snyk binaries
+        npm_path = find_command('npm')
+        snyk_path = find_command('snyk')
+
+        if not npm_path:
+            return JsonResponse({
+                'success': False,
+                'message': 'npm command not found. Please ensure Node.js and npm are installed.'
+            })
+
         # Run npm install -g snyk@latest
         result = subprocess.run(
-            ['npm', 'install', '-g', 'snyk@latest'],
+            [npm_path, 'install', '-g', 'snyk@latest'],
             capture_output=True,
             text=True,
             timeout=120  # 2 minute timeout
         )
 
         if result.returncode == 0:
-            # Get new version
-            version_result = subprocess.run(
-                ['snyk', '--version'],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+            # Get new version - refresh the snyk path in case it changed
+            snyk_path = find_command('snyk')
+            if snyk_path:
+                version_result = subprocess.run(
+                    [snyk_path, '--version'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
 
-            import re
-            version_match = re.search(r'(\d+\.\d+\.\d+)', version_result.stdout)
-            new_version = version_match.group(1) if version_match else 'latest'
+                import re
+                version_match = re.search(r'(\d+\.\d+\.\d+)', version_result.stdout)
+                new_version = version_match.group(1) if version_match else 'latest'
+            else:
+                new_version = 'latest'
 
             return JsonResponse({
                 'success': True,
