@@ -1073,6 +1073,7 @@ def check_snyk_version(request):
 
         # Check current installed version
         current_version = None
+        snyk_error = None
         if snyk_path:
             try:
                 result = subprocess.run(
@@ -1085,11 +1086,14 @@ def check_snyk_version(request):
                     # Parse version from output (e.g., "1.1234.0")
                     version_match = re.search(r'(\d+\.\d+\.\d+)', result.stdout)
                     current_version = version_match.group(1) if version_match else result.stdout.strip()
-            except Exception:
-                pass
+                else:
+                    snyk_error = f"Exit code {result.returncode}: {result.stderr}"
+            except Exception as e:
+                snyk_error = str(e)
 
         # Check latest version from npm
         latest_version = None
+        npm_error = None
         if npm_path:
             try:
                 result = subprocess.run(
@@ -1100,8 +1104,10 @@ def check_snyk_version(request):
                 )
                 if result.returncode == 0:
                     latest_version = result.stdout.strip()
-            except Exception:
-                pass
+                else:
+                    npm_error = f"Exit code {result.returncode}: {result.stderr}"
+            except Exception as e:
+                npm_error = str(e)
 
         # Determine if update is available
         update_available = False
@@ -1130,6 +1136,8 @@ def check_snyk_version(request):
                 'nvm_npm_matches': nvm_npm_matches,
                 'snyk_exists': os.path.exists(snyk_path) if snyk_path else False,
                 'npm_exists': os.path.exists(npm_path) if npm_path else False,
+                'snyk_error': snyk_error,
+                'npm_error': npm_error,
             }
         })
 
