@@ -1079,7 +1079,9 @@ def check_snyk_version(request):
                 # Set up environment with nvm node bin directory in PATH
                 env = os.environ.copy()
                 node_bin_dir = os.path.dirname(snyk_path)  # Get the bin directory
-                env['PATH'] = f"{node_bin_dir}:{env.get('PATH', '')}"
+                system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+                existing_path = env.get('PATH', '')
+                env['PATH'] = f"{node_bin_dir}:{system_paths}:{existing_path}"
 
                 result = subprocess.run(
                     [snyk_path, '--version'],
@@ -1105,7 +1107,9 @@ def check_snyk_version(request):
                 # Set up environment with nvm node bin directory in PATH
                 env = os.environ.copy()
                 node_bin_dir = os.path.dirname(npm_path)  # Get the bin directory
-                env['PATH'] = f"{node_bin_dir}:{env.get('PATH', '')}"
+                system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+                existing_path = env.get('PATH', '')
+                env['PATH'] = f"{node_bin_dir}:{system_paths}:{existing_path}"
 
                 result = subprocess.run(
                     [npm_path, 'view', 'snyk', 'version'],
@@ -1217,9 +1221,14 @@ def upgrade_snyk_cli(request):
             })
 
         # Set up environment with nvm node bin directory in PATH
+        # Also include common system paths for shell utilities
         env = os.environ.copy()
         node_bin_dir = os.path.dirname(npm_path)  # Get the bin directory
-        env['PATH'] = f"{node_bin_dir}:{env.get('PATH', '')}"
+
+        # Ensure essential system paths are included
+        system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+        existing_path = env.get('PATH', '')
+        env['PATH'] = f"{node_bin_dir}:{system_paths}:{existing_path}"
 
         # Run npm install -g snyk@latest
         result = subprocess.run(
@@ -1237,7 +1246,9 @@ def upgrade_snyk_cli(request):
                 # Set up environment with nvm node bin directory in PATH
                 version_env = os.environ.copy()
                 version_node_bin_dir = os.path.dirname(snyk_path)
-                version_env['PATH'] = f"{version_node_bin_dir}:{version_env.get('PATH', '')}"
+                system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+                existing_path = version_env.get('PATH', '')
+                version_env['PATH'] = f"{version_node_bin_dir}:{system_paths}:{existing_path}"
 
                 version_result = subprocess.run(
                     [snyk_path, '--version'],
