@@ -1293,7 +1293,7 @@ def upgrade_snyk_cli(request):
 @user_passes_test(is_superuser)
 @require_POST
 def install_nodejs_npm(request):
-    """Install Node.js and npm via nvm for Snyk CLI."""
+    """Install Node.js, npm, and Snyk CLI via nvm in one step."""
     from django.http import JsonResponse
     import subprocess
     import os
@@ -1329,17 +1329,18 @@ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | /bin/
                     'output': result.stdout + result.stderr
                 })
 
-        # Install Node.js LTS via nvm
-        install_node_script = """
+        # Install Node.js LTS via nvm AND Snyk CLI in one go
+        install_script = """
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 nvm install --lts
 nvm use --lts
 npm install -g npm@latest
+npm install -g snyk
 """
 
         result = subprocess.run(
-            ['/bin/bash', '-c', install_node_script],
+            ['/bin/bash', '-c', install_script],
             capture_output=True,
             text=True,
             timeout=300,  # 5 minutes
@@ -1350,13 +1351,13 @@ npm install -g npm@latest
         if result.returncode == 0:
             return JsonResponse({
                 'success': True,
-                'message': 'Node.js and npm installed successfully',
+                'message': 'Node.js, npm, and Snyk CLI installed successfully',
                 'output': result.stdout + result.stderr
             })
         else:
             return JsonResponse({
                 'success': False,
-                'message': 'Failed to install Node.js',
+                'message': 'Failed to install Node.js and Snyk CLI',
                 'output': result.stdout + result.stderr
             })
 

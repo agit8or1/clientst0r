@@ -58,7 +58,7 @@
                                     <i class="fas fa-arrow-up"></i> Upgrade Snyk CLI
                                 </button>
                                 <button type="button" class="btn btn-primary btn-sm" id="installNodejsBtn" style="display: none;">
-                                    <i class="fas fa-download"></i> Install Node.js & npm
+                                    <i class="fas fa-download"></i> Install All Dependencies
                                 </button>
                             </div>
                         </div>
@@ -428,7 +428,7 @@ function checkSnykVersion() {
                     statusDiv.className = 'alert alert-warning mt-2';
                     statusDiv.innerHTML = `
                         <i class="fas fa-info-circle"></i> <strong>Node.js and npm are required</strong>
-                        <p class="mb-2 mt-2">Snyk CLI requires Node.js and npm to be installed. Click the "Install Node.js & npm" button above to install them automatically via nvm.</p>
+                        <p class="mb-2 mt-2">Snyk CLI requires Node.js and npm to be installed. Click the "Install All Dependencies" button above to automatically install Node.js, npm, and Snyk CLI via nvm in one step.</p>
                         <details>
                             <summary><strong>Manual Installation Instructions</strong></summary>
                             <pre class="mt-2 mb-0">
@@ -443,9 +443,13 @@ export NVM_DIR="$HOME/.nvm"
 nvm install --lts
 nvm use --lts
 
+# Install Snyk CLI
+npm install -g snyk
+
 # Verify installation
 node --version
 npm --version
+snyk --version
 </pre>
                         </details>
                     `;
@@ -507,7 +511,7 @@ document.getElementById('installNodejsBtn').addEventListener('click', function()
     const originalHtml = btn.innerHTML;
     const statusDiv = document.getElementById('snykVersionStatus');
 
-    if (!confirm('This will install Node.js LTS and npm via nvm. This may take a few minutes. Continue?')) {
+    if (!confirm('This will install Node.js LTS, npm, and Snyk CLI via nvm. This may take a few minutes. Continue?')) {
         return;
     }
 
@@ -516,7 +520,7 @@ document.getElementById('installNodejsBtn').addEventListener('click', function()
 
     statusDiv.style.display = 'block';
     statusDiv.className = 'alert alert-info mt-2';
-    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Installing Node.js and npm via nvm... This may take 3-5 minutes.';
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Installing Node.js, npm, and Snyk CLI via nvm... This may take 3-5 minutes.';
 
     fetch('{% url "core:install_nodejs_npm" %}', {
         method: 'POST',
@@ -532,12 +536,12 @@ document.getElementById('installNodejsBtn').addEventListener('click', function()
         if (data.success) {
             statusDiv.className = 'alert alert-success mt-2';
             statusDiv.innerHTML = `
-                <i class="fas fa-check-circle"></i> <strong>Success!</strong> Node.js and npm have been installed.
+                <i class="fas fa-check-circle"></i> <strong>Success!</strong> Node.js, npm, and Snyk CLI have been installed.
                 <details class="mt-2">
                     <summary>View Output</summary>
                     <pre class="bg-dark text-light p-2 mt-2" style="max-height: 200px; overflow-y: auto;"><code>${data.output}</code></pre>
                 </details>
-                <p class="mb-0 mt-2">Please refresh the page to detect the new installation.</p>
+                <p class="mb-0 mt-2">Refreshing version information...</p>
             `;
             // Refresh version info after 2 seconds
             setTimeout(function() {
