@@ -139,6 +139,9 @@ def settings_general(request):
         elif request.POST.get('clear_logo') == 'on':
             settings.custom_logo = None
 
+        # Issue #59: UI/UX Settings
+        settings.stay_on_page_after_org_switch = request.POST.get('stay_on_page_after_org_switch') == 'on'
+
         settings.updated_by = request.user
         settings.save()
 

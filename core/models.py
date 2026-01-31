@@ -435,6 +435,9 @@ class SystemSetting(models.Model):
     global_kb_enabled = models.BooleanField(default=True, help_text='Enable Global Knowledge Base (Staff-only shared KB)')
     workflows_enabled = models.BooleanField(default=True, help_text='Enable Workflows & Automation feature')
 
+    # UI/UX Settings (Issue #59)
+    stay_on_page_after_org_switch = models.BooleanField(default=True, help_text='Stay on current page when switching organizations instead of redirecting to dashboard')
+
     # Metadata
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='system_settings_updates')

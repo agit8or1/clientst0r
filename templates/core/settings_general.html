@@ -100,6 +100,19 @@
                     </div>
 
                     <hr>
+                    <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-desktop"></i> UI/UX Settings <span class="badge bg-info">Issue #59</span></h6>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="stay_on_page_after_org_switch" name="stay_on_page_after_org_switch" {% if settings.stay_on_page_after_org_switch %}checked{% endif %}>
+                            <label class="form-check-label" for="stay_on_page_after_org_switch">
+                                <strong>Stay on Current Page When Switching Organizations</strong>
+                            </label>
+                        </div>
+                        <div class="form-text">When switching organizations, stay on the current page (e.g., passwords page) instead of redirecting to dashboard. Works for all organization-specific pages and global view.</div>
+                    </div>
+
+                    <hr>
 
                     <div class="d-flex justify-content-between align-items-center">
                         <small class="text-muted">
