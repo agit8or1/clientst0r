@@ -1308,7 +1308,7 @@ def install_nodejs_npm(request):
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 """
             result = subprocess.run(
-                ['bash', '-c', install_nvm_script],
+                ['/bin/bash', '-c', install_nvm_script],
                 capture_output=True,
                 text=True,
                 timeout=60,
@@ -1332,7 +1332,7 @@ npm install -g npm@latest
 """
 
         result = subprocess.run(
-            ['bash', '-c', install_node_script],
+            ['/bin/bash', '-c', install_node_script],
             capture_output=True,
             text=True,
             timeout=300,  # 5 minutes
