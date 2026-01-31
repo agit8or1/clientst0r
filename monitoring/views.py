@@ -86,12 +86,26 @@ def website_monitor_create(request):
 
 @login_required
 def website_monitor_detail(request, pk):
-    """View website monitor details."""
+    """
+    View website monitor details.
+    Supports global view mode for superusers/staff users.
+    """
     org = get_request_organization(request)
-    monitor = get_object_or_404(WebsiteMonitor, pk=pk, organization=org)
+
+    # Check if user is in global view mode (no org but is superuser/staff)
+    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        # Global view: access monitor from any organization
+        monitor = get_object_or_404(WebsiteMonitor, pk=pk)
+    else:
+        # Organization view: filter by current org
+        monitor = get_object_or_404(WebsiteMonitor, pk=pk, organization=org)
 
     return render(request, 'monitoring/website_monitor_detail.html', {
         'monitor': monitor,
+        'in_global_view': in_global_view,
     })
 
 

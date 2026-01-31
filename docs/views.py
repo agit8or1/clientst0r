@@ -101,9 +101,20 @@ def document_list(request):
 def document_detail(request, slug):
     """
     View document details with rendered markdown.
+    Supports global view mode for superusers/staff users.
     """
     org = get_request_organization(request)
-    document = get_object_or_404(Document, slug=slug, organization=org)
+
+    # Check if user is in global view mode (no org but is superuser/staff)
+    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        # Global view: access document from any organization
+        document = get_object_or_404(Document, slug=slug)
+    else:
+        # Organization view: filter by current org
+        document = get_object_or_404(Document, slug=slug, organization=org)
 
     # Get versions
     versions = document.versions.all()[:10]  # Last 10 versions
@@ -123,6 +134,7 @@ def document_detail(request, slug):
         'rendered_body': document.render_markdown(),
         'versions': versions,
         'has_write_permission': has_write_permission,
+        'in_global_view': in_global_view,
     })
 
 

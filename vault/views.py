@@ -44,12 +44,24 @@ def password_list(request):
 def password_detail(request, pk):
     """
     View password details. Returns decrypted password via separate AJAX endpoint for security.
+    Supports global view mode for superusers/staff users.
     """
     org = get_request_organization(request)
-    password = get_object_or_404(Password, pk=pk, organization=org)
+
+    # Check if user is in global view mode (no org but is superuser/staff)
+    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        # Global view: access password from any organization
+        password = get_object_or_404(Password, pk=pk)
+    else:
+        # Organization view: filter by current org
+        password = get_object_or_404(Password, pk=pk, organization=org)
 
     return render(request, 'vault/password_detail.html', {
         'password': password,
+        'in_global_view': in_global_view,
     })
 
 

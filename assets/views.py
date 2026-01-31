@@ -82,13 +82,26 @@ def asset_list(request):
 def asset_detail(request, pk):
     """
     View asset details with relationships.
+    Supports global view mode for superusers/staff users.
     """
     org = get_request_organization(request)
-    asset = get_object_or_404(Asset, pk=pk, organization=org)
 
-    # Get relationships
+    # Check if user is in global view mode (no org but is superuser/staff)
+    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        # Global view: access asset from any organization
+        asset = get_object_or_404(Asset, pk=pk)
+        asset_org = asset.organization
+    else:
+        # Organization view: filter by current org
+        asset = get_object_or_404(Asset, pk=pk, organization=org)
+        asset_org = org
+
+    # Get relationships for this asset's organization
     relationships = Relationship.objects.filter(
-        organization=org,
+        organization=asset_org,
         source_type='asset',
         source_id=asset.id
     )
@@ -96,7 +109,7 @@ def asset_detail(request, pk):
     # Get asset images
     from files.models import Attachment
     asset_images = Attachment.objects.filter(
-        organization=org,
+        organization=asset_org,
         entity_type='asset',
         entity_id=asset.id,
         content_type__startswith='image/'
@@ -106,6 +119,7 @@ def asset_detail(request, pk):
         'asset': asset,
         'relationships': relationships,
         'asset_images': asset_images,
+        'in_global_view': in_global_view,
     })
 
 
