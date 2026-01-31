@@ -79,6 +79,7 @@ urlpatterns = [
     path('settings/snyk/test/', settings_views.test_snyk_connection, name='test_snyk_connection'),
     path('settings/snyk/check-version/', settings_views.check_snyk_version, name='check_snyk_version'),
     path('settings/snyk/upgrade/', settings_views.upgrade_snyk_cli, name='upgrade_snyk_cli'),
+    path('settings/snyk/install-nodejs/', settings_views.install_nodejs_npm, name='install_nodejs_npm'),
     path('settings/snyk/scans/', settings_views.snyk_scans, name='snyk_scans'),
     path('settings/snyk/scans/<int:scan_id>/', settings_views.snyk_scan_detail, name='snyk_scan_detail'),
     path('settings/snyk/scan/run/', settings_views.run_snyk_scan, name='run_snyk_scan'),

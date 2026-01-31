@@ -47,7 +47,8 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <p class="mb-2"><strong>Current Version:</strong> <code id="snykCurrentVersion">Checking...</code></p>
-                                <p class="mb-0"><strong>Latest Version:</strong> <code id="snykLatestVersion">Checking...</code></p>
+                                <p class="mb-2"><strong>Latest Version:</strong> <code id="snykLatestVersion">Checking...</code></p>
+                                <p class="mb-0"><strong>Node.js/npm:</strong> <code id="nodejsStatus">Checking...</code></p>
                             </div>
                             <div class="col-md-6 text-end">
                                 <button type="button" class="btn btn-outline-primary btn-sm" id="checkSnykVersionBtn">
@@ -55,6 +56,9 @@
                                 </button>
                                 <button type="button" class="btn btn-success btn-sm" id="upgradeSnykBtn" style="display: none;">
                                     <i class="fas fa-arrow-up"></i> Upgrade Snyk CLI
+                                </button>
+                                <button type="button" class="btn btn-primary btn-sm" id="installNodejsBtn" style="display: none;">
+                                    <i class="fas fa-download"></i> Install Node.js & npm
                                 </button>
                             </div>
                         </div>
@@ -402,29 +406,79 @@ function checkSnykVersion() {
             // Debug logging
             console.log('Snyk version check response:', data);
 
-            if (data.success) {
-                currentVersionEl.textContent = data.current_version || 'Not installed';
-                latestVersionEl.textContent = data.latest_version || 'Unknown';
+            const nodejsStatusEl = document.getElementById('nodejsStatus');
+            const installNodejsBtn = document.getElementById('installNodejsBtn');
 
-                if (data.update_available) {
-                    upgradeBtn.style.display = 'inline-block';
+            if (data.success) {
+                // Check if npm is available
+                const npmAvailable = data.npm_path !== null;
+                const snykAvailable = data.snyk_path !== null;
+
+                if (!npmAvailable) {
+                    // Node.js/npm not installed
+                    currentVersionEl.textContent = 'Not installed';
+                    latestVersionEl.textContent = 'N/A';
+                    nodejsStatusEl.textContent = 'Not installed';
+                    nodejsStatusEl.style.color = 'red';
+
+                    upgradeBtn.style.display = 'none';
+                    installNodejsBtn.style.display = 'inline-block';
+
                     statusDiv.style.display = 'block';
                     statusDiv.className = 'alert alert-warning mt-2';
-                    statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <strong>Update Available!</strong> A newer version of Snyk CLI is available.';
-                } else if (data.current_version) {
-                    upgradeBtn.style.display = 'none';
-                    statusDiv.style.display = 'block';
-                    statusDiv.className = 'alert alert-success mt-2';
-                    statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Snyk CLI is up to date.';
+                    statusDiv.innerHTML = `
+                        <i class="fas fa-info-circle"></i> <strong>Node.js and npm are required</strong>
+                        <p class="mb-2 mt-2">Snyk CLI requires Node.js and npm to be installed. Click the "Install Node.js & npm" button above to install them automatically via nvm.</p>
+                        <details>
+                            <summary><strong>Manual Installation Instructions</strong></summary>
+                            <pre class="mt-2 mb-0">
+# Install nvm (Node Version Manager)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+# Load nvm
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+# Install Node.js LTS
+nvm install --lts
+nvm use --lts
+
+# Verify installation
+node --version
+npm --version
+</pre>
+                        </details>
+                    `;
                 } else {
-                    upgradeBtn.style.display = 'inline-block';
-                    statusDiv.style.display = 'block';
-                    statusDiv.className = 'alert alert-danger mt-2';
-                    statusDiv.innerHTML = '<i class="fas fa-times-circle"></i> Snyk CLI is not installed. Click "Upgrade Snyk CLI" to install.';
+                    // npm is available
+                    nodejsStatusEl.textContent = 'Installed ✓';
+                    nodejsStatusEl.style.color = 'green';
+                    installNodejsBtn.style.display = 'none';
+
+                    currentVersionEl.textContent = data.current_version || 'Not installed';
+                    latestVersionEl.textContent = data.latest_version || 'Unknown';
+
+                    if (data.update_available) {
+                        upgradeBtn.style.display = 'inline-block';
+                        statusDiv.style.display = 'block';
+                        statusDiv.className = 'alert alert-warning mt-2';
+                        statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <strong>Update Available!</strong> A newer version of Snyk CLI is available.';
+                    } else if (data.current_version) {
+                        upgradeBtn.style.display = 'none';
+                        statusDiv.style.display = 'block';
+                        statusDiv.className = 'alert alert-success mt-2';
+                        statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Snyk CLI is up to date.';
+                    } else {
+                        upgradeBtn.style.display = 'inline-block';
+                        statusDiv.style.display = 'block';
+                        statusDiv.className = 'alert alert-info mt-2';
+                        statusDiv.innerHTML = '<i class="fas fa-info-circle"></i> Snyk CLI is not installed. Click "Upgrade Snyk CLI" to install.';
+                    }
                 }
             } else {
                 currentVersionEl.textContent = 'Error';
                 latestVersionEl.textContent = 'Error';
+                nodejsStatusEl.textContent = 'Error';
                 statusDiv.style.display = 'block';
                 statusDiv.className = 'alert alert-danger mt-2';
                 statusDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${data.message}`;
@@ -445,6 +499,64 @@ checkSnykVersion();
 // Handle check version button
 document.getElementById('checkSnykVersionBtn').addEventListener('click', function() {
     checkSnykVersion();
+});
+
+// Handle Install Node.js button
+document.getElementById('installNodejsBtn').addEventListener('click', function() {
+    const btn = this;
+    const originalHtml = btn.innerHTML;
+    const statusDiv = document.getElementById('snykVersionStatus');
+
+    if (!confirm('This will install Node.js LTS and npm via nvm. This may take a few minutes. Continue?')) {
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Installing...';
+
+    statusDiv.style.display = 'block';
+    statusDiv.className = 'alert alert-info mt-2';
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Installing Node.js and npm via nvm... This may take 3-5 minutes.';
+
+    fetch('{% url "core:install_nodejs_npm" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+
+        if (data.success) {
+            statusDiv.className = 'alert alert-success mt-2';
+            statusDiv.innerHTML = `
+                <i class="fas fa-check-circle"></i> <strong>Success!</strong> Node.js and npm have been installed.
+                <details class="mt-2">
+                    <summary>View Output</summary>
+                    <pre class="bg-dark text-light p-2 mt-2" style="max-height: 200px; overflow-y: auto;"><code>${data.output}</code></pre>
+                </details>
+                <p class="mb-0 mt-2">Please refresh the page to detect the new installation.</p>
+            `;
+            // Refresh version info after 2 seconds
+            setTimeout(function() {
+                checkSnykVersion();
+            }, 2000);
+        } else {
+            statusDiv.className = 'alert alert-danger mt-2';
+            statusDiv.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> ${data.message}
+                ${data.output ? `<details class="mt-2"><summary>View Output</summary><pre class="bg-dark text-light p-2 mt-2"><code>${data.output}</code></pre></details>` : ''}
+            `;
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        statusDiv.className = 'alert alert-danger mt-2';
+        statusDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>Error:</strong> ${error.message}`;
+    });
 });
 
 // Handle upgrade button

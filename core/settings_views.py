@@ -1291,6 +1291,81 @@ def upgrade_snyk_cli(request):
 
 @login_required
 @user_passes_test(is_superuser)
+@require_POST
+def install_nodejs_npm(request):
+    """Install Node.js and npm via nvm for Snyk CLI."""
+    from django.http import JsonResponse
+    import subprocess
+    import os
+
+    try:
+        # Check if nvm is installed
+        nvm_dir = '/home/administrator/.nvm'
+
+        if not os.path.exists(nvm_dir):
+            # Install nvm first
+            install_nvm_script = """
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+"""
+            result = subprocess.run(
+                ['bash', '-c', install_nvm_script],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd='/home/administrator'
+            )
+
+            if result.returncode != 0:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Failed to install nvm',
+                    'output': result.stdout + result.stderr
+                })
+
+        # Install Node.js LTS via nvm
+        install_node_script = """
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+nvm install --lts
+nvm use --lts
+npm install -g npm@latest
+"""
+
+        result = subprocess.run(
+            ['bash', '-c', install_node_script],
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 minutes
+            cwd='/home/administrator'
+        )
+
+        if result.returncode == 0:
+            return JsonResponse({
+                'success': True,
+                'message': 'Node.js and npm installed successfully',
+                'output': result.stdout + result.stderr
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': 'Failed to install Node.js',
+                'output': result.stdout + result.stderr
+            })
+
+    except subprocess.TimeoutExpired:
+        return JsonResponse({
+            'success': False,
+            'message': 'Installation timed out after 5 minutes'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        })
+
+
+@login_required
+@user_passes_test(is_superuser)
 def test_snyk_connection(request):
     """Test Snyk API connection."""
     import requests
