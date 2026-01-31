@@ -1076,11 +1076,17 @@ def check_snyk_version(request):
         snyk_error = None
         if snyk_path:
             try:
+                # Set up environment with nvm node bin directory in PATH
+                env = os.environ.copy()
+                node_bin_dir = os.path.dirname(snyk_path)  # Get the bin directory
+                env['PATH'] = f"{node_bin_dir}:{env.get('PATH', '')}"
+
                 result = subprocess.run(
                     [snyk_path, '--version'],
                     capture_output=True,
                     text=True,
-                    timeout=10
+                    timeout=10,
+                    env=env
                 )
                 if result.returncode == 0:
                     # Parse version from output (e.g., "1.1234.0")
@@ -1096,11 +1102,17 @@ def check_snyk_version(request):
         npm_error = None
         if npm_path:
             try:
+                # Set up environment with nvm node bin directory in PATH
+                env = os.environ.copy()
+                node_bin_dir = os.path.dirname(npm_path)  # Get the bin directory
+                env['PATH'] = f"{node_bin_dir}:{env.get('PATH', '')}"
+
                 result = subprocess.run(
                     [npm_path, 'view', 'snyk', 'version'],
                     capture_output=True,
                     text=True,
-                    timeout=10
+                    timeout=10,
+                    env=env
                 )
                 if result.returncode == 0:
                     latest_version = result.stdout.strip()
@@ -1204,23 +1216,35 @@ def upgrade_snyk_cli(request):
                 'message': 'npm command not found. Please ensure Node.js and npm are installed.'
             })
 
+        # Set up environment with nvm node bin directory in PATH
+        env = os.environ.copy()
+        node_bin_dir = os.path.dirname(npm_path)  # Get the bin directory
+        env['PATH'] = f"{node_bin_dir}:{env.get('PATH', '')}"
+
         # Run npm install -g snyk@latest
         result = subprocess.run(
             [npm_path, 'install', '-g', 'snyk@latest'],
             capture_output=True,
             text=True,
-            timeout=120  # 2 minute timeout
+            timeout=120,  # 2 minute timeout
+            env=env
         )
 
         if result.returncode == 0:
             # Get new version - refresh the snyk path in case it changed
             snyk_path = find_command('snyk')
             if snyk_path:
+                # Set up environment with nvm node bin directory in PATH
+                version_env = os.environ.copy()
+                version_node_bin_dir = os.path.dirname(snyk_path)
+                version_env['PATH'] = f"{version_node_bin_dir}:{version_env.get('PATH', '')}"
+
                 version_result = subprocess.run(
                     [snyk_path, '--version'],
                     capture_output=True,
                     text=True,
-                    timeout=10
+                    timeout=10,
+                    env=version_env
                 )
 
                 import re
