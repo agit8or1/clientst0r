@@ -66,7 +66,7 @@ class Location(BaseModel):
     street_address = models.CharField(max_length=255)
     street_address_2 = models.CharField(max_length=255, blank=True, null=True, default='')
     city = models.CharField(max_length=100)
-    state = models.CharField(max_length=50)
+    state = models.CharField(max_length=50, blank=True, default='')  # Issue #56: Optional state
     postal_code = models.CharField(max_length=20)
     country = models.CharField(max_length=100, default='United States')
 
