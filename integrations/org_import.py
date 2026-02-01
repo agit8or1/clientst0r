@@ -203,25 +203,18 @@ def import_organization_from_rmm(connection, site_data):
     if not base_slug:
         base_slug = f"site-{external_id}"
 
-    # Check if organization already exists (by custom field or slug)
-    org = find_existing_organization_by_rmm_id(connection, external_id)
+    # Check if organization already exists by name (with prefix)
+    # Note: RMM connections don't use ExternalObjectMap (PSA-only)
+    org = Organization.objects.filter(name=display_name).first()
+
+    if not org:
+        # Try slug match as fallback
+        org = Organization.objects.filter(slug=base_slug).first()
 
     if org:
         # Update existing organization
         org.name = display_name
         org.save()
-
-        # Update ExternalObjectMap
-        ExternalObjectMap.objects.update_or_create(
-            connection=connection,
-            external_type='site',
-            external_id=str(external_id),
-            defaults={
-                'organization': org,
-                'local_type': 'organization',
-                'local_id': org.id,
-            }
-        )
 
         logger.info(f"Updated organization {org.slug} from RMM site {site_name}")
 
@@ -258,16 +251,6 @@ def import_organization_from_rmm(connection, site_data):
         memberships_created = create_inherited_memberships(org, connection.organization)
         if memberships_created > 0:
             logger.info(f"Created {memberships_created} inherited memberships for {org.name}")
-
-        # Create ExternalObjectMap to track this organization
-        ExternalObjectMap.objects.create(
-            connection=connection,
-            external_type='site',
-            external_id=str(external_id),
-            organization=org,
-            local_type='organization',
-            local_id=org.id,
-        )
 
         AuditLog.objects.create(
             event_type='rmm_org_created',
@@ -317,29 +300,14 @@ def find_existing_organization_by_rmm_id(connection, external_id):
     """
     Find existing organization by RMM site ID.
 
-    Searches ExternalObjectMap for matching RMM site ID.
+    For RMM connections, we don't use ExternalObjectMap (PSA-only).
+    Instead, search by organization name/slug that would have been created.
 
     Returns:
         Organization instance or None
     """
-    # Search for ExternalObjectMap with matching RMM site ID
-    mapping = ExternalObjectMap.objects.filter(
-        connection=connection,
-        external_type='site',
-        external_id=str(external_id),
-        local_type='organization'
-    ).first()
-
-    if mapping:
-        # Get the organization by local_id
-        try:
-            return Organization.objects.get(id=mapping.local_id)
-        except Organization.DoesNotExist:
-            # Orphaned mapping, delete it
-            logger.warning(f"Found orphaned ExternalObjectMap for organization ID {mapping.local_id}, deleting")
-            mapping.delete()
-            return None
-
+    # RMM connections don't use ExternalObjectMap - just return None
+    # Organizations will be matched by name in import_organization_from_rmm
     return None
 
 
