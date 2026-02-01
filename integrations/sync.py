@@ -688,19 +688,8 @@ class RMMSync:
         else:
             self.stats['devices']['updated'] += 1
 
-        # Update mapping
-        data_hash = self._hash_data(device_data)
-        ExternalObjectMap.objects.update_or_create(
-            connection=self.connection,
-            external_type='device',
-            external_id=external_id,
-            defaults={
-                'organization': target_org,
-                'local_type': 'rmm_device',
-                'local_id': device.id,
-                'external_hash': data_hash,
-            }
-        )
+        # Note: ExternalObjectMap not used for RMM devices (PSA-only)
+        # RMM devices already have connection FK for tracking
 
         return device
 
@@ -747,19 +736,8 @@ class RMMSync:
         else:
             self.stats['alerts']['updated'] += 1
 
-        # Update mapping
-        data_hash = self._hash_data(alert_data)
-        ExternalObjectMap.objects.update_or_create(
-            connection=self.connection,
-            external_type='alert',
-            external_id=external_id,
-            defaults={
-                'organization': self.organization,
-                'local_type': 'rmm_alert',
-                'local_id': alert.id,
-                'external_hash': data_hash,
-            }
-        )
+        # Note: ExternalObjectMap not used for RMM alerts (PSA-only)
+        # RMM alerts already have connection FK for tracking
 
         return alert
 

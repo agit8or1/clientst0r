@@ -219,13 +219,12 @@ def import_organization_from_rmm(connection, site_data):
         logger.info(f"Updated organization {org.slug} from RMM site {site_name}")
 
         AuditLog.objects.create(
-            event_type='rmm_org_updated',
-            description=f'Updated organization {org.slug} from RMM: {site_name}',
-            metadata={
-                'rmm_provider': connection.provider_type,
-                'rmm_site_id': external_id,
-                'organization_id': org.id,
-            }
+            action='sync',
+            object_type='organization',
+            object_id=org.id,
+            object_repr=org.name,
+            description=f'Updated organization from RMM: {site_name} ({connection.provider_type}, site ID: {external_id})',
+            organization=org
         )
 
         return org
@@ -253,14 +252,12 @@ def import_organization_from_rmm(connection, site_data):
             logger.info(f"Created {memberships_created} inherited memberships for {org.name}")
 
         AuditLog.objects.create(
-            event_type='rmm_org_created',
-            description=f'Created organization {org.slug} from RMM: {site_name}',
-            metadata={
-                'rmm_provider': connection.provider_type,
-                'rmm_site_id': external_id,
-                'organization_id': org.id,
-                'memberships_created': memberships_created,
-            }
+            action='sync',
+            object_type='organization',
+            object_id=org.id,
+            object_repr=org.name,
+            description=f'Created organization from RMM: {site_name} ({connection.provider_type}, site ID: {external_id}, {memberships_created} memberships)',
+            organization=org
         )
 
         return org
