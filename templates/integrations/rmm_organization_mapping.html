@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}RMM Site Analysis - {{ connection.name }} - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'integrations:integration_list' %}">Integrations</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'integrations:rmm_detail' connection.pk %}">{{ connection.name }}</a></li>
+        <li class="breadcrumb-item active">Site Analysis</li>
+    </ol>
+</nav>
+
+<div class="mb-4">
+    <h1><i class="fas fa-sitemap"></i> RMM Site Organization Analysis</h1>
+    <p class="lead">Preview which organizations will be created from RMM sites during sync.</p>
+</div>
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> <strong>How RMM organization import works:</strong>
+    <ul class="mb-0">
+        <li><strong>RMM organizations are matched by name</strong> - not by external mapping like PSA</li>
+        <li>During sync, if an organization with the same name exists, it will be updated</li>
+        <li>If no match is found, a new organization will be created</li>
+        <li>To prevent duplicates, use the <strong>Organization Merge Tool</strong> after syncing</li>
+        <li>Or manually rename organizations to match before syncing</li>
+    </ul>
+</div>
+
+{% if site_mapping_data %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-server"></i> RMM Sites ({{ site_mapping_data|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 25%">RMM Site Name</th>
+                        <th style="width: 10%">Devices</th>
+                        <th style="width: 30%">Will Create As</th>
+                        <th style="width: 35%">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in site_mapping_data %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.site_name }}</strong>
+                            <br>
+                            <small class="text-muted">Site ID: {{ item.site_id }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ item.device_count }}</span>
+                        </td>
+                        <td>
+                            <code>{{ item.will_create_as }}</code>
+                        </td>
+                        <td>
+                            {% if item.existing_org %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check"></i> Will Update Existing
+                                </span>
+                                <br>
+                                <small>Organization: <strong>{{ item.existing_org.name }}</strong></small>
+                            {% elif item.suggested_match %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-exclamation-triangle"></i> Potential Duplicate
+                                </span>
+                                <br>
+                                <small class="text-warning">
+                                    Similar org exists: <strong>{{ item.suggested_match.name }}</strong>
+                                    <br>
+                                    Tip: Rename to "{{ item.will_create_as }}" to match
+                                </small>
+                            {% else %}
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-plus"></i> Will Create New
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <div class="alert alert-warning mb-3">
+            <i class="fas fa-exclamation-triangle"></i> <strong>To prevent duplicate organizations:</strong>
+            <ol class="mb-0">
+                <li>Check the "Potential Duplicate" warnings above</li>
+                <li>Manually rename those organizations to match the "Will Create As" name</li>
+                <li>Or use the <a href="{% url 'accounts:organization_merge' %}" class="alert-link">Organization Merge Tool</a> after syncing to combine them</li>
+            </ol>
+        </div>
+
+        <a href="{% url 'integrations:rmm_detail' connection.pk %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to RMM Connection
+        </a>
+
+        <a href="{% url 'accounts:organization_merge' %}" class="btn btn-outline-primary">
+            <i class="fas fa-object-group"></i> Organization Merge Tool
+        </a>
+    </div>
+</div>
+
+{% else %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> No RMM devices with site information found.
+    <br><br>
+    <strong>Possible reasons:</strong>
+    <ul class="mb-0">
+        <li>No devices have been synced yet - run a sync first</li>
+        <li>Devices don't have site/client assignments in your RMM</li>
+        <li>"Import Organizations" is not enabled in RMM connection settings</li>
+    </ul>
+</div>
+
+<a href="{% url 'integrations:rmm_detail' connection.pk %}" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Connection
+</a>
+{% endif %}
+
+{% endblock %}

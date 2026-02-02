@@ -1067,7 +1067,32 @@ def organization_merge(request):
                         merge_stats['psa_connections'] += psa_moved
                     except:
                         pass
-                    
+
+                    # Move ExternalObjectMap entries (PSA company mappings)
+                    try:
+                        from integrations.models import ExternalObjectMap
+                        # Update both organization FK and local_id for organization mappings
+                        external_maps = ExternalObjectMap.objects.filter(
+                            organization=source_org,
+                            local_type='organization'
+                        )
+                        for ext_map in external_maps:
+                            ext_map.organization = target_org
+                            ext_map.local_id = target_org.id
+                            ext_map.save()
+
+                        # Also move any other external object mappings
+                        other_maps = ExternalObjectMap.objects.filter(
+                            organization=source_org
+                        ).exclude(local_type='organization')
+                        other_maps.update(organization=target_org)
+
+                        if 'external_mappings' not in merge_stats:
+                            merge_stats['external_mappings'] = 0
+                        merge_stats['external_mappings'] += external_maps.count() + other_maps.count()
+                    except Exception as e:
+                        logger.warning(f"Error moving external object maps: {e}")
+
                     # Log merge operation
                     AuditLog.objects.create(
                         user=request.user,

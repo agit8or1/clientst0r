@@ -24,6 +24,9 @@
         </p>
     </div>
     <div>
+        <a href="{% url 'integrations:psa_organization_mapping' connection.pk %}" class="btn btn-outline-info">
+            <i class="fas fa-sitemap"></i> Map Organizations
+        </a>
         <button id="testConnection" class="btn btn-outline-primary" data-url="{% url 'integrations:integration_test' connection.pk %}">
             <i class="fas fa-check-circle"></i> Test Connection
         </button>

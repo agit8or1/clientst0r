@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Map Organizations - {{ connection.name }} - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'integrations:integration_list' %}">Integrations</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'integrations:integration_detail' connection.pk %}">{{ connection.name }}</a></li>
+        <li class="breadcrumb-item active">Map Organizations</li>
+    </ol>
+</nav>
+
+<div class="mb-4">
+    <h1><i class="fas fa-sitemap"></i> Map PSA Companies to Organizations</h1>
+    <p class="lead">Link PSA companies to existing HuduGlue organizations to prevent duplicates during sync.</p>
+</div>
+
+{% if company_mapping_data %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> <strong>How this works:</strong>
+    <ul class="mb-0">
+        <li>Companies with <span class="badge bg-success">Exact Match</span> have been automatically suggested</li>
+        <li>Select <strong>an existing organization</strong> to link them together</li>
+        <li>Select <strong>Create New</strong> to create a new organization during next sync</li>
+        <li>Select <strong>Ignore</strong> to skip importing this company</li>
+        <li>Future syncs will respect these mappings and update the linked organizations</li>
+    </ul>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-building"></i> PSA Companies ({{ company_mapping_data|length }})</h5>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Save Mappings
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%">PSA Company</th>
+                            <th style="width: 15%">Status</th>
+                            <th style="width: 55%">Map to HuduGlue Organization</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in company_mapping_data %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.company.name }}</strong>
+                                <br>
+                                <small class="text-muted">ID: {{ item.company.external_id }}</small>
+                            </td>
+                            <td>
+                                {% if item.mapped_org %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-link"></i> Mapped
+                                    </span>
+                                {% elif item.suggested_org %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-magic"></i> Exact Match
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-unlink"></i> Unmapped
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <select name="mapping_{{ item.company.pk }}" class="form-select">
+                                    <option value="ignore">Ignore (Don't Import)</option>
+                                    <option value="create_new" {% if not item.mapped_org and not item.suggested_org %}selected{% endif %}>
+                                        Create New Organization
+                                    </option>
+                                    <optgroup label="Existing Organizations">
+                                        {% for org in all_organizations %}
+                                        <option value="{{ org.id }}"
+                                            {% if item.mapped_org and item.mapped_org.id == org.id %}
+                                                selected
+                                            {% elif not item.mapped_org and item.suggested_org and item.suggested_org.id == org.id %}
+                                                selected
+                                            {% endif %}>
+                                            {{ org.name }}
+                                            {% if not org.is_active %} (Inactive){% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </optgroup>
+                                </select>
+
+                                {% if item.mapped_org %}
+                                <small class="text-success">
+                                    <i class="fas fa-check"></i> Currently mapped to: <strong>{{ item.mapped_org.name }}</strong>
+                                </small>
+                                {% elif item.suggested_org %}
+                                <small class="text-warning">
+                                    <i class="fas fa-magic"></i> Suggestion: Found exact name match
+                                </small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer d-flex justify-content-between">
+            <a href="{% url 'integrations:integration_detail' connection.pk %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Save Mappings
+            </button>
+        </div>
+    </div>
+</form>
+
+{% else %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> No PSA companies found. Run a sync first to import company data from your PSA.
+</div>
+
+<a href="{% url 'integrations:integration_detail' connection.pk %}" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Connection
+</a>
+{% endif %}
+
+{% endblock %}

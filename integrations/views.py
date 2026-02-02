@@ -667,12 +667,12 @@ def rmm_trigger_sync(request, pk):
     """Manually trigger RMM sync for a connection."""
     org = get_request_organization(request)
     connection = get_object_or_404(RMMConnection.objects.for_organization(org), pk=pk)
-    
+
     try:
         from integrations.sync import RMMSync
         syncer = RMMSync(connection)
         stats = syncer.sync_all()
-        
+
         messages.success(
             request,
             f'RMM sync completed successfully. '
@@ -683,5 +683,207 @@ def rmm_trigger_sync(request, pk):
     except Exception as e:
         messages.error(request, f'Sync failed: {str(e)}')
         logger.exception(f'Manual RMM sync failed for {connection}')
-    
+
     return redirect('integrations:rmm_detail', pk=connection.pk)
+
+
+@login_required
+@require_admin
+def psa_organization_mapping(request, pk):
+    """
+    Map PSA companies to existing HuduGlue organizations.
+    Allows pre-sync mapping to prevent duplicate organizations.
+    """
+    from core.models import Organization
+    from integrations.models import ExternalObjectMap
+    from django.db.models import Q
+
+    org = get_request_organization(request)
+    connection = get_object_or_404(PSAConnection, pk=pk, organization=org)
+
+    if request.method == 'POST':
+        # Process mappings
+        from django.db import transaction
+        mappings_created = 0
+        mappings_updated = 0
+
+        try:
+            with transaction.atomic():
+                for key, value in request.POST.items():
+                    if key.startswith('mapping_'):
+                        # Extract company ID from key (mapping_<company_id>)
+                        company_id = key.replace('mapping_', '')
+                        action = value
+
+                        if action == 'ignore':
+                            continue
+                        elif action == 'create_new':
+                            # Mark for org creation during next sync
+                            continue
+                        else:
+                            # action is the organization ID to map to
+                            try:
+                                target_org = Organization.objects.get(pk=int(action))
+                                company = PSACompany.objects.get(pk=company_id, connection=connection)
+
+                                # Create or update ExternalObjectMap
+                                ext_map, created = ExternalObjectMap.objects.update_or_create(
+                                    connection=connection,
+                                    external_type='company',
+                                    external_id=company.external_id,
+                                    defaults={
+                                        'organization': target_org,
+                                        'local_type': 'organization',
+                                        'local_id': target_org.id,
+                                    }
+                                )
+
+                                if created:
+                                    mappings_created += 1
+                                else:
+                                    mappings_updated += 1
+
+                                logger.info(
+                                    f"{'Created' if created else 'Updated'} mapping: "
+                                    f"PSA company '{company.name}' -> Organization '{target_org.name}'"
+                                )
+
+                            except (ValueError, Organization.DoesNotExist, PSACompany.DoesNotExist) as e:
+                                logger.warning(f"Error mapping company {company_id}: {e}")
+                                continue
+
+                if mappings_created > 0 or mappings_updated > 0:
+                    messages.success(
+                        request,
+                        f"Organization mapping saved! Created {mappings_created} new mappings, "
+                        f"updated {mappings_updated} existing mappings. Future syncs will respect these mappings."
+                    )
+                else:
+                    messages.info(request, "No mappings were changed.")
+
+                return redirect('integrations:psa_organization_mapping', pk=connection.pk)
+
+        except Exception as e:
+            messages.error(request, f"Error saving mappings: {str(e)}")
+            logger.exception(f"Error in PSA organization mapping for {connection}")
+
+    # GET request - show mapping form
+    # Get all companies from this PSA connection
+    companies = PSACompany.objects.filter(connection=connection).order_by('name')
+
+    # Get all organizations (for dropdown)
+    all_organizations = Organization.objects.all().order_by('name')
+
+    # Get existing mappings
+    existing_mappings = {}
+    for mapping in ExternalObjectMap.objects.filter(
+        connection=connection,
+        external_type='company',
+        local_type='organization'
+    ):
+        existing_mappings[mapping.external_id] = mapping.local_id
+
+    # Build company list with mapping info
+    company_mapping_data = []
+    for company in companies:
+        # Check if already mapped
+        mapped_org_id = existing_mappings.get(company.external_id)
+        mapped_org = None
+        if mapped_org_id:
+            try:
+                mapped_org = Organization.objects.get(pk=mapped_org_id)
+            except Organization.DoesNotExist:
+                pass
+
+        # Try to find exact name match as suggestion
+        suggested_org = None
+        if not mapped_org:
+            # Try exact match
+            suggested_org = Organization.objects.filter(name__iexact=company.name).first()
+            if not suggested_org:
+                # Try with prefix removed
+                if connection.org_name_prefix:
+                    name_without_prefix = company.name.replace(connection.org_name_prefix, '', 1).strip()
+                    suggested_org = Organization.objects.filter(name__iexact=name_without_prefix).first()
+
+        company_mapping_data.append({
+            'company': company,
+            'mapped_org': mapped_org,
+            'suggested_org': suggested_org,
+        })
+
+    return render(request, 'integrations/psa_organization_mapping.html', {
+        'connection': connection,
+        'company_mapping_data': company_mapping_data,
+        'all_organizations': all_organizations,
+    })
+
+
+@login_required
+@require_admin
+def rmm_organization_mapping(request, pk):
+    """
+    Map RMM sites to existing HuduGlue organizations.
+    Note: RMM uses name-based matching instead of ExternalObjectMap.
+    """
+    from core.models import Organization
+    from django.db.models import Q
+
+    org = get_request_organization(request)
+    connection = get_object_or_404(RMMConnection, pk=pk, organization=org)
+
+    if request.method == 'POST':
+        # For RMM, we can't use ExternalObjectMap (PSA-only)
+        # Instead, we'll help users identify which orgs will match by name
+        messages.info(
+            request,
+            "RMM organizations are matched by name during sync. "
+            "Use the organization merge tool to combine duplicate organizations after syncing."
+        )
+        return redirect('integrations:rmm_detail', pk=connection.pk)
+
+    # GET request - show RMM site analysis
+    # Get unique site names from RMM devices
+    from django.db.models import Count
+    site_data = RMMDevice.objects.filter(
+        connection=connection
+    ).exclude(
+        Q(site_name='') | Q(site_name__isnull=True)
+    ).values('site_name', 'site_id').annotate(
+        device_count=Count('id')
+    ).order_by('site_name')
+
+    # Get all organizations
+    all_organizations = Organization.objects.all().order_by('name')
+
+    # Build site list with potential matches
+    site_mapping_data = []
+    for site in site_data:
+        site_name = site['site_name']
+
+        # Apply prefix if configured
+        if connection.org_name_prefix:
+            org_name = f"{connection.org_name_prefix}{site_name}"
+        else:
+            org_name = site_name
+
+        # Check if organization exists with this name
+        existing_org = Organization.objects.filter(name=org_name).first()
+
+        # Try exact match without prefix
+        suggested_org = Organization.objects.filter(name__iexact=site_name).first()
+
+        site_mapping_data.append({
+            'site_name': site_name,
+            'site_id': site['site_id'],
+            'device_count': site['device_count'],
+            'will_create_as': org_name,
+            'existing_org': existing_org,
+            'suggested_match': suggested_org if not existing_org else None,
+        })
+
+    return render(request, 'integrations/rmm_organization_mapping.html', {
+        'connection': connection,
+        'site_mapping_data': site_mapping_data,
+        'all_organizations': all_organizations,
+    })

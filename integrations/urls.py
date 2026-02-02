@@ -23,6 +23,10 @@ urlpatterns = [
     path('tickets/', views.psa_tickets, name='psa_tickets'),
     path('tickets/<int:pk>/', views.psa_ticket_detail, name='psa_ticket_detail'),
 
+    # Organization Mapping
+    path('<int:pk>/map-organizations/', views.psa_organization_mapping, name='psa_organization_mapping'),
+    path('rmm/<int:pk>/map-organizations/', views.rmm_organization_mapping, name='rmm_organization_mapping'),
+
     # RMM Views
     path('rmm/create/', views.rmm_create, name='rmm_create'),
     path('rmm/<int:pk>/', views.rmm_detail, name='rmm_detail'),

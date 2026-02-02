@@ -33,6 +33,9 @@
 <div class="row mb-4">
     <div class="col-12">
         <div class="btn-group" role="group">
+            <a href="{% url 'integrations:rmm_organization_mapping' connection.pk %}" class="btn btn-outline-info">
+                <i class="fas fa-sitemap"></i> Analyze Sites
+            </a>
             <a href="{% url 'integrations:rmm_devices' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-desktop"></i> View All Devices
             </a>
