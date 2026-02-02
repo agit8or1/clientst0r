@@ -169,6 +169,7 @@ docs/GITHUB_ISSUE_3_RESPONSE.txt
 .claude/
 .claude.json
 .claude.json.backup
+.claude.json.backup.*
 .claude_rules.md
 .claude_session_progress.md
 SESSION_SUMMARY.md
