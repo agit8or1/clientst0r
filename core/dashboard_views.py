@@ -16,6 +16,13 @@ from docs.models import Document
 from monitoring.models import WebsiteMonitor, Expiration
 from audit.models import AuditLog
 
+# PSA integration imports (may not be available)
+try:
+    from integrations.models import PSACompany, PSATicket
+    HAS_PSA_INTEGRATION = True
+except ImportError:
+    HAS_PSA_INTEGRATION = False
+
 
 @login_required
 def dashboard(request):
@@ -53,7 +60,19 @@ def dashboard(request):
         'assets': Asset.objects.for_organization(org).count(),
         'documents': Document.objects.filter(organization=org, is_published=True).count(),
         'monitors': WebsiteMonitor.objects.filter(organization=org).count(),
+        'psa_companies': 0,
+        'psa_tickets': 0,
     }
+
+    # PSA integration stats
+    if HAS_PSA_INTEGRATION:
+        try:
+            stats['psa_companies'] = PSACompany.objects.for_organization(org).count()
+            stats['psa_tickets'] = PSATicket.objects.for_organization(org).filter(
+                status__in=['new', 'in_progress']
+            ).count()
+        except Exception:
+            pass  # Integrations app might not be available
 
     # Recent items (last 10 unique items accessed/modified)
     # Get all recent read logs, then deduplicate by object

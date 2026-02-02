@@ -138,6 +138,28 @@ def import_organization_from_psa(connection, company_data):
             is_active=connection.org_import_as_active,
         )
 
+        # Populate additional fields from PSA company data
+        if company_data.get('phone'):
+            org.phone = company_data['phone']
+        if company_data.get('website'):
+            org.website = company_data['website']
+        if company_data.get('email'):
+            org.email = company_data['email']
+
+        # Parse address components if available
+        if company_data.get('address'):
+            org.street_address = company_data.get('address', '')
+        if company_data.get('city'):
+            org.city = company_data['city']
+        if company_data.get('state'):
+            org.state = company_data['state']
+        if company_data.get('zip'):
+            org.postal_code = company_data['zip']
+        if company_data.get('country'):
+            org.country = company_data['country']
+
+        org.save()
+
         logger.info(f"Created new organization {org.slug} from PSA company {company_name}")
 
         # Create inherited memberships from parent organization

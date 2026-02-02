@@ -244,9 +244,26 @@ def integration_sync(request, pk):
             syncer = PSASync(connection)
             stats = syncer.sync_all()
 
+            # Build detailed message
+            sync_messages = []
+            if stats.get('companies', {}).get('created', 0) > 0:
+                sync_messages.append(f"{stats['companies']['created']} companies created")
+            if stats.get('companies', {}).get('updated', 0) > 0:
+                sync_messages.append(f"{stats['companies']['updated']} companies updated")
+            if stats.get('contacts', {}).get('created', 0) + stats.get('contacts', {}).get('updated', 0) > 0:
+                total_contacts = stats.get('contacts', {}).get('created', 0) + stats.get('contacts', {}).get('updated', 0)
+                sync_messages.append(f"{total_contacts} contacts synced")
+            if stats.get('tickets', {}).get('created', 0) + stats.get('tickets', {}).get('updated', 0) > 0:
+                total_tickets = stats.get('tickets', {}).get('created', 0) + stats.get('tickets', {}).get('updated', 0)
+                sync_messages.append(f"{total_tickets} tickets synced")
+            if stats.get('organizations', {}).get('created', 0) > 0:
+                sync_messages.append(f"{stats['organizations']['created']} organizations imported")
+
+            message = 'Sync completed: ' + ', '.join(sync_messages) if sync_messages else 'Sync completed (no changes)'
+
             return JsonResponse({
                 'success': True,
-                'message': 'Sync completed',
+                'message': message,
                 'stats': stats
             })
 
