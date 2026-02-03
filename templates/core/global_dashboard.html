@@ -387,21 +387,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 const colorPalette = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6c757d', '#e83e8c', '#fd7e14', '#20c997', '#6f42c1'];
                 let colorIndex = 0;
 
-                // Get unique organizations first to assign colors properly
+                // Get unique organizations and sort for consistent color assignment
                 const uniqueOrgs = new Set();
                 data.features.forEach(feature => {
                     uniqueOrgs.add(feature.properties.organization_id);
                 });
 
+                // Sort organization IDs to ensure consistent color assignment
+                const sortedOrgIds = Array.from(uniqueOrgs).sort((a, b) => a - b);
+
                 // Assign one color per organization (not per location)
-                uniqueOrgs.forEach(orgId => {
+                sortedOrgIds.forEach(orgId => {
                     orgColors[orgId] = colorPalette[colorIndex % colorPalette.length];
                     colorIndex++;
                 });
 
                 // Define marker colors based on organization
                 function getMarkerColor(orgId, status, is_primary) {
-                    if (is_primary) return '#ffc107'; // Yellow/gold for HQ
+                    // On global dashboard, prioritize organization colors over primary status
+                    // Primary locations are already indicated by star icon in popup
                     if (status === 'inactive' || status === 'closed') return '#6c757d'; // Gray for inactive
                     return orgColors[orgId] || '#007bff';
                 }
