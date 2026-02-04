@@ -364,6 +364,10 @@ class RMMDevice(BaseModel):
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     mac_address = models.CharField(max_length=17, blank=True)
 
+    # Site/Client info (for organization mapping)
+    site_id = models.CharField(max_length=255, blank=True, help_text="RMM site/client ID")
+    site_name = models.CharField(max_length=255, blank=True, help_text="RMM site/client name")
+
     # Location info (for mapping devices on location maps)
     latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True, help_text="Device latitude for map display")
     longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True, help_text="Device longitude for map display")

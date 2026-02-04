@@ -675,6 +675,8 @@ class RMMSync:
                 'hostname': device_data.get('hostname', ''),
                 'ip_address': device_data.get('ip_address'),
                 'mac_address': device_data.get('mac_address', ''),
+                'site_id': device_data.get('site_id', '') or device_data.get('client_id', ''),
+                'site_name': device_data.get('site_name', '') or device_data.get('client_name', ''),
                 'latitude': device_data.get('latitude'),
                 'longitude': device_data.get('longitude'),
                 'is_online': device_data.get('is_online', False),
@@ -830,13 +832,14 @@ class RMMSync:
                 hostname=device.hostname or '',
                 ip_address=device.ip_address or '',
                 mac_address=device.mac_address or '',
-                status='active' if device.is_online else 'offline',
+                notes=f'Auto-mapped from RMM device {device.external_id}. Online: {device.is_online}',
                 custom_fields={
                     'rmm_synced': True,
                     'rmm_provider': self.connection.provider_type,
                     'rmm_external_id': device.external_id,
                     'os_type': device.os_type,
                     'os_version': device.os_version,
+                    'is_online': device.is_online,
                     'last_rmm_sync': timezone.now().isoformat(),
                 }
             )
