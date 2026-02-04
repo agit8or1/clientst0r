@@ -320,6 +320,20 @@
 </div>
 
 {% block extra_js %}
+<style>
+/* Theme-aware Leaflet popup styling */
+[data-bs-theme="dark"] .leaflet-popup-content-wrapper,
+[data-bs-theme="dark"] .leaflet-popup-tip {
+    background-color: #2b3035 !important;
+    color: #dee2e6 !important;
+}
+
+[data-bs-theme="light"] .leaflet-popup-content-wrapper,
+[data-bs-theme="light"] .leaflet-popup-tip {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+}
+</style>
 <script>
 // Initialize global location map
 document.addEventListener('DOMContentLoaded', function() {
@@ -432,17 +446,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         icon: createCustomIcon(color)
                     }).addTo(map);
 
-                    // Create popup content
+                    // Create popup content with theme-aware styling
+                    const isDarkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                    const bgColor = isDarkMode ? '#2b3035' : '#ffffff';
+                    const textColor = isDarkMode ? '#dee2e6' : '#212529';
+
                     const popupContent = `
-                        <div style="min-width: 250px;">
+                        <div style="min-width: 250px; background-color: ${bgColor}; color: ${textColor};">
                             <div class="mb-2">
                                 <span class="badge" style="background-color: ${orgColors[props.organization_id] || '#007bff'};">${props.organization_name}</span>
                             </div>
-                            <h6 class="mb-1">
+                            <h6 class="mb-1" style="color: ${textColor};">
                                 ${props.is_primary ? '<i class="fas fa-star text-warning"></i> ' : ''}
                                 <strong>${props.name}</strong>
                             </h6>
-                            <p class="mb-1 small">${props.address}</p>
+                            <p class="mb-1 small" style="color: ${textColor};">${props.address}</p>
                             <p class="mb-2">
                                 <span class="badge bg-secondary">${props.location_type}</span>
                                 <span class="badge bg-${props.status === 'active' ? 'success' : 'secondary'}">${props.status}</span>

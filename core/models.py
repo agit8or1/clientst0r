@@ -681,7 +681,7 @@ class SnykScan(models.Model):
     
     # Scan configuration
     severity_threshold = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='high')
-    project_path = models.CharField(max_length=500, default='/home/administrator')
+    project_path = models.CharField(max_length=500, default='')  # Will use settings.BASE_DIR if empty
     
     # User who triggered the scan
     triggered_by = models.ForeignKey(

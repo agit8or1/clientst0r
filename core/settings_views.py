@@ -23,6 +23,17 @@ from datetime import datetime, timedelta
 logger = logging.getLogger('core')
 
 
+def get_project_home():
+    """Get the project home directory dynamically (works for any user)."""
+    # Use Django's BASE_DIR which is the project root
+    return str(django_settings.BASE_DIR)
+
+
+def get_user_home():
+    """Get the current user's home directory."""
+    return os.path.expanduser('~')
+
+
 def is_superuser(user):
     """Check if user is a superuser."""
     return user.is_superuser
@@ -992,7 +1003,7 @@ def check_snyk_version(request):
         import glob
 
         # Check nvm installations (any node version)
-        nvm_pattern = f'/home/administrator/.nvm/versions/node/*/bin/{cmd}'
+        nvm_pattern = f'{get_project_home()}/.nvm/versions/node/*/bin/{cmd}'
         nvm_matches = glob.glob(nvm_pattern)
         if nvm_matches:
             # Use the first match (or could sort and use latest version)
@@ -1004,7 +1015,7 @@ def check_snyk_version(request):
         paths = [
             f'/usr/local/bin/{cmd}',
             f'/usr/bin/{cmd}',
-            f'/home/administrator/.local/bin/{cmd}',
+            f'{get_project_home()}/.local/bin/{cmd}',
             f'/opt/homebrew/bin/{cmd}',  # macOS homebrew
         ]
 
@@ -1094,8 +1105,8 @@ def check_snyk_version(request):
 
         # Debug info
         import glob
-        nvm_snyk_matches = glob.glob('/home/administrator/.nvm/versions/node/*/bin/snyk')
-        nvm_npm_matches = glob.glob('/home/administrator/.nvm/versions/node/*/bin/npm')
+        nvm_snyk_matches = glob.glob(f'{get_project_home()}/.nvm/versions/node/*/bin/snyk')
+        nvm_npm_matches = glob.glob(f'{get_project_home()}/.nvm/versions/node/*/bin/npm')
 
         return JsonResponse({
             'success': True,
@@ -1135,7 +1146,7 @@ def upgrade_snyk_cli(request):
         import glob
 
         # Check nvm installations (any node version)
-        nvm_pattern = f'/home/administrator/.nvm/versions/node/*/bin/{cmd}'
+        nvm_pattern = f'{get_project_home()}/.nvm/versions/node/*/bin/{cmd}'
         nvm_matches = glob.glob(nvm_pattern)
         if nvm_matches:
             # Use the first match (or could sort and use latest version)
@@ -1147,7 +1158,7 @@ def upgrade_snyk_cli(request):
         paths = [
             f'/usr/local/bin/{cmd}',
             f'/usr/bin/{cmd}',
-            f'/home/administrator/.local/bin/{cmd}',
+            f'{get_project_home()}/.local/bin/{cmd}',
             f'/opt/homebrew/bin/{cmd}',  # macOS homebrew
         ]
 
@@ -1260,10 +1271,10 @@ def install_nodejs_npm(request):
         env = os.environ.copy()
         system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
         env['PATH'] = system_paths
-        env['HOME'] = '/home/administrator'
+        env['HOME'] = get_project_home()
 
         # Check if nvm is installed
-        nvm_dir = '/home/administrator/.nvm'
+        nvm_dir = f'{get_project_home()}/.nvm'
 
         if not os.path.exists(nvm_dir):
             # Install nvm first
@@ -1275,7 +1286,7 @@ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | /bin/
                 capture_output=True,
                 text=True,
                 timeout=60,
-                cwd='/home/administrator',
+                cwd=get_project_home(),
                 env=env
             )
 
@@ -1301,7 +1312,7 @@ npm install -g snyk
             capture_output=True,
             text=True,
             timeout=300,  # 5 minutes
-            cwd='/home/administrator',
+            cwd=get_project_home(),
             env=env
         )
 
@@ -1553,7 +1564,7 @@ def apply_snyk_remediation(request):
 
     try:
         # Get virtualenv path
-        venv_path = '/home/administrator/venv'
+        venv_path = f'{get_project_home()}/venv'
         pip_path = os.path.join(venv_path, 'bin', 'pip')
 
         if not os.path.exists(pip_path):
@@ -1570,7 +1581,7 @@ def apply_snyk_remediation(request):
             capture_output=True,
             text=True,
             timeout=120,  # 2 minute timeout
-            cwd='/home/administrator'
+            cwd=get_project_home()
         )
 
         # Check if successful
@@ -1634,7 +1645,7 @@ def fix_all_snyk_vulnerabilities(request):
         })
 
     # Get virtualenv path
-    venv_path = '/home/administrator/venv'
+    venv_path = f'{get_project_home()}/venv'
     pip_path = os.path.join(venv_path, 'bin', 'pip')
 
     if not os.path.exists(pip_path):
@@ -1684,7 +1695,7 @@ def fix_all_snyk_vulnerabilities(request):
                 capture_output=True,
                 text=True,
                 timeout=60,  # 1 minute per package
-                cwd='/home/administrator'
+                cwd=get_project_home()
             )
 
             # Check if successful
