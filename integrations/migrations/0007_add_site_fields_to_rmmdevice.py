@@ -3,6 +3,69 @@
 from django.db import migrations, models
 
 
+def remove_index_if_exists(apps, schema_editor):
+    """
+    Safely remove the lat/lon index if it exists.
+    This prevents migration failures on fresh installs where the index was never created.
+    """
+    db_alias = schema_editor.connection.alias
+
+    # Get the RMMDevice model
+    RMMDevice = apps.get_model('integrations', 'RMMDevice')
+
+    # Check if index exists by querying the database
+    with schema_editor.connection.cursor() as cursor:
+        # For PostgreSQL
+        if schema_editor.connection.vendor == 'postgresql':
+            cursor.execute(
+                "SELECT 1 FROM pg_indexes WHERE indexname = %s",
+                ['rmm_devices_lat_lon_idx']
+            )
+            if cursor.fetchone():
+                cursor.execute("DROP INDEX IF EXISTS rmm_devices_lat_lon_idx")
+
+        # For SQLite
+        elif schema_editor.connection.vendor == 'sqlite':
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' AND name='rmm_devices_lat_lon_idx'"
+            )
+            if cursor.fetchone():
+                cursor.execute("DROP INDEX IF EXISTS rmm_devices_lat_lon_idx")
+
+        # For MySQL
+        elif schema_editor.connection.vendor == 'mysql':
+            cursor.execute(
+                "SELECT 1 FROM information_schema.statistics WHERE index_name = %s AND table_name = 'rmm_devices'",
+                ['rmm_devices_lat_lon_idx']
+            )
+            if cursor.fetchone():
+                cursor.execute("DROP INDEX rmm_devices_lat_lon_idx ON rmm_devices")
+
+
+def reverse_remove_index(apps, schema_editor):
+    """
+    Reverse operation: recreate the index.
+    """
+    RMMDevice = apps.get_model('integrations', 'RMMDevice')
+
+    with schema_editor.connection.cursor() as cursor:
+        # For PostgreSQL
+        if schema_editor.connection.vendor == 'postgresql':
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS rmm_devices_lat_lon_idx ON rmm_devices (latitude, longitude)"
+            )
+        # For SQLite
+        elif schema_editor.connection.vendor == 'sqlite':
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS rmm_devices_lat_lon_idx ON rmm_devices (latitude, longitude)"
+            )
+        # For MySQL
+        elif schema_editor.connection.vendor == 'mysql':
+            cursor.execute(
+                "CREATE INDEX rmm_devices_lat_lon_idx ON rmm_devices (latitude, longitude)"
+            )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,9 +73,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveIndex(
-            model_name='rmmdevice',
-            name='rmm_devices_lat_lon_idx',
+        migrations.RunPython(
+            remove_index_if_exists,
+            reverse_code=reverse_remove_index,
         ),
         migrations.AddField(
             model_name='rmmdevice',
