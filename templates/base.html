@@ -193,6 +193,7 @@
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{% url 'core:about' %}" data-bs-toggle="tooltip" data-bs-placement="left" title="System information and version details"><i class="fas fa-info-circle"></i> About</a></li>
                             <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#reportBugModal" title="Report an issue to GitHub"><i class="fas fa-bug"></i> Report Bug</a></li>
+                            <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#supportProjectModal" title="Support this open-source project"><i class="fas fa-heart"></i> Support This Project</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form method="post" action="{% url 'logout' %}" style="margin: 0;">
@@ -425,6 +426,54 @@
             document.getElementById('bugReportAlert').style.display = 'none';
         });
     </script>
+
+    <!-- Support This Project Modal -->
+    <div class="modal fade" id="supportProjectModal" tabindex="-1" aria-labelledby="supportProjectModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="supportProjectModalLabel"><i class="fas fa-heart"></i> Support This Project</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-heart fa-4x text-danger mb-3"></i>
+                        <p class="lead">Thank you for using HuduGlue!</p>
+                        <p>If you find this project helpful, here are two ways you can support it:</p>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title"><i class="fas fa-bullhorn text-primary"></i> Spread the Word</h6>
+                            <p class="card-text small mb-2">Check out my other open-source projects and give them a ⭐ on GitHub!</p>
+                            <a href="https://github.com/agit8or1/" target="_blank" class="btn btn-primary btn-sm w-100">
+                                <i class="fab fa-github"></i> Visit GitHub Profile
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title"><i class="fas fa-briefcase text-success"></i> Support My Business</h6>
+                            <p class="card-text small mb-2">Need professional IT services or MSP consulting?</p>
+                            <a href="https://mspreboot.com" target="_blank" class="btn btn-success btn-sm w-100">
+                                <i class="fas fa-external-link-alt"></i> Visit MSP Reboot
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mb-0">
+                        <small>
+                            <i class="fas fa-code"></i> HuduGlue is free and open-source software. Your support helps keep this project alive and growing!
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
     {% endif %}
 
     <!-- Global Tooltip Initialization -->
