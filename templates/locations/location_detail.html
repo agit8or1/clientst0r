@@ -35,7 +35,7 @@
                 {% elif location.status == 'planned' %}
                 <h4><span class="badge bg-info">{{ location.get_status_display }}</span></h4>
                 {% elif location.status == 'inactive' %}
-                <h4><span class="badge bg-warning">{{ location.get_status_display }}</span></h4>
+                <h4><span class="badge bg-warning text-dark">{{ location.get_status_display }}</span></h4>
                 {% else %}
                 <h4><span class="badge bg-danger">{{ location.get_status_display }}</span></h4>
                 {% endif %}
@@ -50,7 +50,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <div class="card">
             <div class="card-body">
                 <h6 class="text-muted">Floor Plans</h6>
@@ -58,7 +58,15 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">WAN</h6>
+                <h4>{{ location.wan_connections.count }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
         <div class="card">
             <div class="card-body">
                 <h6 class="text-muted">Assets</h6>
@@ -68,387 +76,544 @@
     </div>
 </div>
 
-<!-- Main Content -->
-<div class="row">
-    <!-- Left Column -->
-    <div class="col-md-6">
-        <!-- Address Card -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-address-card"></i> Address</h5>
-                {% if location.has_coordinates %}
-                <button class="btn btn-sm btn-outline-primary" onclick="refreshGeocoding()">
-                    <i class="fas fa-sync"></i> Refresh
+<!-- Tabbed Interface -->
+<div class="card">
+    <div class="card-body">
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-tabs mb-4" id="locationDetailTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">
+                    <i class="fas fa-info-circle"></i> Overview
                 </button>
-                {% endif %}
-            </div>
-            <div class="card-body">
-                <address>
-                    {{ location.street_address }}<br>
-                    {% if location.street_address_2 %}{{ location.street_address_2 }}<br>{% endif %}
-                    {{ location.city }}, {{ location.state }} {{ location.postal_code }}<br>
-                    {{ location.country }}
-                </address>
-
-                {% if location.has_coordinates %}
-                <div class="mt-3">
-                    <small class="text-muted">
-                        <i class="fas fa-map-pin"></i>
-                        {{ location.latitude }}, {{ location.longitude }}
-                    </small>
-                    <div class="mt-2">
-                        <a href="{{ location.google_maps_url }}" target="_blank" class="btn btn-sm btn-primary">
-                            <i class="fas fa-map-marked-alt"></i> View on Google Maps
-                        </a>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Contact Information -->
-        {% if location.phone or location.email or location.website %}
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-phone"></i> Contact Information</h5>
-            </div>
-            <div class="card-body">
-                {% if location.phone %}
-                <p><i class="fas fa-phone"></i> <a href="tel:{{ location.phone }}">{{ location.phone }}</a></p>
-                {% endif %}
-                {% if location.email %}
-                <p><i class="fas fa-envelope"></i> <a href="mailto:{{ location.email }}">{{ location.email }}</a></p>
-                {% endif %}
-                {% if location.website %}
-                <p><i class="fas fa-globe"></i> <a href="{{ location.website }}" target="_blank">{{ location.website }}</a></p>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Building Information -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-building"></i> Building Information</h5>
-                <div>
-                    <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-sm btn-primary me-2">
-                        <i class="fas fa-edit"></i> Edit
-                    </a>
-                    <button class="btn btn-sm btn-outline-primary" onclick="refreshPropertyData()" title="Tries municipal tax collector records (FREE) first, then paid APIs if configured">
-                        <i class="fas fa-sync"></i> Auto-Refresh
-                    </button>
-                </div>
-            </div>
-            <div class="card-body">
-                <!-- AI-Powered URL Import -->
-                <div class="alert alert-success mb-3">
-                    <i class="fas fa-robot"></i>
-                    <strong>Import from Property Appraiser URL</strong>
-                    <p class="mb-2 small">Paste a property appraiser URL and AI will extract all property data automatically!</p>
-                    <div class="input-group">
-                        <input type="url" class="form-control" id="propertyUrl" placeholder="Paste property appraiser URL here...">
-                        <button class="btn btn-success" type="button" onclick="importFromUrl()">
-                            <i class="fas fa-magic"></i> Import with AI
-                        </button>
-                    </div>
-                    <small class="text-muted">Works with most property appraiser websites (Duval County, other FL counties, CA, TX, etc.)</small>
-                </div>
-                {% if not location.building_sqft and not location.floors_count %}
-                <div class="alert alert-info small mb-3">
-                    <i class="fas fa-info-circle"></i>
-                    <strong>Property data not available.</strong>
-                    <ul class="mb-0 mt-2 small">
-                        <li><strong>Free Option:</strong> Click "Auto-Refresh" to try municipal tax collector records (public data)</li>
-                        <li><strong>Paid Option:</strong> Configure Regrid/AttomData API in Settings → AI for comprehensive data</li>
-                        <li><strong>Manual Entry:</strong> Click "Edit" to enter building information yourself</li>
-                    </ul>
-                </div>
-                {% endif %}
-                <table class="table table-sm">
-                    <tr>
-                        <th>Square Footage:</th>
-                        <td>{% if location.building_sqft %}{{ location.building_sqft|floatformat:0 }} sq ft{% else %}<span class="text-muted">Not specified - <a href="{% url 'locations:location_edit' location.id %}">Add manually</a></span>{% endif %}</td>
-                    </tr>
-                    <tr>
-                        <th>Floors:</th>
-                        <td>{% if location.floors_count %}{{ location.floors_count }}{% else %}<span class="text-muted">Not specified - <a href="{% url 'locations:location_edit' location.id %}">Add manually</a></span>{% endif %}</td>
-                    </tr>
-                    <tr>
-                        <th>Year Built:</th>
-                        <td>{% if location.year_built %}{{ location.year_built }}{% else %}<span class="text-muted">Not specified - <a href="{% url 'locations:location_edit' location.id %}">Add manually</a></span>{% endif %}</td>
-                    </tr>
-                    <tr>
-                        <th>Property Type:</th>
-                        <td>{% if location.property_type %}{{ location.property_type }}{% else %}<span class="text-muted">Not specified - <a href="{% url 'locations:location_edit' location.id %}">Add manually</a></span>{% endif %}</td>
-                    </tr>
-                    {% if location.property_id %}
-                    <tr>
-                        <th>Parcel ID:</th>
-                        <td><code>{{ location.property_id }}</code></td>
-                    </tr>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="building-tab" data-bs-toggle="tab" data-bs-target="#building" type="button" role="tab" aria-controls="building" aria-selected="false">
+                    <i class="fas fa-building"></i> Building
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="maps-tab" data-bs-toggle="tab" data-bs-target="#maps" type="button" role="tab" aria-controls="maps" aria-selected="false">
+                    <i class="fas fa-map"></i> Maps
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="floorplans-tab" data-bs-toggle="tab" data-bs-target="#floorplans" type="button" role="tab" aria-controls="floorplans" aria-selected="false">
+                    <i class="fas fa-drafting-compass"></i> Floor Plans
+                    {% if floor_plans.count %}
+                    <span class="badge bg-primary">{{ floor_plans.count }}</span>
                     {% endif %}
-                </table>
-            </div>
-        </div>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="wan-tab" data-bs-toggle="tab" data-bs-target="#wan" type="button" role="tab" aria-controls="wan" aria-selected="false">
+                    <i class="fas fa-network-wired"></i> WAN
+                    {% if location.wan_connections.count %}
+                    <span class="badge bg-primary">{{ location.wan_connections.count }}</span>
+                    {% endif %}
+                </button>
+            </li>
+            {% if assets %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="assets-tab" data-bs-toggle="tab" data-bs-target="#assets" type="button" role="tab" aria-controls="assets" aria-selected="false">
+                    <i class="fas fa-box"></i> Assets
+                    <span class="badge bg-primary">{{ assets.count }}</span>
+                </button>
+            </li>
+            {% endif %}
+        </ul>
 
-        {% if location.notes %}
-        <!-- Notes -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-sticky-note"></i> Notes</h5>
-            </div>
-            <div class="card-body">
-                <p>{{ location.notes|linebreaks }}</p>
-            </div>
-        </div>
-        {% endif %}
-    </div>
+        <!-- Tab Content -->
+        <div class="tab-content" id="locationDetailTabContent">
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+                <div class="row">
+                    <!-- Left Column -->
+                    <div class="col-md-6">
+                        <!-- Address Card -->
+                        <div class="card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-address-card"></i> Address</h5>
+                                {% if location.has_coordinates %}
+                                <button class="btn btn-sm btn-outline-primary" onclick="refreshGeocoding()">
+                                    <i class="fas fa-sync"></i> Refresh
+                                </button>
+                                {% endif %}
+                            </div>
+                            <div class="card-body">
+                                <address>
+                                    {{ location.street_address }}<br>
+                                    {% if location.street_address_2 %}{{ location.street_address_2 }}<br>{% endif %}
+                                    {{ location.city }}, {{ location.state }} {{ location.postal_code }}<br>
+                                    {{ location.country }}
+                                </address>
 
-    <!-- Right Column -->
-    <div class="col-md-6">
-        <!-- Property Diagram (Tax Collector Records) --><div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-file-image"></i> Property Diagram</h5>
-                {% if location.property_diagram %}
-                <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-sm btn-primary">
-                    <i class="fas fa-edit"></i> Update
-                </a>
+                                {% if location.has_coordinates %}
+                                <div class="mt-3">
+                                    <small class="text-muted">
+                                        <i class="fas fa-map-pin"></i>
+                                        {{ location.latitude }}, {{ location.longitude }}
+                                    </small>
+                                    <div class="mt-2">
+                                        <a href="{{ location.google_maps_url }}" target="_blank" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-map-marked-alt"></i> View on Google Maps
+                                        </a>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Contact Information -->
+                        {% if location.phone or location.email or location.website %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-phone"></i> Contact Information</h5>
+                            </div>
+                            <div class="card-body">
+                                {% if location.phone %}
+                                <p><i class="fas fa-phone"></i> <a href="tel:{{ location.phone }}">{{ location.phone }}</a></p>
+                                {% endif %}
+                                {% if location.email %}
+                                <p><i class="fas fa-envelope"></i> <a href="mailto:{{ location.email }}">{{ location.email }}</a></p>
+                                {% endif %}
+                                {% if location.website %}
+                                <p><i class="fas fa-globe"></i> <a href="{{ location.website }}" target="_blank">{{ location.website }}</a></p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if location.notes %}
+                        <!-- Notes -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-sticky-note"></i> Notes</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>{{ location.notes|linebreaks }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="col-md-6">
+                        <!-- Quick Building Info Summary -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-building"></i> Building Summary</h5>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm mb-0">
+                                    <tr>
+                                        <th>Square Footage:</th>
+                                        <td>{% if location.building_sqft %}{{ location.building_sqft|floatformat:0 }} sq ft{% else %}<span class="text-muted">Not specified</span>{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Floors:</th>
+                                        <td>{% if location.floors_count %}{{ location.floors_count }}{% else %}<span class="text-muted">Not specified</span>{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Year Built:</th>
+                                        <td>{% if location.year_built %}{{ location.year_built }}{% else %}<span class="text-muted">Not specified</span>{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Property Type:</th>
+                                        <td>{% if location.property_type %}{{ location.property_type }}{% else %}<span class="text-muted">Not specified</span>{% endif %}</td>
+                                    </tr>
+                                </table>
+                                <div class="mt-3">
+                                    <a href="#building-tab" onclick="document.getElementById('building-tab').click()" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-arrow-right"></i> View Full Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick WAN Summary -->
+                        {% if location.wan_connections.count > 0 %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-network-wired"></i> WAN Summary</h5>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>{{ location.wan_connections.count }}</strong> connection{{ location.wan_connections.count|pluralize }} configured</p>
+                                {% for wan in location.wan_connections.all|slice:":3" %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>
+                                        <i class="fas fa-network-wired"></i> {{ wan.name }}
+                                        {% if wan.is_primary %}<span class="badge bg-primary">Primary</span>{% endif %}
+                                    </span>
+                                    {% if wan.monitoring_enabled %}
+                                    <i class="fas fa-check-circle text-success"></i>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                                <div class="mt-3">
+                                    <a href="#wan-tab" onclick="document.getElementById('wan-tab').click()" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-arrow-right"></i> View All Connections
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Building Tab -->
+            <div class="tab-pane fade" id="building" role="tabpanel" aria-labelledby="building-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <!-- Building Information -->
+                        <div class="card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-building"></i> Building Information</h5>
+                                <div>
+                                    <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-sm btn-primary me-2">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="refreshPropertyData()" title="Tries municipal tax collector records (FREE) first, then paid APIs if configured">
+                                        <i class="fas fa-sync"></i> Auto-Refresh
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <!-- AI-Powered URL Import -->
+                                <div class="alert alert-success mb-3">
+                                    <i class="fas fa-robot"></i>
+                                    <strong>Import from Property Appraiser URL</strong>
+                                    <p class="mb-2 small">Paste a property appraiser URL and AI will extract all property data automatically!</p>
+                                    <div class="input-group">
+                                        <input type="url" class="form-control" id="propertyUrl" placeholder="Paste property appraiser URL here...">
+                                        <button class="btn btn-success" type="button" onclick="importFromUrl()">
+                                            <i class="fas fa-magic"></i> Import with AI
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">Works with most property appraiser websites (Duval County, other FL counties, CA, TX, etc.)</small>
+                                </div>
+                                {% if not location.building_sqft and not location.floors_count %}
+                                <div class="alert alert-info small mb-3">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>Property data not available.</strong>
+                                    <ul class="mb-0 mt-2 small">
+                                        <li><strong>Free Option:</strong> Click "Auto-Refresh" to try municipal tax collector records (public data)</li>
+                                        <li><strong>Paid Option:</strong> Configure Regrid/AttomData API in Settings → AI for comprehensive data</li>
+                                        <li><strong>Manual Entry:</strong> Click "Edit" to enter building information yourself</li>
+                                    </ul>
+                                </div>
+                                {% endif %}
+                                <table class="table table-sm">
+                                    <tr>
+                                        <th>Square Footage:</th>
+                                        <td>{% if location.building_sqft %}{{ location.building_sqft|floatformat:0 }} sq ft{% else %}<span class="text-muted">Not specified - <a href="{% url 'locations:location_edit' location.id %}">Add manually</a></span>{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Floors:</th>
+                                        <td>{% if location.floors_count %}{{ location.floors_count }}{% else %}<span class="text-muted">Not specified - <a href="{% url 'locations:location_edit' location.id %}">Add manually</a></span>{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Year Built:</th>
+                                        <td>{% if location.year_built %}{{ location.year_built }}{% else %}<span class="text-muted">Not specified - <a href="{% url 'locations:location_edit' location.id %}">Add manually</a></span>{% endif %}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Property Type:</th>
+                                        <td>{% if location.property_type %}{{ location.property_type }}{% else %}<span class="text-muted">Not specified - <a href="{% url 'locations:location_edit' location.id %}">Add manually</a></span>{% endif %}</td>
+                                    </tr>
+                                    {% if location.property_id %}
+                                    <tr>
+                                        <th>Parcel ID:</th>
+                                        <td><code>{{ location.property_id }}</code></td>
+                                    </tr>
+                                    {% endif %}
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <!-- Property Diagram (Tax Collector Records) -->
+                        <div class="card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-file-image"></i> Property Diagram</h5>
+                                {% if location.property_diagram %}
+                                <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-edit"></i> Update
+                                </a>
+                                {% endif %}
+                            </div>
+                            <div class="card-body">
+                                {% if location.property_diagram %}
+                                <div class="text-center">
+                                    <img src="{{ location.property_diagram.url }}" class="img-fluid rounded mb-3" alt="Property diagram from tax collector">
+                                    <p class="text-muted small">Property diagram from tax collector/property appraiser records</p>
+                                </div>
+                                {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>No property diagram uploaded yet</strong>
+                                    <p class="mb-2 mt-2 small">Property diagrams are often available from your local property appraiser:</p>
+                                    <ul class="mb-2 small">
+                                        {% if property_appraiser.is_generic %}
+                                        <li><strong>{{ location.city }}, {{ location.state }}:</strong> <a href="{{ property_appraiser.search_url }}" target="_blank" class="alert-link">Search for {{ property_appraiser.name }}</a></li>
+                                        <li><strong>Tip:</strong> Most property appraisers provide free building diagrams, site plans, and property sketches</li>
+                                        {% else %}
+                                        <li><strong>{{ property_appraiser.county }} County ({{ location.city }}):</strong> <a href="{{ property_appraiser.search_url }}" target="_blank" class="alert-link">{{ property_appraiser.name }}</a></li>
+                                        <li><strong>What to look for:</strong> Building sketches, site plans, floor plans in property records</li>
+                                        {% endif %}
+                                        <li><strong>Alternative:</strong> Try the AI import feature above - paste the property URL and get data automatically</li>
+                                    </ul>
+                                    <p class="mb-0 small">
+                                        <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-sm btn-primary mt-2">
+                                            <i class="fas fa-upload"></i> Upload Property Diagram
+                                        </a>
+                                    </p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maps Tab -->
+            <div class="tab-pane fade" id="maps" role="tabpanel" aria-labelledby="maps-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <!-- Satellite Imagery -->
+                        <div class="card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="fas fa-satellite"></i> Satellite Imagery</h5>
+                                {% if location.has_coordinates %}
+                                <button class="btn btn-sm btn-outline-primary" onclick="refreshSatelliteImage()">
+                                    <i class="fas fa-sync"></i> Refresh
+                                </button>
+                                {% endif %}
+                            </div>
+                            <div class="card-body text-center">
+                                {% if location.satellite_image %}
+                                <img src="{{ location.satellite_image.url }}" class="img-fluid rounded" alt="Satellite view of {{ location.name }}">
+                                {% elif location.has_coordinates %}
+                                <p class="text-muted">No satellite image available.</p>
+                                <button class="btn btn-primary" onclick="refreshSatelliteImage()">
+                                    <i class="fas fa-download"></i> Fetch Satellite Image
+                                </button>
+                                {% else %}
+                                <p class="text-muted">Geocode location first to fetch satellite imagery.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <!-- Google Maps Embed -->
+                        {% if location.has_coordinates %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-map"></i> Interactive Map</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                {% if google_maps_api_key %}
+                                <iframe
+                                    width="100%"
+                                    height="400"
+                                    frameborder="0"
+                                    style="border:0"
+                                    src="https://www.google.com/maps/embed/v1/place?key={{ google_maps_api_key }}&q={{ location.latitude }},{{ location.longitude }}"
+                                    allowfullscreen>
+                                </iframe>
+                                {% else %}
+                                <div class="alert alert-warning m-3">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <strong>Google Maps API Not Configured</strong>
+                                    <p class="mb-2 mt-2 small">To view maps and satellite imagery:</p>
+                                    <ol class="mb-2 small">
+                                        <li>Go to <a href="{% url 'core:settings_ai' %}" class="alert-link">Settings → AI & LLM</a></li>
+                                        <li>Follow the setup instructions to enable required APIs</li>
+                                        <li>Add your Google Maps API key</li>
+                                    </ol>
+                                    <p class="mb-0 small"><em>Required APIs: Maps Embed, Maps Static, Geocoding, and Places API</em></p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Floor Plans Tab -->
+            <div class="tab-pane fade" id="floorplans" role="tabpanel" aria-labelledby="floorplans-tab">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Floor Plans</h5>
+                    <a href="{% url 'locations:generate_floor_plan' location.id %}" class="btn btn-success btn-sm">
+                        <i class="fas fa-magic"></i> Generate AI Floor Plan
+                    </a>
+                </div>
+
+                {% if floor_plans %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Floor</th>
+                                <th>Dimensions</th>
+                                <th>Area</th>
+                                <th>Source</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for plan in floor_plans %}
+                            <tr>
+                                <td><strong>{{ plan.floor_name }}</strong></td>
+                                <td>{{ plan.width_feet }}' × {{ plan.length_feet }}'</td>
+                                <td>{{ plan.total_sqft|floatformat:0 }} sq ft</td>
+                                <td><span class="badge bg-info">{{ plan.get_source_display }}</span></td>
+                                <td>
+                                    {% if plan.diagram %}
+                                    <a href="{% url 'docs:diagram_detail' plan.diagram.slug %}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-eye"></i> View Diagram
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">No diagram</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No floor plans generated yet.
+                    <a href="{% url 'locations:generate_floor_plan' location.id %}">Generate one now with AI</a>!
+                </div>
                 {% endif %}
             </div>
-            <div class="card-body">
-                {% if location.property_diagram %}
-                <div class="text-center">
-                    <img src="{{ location.property_diagram.url }}" class="img-fluid rounded mb-3" alt="Property diagram from tax collector">
-                    <p class="text-muted small">Property diagram from tax collector/property appraiser records</p>
+
+            <!-- WAN Connections Tab -->
+            <div class="tab-pane fade" id="wan" role="tabpanel" aria-labelledby="wan-tab">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">WAN Connections</h5>
+                    <a href="{% url 'locations:wan_create' location.id %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus"></i> Add WAN Connection
+                    </a>
+                </div>
+
+                {% if location.wan_connections.all %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>ISP</th>
+                                <th>Bandwidth</th>
+                                <th>Status</th>
+                                <th>Monitoring</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for wan in location.wan_connections.all %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'locations:wan_detail' location.id wan.id %}">
+                                        <strong>{{ wan.name }}</strong>
+                                        {% if wan.is_primary %}<span class="badge bg-primary ms-1">Primary</span>{% endif %}
+                                    </a>
+                                </td>
+                                <td><span class="badge bg-secondary">{{ wan.get_wan_type_display }}</span></td>
+                                <td>{{ wan.isp_name }}</td>
+                                <td>
+                                    {% if wan.bandwidth_download_mbps %}
+                                        {{ wan.bandwidth_download_mbps }} Mbps
+                                        {% if wan.bandwidth_upload_mbps %}
+                                            / {{ wan.bandwidth_upload_mbps }} Mbps
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if wan.connection_status == 'active' %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% elif wan.connection_status == 'down' %}
+                                        <span class="badge bg-danger">Down</span>
+                                    {% elif wan.connection_status == 'degraded' %}
+                                        <span class="badge bg-warning text-dark">Degraded</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ wan.get_connection_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if wan.monitoring_enabled %}
+                                        <i class="fas fa-check-circle text-success" title="Monitoring Enabled"></i>
+                                    {% else %}
+                                        <i class="fas fa-times-circle text-muted" title="Monitoring Disabled"></i>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'locations:wan_detail' location.id wan.id %}" class="btn btn-outline-info" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'locations:wan_edit' location.id wan.id %}" class="btn btn-outline-primary" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'locations:wan_delete' location.id wan.id %}" class="btn btn-outline-danger" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
                 {% else %}
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i>
-                    <strong>No property diagram uploaded yet</strong>
-                    <p class="mb-2 mt-2 small">Property diagrams are often available from your local property appraiser:</p>
-                    <ul class="mb-2 small">
-                        {% if property_appraiser.is_generic %}
-                        <li><strong>{{ location.city }}, {{ location.state }}:</strong> <a href="{{ property_appraiser.search_url }}" target="_blank" class="alert-link">Search for {{ property_appraiser.name }}</a></li>
-                        <li><strong>Tip:</strong> Most property appraisers provide free building diagrams, site plans, and property sketches</li>
-                        {% else %}
-                        <li><strong>{{ property_appraiser.county }} County ({{ location.city }}):</strong> <a href="{{ property_appraiser.search_url }}" target="_blank" class="alert-link">{{ property_appraiser.name }}</a></li>
-                        <li><strong>What to look for:</strong> Building sketches, site plans, floor plans in property records</li>
-                        {% endif %}
-                        <li><strong>Alternative:</strong> Try the AI import feature above - paste the property URL and get data automatically</li>
-                    </ul>
-                    <p class="mb-0 small">
-                        <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-sm btn-primary mt-2">
-                            <i class="fas fa-upload"></i> Upload Property Diagram
-                        </a>
-                    </p>
+                    No WAN connections configured for this location.
+                    <a href="{% url 'locations:wan_create' location.id %}">Add one now</a>.
                 </div>
                 {% endif %}
             </div>
-        </div>
 
-        <!-- Satellite Imagery -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-satellite"></i> Satellite Imagery</h5>
-                {% if location.has_coordinates %}
-                <button class="btn btn-sm btn-outline-primary" onclick="refreshSatelliteImage()">
-                    <i class="fas fa-sync"></i> Refresh
-                </button>
-                {% endif %}
-            </div>
-            <div class="card-body text-center">
-                {% if location.satellite_image %}
-                <img src="{{ location.satellite_image.url }}" class="img-fluid rounded" alt="Satellite view of {{ location.name }}">
-                {% elif location.has_coordinates %}
-                <p class="text-muted">No satellite image available.</p>
-                <button class="btn btn-primary" onclick="refreshSatelliteImage()">
-                    <i class="fas fa-download"></i> Fetch Satellite Image
-                </button>
-                {% else %}
-                <p class="text-muted">Geocode location first to fetch satellite imagery.</p>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Google Maps Embed -->
-        {% if location.has_coordinates %}
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-map"></i> Interactive Map</h5>
-            </div>
-            <div class="card-body p-0">
-                {% if google_maps_api_key %}
-                <iframe
-                    width="100%"
-                    height="400"
-                    frameborder="0"
-                    style="border:0"
-                    src="https://www.google.com/maps/embed/v1/place?key={{ google_maps_api_key }}&q={{ location.latitude }},{{ location.longitude }}"
-                    allowfullscreen>
-                </iframe>
-                {% else %}
-                <div class="alert alert-warning m-3">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <strong>Google Maps API Not Configured</strong>
-                    <p class="mb-2 mt-2 small">To view maps and satellite imagery:</p>
-                    <ol class="mb-2 small">
-                        <li>Go to <a href="{% url 'core:settings_ai' %}" class="alert-link">Settings → AI & LLM</a></li>
-                        <li>Follow the setup instructions to enable required APIs</li>
-                        <li>Add your Google Maps API key</li>
-                    </ol>
-                    <p class="mb-0 small"><em>Required APIs: Maps Embed, Maps Static, Geocoding, and Places API</em></p>
+            <!-- Assets Tab -->
+            {% if assets %}
+            <div class="tab-pane fade" id="assets" role="tabpanel" aria-labelledby="assets-tab">
+                <h5 class="mb-3">Assets at This Location</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Asset Name</th>
+                                <th>Type</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in assets %}
+                            <tr>
+                                <td><a href="{% url 'assets:asset_detail' asset.slug %}">{{ asset.name }}</a></td>
+                                <td><span class="badge bg-secondary">{{ asset.get_asset_type_display }}</span></td>
+                                <td>
+                                    <a href="{% url 'assets:asset_detail' asset.slug %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                {% endif %}
             </div>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
 </div>
-
-<!-- Floor Plans Section -->
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="fas fa-drafting-compass"></i> Floor Plans</h5>
-        <a href="{% url 'locations:generate_floor_plan' location.id %}" class="btn btn-success btn-sm">
-            <i class="fas fa-magic"></i> Generate AI Floor Plan
-        </a>
-    </div>
-    <div class="card-body">
-        {% if floor_plans %}
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Floor</th>
-                        <th>Dimensions</th>
-                        <th>Area</th>
-                        <th>Source</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for plan in floor_plans %}
-                    <tr>
-                        <td><strong>{{ plan.floor_name }}</strong></td>
-                        <td>{{ plan.width_feet }}' × {{ plan.length_feet }}'</td>
-                        <td>{{ plan.total_sqft|floatformat:0 }} sq ft</td>
-                        <td><span class="badge bg-info">{{ plan.get_source_display }}</span></td>
-                        <td>
-                            {% if plan.diagram %}
-                            <a href="{% url 'docs:diagram_detail' plan.diagram.slug %}" class="btn btn-sm btn-primary">
-                                <i class="fas fa-eye"></i> View Diagram
-                            </a>
-                            {% else %}
-                            <span class="text-muted">No diagram</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle"></i> No floor plans generated yet.
-            <a href="{% url 'locations:generate_floor_plan' location.id %}">Generate one now with AI</a>!
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-<!-- WAN Connections -->
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="fas fa-network-wired"></i> WAN Connections</h5>
-        <a href="{% url 'locations:wan_create' location.id %}" class="btn btn-sm btn-primary">
-            <i class="fas fa-plus"></i> Add WAN Connection
-        </a>
-    </div>
-    <div class="card-body">
-        {% if location.wan_connections.all %}
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>ISP</th>
-                        <th>Bandwidth</th>
-                        <th>Status</th>
-                        <th>Monitoring</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for wan in location.wan_connections.all %}
-                    <tr>
-                        <td>
-                            <a href="{% url 'locations:wan_detail' location.id wan.id %}">
-                                {{ wan.name }}
-                                {% if wan.is_primary %}<span class="badge bg-primary ms-1">Primary</span>{% endif %}
-                            </a>
-                        </td>
-                        <td>{{ wan.get_wan_type_display }}</td>
-                        <td>{{ wan.isp_name }}</td>
-                        <td>{{ wan.bandwidth_display }}</td>
-                        <td>
-                            {% if wan.status == 'active' %}
-                            <span class="badge bg-success">{{ wan.get_status_display }}</span>
-                            {% elif wan.status == 'down' %}
-                            <span class="badge bg-danger">{{ wan.get_status_display }}</span>
-                            {% elif wan.status == 'planned' %}
-                            <span class="badge bg-info">{{ wan.get_status_display }}</span>
-                            {% else %}
-                            <span class="badge bg-secondary">{{ wan.get_status_display }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if wan.monitoring_enabled %}
-                            <span class="badge bg-success"><i class="fas fa-check"></i> Enabled</span>
-                            {% else %}
-                            <span class="badge bg-secondary"><i class="fas fa-times"></i> Disabled</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{% url 'locations:wan_detail' location.id wan.id %}" class="btn btn-sm btn-info">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <a href="{% url 'locations:wan_edit' location.id wan.id %}" class="btn btn-sm btn-warning">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <p class="text-muted mb-0">
-            <i class="fas fa-info-circle"></i> No WAN connections configured for this location.
-            <a href="{% url 'locations:wan_create' location.id %}">Add one</a>
-        </p>
-        {% endif %}
-    </div>
-</div>
-
-<!-- Associated Assets -->
-{% if assets %}
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-box"></i> Assets at This Location</h5>
-    </div>
-    <div class="card-body">
-        <ul class="list-group">
-            {% for asset in assets %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <a href="{% url 'assets:asset_detail' asset.slug %}">{{ asset.name }}</a>
-                <span class="badge bg-secondary">{{ asset.get_asset_type_display }}</span>
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-</div>
-{% endif %}
 
 <script>
 function refreshGeocoding() {

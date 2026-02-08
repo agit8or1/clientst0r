@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="row">
-    <div class="col-md-10 offset-md-1">
+    <div class="col-md-11 mx-auto">
         <h1>
             <i class="fas fa-map-marker-alt"></i>
             {% if is_create %}Create New Location{% else %}Edit {{ location.name }}{% endif %}
@@ -13,7 +13,7 @@
 
         <div class="card mt-4">
             <div class="card-body">
-                <form method="post" enctype="multipart/form-data">
+                <form method="post" enctype="multipart/form-data" id="locationForm">
                     {% csrf_token %}
 
                     {% if form.errors %}
@@ -32,190 +32,317 @@
                     </div>
                     {% endif %}
 
-                    <!-- Basic Information -->
-                    <fieldset class="mb-4">
-                        <legend class="h5 border-bottom pb-2"><i class="fas fa-info-circle"></i> Basic Information</legend>
+                    <!-- Tabs Navigation -->
+                    <ul class="nav nav-tabs mb-4" id="locationTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">
+                                <i class="fas fa-info-circle"></i> Basic Info
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="address-tab" data-bs-toggle="tab" data-bs-target="#address" type="button" role="tab" aria-controls="address" aria-selected="false">
+                                <i class="fas fa-address-card"></i> Address
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact" type="button" role="tab" aria-controls="contact" aria-selected="false">
+                                <i class="fas fa-phone"></i> Contact
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="building-tab" data-bs-toggle="tab" data-bs-target="#building" type="button" role="tab" aria-controls="building" aria-selected="false">
+                                <i class="fas fa-building"></i> Building
+                            </button>
+                        </li>
+                        {% if not is_create %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="wan-tab" data-bs-toggle="tab" data-bs-target="#wan" type="button" role="tab" aria-controls="wan" aria-selected="false">
+                                <i class="fas fa-network-wired"></i> WAN Connections
+                                {% if location.wan_connections.count %}
+                                <span class="badge bg-primary">{{ location.wan_connections.count }}</span>
+                                {% endif %}
+                            </button>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab" aria-controls="notes" aria-selected="false">
+                                <i class="fas fa-sticky-note"></i> Notes
+                            </button>
+                        </li>
+                        {% if is_create %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="auto-tab" data-bs-toggle="tab" data-bs-target="#auto" type="button" role="tab" aria-controls="auto" aria-selected="false">
+                                <i class="fas fa-magic"></i> Auto-Fetch
+                            </button>
+                        </li>
+                        {% endif %}
+                    </ul>
 
-                        <div class="row">
-                            <div class="col-md-8">
-                                <div class="mb-3">
-                                    <label for="{{ form.name.id_for_label }}" class="form-label">Location Name *</label>
-                                    {{ form.name }}
-                                    <small class="form-text text-muted">{{ form.name.help_text }}</small>
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="locationTabContent">
+                        <!-- Basic Information Tab -->
+                        <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label for="{{ form.name.id_for_label }}" class="form-label">Location Name *</label>
+                                        {{ form.name }}
+                                        <small class="form-text text-muted">{{ form.name.help_text }}</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.location_type.id_for_label }}" class="form-label">Type *</label>
+                                        {{ form.location_type }}
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="{{ form.location_type.id_for_label }}" class="form-label">Type *</label>
-                                    {{ form.location_type }}
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="{{ form.status.id_for_label }}" class="form-label">Status</label>
-                                    {{ form.status }}
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.status.id_for_label }}" class="form-label">Status</label>
+                                        {{ form.status }}
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3 form-check">
-                                    {{ form.is_primary }}
-                                    <label for="{{ form.is_primary.id_for_label }}" class="form-check-label">
-                                        Mark as Primary Location (Headquarters)
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </fieldset>
-
-                    <!-- Address -->
-                    <fieldset class="mb-4">
-                        <legend class="h5 border-bottom pb-2"><i class="fas fa-address-card"></i> Address</legend>
-
-                        <div class="mb-3">
-                            <label for="{{ form.street_address.id_for_label }}" class="form-label">Street Address *</label>
-                            {{ form.street_address }}
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.street_address_2.id_for_label }}" class="form-label">Street Address Line 2</label>
-                            {{ form.street_address_2}}
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-5">
-                                <div class="mb-3">
-                                    <label for="{{ form.city.id_for_label }}" class="form-label">City *</label>
-                                    {{ form.city }}
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="mb-3">
-                                    <label for="{{ form.state.id_for_label }}" class="form-label">State/Province *</label>
-                                    {{ form.state }}
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="{{ form.postal_code.id_for_label }}" class="form-label">Postal Code *</label>
-                                    {{ form.postal_code }}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.country.id_for_label }}" class="form-label">Country</label>
-                            {{ form.country }}
-                        </div>
-                    </fieldset>
-
-                    <!-- Contact Information -->
-                    <fieldset class="mb-4">
-                        <legend class="h5 border-bottom pb-2"><i class="fas fa-phone"></i> Contact Information</legend>
-
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="{{ form.phone.id_for_label }}" class="form-label">Phone</label>
-                                    {{ form.phone }}
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
-                                    {{ form.email }}
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="{{ form.website.id_for_label }}" class="form-label">Website</label>
-                                    {{ form.website }}
-                                </div>
-                            </div>
-                        </div>
-                    </fieldset>
-
-                    <!-- Building Details -->
-                    <fieldset class="mb-4">
-                        <legend class="h5 border-bottom pb-2"><i class="fas fa-building"></i> Building Details</legend>
-
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="{{ form.building_sqft.id_for_label }}" class="form-label">Square Footage</label>
-                                    {{ form.building_sqft }}
-                                    <small class="form-text text-muted">Total building area in sq ft</small>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="{{ form.floors_count.id_for_label }}" class="form-label">Number of Floors</label>
-                                    {{ form.floors_count }}
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="{{ form.year_built.id_for_label }}" class="form-label">Year Built</label>
-                                    {{ form.year_built }}
+                                <div class="col-md-6">
+                                    <div class="mb-3 form-check">
+                                        {{ form.is_primary }}
+                                        <label for="{{ form.is_primary.id_for_label }}" class="form-check-label">
+                                            Mark as Primary Location (Headquarters)
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="{{ form.property_type.id_for_label }}" class="form-label">Property Classification</label>
-                            {{ form.property_type }}
-                            <small class="form-text text-muted">E.g., "Commercial Office", "Industrial Warehouse"</small>
-                        </div>
-                    </fieldset>
+                        <!-- Address Tab -->
+                        <div class="tab-pane fade" id="address" role="tabpanel" aria-labelledby="address-tab">
+                            <div class="mb-3">
+                                <label for="{{ form.street_address.id_for_label }}" class="form-label">Street Address *</label>
+                                {{ form.street_address }}
+                            </div>
 
-                    <!-- Notes -->
-                    <fieldset class="mb-4">
-                        <legend class="h5 border-bottom pb-2"><i class="fas fa-sticky-note"></i> Additional Notes</legend>
+                            <div class="mb-3">
+                                <label for="{{ form.street_address_2.id_for_label }}" class="form-label">Street Address Line 2</label>
+                                {{ form.street_address_2}}
+                            </div>
 
-                        <div class="mb-3">
-                            {{ form.notes }}
-                        </div>
-                    </fieldset>
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <div class="mb-3">
+                                        <label for="{{ form.city.id_for_label }}" class="form-label">City *</label>
+                                        {{ form.city }}
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="{{ form.state.id_for_label }}" class="form-label">State/Province *</label>
+                                        {{ form.state }}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.postal_code.id_for_label }}" class="form-label">Postal Code *</label>
+                                        {{ form.postal_code }}
+                                    </div>
+                                </div>
+                            </div>
 
-                    <!-- Automated Data Fetch Options -->
-                    {% if is_create %}
-                    <fieldset class="mb-4">
-                        <legend class="h5 border-bottom pb-2"><i class="fas fa-magic"></i> Automated Data Retrieval</legend>
-
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>AI-Powered Enhancement:</strong> Enable these options to automatically fetch data from external sources.
-                        </div>
-
-                        <div class="form-check mb-3">
-                            {{ form.auto_geocode }}
-                            <label for="{{ form.auto_geocode.id_for_label }}" class="form-check-label">
-                                <strong>Auto-Geocode Address</strong>
-                                <br><small class="text-muted">{{ form.auto_geocode.help_text }}</small>
-                            </label>
-                        </div>
-
-                        <div class="form-check mb-3">
-                            {{ form.fetch_property_data }}
-                            <label for="{{ form.fetch_property_data.id_for_label }}" class="form-check-label">
-                                <strong>Fetch Property Data</strong>
-                                <br><small class="text-muted">{{ form.fetch_property_data.help_text }}</small>
-                            </label>
+                            <div class="mb-3">
+                                <label for="{{ form.country.id_for_label }}" class="form-label">Country</label>
+                                {{ form.country }}
+                            </div>
                         </div>
 
-                        <div class="form-check mb-3">
-                            {{ form.fetch_satellite_image }}
-                            <label for="{{ form.fetch_satellite_image.id_for_label }}" class="form-check-label">
-                                <strong>Download Satellite Imagery</strong>
-                                <br><small class="text-muted">{{ form.fetch_satellite_image.help_text }}</small>
-                            </label>
+                        <!-- Contact Tab -->
+                        <div class="tab-pane fade" id="contact" role="tabpanel" aria-labelledby="contact-tab">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.phone.id_for_label }}" class="form-label">Phone</label>
+                                        {{ form.phone }}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+                                        {{ form.email }}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.website.id_for_label }}" class="form-label">Website</label>
+                                        {{ form.website }}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </fieldset>
-                    {% endif %}
+
+                        <!-- Building Tab -->
+                        <div class="tab-pane fade" id="building" role="tabpanel" aria-labelledby="building-tab">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.building_sqft.id_for_label }}" class="form-label">Square Footage</label>
+                                        {{ form.building_sqft }}
+                                        <small class="form-text text-muted">Total building area in sq ft</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.floors_count.id_for_label }}" class="form-label">Number of Floors</label>
+                                        {{ form.floors_count }}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="{{ form.year_built.id_for_label }}" class="form-label">Year Built</label>
+                                        {{ form.year_built }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ form.property_type.id_for_label }}" class="form-label">Property Classification</label>
+                                {{ form.property_type }}
+                                <small class="form-text text-muted">E.g., "Commercial Office", "Industrial Warehouse"</small>
+                            </div>
+                        </div>
+
+                        <!-- WAN Connections Tab (only shown when editing) -->
+                        {% if not is_create %}
+                        <div class="tab-pane fade" id="wan" role="tabpanel" aria-labelledby="wan-tab">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">WAN Connections</h5>
+                                <a href="{% url 'locations:wan_create' location.id %}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-plus"></i> Add WAN Connection
+                                </a>
+                            </div>
+
+                            {% if location.wan_connections.all %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>ISP</th>
+                                            <th>Bandwidth</th>
+                                            <th>Status</th>
+                                            <th>Monitoring</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for wan in location.wan_connections.all %}
+                                        <tr>
+                                            <td>
+                                                <a href="{% url 'locations:wan_detail' location.id wan.id %}">
+                                                    <strong>{{ wan.name }}</strong>
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-secondary">{{ wan.get_wan_type_display }}</span>
+                                            </td>
+                                            <td>{{ wan.isp_name }}</td>
+                                            <td>
+                                                {% if wan.bandwidth_download_mbps %}
+                                                    {{ wan.bandwidth_download_mbps }} Mbps
+                                                    {% if wan.bandwidth_upload_mbps %}
+                                                        / {{ wan.bandwidth_upload_mbps }} Mbps
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if wan.connection_status == 'active' %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% elif wan.connection_status == 'down' %}
+                                                    <span class="badge bg-danger">Down</span>
+                                                {% elif wan.connection_status == 'degraded' %}
+                                                    <span class="badge bg-warning text-dark">Degraded</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ wan.get_connection_status_display }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if wan.monitoring_enabled %}
+                                                    <i class="fas fa-check-circle text-success" title="Monitoring Enabled"></i>
+                                                {% else %}
+                                                    <i class="fas fa-times-circle text-muted" title="Monitoring Disabled"></i>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{% url 'locations:wan_edit' location.id wan.id %}" class="btn btn-outline-primary" title="Edit">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'locations:wan_delete' location.id wan.id %}" class="btn btn-outline-danger" title="Delete">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                No WAN connections configured for this location.
+                                <a href="{% url 'locations:wan_create' location.id %}">Add one now</a>.
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Notes Tab -->
+                        <div class="tab-pane fade" id="notes" role="tabpanel" aria-labelledby="notes-tab">
+                            <div class="mb-3">
+                                {{ form.notes }}
+                            </div>
+                        </div>
+
+                        <!-- Auto-Fetch Tab (only shown when creating) -->
+                        {% if is_create %}
+                        <div class="tab-pane fade" id="auto" role="tabpanel" aria-labelledby="auto-tab">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>AI-Powered Enhancement:</strong> Enable these options to automatically fetch data from external sources.
+                            </div>
+
+                            <div class="form-check mb-3">
+                                {{ form.auto_geocode }}
+                                <label for="{{ form.auto_geocode.id_for_label }}" class="form-check-label">
+                                    <strong>Auto-Geocode Address</strong>
+                                    <br><small class="text-muted">{{ form.auto_geocode.help_text }}</small>
+                                </label>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                {{ form.fetch_property_data }}
+                                <label for="{{ form.fetch_property_data.id_for_label }}" class="form-check-label">
+                                    <strong>Fetch Property Data</strong>
+                                    <br><small class="text-muted">{{ form.fetch_property_data.help_text }}</small>
+                                </label>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                {{ form.fetch_satellite_image }}
+                                <label for="{{ form.fetch_satellite_image.id_for_label }}" class="form-check-label">
+                                    <strong>Download Satellite Imagery</strong>
+                                    <br><small class="text-muted">{{ form.fetch_satellite_image.help_text }}</small>
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
 
                     <!-- Actions -->
+                    <hr class="mt-4">
                     <div class="d-flex justify-content-between">
                         <a href="{% if location %}{% url 'locations:location_detail' location.id %}{% else %}{% url 'locations:location_list' %}{% endif %}" class="btn btn-secondary">
                             <i class="fas fa-times"></i> Cancel
