@@ -73,16 +73,23 @@ def location_list(request):
 @login_required
 def location_detail(request, location_id):
     """Display location details with map, satellite imagery, and floor plans."""
-    organization = request.current_organization
+    from django.db.models import Q
 
-    # Build query - allow superusers/staff to access all locations in global view
-    if organization:
-        location = get_object_or_404(Location, id=location_id, organization=organization)
-    elif request.user.is_superuser or request.is_staff_user:
+    org = get_request_organization(request)
+
+    # Check if user is in global view mode (no org but is superuser/staff)
+    is_staff = hasattr(request, 'is_staff_user') and request.is_staff_user
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        # Global view: can access any location
         location = get_object_or_404(Location, id=location_id)
     else:
-        # Regular users must have an organization context
-        location = get_object_or_404(Location, id=location_id, organization=organization)
+        # Regular view: only locations from current org or shared locations
+        location = get_object_or_404(
+            Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)),
+            id=location_id
+        )
 
     # Get floor plans for this location
     floor_plans = location.floor_plans.all()
@@ -103,6 +110,8 @@ def location_detail(request, location_id):
         'assets': assets,
         'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
         'property_appraiser': property_appraiser,
+        'current_organization': org,
+        'in_global_view': in_global_view,
     }
 
     return render(request, 'locations/location_detail.html', context)
@@ -198,19 +207,32 @@ def location_create(request):
 @login_required
 def location_edit(request, location_id):
     """Edit existing location."""
-    organization = request.current_organization
-    location = get_object_or_404(
-        Location,
-        id=location_id,
-        organization=organization
-    )
+    from django.db.models import Q
+
+    org = get_request_organization(request)
+
+    # Check if user is in global view mode (no org but is superuser/staff)
+    is_staff = hasattr(request, 'is_staff_user') and request.is_staff_user
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        # Global view: can edit any location
+        location = get_object_or_404(Location, id=location_id)
+        effective_org = location.organization
+    else:
+        # Regular view: only locations from current org or shared locations
+        location = get_object_or_404(
+            Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)),
+            id=location_id
+        )
+        effective_org = org
 
     if request.method == 'POST':
         form = LocationForm(
             request.POST,
             request.FILES,
             instance=location,
-            organization=organization
+            organization=effective_org
         )
 
         if form.is_valid():
@@ -218,12 +240,14 @@ def location_edit(request, location_id):
             messages.success(request, f"Location '{location.name}' updated successfully")
             return redirect('locations:location_detail', location_id=location.id)
     else:
-        form = LocationForm(instance=location, organization=organization)
+        form = LocationForm(instance=location, organization=effective_org)
 
     context = {
         'form': form,
         'location': location,
         'is_create': False,
+        'current_organization': org,
+        'in_global_view': in_global_view,
     }
 
     return render(request, 'locations/location_form.html', context)
@@ -232,12 +256,24 @@ def location_edit(request, location_id):
 @login_required
 def location_delete(request, location_id):
     """Delete location."""
-    organization = request.current_organization
-    location = get_object_or_404(
-        Location,
-        id=location_id,
-        organization=organization
-    )
+    from django.db.models import Q
+
+    org = get_request_organization(request)
+
+    # Check if user is in global view mode (no org but is superuser/staff)
+    is_staff = hasattr(request, 'is_staff_user') and request.is_staff_user
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        # Global view: can delete any location
+        location = get_object_or_404(Location, id=location_id)
+    else:
+        # Regular view: only locations from current org (not shared locations)
+        location = get_object_or_404(
+            Location,
+            id=location_id,
+            organization=org
+        )
 
     if request.method == 'POST':
         location_name = location.name
@@ -245,7 +281,11 @@ def location_delete(request, location_id):
         messages.success(request, f"Location '{location_name}' deleted successfully")
         return redirect('locations:location_list')
 
-    context = {'location': location}
+    context = {
+        'location': location,
+        'current_organization': org,
+        'in_global_view': in_global_view,
+    }
     return render(request, 'locations/location_confirm_delete.html', context)
 
 
@@ -256,12 +296,23 @@ def generate_floor_plan(request, location_id):
 
     Shows form to configure generation parameters, then creates floor plan.
     """
-    organization = request.current_organization
-    location = get_object_or_404(
-        Location,
-        id=location_id,
-        organization=organization
-    )
+    from django.db.models import Q
+
+    org = get_request_organization(request)
+
+    # Check if user is in global view mode (no org but is superuser/staff)
+    is_staff = hasattr(request, 'is_staff_user') and request.is_staff_user
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        # Global view: can access any location
+        location = get_object_or_404(Location, id=location_id)
+    else:
+        # Regular view: only locations from current org or shared locations
+        location = get_object_or_404(
+            Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)),
+            id=location_id
+        )
 
     if request.method == 'POST':
         # Check if Anthropic API key is configured
@@ -456,12 +507,21 @@ def generate_floor_plan(request, location_id):
 @require_http_methods(["POST"])
 def refresh_geocoding(request, location_id):
     """Re-geocode location address (AJAX)."""
-    organization = request.current_organization
-    location = get_object_or_404(
-        Location,
-        id=location_id,
-        organization=organization
-    )
+    from django.db.models import Q
+
+    org = get_request_organization(request)
+
+    # Check if user is in global view mode
+    is_staff = hasattr(request, 'is_staff_user') and request.is_staff_user
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        location = get_object_or_404(Location, id=location_id)
+    else:
+        location = get_object_or_404(
+            Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)),
+            id=location_id
+        )
 
     try:
         geocoding = get_geocoding_service()
@@ -497,12 +557,19 @@ def refresh_geocoding(request, location_id):
 @require_http_methods(["POST"])
 def refresh_property_data(request, location_id):
     """Re-fetch property data (AJAX)."""
-    organization = request.current_organization
-    location = get_object_or_404(
-        Location,
-        id=location_id,
-        organization=organization
-    )
+    from django.db.models import Q
+
+    org = get_request_organization(request)
+    is_staff = hasattr(request, 'is_staff_user') and request.is_staff_user
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        location = get_object_or_404(Location, id=location_id)
+    else:
+        location = get_object_or_404(
+            Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)),
+            id=location_id
+        )
 
     try:
         property_service = get_property_service()
@@ -538,12 +605,19 @@ def refresh_property_data(request, location_id):
 @require_http_methods(["POST"])
 def import_property_from_url(request, location_id):
     """Import property data from URL using AI (AJAX)."""
-    organization = request.current_organization
-    location = get_object_or_404(
-        Location,
-        id=location_id,
-        organization=organization
-    )
+    from django.db.models import Q
+
+    org = get_request_organization(request)
+    is_staff = hasattr(request, 'is_staff_user') and request.is_staff_user
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        location = get_object_or_404(Location, id=location_id)
+    else:
+        location = get_object_or_404(
+            Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)),
+            id=location_id
+        )
 
     try:
         import json
@@ -625,12 +699,19 @@ def import_property_from_url(request, location_id):
 @require_http_methods(["POST"])
 def refresh_satellite_image(request, location_id):
     """Re-fetch satellite image (AJAX)."""
-    organization = request.current_organization
-    location = get_object_or_404(
-        Location,
-        id=location_id,
-        organization=organization
-    )
+    from django.db.models import Q
+
+    org = get_request_organization(request)
+    is_staff = hasattr(request, 'is_staff_user') and request.is_staff_user
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        location = get_object_or_404(Location, id=location_id)
+    else:
+        location = get_object_or_404(
+            Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)),
+            id=location_id
+        )
 
     if not location.has_coordinates:
         return JsonResponse({
