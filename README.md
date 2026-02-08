@@ -1,6 +1,6 @@
 # HuduGlue 🐕
 
-[![Version 2.27.1](https://img.shields.io/badge/version-2.27.1-brightgreen)](https://github.com/agit8or1/huduglue)
+[![Version 2.55.0](https://img.shields.io/badge/version-2.55.0-brightgreen)](https://github.com/agit8or1/huduglue)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/huduglue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
