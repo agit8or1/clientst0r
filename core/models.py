@@ -434,6 +434,8 @@ class SystemSetting(models.Model):
     monitoring_enabled = models.BooleanField(default=True, help_text='Enable Monitoring feature (Website & Service Monitoring)')
     global_kb_enabled = models.BooleanField(default=True, help_text='Enable Global Knowledge Base (Staff-only shared KB)')
     workflows_enabled = models.BooleanField(default=True, help_text='Enable Workflows & Automation feature')
+    locations_map_enabled = models.BooleanField(default=True, help_text='Enable location maps and geocoding features')
+    secure_notes_enabled = models.BooleanField(default=True, help_text='Enable secure ephemeral notes feature')
 
     # UI/UX Settings (Issue #59)
     stay_on_page_after_org_switch = models.BooleanField(default=True, help_text='Stay on current page when switching organizations instead of redirecting to dashboard')

@@ -71,6 +71,34 @@
                         </div>
                     </div>
 
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="locations_map_enabled" name="locations_map_enabled" {% if settings.locations_map_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="locations_map_enabled">
+                                    <strong><i class="fas fa-map-marked-alt text-info"></i> Location Maps</strong>
+                                </label>
+                            </div>
+                            <div class="form-text ms-5">
+                                Enable location maps and geocoding features. Includes interactive maps, satellite imagery, and address geocoding on location pages.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="secure_notes_enabled" name="secure_notes_enabled" {% if settings.secure_notes_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="secure_notes_enabled">
+                                    <strong><i class="fas fa-lock text-warning"></i> Secure Notes</strong>
+                                </label>
+                            </div>
+                            <div class="form-text ms-5">
+                                Enable secure ephemeral notes feature. Send encrypted, self-destructing messages that expire after being read or after a set time.
+                            </div>
+                        </div>
+                    </div>
+
                     <hr>
 
                     <div class="d-flex justify-content-between align-items-center">
