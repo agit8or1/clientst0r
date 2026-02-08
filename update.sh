@@ -256,6 +256,59 @@ success "Sudoers files regenerated for user: $CURRENT_USER"
 info "  • $INSTALL_DIR/deploy/huduglue-install-sudoers"
 info "  • $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers"
 
+# Automatically install sudoers files if they don't exist or have changed
+info "Checking sudoers installation..."
+INSTALL_SUDOERS=false
+FB_SUDOERS=false
+
+# Check huduglue-install sudoers
+if [ ! -f "/etc/sudoers.d/huduglue-install" ]; then
+    INSTALL_SUDOERS=true
+    info "  • huduglue-install not found - will install"
+elif ! sudo diff -q "$INSTALL_DIR/deploy/huduglue-install-sudoers" "/etc/sudoers.d/huduglue-install" &>/dev/null; then
+    INSTALL_SUDOERS=true
+    info "  • huduglue-install has changed - will update"
+else
+    success "  • huduglue-install already up to date"
+fi
+
+# Check huduglue-fail2ban sudoers
+if [ ! -f "/etc/sudoers.d/huduglue-fail2ban" ]; then
+    FB_SUDOERS=true
+    info "  • huduglue-fail2ban not found - will install"
+elif ! sudo diff -q "$INSTALL_DIR/deploy/huduglue-fail2ban-sudoers" "/etc/sudoers.d/huduglue-fail2ban" &>/dev/null; then
+    FB_SUDOERS=true
+    info "  • huduglue-fail2ban has changed - will update"
+else
+    success "  • huduglue-fail2ban already up to date"
+fi
+
+# Install/update sudoers files if needed
+if [ "$INSTALL_SUDOERS" = true ] || [ "$FB_SUDOERS" = true ]; then
+    echo ""
+    info "Installing sudoers files..."
+
+    if [ "$INSTALL_SUDOERS" = true ]; then
+        if sudo cp "$INSTALL_DIR/deploy/huduglue-install-sudoers" /etc/sudoers.d/huduglue-install 2>/dev/null && \
+           sudo chmod 0440 /etc/sudoers.d/huduglue-install 2>/dev/null; then
+            success "  • Installed huduglue-install sudoers"
+        else
+            warning "  • Failed to install huduglue-install (may need sudo password)"
+            info "    Manual install: sudo cp $INSTALL_DIR/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install && sudo chmod 0440 /etc/sudoers.d/huduglue-install"
+        fi
+    fi
+
+    if [ "$FB_SUDOERS" = true ]; then
+        if sudo cp "$INSTALL_DIR/deploy/huduglue-fail2ban-sudoers" /etc/sudoers.d/huduglue-fail2ban 2>/dev/null && \
+           sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban 2>/dev/null; then
+            success "  • Installed huduglue-fail2ban sudoers"
+        else
+            warning "  • Failed to install huduglue-fail2ban (may need sudo password)"
+            info "    Manual install: sudo cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban && sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban"
+        fi
+    fi
+fi
+
 echo ""
 echo -e "${YELLOW}Step 4: Database Migrations${NC}"
 echo "-----------------------------------"
