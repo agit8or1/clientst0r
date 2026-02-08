@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}WAN Connection Monitoring - HuduGlue{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-network-wired"></i> WAN Connection Monitoring</h2>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <input type="text" name="q" class="form-control" placeholder="Search WANs, ISPs, locations..." value="{{ query }}">
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="down" {% if status_filter == 'down' %}selected{% endif %}>Down</option>
+                    <option value="degraded" {% if status_filter == 'degraded' %}selected{% endif %}>Degraded</option>
+                    <option value="maintenance" {% if status_filter == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="location" class="form-select">
+                    <option value="">All Locations</option>
+                    {% for location in locations %}
+                    <option value="{{ location.id }}" {% if location_filter == location.id|stringformat:"s" %}selected{% endif %}>
+                        {% if in_global_view %}{{ location.organization.name }} - {% endif %}{{ location.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if wans %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="wanTable" class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        {% if in_global_view %}
+                        <th>Organization</th>
+                        {% endif %}
+                        <th>Location</th>
+                        <th>WAN Name</th>
+                        <th>Type</th>
+                        <th>ISP</th>
+                        <th>Bandwidth</th>
+                        <th>Status</th>
+                        <th>Target</th>
+                        <th>Last Checked</th>
+                        <th width="120">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for wan in wans %}
+                    <tr>
+                        {% if in_global_view %}
+                        <td>
+                            <a href="{% url 'core:organization_detail' wan.organization.slug %}">
+                                {{ wan.organization.name }}
+                            </a>
+                        </td>
+                        {% endif %}
+                        <td>
+                            <a href="{% url 'locations:location_detail' wan.location.id %}">
+                                {{ wan.location.name }}
+                            </a>
+                        </td>
+                        <td>
+                            <a href="{% url 'locations:wan_detail' wan.location.id wan.id %}">
+                                <strong>{{ wan.name }}</strong>
+                                {% if wan.is_primary %}<span class="badge bg-primary ms-1">Primary</span>{% endif %}
+                            </a>
+                        </td>
+                        <td><span class="badge bg-secondary">{{ wan.get_wan_type_display }}</span></td>
+                        <td>{{ wan.isp_name }}</td>
+                        <td>
+                            {% if wan.bandwidth_download_mbps %}
+                                {{ wan.bandwidth_download_mbps }} Mbps
+                                {% if wan.bandwidth_upload_mbps %}
+                                    / {{ wan.bandwidth_upload_mbps }} Mbps
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if wan.connection_status == 'active' %}
+                                <span class="badge bg-success"><i class="fas fa-check-circle"></i> Active</span>
+                            {% elif wan.connection_status == 'down' %}
+                                <span class="badge bg-danger"><i class="fas fa-times-circle"></i> Down</span>
+                            {% elif wan.connection_status == 'degraded' %}
+                                <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle"></i> Degraded</span>
+                            {% elif wan.connection_status == 'maintenance' %}
+                                <span class="badge bg-info"><i class="fas fa-wrench"></i> Maintenance</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ wan.get_connection_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if wan.monitor_target %}
+                                <code class="small">{{ wan.monitor_target|truncatechars:30 }}</code>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if wan.last_monitored_at %}
+                                {{ wan.last_monitored_at|timesince }} ago
+                            {% else %}
+                                <span class="text-muted">Never</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'locations:wan_detail' wan.location.id wan.id %}" class="btn btn-outline-primary" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'locations:wan_check_status' wan.location.id wan.id %}" class="btn btn-outline-success" title="Check Now">
+                                    <i class="fas fa-sync"></i>
+                                </a>
+                                <a href="{% url 'locations:wan_edit' wan.location.id wan.id %}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-network-wired fa-4x text-muted mb-3"></i>
+        <h3>No Monitored WAN Connections</h3>
+        <p class="text-muted">No WAN connections with monitoring enabled found.</p>
+        <p class="text-muted">To enable monitoring for a WAN connection, edit the WAN and check "Enable Monitoring".</p>
+    </div>
+</div>
+{% endif %}
+
+<div class="alert alert-info mt-4">
+    <i class="fas fa-info-circle"></i>
+    <strong>About WAN Monitoring:</strong> This page shows all WAN connections that have monitoring enabled.
+    To add or manage WAN connections, go to <a href="{% url 'locations:location_list' %}" class="alert-link">Locations</a>
+    and select a location to view/add WAN connections.
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    {% if wans %}
+    $('#wanTable').DataTable({
+        order: [[{% if in_global_view %}8{% else %}7{% endif %}, 'desc']],  // Sort by last checked (newest first)
+        pageLength: 25,
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search WAN connections..."
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}

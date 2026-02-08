@@ -800,3 +800,66 @@ def network_closet_delete(request, pk):
     return render(request, 'monitoring/network_closet_confirm_delete.html', {
         'closet': closet,
     })
+
+
+# ============================================================================
+# WAN Connection Monitoring
+# ============================================================================
+
+@login_required
+def wan_monitor_list(request):
+    """List all WAN connections with monitoring enabled."""
+    from locations.models import WAN
+
+    org = get_request_organization(request)
+
+    # Check if user is in global view mode
+    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    if in_global_view:
+        # Global view: show all monitored WANs across all organizations
+        wans = WAN.objects.filter(monitoring_enabled=True).select_related(
+            'organization', 'location'
+        ).order_by('organization__name', 'location__name', 'name')
+    else:
+        # Organization view: show only monitored WANs for current org
+        wans = WAN.objects.filter(
+            organization=org,
+            monitoring_enabled=True
+        ).select_related('location').order_by('location__name', 'name')
+
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        wans = wans.filter(connection_status=status_filter)
+
+    # Filter by location
+    location_filter = request.GET.get('location')
+    if location_filter:
+        wans = wans.filter(location_id=location_filter)
+
+    # Search
+    query = request.GET.get('q')
+    if query:
+        wans = wans.filter(
+            Q(name__icontains=query) |
+            Q(isp_name__icontains=query) |
+            Q(location__name__icontains=query)
+        )
+
+    # Get all locations for filter dropdown
+    if in_global_view:
+        from locations.models import Location
+        locations = Location.objects.all().order_by('organization__name', 'name')
+    else:
+        locations = org.locations.all().order_by('name') if org else []
+
+    return render(request, 'monitoring/wan_monitor_list.html', {
+        'wans': wans,
+        'query': query,
+        'status_filter': status_filter,
+        'location_filter': location_filter,
+        'locations': locations,
+        'in_global_view': in_global_view,
+    })

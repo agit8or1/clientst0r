@@ -17,6 +17,9 @@ urlpatterns = [
     path('websites/<int:pk>/delete/', views.website_monitor_delete, name='website_monitor_delete'),
     path('websites/<int:pk>/check/', views.website_monitor_check, name='website_monitor_check'),
 
+    # WAN Connection Monitoring
+    path('wans/', views.wan_monitor_list, name='wan_monitor_list'),
+
     # Expirations Dashboard
     path('expirations/', views.expiration_list, name='expiration_list'),
     path('expirations/create/', views.expiration_create, name='expiration_create'),
