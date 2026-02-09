@@ -46,8 +46,8 @@ class Command(BaseCommand):
                 self._update_status(status_file, 'building', 'Installing curl...')
                 self.stdout.write('Installing curl (required for Node.js setup)...')
                 try:
-                    subprocess.run(sudo_prefix + ['apt-get', 'update'], check=True, capture_output=True)
-                    subprocess.run(sudo_prefix + ['apt-get', 'install', '-y', 'curl'], check=True, capture_output=True)
+                    subprocess.run(sudo_prefix + ['/usr/bin/apt-get', 'update'], check=True, capture_output=True)
+                    subprocess.run(sudo_prefix + ['/usr/bin/apt-get', 'install', '-y', 'curl'], check=True, capture_output=True)
                 except Exception as e:
                     raise Exception(f'Failed to install curl: {e}\nPlease install manually: apt-get install -y curl')
 
@@ -60,21 +60,21 @@ class Command(BaseCommand):
                     # Install Node.js 20.x
                     self.stdout.write('Downloading Node.js repository setup...')
                     subprocess.run(
-                        ['curl', '-fsSL', 'https://deb.nodesource.com/setup_20.x', '-o', '/tmp/nodesource_setup.sh'],
+                        ['/usr/bin/curl', '-fsSL', 'https://deb.nodesource.com/setup_20.x', '-o', '/tmp/nodesource_setup.sh'],
                         check=True,
                         capture_output=True
                     )
 
                     self.stdout.write('Installing Node.js repository...')
                     subprocess.run(
-                        sudo_prefix + ['bash', '/tmp/nodesource_setup.sh'],
+                        sudo_prefix + ['/usr/bin/bash', '/tmp/nodesource_setup.sh'],
                         check=True,
                         capture_output=True
                     )
 
                     self.stdout.write('Installing Node.js and npm...')
                     subprocess.run(
-                        sudo_prefix + ['apt-get', 'install', '-y', 'nodejs'],
+                        sudo_prefix + ['/usr/bin/apt-get', 'install', '-y', 'nodejs'],
                         check=True,
                         capture_output=True
                     )
@@ -221,6 +221,18 @@ class Command(BaseCommand):
         import select
         self._log(f'\n> {" ".join(cmd)}\n')
 
+        # Set up environment with necessary paths
+        if env is None:
+            env = os.environ.copy()
+            # Add common binary locations to PATH
+            path_additions = [
+                '/usr/bin',
+                '/usr/local/bin',
+                '/home/administrator/.nvm/versions/node/v22.21.1/bin',
+            ]
+            current_path = env.get('PATH', '')
+            env['PATH'] = ':'.join(path_additions) + ':' + current_path
+
         process = subprocess.Popen(
             cmd,
             cwd=cwd,
@@ -228,7 +240,7 @@ class Command(BaseCommand):
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
-            env=env or os.environ.copy()
+            env=env
         )
 
         # Stream output line by line
