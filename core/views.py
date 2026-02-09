@@ -574,35 +574,61 @@ def download_mobile_app(request, app_type):
             description=f'Started Android APK build'
         )
 
-        # Return building status page
+        # Return building status page with log viewer
         return HttpResponse("""
             <!DOCTYPE html>
             <html>
             <head>
                 <title>Building Android App - HuduGlue</title>
                 <meta charset="UTF-8">
-                        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-                        <meta http-equiv="Pragma" content="no-cache">
-                        <meta http-equiv="Expires" content="0">
-                <meta http-equiv="refresh" content="10">
+                <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+                <meta http-equiv="Pragma" content="no-cache">
+                <meta http-equiv="Expires" content="0">
+                <meta http-equiv="refresh" content="5">
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
                 <style>
                     body { background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-                    .container { max-width: 800px; margin: 50px auto; padding: 40px; text-align: center; }
-                    .spinner { border: 5px solid #30363d; border-top: 5px solid #58a6ff; box-shadow: 0 0 10px rgba(88, 166, 255, 0.3); border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin: 30px auto; }
+                    .container { max-width: 1200px; margin: 30px auto; padding: 20px; }
+                    .spinner { border: 5px solid #30363d; border-top: 5px solid #58a6ff; box-shadow: 0 0 10px rgba(88, 166, 255, 0.3); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 15px; }
                     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-                    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 30px; }
+                    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 30px; margin-bottom: 20px; }
+                    h1, h2, h3, h4, h5 { color: #ffffff !important; }
+                    p, .lead { color: #ffffff !important; font-size: 1.1rem; }
+                    strong { color: #ffffff; }
+                    .text-muted { color: #8b949e !important; }
                     h1 { color: #58a6ff; }
+                    .log-container { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 20px; max-height: 500px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.5; color: #c9d1d9; }
+                    .log-container::-webkit-scrollbar { width: 10px; }
+                    .log-container::-webkit-scrollbar-track { background: #161b22; }
+                    .log-container::-webkit-scrollbar-thumb { background: #30363d; border-radius: 5px; }
+                    .status-header { display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
                 </style>
+                <script>
+                    window.onload = function() {
+                        var logContainer = document.getElementById('log-container');
+                        if (logContainer) {
+                            logContainer.scrollTop = logContainer.scrollHeight;
+                        }
+                    };
+                </script>
             </head>
             <body>
                 <div class="container">
                     <div class="card">
-                        <h1>Building Android App...</h1>
-                        <div class="spinner"></div>
-                        <p class="lead"><strong>Build started!</strong> This typically takes 10-20 minutes.</p>
-                        <p>This page will refresh automatically every 10 seconds.</p>
-                        <p class="text-muted"><small>You can close this tab and come back later.</small></p>
+                        <div class="status-header">
+                            <div class="spinner"></div>
+                            <h1 style="margin: 0;">Building Android App...</h1>
+                        </div>
+                        <p class="lead text-center"><strong>Status:</strong> Build started! Initializing...</p>
+                        <p class="text-center text-muted"><small>Page refreshes every 5 seconds. You can close this tab and come back later.</small></p>
+                    </div>
+
+                    <div class="card">
+                        <h3 style="margin-bottom: 15px;">&#x1F4DD; Build Progress Log</h3>
+                        <div id="log-container" class="log-container">
+                            <pre style="margin: 0; color: #c9d1d9;">Build initializing... Log will appear shortly.</pre>
+                        </div>
+                        <p class="text-muted text-center" style="margin-top: 15px; margin-bottom: 0;"><small>Real-time build output will display here</small></p>
                     </div>
                 </div>
             </body>
@@ -822,28 +848,54 @@ def download_mobile_app(request, app_type):
             <head>
                 <title>Building iOS App - HuduGlue</title>
                 <meta charset="UTF-8">
-                        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-                        <meta http-equiv="Pragma" content="no-cache">
-                        <meta http-equiv="Expires" content="0">
-                <meta http-equiv="refresh" content="10">
+                <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+                <meta http-equiv="Pragma" content="no-cache">
+                <meta http-equiv="Expires" content="0">
+                <meta http-equiv="refresh" content="5">
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
                 <style>
                     body { background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-                    .container { max-width: 800px; margin: 50px auto; padding: 40px; text-align: center; }
-                    .spinner { border: 5px solid #30363d; border-top: 5px solid #58a6ff; box-shadow: 0 0 10px rgba(88, 166, 255, 0.3); border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin: 30px auto; }
+                    .container { max-width: 1200px; margin: 30px auto; padding: 20px; }
+                    .spinner { border: 5px solid #30363d; border-top: 5px solid #58a6ff; box-shadow: 0 0 10px rgba(88, 166, 255, 0.3); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 15px; }
                     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-                    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 30px; }
+                    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 30px; margin-bottom: 20px; }
+                    h1, h2, h3, h4, h5 { color: #ffffff !important; }
+                    p, .lead { color: #ffffff !important; font-size: 1.1rem; }
+                    strong { color: #ffffff; }
+                    .text-muted { color: #8b949e !important; }
                     h1 { color: #58a6ff; }
+                    .log-container { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 20px; max-height: 500px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.5; color: #c9d1d9; }
+                    .log-container::-webkit-scrollbar { width: 10px; }
+                    .log-container::-webkit-scrollbar-track { background: #161b22; }
+                    .log-container::-webkit-scrollbar-thumb { background: #30363d; border-radius: 5px; }
+                    .status-header { display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
                 </style>
+                <script>
+                    window.onload = function() {
+                        var logContainer = document.getElementById('log-container');
+                        if (logContainer) {
+                            logContainer.scrollTop = logContainer.scrollHeight;
+                        }
+                    };
+                </script>
             </head>
             <body>
                 <div class="container">
                     <div class="card">
-                        <h1>Building iOS App...</h1>
-                        <div class="spinner"></div>
-                        <p class="lead"><strong>Build started!</strong> This typically takes 10-20 minutes.</p>
-                        <p>This page will refresh automatically every 10 seconds.</p>
-                        <p class="text-muted"><small>You can close this tab and come back later.</small></p>
+                        <div class="status-header">
+                            <div class="spinner"></div>
+                            <h1 style="margin: 0;">Building iOS App...</h1>
+                        </div>
+                        <p class="lead text-center"><strong>Status:</strong> Build started! Initializing...</p>
+                        <p class="text-center text-muted"><small>Page refreshes every 5 seconds. You can close this tab and come back later.</small></p>
+                    </div>
+
+                    <div class="card">
+                        <h3 style="margin-bottom: 15px;">&#x1F4DD; Build Progress Log</h3>
+                        <div id="log-container" class="log-container">
+                            <pre style="margin: 0; color: #c9d1d9;">Build initializing... Log will appear shortly.</pre>
+                        </div>
+                        <p class="text-muted text-center" style="margin-top: 15px; margin-bottom: 0;"><small>Real-time build output will display here</small></p>
                     </div>
                 </div>
             </body>
