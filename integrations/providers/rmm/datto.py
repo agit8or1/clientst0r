@@ -287,6 +287,11 @@ class DattoRMMProvider(BaseRMMProvider):
         # Parse last seen
         last_seen = self._parse_datetime(raw_data.get('lastSeen'))
 
+        # Extract site/client information
+        # Datto RMM provides siteUid/siteId and siteName
+        site_id = raw_data.get('siteUid', '') or raw_data.get('siteId', '')
+        site_name = raw_data.get('siteName', '')
+
         return {
             'external_id': str(raw_data.get('uid', '')),
             'device_name': raw_data.get('hostname', '') or raw_data.get('description', ''),
@@ -301,6 +306,11 @@ class DattoRMMProvider(BaseRMMProvider):
             'mac_address': raw_data.get('macAddress', ''),
             'is_online': raw_data.get('online', False),
             'last_seen': last_seen,
+            # Site/Client mapping for proper org assignment
+            'site_id': str(site_id) if site_id else '',
+            'site_name': site_name,
+            'client_id': str(site_id) if site_id else '',  # Datto uses "site" for client
+            'client_name': site_name,  # Datto uses "site" for client
             'raw_data': raw_data,
         }
 

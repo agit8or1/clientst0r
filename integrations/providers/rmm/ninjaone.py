@@ -287,6 +287,16 @@ class NinjaOneProvider(BaseRMMProvider):
         # Parse last contact timestamp
         last_seen = self._parse_datetime(raw_data.get('lastContact'))
 
+        # Extract organization/client information
+        # NinjaOne provides organizationId and organization name in device data
+        organization_id = raw_data.get('organizationId', '') or raw_data.get('orgId', '')
+        # Organization name might be in 'organization' field or need separate lookup
+        organization_name = raw_data.get('organizationName', '') or raw_data.get('orgName', '')
+
+        # Location/site information (if provided)
+        location_id = raw_data.get('locationId', '')
+        location_name = raw_data.get('locationName', '')
+
         return {
             'external_id': str(raw_data['id']),
             'device_name': system.get('name', ''),
@@ -301,6 +311,16 @@ class NinjaOneProvider(BaseRMMProvider):
             'mac_address': mac_address,
             'is_online': raw_data.get('online', False),
             'last_seen': last_seen,
+            # Organization/Client mapping for proper org assignment
+            'organization_id': str(organization_id) if organization_id else '',
+            'organization_name': organization_name,
+            'client_id': str(organization_id) if organization_id else '',  # Alias
+            'client_name': organization_name,  # Alias
+            # Location/Site info (less preferred than organization)
+            'location_id': str(location_id) if location_id else '',
+            'location_name': location_name,
+            'site_id': str(location_id) if location_id else '',  # Alias
+            'site_name': location_name,  # Alias
             'raw_data': raw_data,
         }
 

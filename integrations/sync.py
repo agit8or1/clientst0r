@@ -604,18 +604,29 @@ class RMMSync:
             return self.organization
 
         # Extract site/client information from device
-        site_id = device_data.get('site_id', '') or device_data.get('client_id', '')
-        site_name = device_data.get('site_name', '') or device_data.get('client_name', '')
+        # PREFER client_id over site_id (client = organization, site = location)
+        client_id = device_data.get('client_id', '') or device_data.get('organization_id', '')
+        client_name = device_data.get('client_name', '') or device_data.get('organization_name', '')
+        site_id = device_data.get('site_id', '') or device_data.get('location_id', '')
+        site_name = device_data.get('site_name', '') or device_data.get('location_name', '')
 
-        if not site_id or not site_name:
+        # Use client ID if available, otherwise fall back to site ID
+        external_id = client_id if client_id else site_id
+        # For name, we need at least one (prefer client over site, but accept either)
+        name = client_name if client_name else site_name
+
+        if not external_id or not name:
             # No site/client info available - fallback to connection org
             logger.debug(f"Device {device_data.get('external_id')} has no site/client info, using connection org")
             return self.organization
 
         # Build site data for organization import
+        # IMPORTANT: Pass BOTH client_name and site_name so org_import can choose correctly
         site_data = {
-            'external_id': site_id,
-            'name': site_name,
+            'external_id': external_id,
+            'client_id': client_id,  # Pass separately for preference logic
+            'client_name': client_name,
+            'name': site_name if site_name else client_name,  # fallback for 'name' field
             'description': f"Imported from {self.connection.get_provider_type_display()}",
         }
 
