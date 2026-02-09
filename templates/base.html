@@ -8,14 +8,21 @@
     <title>{% block title %}HuduGlue - IT Documentation Platform{% endblock %}</title>
     <meta name="description" content="Secure, Self-Hosted IT Documentation Platform for MSPs and IT Departments">
     <meta name="generator" content="HuduGlue v{{ app_version }}">
-    <meta name="theme-color" content="#0d6efd">
+    <meta name="theme-color" content="#58a6ff">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="HuduGlue">
     <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
     <link rel="manifest" href="{% static 'manifest.json' %}">
-    <link rel="apple-touch-icon" href="{% static 'images/pwa-icon-192.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'icons/icon-192x192.png' %}">
+    <link rel="apple-touch-icon" sizes="72x72" href="{% static 'icons/icon-72x72.png' %}">
+    <link rel="apple-touch-icon" sizes="96x96" href="{% static 'icons/icon-96x96.png' %}">
+    <link rel="apple-touch-icon" sizes="128x128" href="{% static 'icons/icon-128x128.png' %}">
+    <link rel="apple-touch-icon" sizes="144x144" href="{% static 'icons/icon-144x144.png' %}">
+    <link rel="apple-touch-icon" sizes="152x152" href="{% static 'icons/icon-152x152.png' %}">
+    <link rel="apple-touch-icon" sizes="192x192" href="{% static 'icons/icon-192x192.png' %}">
+    <link rel="apple-touch-icon" sizes="512x512" href="{% static 'icons/icon-512x512.png' %}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
@@ -28,6 +35,15 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body class="{% if user_background_url or user_background_color %}has-background{% endif %}" {% if user_background_url %}style="background-image: url('{{ user_background_url }}');"{% elif user_background_color %}style="background-color: {{ user_background_color }};"{% endif %}>
+
+    <!-- PWA Install Banner -->
+    <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #58a6ff; color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 9999; max-width: 90%; text-align: center;">
+        <p style="margin: 0 0 10px 0; font-weight: bold;">📱 Install HuduGlue</p>
+        <p style="margin: 0 0 15px 0; font-size: 0.9em;">Add to your home screen for quick access!</p>
+        <button id="pwa-install-button" style="background: white; color: #58a6ff; border: none; padding: 8px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-right: 10px;">Install</button>
+        <button id="pwa-dismiss-button" style="background: transparent; color: white; border: 1px solid white; padding: 8px 20px; border-radius: 5px; cursor: pointer;">Not Now</button>
+    </div>
+
     <a href="#main-content" class="skip-to-main">Skip to main content</a>
     <nav class="navbar navbar-expand-lg {% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}navbar-dark{% else %}navbar-light{% endif %}">
         <div class="container-fluid navbar-container">
@@ -224,9 +240,9 @@
                             <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#reportBugModal" title="Report an issue to GitHub"><i class="fas fa-bug"></i> Report Bug</a></li>
                             <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#supportProjectModal" title="Support this open-source project"><i class="fas fa-heart"></i> Support This Project</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li class="dropdown-header"><i class="fas fa-mobile-alt me-2"></i>Mobile Apps</li>
-                            <li><a class="dropdown-item" href="{% url 'core:download_mobile_app' app_type='android' %}" title="Download Android APK"><i class="fab fa-android"></i> Android App</a></li>
-                            <li><a class="dropdown-item" href="{% url 'core:download_mobile_app' app_type='ios' %}" title="Download iOS App"><i class="fab fa-apple"></i> iOS App</a></li>
+                            <li class="dropdown-header"><i class="fas fa-mobile-alt me-2"></i>Mobile Access</li>
+                            <li><a class="dropdown-item" href="#" id="menu-install-pwa" title="Install HuduGlue as an app"><i class="fas fa-download"></i> Install App (PWA)</a></li>
+                            <li><small class="dropdown-item-text text-muted" style="font-size: 0.75em; padding: 0 1rem;">Works on Android, iOS, and desktop!</small></li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form method="post" action="{% url 'logout' %}" style="margin: 0;">
@@ -654,6 +670,95 @@
         if (window.matchMedia('(display-mode: standalone)').matches) {
             console.log('Running in PWA mode');
             document.body.classList.add('pwa-mode');
+        }
+
+        // Register service worker for PWA offline functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/static/service-worker.js')
+                    .then(function(registration) {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(function(err) {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        const installBanner = document.getElementById('pwa-install-banner');
+        const installButton = document.getElementById('pwa-install-button');
+        const dismissButton = document.getElementById('pwa-dismiss-button');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+            // Show install banner if not already installed
+            const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+            const dismissed = localStorage.getItem('pwa-dismissed');
+            if (!isPWA && !dismissed) {
+                installBanner.style.display = 'block';
+            }
+        });
+
+        if (installButton) {
+            installButton.addEventListener('click', async () => {
+                if (!deferredPrompt) {
+                    return;
+                }
+                // Show the install prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to the install prompt: ${outcome}`);
+                // Clear the prompt
+                deferredPrompt = null;
+                // Hide the banner
+                installBanner.style.display = 'none';
+            });
+        }
+
+        if (dismissButton) {
+            dismissButton.addEventListener('click', () => {
+                installBanner.style.display = 'none';
+                // Remember dismissal for 30 days
+                const expiry = new Date();
+                expiry.setDate(expiry.getDate() + 30);
+                localStorage.setItem('pwa-dismissed', expiry.toISOString());
+            });
+        }
+
+        // Handle menu PWA install click
+        const menuInstallBtn = document.getElementById('menu-install-pwa');
+        if (menuInstallBtn) {
+            menuInstallBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+
+                if (isPWA) {
+                    alert('✅ App is already installed! You can access it from your home screen.');
+                } else if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response: ${outcome}`);
+                    deferredPrompt = null;
+                } else {
+                    // Show manual install instructions
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                    const isAndroid = /Android/.test(navigator.userAgent);
+
+                    if (isIOS) {
+                        alert('📱 To install on iOS:\n\n1. Tap the Share button (square with arrow)\n2. Scroll and tap "Add to Home Screen"\n3. Tap "Add" to confirm');
+                    } else if (isAndroid) {
+                        alert('📱 To install on Android:\n\n1. Tap the menu (⋮) in your browser\n2. Tap "Install app" or "Add to Home screen"\n3. Follow the prompts');
+                    } else {
+                        alert('💻 To install on desktop:\n\n1. Look for the install icon in your address bar\n2. Or check your browser menu for "Install HuduGlue"\n3. Follow the prompts');
+                    }
+                }
+            });
         }
     </script>
 
