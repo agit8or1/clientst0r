@@ -67,14 +67,14 @@
                                                    {% if task.enabled %}checked{% endif %}>
                                         </div>
                                     </td>
-                                    <td class="table-secondary">
+                                    <td>
                                         {% if task.last_run_at %}
                                             <small><strong>{{ task.last_run_at|date:"M d, Y H:i" }}</strong></small>
                                         {% else %}
                                             <small class="text-muted">Never</small>
                                         {% endif %}
                                     </td>
-                                    <td class="table-secondary">
+                                    <td>
                                         {% if task.next_run_at %}
                                             <small><strong>{{ task.next_run_at|date:"M d, Y H:i" }}</strong></small>
                                         {% else %}
