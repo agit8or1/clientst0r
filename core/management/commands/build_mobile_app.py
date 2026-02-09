@@ -5,6 +5,7 @@ import os
 import subprocess
 import json
 import shutil
+from datetime import datetime
 from django.core.management.base import BaseCommand
 from django.conf import settings
 
@@ -28,7 +29,7 @@ class Command(BaseCommand):
         # Clear previous log
         with open(self.log_file, 'w') as f:
             f.write(f'=== Building {app_type.upper()} App ===\n')
-            f.write(f'Started at: {subprocess.check_output(["date"]).decode().strip()}\n\n')
+            f.write(f'Started at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n\n')
 
         # Update status: started
         self._update_status(status_file, 'building', 'Starting build...')
