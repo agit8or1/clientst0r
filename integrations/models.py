@@ -108,9 +108,13 @@ class PSAConnection(BaseModel):
         if imported_orgs:
             org_names = [org.name for org in imported_orgs]
             AuditLog.objects.create(
-                event_type='psa_connection_deleted',
+                action='delete',
+                object_type='PSAConnection',
+                object_id=self.id,
+                object_repr=self.name,
                 description=f'Deleted PSA connection "{self.name}" and {len(imported_orgs)} imported organizations: {", ".join(org_names)}',
-                metadata={
+                organization=self.organization,
+                extra_data={
                     'connection_name': self.name,
                     'provider_type': self.provider_type,
                     'imported_org_count': len(imported_orgs),
@@ -400,9 +404,13 @@ class RMMConnection(BaseModel):
         if imported_orgs:
             org_names = [org.name for org in imported_orgs]
             AuditLog.objects.create(
-                event_type='rmm_connection_deleted',
+                action='delete',
+                object_type='RMMConnection',
+                object_id=self.id,
+                object_repr=self.name,
                 description=f'Deleted RMM connection "{self.name}" and {len(imported_orgs)} imported organizations: {", ".join(org_names)}',
-                metadata={
+                organization=self.organization,
+                extra_data={
                     'connection_name': self.name,
                     'provider_type': self.provider_type,
                     'imported_org_count': len(imported_orgs),

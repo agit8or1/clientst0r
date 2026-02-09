@@ -590,20 +590,50 @@ def rmm_device_detail(request, pk):
     """Show details of a single RMM device."""
     org = get_request_organization(request)
     device = get_object_or_404(RMMDevice.objects.for_organization(org).select_related('connection', 'linked_asset'), pk=pk)
-    
+
     # Get software for this device
     software = RMMSoftware.objects.filter(device=device).order_by('name')
-    
+
     # Get recent alerts for this device
     alerts = RMMAlert.objects.filter(
         organization=org,
         device_id=device.external_id
     ).order_by('-triggered_at')[:10]
-    
+
     return render(request, 'integrations/rmm_device_detail.html', {
         'device': device,
         'software': software,
         'alerts': alerts,
+    })
+
+
+@login_required
+def rmm_device_delete(request, pk):
+    """Delete an RMM device (orphaned or synced)."""
+    org = get_request_organization(request)
+    device = get_object_or_404(RMMDevice, pk=pk)
+
+    # Check organization access
+    if org and device.organization != org:
+        messages.error(request, "You don't have access to this device.")
+        return redirect('integrations:rmm_devices')
+
+    if request.method == 'POST':
+        device_name = device.device_name
+        connection_name = device.connection.name if device.connection else 'Unknown'
+
+        try:
+            device.delete()
+            messages.success(request, f"✓ RMM device '{device_name}' from {connection_name} deleted successfully.")
+            logger.info(f"RMM device '{device_name}' (pk={pk}) deleted successfully")
+        except Exception as e:
+            logger.error(f"Error deleting RMM device '{device_name}': {e}")
+            messages.error(request, f"❌ Error deleting device: {str(e)[:100]}")
+
+        return redirect('integrations:rmm_devices')
+
+    return render(request, 'integrations/rmm_device_confirm_delete.html', {
+        'device': device,
     })
 
 

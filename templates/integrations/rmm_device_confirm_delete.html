@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Delete RMM Device - HuduGlue{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'integrations:integration_list' %}">Integrations</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'integrations:rmm_devices' %}">RMM Devices</a></li>
+        <li class="breadcrumb-item active">Delete Device</li>
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Confirm Delete RMM Device</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Warning:</strong> You are about to delete this RMM device record.
+        </div>
+
+        <dl class="row">
+            <dt class="col-sm-3">Device Name:</dt>
+            <dd class="col-sm-9"><strong>{{ device.device_name }}</strong></dd>
+
+            <dt class="col-sm-3">RMM Provider:</dt>
+            <dd class="col-sm-9">
+                {% if device.connection %}
+                {{ device.connection.name }} ({{ device.connection.get_provider_type_display }})
+                {% else %}
+                <span class="text-danger">Unknown - Connection Deleted (Orphaned)</span>
+                {% endif %}
+            </dd>
+
+            <dt class="col-sm-3">Device Type:</dt>
+            <dd class="col-sm-9">{{ device.get_device_type_display }}</dd>
+
+            {% if device.hostname %}
+            <dt class="col-sm-3">Hostname:</dt>
+            <dd class="col-sm-9"><code>{{ device.hostname }}</code></dd>
+            {% endif %}
+
+            {% if device.ip_address %}
+            <dt class="col-sm-3">IP Address:</dt>
+            <dd class="col-sm-9"><code>{{ device.ip_address }}</code></dd>
+            {% endif %}
+
+            {% if device.linked_asset %}
+            <dt class="col-sm-3">Linked Asset:</dt>
+            <dd class="col-sm-9">
+                <a href="{% url 'assets:asset_detail' device.linked_asset.pk %}">{{ device.linked_asset.name }}</a>
+                <br><small class="text-muted">The asset will remain - only the RMM device record will be deleted</small>
+            </dd>
+            {% endif %}
+
+            <dt class="col-sm-3">Organization:</dt>
+            <dd class="col-sm-9">{{ device.organization.name }}</dd>
+        </dl>
+
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> <strong>What will be deleted:</strong>
+            <ul class="mb-0 mt-2">
+                <li>This RMM device record from the database</li>
+                <li>All sync history for this device</li>
+            </ul>
+        </div>
+
+        {% if device.linked_asset %}
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i> <strong>What will NOT be deleted:</strong>
+            <ul class="mb-0 mt-2">
+                <li>The linked Asset record will remain intact</li>
+                <li>Only the RMM sync association will be removed</li>
+            </ul>
+        </div>
+        {% endif %}
+
+        <form method="post" class="mt-4">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'integrations:rmm_devices' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Delete RMM Device
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

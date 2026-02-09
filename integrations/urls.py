@@ -37,6 +37,7 @@ urlpatterns = [
     # RMM Data Views
     path('rmm/devices/', views.rmm_devices, name='rmm_devices'),
     path('rmm/devices/<int:pk>/', views.rmm_device_detail, name='rmm_device_detail'),
+    path('rmm/devices/<int:pk>/delete/', views.rmm_device_delete, name='rmm_device_delete'),
     path('rmm/device-map-data/', views.rmm_device_map_data, name='rmm_device_map_data'),
     path('rmm/global-device-map-data/', views.global_rmm_device_map_data, name='global_rmm_device_map_data'),
     path('rmm/alerts/', views.rmm_alerts, name='rmm_alerts'),

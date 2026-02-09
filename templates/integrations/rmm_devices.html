@@ -44,6 +44,7 @@
                         <th>Status</th>
                         <th>Asset Link</th>
                         <th>Last Seen</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -98,6 +99,11 @@
                             {% endif %}
                         </td>
                         <td>{{ device.last_seen|date:"Y-m-d H:i"|default:"-" }}</td>
+                        <td>
+                            <a href="{% url 'integrations:rmm_device_delete' device.pk %}" class="btn btn-sm btn-outline-danger" title="Delete device">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
