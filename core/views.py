@@ -346,20 +346,26 @@ def report_bug(request):
 @login_required
 def download_mobile_app(request, app_type):
     """
-    Serve mobile app downloads or redirect to app stores.
-    Supports both direct APK/IPA downloads and app store links.
+    Serve mobile app downloads or auto-build if not available.
+    Automatically triggers build process when apps don't exist.
     """
     import os
+    import json
+    import subprocess
+    import threading
     from django.conf import settings
     from django.http import FileResponse, Http404, HttpResponse
-    from django.shortcuts import redirect
+    from django.shortcuts import redirect, render
 
     # Define mobile app paths
     MOBILE_APP_DIR = os.path.join(settings.BASE_DIR, 'mobile-app', 'builds')
+    os.makedirs(MOBILE_APP_DIR, exist_ok=True)
 
     if app_type == 'android':
-        # Check for built APK file
         apk_path = os.path.join(MOBILE_APP_DIR, 'huduglue.apk')
+        status_file = os.path.join(MOBILE_APP_DIR, 'android_build_status.json')
+
+        # Check if APK exists
         if os.path.exists(apk_path):
             # Serve the APK file
             response = FileResponse(
@@ -377,38 +383,120 @@ def download_mobile_app(request, app_type):
             )
 
             return response
-        else:
-            # No APK built yet - show instructions
-            return HttpResponse("""
-                <html>
-                <head><title>Android App - HuduGlue</title></head>
-                <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
-                    <h1>📱 Android App Not Yet Built</h1>
-                    <p>The Android APK has not been built yet. To build the mobile app:</p>
-                    <ol>
-                        <li>Navigate to the mobile app directory:
-                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">cd ~/huduglue/mobile-app</pre>
-                        </li>
-                        <li>Install dependencies (if not already done):
-                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">npm install</pre>
-                        </li>
-                        <li>Build the APK:
-                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">expo build:android -t apk</pre>
-                        </li>
-                        <li>Once built, download from Expo and place at:
-                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">~/huduglue/mobile-app/builds/huduglue.apk</pre>
-                        </li>
-                    </ol>
-                    <p><strong>Alternative:</strong> For development/testing, install <a href="https://expo.dev/client">Expo Go</a>
-                    from the Play Store and scan the QR code when running <code>npm start</code> in the mobile-app directory.</p>
-                    <p><a href="javascript:history.back()">← Go Back</a></p>
-                </body>
-                </html>
-            """, content_type='text/html')
+
+        # Check if build is in progress
+        if os.path.exists(status_file):
+            with open(status_file, 'r') as f:
+                status_data = json.load(f)
+
+            if status_data['status'] == 'building':
+                # Build in progress - show status page
+                return HttpResponse(f"""
+                    <html>
+                    <head>
+                        <title>Building Android App - HuduGlue</title>
+                        <meta http-equiv="refresh" content="10">
+                        <style>
+                            body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; text-align: center; }}
+                            .spinner {{ border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }}
+                            @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
+                        </style>
+                    </head>
+                    <body>
+                        <h1>🔨 Building Android App...</h1>
+                        <div class="spinner"></div>
+                        <p><strong>Status:</strong> {status_data['message']}</p>
+                        <p>This page will refresh automatically. Building typically takes 10-20 minutes.</p>
+                        <p><small>Started: {status_data.get('timestamp', 'Unknown')}</small></p>
+                    </body>
+                    </html>
+                """, content_type='text/html')
+
+            elif status_data['status'] == 'complete':
+                # Build complete but file not downloaded yet
+                return HttpResponse(f"""
+                    <html>
+                    <head><title>Android App Build Complete - HuduGlue</title></head>
+                    <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
+                        <h1>✅ Android App Build Complete!</h1>
+                        <p>{status_data['message']}</p>
+                        <p><strong>Next Steps:</strong></p>
+                        <ol>
+                            <li>Download the APK from the URL above</li>
+                            <li>Place it at: <code>~/huduglue/mobile-app/builds/huduglue.apk</code></li>
+                            <li>Refresh this page to download</li>
+                        </ol>
+                        <p><a href="javascript:history.back()">← Go Back</a></p>
+                    </body>
+                    </html>
+                """, content_type='text/html')
+
+            elif status_data['status'] == 'failed':
+                # Build failed - allow retry
+                if request.GET.get('retry') == '1':
+                    # Clear status and trigger new build
+                    os.remove(status_file)
+                    # Fall through to trigger build below
+                else:
+                    return HttpResponse(f"""
+                        <html>
+                        <head><title>Android App Build Failed - HuduGlue</title></head>
+                        <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
+                            <h1>❌ Android App Build Failed</h1>
+                            <p><strong>Error:</strong> {status_data['message']}</p>
+                            <p><a href="?retry=1" class="btn btn-primary">Retry Build</a></p>
+                            <p><a href="javascript:history.back()">← Go Back</a></p>
+                        </body>
+                        </html>
+                    """, content_type='text/html')
+
+        # No APK and no build in progress - start build
+        def build_app_background():
+            subprocess.run(
+                ['python', 'manage.py', 'build_mobile_app', 'android'],
+                cwd=settings.BASE_DIR
+            )
+
+        # Start build in background thread
+        build_thread = threading.Thread(target=build_app_background)
+        build_thread.daemon = True
+        build_thread.start()
+
+        # Log build initiation
+        AuditLog.objects.create(
+            user=request.user,
+            action='mobile_app_build_started',
+            object_type='mobile_app',
+            description=f'Started Android APK build'
+        )
+
+        # Return building status page
+        return HttpResponse("""
+            <html>
+            <head>
+                <title>Building Android App - HuduGlue</title>
+                <meta http-equiv="refresh" content="10">
+                <style>
+                    body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; text-align: center; }
+                    .spinner { border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                </style>
+            </head>
+            <body>
+                <h1>🔨 Building Android App...</h1>
+                <div class="spinner"></div>
+                <p><strong>Build started!</strong> This typically takes 10-20 minutes.</p>
+                <p>This page will refresh automatically every 10 seconds.</p>
+                <p><small>You can close this tab and come back later.</small></p>
+            </body>
+            </html>
+        """, content_type='text/html')
 
     elif app_type == 'ios':
-        # Check for built IPA file
         ipa_path = os.path.join(MOBILE_APP_DIR, 'huduglue.ipa')
+        status_file = os.path.join(MOBILE_APP_DIR, 'ios_build_status.json')
+
+        # Check if IPA exists
         if os.path.exists(ipa_path):
             # Serve the IPA file
             response = FileResponse(
@@ -426,36 +514,107 @@ def download_mobile_app(request, app_type):
             )
 
             return response
-        else:
-            # No IPA built yet - show instructions
-            return HttpResponse("""
-                <html>
-                <head><title>iOS App - HuduGlue</title></head>
-                <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
-                    <h1>🍎 iOS App Not Yet Built</h1>
-                    <p>The iOS IPA has not been built yet. To build the mobile app:</p>
-                    <ol>
-                        <li>Navigate to the mobile app directory:
-                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">cd ~/huduglue/mobile-app</pre>
-                        </li>
-                        <li>Install dependencies (if not already done):
-                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">npm install</pre>
-                        </li>
-                        <li>Build the IPA (requires Mac + Apple Developer account):
-                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">expo build:ios</pre>
-                        </li>
-                        <li>Once built, download from Expo and place at:
-                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">~/huduglue/mobile-app/builds/huduglue.ipa</pre>
-                        </li>
-                    </ol>
-                    <p><strong>Note:</strong> IPA files can only be installed on iOS devices via TestFlight,
-                    enterprise distribution, or by uploading to the App Store.</p>
-                    <p><strong>For Testing:</strong> Install <a href="https://apps.apple.com/app/expo-go/id982107779">Expo Go</a>
-                    from the App Store and scan the QR code when running <code>npm start</code> in the mobile-app directory.</p>
-                    <p><a href="javascript:history.back()">← Go Back</a></p>
-                </body>
-                </html>
-            """, content_type='text/html')
+
+        # Check if build is in progress
+        if os.path.exists(status_file):
+            with open(status_file, 'r') as f:
+                status_data = json.load(f)
+
+            if status_data['status'] == 'building':
+                return HttpResponse(f"""
+                    <html>
+                    <head>
+                        <title>Building iOS App - HuduGlue</title>
+                        <meta http-equiv="refresh" content="10">
+                        <style>
+                            body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; text-align: center; }}
+                            .spinner {{ border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }}
+                            @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
+                        </style>
+                    </head>
+                    <body>
+                        <h1>🔨 Building iOS App...</h1>
+                        <div class="spinner"></div>
+                        <p><strong>Status:</strong> {status_data['message']}</p>
+                        <p>This page will refresh automatically. Building typically takes 10-20 minutes.</p>
+                        <p><small>Started: {status_data.get('timestamp', 'Unknown')}</small></p>
+                    </body>
+                    </html>
+                """, content_type='text/html')
+
+            elif status_data['status'] == 'complete':
+                return HttpResponse(f"""
+                    <html>
+                    <head><title>iOS App Build Complete - HuduGlue</title></head>
+                    <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
+                        <h1>✅ iOS App Build Complete!</h1>
+                        <p>{status_data['message']}</p>
+                        <p><strong>Next Steps:</strong></p>
+                        <ol>
+                            <li>Download the IPA from the URL above</li>
+                            <li>Place it at: <code>~/huduglue/mobile-app/builds/huduglue.ipa</code></li>
+                            <li>Refresh this page to download</li>
+                        </ol>
+                        <p><strong>Note:</strong> IPA files require TestFlight, enterprise distribution, or App Store for installation.</p>
+                        <p><a href="javascript:history.back()">← Go Back</a></p>
+                    </body>
+                    </html>
+                """, content_type='text/html')
+
+            elif status_data['status'] == 'failed':
+                if request.GET.get('retry') == '1':
+                    os.remove(status_file)
+                else:
+                    return HttpResponse(f"""
+                        <html>
+                        <head><title>iOS App Build Failed - HuduGlue</title></head>
+                        <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
+                            <h1>❌ iOS App Build Failed</h1>
+                            <p><strong>Error:</strong> {status_data['message']}</p>
+                            <p><a href="?retry=1" class="btn btn-primary">Retry Build</a></p>
+                            <p><a href="javascript:history.back()">← Go Back</a></p>
+                        </body>
+                        </html>
+                    """, content_type='text/html')
+
+        # No IPA and no build in progress - start build
+        def build_app_background():
+            subprocess.run(
+                ['python', 'manage.py', 'build_mobile_app', 'ios'],
+                cwd=settings.BASE_DIR
+            )
+
+        build_thread = threading.Thread(target=build_app_background)
+        build_thread.daemon = True
+        build_thread.start()
+
+        AuditLog.objects.create(
+            user=request.user,
+            action='mobile_app_build_started',
+            object_type='mobile_app',
+            description=f'Started iOS IPA build'
+        )
+
+        return HttpResponse("""
+            <html>
+            <head>
+                <title>Building iOS App - HuduGlue</title>
+                <meta http-equiv="refresh" content="10">
+                <style>
+                    body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; text-align: center; }
+                    .spinner { border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                </style>
+            </head>
+            <body>
+                <h1>🔨 Building iOS App...</h1>
+                <div class="spinner"></div>
+                <p><strong>Build started!</strong> This typically takes 10-20 minutes.</p>
+                <p>This page will refresh automatically every 10 seconds.</p>
+                <p><small>You can close this tab and come back later.</small></p>
+            </body>
+            </html>
+        """, content_type='text/html')
 
     else:
         raise Http404("Invalid app type")
