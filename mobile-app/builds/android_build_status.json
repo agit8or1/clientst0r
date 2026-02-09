@@ -1,1 +1,1 @@
-{"status": "failed", "message": "Failed to install curl: Command '['/usr/bin/apt-get', 'update']' returned non-zero exit status 100.\nPlease install manually: apt-get install -y curl", "timestamp": 1770651386.3255765}
+{"status": "building", "message": "Installing dependencies (this may take 5-10 minutes)...", "timestamp": 1770651475.4033387}

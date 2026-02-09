@@ -391,7 +391,7 @@ def download_mobile_app(request, app_type):
 
             if status_data['status'] == 'building':
                 # Read build log for real-time progress
-                log_file = os.path.join(builds_dir, f'{app_type}_build.log')
+                log_file = os.path.join(MOBILE_APP_DIR, f'{app_type}_build.log')
                 build_log = ''
                 if os.path.exists(log_file):
                     with open(log_file, 'r') as f:
@@ -675,7 +675,7 @@ def download_mobile_app(request, app_type):
 
             if status_data['status'] == 'building':
                 # Read build log for real-time progress
-                log_file = os.path.join(builds_dir, f'{app_type}_build.log')
+                log_file = os.path.join(MOBILE_APP_DIR, f'{app_type}_build.log')
                 build_log = ''
                 if os.path.exists(log_file):
                     with open(log_file, 'r') as f:
