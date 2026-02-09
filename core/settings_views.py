@@ -960,6 +960,10 @@ def settings_ai(request):
 @user_passes_test(is_superuser)
 def settings_snyk(request):
     """Snyk security scanning settings."""
+    from .models import SnykScan
+    from django.db.models import Sum, Count, Q
+    from datetime import datetime
+
     settings = SystemSetting.get_settings()
 
     if request.method == 'POST':
@@ -984,10 +988,58 @@ def settings_snyk(request):
     # Check if API token is configured
     has_token = bool(settings.snyk_api_token)
 
+    # Get latest scan and vulnerability statistics (fast query)
+    latest_scan = SnykScan.objects.filter(
+        status__in=['completed', 'failed', 'timeout']
+    ).order_by('-created_at').first()
+
+    vuln_stats = {
+        'total': 0,
+        'critical': 0,
+        'high': 0,
+        'medium': 0,
+        'low': 0,
+        'last_scan': None,
+        'duration': 0,
+        'status': 'Never Run',
+        'trend': 'Stable'
+    }
+
+    if latest_scan:
+        vuln_stats['total'] = latest_scan.total_vulnerabilities or 0
+        vuln_stats['critical'] = latest_scan.critical_count or 0
+        vuln_stats['high'] = latest_scan.high_count or 0
+        vuln_stats['medium'] = latest_scan.medium_count or 0
+        vuln_stats['low'] = latest_scan.low_count or 0
+        vuln_stats['last_scan'] = latest_scan.created_at
+        vuln_stats['status'] = latest_scan.status.title()
+
+        # Calculate duration
+        if latest_scan.started_at and latest_scan.completed_at:
+            duration = (latest_scan.completed_at - latest_scan.started_at).total_seconds()
+            vuln_stats['duration'] = int(duration)
+
+        # Calculate trend vs previous scan
+        previous_scan = SnykScan.objects.filter(
+            status='completed',
+            created_at__lt=latest_scan.created_at
+        ).order_by('-created_at').first()
+
+        if previous_scan:
+            prev_total = previous_scan.total_vulnerabilities or 0
+            curr_total = latest_scan.total_vulnerabilities or 0
+            if curr_total < prev_total:
+                vuln_stats['trend'] = 'Improving'
+            elif curr_total > prev_total:
+                vuln_stats['trend'] = 'Worsening'
+            else:
+                vuln_stats['trend'] = 'Stable'
+
     return render(request, 'core/settings_snyk.html', {
         'settings': settings,
         'current_tab': 'snyk',
         'has_token': has_token,
+        'vuln_stats': vuln_stats,
     })
 
 

@@ -16,6 +16,79 @@
     </div>
 
     <div class="col-md-9">
+        <!-- Vulnerability Status Dashboard -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Current Vulnerability Status</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-2">
+                        <h2 class="mb-0 {% if vuln_stats.total > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ vuln_stats.total }}
+                        </h2>
+                        <small class="text-muted">Total Vulnerabilities</small>
+                    </div>
+                    <div class="col-md-2">
+                        <h2 class="mb-0 {% if vuln_stats.critical > 0 %}text-danger{% else %}text-muted{% endif %}">
+                            {{ vuln_stats.critical }}
+                        </h2>
+                        <small class="text-muted">Critical</small>
+                    </div>
+                    <div class="col-md-2">
+                        <h2 class="mb-0 {% if vuln_stats.high > 0 %}text-warning{% else %}text-muted{% endif %}">
+                            {{ vuln_stats.high }}
+                        </h2>
+                        <small class="text-muted">High</small>
+                    </div>
+                    <div class="col-md-2">
+                        <h2 class="mb-0 {% if vuln_stats.medium > 0 %}text-info{% else %}text-muted{% endif %}">
+                            {{ vuln_stats.medium }}
+                        </h2>
+                        <small class="text-muted">Medium</small>
+                    </div>
+                    <div class="col-md-2">
+                        <h2 class="mb-0 {% if vuln_stats.low > 0 %}text-secondary{% else %}text-muted{% endif %}">
+                            {{ vuln_stats.low }}
+                        </h2>
+                        <small class="text-muted">Low</small>
+                    </div>
+                    <div class="col-md-2">
+                        <h5 class="mb-0">
+                            {% if vuln_stats.trend == 'Improving' %}
+                            <span class="badge bg-success"><i class="fas fa-arrow-down"></i> Improving</span>
+                            {% elif vuln_stats.trend == 'Worsening' %}
+                            <span class="badge bg-danger"><i class="fas fa-arrow-up"></i> Worsening</span>
+                            {% else %}
+                            <span class="badge bg-secondary"><i class="fas fa-minus"></i> Stable</span>
+                            {% endif %}
+                        </h5>
+                        <small class="text-muted">Trend</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="row text-center small">
+                    <div class="col-md-4">
+                        <strong>Last Scan:</strong>
+                        {% if vuln_stats.last_scan %}
+                        {{ vuln_stats.last_scan|date:"Y-m-d H:i" }}
+                        {% else %}
+                        Never
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Duration:</strong> {{ vuln_stats.duration }}s
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Status:</strong>
+                        <span class="badge {% if vuln_stats.status == 'Completed' %}bg-success{% elif vuln_stats.status == 'Failed' %}bg-danger{% else %}bg-warning{% endif %}">
+                            {{ vuln_stats.status }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0"><i class="fas fa-bug"></i> Snyk Security Scanning</h5>
@@ -497,8 +570,8 @@ snyk --version
         });
 }
 
-// Check version on page load
-checkSnykVersion();
+// Don't auto-check on page load (performance) - only check when button is clicked
+// User can manually trigger check with the button below
 
 // Handle check version button
 document.getElementById('checkSnykVersionBtn').addEventListener('click', function() {
