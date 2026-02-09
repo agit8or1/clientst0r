@@ -17,6 +17,15 @@ class Command(BaseCommand):
         parser.add_argument('app_type', type=str, help='App type: android or ios')
 
     def handle(self, *args, **options):
+        # Set up proper PATH environment first
+        path_additions = [
+            '/usr/bin',
+            '/usr/local/bin',
+            '/home/administrator/.nvm/versions/node/v22.21.1/bin',
+        ]
+        current_path = os.environ.get('PATH', '')
+        os.environ['PATH'] = ':'.join(path_additions) + ':' + current_path
+
         app_type = options['app_type']
         mobile_app_dir = os.path.join(settings.BASE_DIR, 'mobile-app')
         builds_dir = os.path.join(mobile_app_dir, 'builds')
