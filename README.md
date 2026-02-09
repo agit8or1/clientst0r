@@ -1,6 +1,6 @@
 # HuduGlue 🐕
 
-[![Version 2.58.1](https://img.shields.io/badge/version-2.58.1-brightgreen)](https://github.com/agit8or1/huduglue)
+[![Version 2.66.0](https://img.shields.io/badge/version-2.66.0-brightgreen)](https://github.com/agit8or1/huduglue)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/huduglue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
@@ -174,6 +174,7 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 - **Reporting & Analytics** - Advanced reports, custom dashboards, scheduled reports, data visualization
 - **Backup/Restore** - Encrypted backups, automated scheduling, retention policies, one-click restore
 - **Progressive Web App** - Install on mobile devices, offline support, push notifications
+- **Native Mobile App** - React Native app for iOS and Android with full feature access
 
 ### 🔌 Integrations & APIs
 - **8 PSA Providers** - ConnectWise, Autotask, HaloPSA, Kaseya BMS, Syncro, Freshservice, Zendesk, ITFlow
@@ -288,6 +289,51 @@ sudo systemctl restart huduglue-gunicorn.service
 ```
 
 **Note:** Azure AD SSO does **not** require these packages. LDAP is only needed for on-premises Active Directory or other LDAP servers.
+
+#### Mobile App (iOS & Android)
+
+HuduGlue includes a native React Native mobile app for iOS and Android devices.
+
+**Features:**
+- 📱 Native iOS and Android apps
+- 🔐 Secure token-based authentication
+- 📊 Dashboard with quick stats
+- 💼 Asset management on the go
+- 🔒 Password vault access
+- 📚 Document browsing
+- 🌙 Dark mode optimized for mobile
+- 🔄 Real-time sync via GraphQL API
+
+**Prerequisites:**
+- Node.js 18+
+- Expo CLI
+- HuduGlue backend with GraphQL enabled
+
+**Setup:**
+
+```bash
+# 1. Install GraphQL dependencies on backend
+cd ~/huduglue
+source venv/bin/activate
+pip install -r requirements-graphql.txt
+sudo systemctl restart huduglue-gunicorn.service
+
+# 2. Set up mobile app
+cd ~/huduglue/mobile-app
+npm install
+
+# 3. Configure API URL
+# Edit app.json and set your HuduGlue server URL
+
+# 4. Start development server
+npm start
+
+# 5. Run on device
+# - iOS: Press 'i' or run: npm run ios
+# - Android: Press 'a' or run: npm run android
+```
+
+**For complete mobile app documentation, see [mobile-app/README.md](mobile-app/README.md)**
 
 ### Manual Installation
 
