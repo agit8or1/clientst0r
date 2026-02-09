@@ -28,18 +28,45 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'Building {app_type} app...'))
 
         try:
-            # Check if npm is installed
+            # Check if npm is installed, install automatically if not
             import shutil
             if not shutil.which('npm'):
-                error_msg = (
-                    'npm is not installed. Please install Node.js and npm:\n\n'
-                    'Ubuntu/Debian:\n'
-                    '  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -\n'
-                    '  sudo apt-get install -y nodejs\n\n'
-                    'Or visit: https://nodejs.org/\n\n'
-                    'After installation, click Retry Build.'
-                )
-                raise Exception(error_msg)
+                self._update_status(status_file, 'building', 'Installing Node.js and npm (first time setup)...')
+                self.stdout.write('Node.js/npm not found. Installing automatically...')
+
+                try:
+                    # Install Node.js 20.x
+                    self.stdout.write('Downloading Node.js repository setup...')
+                    subprocess.run(
+                        ['curl', '-fsSL', 'https://deb.nodesource.com/setup_20.x', '-o', '/tmp/nodesource_setup.sh'],
+                        check=True,
+                        capture_output=True
+                    )
+
+                    self.stdout.write('Installing Node.js repository...')
+                    subprocess.run(
+                        ['sudo', 'bash', '/tmp/nodesource_setup.sh'],
+                        check=True,
+                        capture_output=True
+                    )
+
+                    self.stdout.write('Installing Node.js and npm...')
+                    subprocess.run(
+                        ['sudo', 'apt-get', 'install', '-y', 'nodejs'],
+                        check=True,
+                        capture_output=True
+                    )
+
+                    # Verify installation
+                    if not shutil.which('npm'):
+                        raise Exception('Node.js installation completed but npm not found in PATH')
+
+                    self.stdout.write(self.style.SUCCESS('Node.js and npm installed successfully!'))
+
+                except subprocess.CalledProcessError as e:
+                    raise Exception(f'Failed to install Node.js/npm automatically: {e}')
+                except Exception as e:
+                    raise Exception(f'Error during Node.js/npm installation: {e}')
 
             # Check if dependencies are installed
             node_modules = os.path.join(mobile_app_dir, 'node_modules')

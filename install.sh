@@ -913,3 +913,13 @@ echo "  • Config file: $INSTALL_DIR/.env"
 echo "  • Virtual env: $INSTALL_DIR/venv"
 echo "  • Logs: /var/log/itdocs/"
 echo ""
+
+# Setup mobile app building
+print_info "📱 Setting up mobile app building..."
+if bash "$INSTALL_DIR/deploy/setup_mobile_build.sh"; then
+    print_status "Mobile app building configured (automatic Node.js/npm installation)"
+else
+    print_warning "Mobile app setup skipped (optional feature)"
+fi
+echo ""
+

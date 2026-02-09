@@ -1,0 +1,16 @@
+# Sudoers rules for HuduGlue mobile app building
+# This allows HuduGlue to automatically install Node.js/npm and other build dependencies
+# Install with: sudo cp huduglue-mobile-build-sudoers /etc/sudoers.d/huduglue-mobile-build
+
+# Allow huduglue user to install Node.js and npm without password
+administrator ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
+administrator ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y nodejs
+administrator ALL=(ALL) NOPASSWD: /bin/bash /tmp/nodesource_setup.sh
+administrator ALL=(ALL) NOPASSWD: /usr/bin/npm install *
+administrator ALL=(ALL) NOPASSWD: /usr/bin/npm *
+
+# If using different user in production, replace 'administrator' with your user
+# Example for 'itdocs' user:
+# itdocs ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
+# itdocs ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y nodejs
+# itdocs ALL=(ALL) NOPASSWD: /bin/bash /tmp/nodesource_setup.sh
