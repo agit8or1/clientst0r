@@ -307,12 +307,31 @@ class UpdateService:
                     logger.info("Gunicorn fix applied successfully")
                 except Exception as e:
                     # Non-critical - log warning but continue
-                    logger.warning(f"Gunicorn fix script failed (non-critical): {e}")
-                    result['output'].append(f"⚠️  Gunicorn fix skipped: {str(e)}")
+                    logger.warning(f"Gunicorn fix failed (non-critical): {e}")
+                    result['output'].append(f"⚠️ Gunicorn fix skipped: {str(e)}")
                 if progress_tracker:
                     progress_tracker.step_complete('Apply Gunicorn Fix')
+
+            # Step 3.6: Setup mobile app building (if script exists)
+            mobile_setup_script = os.path.join(self.base_dir, 'deploy', 'setup_mobile_build.sh')
+            if os.path.exists(mobile_setup_script):
+                if progress_tracker:
+                    progress_tracker.step_start('Setup Mobile Build')
+                logger.info("Configuring mobile app building")
+                try:
+                    os.chmod(mobile_setup_script, 0o755)
+                    mobile_setup_output = self._run_command([mobile_setup_script])
+                    result['steps_completed'].append('mobile_build_setup')
+                    result['output'].append(f"Mobile build setup: Complete")
+                    logger.info("Mobile app building configured")
+                except Exception as e:
+                    # Non-critical - log warning but continue
+                    logger.warning(f"Mobile build setup failed (non-critical): {e}")
+                    result['output'].append(f"⚠️ Mobile build setup skipped: {str(e)}")
+                if progress_tracker:
+                    progress_tracker.step_complete('Setup Mobile Build')
             else:
-                logger.info("Gunicorn fix script not found - skipping")
+                logger.info("Mobile build setup script not found - skipping")
 
             # Step 4: Collect static files
             if progress_tracker:
