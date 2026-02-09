@@ -341,3 +341,121 @@ def report_bug(request):
             'success': False,
             'message': f'An unexpected error occurred: {str(e)}'
         }, status=500)
+
+
+@login_required
+def download_mobile_app(request, app_type):
+    """
+    Serve mobile app downloads or redirect to app stores.
+    Supports both direct APK/IPA downloads and app store links.
+    """
+    import os
+    from django.conf import settings
+    from django.http import FileResponse, Http404, HttpResponse
+    from django.shortcuts import redirect
+
+    # Define mobile app paths
+    MOBILE_APP_DIR = os.path.join(settings.BASE_DIR, 'mobile-app', 'builds')
+
+    if app_type == 'android':
+        # Check for built APK file
+        apk_path = os.path.join(MOBILE_APP_DIR, 'huduglue.apk')
+        if os.path.exists(apk_path):
+            # Serve the APK file
+            response = FileResponse(
+                open(apk_path, 'rb'),
+                content_type='application/vnd.android.package-archive'
+            )
+            response['Content-Disposition'] = 'attachment; filename="HuduGlue.apk"'
+
+            # Log download
+            AuditLog.objects.create(
+                user=request.user,
+                action='mobile_app_download',
+                object_type='mobile_app',
+                description=f'Downloaded Android APK'
+            )
+
+            return response
+        else:
+            # No APK built yet - show instructions
+            return HttpResponse("""
+                <html>
+                <head><title>Android App - HuduGlue</title></head>
+                <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
+                    <h1>📱 Android App Not Yet Built</h1>
+                    <p>The Android APK has not been built yet. To build the mobile app:</p>
+                    <ol>
+                        <li>Navigate to the mobile app directory:
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">cd ~/huduglue/mobile-app</pre>
+                        </li>
+                        <li>Install dependencies (if not already done):
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">npm install</pre>
+                        </li>
+                        <li>Build the APK:
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">expo build:android -t apk</pre>
+                        </li>
+                        <li>Once built, download from Expo and place at:
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">~/huduglue/mobile-app/builds/huduglue.apk</pre>
+                        </li>
+                    </ol>
+                    <p><strong>Alternative:</strong> For development/testing, install <a href="https://expo.dev/client">Expo Go</a>
+                    from the Play Store and scan the QR code when running <code>npm start</code> in the mobile-app directory.</p>
+                    <p><a href="javascript:history.back()">← Go Back</a></p>
+                </body>
+                </html>
+            """, content_type='text/html')
+
+    elif app_type == 'ios':
+        # Check for built IPA file
+        ipa_path = os.path.join(MOBILE_APP_DIR, 'huduglue.ipa')
+        if os.path.exists(ipa_path):
+            # Serve the IPA file
+            response = FileResponse(
+                open(ipa_path, 'rb'),
+                content_type='application/octet-stream'
+            )
+            response['Content-Disposition'] = 'attachment; filename="HuduGlue.ipa"'
+
+            # Log download
+            AuditLog.objects.create(
+                user=request.user,
+                action='mobile_app_download',
+                object_type='mobile_app',
+                description=f'Downloaded iOS IPA'
+            )
+
+            return response
+        else:
+            # No IPA built yet - show instructions
+            return HttpResponse("""
+                <html>
+                <head><title>iOS App - HuduGlue</title></head>
+                <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px;">
+                    <h1>🍎 iOS App Not Yet Built</h1>
+                    <p>The iOS IPA has not been built yet. To build the mobile app:</p>
+                    <ol>
+                        <li>Navigate to the mobile app directory:
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">cd ~/huduglue/mobile-app</pre>
+                        </li>
+                        <li>Install dependencies (if not already done):
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">npm install</pre>
+                        </li>
+                        <li>Build the IPA (requires Mac + Apple Developer account):
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">expo build:ios</pre>
+                        </li>
+                        <li>Once built, download from Expo and place at:
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">~/huduglue/mobile-app/builds/huduglue.ipa</pre>
+                        </li>
+                    </ol>
+                    <p><strong>Note:</strong> IPA files can only be installed on iOS devices via TestFlight,
+                    enterprise distribution, or by uploading to the App Store.</p>
+                    <p><strong>For Testing:</strong> Install <a href="https://apps.apple.com/app/expo-go/id982107779">Expo Go</a>
+                    from the App Store and scan the QR code when running <code>npm start</code> in the mobile-app directory.</p>
+                    <p><a href="javascript:history.back()">← Go Back</a></p>
+                </body>
+                </html>
+            """, content_type='text/html')
+
+    else:
+        raise Http404("Invalid app type")

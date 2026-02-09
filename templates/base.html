@@ -224,6 +224,10 @@
                             <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#reportBugModal" title="Report an issue to GitHub"><i class="fas fa-bug"></i> Report Bug</a></li>
                             <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#supportProjectModal" title="Support this open-source project"><i class="fas fa-heart"></i> Support This Project</a></li>
                             <li><hr class="dropdown-divider"></li>
+                            <li class="dropdown-header"><i class="fas fa-mobile-alt me-2"></i>Mobile Apps</li>
+                            <li><a class="dropdown-item" href="{% url 'core:download_mobile_app' app_type='android' %}" title="Download Android APK"><i class="fab fa-android"></i> Android App</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:download_mobile_app' app_type='ios' %}" title="Download iOS App"><i class="fab fa-apple"></i> iOS App</a></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form method="post" action="{% url 'logout' %}" style="margin: 0;">
                                     {% csrf_token %}
