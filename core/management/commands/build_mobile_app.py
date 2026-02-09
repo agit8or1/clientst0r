@@ -31,7 +31,15 @@ class Command(BaseCommand):
             # Check if npm is installed
             import shutil
             if not shutil.which('npm'):
-                raise Exception('npm is not installed. Please install Node.js and npm first.')
+                error_msg = (
+                    'npm is not installed. Please install Node.js and npm:\n\n'
+                    'Ubuntu/Debian:\n'
+                    '  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -\n'
+                    '  sudo apt-get install -y nodejs\n\n'
+                    'Or visit: https://nodejs.org/\n\n'
+                    'After installation, click Retry Build.'
+                )
+                raise Exception(error_msg)
 
             # Check if dependencies are installed
             node_modules = os.path.join(mobile_app_dir, 'node_modules')
