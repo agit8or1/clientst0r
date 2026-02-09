@@ -877,69 +877,97 @@ def download_mobile_app(request, app_type):
                 """, content_type='text/html; charset=utf-8')
 
             elif status_data['status'] == 'failed':
-                if request.GET.get('retry') == '1':
+                # Delete failed status file so we show clean state
+                try:
                     os.remove(status_file)
-                else:
-                    return HttpResponse(f"""
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <title>iOS App Build Failed - HuduGlue</title>
-                            <meta charset="UTF-8">
+                except:
+                    pass
+
+                # Show friendly "not created yet" page instead of error
+                return HttpResponse(f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>iOS App - HuduGlue</title>
+                        <meta charset="UTF-8">
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
                         <meta http-equiv="Expires" content="0">
-                            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-                            <style>
-                                body {{ background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
-                                .container {{ max-width: 800px; margin: 50px auto; padding: 40px; }}
-                                .card {{ background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 30px; }}
+                        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                        <style>
+                            body {{ background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
+                            .container {{ max-width: 800px; margin: 50px auto; padding: 40px; text-align: center; }}
+                            .card {{ background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 40px; }}
                             h1, h2, h3, h4, h5 {{ color: #ffffff !important; }}
                             p, .lead {{ color: #ffffff !important; font-size: 1.1rem; }}
                             strong {{ color: #ffffff; }}
                             .text-muted {{ color: #8b949e !important; }}
-                                h1 {{ color: #f85149; }}
-                                .error-box {{ background: #3d1e1e; border: 1px solid #f85149; border-radius: 6px; padding: 15px; margin: 20px 0; }}
-                            </style>
-                        </head>
-                        <body>
-                            <div class="container">
-                                <div class="card">
-                                    <h1>&#x274C; iOS App Build Failed</h1>
-                                    <div class="error-box">
-                                        <strong>Error:</strong><br>
-                                        <pre style="white-space: pre-wrap; margin: 10px 0; font-family: 'Courier New', monospace; color: #ffa657;">{status_data['message']}</pre>
-                                    </div>
-                                    <div class="mt-4">
-                                        <a href="?retry=1" class="btn btn-primary">Retry Build</a>
-                                        <a href="javascript:history.back()" class="btn btn-secondary">&larr; Go Back</a>
-                                    </div>
+                            h1 {{ color: #58a6ff; margin-bottom: 20px; }}
+                            .info-icon {{ font-size: 64px; margin-bottom: 20px; }}
+                            .btn-build {{ background: #238636; border: 1px solid #2ea043; color: white; padding: 12px 32px; font-size: 16px; border-radius: 6px; text-decoration: none; display: inline-block; margin-top: 20px; }}
+                            .btn-build:hover {{ background: #2ea043; color: white; }}
+                            .btn-secondary {{ background: #30363d; border: 1px solid #484f58; color: white; padding: 12px 32px; font-size: 16px; border-radius: 6px; text-decoration: none; display: inline-block; margin-top: 20px; margin-left: 10px; }}
+                            .btn-secondary:hover {{ background: #484f58; color: white; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="card">
+                                <div class="info-icon">📱</div>
+                                <h1>iOS App Not Available</h1>
+                                <p class="lead">iOS app builds are not currently supported.</p>
+                                <p class="text-muted">Building iOS apps requires a macOS system with Xcode. Consider using the Android app or web interface instead.</p>
+                                <div class="mt-4">
+                                    <a href="javascript:history.back()" class="btn-secondary">Go Back</a>
                                 </div>
                             </div>
-                        </body>
-                        </html>
-                    """, content_type='text/html; charset=utf-8')
+                        </div>
+                    </body>
+                    </html>
+                """, content_type='text/html; charset=utf-8')
 
-        # No IPA and no build in progress - start build
-        def build_app_background():
-            import logging
-            logger = logging.getLogger(__name__)
-            try:
-                venv_python = os.path.join(settings.BASE_DIR, 'venv', 'bin', 'python')
-                result = subprocess.run(
-                    [venv_python, 'manage.py', 'build_mobile_app', 'ios'],
-                    cwd=settings.BASE_DIR,
-                    capture_output=True,
-                    text=True
-                )
-                if result.returncode != 0:
-                    logger.error(f'Build failed: {result.stderr}')
-            except Exception as e:
-                logger.error(f'Build exception: {str(e)}')
-
-        build_thread = threading.Thread(target=build_app_background)
-        build_thread.daemon = True
-        build_thread.start()
+        # No IPA and no build in progress - show friendly message
+        # iOS builds require macOS with Xcode, so we don't support them
+        return HttpResponse(f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>iOS App - HuduGlue</title>
+                <meta charset="UTF-8">
+                <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+                <meta http-equiv="Pragma" content="no-cache">
+                <meta http-equiv="Expires" content="0">
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    body {{ background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
+                    .container {{ max-width: 800px; margin: 50px auto; padding: 40px; text-align: center; }}
+                    .card {{ background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 40px; }}
+                    h1, h2, h3, h4, h5 {{ color: #ffffff !important; }}
+                    p, .lead {{ color: #ffffff !important; font-size: 1.1rem; }}
+                    strong {{ color: #ffffff; }}
+                    .text-muted {{ color: #8b949e !important; }}
+                    h1 {{ color: #58a6ff; margin-bottom: 20px; }}
+                    .info-icon {{ font-size: 64px; margin-bottom: 20px; }}
+                    .btn-secondary {{ background: #30363d; border: 1px solid #484f58; color: white; padding: 12px 32px; font-size: 16px; border-radius: 6px; text-decoration: none; display: inline-block; margin-top: 20px; }}
+                    .btn-secondary:hover {{ background: #484f58; color: white; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="card">
+                        <div class="info-icon">📱</div>
+                        <h1>iOS App Not Available</h1>
+                        <p class="lead">iOS app builds are not currently supported.</p>
+                        <p class="text-muted">Building iOS apps requires a macOS system with Xcode installed. This Linux server cannot build iOS apps.</p>
+                        <p class="text-muted">Consider using the Android app or accessing HuduGlue through your web browser instead.</p>
+                        <div class="mt-4">
+                            <a href="javascript:history.back()" class="btn-secondary">Go Back</a>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        """, content_type='text/html; charset=utf-8')
 
         AuditLog.objects.create(
             user=request.user,
