@@ -192,7 +192,13 @@ def asset_edit(request, pk):
     Edit asset.
     """
     org = get_request_organization(request)
-    asset = get_object_or_404(Asset, pk=pk, organization=org)
+
+    # In global view mode, get asset without org filter and use asset's org
+    if org is None:
+        asset = get_object_or_404(Asset, pk=pk)
+        org = asset.organization
+    else:
+        asset = get_object_or_404(Asset, pk=pk, organization=org)
 
     if request.method == 'POST':
         form = AssetForm(request.POST, instance=asset, organization=org)
