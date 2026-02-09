@@ -29,8 +29,8 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiUrl": "http://localhost:8000",
-      "graphqlUrl": "http://localhost:8000/api/v2/graphql/"
+      "apiUrl": "https://*",
+      "graphqlUrl": "https://*/api/v2/graphql/"
     }
   }
 }

@@ -353,6 +353,7 @@ def download_mobile_app(request, app_type):
     import json
     import subprocess
     import threading
+    import time
     from django.conf import settings
     from django.http import FileResponse, Http404, HttpResponse
     from django.shortcuts import redirect, render
@@ -438,6 +439,9 @@ def download_mobile_app(request, app_type):
                             .log-container::-webkit-scrollbar-track {{ background: #161b22; }}
                             .log-container::-webkit-scrollbar-thumb {{ background: #30363d; border-radius: 5px; }}
                             .status-header {{ display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }}
+                            .progress-bar-container {{ width: 100%; height: 8px; background: #30363d; border-radius: 4px; overflow: hidden; margin: 20px 0; }}
+                            .progress-bar {{ height: 100%; background: linear-gradient(90deg, #58a6ff, #79c0ff, #58a6ff); background-size: 200% 100%; animation: progressSlide 2s linear infinite; }}
+                            @keyframes progressSlide {{ 0% {{ background-position: 100% 0; }} 100% {{ background-position: -100% 0; }} }}
                         </style>
                         <script>
                             // Auto-scroll to bottom of log
@@ -457,7 +461,10 @@ def download_mobile_app(request, app_type):
                                     <h1 style="margin: 0;">Building Android App...</h1>
                                 </div>
                                 <p class="lead text-center"><strong>Status:</strong> {status_data['message']}</p>
-                                <p class="text-center"><strong>Elapsed Time:</strong> <span id="elapsed-time" style="color: #58a6ff; font-size: 1.2em;">0m 0s</span></p>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar"></div>
+                                </div>
+                                <p class="text-center"><strong>Elapsed Time:</strong> <span id="elapsed-time" style="color: #58a6ff; font-size: 1.2em;">Calculating...</span></p>
                                 <p class="text-center text-muted"><small>Page auto-refreshes every 5 seconds. You can close this tab and come back later.</small></p>
                             </div>
 
@@ -632,19 +639,22 @@ def download_mobile_app(request, app_type):
                         }}
 
                         // Show elapsed time
-                        var startTime = {status_data.get('timestamp', 0)} * 1000;
-                        function updateElapsedTime() {{
-                            var elapsed = Math.floor((Date.now() - startTime) / 1000);
-                            var minutes = Math.floor(elapsed / 60);
-                            var seconds = elapsed % 60;
-                            var elapsedText = minutes + 'm ' + seconds + 's';
-                            var elapsedElement = document.getElementById('elapsed-time');
-                            if (elapsedElement) {{
-                                elapsedElement.textContent = elapsedText;
+                        var startTime = {status_data.get('timestamp', time.time())} * 1000;
+                        if (startTime > 0) {{
+                            function updateElapsedTime() {{
+                                var elapsed = Math.floor((Date.now() - startTime) / 1000);
+                                if (elapsed < 0) elapsed = 0;
+                                var minutes = Math.floor(elapsed / 60);
+                                var seconds = elapsed % 60;
+                                var elapsedText = minutes + 'm ' + (seconds < 10 ? '0' : '') + seconds + 's';
+                                var elapsedElement = document.getElementById('elapsed-time');
+                                if (elapsedElement) {{
+                                    elapsedElement.textContent = elapsedText;
+                                }}
                             }}
+                            updateElapsedTime();
+                            setInterval(updateElapsedTime, 1000);
                         }}
-                        updateElapsedTime();
-                        setInterval(updateElapsedTime, 1000);
                     }};
                 </script>
             </head>
@@ -747,6 +757,9 @@ def download_mobile_app(request, app_type):
                             .log-container::-webkit-scrollbar-track {{ background: #161b22; }}
                             .log-container::-webkit-scrollbar-thumb {{ background: #30363d; border-radius: 5px; }}
                             .status-header {{ display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }}
+                            .progress-bar-container {{ width: 100%; height: 8px; background: #30363d; border-radius: 4px; overflow: hidden; margin: 20px 0; }}
+                            .progress-bar {{ height: 100%; background: linear-gradient(90deg, #58a6ff, #79c0ff, #58a6ff); background-size: 200% 100%; animation: progressSlide 2s linear infinite; }}
+                            @keyframes progressSlide {{ 0% {{ background-position: 100% 0; }} 100% {{ background-position: -100% 0; }} }}
                         </style>
                         <script>
                             // Auto-scroll to bottom of log
@@ -766,7 +779,10 @@ def download_mobile_app(request, app_type):
                                     <h1 style="margin: 0;">Building iOS App...</h1>
                                 </div>
                                 <p class="lead text-center"><strong>Status:</strong> {status_data['message']}</p>
-                                <p class="text-center"><strong>Elapsed Time:</strong> <span id="elapsed-time" style="color: #58a6ff; font-size: 1.2em;">0m 0s</span></p>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar"></div>
+                                </div>
+                                <p class="text-center"><strong>Elapsed Time:</strong> <span id="elapsed-time" style="color: #58a6ff; font-size: 1.2em;">Calculating...</span></p>
                                 <p class="text-center text-muted"><small>Page auto-refreshes every 5 seconds. You can close this tab and come back later.</small></p>
                             </div>
 
@@ -935,19 +951,22 @@ def download_mobile_app(request, app_type):
                         }}
 
                         // Show elapsed time
-                        var startTime = {status_data.get('timestamp', 0)} * 1000;
-                        function updateElapsedTime() {{
-                            var elapsed = Math.floor((Date.now() - startTime) / 1000);
-                            var minutes = Math.floor(elapsed / 60);
-                            var seconds = elapsed % 60;
-                            var elapsedText = minutes + 'm ' + seconds + 's';
-                            var elapsedElement = document.getElementById('elapsed-time');
-                            if (elapsedElement) {{
-                                elapsedElement.textContent = elapsedText;
+                        var startTime = {status_data.get('timestamp', time.time())} * 1000;
+                        if (startTime > 0) {{
+                            function updateElapsedTime() {{
+                                var elapsed = Math.floor((Date.now() - startTime) / 1000);
+                                if (elapsed < 0) elapsed = 0;
+                                var minutes = Math.floor(elapsed / 60);
+                                var seconds = elapsed % 60;
+                                var elapsedText = minutes + 'm ' + (seconds < 10 ? '0' : '') + seconds + 's';
+                                var elapsedElement = document.getElementById('elapsed-time');
+                                if (elapsedElement) {{
+                                    elapsedElement.textContent = elapsedText;
+                                }}
                             }}
+                            updateElapsedTime();
+                            setInterval(updateElapsedTime, 1000);
                         }}
-                        updateElapsedTime();
-                        setInterval(updateElapsedTime, 1000);
                     }};
                 </script>
             </head>
