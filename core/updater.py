@@ -243,6 +243,8 @@ class UpdateService:
             if progress_tracker:
                 progress_tracker.step_start('Install Dependencies')
             logger.info("Installing Python dependencies")
+
+            # Install main requirements
             pip_output = self._run_command([
                 'pip', 'install', '-r',
                 os.path.join(self.base_dir, 'requirements.txt')
@@ -251,6 +253,27 @@ class UpdateService:
             ])
             result['steps_completed'].append('install_requirements')
             result['output'].append(f"Pip install: {pip_output[:500]}")  # Truncate output
+
+            # Install optional dependencies if they exist
+            optional_requirements = [
+                'requirements-graphql.txt',
+                'requirements-optional.txt'
+            ]
+            for req_file in optional_requirements:
+                req_path = os.path.join(self.base_dir, req_file)
+                if os.path.exists(req_path):
+                    logger.info(f"Installing optional dependencies from {req_file}")
+                    try:
+                        optional_pip_output = self._run_command([
+                            'pip', 'install', '-r', req_path
+                        ])
+                        result['output'].append(f"Optional dependencies ({req_file}): Installed")
+                        logger.info(f"Successfully installed {req_file}")
+                    except Exception as e:
+                        # Optional dependencies - log warning but continue
+                        logger.warning(f"Failed to install {req_file} (non-critical): {e}")
+                        result['output'].append(f"⚠️ Optional dependencies ({req_file}): Skipped - {str(e)}")
+
             if progress_tracker:
                 progress_tracker.step_complete('Install Dependencies')
 
