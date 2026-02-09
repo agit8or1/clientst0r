@@ -466,7 +466,7 @@ def download_mobile_app(request, app_type):
                                     <div class="progress-bar"></div>
                                 </div>
                                 <p class="text-center"><strong>Elapsed Time:</strong> <span id="elapsed-time" style="color: #58a6ff; font-size: 1.2em;">Calculating...</span></p>
-                                <p class="text-center text-muted"><small>Page auto-refreshes every 5 seconds. You can close this tab and come back later.</small></p>
+                                <p class="text-center text-muted"><small>Page refreshes in <span id="refresh-countdown">5</span> seconds • You can close this tab</small></p>
                             </div>
 
                             <div class="card">
@@ -639,23 +639,36 @@ def download_mobile_app(request, app_type):
                             logContainer.scrollTop = logContainer.scrollHeight;
                         }}
 
-                        // Show elapsed time
+                        // Show elapsed time with live updates
                         var startTime = {status_data.get('timestamp', time.time())} * 1000;
-                        if (startTime > 0) {{
-                            function updateElapsedTime() {{
-                                var elapsed = Math.floor((Date.now() - startTime) / 1000);
-                                if (elapsed < 0) elapsed = 0;
-                                var minutes = Math.floor(elapsed / 60);
-                                var seconds = elapsed % 60;
-                                var elapsedText = minutes + 'm ' + (seconds < 10 ? '0' : '') + seconds + 's';
-                                var elapsedElement = document.getElementById('elapsed-time');
-                                if (elapsedElement) {{
-                                    elapsedElement.textContent = elapsedText;
-                                }}
+                        console.log('Build start time:', new Date(startTime));
+                        console.log('Current time:', new Date());
+
+                        function updateElapsedTime() {{
+                            var elapsed = Math.floor((Date.now() - startTime) / 1000);
+                            if (elapsed < 0) elapsed = 0;
+                            var minutes = Math.floor(elapsed / 60);
+                            var seconds = elapsed % 60;
+                            var elapsedText = minutes + 'm ' + (seconds < 10 ? '0' : '') + seconds + 's';
+                            var elapsedElement = document.getElementById('elapsed-time');
+                            if (elapsedElement) {{
+                                elapsedElement.textContent = elapsedText;
+                                elapsedElement.style.color = '#58a6ff';  // Ensure visibility
                             }}
-                            updateElapsedTime();
-                            setInterval(updateElapsedTime, 1000);
                         }}
+
+                        // Start immediately and update every second
+                        updateElapsedTime();
+                        setInterval(updateElapsedTime, 1000);
+
+                        // Also show page refresh countdown
+                        var refreshIn = 5;
+                        setInterval(function() {{
+                            refreshIn--;
+                            if (refreshIn <= 0) refreshIn = 5;
+                            var refreshElement = document.getElementById('refresh-countdown');
+                            if (refreshElement) refreshElement.textContent = refreshIn;
+                        }}, 1000);
                     }};
                 </script>
             </head>
@@ -785,7 +798,7 @@ def download_mobile_app(request, app_type):
                                     <div class="progress-bar"></div>
                                 </div>
                                 <p class="text-center"><strong>Elapsed Time:</strong> <span id="elapsed-time" style="color: #58a6ff; font-size: 1.2em;">Calculating...</span></p>
-                                <p class="text-center text-muted"><small>Page auto-refreshes every 5 seconds. You can close this tab and come back later.</small></p>
+                                <p class="text-center text-muted"><small>Page refreshes in <span id="refresh-countdown">5</span> seconds • You can close this tab</small></p>
                             </div>
 
                             <div class="card">
@@ -952,23 +965,36 @@ def download_mobile_app(request, app_type):
                             logContainer.scrollTop = logContainer.scrollHeight;
                         }}
 
-                        // Show elapsed time
+                        // Show elapsed time with live updates
                         var startTime = {status_data.get('timestamp', time.time())} * 1000;
-                        if (startTime > 0) {{
-                            function updateElapsedTime() {{
-                                var elapsed = Math.floor((Date.now() - startTime) / 1000);
-                                if (elapsed < 0) elapsed = 0;
-                                var minutes = Math.floor(elapsed / 60);
-                                var seconds = elapsed % 60;
-                                var elapsedText = minutes + 'm ' + (seconds < 10 ? '0' : '') + seconds + 's';
-                                var elapsedElement = document.getElementById('elapsed-time');
-                                if (elapsedElement) {{
-                                    elapsedElement.textContent = elapsedText;
-                                }}
+                        console.log('Build start time:', new Date(startTime));
+                        console.log('Current time:', new Date());
+
+                        function updateElapsedTime() {{
+                            var elapsed = Math.floor((Date.now() - startTime) / 1000);
+                            if (elapsed < 0) elapsed = 0;
+                            var minutes = Math.floor(elapsed / 60);
+                            var seconds = elapsed % 60;
+                            var elapsedText = minutes + 'm ' + (seconds < 10 ? '0' : '') + seconds + 's';
+                            var elapsedElement = document.getElementById('elapsed-time');
+                            if (elapsedElement) {{
+                                elapsedElement.textContent = elapsedText;
+                                elapsedElement.style.color = '#58a6ff';  // Ensure visibility
                             }}
-                            updateElapsedTime();
-                            setInterval(updateElapsedTime, 1000);
                         }}
+
+                        // Start immediately and update every second
+                        updateElapsedTime();
+                        setInterval(updateElapsedTime, 1000);
+
+                        // Also show page refresh countdown
+                        var refreshIn = 5;
+                        setInterval(function() {{
+                            refreshIn--;
+                            if (refreshIn <= 0) refreshIn = 5;
+                            var refreshElement = document.getElementById('refresh-countdown');
+                            if (refreshElement) refreshElement.textContent = refreshIn;
+                        }}, 1000);
                     }};
                 </script>
             </head>
