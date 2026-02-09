@@ -687,79 +687,99 @@
 
         // PWA Install Prompt
         let deferredPrompt;
-        const installBanner = document.getElementById('pwa-install-banner');
-        const installButton = document.getElementById('pwa-install-button');
-        const dismissButton = document.getElementById('pwa-dismiss-button');
 
-        window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent the mini-infobar from appearing on mobile
-            e.preventDefault();
-            // Stash the event so it can be triggered later
-            deferredPrompt = e;
-            // Show install banner if not already installed
-            const isPWA = window.matchMedia('(display-mode: standalone)').matches;
-            const dismissed = localStorage.getItem('pwa-dismissed');
-            if (!isPWA && !dismissed) {
-                installBanner.style.display = 'block';
+        // Wait for DOM to be ready before attaching event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const installBanner = document.getElementById('pwa-install-banner');
+            const installButton = document.getElementById('pwa-install-button');
+            const dismissButton = document.getElementById('pwa-dismiss-button');
+            const menuInstallBtn = document.getElementById('menu-install-pwa');
+
+            // Listen for beforeinstallprompt event
+            window.addEventListener('beforeinstallprompt', (e) => {
+                console.log('beforeinstallprompt event fired');
+                // Prevent the mini-infobar from appearing on mobile
+                e.preventDefault();
+                // Stash the event so it can be triggered later
+                deferredPrompt = e;
+                // Show install banner if not already installed
+                const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+                const dismissed = localStorage.getItem('pwa-dismissed');
+                if (!isPWA && !dismissed && installBanner) {
+                    installBanner.style.display = 'block';
+                }
+            });
+
+            // Banner install button
+            if (installButton) {
+                installButton.addEventListener('click', async () => {
+                    if (!deferredPrompt) {
+                        console.log('No deferredPrompt available');
+                        return;
+                    }
+                    // Show the install prompt
+                    deferredPrompt.prompt();
+                    // Wait for the user to respond to the prompt
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response to the install prompt: ${outcome}`);
+                    // Clear the prompt
+                    deferredPrompt = null;
+                    // Hide the banner
+                    if (installBanner) {
+                        installBanner.style.display = 'none';
+                    }
+                });
+            }
+
+            // Banner dismiss button
+            if (dismissButton) {
+                dismissButton.addEventListener('click', () => {
+                    if (installBanner) {
+                        installBanner.style.display = 'none';
+                    }
+                    // Remember dismissal for 30 days
+                    const expiry = new Date();
+                    expiry.setDate(expiry.getDate() + 30);
+                    localStorage.setItem('pwa-dismissed', expiry.toISOString());
+                });
+            }
+
+            // Handle menu PWA install click
+            if (menuInstallBtn) {
+                console.log('Menu install button found, attaching click handler');
+                menuInstallBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    console.log('Menu install clicked');
+
+                    const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+
+                    if (isPWA) {
+                        alert('✅ App is already installed! You can access it from your home screen.');
+                    } else if (deferredPrompt) {
+                        console.log('Using deferredPrompt');
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        console.log(`User response: ${outcome}`);
+                        deferredPrompt = null;
+                    } else {
+                        console.log('No deferredPrompt, showing manual instructions');
+                        // Show manual install instructions
+                        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                        const isAndroid = /Android/.test(navigator.userAgent);
+
+                        if (isIOS) {
+                            alert('📱 To install on iOS:\n\n1. Tap the Share button (square with arrow)\n2. Scroll and tap "Add to Home Screen"\n3. Tap "Add" to confirm');
+                        } else if (isAndroid) {
+                            alert('📱 To install on Android:\n\n1. Tap the menu (⋮) in your browser\n2. Tap "Install app" or "Add to Home screen"\n3. Follow the prompts');
+                        } else {
+                            alert('💻 To install on desktop:\n\n1. Look for the install icon in your address bar\n2. Or check your browser menu for "Install HuduGlue"\n3. Follow the prompts');
+                        }
+                    }
+                });
+            } else {
+                console.log('Menu install button NOT found in DOM');
             }
         });
-
-        if (installButton) {
-            installButton.addEventListener('click', async () => {
-                if (!deferredPrompt) {
-                    return;
-                }
-                // Show the install prompt
-                deferredPrompt.prompt();
-                // Wait for the user to respond to the prompt
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response to the install prompt: ${outcome}`);
-                // Clear the prompt
-                deferredPrompt = null;
-                // Hide the banner
-                installBanner.style.display = 'none';
-            });
-        }
-
-        if (dismissButton) {
-            dismissButton.addEventListener('click', () => {
-                installBanner.style.display = 'none';
-                // Remember dismissal for 30 days
-                const expiry = new Date();
-                expiry.setDate(expiry.getDate() + 30);
-                localStorage.setItem('pwa-dismissed', expiry.toISOString());
-            });
-        }
-
-        // Handle menu PWA install click
-        const menuInstallBtn = document.getElementById('menu-install-pwa');
-        if (menuInstallBtn) {
-            menuInstallBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const isPWA = window.matchMedia('(display-mode: standalone)').matches;
-
-                if (isPWA) {
-                    alert('✅ App is already installed! You can access it from your home screen.');
-                } else if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log(`User response: ${outcome}`);
-                    deferredPrompt = null;
-                } else {
-                    // Show manual install instructions
-                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                    const isAndroid = /Android/.test(navigator.userAgent);
-
-                    if (isIOS) {
-                        alert('📱 To install on iOS:\n\n1. Tap the Share button (square with arrow)\n2. Scroll and tap "Add to Home Screen"\n3. Tap "Add" to confirm');
-                    } else if (isAndroid) {
-                        alert('📱 To install on Android:\n\n1. Tap the menu (⋮) in your browser\n2. Tap "Install app" or "Add to Home screen"\n3. Follow the prompts');
-                    } else {
-                        alert('💻 To install on desktop:\n\n1. Look for the install icon in your address bar\n2. Or check your browser menu for "Install HuduGlue"\n3. Follow the prompts');
-                    }
-                }
-            });
-        }
     </script>
 
     {% block extra_js %}{% endblock %}
