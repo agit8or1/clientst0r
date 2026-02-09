@@ -9,7 +9,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.views.decorators.csrf import csrf_exempt
 from two_factor.urls import urlpatterns as tf_urls
-from graphene_django.views import GraphQLView
 
 urlpatterns = [
     # Favicon
@@ -44,10 +43,16 @@ urlpatterns = [
 
     # API
     path('api/', include('api.urls')),
-
-    # GraphQL API v2
-    path('api/v2/graphql/', csrf_exempt(GraphQLView.as_view(graphiql=True)), name='graphql'),
 ]
+
+# Optional: GraphQL API v2 (only if graphene_django is installed)
+try:
+    from graphene_django.views import GraphQLView
+    urlpatterns.append(
+        path('api/v2/graphql/', csrf_exempt(GraphQLView.as_view(graphiql=True)), name='graphql')
+    )
+except ImportError:
+    pass
 
 # Serve media files in development and production
 if settings.DEBUG or True:  # Allow media serving
