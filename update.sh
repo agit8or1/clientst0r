@@ -296,27 +296,31 @@ if [ "$INSTALL_SUDOERS" = true ] || [ "$FB_SUDOERS" = true ]; then
 
     if [ "$INSTALL_SUDOERS" = true ]; then
         echo -n "Installing huduglue-install sudoers... "
-        if sudo cp "$INSTALL_DIR/deploy/huduglue-install-sudoers" /etc/sudoers.d/huduglue-install 2>&1 && \
+        # Store output and check return code properly
+        if OUTPUT=$(sudo cp "$INSTALL_DIR/deploy/huduglue-install-sudoers" /etc/sudoers.d/huduglue-install 2>&1) && \
            sudo chmod 0440 /etc/sudoers.d/huduglue-install 2>&1; then
             success "✓ Installed"
         else
             INSTALL_SUCCESS=false
-            error "✗ FAILED"
+            echo -e "${RED}✗ FAILED${NC}"
+            warning "Error: $OUTPUT"
             warning "Manual installation required. Run this command:"
-            echo "    sudo cp $INSTALL_DIR/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install && sudo chmod 0440 /etc/sudoers.d/huduglue-install"
+            echo -e "${YELLOW}    sudo cp $INSTALL_DIR/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install && sudo chmod 0440 /etc/sudoers.d/huduglue-install${NC}"
         fi
     fi
 
     if [ "$FB_SUDOERS" = true ]; then
         echo -n "Installing huduglue-fail2ban sudoers... "
-        if sudo cp "$INSTALL_DIR/deploy/huduglue-fail2ban-sudoers" /etc/sudoers.d/huduglue-fail2ban 2>&1 && \
+        # Store output and check return code properly
+        if OUTPUT=$(sudo cp "$INSTALL_DIR/deploy/huduglue-fail2ban-sudoers" /etc/sudoers.d/huduglue-fail2ban 2>&1) && \
            sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban 2>&1; then
             success "✓ Installed"
         else
             INSTALL_SUCCESS=false
-            error "✗ FAILED"
+            echo -e "${RED}✗ FAILED${NC}"
+            warning "Error: $OUTPUT"
             warning "Manual installation required. Run this command:"
-            echo "    sudo cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban && sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban"
+            echo -e "${YELLOW}    sudo cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban && sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban${NC}"
         fi
     fi
 
