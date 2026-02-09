@@ -4,6 +4,7 @@ Management command to build mobile apps
 import os
 import subprocess
 import json
+import shutil
 from django.core.management.base import BaseCommand
 from django.conf import settings
 
@@ -35,9 +36,6 @@ class Command(BaseCommand):
 
         try:
             # Ensure basic utilities are installed first
-            import shutil
-            import os
-
             # Determine if we need sudo (check if running as root)
             use_sudo = os.geteuid() != 0 and shutil.which('sudo')
             sudo_prefix = ['sudo'] if use_sudo else []
@@ -254,8 +252,6 @@ class Command(BaseCommand):
 
     def _configure_api_urls(self, mobile_app_dir):
         """Auto-configure app.json with server's FQDN"""
-        import os
-
         app_json_path = os.path.join(mobile_app_dir, 'app.json')
 
         # Detect server's FQDN
@@ -285,9 +281,6 @@ class Command(BaseCommand):
 
     def _get_server_url(self):
         """Get the server's FQDN from environment or settings"""
-        import os
-        from django.conf import settings
-
         # Try environment variable first (for production)
         env_url = os.getenv('SERVER_URL') or os.getenv('ALLOWED_HOSTS')
         if env_url:
