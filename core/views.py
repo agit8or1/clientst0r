@@ -604,7 +604,8 @@ def download_mobile_app(request, app_type):
         )
 
         # Return building status page with log viewer
-        return HttpResponse("""
+        current_time = time.time()
+        return HttpResponse(f"""
             <!DOCTYPE html>
             <html>
             <head>
@@ -616,21 +617,24 @@ def download_mobile_app(request, app_type):
                 <meta http-equiv="refresh" content="5">
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
                 <style>
-                    body { background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-                    .container { max-width: 1200px; margin: 30px auto; padding: 20px; }
-                    .spinner { border: 5px solid #30363d; border-top: 5px solid #58a6ff; box-shadow: 0 0 10px rgba(88, 166, 255, 0.3); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 15px; }
-                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-                    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 30px; margin-bottom: 20px; }
-                    h1, h2, h3, h4, h5 { color: #ffffff !important; }
-                    p, .lead { color: #ffffff !important; font-size: 1.1rem; }
-                    strong { color: #ffffff; }
-                    .text-muted { color: #8b949e !important; }
-                    h1 { color: #58a6ff; }
-                    .log-container { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 20px; max-height: 500px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.5; color: #c9d1d9; }
-                    .log-container::-webkit-scrollbar { width: 10px; }
-                    .log-container::-webkit-scrollbar-track { background: #161b22; }
-                    .log-container::-webkit-scrollbar-thumb { background: #30363d; border-radius: 5px; }
-                    .status-header { display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+                    body {{ background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
+                    .container {{ max-width: 1200px; margin: 30px auto; padding: 20px; }}
+                    .spinner {{ border: 5px solid #30363d; border-top: 5px solid #58a6ff; box-shadow: 0 0 10px rgba(88, 166, 255, 0.3); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 15px; }}
+                    @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
+                    .card {{ background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 30px; margin-bottom: 20px; }}
+                    h1, h2, h3, h4, h5 {{ color: #ffffff !important; }}
+                    p, .lead {{ color: #ffffff !important; font-size: 1.1rem; }}
+                    strong {{ color: #ffffff; }}
+                    .text-muted {{ color: #8b949e !important; }}
+                    h1 {{ color: #58a6ff; }}
+                    .log-container {{ background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 20px; max-height: 500px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.5; color: #c9d1d9; }}
+                    .log-container::-webkit-scrollbar {{ width: 10px; }}
+                    .log-container::-webkit-scrollbar-track {{ background: #161b22; }}
+                    .log-container::-webkit-scrollbar-thumb {{ background: #30363d; border-radius: 5px; }}
+                    .status-header {{ display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }}
+                    .progress-bar-container {{ width: 100%; height: 8px; background: #30363d; border-radius: 4px; overflow: hidden; margin: 20px 0; }}
+                    .progress-bar {{ height: 100%; background: linear-gradient(90deg, #58a6ff, #79c0ff, #58a6ff); background-size: 200% 100%; animation: progressSlide 2s linear infinite; }}
+                    @keyframes progressSlide {{ 0% {{ background-position: 100% 0; }} 100% {{ background-position: -100% 0; }} }}
                 </style>
                 <script>
                     window.onload = function() {{
@@ -640,7 +644,7 @@ def download_mobile_app(request, app_type):
                         }}
 
                         // Show elapsed time with live updates
-                        var startTime = {status_data.get('timestamp', time.time())} * 1000;
+                        var startTime = {current_time} * 1000;
                         console.log('Build start time:', new Date(startTime));
                         console.log('Current time:', new Date());
 
@@ -680,7 +684,11 @@ def download_mobile_app(request, app_type):
                             <h1 style="margin: 0;">Building Android App...</h1>
                         </div>
                         <p class="lead text-center"><strong>Status:</strong> Build started! Initializing...</p>
-                        <p class="text-center text-muted"><small>Page refreshes every 5 seconds. You can close this tab and come back later.</small></p>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar"></div>
+                        </div>
+                        <p class="text-center"><strong>Elapsed Time:</strong> <span id="elapsed-time" style="color: #58a6ff; font-size: 1.2em;">Calculating...</span></p>
+                        <p class="text-center text-muted"><small>Page refreshes in <span id="refresh-countdown">5</span> seconds • You can close this tab</small></p>
                     </div>
 
                     <div class="card">
