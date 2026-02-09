@@ -100,13 +100,17 @@ class Command(BaseCommand):
             if not snyk_path:
                 raise FileNotFoundError('Snyk CLI is not installed. Install with: npm install -g snyk')
 
-            # Run Snyk test command
+            # Run Snyk test command (Open Source dependency scanning)
             cmd = [
                 snyk_path,
                 'test',
                 '--json',
                 f'--severity-threshold={settings.snyk_severity_threshold}',
             ]
+
+            # Add organization if configured
+            if settings.snyk_org_id:
+                cmd.append(f'--org={settings.snyk_org_id}')
 
             # Set environment variables
             env = os.environ.copy()
