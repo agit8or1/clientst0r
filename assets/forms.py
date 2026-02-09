@@ -22,6 +22,7 @@ class AssetForm(forms.ModelForm):
                   'hostname', 'ip_address', 'mac_address',
                   'is_rackmount', 'rack_units',
                   'port_count',
+                  'purchase_date', 'lifespan_years', 'lifespan_reminder_enabled', 'lifespan_reminder_months',
                   'primary_contact', 'tags', 'notes']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -37,6 +38,10 @@ class AssetForm(forms.ModelForm):
             'is_rackmount': forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_is_rackmount'}),
             'rack_units': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '42', 'id': 'id_rack_units'}),
             'port_count': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '256', 'id': 'id_port_count', 'placeholder': 'e.g., 24, 48'}),
+            'purchase_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'lifespan_years': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '20', 'placeholder': 'e.g., 3, 5, 7'}),
+            'lifespan_reminder_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_lifespan_reminder_enabled'}),
+            'lifespan_reminder_months': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '24', 'placeholder': 'e.g., 3, 6, 12'}),
             'primary_contact': forms.Select(attrs={'class': 'form-control'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'tags': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
@@ -85,6 +90,17 @@ class AssetForm(forms.ModelForm):
         self.fields['model'].help_text = "Auto-filled when model is selected, or enter manually"
         self.fields['port_count'].help_text = "Number of network ports (for switches, routers, firewalls, patch panels)"
         self.fields['port_count'].required = False
+
+        # Lifespan tracking help text
+        self.fields['purchase_date'].help_text = "Date asset was purchased or deployed"
+        self.fields['lifespan_years'].help_text = "Expected lifespan (Firewall: 5-7, Server: 3-5, Workstation: 3-4, Switch: 5-7)"
+        self.fields['lifespan_reminder_enabled'].help_text = "Enable reminders before asset reaches end-of-life"
+        self.fields['lifespan_reminder_months'].help_text = "How many months before EOL to start reminding"
+
+        # Make lifespan fields optional
+        self.fields['purchase_date'].required = False
+        self.fields['lifespan_years'].required = False
+        self.fields['lifespan_reminder_months'].required = False
 
     def clean(self):
         """Remove equipment_vendor from cleaned_data as it's just a UI helper."""

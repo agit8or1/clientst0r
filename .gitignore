@@ -182,3 +182,11 @@ SESSION_SUMMARY.md
 *.bak
 *~
 .config/
+
+# Android SDK and Gradle (mobile app build artifacts - DO NOT COMMIT)
+android-sdk/
+.gradle/
+.android/
+mobile-app/android/
+mobile-app/.gradle/
+mobile-app/node_modules/

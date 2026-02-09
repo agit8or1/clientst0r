@@ -146,6 +146,12 @@ class Asset(BaseModel):
     tags = models.ManyToManyField(Tag, blank=True, related_name='assets')
     primary_contact = models.ForeignKey(Contact, on_delete=models.SET_NULL, null=True, blank=True, related_name='primary_assets')
 
+    # Lifespan & Replacement Tracking
+    purchase_date = models.DateField(null=True, blank=True, help_text='Date asset was purchased or deployed')
+    lifespan_years = models.PositiveIntegerField(null=True, blank=True, help_text='Expected lifespan in years (e.g., 3-5 for servers, 5-7 for firewalls)')
+    lifespan_reminder_enabled = models.BooleanField(default=False, help_text='Enable reminders for upcoming end-of-life')
+    lifespan_reminder_months = models.PositiveIntegerField(default=6, help_text='Send reminder X months before end-of-life')
+
     # Metadata
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='assets_created')
@@ -188,6 +194,41 @@ class Asset(BaseModel):
         """Get equipment image from linked model."""
         if self.equipment_model:
             return self.equipment_model.get_primary_image()
+        return None
+
+    def get_end_of_life_date(self):
+        """Calculate end-of-life date based on purchase date and lifespan."""
+        if self.purchase_date and self.lifespan_years:
+            from dateutil.relativedelta import relativedelta
+            return self.purchase_date + relativedelta(years=self.lifespan_years)
+        return None
+
+    def get_replacement_due_date(self):
+        """Get the date when replacement reminder should be shown."""
+        eol_date = self.get_end_of_life_date()
+        if eol_date and self.lifespan_reminder_enabled:
+            from dateutil.relativedelta import relativedelta
+            return eol_date - relativedelta(months=self.lifespan_reminder_months)
+        return None
+
+    def is_nearing_end_of_life(self):
+        """Check if asset is approaching end-of-life and should show reminder."""
+        if not self.lifespan_reminder_enabled:
+            return False
+
+        reminder_date = self.get_replacement_due_date()
+        if reminder_date:
+            from datetime import date
+            return date.today() >= reminder_date
+        return False
+
+    def days_until_end_of_life(self):
+        """Get number of days until end-of-life."""
+        eol_date = self.get_end_of_life_date()
+        if eol_date:
+            from datetime import date
+            delta = eol_date - date.today()
+            return delta.days
         return None
 
     def has_ports(self):
