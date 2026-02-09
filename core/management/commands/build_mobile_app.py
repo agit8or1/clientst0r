@@ -64,9 +64,25 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS('Node.js and npm installed successfully!'))
 
                 except subprocess.CalledProcessError as e:
-                    raise Exception(f'Failed to install Node.js/npm automatically: {e}')
+                    error_details = f'Command: {e.cmd}\nReturn code: {e.returncode}'
+                    if e.stderr:
+                        error_details += f'\nError output: {e.stderr}'
+                    raise Exception(
+                        f'Failed to install Node.js/npm automatically.\n\n'
+                        f'{error_details}\n\n'
+                        f'Manual installation:\n'
+                        f'  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -\n'
+                        f'  sudo apt-get install -y nodejs\n\n'
+                        f'Then click Retry Build.'
+                    )
                 except Exception as e:
-                    raise Exception(f'Error during Node.js/npm installation: {e}')
+                    raise Exception(
+                        f'Error during Node.js/npm installation: {str(e)}\n\n'
+                        f'Manual installation:\n'
+                        f'  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -\n'
+                        f'  sudo apt-get install -y nodejs\n\n'
+                        f'Then click Retry Build.'
+                    )
 
             # Check if dependencies are installed
             node_modules = os.path.join(mobile_app_dir, 'node_modules')
