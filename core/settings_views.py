@@ -991,7 +991,7 @@ def settings_snyk(request):
     # Get latest scan and vulnerability statistics (fast query)
     latest_scan = SnykScan.objects.filter(
         status__in=['completed', 'failed', 'timeout']
-    ).order_by('-created_at').first()
+    ).order_by('-started_at').first()
 
     vuln_stats = {
         'total': 0,
@@ -1011,19 +1011,21 @@ def settings_snyk(request):
         vuln_stats['high'] = latest_scan.high_count or 0
         vuln_stats['medium'] = latest_scan.medium_count or 0
         vuln_stats['low'] = latest_scan.low_count or 0
-        vuln_stats['last_scan'] = latest_scan.created_at
+        vuln_stats['last_scan'] = latest_scan.started_at
         vuln_stats['status'] = latest_scan.status.title()
 
         # Calculate duration
-        if latest_scan.started_at and latest_scan.completed_at:
+        if latest_scan.duration_seconds:
+            vuln_stats['duration'] = latest_scan.duration_seconds
+        elif latest_scan.started_at and latest_scan.completed_at:
             duration = (latest_scan.completed_at - latest_scan.started_at).total_seconds()
             vuln_stats['duration'] = int(duration)
 
         # Calculate trend vs previous scan
         previous_scan = SnykScan.objects.filter(
             status='completed',
-            created_at__lt=latest_scan.created_at
-        ).order_by('-created_at').first()
+            started_at__lt=latest_scan.started_at
+        ).order_by('-started_at').first()
 
         if previous_scan:
             prev_total = previous_scan.total_vulnerabilities or 0
