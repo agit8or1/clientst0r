@@ -556,10 +556,20 @@ def download_mobile_app(request, app_type):
 
         # No APK and no build in progress - start build
         def build_app_background():
-            subprocess.run(
-                ['python', 'manage.py', 'build_mobile_app', 'android'],
-                cwd=settings.BASE_DIR
-            )
+            import logging
+            logger = logging.getLogger(__name__)
+            try:
+                venv_python = os.path.join(settings.BASE_DIR, 'venv', 'bin', 'python')
+                result = subprocess.run(
+                    [venv_python, 'manage.py', 'build_mobile_app', 'android'],
+                    cwd=settings.BASE_DIR,
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode != 0:
+                    logger.error(f'Build failed: {result.stderr}')
+            except Exception as e:
+                logger.error(f'Build exception: {str(e)}')
 
         # Start build in background thread
         build_thread = threading.Thread(target=build_app_background)
@@ -826,10 +836,20 @@ def download_mobile_app(request, app_type):
 
         # No IPA and no build in progress - start build
         def build_app_background():
-            subprocess.run(
-                ['python', 'manage.py', 'build_mobile_app', 'ios'],
-                cwd=settings.BASE_DIR
-            )
+            import logging
+            logger = logging.getLogger(__name__)
+            try:
+                venv_python = os.path.join(settings.BASE_DIR, 'venv', 'bin', 'python')
+                result = subprocess.run(
+                    [venv_python, 'manage.py', 'build_mobile_app', 'ios'],
+                    cwd=settings.BASE_DIR,
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode != 0:
+                    logger.error(f'Build failed: {result.stderr}')
+            except Exception as e:
+                logger.error(f'Build exception: {str(e)}')
 
         build_thread = threading.Thread(target=build_app_background)
         build_thread.daemon = True
