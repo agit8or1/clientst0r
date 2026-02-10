@@ -33,6 +33,9 @@
 <div class="row mb-4">
     <div class="col-12">
         <div class="btn-group" role="group">
+            <a href="{% url 'integrations:rmm_import_clients' connection.pk %}" class="btn btn-outline-primary">
+                <i class="fas fa-building"></i> Import Clients
+            </a>
             <a href="{% url 'integrations:rmm_organization_mapping' connection.pk %}" class="btn btn-outline-info">
                 <i class="fas fa-sitemap"></i> Analyze Sites
             </a>

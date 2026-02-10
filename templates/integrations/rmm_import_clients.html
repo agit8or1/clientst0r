@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}Import RMM Clients - {{ connection.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-body py-3">
+                    <h2 class="mb-2"><i class="fas fa-building"></i> Import RMM Clients as Organizations</h2>
+                    <nav aria-label="breadcrumb" class="mb-0">
+                        <ol class="breadcrumb mb-0">
+                            <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'integrations:integration_list' %}">Integrations</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'integrations:rmm_detail' connection.pk %}">{{ connection.name }}</a></li>
+                            <li class="breadcrumb-item active">Import Clients</li>
+                        </ol>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h5 class="alert-heading"><i class="fas fa-info-circle"></i> About This Feature</h5>
+                <p>
+                    This tool imports clients from your RMM system ({{ connection.name }}) and creates
+                    corresponding organizations in HuduGlue. This allows you to:
+                </p>
+                <ul class="mb-0">
+                    <li><strong>Organize devices by client:</strong> Each RMM client becomes an organization</li>
+                    <li><strong>Assign users to organizations:</strong> Give team members access to specific clients</li>
+                    <li><strong>Sync RMM data:</strong> Keep device inventory synchronized per organization</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    {% if clients %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> Select Clients to Import
+                        <span class="badge bg-primary">{{ clients|length }} client(s) found</span>
+                        <span class="badge bg-secondary">{{ total_devices }} device(s)</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAll()">
+                                <i class="fas fa-check-square"></i> Select All
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAll()">
+                                <i class="fas fa-square"></i> Deselect All
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-info" onclick="selectNew()">
+                                <i class="fas fa-filter"></i> Select New Only
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th width="50">
+                                            <input type="checkbox" id="select-all" onchange="toggleAll(this)">
+                                        </th>
+                                        <th>Client Name</th>
+                                        <th>Client ID</th>
+                                        <th>Devices</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for client in clients %}
+                                    <tr class="{% if client.existing_org %}table-secondary{% endif %}">
+                                        <td>
+                                            {% if client.existing_org %}
+                                            <input type="checkbox" name="clients" value="{{ client.id }}" disabled>
+                                            {% else %}
+                                            <input type="checkbox" name="clients" value="{{ client.id }}" class="client-checkbox" data-is-new="true">
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong>{{ client.name }}</strong>
+                                            {% if client.existing_org %}
+                                            <br><small class="text-muted">→ Existing org: {{ client.existing_org.name }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td><code>{{ client.id }}</code></td>
+                                        <td>
+                                            <span class="badge bg-info">{{ client.device_count }} device(s)</span>
+                                        </td>
+                                        <td>
+                                            {% if client.existing_org %}
+                                            <span class="badge bg-secondary">Already Exists</span>
+                                            {% else %}
+                                            <span class="badge bg-success">New</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-download"></i> Import Selected Clients
+                            </button>
+                            <a href="{% url 'integrations:rmm_detail' connection.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning">
+                <h5 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> No Clients Found</h5>
+                <p>
+                    No clients were found in your RMM system. This may be normal if:
+                </p>
+                <ul class="mb-0">
+                    <li>Your RMM system doesn't organize devices by client</li>
+                    <li>No devices have been synced yet</li>
+                    <li>The client information isn't available via the API</li>
+                </ul>
+                <hr>
+                <a href="{% url 'integrations:rmm_detail' connection.pk %}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Back to Connection
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleAll(source) {
+    const checkboxes = document.querySelectorAll('.client-checkbox');
+    checkboxes.forEach(function(checkbox) {
+        if (!checkbox.disabled) {
+            checkbox.checked = source.checked;
+        }
+    });
+}
+
+function selectAll() {
+    const checkboxes = document.querySelectorAll('.client-checkbox');
+    checkboxes.forEach(function(checkbox) {
+        if (!checkbox.disabled) {
+            checkbox.checked = true;
+        }
+    });
+    document.getElementById('select-all').checked = true;
+}
+
+function deselectAll() {
+    const checkboxes = document.querySelectorAll('.client-checkbox');
+    checkboxes.forEach(function(checkbox) {
+        checkbox.checked = false;
+    });
+    document.getElementById('select-all').checked = false;
+}
+
+function selectNew() {
+    const checkboxes = document.querySelectorAll('.client-checkbox');
+    checkboxes.forEach(function(checkbox) {
+        if (!checkbox.disabled && checkbox.getAttribute('data-is-new') === 'true') {
+            checkbox.checked = true;
+        } else {
+            checkbox.checked = false;
+        }
+    });
+}
+</script>
+{% endblock %}

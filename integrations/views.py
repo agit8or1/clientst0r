@@ -805,6 +805,126 @@ def rmm_trigger_sync(request, pk):
 
 @login_required
 @require_admin
+def rmm_import_clients(request, pk):
+    """
+    Import RMM clients as organizations.
+    Fetches all unique clients from the RMM system and creates corresponding organizations.
+    """
+    from core.models import Organization
+    from django.db import transaction
+
+    org = get_request_organization(request)
+    connection = get_object_or_404(RMMConnection.objects.for_organization(org), pk=pk)
+
+    # GET: Show preview of what will be imported
+    if request.method == 'GET':
+        try:
+            provider = connection.get_provider()
+
+            # Test connection
+            if not provider.test_connection():
+                messages.error(request, 'RMM connection test failed. Check your API credentials.')
+                return redirect('integrations:rmm_detail', pk=connection.pk)
+
+            # Fetch devices to extract clients
+            devices = provider.list_devices()
+
+            # Extract unique clients
+            clients = {}  # {client_id: {name, device_count}}
+            for device in devices:
+                client_id = device.get('client_id')
+                client_name = device.get('client_name')
+
+                if client_id and client_name:
+                    if client_id not in clients:
+                        clients[client_id] = {
+                            'id': client_id,
+                            'name': client_name,
+                            'device_count': 0,
+                            'existing_org': None,
+                        }
+                    clients[client_id]['device_count'] += 1
+
+            # Check which clients already exist as organizations
+            for client_id in clients:
+                existing = Organization.objects.filter(name=clients[client_id]['name']).first()
+                if existing:
+                    clients[client_id]['existing_org'] = existing
+
+            return render(request, 'integrations/rmm_import_clients.html', {
+                'connection': connection,
+                'clients': sorted(clients.values(), key=lambda x: x['name']),
+                'total_devices': len(devices),
+            })
+
+        except Exception as e:
+            messages.error(request, f'Failed to fetch clients: {str(e)}')
+            logger.exception(f'Failed to fetch RMM clients for import from {connection}')
+            return redirect('integrations:rmm_detail', pk=connection.pk)
+
+    # POST: Create organizations
+    elif request.method == 'POST':
+        selected_clients = request.POST.getlist('clients')  # List of client_ids
+
+        if not selected_clients:
+            messages.warning(request, 'No clients selected for import.')
+            return redirect('integrations:rmm_import_clients', pk=connection.pk)
+
+        try:
+            provider = connection.get_provider()
+            devices = provider.list_devices()
+
+            # Extract selected clients
+            clients_to_import = {}
+            for device in devices:
+                client_id = device.get('client_id')
+                client_name = device.get('client_name')
+
+                if client_id in selected_clients and client_id and client_name:
+                    clients_to_import[client_id] = client_name
+
+            # Create organizations
+            created_count = 0
+            skipped_count = 0
+
+            for client_id, client_name in clients_to_import.items():
+                # Check if already exists
+                if Organization.objects.filter(name=client_name).exists():
+                    skipped_count += 1
+                    continue
+
+                # Create new organization
+                try:
+                    with transaction.atomic():
+                        org = Organization.objects.create(
+                            name=client_name,
+                            is_active=True,
+                            description=f'Imported from {connection.name} (RMM Client ID: {client_id})'
+                        )
+                        created_count += 1
+                        logger.info(f'Created organization {org.name} from RMM client {client_id}')
+                except Exception as e:
+                    logger.error(f'Failed to create organization for client {client_name}: {e}')
+
+            if created_count > 0:
+                messages.success(
+                    request,
+                    f'Successfully imported {created_count} client(s) as organization(s). '
+                    f'{skipped_count} client(s) skipped (already exist).'
+                )
+            else:
+                messages.info(request, f'No new organizations created. {skipped_count} client(s) already exist.')
+
+            return redirect('integrations:rmm_detail', pk=connection.pk)
+
+        except Exception as e:
+            messages.error(request, f'Import failed: {str(e)}')
+            logger.exception(f'Failed to import RMM clients from {connection}')
+            return redirect('integrations:rmm_import_clients', pk=connection.pk)
+
+
+@login_required
+@require_admin
 def psa_organization_mapping(request, pk):
     """
     Map PSA companies to existing HuduGlue organizations.

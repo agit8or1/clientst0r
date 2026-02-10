@@ -33,6 +33,7 @@ urlpatterns = [
     path('rmm/<int:pk>/edit/', views.rmm_edit, name='rmm_edit'),
     path('rmm/<int:pk>/delete/', views.rmm_delete, name='rmm_delete'),
     path('rmm/<int:pk>/sync/', views.rmm_trigger_sync, name='rmm_trigger_sync'),
+    path('rmm/<int:pk>/import-clients/', views.rmm_import_clients, name='rmm_import_clients'),
 
     # RMM Data Views
     path('rmm/devices/', views.rmm_devices, name='rmm_devices'),
