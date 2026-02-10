@@ -302,6 +302,7 @@ class AzureOAuthClient:
             dict: Token response with access_token
         """
         if not self.is_enabled():
+            logger.error("Azure AD is not enabled or not fully configured")
             return None
 
         try:
@@ -322,11 +323,35 @@ class AzureOAuthClient:
             )
 
             if 'access_token' in result:
+                logger.info("Successfully obtained access token from Azure AD")
                 return result
             else:
-                logger.error(f"Token acquisition failed: {result.get('error_description', 'Unknown error')}")
+                # Enhanced error logging with full error details
+                error = result.get('error', 'unknown_error')
+                error_description = result.get('error_description', 'No description provided')
+                error_codes = result.get('error_codes', [])
+                correlation_id = result.get('correlation_id', 'N/A')
+
+                logger.error(
+                    f"Azure AD token acquisition failed:\n"
+                    f"  Error: {error}\n"
+                    f"  Description: {error_description}\n"
+                    f"  Error Codes: {error_codes}\n"
+                    f"  Correlation ID: {correlation_id}\n"
+                    f"  Redirect URI: {self.config['redirect_uri']}"
+                )
+
+                # Common error messages for troubleshooting
+                if 'AADSTS' in error_description:
+                    if 'AADSTS54005' in error_description:
+                        logger.error("OAuth2 authorization code was already used. User may have clicked the login button multiple times.")
+                    elif 'AADSTS50011' in error_description:
+                        logger.error("Redirect URI mismatch. Check that Azure app registration redirect URI matches the configured value.")
+                    elif 'AADSTS700016' in error_description:
+                        logger.error("Application not found. Check that Client ID is correct.")
+
                 return None
 
         except Exception as e:
-            logger.error(f"Error exchanging code for token: {e}")
+            logger.exception(f"Exception while exchanging code for token: {e}")
             return None

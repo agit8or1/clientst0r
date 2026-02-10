@@ -36,15 +36,15 @@ def get_master_key():
         raise EncryptionError(
             f"Invalid APP_MASTER_KEY format: {e}\n"
             f"Key length: {len(settings.APP_MASTER_KEY)} characters\n"
-            f"The APP_MASTER_KEY must be a valid base64-encoded string.\n"
-            f"To regenerate: python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            f"The APP_MASTER_KEY must be a valid base64-encoded 32-byte key.\n"
+            f"To regenerate: python3 -c \"import base64, os; print(base64.b64encode(os.urandom(32)).decode())\""
         )
 
     if len(key) != 32:
         raise EncryptionError(
             f"APP_MASTER_KEY must decode to 32 bytes, got {len(key)} bytes.\n"
             f"Current key length: {len(settings.APP_MASTER_KEY)} characters\n"
-            f"To regenerate: python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            f"To regenerate: python3 -c \"import base64, os; print(base64.b64encode(os.urandom(32)).decode())\""
         )
 
     return key

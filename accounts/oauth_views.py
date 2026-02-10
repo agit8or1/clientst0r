@@ -81,7 +81,14 @@ def azure_callback(request):
     token_response = client.get_token_from_code(code)
 
     if not token_response or 'access_token' not in token_response:
-        messages.error(request, "Failed to obtain access token from Azure AD.")
+        # Provide more helpful error message
+        logger.error(f"Azure AD token exchange failed for user attempting login")
+        messages.error(
+            request,
+            "Failed to obtain access token from Azure AD. "
+            "This may happen if you clicked the login button multiple times, or if there's a configuration issue. "
+            "Please try again. If the problem persists, contact your administrator."
+        )
         return redirect('two_factor:login')
 
     # Authenticate user with token
