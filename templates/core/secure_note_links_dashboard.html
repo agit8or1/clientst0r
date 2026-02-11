@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load tz %}
 
 {% block title %}Secret Links Dashboard - HuduGlue{% endblock %}
 
@@ -77,10 +78,10 @@
                             <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td>{{ note.created_at|date:"M d, Y H:i" }}</td>
+                        <td>{{ note.created_at|localtime|date:"M d, Y H:i" }}</td>
                         <td>
                             {% if note.expires_at %}
-                            {{ note.expires_at|date:"M d, Y H:i" }}
+                            {{ note.expires_at|localtime|date:"M d, Y H:i" }}
                             {% if note.is_expired %}
                             <span class="badge bg-danger ms-1">Expired</span>
                             {% endif %}

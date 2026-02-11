@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load tz %}
 
 {% block title %}{{ note.title }} - Secure Note - HuduGlue{% endblock %}
 
@@ -20,8 +21,8 @@
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i>
                     <strong>From:</strong> {{ note.sender.username }}
-                    | <strong>Sent:</strong> {{ note.created_at|date:"M d, Y g:i A" }}
-                    {% if note.expires_at %}| <strong>Expires:</strong> {{ note.expires_at|date:"M d, Y g:i A" }}{% endif %}
+                    | <strong>Sent:</strong> {{ note.created_at|localtime|date:"M d, Y g:i A" }}
+                    {% if note.expires_at %}| <strong>Expires:</strong> {{ note.expires_at|localtime|date:"M d, Y g:i A" }}{% endif %}
                 </div>
 
                 <div class="bg-light p-3 rounded" style="white-space: pre-wrap;">{{ content }}</div>

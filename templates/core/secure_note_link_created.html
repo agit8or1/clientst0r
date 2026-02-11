@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load tz %}
 
 {% block title %}Secret Link Created - HuduGlue{% endblock %}
 
@@ -43,7 +44,7 @@
                         <li>This link provides access to encrypted content - share it securely</li>
                         <li>The note is encrypted end-to-end in the database</li>
                         {% if note.expires_at %}
-                        <li>Link expires: <strong>{{ note.expires_at|date:"M d, Y g:i A" }}</strong></li>
+                        <li>Link expires: <strong>{{ note.expires_at|localtime|date:"M d, Y g:i A" }}</strong></li>
                         {% else %}
                         <li>Link does not expire automatically</li>
                         {% endif %}
