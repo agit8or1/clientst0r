@@ -40,7 +40,7 @@ class Enforce2FAMiddleware:
         if request.session.get('azure_ad_authenticated', False):
             # Log Azure AD 2FA bypass (once per session to avoid spam)
             if not request.session.get('azure_2fa_bypass_logged', False):
-                from core.models import AuditLog
+                from audit.models import AuditLog
                 try:
                     AuditLog.objects.create(
                         user=request.user,
