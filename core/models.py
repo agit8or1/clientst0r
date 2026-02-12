@@ -1206,29 +1206,118 @@ class Webhook(models.Model):
     """
     Webhook configuration for sending HTTP notifications on events.
     """
-    # Event types
+    # Event types - Assets
     EVENT_ASSET_CREATED = 'asset.created'
     EVENT_ASSET_UPDATED = 'asset.updated'
     EVENT_ASSET_DELETED = 'asset.deleted'
+
+    # Documents
     EVENT_DOCUMENT_CREATED = 'document.created'
     EVENT_DOCUMENT_UPDATED = 'document.updated'
     EVENT_DOCUMENT_DELETED = 'document.deleted'
+
+    # Passwords/Vault
+    EVENT_PASSWORD_CREATED = 'password.created'
+    EVENT_PASSWORD_UPDATED = 'password.updated'
+    EVENT_PASSWORD_DELETED = 'password.deleted'
     EVENT_PASSWORD_ACCESSED = 'password.accessed'
+    EVENT_PASSWORD_SHARED = 'password.shared'
+
+    # Users
+    EVENT_USER_CREATED = 'user.created'
+    EVENT_USER_UPDATED = 'user.updated'
+    EVENT_USER_DELETED = 'user.deleted'
     EVENT_USER_LOGIN = 'user.login'
     EVENT_USER_LOGOUT = 'user.logout'
+    EVENT_USER_LOGIN_FAILED = 'user.login_failed'
+    EVENT_USER_PASSWORD_CHANGED = 'user.password_changed'
+
+    # Organizations
+    EVENT_ORGANIZATION_CREATED = 'organization.created'
+    EVENT_ORGANIZATION_UPDATED = 'organization.updated'
+    EVENT_ORGANIZATION_DELETED = 'organization.deleted'
+
+    # Locations
+    EVENT_LOCATION_CREATED = 'location.created'
+    EVENT_LOCATION_UPDATED = 'location.updated'
+    EVENT_LOCATION_DELETED = 'location.deleted'
+
+    # Monitoring
+    EVENT_MONITOR_UP = 'monitor.up'
+    EVENT_MONITOR_DOWN = 'monitor.down'
+    EVENT_MONITOR_SSL_EXPIRING = 'monitor.ssl_expiring'
+    EVENT_MONITOR_CHECK_FAILED = 'monitor.check_failed'
+
+    # Workflows
+    EVENT_WORKFLOW_STARTED = 'workflow.started'
+    EVENT_WORKFLOW_COMPLETED = 'workflow.completed'
+    EVENT_WORKFLOW_FAILED = 'workflow.failed'
+
+    # Integrations
+    EVENT_INTEGRATION_SYNCED = 'integration.synced'
+    EVENT_INTEGRATION_FAILED = 'integration.failed'
+
+    # System
+    EVENT_SYSTEM_UPDATE_AVAILABLE = 'system.update_available'
+    EVENT_SYSTEM_UPDATE_APPLIED = 'system.update_applied'
     EVENT_BACKUP_COMPLETED = 'backup.completed'
     EVENT_BACKUP_FAILED = 'backup.failed'
 
     EVENT_CHOICES = [
+        # Assets
         (EVENT_ASSET_CREATED, 'Asset Created'),
         (EVENT_ASSET_UPDATED, 'Asset Updated'),
         (EVENT_ASSET_DELETED, 'Asset Deleted'),
+
+        # Documents
         (EVENT_DOCUMENT_CREATED, 'Document Created'),
         (EVENT_DOCUMENT_UPDATED, 'Document Updated'),
         (EVENT_DOCUMENT_DELETED, 'Document Deleted'),
+
+        # Passwords/Vault
+        (EVENT_PASSWORD_CREATED, 'Password Created'),
+        (EVENT_PASSWORD_UPDATED, 'Password Updated'),
+        (EVENT_PASSWORD_DELETED, 'Password Deleted'),
         (EVENT_PASSWORD_ACCESSED, 'Password Accessed'),
+        (EVENT_PASSWORD_SHARED, 'Password Shared'),
+
+        # Users
+        (EVENT_USER_CREATED, 'User Created'),
+        (EVENT_USER_UPDATED, 'User Updated'),
+        (EVENT_USER_DELETED, 'User Deleted'),
         (EVENT_USER_LOGIN, 'User Login'),
         (EVENT_USER_LOGOUT, 'User Logout'),
+        (EVENT_USER_LOGIN_FAILED, 'User Login Failed'),
+        (EVENT_USER_PASSWORD_CHANGED, 'User Password Changed'),
+
+        # Organizations
+        (EVENT_ORGANIZATION_CREATED, 'Organization Created'),
+        (EVENT_ORGANIZATION_UPDATED, 'Organization Updated'),
+        (EVENT_ORGANIZATION_DELETED, 'Organization Deleted'),
+
+        # Locations
+        (EVENT_LOCATION_CREATED, 'Location Created'),
+        (EVENT_LOCATION_UPDATED, 'Location Updated'),
+        (EVENT_LOCATION_DELETED, 'Location Deleted'),
+
+        # Monitoring
+        (EVENT_MONITOR_UP, 'Monitor Up'),
+        (EVENT_MONITOR_DOWN, 'Monitor Down'),
+        (EVENT_MONITOR_SSL_EXPIRING, 'Monitor SSL Certificate Expiring'),
+        (EVENT_MONITOR_CHECK_FAILED, 'Monitor Check Failed'),
+
+        # Workflows
+        (EVENT_WORKFLOW_STARTED, 'Workflow Started'),
+        (EVENT_WORKFLOW_COMPLETED, 'Workflow Completed'),
+        (EVENT_WORKFLOW_FAILED, 'Workflow Failed'),
+
+        # Integrations
+        (EVENT_INTEGRATION_SYNCED, 'Integration Synced'),
+        (EVENT_INTEGRATION_FAILED, 'Integration Failed'),
+
+        # System
+        (EVENT_SYSTEM_UPDATE_AVAILABLE, 'System Update Available'),
+        (EVENT_SYSTEM_UPDATE_APPLIED, 'System Update Applied'),
         (EVENT_BACKUP_COMPLETED, 'Backup Completed'),
         (EVENT_BACKUP_FAILED, 'Backup Failed'),
     ]
