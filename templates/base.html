@@ -613,65 +613,6 @@
             });
         }
 
-        // PWA install prompt
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent Chrome 67 and earlier from automatically showing the prompt
-            e.preventDefault();
-            // Stash the event so it can be triggered later
-            deferredPrompt = e;
-            // Show install button/banner
-            showInstallPromotion();
-        });
-
-        function showInstallPromotion() {
-            // Only show if not already installed
-            if (window.matchMedia('(display-mode: standalone)').matches) {
-                return;
-            }
-
-            // Create install banner if it doesn't exist
-            if (document.getElementById('pwa-install-banner')) {
-                return;
-            }
-
-            const banner = document.createElement('div');
-            banner.id = 'pwa-install-banner';
-            banner.className = 'alert alert-info alert-dismissible fade show position-fixed bottom-0 start-50 translate-middle-x mb-3';
-            banner.style.cssText = 'z-index: 1050; max-width: 500px;';
-            banner.innerHTML = `
-                <i class="fas fa-mobile-alt me-2"></i>
-                <strong>Install HuduGlue</strong>
-                <p class="mb-2 mt-1 small">Install our app for quick access and offline support!</p>
-                <button type="button" class="btn btn-sm btn-primary me-2" id="pwa-install-btn">
-                    <i class="fas fa-download"></i> Install
-                </button>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            `;
-            document.body.appendChild(banner);
-
-            document.getElementById('pwa-install-btn').addEventListener('click', async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log(`User response to install prompt: ${outcome}`);
-                    deferredPrompt = null;
-                    banner.remove();
-                }
-            });
-        }
-
-        // Track if app was installed
-        window.addEventListener('appinstalled', (evt) => {
-            console.log('HuduGlue was installed');
-        });
-
-        // Detect if running as PWA
-        if (window.matchMedia('(display-mode: standalone)').matches) {
-            console.log('Running in PWA mode');
-            document.body.classList.add('pwa-mode');
-        }
-
         // Register service worker for PWA offline functionality
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
