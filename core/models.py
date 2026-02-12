@@ -470,6 +470,7 @@ class SystemSetting(models.Model):
     locations_map_enabled = models.BooleanField(default=True, help_text='Enable location maps and geocoding features')
     secure_notes_enabled = models.BooleanField(default=True, help_text='Enable secure ephemeral notes feature')
     reports_enabled = models.BooleanField(default=True, help_text='Enable Reports & Analytics feature')
+    webhooks_enabled = models.BooleanField(default=True, help_text='Enable Webhooks for event notifications')
 
     # UI/UX Settings (Issue #59)
     stay_on_page_after_org_switch = models.BooleanField(default=True, help_text='Stay on current page when switching organizations instead of redirecting to dashboard')
@@ -1199,3 +1200,119 @@ class SecureNoteAccessLog(BaseModel):
     
     def __str__(self):
         return f"Access to {self.secure_note.title} at {self.accessed_at}"
+
+
+class Webhook(models.Model):
+    """
+    Webhook configuration for sending HTTP notifications on events.
+    """
+    # Event types
+    EVENT_ASSET_CREATED = 'asset.created'
+    EVENT_ASSET_UPDATED = 'asset.updated'
+    EVENT_ASSET_DELETED = 'asset.deleted'
+    EVENT_DOCUMENT_CREATED = 'document.created'
+    EVENT_DOCUMENT_UPDATED = 'document.updated'
+    EVENT_DOCUMENT_DELETED = 'document.deleted'
+    EVENT_PASSWORD_ACCESSED = 'password.accessed'
+    EVENT_USER_LOGIN = 'user.login'
+    EVENT_USER_LOGOUT = 'user.logout'
+    EVENT_BACKUP_COMPLETED = 'backup.completed'
+    EVENT_BACKUP_FAILED = 'backup.failed'
+
+    EVENT_CHOICES = [
+        (EVENT_ASSET_CREATED, 'Asset Created'),
+        (EVENT_ASSET_UPDATED, 'Asset Updated'),
+        (EVENT_ASSET_DELETED, 'Asset Deleted'),
+        (EVENT_DOCUMENT_CREATED, 'Document Created'),
+        (EVENT_DOCUMENT_UPDATED, 'Document Updated'),
+        (EVENT_DOCUMENT_DELETED, 'Document Deleted'),
+        (EVENT_PASSWORD_ACCESSED, 'Password Accessed'),
+        (EVENT_USER_LOGIN, 'User Login'),
+        (EVENT_USER_LOGOUT, 'User Logout'),
+        (EVENT_BACKUP_COMPLETED, 'Backup Completed'),
+        (EVENT_BACKUP_FAILED, 'Backup Failed'),
+    ]
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='webhooks',
+        help_text='Organization this webhook belongs to'
+    )
+    name = models.CharField(max_length=255, help_text='Descriptive name for this webhook')
+    url = models.URLField(max_length=500, help_text='URL to send webhook POST requests to')
+    events = models.JSONField(
+        default=list,
+        help_text='List of event types to trigger this webhook'
+    )
+    secret = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text='Secret key for signing webhook payloads (optional)'
+    )
+    is_active = models.BooleanField(default=True, help_text='Enable/disable this webhook')
+    custom_headers = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Custom HTTP headers to include in requests (e.g., Authorization)'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_webhooks'
+    )
+
+    class Meta:
+        db_table = 'webhooks'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['organization', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.url})"
+
+
+class WebhookDelivery(models.Model):
+    """
+    Log of webhook delivery attempts.
+    """
+    STATUS_PENDING = 'pending'
+    STATUS_SUCCESS = 'success'
+    STATUS_FAILED = 'failed'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_SUCCESS, 'Success'),
+        (STATUS_FAILED, 'Failed'),
+    ]
+
+    webhook = models.ForeignKey(
+        Webhook,
+        on_delete=models.CASCADE,
+        related_name='deliveries'
+    )
+    event_type = models.CharField(max_length=50)
+    payload = models.JSONField(help_text='The JSON payload sent to the webhook')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    response_code = models.IntegerField(null=True, blank=True)
+    response_body = models.TextField(blank=True)
+    error_message = models.TextField(blank=True)
+    delivered_at = models.DateTimeField(auto_now_add=True)
+    duration_ms = models.IntegerField(null=True, blank=True, help_text='Request duration in milliseconds')
+
+    class Meta:
+        db_table = 'webhook_deliveries'
+        ordering = ['-delivered_at']
+        indexes = [
+            models.Index(fields=['webhook', '-delivered_at']),
+            models.Index(fields=['status']),
+        ]
+        verbose_name_plural = 'Webhook deliveries'
+
+    def __str__(self):
+        return f"{self.webhook.name} - {self.event_type} ({self.status})"

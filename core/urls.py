@@ -11,6 +11,7 @@ from . import settings_views
 from . import tag_views
 from . import firewall_views
 from . import fail2ban_views
+from . import webhook_views
 
 app_name = 'core'
 
@@ -67,6 +68,16 @@ urlpatterns = [
     path('settings/fail2ban/unban/', fail2ban_views.fail2ban_unban_ip, name='fail2ban_unban_ip'),
     path('settings/fail2ban/unban-all/', fail2ban_views.fail2ban_unban_all, name='fail2ban_unban_all'),
     path('settings/fail2ban/check-ip/', fail2ban_views.fail2ban_check_ip, name='fail2ban_check_ip'),
+
+    # Webhooks
+    path('webhooks/', webhook_views.webhook_list, name='webhook_list'),
+    path('webhooks/create/', webhook_views.webhook_create, name='webhook_create'),
+    path('webhooks/<int:webhook_id>/edit/', webhook_views.webhook_edit, name='webhook_edit'),
+    path('webhooks/<int:webhook_id>/delete/', webhook_views.webhook_delete, name='webhook_delete'),
+    path('webhooks/<int:webhook_id>/test/', webhook_views.webhook_test, name='webhook_test'),
+    path('webhooks/<int:webhook_id>/toggle/', webhook_views.webhook_toggle, name='webhook_toggle'),
+    path('webhooks/<int:webhook_id>/deliveries/', webhook_views.webhook_deliveries, name='webhook_deliveries'),
+    path('webhooks/deliveries/<int:delivery_id>/', webhook_views.webhook_delivery_detail, name='webhook_delivery_detail'),
 
     # Admin Settings (superuser only)
     path('settings/general/', settings_views.settings_general, name='settings_general'),

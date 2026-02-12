@@ -6,6 +6,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from core.middleware import get_request_organization
 from core.decorators import require_write
+from core.webhook_sender import send_webhook
+from core.models import Webhook
 from .models import Asset, Contact, Relationship
 from .forms import AssetForm, ContactForm
 
@@ -160,6 +162,19 @@ def asset_create(request):
             asset.save()
             form.save_m2m()
 
+            # Trigger webhook
+            send_webhook(
+                Webhook.EVENT_ASSET_CREATED,
+                {
+                    'asset_id': asset.id,
+                    'asset_name': asset.name,
+                    'asset_type': asset.asset_type,
+                    'serial_number': asset.serial_number,
+                    'created_by': request.user.username,
+                },
+                organization=org
+            )
+
             if port_count and asset.has_ports():
                 messages.success(request, f"Asset '{asset.name}' created successfully with {port_count} ports.")
             else:
@@ -217,6 +232,19 @@ def asset_edit(request, pk):
 
             asset.save()
             form.save_m2m()
+
+            # Trigger webhook
+            send_webhook(
+                Webhook.EVENT_ASSET_UPDATED,
+                {
+                    'asset_id': asset.id,
+                    'asset_name': asset.name,
+                    'asset_type': asset.asset_type,
+                    'serial_number': asset.serial_number,
+                    'updated_by': request.user.username,
+                },
+                organization=org
+            )
 
             messages.success(request, f"Asset '{asset.name}' updated successfully.")
             return redirect('assets:asset_detail', pk=asset.pk)

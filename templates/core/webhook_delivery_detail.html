@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-10 offset-lg-1">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2>{{ title }}</h2>
+                <a href="{% url 'webhook_deliveries' delivery.webhook.id %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Deliveries
+                </a>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5>Delivery Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Status:</dt>
+                                <dd class="col-sm-8">
+                                    {% if delivery.status == 'success' %}
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle"></i> Success
+                                    </span>
+                                    {% elif delivery.status == 'failed' %}
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-x-circle"></i> Failed
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-clock"></i> Pending
+                                    </span>
+                                    {% endif %}
+                                </dd>
+
+                                <dt class="col-sm-4">Event Type:</dt>
+                                <dd class="col-sm-8"><code>{{ delivery.event_type }}</code></dd>
+
+                                <dt class="col-sm-4">Delivered At:</dt>
+                                <dd class="col-sm-8">
+                                    {{ delivery.delivered_at|date:"Y-m-d H:i:s" }}
+                                    <small class="text-muted">({{ delivery.delivered_at|timesince }} ago)</small>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Webhook:</dt>
+                                <dd class="col-sm-8">
+                                    <a href="{% url 'webhook_edit' delivery.webhook.id %}">
+                                        {{ delivery.webhook.name }}
+                                    </a>
+                                </dd>
+
+                                <dt class="col-sm-4">URL:</dt>
+                                <dd class="col-sm-8"><code class="small">{{ delivery.webhook.url }}</code></dd>
+
+                                <dt class="col-sm-4">Duration:</dt>
+                                <dd class="col-sm-8">
+                                    {% if delivery.duration_ms %}
+                                    {{ delivery.duration_ms }}ms
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if delivery.status == 'failed' and delivery.error_message %}
+            <div class="card mb-3 border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5><i class="bi bi-exclamation-triangle"></i> Error Details</h5>
+                </div>
+                <div class="card-body">
+                    <pre class="bg-light p-3 rounded">{{ delivery.error_message }}</pre>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5>Request Payload</h5>
+                </div>
+                <div class="card-body">
+                    <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"><code>{{ payload_formatted }}</code></pre>
+                </div>
+            </div>
+
+            {% if delivery.response_code %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5>Response</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-2">Status Code:</dt>
+                        <dd class="col-sm-10">
+                            {% if delivery.response_code >= 200 and delivery.response_code < 300 %}
+                            <span class="badge bg-success">{{ delivery.response_code }}</span>
+                            {% elif delivery.response_code >= 400 %}
+                            <span class="badge bg-danger">{{ delivery.response_code }}</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ delivery.response_code }}</span>
+                            {% endif %}
+                        </dd>
+
+                        {% if delivery.response_body %}
+                        <dt class="col-sm-2">Response Body:</dt>
+                        <dd class="col-sm-10">
+                            <pre class="bg-light p-3 rounded" style="max-height: 300px; overflow-y: auto;"><code>{{ delivery.response_body }}</code></pre>
+                        </dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card">
+                <div class="card-header">
+                    <h5>Debugging Information</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Verify Webhook Signature</h6>
+                    <p class="small">
+                        If your webhook is configured with a secret, each request includes an
+                        <code>X-Webhook-Signature</code> header with an HMAC-SHA256 signature.
+                    </p>
+                    <p class="small">
+                        {% if delivery.webhook.secret %}
+                        This webhook <strong>is configured</strong> with a secret and signatures are included.
+                        {% else %}
+                        This webhook <strong>is not configured</strong> with a secret. Signatures are not included.
+                        {% endif %}
+                    </p>
+
+                    <h6 class="mt-3">Common Issues</h6>
+                    <ul class="small">
+                        <li><strong>Timeout (30s):</strong> Your endpoint took too long to respond</li>
+                        <li><strong>Connection refused:</strong> Endpoint URL is not accessible or incorrect</li>
+                        <li><strong>4xx errors:</strong> Check your endpoint's authentication or request validation</li>
+                        <li><strong>5xx errors:</strong> Your endpoint encountered an internal error</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

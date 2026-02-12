@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4>{{ title }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Send a test webhook to <code>{{ webhook.url }}</code> to verify your endpoint is working correctly.
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="{{ form.test_event.id_for_label }}" class="form-label">
+                                {{ form.test_event.label }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.test_event }}
+                            {% if form.test_event.help_text %}
+                            <div class="form-text">{{ form.test_event.help_text }}</div>
+                            {% endif %}
+                            {% if form.test_event.errors %}
+                            <div class="text-danger">{{ form.test_event.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.test_payload.id_for_label }}" class="form-label">
+                                {{ form.test_payload.label }}
+                            </label>
+                            {{ form.test_payload }}
+                            {% if form.test_payload.help_text %}
+                            <div class="form-text">{{ form.test_payload.help_text }}</div>
+                            {% endif %}
+                            {% if form.test_payload.errors %}
+                            <div class="text-danger">{{ form.test_payload.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'webhook_list' %}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send"></i> Send Test Webhook
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5>Expected Request</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small">Your endpoint will receive a POST request with the following structure:</p>
+                    <pre class="bg-light p-3 rounded"><code>{
+  "event": "&lt;selected_event_type&gt;",
+  "timestamp": 1234567890,
+  "data": {
+    // Your custom test payload or default test data
+  },
+  "webhook_id": {{ webhook.id }},
+  "organization": "{{ webhook.organization.slug }}"
+}</code></pre>
+
+                    <p class="small mt-3"><strong>Headers:</strong></p>
+                    <ul class="small">
+                        <li><code>Content-Type: application/json</code></li>
+                        <li><code>User-Agent: HuduGlue-Webhooks/1.0</code></li>
+                        {% if webhook.secret %}
+                        <li><code>X-Webhook-Signature: sha256=&lt;hmac_signature&gt;</code></li>
+                        {% endif %}
+                        {% if webhook.custom_headers %}
+                        {% for key, value in webhook.custom_headers.items %}
+                        <li><code>{{ key }}: {{ value }}</code></li>
+                        {% endfor %}
+                        {% endif %}
+                    </ul>
+
+                    <p class="small mt-3">
+                        <strong>Expected Response:</strong> Your endpoint should respond with a 2xx status code to indicate successful receipt.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

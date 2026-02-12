@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>{{ title }}</h2>
+            <p class="text-muted">
+                <a href="{% url 'webhook_list' %}">Webhooks</a> / {{ webhook.name }}
+            </p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'webhook_test' webhook.id %}" class="btn btn-primary">
+                <i class="bi bi-send"></i> Test Webhook
+            </a>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Total Deliveries</h5>
+                    <h2 class="text-primary">{{ total_deliveries }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Successful</h5>
+                    <h2 class="text-success">{{ success_count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Failed</h5>
+                    <h2 class="text-danger">{{ failed_count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Success Rate</h5>
+                    <h2>
+                        {% if success_rate >= 90 %}
+                        <span class="text-success">{{ success_rate|floatformat:1 }}%</span>
+                        {% elif success_rate >= 70 %}
+                        <span class="text-warning">{{ success_rate|floatformat:1 }}%</span>
+                        {% else %}
+                        <span class="text-danger">{{ success_rate|floatformat:1 }}%</span>
+                        {% endif %}
+                    </h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if deliveries %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Event</th>
+                            <th>Delivered At</th>
+                            <th>Response Code</th>
+                            <th>Duration</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for delivery in deliveries %}
+                        <tr>
+                            <td>
+                                {% if delivery.status == 'success' %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle"></i> Success
+                                </span>
+                                {% elif delivery.status == 'failed' %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-x-circle"></i> Failed
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="bi bi-clock"></i> Pending
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <code class="small">{{ delivery.event_type }}</code>
+                            </td>
+                            <td>
+                                <span title="{{ delivery.delivered_at }}">
+                                    {{ delivery.delivered_at|date:"Y-m-d H:i:s" }}
+                                </span>
+                                <small class="text-muted d-block">
+                                    {{ delivery.delivered_at|timesince }} ago
+                                </small>
+                            </td>
+                            <td>
+                                {% if delivery.response_code %}
+                                {% if delivery.response_code >= 200 and delivery.response_code < 300 %}
+                                <span class="badge bg-success">{{ delivery.response_code }}</span>
+                                {% elif delivery.response_code >= 400 %}
+                                <span class="badge bg-danger">{{ delivery.response_code }}</span>
+                                {% else %}
+                                <span class="badge bg-warning">{{ delivery.response_code }}</span>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if delivery.duration_ms %}
+                                {{ delivery.duration_ms }}ms
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'webhook_delivery_detail' delivery.id %}"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-eye"></i> Details
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <p class="text-muted mt-3">
+        <i class="bi bi-info-circle"></i>
+        Showing last 100 deliveries. Older deliveries are automatically archived.
+    </p>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        No deliveries recorded yet. <a href="{% url 'webhook_test' webhook.id %}">Send a test webhook</a> to verify your configuration.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

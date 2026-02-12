@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>Webhooks</h2>
+            <p class="text-muted">Configure webhooks to receive notifications about events in HuduGlue</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'webhook_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Create Webhook
+            </a>
+        </div>
+    </div>
+
+    {% if webhooks %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>URL</th>
+                            <th>Events</th>
+                            <th>Status</th>
+                            <th>Last Delivery</th>
+                            <th>Success Rate</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for webhook in webhooks %}
+                        <tr>
+                            <td>
+                                <strong>{{ webhook.name }}</strong>
+                                {% if webhook.secret %}
+                                <i class="bi bi-shield-lock text-success" title="Signed with secret"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <code class="small">{{ webhook.url|truncatechars:50 }}</code>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ webhook.events|length }} event{{ webhook.events|length|pluralize }}</span>
+                            </td>
+                            <td>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input webhook-toggle"
+                                           type="checkbox"
+                                           data-webhook-id="{{ webhook.id }}"
+                                           {% if webhook.is_active %}checked{% endif %}>
+                                    <label class="form-check-label">
+                                        {% if webhook.is_active %}
+                                        <span class="text-success">Active</span>
+                                        {% else %}
+                                        <span class="text-muted">Inactive</span>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                            </td>
+                            <td>
+                                {% with last_delivery=webhook.deliveries.first %}
+                                {% if last_delivery %}
+                                    <span class="small" title="{{ last_delivery.delivered_at }}">
+                                        {{ last_delivery.delivered_at|timesince }} ago
+                                    </span>
+                                    {% if last_delivery.status == 'success' %}
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    {% elif last_delivery.status == 'failed' %}
+                                    <i class="bi bi-x-circle text-danger"></i>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">Never</span>
+                                {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
+                                {% with total=webhook.deliveries.count success=webhook.deliveries.filter|dictsort:"status"|length %}
+                                {% if total > 0 %}
+                                    {% with success_count=webhook.deliveries.filter.count %}
+                                    {% widthratio success_count total 100 as success_rate %}
+                                    {% if success_rate >= 90 %}
+                                    <span class="badge bg-success">{{ success_rate }}%</span>
+                                    {% elif success_rate >= 70 %}
+                                    <span class="badge bg-warning">{{ success_rate }}%</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">{{ success_rate }}%</span>
+                                    {% endif %}
+                                    {% endwith %}
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'webhook_deliveries' webhook.id %}"
+                                       class="btn btn-outline-secondary"
+                                       title="View Deliveries">
+                                        <i class="bi bi-list-ul"></i>
+                                    </a>
+                                    <a href="{% url 'webhook_test' webhook.id %}"
+                                       class="btn btn-outline-primary"
+                                       title="Test Webhook">
+                                        <i class="bi bi-send"></i>
+                                    </a>
+                                    <a href="{% url 'webhook_edit' webhook.id %}"
+                                       class="btn btn-outline-warning"
+                                       title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="{% url 'webhook_delete' webhook.id %}"
+                                       class="btn btn-outline-danger"
+                                       title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        No webhooks configured yet. <a href="{% url 'webhook_create' %}">Create your first webhook</a> to start receiving event notifications.
+    </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <h5>About Webhooks</h5>
+        <p class="text-muted">
+            Webhooks allow external systems to receive real-time notifications when events occur in HuduGlue.
+            Configure webhook endpoints to integrate with ticketing systems, monitoring tools, or custom applications.
+        </p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle webhook toggle switches
+    document.querySelectorAll('.webhook-toggle').forEach(function(toggle) {
+        toggle.addEventListener('change', function() {
+            const webhookId = this.dataset.webhookId;
+            const isActive = this.checked;
+
+            fetch(`/webhooks/${webhookId}/toggle/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update label
+                    const label = this.nextElementSibling.querySelector('span');
+                    if (data.is_active) {
+                        label.textContent = 'Active';
+                        label.className = 'text-success';
+                    } else {
+                        label.textContent = 'Inactive';
+                        label.className = 'text-muted';
+                    }
+                } else {
+                    // Revert toggle on error
+                    this.checked = !isActive;
+                    alert('Failed to toggle webhook: ' + data.message);
+                }
+            })
+            .catch(error => {
+                // Revert toggle on error
+                this.checked = !isActive;
+                alert('Error toggling webhook');
+            });
+        });
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}
