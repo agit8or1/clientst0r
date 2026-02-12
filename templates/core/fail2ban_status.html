@@ -27,21 +27,37 @@
             <i class="fas fa-info-circle"></i> <strong>Fail2ban</strong> is a powerful intrusion prevention tool that monitors log files and automatically bans IPs showing malicious behavior (brute force attacks, vulnerability scans, etc.).
         </div>
 
-        <div class="alert alert-warning mb-4">
-            <h6 class="mb-2"><i class="fas fa-key"></i> Prerequisite: One-Time Sudo Setup</h6>
-            <p class="mb-2">Before automatic installation, run this one command to grant HuduGlue permission:</p>
-            <pre class="bg-dark text-white p-2 mb-0 rounded"><code>sudo cp {{ install_sudoers_path }} /etc/sudoers.d/huduglue-install && sudo chmod 0440 /etc/sudoers.d/huduglue-install</code></pre>
+        {% if request.session.show_sudo_password_form %}
+        <div class="alert alert-info mb-4">
+            <h6 class="mb-2"><i class="fas fa-lock"></i> First-Time Setup - Password Required</h6>
+            <p class="mb-0">Enter your sudo password below for automatic installation. This is required only once - future operations will be passwordless.</p>
         </div>
+        {% else %}
+        <div class="alert alert-success mb-4">
+            <h6 class="mb-2"><i class="fas fa-magic"></i> Fully Automatic Installation</h6>
+            <p class="mb-2">Click the button below to automatically install fail2ban!</p>
+            <p class="mb-0"><small class="text-muted">If this is your first time, you may be asked for your sudo password.</small></p>
+        </div>
+        {% endif %}
 
         <div class="text-center mb-4">
             <form method="post" action="{% url 'core:fail2ban_install' %}" id="installForm">
                 {% csrf_token %}
+
+                {% if request.session.show_sudo_password_form %}
+                <div class="mb-3">
+                    <label for="sudo_password" class="form-label">Sudo Password:</label>
+                    <input type="password" name="sudo_password" id="sudo_password" class="form-control" style="max-width: 400px; margin: 0 auto;" placeholder="Enter your password" required>
+                    <small class="form-text text-muted">Your password is transmitted securely over HTTPS and never stored.</small>
+                </div>
+                {% endif %}
+
                 <button type="submit" class="btn btn-success btn-lg" id="installBtn">
                     <i class="fas fa-download"></i> Install Fail2ban Now
                 </button>
             </form>
             <p class="text-muted mt-2 mb-0">
-                <small>Click to automatically install fail2ban, enable the service, and configure access.</small>
+                <small>Automatic installation including package, service, and permissions configuration.</small>
             </p>
         </div>
 

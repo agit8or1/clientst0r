@@ -450,7 +450,10 @@ def fail2ban_install(request):
         system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
         env['PATH'] = system_paths
 
-        # Check sudo access first
+        # Get sudo password if provided
+        sudo_password = request.POST.get('sudo_password', '').strip()
+
+        # Check if passwordless sudo is already configured
         test_result = subprocess.run(
             ['/usr/bin/sudo', '-n', '/usr/bin/apt-get', '--version'],
             capture_output=True,
@@ -459,13 +462,54 @@ def fail2ban_install(request):
             env=env
         )
 
-        if test_result.returncode != 0:
-            sudoers_path = settings.BASE_DIR / 'deploy' / 'huduglue-install-sudoers'
-            messages.error(
+        # If passwordless sudo doesn't work and no password provided, show password form
+        if test_result.returncode != 0 and not sudo_password:
+            messages.warning(
                 request,
-                f'Sudo access not configured. Please run: sudo cp {sudoers_path} /etc/sudoers.d/huduglue-install && sudo chmod 0440 /etc/sudoers.d/huduglue-install'
+                'First-time setup requires your sudo password. Enter it below to complete automatic installation.'
             )
+            # Set a flag to show password form
+            request.session['show_sudo_password_form'] = True
             return redirect('core:fail2ban_status')
+
+        # If passwordless sudo doesn't work but password was provided, set up sudoers first
+        if test_result.returncode != 0 and sudo_password:
+            logger.info("Setting up sudoers with provided password...")
+
+            # Step 0: Install sudoers files using password
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            install_sudoers_src = os.path.join(base_dir, 'deploy', 'huduglue-install-sudoers')
+            fail2ban_sudoers_src = os.path.join(base_dir, 'deploy', 'huduglue-fail2ban-sudoers')
+
+            # Install huduglue-install-sudoers
+            result = subprocess.run(
+                ['/usr/bin/sudo', '-S', '/bin/cp', install_sudoers_src, '/etc/sudoers.d/huduglue-install'],
+                input=f"{sudo_password}\n",
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env
+            )
+
+            if result.returncode != 0:
+                messages.error(request, f'Failed to configure sudo access. Check your password and try again. Error: {result.stderr[:200]}')
+                logger.error(f"Failed to install sudoers: {result.stderr}")
+                request.session['show_sudo_password_form'] = True
+                return redirect('core:fail2ban_status')
+
+            # Set permissions on install sudoers
+            subprocess.run(
+                ['/usr/bin/sudo', '-S', '/bin/chmod', '0440', '/etc/sudoers.d/huduglue-install'],
+                input=f"{sudo_password}\n",
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env
+            )
+
+            logger.info("Sudoers configuration installed successfully")
+            # Clear the password form flag
+            request.session.pop('show_sudo_password_form', None)
 
         # Step 1: Update package list
         logger.info("Updating apt package list...")
