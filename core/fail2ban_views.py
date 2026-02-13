@@ -513,23 +513,47 @@ def fail2ban_install(request):
 
         # Step 1: Update package list
         logger.info("Updating apt package list...")
-        result = subprocess.run(
-            ['/usr/bin/sudo', '/usr/bin/apt-get', 'update'],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            env=env
-        )
+        if sudo_password:
+            # Use password if we have it (first-time setup)
+            result = subprocess.run(
+                ['/usr/bin/sudo', '-S', '/usr/bin/apt-get', 'update'],
+                input=f"{sudo_password}\n",
+                capture_output=True,
+                text=True,
+                timeout=60,
+                env=env
+            )
+        else:
+            # Use passwordless sudo (subsequent runs)
+            result = subprocess.run(
+                ['/usr/bin/sudo', '/usr/bin/apt-get', 'update'],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                env=env
+            )
 
         # Step 2: Install fail2ban
         logger.info("Installing fail2ban package...")
-        result = subprocess.run(
-            ['/usr/bin/sudo', '/usr/bin/apt-get', 'install', '-y', 'fail2ban'],
-            capture_output=True,
-            text=True,
-            timeout=120,
-            env=env
-        )
+        if sudo_password:
+            # Use password if we have it (first-time setup)
+            result = subprocess.run(
+                ['/usr/bin/sudo', '-S', '/usr/bin/apt-get', 'install', '-y', 'fail2ban'],
+                input=f"{sudo_password}\n",
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env
+            )
+        else:
+            # Use passwordless sudo (subsequent runs)
+            result = subprocess.run(
+                ['/usr/bin/sudo', '/usr/bin/apt-get', 'install', '-y', 'fail2ban'],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env
+            )
 
         if result.returncode != 0:
             messages.error(request, f'Failed to install fail2ban: {result.stderr[:200]}')
@@ -538,8 +562,14 @@ def fail2ban_install(request):
 
         # Step 3: Enable and start service
         logger.info("Enabling and starting fail2ban service...")
-        subprocess.run(['/usr/bin/sudo', '/bin/systemctl', 'enable', 'fail2ban'], timeout=10, check=False, env=env)
-        subprocess.run(['/usr/bin/sudo', '/bin/systemctl', 'start', 'fail2ban'], timeout=10, check=False, env=env)
+        if sudo_password:
+            subprocess.run(['/usr/bin/sudo', '-S', '/bin/systemctl', 'enable', 'fail2ban'],
+                         input=f"{sudo_password}\n", capture_output=True, text=True, timeout=10, check=False, env=env)
+            subprocess.run(['/usr/bin/sudo', '-S', '/bin/systemctl', 'start', 'fail2ban'],
+                         input=f"{sudo_password}\n", capture_output=True, text=True, timeout=10, check=False, env=env)
+        else:
+            subprocess.run(['/usr/bin/sudo', '/bin/systemctl', 'enable', 'fail2ban'], timeout=10, check=False, env=env)
+            subprocess.run(['/usr/bin/sudo', '/bin/systemctl', 'start', 'fail2ban'], timeout=10, check=False, env=env)
 
         # Step 4: Configure sudoers for fail2ban-client access
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -548,8 +578,14 @@ def fail2ban_install(request):
 
         if os.path.exists(source_path):
             logger.info("Installing fail2ban sudoers configuration...")
-            subprocess.run(['/usr/bin/sudo', '/bin/cp', source_path, dest_path], timeout=10, check=False, env=env)
-            subprocess.run(['/usr/bin/sudo', '/bin/chmod', '0440', dest_path], timeout=10, check=False, env=env)
+            if sudo_password:
+                subprocess.run(['/usr/bin/sudo', '-S', '/bin/cp', source_path, dest_path],
+                             input=f"{sudo_password}\n", capture_output=True, text=True, timeout=10, check=False, env=env)
+                subprocess.run(['/usr/bin/sudo', '-S', '/bin/chmod', '0440', dest_path],
+                             input=f"{sudo_password}\n", capture_output=True, text=True, timeout=10, check=False, env=env)
+            else:
+                subprocess.run(['/usr/bin/sudo', '/bin/cp', source_path, dest_path], timeout=10, check=False, env=env)
+                subprocess.run(['/usr/bin/sudo', '/bin/chmod', '0440', dest_path], timeout=10, check=False, env=env)
         else:
             logger.warning("fail2ban sudoers source file not found")
 
