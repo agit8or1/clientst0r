@@ -114,6 +114,28 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="mb-3 form-check">
+                                        {{ form.is_shared }}
+                                        <label for="{{ form.is_shared.id_for_label }}" class="form-check-label">
+                                            <strong>Shared Location</strong>
+                                            <br><small class="text-muted">{{ form.is_shared.help_text }}</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row" id="associatedOrgsField" style="display: none;">
+                                <div class="col-md-12">
+                                    <div class="mb-3">
+                                        <label for="{{ form.associated_organizations.id_for_label }}" class="form-label">Associated Organizations</label>
+                                        {{ form.associated_organizations }}
+                                        <small class="form-text text-muted">{{ form.associated_organizations.help_text }}</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Address Tab -->
@@ -356,4 +378,29 @@
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show/hide associated organizations field based on is_shared checkbox
+    const isSharedCheckbox = document.getElementById('{{ form.is_shared.id_for_label }}');
+    const associatedOrgsField = document.getElementById('associatedOrgsField');
+
+    if (isSharedCheckbox && associatedOrgsField) {
+        function toggleAssociatedOrgs() {
+            if (isSharedCheckbox.checked) {
+                associatedOrgsField.style.display = 'block';
+            } else {
+                associatedOrgsField.style.display = 'none';
+            }
+        }
+
+        // Initial state
+        toggleAssociatedOrgs();
+
+        // Listen for changes
+        isSharedCheckbox.addEventListener('change', toggleAssociatedOrgs);
+    }
+});
+</script>
 {% endblock %}
