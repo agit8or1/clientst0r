@@ -300,25 +300,58 @@ Runbook Guidelines:
 
     def _parse_response(self, content):
         """Parse Claude API response, extracting JSON if present."""
-        # Try to find JSON in response
+        import re
+
+        # Try to find JSON in response with multiple strategies
         try:
-            # Look for JSON block
-            if '```json' in content:
-                start = content.find('```json') + 7
-                end = content.find('```', start)
-                json_str = content[start:end].strip()
-                return json.loads(json_str)
-            elif '{' in content and '}' in content:
-                # Try to extract JSON directly
+            # Strategy 1: Look for JSON in code fence (```json ... ```)
+            if '```json' in content.lower():
+                match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL | re.IGNORECASE)
+                if match:
+                    json_str = match.group(1).strip()
+                    parsed = json.loads(json_str)
+                    # Validate it has expected structure
+                    if isinstance(parsed, dict):
+                        return parsed
+
+            # Strategy 2: Look for JSON in plain code fence (``` ... ```)
+            if '```' in content:
+                match = re.search(r'```\s*(.*?)\s*```', content, re.DOTALL)
+                if match:
+                    json_str = match.group(1).strip()
+                    # Skip if it starts with a language identifier
+                    if not json_str.split('\n')[0].strip().isalpha():
+                        try:
+                            parsed = json.loads(json_str)
+                            if isinstance(parsed, dict):
+                                return parsed
+                        except:
+                            pass
+
+            # Strategy 3: Try to extract JSON directly (find first { to last })
+            if '{' in content and '}' in content:
                 start = content.find('{')
                 end = content.rfind('}') + 1
                 json_str = content[start:end]
-                return json.loads(json_str)
-        except:
+                parsed = json.loads(json_str)
+                if isinstance(parsed, dict):
+                    return parsed
+
+        except json.JSONDecodeError:
+            # JSON parsing failed, content is not valid JSON
+            pass
+        except Exception:
+            # Other errors, fall through to return raw content
             pass
 
-        # Return as plain content if no JSON found
-        return {'content': content}
+        # No valid JSON found - return raw content as markdown
+        # Clean up any residual code fences or JSON markers
+        cleaned_content = content
+        cleaned_content = re.sub(r'```json\s*', '', cleaned_content)
+        cleaned_content = re.sub(r'```\s*$', '', cleaned_content)
+        cleaned_content = cleaned_content.strip()
+
+        return {'content': cleaned_content}
 
 
 # Predefined templates for common documentation scenarios

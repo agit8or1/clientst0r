@@ -191,7 +191,7 @@ h6 { font-size: 1rem; }
 /* Navbar starts compact by default, expands at larger widths */
 .navbar {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    min-height: 60px;
+    min-height: 3.75rem; /* Changed from 60px to scale with browser zoom */
 }
 
 /* Prevent navbar overflow at all costs */
@@ -264,7 +264,7 @@ h6 { font-size: 1rem; }
 
 /* User dropdown with ellipsis for long names - comfortable by default */
 #userDropdown {
-    max-width: 150px;
+    max-width: 9.375rem; /* Changed from 150px to scale with browser zoom */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -272,7 +272,7 @@ h6 { font-size: 1rem; }
 }
 
 #orgDropdown {
-    max-width: 150px;
+    max-width: 9.375rem; /* Changed from 150px to scale with browser zoom */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -281,8 +281,8 @@ h6 { font-size: 1rem; }
 
 /* Search form responsive - comfortable by default */
 .navbar .form-control-sm {
-    width: 160px;
-    min-width: 120px;
+    width: 10rem; /* Changed from 160px to scale with browser zoom */
+    min-width: 7.5rem; /* Changed from 120px to scale with browser zoom */
     font-size: 0.85rem;
     padding: 0.375rem 0.75rem;
 }
@@ -302,7 +302,7 @@ h6 { font-size: 1rem; }
 }
 
 .navbar-brand img {
-    height: 30px;
+    height: 1.875rem; /* Changed from 30px to scale with browser zoom */
 }
 
 /* Theme toggle in navbar */

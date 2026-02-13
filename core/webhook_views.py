@@ -147,14 +147,18 @@ def webhook_deliveries(request, webhook_id):
         organization=org
     )
 
-    deliveries = WebhookDelivery.objects.filter(webhook=webhook)[:100]  # Last 100 deliveries
+    # Get all deliveries for stats calculation (before slicing)
+    all_deliveries = WebhookDelivery.objects.filter(webhook=webhook)
 
-    # Calculate stats
-    total_deliveries = deliveries.count()
-    success_count = deliveries.filter(status=WebhookDelivery.STATUS_SUCCESS).count()
-    failed_count = deliveries.filter(status=WebhookDelivery.STATUS_FAILED).count()
+    # Calculate stats on full queryset
+    total_deliveries = all_deliveries.count()
+    success_count = all_deliveries.filter(status=WebhookDelivery.STATUS_SUCCESS).count()
+    failed_count = all_deliveries.filter(status=WebhookDelivery.STATUS_FAILED).count()
 
     success_rate = (success_count / total_deliveries * 100) if total_deliveries > 0 else 0
+
+    # Get last 100 deliveries for display (after stats)
+    deliveries = all_deliveries[:100]
 
     context = {
         'webhook': webhook,

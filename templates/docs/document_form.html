@@ -644,9 +644,9 @@
         let content = '';
 
         if (contentType === 'html') {
-            content = tinymce.activeEditor ? tinymce.activeEditor.getContent() : '';
+            content = quillEditor ? quillEditor.root.innerHTML : '';
         } else if (contentType === 'markdown') {
-            content = markdownEditor ? markdownEditor.getText() : '';
+            content = markdownTextarea ? markdownTextarea.value : '';
         } else {
             alert('AI enhancement is only available for HTML and Markdown content.');
             return;
@@ -683,10 +683,10 @@
 
             if (result.success) {
                 // Update content
-                if (contentType === 'html' && tinymce.activeEditor) {
-                    tinymce.activeEditor.setContent(result.content);
-                } else if (contentType === 'markdown' && markdownEditor) {
-                    markdownEditor.setText(result.content);
+                if (contentType === 'html' && quillEditor) {
+                    quillEditor.root.innerHTML = result.content;
+                } else if (contentType === 'markdown' && markdownTextarea) {
+                    markdownTextarea.value = result.content;
                 }
 
                 // Update title if changed
