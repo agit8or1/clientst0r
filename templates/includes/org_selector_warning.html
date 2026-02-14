@@ -1,0 +1,90 @@
+{% if show_org_selector_warning %}
+<div class="alert alert-warning border-start border-warning border-4 mb-4" role="alert">
+    <div class="d-flex align-items-start">
+        <div class="flex-shrink-0 me-3">
+            <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+        </div>
+        <div class="flex-grow-1">
+            <h5 class="alert-heading mb-2">
+                <i class="fas fa-building"></i> Organization Selection Required
+            </h5>
+            <p class="mb-3">
+                You are currently in <strong>Global View</strong>. This resource must be assigned to an organization.
+                Please select an organization below to continue.
+            </p>
+            <div class="row">
+                <div class="col-md-6">
+                    <label for="orgSelector" class="form-label fw-bold">Select Organization:</label>
+                    <select id="orgSelector" class="form-select" name="_selected_organization_id" required>
+                        <option value="">-- Select an organization --</option>
+                        {% for org in available_organizations %}
+                        <option value="{{ org.id }}">{{ org.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text mt-2">
+                        <i class="fas fa-info-circle"></i> Selecting an organization will switch your current context.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Select2 if available
+    if (typeof $.fn.select2 !== 'undefined') {
+        $('#orgSelector').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: '-- Select an organization --',
+            allowClear: false
+        });
+    }
+
+    // Add selected org to form submission
+    const mainForm = document.querySelector('form[method="post"]');
+    if (mainForm) {
+        mainForm.addEventListener('submit', function(e) {
+            const orgSelector = document.getElementById('orgSelector');
+            if (orgSelector) {
+                if (!orgSelector.value) {
+                    // Prevent submission
+                    e.preventDefault();
+                    orgSelector.focus();
+                    orgSelector.classList.add('is-invalid');
+
+                    // Show validation message
+                    let feedback = orgSelector.nextElementSibling;
+                    if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+                        feedback = document.createElement('div');
+                        feedback.className = 'invalid-feedback';
+                        feedback.textContent = 'Please select an organization';
+                        orgSelector.parentNode.appendChild(feedback);
+                    }
+                    return false;
+                }
+
+                // Add hidden input with org selection
+                let hiddenInput = mainForm.querySelector('input[name="_selected_organization_id"]');
+                if (!hiddenInput) {
+                    hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = '_selected_organization_id';
+                    mainForm.appendChild(hiddenInput);
+                }
+                hiddenInput.value = orgSelector.value;
+            }
+        });
+
+        // Remove validation error on change
+        const orgSelector = document.getElementById('orgSelector');
+        if (orgSelector) {
+            orgSelector.addEventListener('change', function() {
+                this.classList.remove('is-invalid');
+            });
+        }
+    }
+});
+</script>
+{% endif %}

@@ -8,7 +8,7 @@ from django.utils.text import slugify
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from core.middleware import get_request_organization
-from core.decorators import require_write, require_admin
+from core.decorators import require_write, require_admin, require_organization_context
 from .models import Document, DocumentVersion, DocumentCategory
 from .forms import DocumentForm
 import os
@@ -140,6 +140,7 @@ def document_detail(request, slug):
 
 @login_required
 @require_write
+@require_organization_context
 def document_create(request):
     """
     Create new document, optionally from a template.

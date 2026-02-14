@@ -10,7 +10,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 from core.middleware import get_request_organization
-from core.decorators import require_write
+from core.decorators import require_write, require_organization_context
 from audit.models import AuditLog
 from .models import Password, PasswordBreachCheck
 from .forms import PasswordForm
@@ -217,6 +217,7 @@ def password_test_breach(request, pk):
 
 @login_required
 @require_write
+@require_organization_context
 def password_create(request):
     """
     Create new password entry.

@@ -5,7 +5,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from core.middleware import get_request_organization
-from core.decorators import require_write
+from core.decorators import require_write, require_organization_context
 from core.webhook_sender import send_webhook
 from core.models import Webhook
 from .models import Asset, Contact, Relationship
@@ -127,20 +127,12 @@ def asset_detail(request, pk):
 
 @login_required
 @require_write
+@require_organization_context
 def asset_create(request):
     """
     Create new asset.
     """
     org = get_request_organization(request)
-
-    # Check if user has an organization assigned
-    if not org:
-        messages.error(
-            request,
-            "You must be assigned to an organization before creating assets. "
-            "Please contact your administrator to be added to an organization."
-        )
-        return redirect('core:dashboard')
 
     # Check for redirect parameter (e.g., from rack page)
     redirect_to = request.GET.get('redirect') or request.POST.get('redirect')
@@ -305,6 +297,7 @@ def contact_detail(request, pk):
 
 @login_required
 @require_write
+@require_organization_context
 def contact_create(request):
     """
     Create new contact.

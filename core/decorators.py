@@ -109,3 +109,70 @@ def require_owner(view_func):
         return view_func(request, *args, **kwargs)
 
     return wrapper
+
+
+def require_organization_context(view_func):
+    """
+    Decorator that ensures organization context exists before creating org-tied resources.
+    If user is in global view (staff/superuser with no current_organization), shows
+    warning banner with org selector and requires selection before proceeding.
+
+    Apply to create views for models with ForeignKey to Organization.
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        from core.middleware import get_request_organization
+        from core.models import Organization
+
+        org = get_request_organization(request)
+
+        # If org context exists, proceed normally
+        if org:
+            return view_func(request, *args, **kwargs)
+
+        # Check if user can access global view (staff/superuser)
+        is_staff = getattr(request, 'is_staff_user', False)
+        if not (request.user.is_superuser or is_staff):
+            # Regular user without org - shouldn't happen (middleware auto-selects)
+            messages.error(request, "Organization context required. Please contact your administrator.")
+            return redirect('core:dashboard')
+
+        # User is in global view
+        if request.method == 'POST':
+            # Check if organization was selected via the warning banner
+            selected_org_id = request.POST.get('_selected_organization_id')
+            if selected_org_id:
+                try:
+                    selected_org = Organization.objects.get(id=selected_org_id, is_active=True)
+                    # Switch to selected organization (same logic as switch_organization view)
+                    request.session['current_organization_id'] = selected_org.id
+                    if 'global_view_mode' in request.session:
+                        del request.session['global_view_mode']
+                    request.session.modified = True
+
+                    # Set on request for this cycle
+                    request.current_organization = selected_org
+
+                    messages.success(request, f"Switched to organization: {selected_org.name}")
+
+                    # Proceed with the view
+                    return view_func(request, *args, **kwargs)
+                except Organization.DoesNotExist:
+                    messages.error(request, "Selected organization not found.")
+            else:
+                messages.error(request, "Please select an organization before creating this resource.")
+
+        # GET request or POST without org - show form with warning
+        organizations = Organization.objects.filter(is_active=True).order_by('name')
+
+        # Call the view to render form
+        response = view_func(request, *args, **kwargs)
+
+        # Inject context for warning banner (if response has context_data)
+        if hasattr(response, 'context_data'):
+            response.context_data['show_org_selector_warning'] = True
+            response.context_data['available_organizations'] = organizations
+
+        return response
+
+    return wrapper

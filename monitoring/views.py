@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.db.models import Q
 from core.middleware import get_request_organization
-from core.decorators import require_write
+from core.decorators import require_write, require_organization_context
 from .models import WebsiteMonitor, Expiration, Rack, RackDevice, Subnet, IPAddress
 from .forms import (
     WebsiteMonitorForm, ExpirationForm, RackForm, RackDeviceForm,
@@ -58,14 +58,10 @@ def website_monitor_list(request):
 
 @login_required
 @require_write
+@require_organization_context
 def website_monitor_create(request):
     """Create website monitor."""
     org = get_request_organization(request)
-
-    # Require organization context for creating website monitors
-    if not org:
-        messages.error(request, 'Organization context required to create website monitors.')
-        return redirect('accounts:organization_list')
 
     if request.method == 'POST':
         form = WebsiteMonitorForm(request.POST, organization=org)
