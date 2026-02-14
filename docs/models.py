@@ -111,28 +111,49 @@ class Document(BaseModel):
                 extensions=['extra', 'codehilite', 'toc']
             )
         else:
-            # Already HTML from WYSIWYG editor
+            # Already HTML from WYSIWYG editor or AI-generated
             html = self.body
 
         # Sanitize HTML for security
+        # Allow Bootstrap 5 styling components and Font Awesome icons
         allowed_tags = list(bleach.sanitizer.ALLOWED_TAGS) + [
             'p', 'br', 'pre', 'code', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
             'strong', 'em', 'ul', 'ol', 'li', 'blockquote', 'hr', 'table',
-            'thead', 'tbody', 'tr', 'th', 'td', 'div', 'span', 'img', 'a'
+            'thead', 'tbody', 'tr', 'th', 'td', 'div', 'span', 'img', 'a',
+            'i', 'b', 'u', 's', 'small', 'mark', 'del', 'ins', 'sub', 'sup',
+            'button', 'kbd', 'samp', 'var', 'abbr', 'address', 'cite', 'q',
+            'section', 'article', 'header', 'footer', 'nav', 'aside', 'main',
+            'figure', 'figcaption', 'details', 'summary', 'time', 'dl', 'dt', 'dd'
         ]
         allowed_attrs = {
             **bleach.sanitizer.ALLOWED_ATTRIBUTES,
-            'img': ['src', 'alt', 'title', 'width', 'height', 'class', 'style'],
-            'a': ['href', 'title', 'target', 'rel'],
-            'code': ['class'],
-            'div': ['class', 'style'],
-            'span': ['class', 'style'],
+            '*': ['class', 'id', 'style'],  # Allow class/id/style on all tags for Bootstrap
+            'img': ['src', 'alt', 'title', 'width', 'height', 'class', 'style', 'loading'],
+            'a': ['href', 'title', 'target', 'rel', 'class', 'style'],
+            'button': ['type', 'class', 'style', 'disabled', 'data-*'],
+            'div': ['class', 'id', 'style', 'role', 'aria-*', 'data-*'],
+            'span': ['class', 'id', 'style', 'role', 'aria-*', 'data-*'],
+            'i': ['class', 'style', 'aria-*'],  # Font Awesome icons
+            'table': ['class', 'style', 'border', 'cellpadding', 'cellspacing'],
+            'td': ['colspan', 'rowspan', 'style', 'class'],
+            'th': ['colspan', 'rowspan', 'style', 'class', 'scope'],
+            'ul': ['class', 'style'],
+            'ol': ['class', 'style', 'start', 'type'],
+            'li': ['class', 'style'],
+            'code': ['class', 'style'],
+            'pre': ['class', 'style'],
             'p': ['class', 'style'],
-            'table': ['class', 'style'],
-            'td': ['colspan', 'rowspan', 'style'],
-            'th': ['colspan', 'rowspan', 'style'],
+            'h1': ['class', 'id', 'style'],
+            'h2': ['class', 'id', 'style'],
+            'h3': ['class', 'id', 'style'],
+            'h4': ['class', 'id', 'style'],
+            'h5': ['class', 'id', 'style'],
+            'h6': ['class', 'id', 'style'],
+            'section': ['class', 'id', 'style'],
+            'article': ['class', 'id', 'style'],
+            'blockquote': ['class', 'style', 'cite'],
         }
-        return bleach.clean(html, tags=allowed_tags, attributes=allowed_attrs)
+        return bleach.clean(html, tags=allowed_tags, attributes=allowed_attrs, strip=False)
 
     # Backward compatibility
     def render_markdown(self):

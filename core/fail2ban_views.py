@@ -65,9 +65,10 @@ def is_fail2ban_installed():
         return False, False, False, 'fail2ban package not installed'
 
     # Check if fail2ban service exists and is running
+    # Use -n flag for non-interactive passwordless sudo check
     try:
         result = subprocess.run(
-            ['sudo', 'systemctl', 'is-active', 'fail2ban'],
+            ['sudo', '-n', 'systemctl', 'is-active', 'fail2ban'],
             capture_output=True,
             text=True,
             timeout=5
