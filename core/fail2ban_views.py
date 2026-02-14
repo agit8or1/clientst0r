@@ -67,12 +67,12 @@ def is_fail2ban_installed():
     # Check if fail2ban service exists and is running
     try:
         result = subprocess.run(
-            ['systemctl', 'is-active', 'fail2ban'],
+            ['sudo', 'systemctl', 'is-active', 'fail2ban'],
             capture_output=True,
             text=True,
             timeout=5
         )
-        service_running = result.returncode == 0
+        service_running = result.returncode == 0 and result.stdout.strip() == 'active'
     except Exception:
         service_running = False
 
@@ -373,6 +373,8 @@ def fail2ban_start(request):
 def fail2ban_install_sudoers(request):
     """Automatically install fail2ban sudoers configuration."""
     import os
+    import pwd
+    import tempfile
 
     try:
         # Set up environment with system paths
@@ -380,49 +382,66 @@ def fail2ban_install_sudoers(request):
         system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
         env['PATH'] = system_paths
 
-        # Get the source path for fail2ban sudoers
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        source_path = os.path.join(base_dir, 'deploy', 'huduglue-fail2ban-sudoers')
-        dest_path = '/etc/sudoers.d/huduglue-fail2ban'
+        # Generate sudoers content with actual username
+        username = pwd.getpwuid(os.getuid()).pw_name
 
-        if not os.path.exists(source_path):
-            messages.error(request, 'Fail2ban sudoers source file not found.')
-            logger.error(f"fail2ban sudoers source file not found at {source_path}")
-            return redirect('core:fail2ban_status')
+        sudoers_content = f"""# Sudoers configuration for HuduGlue fail2ban integration
+# Generated automatically during installation
 
-        # Try to install the sudoers file
-        result = subprocess.run(
-            ['/usr/bin/sudo', '/bin/cp', source_path, dest_path],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=env
-        )
+# Allow {username} user to run fail2ban-client and systemctl commands without password
+{username} ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
+{username} ALL=(ALL) NOPASSWD: /bin/systemctl is-active fail2ban
+{username} ALL=(ALL) NOPASSWD: /bin/systemctl status fail2ban
+"""
 
-        if result.returncode != 0:
-            messages.error(
-                request,
-                f'Failed to install fail2ban sudoers. Make sure base install sudoers is configured: sudo cp {settings.BASE_DIR}/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install && sudo chmod 0440 /etc/sudoers.d/huduglue-install'
+        # Write to temp file first
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='-fail2ban-sudoers') as tmp:
+            tmp.write(sudoers_content)
+            temp_path = tmp.name
+
+        try:
+            dest_path = '/etc/sudoers.d/huduglue-fail2ban'
+
+            # Try to install the sudoers file
+            result = subprocess.run(
+                ['/usr/bin/sudo', '/bin/cp', temp_path, dest_path],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env
             )
-            logger.error(f"Failed to copy fail2ban sudoers: {result.stderr}")
-            return redirect('core:fail2ban_status')
 
-        # Set correct permissions
-        result = subprocess.run(
-            ['/usr/bin/sudo', '/bin/chmod', '0440', dest_path],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=env
-        )
+            if result.returncode != 0:
+                messages.error(
+                    request,
+                    f'Failed to install fail2ban sudoers. Make sure base install sudoers is configured: sudo cp {settings.BASE_DIR}/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install && sudo chmod 0440 /etc/sudoers.d/huduglue-install'
+                )
+                logger.error(f"Failed to copy fail2ban sudoers: {result.stderr}")
+                return redirect('core:fail2ban_status')
 
-        if result.returncode != 0:
-            messages.error(request, f'Failed to set fail2ban sudoers permissions: {result.stderr[:200]}')
-            logger.error(f"Failed to chmod fail2ban sudoers: {result.stderr}")
-            return redirect('core:fail2ban_status')
+            # Set correct permissions
+            result = subprocess.run(
+                ['/usr/bin/sudo', '/bin/chmod', '0440', dest_path],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env
+            )
 
-        messages.success(request, 'Fail2ban sudoers configuration installed successfully! Refresh the page.')
-        logger.info(f"User {request.user.username} successfully installed fail2ban sudoers configuration")
+            if result.returncode != 0:
+                messages.error(request, f'Failed to set fail2ban sudoers permissions: {result.stderr[:200]}')
+                logger.error(f"Failed to chmod fail2ban sudoers: {result.stderr}")
+                return redirect('core:fail2ban_status')
+
+            messages.success(request, f'Fail2ban sudoers configuration installed successfully for user {username}! Refresh the page.')
+            logger.info(f"User {request.user.username} successfully installed fail2ban sudoers configuration")
+
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
 
     except subprocess.TimeoutExpired:
         messages.error(request, 'Installation timed out.')
@@ -572,22 +591,45 @@ def fail2ban_install(request):
             subprocess.run(['/usr/bin/sudo', '/bin/systemctl', 'start', 'fail2ban'], timeout=10, check=False, env=env)
 
         # Step 4: Configure sudoers for fail2ban-client access
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        source_path = os.path.join(base_dir, 'deploy', 'huduglue-fail2ban-sudoers')
-        dest_path = '/etc/sudoers.d/huduglue-fail2ban'
+        # Generate sudoers content with actual username
+        import pwd
+        username = pwd.getpwuid(os.getuid()).pw_name
 
-        if os.path.exists(source_path):
+        sudoers_content = f"""# Sudoers configuration for HuduGlue fail2ban integration
+# Generated automatically during installation
+
+# Allow {username} user to run fail2ban-client and systemctl commands without password
+{username} ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
+{username} ALL=(ALL) NOPASSWD: /bin/systemctl is-active fail2ban
+{username} ALL=(ALL) NOPASSWD: /bin/systemctl status fail2ban
+"""
+
+        # Write to temp file first
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='-fail2ban-sudoers') as tmp:
+            tmp.write(sudoers_content)
+            temp_path = tmp.name
+
+        try:
             logger.info("Installing fail2ban sudoers configuration...")
+            dest_path = '/etc/sudoers.d/huduglue-fail2ban'
+
             if sudo_password:
-                subprocess.run(['/usr/bin/sudo', '-S', '/bin/cp', source_path, dest_path],
-                             input=f"{sudo_password}\n", capture_output=True, text=True, timeout=10, check=False, env=env)
+                subprocess.run(['/usr/bin/sudo', '-S', '/bin/cp', temp_path, dest_path],
+                             input=f"{sudo_password}\n", capture_output=True, text=True, timeout=10, check=True, env=env)
                 subprocess.run(['/usr/bin/sudo', '-S', '/bin/chmod', '0440', dest_path],
-                             input=f"{sudo_password}\n", capture_output=True, text=True, timeout=10, check=False, env=env)
+                             input=f"{sudo_password}\n", capture_output=True, text=True, timeout=10, check=True, env=env)
             else:
-                subprocess.run(['/usr/bin/sudo', '/bin/cp', source_path, dest_path], timeout=10, check=False, env=env)
-                subprocess.run(['/usr/bin/sudo', '/bin/chmod', '0440', dest_path], timeout=10, check=False, env=env)
-        else:
-            logger.warning("fail2ban sudoers source file not found")
+                subprocess.run(['/usr/bin/sudo', '/bin/cp', temp_path, dest_path], timeout=10, check=True, env=env)
+                subprocess.run(['/usr/bin/sudo', '/bin/chmod', '0440', dest_path], timeout=10, check=True, env=env)
+
+            logger.info(f"Sudoers configured for user: {username}")
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
 
         messages.success(request, 'Fail2ban installed and configured successfully! Refresh the page to see the status.')
         logger.info(f"User {request.user.username} successfully installed fail2ban automatically")
