@@ -216,6 +216,17 @@ log_info "Clearing Django cache..."
 "$VENV_DIR/bin/python" "$PROJECT_DIR/manage.py" shell -c "from django.core.cache import cache; cache.delete('system_update_check'); print('Cache cleared')" > /dev/null 2>&1 || true
 log_success "Cache cleared"
 
+# Auto-setup cron job for web GUI updates (one-time setup)
+log_info "Checking cron job for web GUI updates..."
+CRON_JOB="* * * * * $PROJECT_DIR/scripts/check_update_trigger.sh"
+if ! crontab -l 2>/dev/null | grep -q "check_update_trigger.sh"; then
+    log_info "Adding cron job for web GUI updates..."
+    (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
+    log_success "Cron job added - web GUI updates now enabled!"
+else
+    log_info "Cron job already exists"
+fi
+
 log_info "=========================================="
 log_success "Update completed successfully!"
 log_info "Version: $CURRENT_VERSION → $NEW_VERSION"
