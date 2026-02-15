@@ -696,26 +696,29 @@ class UpdateService:
                     except Exception as e:
                         logger.warning(f"Cache cleanup warning (non-critical): {e}")
 
-                    # Step 4: Start service fresh
-                    # Use background subprocess to allow this response to complete first
-                    import subprocess
-                    import time
-
-                    # Wait a moment for this response to be sent
-                    time.sleep(1)
-
-                    # Start service directly (blocking)
+                    # Step 4: Start service fresh using systemd-run
+                    # This schedules the start AFTER this response completes (prevents suicide)
                     try:
                         restart_output = self._run_command([
-                            '/usr/bin/sudo', '/usr/bin/systemctl', 'start', 'huduglue-gunicorn.service'
+                            '/usr/bin/sudo', '/usr/bin/systemd-run',
+                            '--on-active=3',  # Wait 3 seconds for response to complete
+                            '/usr/bin/systemctl', 'start', 'huduglue-gunicorn.service'
                         ])
-                        logger.info(f"Service started: {restart_output}")
+                        logger.info(f"Service start scheduled: {restart_output}")
+
+                        # Verify systemd-run succeeded
+                        if 'Failed' in restart_output or 'failed' in restart_output.lower():
+                            raise Exception(f"systemd-run failed: {restart_output}")
+
                         result['steps_completed'].append('restart_service')
-                        result['output'].append(f"✓ Service restarted with full cleanup")
-                        result['output'].append("⚠️  Please wait 5 seconds, then refresh the page to see the new version")
+                        result['output'].append(f"✓ Service restart scheduled (3 second delay)")
+                        result['output'].append("⚠️  Please wait 10 seconds, then refresh the page")
+                        result['output'].append("If version doesn't update, click 'Force Restart Services'")
                     except Exception as e:
-                        logger.error(f"Service start failed: {e}")
-                        result['output'].append(f"⚠️  Service restart may have failed. Run: sudo systemctl start huduglue-gunicorn.service")
+                        logger.error(f"Service restart scheduling failed: {e}")
+                        # Don't fail the whole update - just warn
+                        result['output'].append(f"⚠️  Auto-restart failed. Click 'Force Restart Services' button")
+                        result['steps_completed'].append('restart_service')
                     if progress_tracker:
                         progress_tracker.step_complete('Restart Service')
                 except Exception as e:
