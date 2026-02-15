@@ -188,10 +188,6 @@
                     </button>
                     {% endif %}
 
-                    <button type="button" class="btn btn-warning ms-2" onclick="forceRestartServices()" title="Restart services to load new code">
-                        <i class="fas fa-power-off"></i> Restart Services
-                    </button>
-
                     <div class="alert alert-info mt-3 mb-0">
                         <i class="fas fa-info-circle"></i>
                         <strong>Note:</strong> Updates are automatically checked every hour.
@@ -666,46 +662,6 @@ function startUpdate() {
     .catch(error => {
         console.error('Error starting update:', error);
         showError('Failed to start update: ' + error.message);
-    });
-}
-
-function forceRestartServices() {
-    if (!confirm('This will restart all services immediately. The page may be unavailable for ~10 seconds. Continue?')) {
-        return;
-    }
-
-    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const button = event.target.closest('button');
-    const originalHTML = button.innerHTML;
-
-    button.disabled = true;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restarting...';
-
-    fetch('{% url "core:force_restart_services" %}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrftoken
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Services restarted successfully! Refreshing page in 3 seconds...');
-            setTimeout(() => {
-                window.location.reload();
-            }, 3000);
-        } else {
-            alert('Restart failed: ' + data.error);
-            button.disabled = false;
-            button.innerHTML = originalHTML;
-        }
-    })
-    .catch(error => {
-        console.error('Error restarting services:', error);
-        alert('Restart failed: ' + error.message);
-        button.disabled = false;
-        button.innerHTML = originalHTML;
     });
 }
 
