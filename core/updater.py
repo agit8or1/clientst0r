@@ -218,9 +218,11 @@ class UpdateService:
                         "Passwordless sudo is not configured for auto-updates. "
                         "Please configure it by running these commands:\n\n"
                         "sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<SUDOERS\n"
-                        f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-gunicorn.service, "
-                        "/usr/bin/systemctl status clientst0r-gunicorn.service, /usr/bin/systemctl daemon-reload, "
-                        "/usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service, "
+                        f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart huduglue-gunicorn.service, "
+                        "/usr/bin/systemctl stop huduglue-gunicorn.service, /usr/bin/systemctl start huduglue-gunicorn.service, "
+                        "/usr/bin/systemctl status huduglue-gunicorn.service, /usr/bin/systemctl daemon-reload, "
+                        "/usr/bin/systemd-run, /usr/bin/pkill, "
+                        "/usr/bin/tee /etc/systemd/system/huduglue-gunicorn.service, "
                         "/usr/bin/cp, /usr/bin/chmod\n"
                         "SUDOERS\n\n"
                         "sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update\n\n"
@@ -650,16 +652,59 @@ class UpdateService:
                     except Exception as e:
                         logger.warning(f"Daemon reload failed (non-critical): {e}")
 
-                    # Restart the service immediately
-                    # Using systemd-run with --on-active=1 for immediate restart after this request completes
-                    restart_output = self._run_command([
-                        '/usr/bin/sudo', '/usr/bin/systemd-run', '--on-active=1',
-                        '/usr/bin/systemctl', 'restart', 'clientst0r-gunicorn.service'
+                    # ENHANCED RESTART: Stop service, kill processes, clear cache, start fresh
+                    # This ensures Python imports are not cached in memory
+                    logger.info("Performing enhanced service restart with cache cleanup")
+
+                    # Step 1: Stop the service
+                    stop_output = self._run_command([
+                        '/usr/bin/sudo', '/usr/bin/systemctl', 'stop', 'huduglue-gunicorn.service'
                     ])
-                    logger.info(f"Service restart scheduled: {restart_output}")
+                    logger.info(f"Service stopped: {stop_output}")
+                    result['output'].append("✓ Service stopped")
+
+                    # Step 2: Kill any lingering gunicorn processes (ensures no cached imports)
+                    try:
+                        kill_output = self._run_command([
+                            '/usr/bin/sudo', '/usr/bin/pkill', '-9', '-f', 'gunicorn'
+                        ])
+                        logger.info(f"Gunicorn processes killed: {kill_output}")
+                        result['output'].append("✓ Cleared all gunicorn processes")
+                    except Exception as e:
+                        # This is OK if no processes found
+                        logger.info(f"No gunicorn processes to kill (normal): {e}")
+
+                    # Step 3: Clear Python bytecode cache
+                    import shutil
+                    cache_cleared = 0
+                    try:
+                        for root, dirs, files in os.walk(self.base_dir):
+                            # Skip venv directory
+                            if 'venv' in root or 'node_modules' in root:
+                                continue
+                            # Remove __pycache__ directories
+                            if '__pycache__' in dirs:
+                                cache_dir = os.path.join(root, '__pycache__')
+                                shutil.rmtree(cache_dir, ignore_errors=True)
+                                cache_cleared += 1
+                            # Remove .pyc files
+                            for file in files:
+                                if file.endswith('.pyc'):
+                                    os.remove(os.path.join(root, file))
+                        logger.info(f"Cleared {cache_cleared} __pycache__ directories")
+                        result['output'].append(f"✓ Cleared Python bytecode cache ({cache_cleared} directories)")
+                    except Exception as e:
+                        logger.warning(f"Cache cleanup warning (non-critical): {e}")
+
+                    # Step 4: Start service fresh (delayed to allow this response to complete)
+                    restart_output = self._run_command([
+                        '/usr/bin/sudo', '/usr/bin/systemd-run', '--on-active=2',
+                        '/usr/bin/systemctl', 'start', 'huduglue-gunicorn.service'
+                    ])
+                    logger.info(f"Service start scheduled: {restart_output}")
                     result['steps_completed'].append('restart_service')
-                    result['output'].append(f"✓ Service restart scheduled (1s delay): {restart_output}")
-                    result['output'].append("⚠️  Please wait 5-10 seconds, then refresh the page to see the new version")
+                    result['output'].append(f"✓ Service restart scheduled with full cleanup (2s delay)")
+                    result['output'].append("⚠️  Please wait 10 seconds, then refresh the page to see the new version")
                     if progress_tracker:
                         progress_tracker.step_complete('Restart Service')
                 except Exception as e:
@@ -669,9 +714,11 @@ class UpdateService:
                             "Passwordless sudo is not configured. Auto-update requires passwordless sudo "
                             "to restart the service. Please configure it by running:\n\n"
                             "sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<SUDOERS\n"
-                            f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-gunicorn.service, "
-                            "/usr/bin/systemctl status clientst0r-gunicorn.service, /usr/bin/systemctl daemon-reload, "
-                            "/usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service, "
+                            f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart huduglue-gunicorn.service, "
+                            "/usr/bin/systemctl stop huduglue-gunicorn.service, /usr/bin/systemctl start huduglue-gunicorn.service, "
+                            "/usr/bin/systemctl status huduglue-gunicorn.service, /usr/bin/systemctl daemon-reload, "
+                            "/usr/bin/systemd-run, /usr/bin/pkill, "
+                            "/usr/bin/tee /etc/systemd/system/huduglue-gunicorn.service, "
                             "/usr/bin/cp, /usr/bin/chmod\n"
                             "SUDOERS\n\n"
                             "sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update\n\n"
