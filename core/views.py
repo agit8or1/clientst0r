@@ -178,25 +178,22 @@ def apply_update(request):
     script_path = settings.BASE_DIR / 'scripts' / 'auto_update.sh'
 
     try:
-        # Start the update script in background
-        # Write output to log file so we can debug issues
-        log_file = settings.BASE_DIR / 'logs' / 'web-update.log'
-        log_file.parent.mkdir(exist_ok=True)
+        # Use systemd-run to make the update script COMPLETELY independent
+        # This prevents the script from dying when gunicorn stops
+        result = subprocess.run(
+            [
+                'sudo', 'systemd-run',
+                '--unit=clientst0r-web-update',
+                '--description=Client St0r Web Update',
+                str(script_path)
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
 
-        # Set proper environment with PATH so script can find commands
-        import os
-        env = os.environ.copy()
-        env['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-
-        with open(log_file, 'w') as log:
-            subprocess.Popen(
-                [str(script_path)],
-                cwd=str(settings.BASE_DIR),
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                env=env,
-                start_new_session=True  # Fully detach from parent
-            )
+        if result.returncode != 0:
+            raise Exception(f"Failed to start update: {result.stderr}")
 
         messages.success(
             request,
