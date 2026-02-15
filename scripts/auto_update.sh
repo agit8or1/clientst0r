@@ -211,6 +211,11 @@ if sudo systemctl is-active --quiet huduglue-monitor.service; then
     log_success "Monitor restarted"
 fi
 
+# Clear Django cache to ensure fresh version display
+log_info "Clearing Django cache..."
+"$VENV_DIR/bin/python" "$PROJECT_DIR/manage.py" shell -c "from django.core.cache import cache; cache.delete('system_update_check'); print('Cache cleared')" > /dev/null 2>&1 || true
+log_success "Cache cleared"
+
 log_info "=========================================="
 log_success "Update completed successfully!"
 log_info "Version: $CURRENT_VERSION → $NEW_VERSION"

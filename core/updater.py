@@ -731,6 +731,11 @@ class UpdateService:
 
             result['success'] = True
 
+            # Clear Django cache to ensure fresh version display
+            from django.core.cache import cache
+            cache.delete('system_update_check')
+            logger.info("Cleared system_update_check cache")
+
             if progress_tracker:
                 progress_tracker.finish(success=True)
 
