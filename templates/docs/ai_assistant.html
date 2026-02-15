@@ -100,6 +100,24 @@ Example: Our environment has 3 domain controllers, uses Azure AD Connect for syn
                             </div>
                         </div>
 
+                        <!-- Output Format Selection -->
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Output Format</strong></label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="outputFormat" id="formatMarkdown" value="markdown" checked>
+                                <label class="btn btn-outline-primary" for="formatMarkdown">
+                                    <i class="fas fa-file-alt"></i> Markdown
+                                </label>
+                                <input type="radio" class="btn-check" name="outputFormat" id="formatHtml" value="html">
+                                <label class="btn btn-outline-primary" for="formatHtml">
+                                    <i class="fas fa-paint-brush"></i> Rich HTML
+                                </label>
+                            </div>
+                            <div class="form-text" id="formatHelpText">
+                                <i class="fas fa-file-alt"></i> Clean, portable format - great for editing
+                            </div>
+                        </div>
+
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary" {% if not has_ai %}disabled{% endif %}>
                                 <i class="fas fa-magic"></i> Generate Documentation
@@ -198,8 +216,21 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentExamplePrompt = '';
     let generatedTitle = '';
     let generatedContent = '';
+    let generatedFormat = 'markdown';
 
-    // Template selection
+    // Format selector help text
+    document.querySelectorAll('input[name="outputFormat"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const helpText = document.getElementById('formatHelpText');
+            if (this.value === 'html') {
+                helpText.innerHTML = '<i class="fas fa-paint-brush"></i> Rich, styled HTML with Bootstrap classes and icons';
+            } else {
+                helpText.innerHTML = '<i class="fas fa-file-alt"></i> Clean, portable format - great for editing';
+            }
+        });
+    });
+
+    // Template selection - AUTO-POPULATE prompt (no "use example" button needed)
     document.querySelectorAll('.template-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             // Update active state
@@ -213,8 +244,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update hidden input
             templateTypeInput.value = currentTemplate === 'none' ? '' : currentTemplate;
 
-            // Enable/disable example button
+            // AUTO-POPULATE prompt if template has example
             if (currentExamplePrompt) {
+                promptInput.value = currentExamplePrompt;
                 useExampleBtn.disabled = false;
             } else {
                 useExampleBtn.disabled = true;
@@ -284,11 +316,11 @@ document.addEventListener('DOMContentLoaded', function() {
         contentInput.value = generatedContent;
         form.appendChild(contentInput);
 
-        // Add content type
+        // Add content type (use the format that was used for generation)
         const contentTypeInput = document.createElement('input');
         contentTypeInput.type = 'hidden';
         contentTypeInput.name = 'content_type';
-        contentTypeInput.value = 'markdown';
+        contentTypeInput.value = generatedFormat; // 'markdown' or 'html'
         form.appendChild(contentTypeInput);
 
         // Add is_published
@@ -319,11 +351,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show loading
         loadingIndicator.style.display = 'block';
 
+        // Get selected output format
+        const outputFormat = document.querySelector('input[name="outputFormat"]:checked').value;
+
         // Prepare request data
         const data = {
             prompt: prompt,
             template_type: templateTypeInput.value,
-            context: contextInput.value.trim() || null
+            context: contextInput.value.trim() || null,
+            output_format: outputFormat
         };
 
         // Call API
@@ -343,6 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Show results
                 generatedTitle = result.title;
                 generatedContent = result.content;
+                generatedFormat = outputFormat; // Store the format used
 
                 document.getElementById('result-title').value = result.title;
                 document.getElementById('result-content').value = result.content;
