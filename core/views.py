@@ -143,6 +143,40 @@ def check_updates_now(request):
         extra_data=update_info
     )
 
+    # BOOTSTRAP FIX: Detect if git commit is ahead of running version
+    # This happens when "Update Now" pulled code but workers didn't restart
+    from django.conf import settings
+    import subprocess
+    from config.version import VERSION
+
+    try:
+        # Get version from file on disk
+        version_file = settings.BASE_DIR / 'config' / 'version.py'
+        with open(version_file, 'r') as f:
+            for line in f:
+                if line.strip().startswith('VERSION ='):
+                    file_version = line.split("'")[1]
+                    break
+
+        # If mismatch detected, auto-trigger restart
+        if file_version != VERSION:
+            messages.warning(
+                request,
+                f"⚠️ Bootstrap problem detected! File has v{file_version} but workers running v{VERSION}. Auto-restarting services..."
+            )
+
+            # Trigger auto-heal in background
+            subprocess.Popen([
+                'python', 'manage.py', 'auto_heal_version'
+            ], cwd=str(settings.BASE_DIR))
+
+            messages.success(request, "Services restarting... Refresh page in 10 seconds to see new version!")
+            return redirect('core:system_updates')
+
+    except Exception as e:
+        # Silently fail - don't break the check updates flow
+        pass
+
     if update_info.get('error'):
         messages.error(request, f"Failed to check for updates: {update_info['error']}")
     elif update_info['update_available']:
