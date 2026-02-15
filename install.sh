@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# HuduGlue Installer - Simple automated setup
+# Client St0r Installer - Simple automated setup
 # Usage: bash install.sh
 #
 
@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}"
 echo "╔═══════════════════════════════════════════════════════════╗"
 echo "║                                                           ║"
-echo "║             HuduGlue Automated Installer                  ║"
+echo "║            Client St0r Automated Installer                ║"
 echo "║                      v2.2.0                               ║"
 echo "║                                                           ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
@@ -120,7 +120,7 @@ fi
 
 if [ "$EXISTING_INSTALL" = true ]; then
     echo ""
-    print_warning "Existing HuduGlue installation detected!"
+    print_warning "Existing Client St0r installation detected!"
     echo ""
 
     # Show what exists
@@ -625,7 +625,7 @@ EMAIL_HOST_USER=
 EMAIL_HOST_PASSWORD=
 
 # Application
-SITE_NAME=HuduGlue
+SITE_NAME=Client St0r
 SITE_URL=http://localhost:8000
 
 # Security
@@ -644,7 +644,7 @@ mkdir -p "$INSTALL_DIR/deploy"
 
 # Generate huduglue-install-sudoers
 cat > "$INSTALL_DIR/deploy/huduglue-install-sudoers" <<SUDOEOF
-# Sudoers configuration for HuduGlue automatic fail2ban installation
+# Sudoers configuration for Client St0r automatic fail2ban installation
 # Install: sudo cp $INSTALL_DIR/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install
 # Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-install
 
@@ -660,7 +660,7 @@ SUDOEOF
 
 # Generate huduglue-fail2ban-sudoers
 cat > "$INSTALL_DIR/deploy/huduglue-fail2ban-sudoers" <<FBSUDOEOF
-# Sudoers configuration for HuduGlue fail2ban integration
+# Sudoers configuration for Client St0r fail2ban integration
 # Install: sudo cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
 # Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban
 
@@ -802,7 +802,7 @@ sleep 2
 # Create systemd service file
 sudo tee /etc/systemd/system/huduglue-gunicorn.service > /dev/null << 'SVCEOF'
 [Unit]
-Description=HuduGlue Gunicorn
+Description=Client St0r Gunicorn
 After=network.target mariadb.service
 Wants=mariadb.service
 
@@ -858,13 +858,13 @@ echo ""
 echo ""
 echo -e "${GREEN}╔═══════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║                                                           ║${NC}"
-echo -e "${GREEN}║        HuduGlue Installation Complete! 🎉 🐕              ║${NC}"
+echo -e "${GREEN}║       Client St0r Installation Complete! 🎉               ║${NC}"
 echo -e "${GREEN}║              Server is RUNNING!                           ║${NC}"
 echo -e "${GREEN}║                                                           ║${NC}"
 echo -e "${GREEN}╚═══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-print_info "🌐 Access your HuduGlue installation at:"
+print_info "🌐 Access your Client St0r installation at:"
 echo ""
 echo -e "  ${GREEN}➜  http://${SERVER_IP}:8000${NC}"
 echo -e "  ${GREEN}➜  http://localhost:8000${NC} (if accessing from this server)"
@@ -904,7 +904,7 @@ echo "  ✅ Random encryption keys generated"
 echo "  📄 All credentials stored in: $INSTALL_DIR/.env"
 echo ""
 
-print_info "📚 Documentation: https://github.com/agit8or1/huduglue"
+print_info "📚 Documentation: https://github.com/agit8or1/clientst0r"
 echo ""
 
 print_status "Installation files:"

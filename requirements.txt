@@ -10,7 +10,7 @@ mysqlclient==2.2.*
 argon2-cffi==23.1.*
 django-axes==6.1.*
 django-ratelimit==4.1.*
-cryptography>=44.0.1,<45.0.0  # Updated to 44.0.1+ to fix GHSA-79v4-65xg-pq4g (OpenSSL CVE)
+cryptography>=46.0.5,<47.0.0  # Updated to 46.0.5+ to fix subgroup attack vulnerability (SECT Curves)
 pip-audit==2.7.*
 
 # 2FA
@@ -31,7 +31,7 @@ anthropic==0.75.*
 
 # Utilities
 python-dotenv==1.0.*
-Pillow==11.1.*  # Updated for Python 3.13 compatibility (Debian 13)
+Pillow==12.1.*  # Updated to 12.1.1+ to fix out-of-bounds write vulnerability (PSD images)
 markdown==3.5.*
 bleach==6.1.*
 pytz==2024.1
@@ -43,4 +43,4 @@ msal==1.34.*
 requests-oauthlib==1.3.*
 
 # Note: LDAP/Active Directory support moved to requirements-optional.txt
-# See: https://github.com/agit8or1/huduglue/blob/main/requirements-optional.txt
+# See: https://github.com/agit8or1/clientst0r/blob/main/requirements-optional.txt
