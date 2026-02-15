@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='systemsetting',
             name='custom_company_name',
-            field=models.CharField(blank=True, help_text='Custom company name (replaces HuduGlue branding)', max_length=255),
+            field=models.CharField(blank=True, help_text='Custom company name (replaces Client St0r branding)', max_length=255),
         ),
         migrations.AddField(
             model_name='systemsetting',

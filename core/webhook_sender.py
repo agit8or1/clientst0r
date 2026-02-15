@@ -89,7 +89,7 @@ def deliver_webhook(webhook, event_type, payload_data):
     # Prepare headers
     headers = {
         'Content-Type': 'application/json',
-        'User-Agent': 'HuduGlue-Webhooks/1.0',
+        'User-Agent': 'Client St0r-Webhooks/1.0',
     }
 
     # Add signature if secret is configured

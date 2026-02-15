@@ -363,7 +363,7 @@ def download_mobile_app(request, app_type):
     os.makedirs(MOBILE_APP_DIR, exist_ok=True)
 
     if app_type == 'android':
-        apk_path = os.path.join(MOBILE_APP_DIR, 'huduglue.apk')
+        apk_path = os.path.join(MOBILE_APP_DIR, 'clientst0r.apk')
         status_file = os.path.join(MOBILE_APP_DIR, 'android_build_status.json')
 
         # Check if APK exists
@@ -373,7 +373,7 @@ def download_mobile_app(request, app_type):
                 open(apk_path, 'rb'),
                 content_type='application/vnd.android.package-archive'
             )
-            response['Content-Disposition'] = 'attachment; filename="HuduGlue.apk"'
+            response['Content-Disposition'] = 'attachment; filename="Client St0r.apk"'
 
             # Log download
             AuditLog.objects.create(
@@ -417,7 +417,7 @@ def download_mobile_app(request, app_type):
                     <!DOCTYPE html>
                     <html>
                     <head>
-                        <title>Building Android App - HuduGlue</title>
+                        <title>Building Android App - Client St0r</title>
                         <meta charset="UTF-8">
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
@@ -487,7 +487,7 @@ def download_mobile_app(request, app_type):
                     <!DOCTYPE html>
                     <html>
                     <head>
-                        <title>Android App Build Complete - HuduGlue</title>
+                        <title>Android App Build Complete - Client St0r</title>
                         <meta charset="UTF-8">
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
@@ -514,7 +514,7 @@ def download_mobile_app(request, app_type):
                                 <h5>Next Steps:</h5>
                                 <ol class="text-start">
                                     <li>Download the APK from the URL above</li>
-                                    <li>Place it at: <code>~/huduglue/mobile-app/builds/huduglue.apk</code></li>
+                                    <li>Place it at: <code>~/clientst0r/mobile-app/builds/clientst0r.apk</code></li>
                                     <li>Refresh this page to download</li>
                                 </ol>
                                 <hr>
@@ -544,7 +544,7 @@ def download_mobile_app(request, app_type):
                         <!DOCTYPE html>
                         <html>
                         <head>
-                            <title>Android App - HuduGlue</title>
+                            <title>Android App - Client St0r</title>
                             <meta charset="UTF-8">
                             <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                             <meta http-equiv="Pragma" content="no-cache">
@@ -619,7 +619,7 @@ def download_mobile_app(request, app_type):
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Building Android App - HuduGlue</title>
+                <title>Building Android App - Client St0r</title>
                 <meta charset="UTF-8">
                 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                 <meta http-equiv="Pragma" content="no-cache">
@@ -714,7 +714,7 @@ def download_mobile_app(request, app_type):
         """, content_type='text/html; charset=utf-8')
 
     elif app_type == 'ios':
-        ipa_path = os.path.join(MOBILE_APP_DIR, 'huduglue.ipa')
+        ipa_path = os.path.join(MOBILE_APP_DIR, 'clientst0r.ipa')
         status_file = os.path.join(MOBILE_APP_DIR, 'ios_build_status.json')
 
         # Check if IPA exists
@@ -724,7 +724,7 @@ def download_mobile_app(request, app_type):
                 open(ipa_path, 'rb'),
                 content_type='application/octet-stream'
             )
-            response['Content-Disposition'] = 'attachment; filename="HuduGlue.ipa"'
+            response['Content-Disposition'] = 'attachment; filename="Client St0r.ipa"'
 
             # Log download
             AuditLog.objects.create(
@@ -767,7 +767,7 @@ def download_mobile_app(request, app_type):
                     <!DOCTYPE html>
                     <html>
                     <head>
-                        <title>Building iOS App - HuduGlue</title>
+                        <title>Building iOS App - Client St0r</title>
                         <meta charset="UTF-8">
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
@@ -836,7 +836,7 @@ def download_mobile_app(request, app_type):
                     <!DOCTYPE html>
                     <html>
                     <head>
-                        <title>iOS App Build Complete - HuduGlue</title>
+                        <title>iOS App Build Complete - Client St0r</title>
                         <meta charset="UTF-8">
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
@@ -863,7 +863,7 @@ def download_mobile_app(request, app_type):
                                 <h5>Next Steps:</h5>
                                 <ol class="text-start">
                                     <li>Download the IPA from the URL above</li>
-                                    <li>Place it at: <code>~/huduglue/mobile-app/builds/huduglue.ipa</code></li>
+                                    <li>Place it at: <code>~/clientst0r/mobile-app/builds/clientst0r.ipa</code></li>
                                     <li>Refresh this page to download</li>
                                 </ol>
                                 <p class="alert alert-warning">IPA files require TestFlight, enterprise distribution, or App Store for installation.</p>
@@ -888,7 +888,7 @@ def download_mobile_app(request, app_type):
                     <!DOCTYPE html>
                     <html>
                     <head>
-                        <title>iOS App - HuduGlue</title>
+                        <title>iOS App - Client St0r</title>
                         <meta charset="UTF-8">
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
@@ -932,7 +932,7 @@ def download_mobile_app(request, app_type):
             <!DOCTYPE html>
             <html>
             <head>
-                <title>iOS App - HuduGlue</title>
+                <title>iOS App - Client St0r</title>
                 <meta charset="UTF-8">
                 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                 <meta http-equiv="Pragma" content="no-cache">
@@ -959,7 +959,7 @@ def download_mobile_app(request, app_type):
                         <h1>iOS App Not Available</h1>
                         <p class="lead">iOS app builds are not currently supported.</p>
                         <p class="text-muted">Building iOS apps requires a macOS system with Xcode installed. This Linux server cannot build iOS apps.</p>
-                        <p class="text-muted">Consider using the Android app or accessing HuduGlue through your web browser instead.</p>
+                        <p class="text-muted">Consider using the Android app or accessing Client St0r through your web browser instead.</p>
                         <div class="mt-4">
                             <a href="javascript:history.back()" class="btn-secondary">Go Back</a>
                         </div>
@@ -980,7 +980,7 @@ def download_mobile_app(request, app_type):
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Building iOS App - HuduGlue</title>
+                <title>Building iOS App - Client St0r</title>
                 <meta charset="UTF-8">
                 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                 <meta http-equiv="Pragma" content="no-cache">

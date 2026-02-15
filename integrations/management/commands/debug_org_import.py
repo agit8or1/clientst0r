@@ -146,6 +146,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(
                 '✓ Devices have client/site data and would be properly distributed!\n'
                 '  If existing devices are in wrong org, you need to:\n'
-                '  1. Delete devices in HuduGlue (or use --force flag)\n'
+                '  1. Delete devices in Client St0r (or use --force flag)\n'
                 '  2. Run sync again to reassign them to correct orgs'
             ))

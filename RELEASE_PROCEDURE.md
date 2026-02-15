@@ -68,8 +68,8 @@ gh release create vX.Y.Z \
 
 ### Step 8: Restart Application
 ```bash
-sudo systemctl restart huduglue-gunicorn.service
-sudo systemctl status huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
+sudo systemctl status clientst0r-gunicorn.service
 ```
 
 ### Step 9: Verify Release
@@ -152,18 +152,18 @@ gh release create v2.50.0 \
 Fixes #123"
 
 # 7. Restart application
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 
 # 8. Verify
 gh release list | head -1
-sudo systemctl status huduglue-gunicorn.service | head -10
+sudo systemctl status clientst0r-gunicorn.service | head -10
 ```
 
 ---
 
 ## System Update Detection
 
-The HuduGlue system update checker looks for:
+The Client St0r system update checker looks for:
 1. **GitHub Releases** (not just commits or tags)
 2. **Latest Release** marked on GitHub
 3. **Version number** from the release tag

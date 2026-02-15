@@ -8,7 +8,7 @@ import json
 
 
 class Command(BaseCommand):
-    help = 'Check for HuduGlue updates from GitHub'
+    help = 'Check for Client St0r updates from GitHub'
 
     def add_arguments(self, parser):
         parser.add_argument(

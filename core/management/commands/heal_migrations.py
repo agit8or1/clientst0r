@@ -30,7 +30,7 @@ class Command(BaseCommand):
         dry_run = options['dry_run']
 
         self.stdout.write(
-            self.style.SUCCESS('\n🔧 HuduGlue Migration Self-Healing System\n')
+            self.style.SUCCESS('\n🔧 Client St0r Migration Self-Healing System\n')
         )
 
         if dry_run:

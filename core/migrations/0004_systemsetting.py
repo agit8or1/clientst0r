@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
             name='SystemSetting',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('site_name', models.CharField(default='HuduGlue', max_length=255)),
+                ('site_name', models.CharField(default='Client St0r', max_length=255)),
                 ('site_url', models.URLField(blank=True, help_text='Base URL for email links', max_length=500)),
                 ('default_timezone', models.CharField(default='UTC', help_text='Default timezone for new users', max_length=50)),
                 ('session_timeout_minutes', models.PositiveIntegerField(default=480, help_text='Session timeout in minutes (default: 8 hours)')),
@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
                 ('smtp_use_tls', models.BooleanField(default=True, help_text='Use TLS for SMTP')),
                 ('smtp_use_ssl', models.BooleanField(default=False, help_text='Use SSL for SMTP')),
                 ('smtp_from_email', models.EmailField(blank=True, help_text='From email address', max_length=254)),
-                ('smtp_from_name', models.CharField(default='HuduGlue', help_text='From name', max_length=255)),
+                ('smtp_from_name', models.CharField(default='Client St0r', help_text='From name', max_length=255)),
                 ('notify_on_user_created', models.BooleanField(default=True, help_text='Notify admins when users are created')),
                 ('notify_on_ssl_expiry', models.BooleanField(default=True, help_text='Send SSL expiration warnings')),
                 ('notify_on_domain_expiry', models.BooleanField(default=True, help_text='Send domain expiration warnings')),

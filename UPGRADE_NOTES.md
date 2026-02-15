@@ -1,4 +1,4 @@
-# HuduGlue Upgrade Notes
+# Client St0r Upgrade Notes
 
 ## 💡 v2.25.1 - User-Configurable Tooltips
 
@@ -19,7 +19,7 @@ Users can now enable or disable helpful tooltips throughout the interface from t
 cd /home/administrator
 git pull origin main
 python manage.py migrate  # Runs migration accounts.0011_add_tooltips_enabled
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ### Usage:
@@ -52,7 +52,7 @@ RMM devices with location data now display on the dashboard location map with st
 cd /home/administrator
 git pull origin main
 python manage.py migrate  # Runs migration 0006_add_device_location_fields
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ### Requirements:
@@ -100,7 +100,7 @@ Nested the if statements properly:
 ```bash
 cd /home/administrator
 git pull origin main
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 **If you're on v2.24.126, upgrade to v2.24.127 immediately!**
@@ -135,7 +135,7 @@ After: Both superusers AND staff users see all organizations
 ```bash
 cd /home/administrator
 git pull origin main
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ---
@@ -172,7 +172,7 @@ Fixed browser console errors and form validation issues on document creation/edi
 ```bash
 cd /home/administrator
 git pull origin main
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ---
@@ -204,7 +204,7 @@ Now when encryption errors occur, users see clear instructions:
 ```bash
 cd /home/administrator
 git pull origin main
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ---
@@ -240,7 +240,7 @@ Added Feature Toggles in Admin Settings to enable or disable major system featur
 cd /home/administrator
 git pull origin main
 python manage.py migrate
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ---
@@ -395,11 +395,11 @@ Click the **Update** button in the web UI and EVERYTHING happens automatically -
 For web-based updates to work, configure passwordless sudo ONCE:
 
 ```bash
-sudo tee /etc/sudoers.d/huduglue-auto-update > /dev/null <<'SUDOERS'
-administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.service, /bin/systemctl status huduglue-gunicorn.service, /bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/huduglue-gunicorn.service
+sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<'SUDOERS'
+administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-gunicorn.service, /bin/systemctl status clientst0r-gunicorn.service, /bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service
 SUDOERS
 
-sudo chmod 0440 /etc/sudoers.d/huduglue-auto-update
+sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update
 ```
 
 **After this one-time setup, all future updates are ONE CLICK!**
@@ -453,7 +453,7 @@ The migration automatically:
 - Restarts Gunicorn
 
 ### Perfect for Multiple Servers:
-This update is designed for administrators managing multiple HuduGlue servers. Run the same single command on all servers - everything happens automatically!
+This update is designed for administrators managing multiple Client St0r servers. Run the same single command on all servers - everything happens automatically!
 
 ### Already Applied the Fix Manually?
 No problem! The migration detects if the fix is already applied and won't duplicate the configuration.
@@ -495,7 +495,7 @@ If you've already run `./scripts/fix_gunicorn_env.sh` after v2.24.113, you're go
 
 ### New Feature: Report Bugs Directly to GitHub
 
-Users can now report bugs from HuduGlue! Click **username dropdown → Report Bug**.
+Users can now report bugs from Client St0r! Click **username dropdown → Report Bug**.
 
 **Features:**
 - Submit title, description, steps to reproduce
@@ -508,7 +508,7 @@ Users can now report bugs from HuduGlue! Click **username dropdown → Report Bu
 cd /home/administrator
 git pull origin main
 python manage.py migrate
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ---
@@ -561,7 +561,7 @@ This script will:
 
 1. Edit the service file:
 ```bash
-sudo nano /etc/systemd/system/huduglue-gunicorn.service
+sudo nano /etc/systemd/system/clientst0r-gunicorn.service
 ```
 
 2. Add this line after the `Environment="PATH=..."` line:
@@ -585,7 +585,7 @@ ExecStart=/home/administrator/venv/bin/gunicorn \
 4. Reload and restart:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ### Verification
@@ -623,7 +623,7 @@ This fix is required for any system where the Gunicorn service was set up before
 ```bash
 cd /home/administrator
 git pull origin main
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ---

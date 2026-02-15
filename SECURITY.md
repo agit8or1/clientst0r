@@ -1,13 +1,13 @@
-# HuduGlue Security Policy
+# Client St0r Security Policy
 
 ## Reporting Security Vulnerabilities
 
-**We take security seriously.** If you discover a security vulnerability in HuduGlue, please report it responsibly.
+**We take security seriously.** If you discover a security vulnerability in Client St0r, please report it responsibly.
 
 ### How to Report
 
 **Preferred Method:**
-- Use GitHub's Security Advisories: [Report a vulnerability](https://github.com/agit8or1/huduglue/security/advisories/new)
+- Use GitHub's Security Advisories: [Report a vulnerability](https://github.com/agit8or1/clientst0r/security/advisories/new)
 
 **Alternative Contact:**
 - Email: Create an issue on GitHub with the label "security" (do not include sensitive details in public issues)
@@ -54,7 +54,7 @@ We provide security updates for the current major version and one previous major
 **Last Updated:** 2026-01-18
 **Architecture:** Django 6.0.1 + DRF + Gunicorn + MariaDB + Anthropic AI
 
-HuduGlue implements defense-in-depth security with multiple layers of protection based on OWASP best practices, Django security guidelines, and enterprise SaaS security requirements.
+Client St0r implements defense-in-depth security with multiple layers of protection based on OWASP best practices, Django security guidelines, and enterprise SaaS security requirements.
 
 ---
 
@@ -161,8 +161,8 @@ CSRF_COOKIE_SECURE=True
 REQUIRE_2FA=True
 
 # ===== ALLOWED HOSTS =====
-ALLOWED_HOSTS=huduglue.example.com,www.huduglue.example.com
-CSRF_TRUSTED_ORIGINS=https://huduglue.example.com,https://www.huduglue.example.com
+ALLOWED_HOSTS=clientst0r.example.com,www.clientst0r.example.com
+CSRF_TRUSTED_ORIGINS=https://clientst0r.example.com,https://www.clientst0r.example.com
 
 # ===== AI LIMITS =====
 AI_MAX_DAILY_REQUESTS_PER_USER=100
@@ -306,15 +306,15 @@ print(stats)
 # ========================================
 SECRET_KEY=<unique-50+-character-string>
 DEBUG=False
-ALLOWED_HOSTS=huduglue.example.com
-CSRF_TRUSTED_ORIGINS=https://huduglue.example.com
+ALLOWED_HOSTS=clientst0r.example.com
+CSRF_TRUSTED_ORIGINS=https://clientst0r.example.com
 
 # ========================================
 # DATABASE (MariaDB)
 # ========================================
 DB_ENGINE=mysql
-DB_NAME=huduglue
-DB_USER=huduglue_user
+DB_NAME=clientst0r
+DB_USER=clientst0r_user
 DB_PASSWORD=<strong-password>
 DB_HOST=localhost
 DB_PORT=3306
@@ -406,7 +406,7 @@ REQUIRE_2FA=True
 
 ### Architecture
 
-HuduGlue uses **single-database multi-tenancy** with `organization_id` filtering:
+Client St0r uses **single-database multi-tenancy** with `organization_id` filtering:
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -747,7 +747,7 @@ export APP_MASTER_KEY="$NEW_KEY"
 echo "APP_MASTER_KEY=$NEW_KEY" >> .env.prod
 
 # Step 5: Restart application
-systemctl restart huduglue-gunicorn
+systemctl restart clientst0r-gunicorn
 
 # Step 6: Verify
 python manage.py secrets validate
@@ -1108,7 +1108,7 @@ api_key.delete()  # Or mark inactive
 AZURE_AD_TENANT_ID=<your-tenant-id>
 AZURE_AD_CLIENT_ID=<your-client-id>
 AZURE_AD_CLIENT_SECRET=<your-client-secret>
-AZURE_AD_REDIRECT_URI=https://huduglue.example.com/accounts/azure/callback/
+AZURE_AD_REDIRECT_URI=https://clientst0r.example.com/accounts/azure/callback/
 AZURE_AD_AUTO_CREATE_USERS=True  # Auto-create on first login
 ```
 
@@ -1116,15 +1116,15 @@ AZURE_AD_AUTO_CREATE_USERS=True  # Auto-create on first login
 1. User clicks "Login with Microsoft"
 2. Redirects to Azure AD
 3. User authenticates with Microsoft
-4. Callback to HuduGlue with OAuth code
+4. Callback to Client St0r with OAuth code
 5. Exchange code for access token
 6. Fetch user info from Microsoft Graph API
-7. Create/update user in HuduGlue
+7. Create/update user in Client St0r
 8. Log in user
 
 **Security:**
 - OAuth 2.0 / OpenID Connect
-- No passwords stored in HuduGlue
+- No passwords stored in Client St0r
 - Updates user info on each login
 - Audit logged
 
@@ -1270,7 +1270,7 @@ python manage.py check_snyk_status
 
 **Log Rotation:**
 ```bash
-# /etc/logrotate.d/huduglue
+# /etc/logrotate.d/clientst0r
 /var/log/itdocs/*.log {
     daily
     rotate 30
@@ -1280,7 +1280,7 @@ python manage.py check_snyk_status
     create 0644 www-data www-data
     sharedscripts
     postrotate
-        systemctl reload huduglue-gunicorn
+        systemctl reload clientst0r-gunicorn
     endscript
 }
 ```
@@ -1321,7 +1321,7 @@ user.save()
 iptables -A INPUT -s <attacker-ip> -j DROP
 
 # Or fail2ban
-fail2ban-client set huduglue banip <attacker-ip>
+fail2ban-client set clientst0r banip <attacker-ip>
 ```
 
 3. **Revoke API Keys:**
@@ -1363,7 +1363,7 @@ python manage.py secrets rotate --old-key $OLD --new-key $NEW
 export APP_MASTER_KEY=$NEW_KEY
 
 # Restart
-systemctl restart huduglue-gunicorn
+systemctl restart clientst0r-gunicorn
 ```
 
 3. **Reset 2FA:**
@@ -1386,7 +1386,7 @@ AuditLog.objects.filter(
 1. **Restore from Backup (if data corruption):**
 ```bash
 # Database restore
-mysql -u root -p huduglue < backup_2026-01-14.sql
+mysql -u root -p clientst0r < backup_2026-01-14.sql
 
 # File restore
 rsync -av /backups/media/ /var/lib/itdocs/uploads/
@@ -1453,7 +1453,7 @@ See separate section below for copy/paste implementation guide.
 
 **Last Updated:** 2026-01-18
 **Version:** 2.24.148
-**Maintainer:** HuduGlue Security Team
+**Maintainer:** Client St0r Security Team
 
 ---
 

@@ -18,7 +18,7 @@ class GitHubAPIError(Exception):
 class GitHubIssueCreator:
     """Helper class for creating GitHub issues via API"""
 
-    def __init__(self, token, repo='agit8or1/huduglue'):
+    def __init__(self, token, repo='agit8or1/clientst0r'):
         """
         Initialize GitHub issue creator
 
@@ -40,7 +40,7 @@ class GitHubIssueCreator:
         headers = {
             'Authorization': f'token {self.token}',
             'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'HuduGlue-BugReporter'
+            'User-Agent': 'Client St0r-BugReporter'
         }
 
         # Test by checking if we can access the repository
@@ -73,7 +73,7 @@ class GitHubIssueCreator:
         headers = {
             'Authorization': f'token {self.token}',
             'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'HuduGlue-BugReporter'
+            'User-Agent': 'Client St0r-BugReporter'
         }
 
         data = {
@@ -132,7 +132,7 @@ class GitHubIssueCreator:
         headers = {
             'Authorization': f'token {self.token}',
             'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'HuduGlue-BugReporter'
+            'User-Agent': 'Client St0r-BugReporter'
         }
 
         # Create a comment noting the screenshot
@@ -165,7 +165,7 @@ class GitHubIssueCreator:
         headers = {
             'Authorization': f'token {self.token}',
             'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'HuduGlue-BugReporter'
+            'User-Agent': 'Client St0r-BugReporter'
         }
 
         # Test by checking if we can access the repository
@@ -227,7 +227,7 @@ def format_bug_report_body(description, steps_to_reproduce, system_info, reporte
 
     # System Information
     body_parts.append("## System Information")
-    body_parts.append(f"- **HuduGlue Version**: {system_info.get('version', 'Unknown')}")
+    body_parts.append(f"- **Client St0r Version**: {system_info.get('version', 'Unknown')}")
     body_parts.append(f"- **Django Version**: {system_info.get('django_version', 'Unknown')}")
     body_parts.append(f"- **Python Version**: {system_info.get('python_version', 'Unknown')}")
     body_parts.append(f"- **Operating System**: {system_info.get('os', 'Unknown')}")
@@ -236,12 +236,12 @@ def format_bug_report_body(description, steps_to_reproduce, system_info, reporte
     body_parts.append("")
 
     body_parts.append("---")
-    body_parts.append("_This bug report was submitted via HuduGlue's built-in bug reporting feature._")
+    body_parts.append("_This bug report was submitted via Client St0r's built-in bug reporting feature._")
 
     return "\n".join(body_parts)
 
 
-def generate_github_issue_url(title, body, labels=None, repo='agit8or1/huduglue'):
+def generate_github_issue_url(title, body, labels=None, repo='agit8or1/clientst0r'):
     """
     Generate a GitHub URL with pre-filled issue template.
     User opens this in their browser and submits with their own GitHub account.

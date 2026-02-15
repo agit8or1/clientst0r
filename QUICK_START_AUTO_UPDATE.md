@@ -24,12 +24,12 @@ Starting now, every day at 2 AM:
 
 Check status:
 ```bash
-sudo systemctl status huduglue-auto-update.timer
+sudo systemctl status clientst0r-auto-update.timer
 ```
 
 View next scheduled run:
 ```bash
-sudo systemctl list-timers | grep huduglue
+sudo systemctl list-timers | grep clientst0r
 ```
 
 ## Test It Now (Optional)
@@ -37,12 +37,12 @@ sudo systemctl list-timers | grep huduglue
 Don't want to wait until 2 AM? Run it now:
 
 ```bash
-sudo systemctl start huduglue-auto-update.service
+sudo systemctl start clientst0r-auto-update.service
 ```
 
 Watch it work:
 ```bash
-tail -f /var/log/huduglue/auto-update.log
+tail -f /var/log/clientst0r/auto-update.log
 ```
 
 ## What You Get
@@ -63,7 +63,7 @@ Dependency updates? **Automatic.**
 Full documentation: `AUTO_UPDATE.md`
 
 Commands:
-- Check status: `sudo systemctl status huduglue-auto-update.timer`
-- View logs: `tail -f /var/log/huduglue/auto-update.log`
-- Disable: `sudo systemctl disable huduglue-auto-update.timer`
-- Enable: `sudo systemctl enable huduglue-auto-update.timer`
+- Check status: `sudo systemctl status clientst0r-auto-update.timer`
+- View logs: `tail -f /var/log/clientst0r/auto-update.log`
+- Disable: `sudo systemctl disable clientst0r-auto-update.timer`
+- Enable: `sudo systemctl enable clientst0r-auto-update.timer`

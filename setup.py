@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-HuduGlue Installation Setup Script
+Client St0r Installation Setup Script
 Creates default organization and initial data
 """
 import os
@@ -21,7 +21,7 @@ from django.utils.text import slugify
 def setup_organization():
     """Create default organization with user input."""
     print("\n" + "="*60)
-    print("  HuduGlue - Initial Setup")
+    print("  Client St0r - Initial Setup")
     print("="*60 + "\n")
 
     # Check if organizations already exist

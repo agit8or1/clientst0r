@@ -1,6 +1,6 @@
-# Contributing to HuduGlue
+# Contributing to Client St0r
 
-First off, thank you for considering contributing to HuduGlue! 🐕
+First off, thank you for considering contributing to Client St0r! 🐕
 
 This document provides guidelines for contributing to the project. Luna the GSD has helped review these guidelines to ensure they're clear and effective.
 
@@ -144,7 +144,7 @@ def calc_cost(i,t=0):
 ### Code Organization
 
 ```
-huduglue/
+clientst0r/
 ├── core/             # Core functionality
 ├── vault/            # Password vault
 ├── assets/           # Asset management
@@ -334,6 +334,6 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 ---
 
-**Thank you for contributing to HuduGlue! 🐕**
+**Thank you for contributing to Client St0r! 🐕**
 
 *Reviewed by Luna the German Shepherd*

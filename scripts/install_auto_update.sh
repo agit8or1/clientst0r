@@ -1,5 +1,5 @@
 #!/bin/bash
-# Install Auto-Update System for HuduGlue
+# Install Auto-Update System for client st0r
 
 set -e
 
@@ -8,7 +8,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 echo -e "${BLUE}=========================================="
-echo "HuduGlue Auto-Update Installer"
+echo "client st0r Auto-Update Installer"
 echo -e "==========================================${NC}"
 
 # Get current user
@@ -20,9 +20,9 @@ echo "User: $CURRENT_USER"
 echo "Project: $PROJECT_DIR"
 
 # Create dynamic service file with actual user
-cat > /tmp/huduglue-auto-update.service << EOF
+cat > /tmp/clientst0r-auto-update.service << EOF
 [Unit]
-Description=HuduGlue Auto-Update Service
+Description=client st0r Auto-Update Service
 After=network.target
 
 [Service]
@@ -31,8 +31,8 @@ User=$CURRENT_USER
 Group=$CURRENT_USER
 WorkingDirectory=$PROJECT_DIR
 ExecStart=$PROJECT_DIR/scripts/auto_update.sh
-StandardOutput=append:/var/log/huduglue/auto-update.log
-StandardError=append:/var/log/huduglue/auto-update.log
+StandardOutput=append:/var/log/clientst0r/auto-update.log
+StandardError=append:/var/log/clientst0r/auto-update.log
 
 # Environment
 Environment="PATH=$PROJECT_DIR/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -47,28 +47,28 @@ EOF
 
 # Copy service files
 echo "Installing systemd service and timer..."
-sudo cp /tmp/huduglue-auto-update.service /etc/systemd/system/
-sudo cp deploy/huduglue-auto-update.timer /etc/systemd/system/
+sudo cp /tmp/clientst0r-auto-update.service /etc/systemd/system/
+sudo cp deploy/clientst0r-auto-update.timer /etc/systemd/system/
 
 # Set permissions
-sudo chmod 644 /etc/systemd/system/huduglue-auto-update.service
-sudo chmod 644 /etc/systemd/system/huduglue-auto-update.timer
+sudo chmod 644 /etc/systemd/system/clientst0r-auto-update.service
+sudo chmod 644 /etc/systemd/system/clientst0r-auto-update.timer
 
 # Add sudo permissions for the update script
 echo "Adding sudo permissions for auto-update..."
-SUDOERS_FILE="/etc/sudoers.d/huduglue-auto-update"
-cat > /tmp/huduglue-auto-update-sudoers << EOF
-# Allow $CURRENT_USER to restart HuduGlue services without password
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.service
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-scheduler.service
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-psa-sync.service
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-rmm-sync.service
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-monitor.service
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-active huduglue-*.service
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl status huduglue-*.service
+SUDOERS_FILE="/etc/sudoers.d/clientst0r-auto-update"
+cat > /tmp/clientst0r-auto-update-sudoers << EOF
+# Allow $CURRENT_USER to restart client st0r services without password
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-gunicorn.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-scheduler.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-psa-sync.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-rmm-sync.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-monitor.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-active clientst0r-*.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl status clientst0r-*.service
 EOF
 
-sudo cp /tmp/huduglue-auto-update-sudoers "$SUDOERS_FILE"
+sudo cp /tmp/clientst0r-auto-update-sudoers "$SUDOERS_FILE"
 sudo chmod 440 "$SUDOERS_FILE"
 sudo visudo -c -f "$SUDOERS_FILE"
 
@@ -84,8 +84,8 @@ sudo systemctl daemon-reload
 
 # Enable and start timer
 echo "Enabling auto-update timer..."
-sudo systemctl enable huduglue-auto-update.timer
-sudo systemctl start huduglue-auto-update.timer
+sudo systemctl enable clientst0r-auto-update.timer
+sudo systemctl start clientst0r-auto-update.timer
 
 echo ""
 echo -e "${GREEN}=========================================="
@@ -95,15 +95,15 @@ echo ""
 echo "Configuration:"
 echo "  • Updates check: Daily at 2 AM"
 echo "  • Runs on boot: After 10 minutes"
-echo "  • Log file: /var/log/huduglue/auto-update.log"
+echo "  • Log file: /var/log/clientst0r/auto-update.log"
 echo ""
 echo "Management Commands:"
-echo "  • Check status:  sudo systemctl status huduglue-auto-update.timer"
-echo "  • View schedule: sudo systemctl list-timers huduglue-auto-update.timer"
-echo "  • Run now:       sudo systemctl start huduglue-auto-update.service"
-echo "  • View logs:     tail -f /var/log/huduglue/auto-update.log"
-echo "  • Disable:       sudo systemctl disable huduglue-auto-update.timer"
+echo "  • Check status:  sudo systemctl status clientst0r-auto-update.timer"
+echo "  • View schedule: sudo systemctl list-timers clientst0r-auto-update.timer"
+echo "  • Run now:       sudo systemctl start clientst0r-auto-update.service"
+echo "  • View logs:     tail -f /var/log/clientst0r/auto-update.log"
+echo "  • Disable:       sudo systemctl disable clientst0r-auto-update.timer"
 echo ""
 echo "To test the update system now:"
-echo "  sudo systemctl start huduglue-auto-update.service"
+echo "  sudo systemctl start clientst0r-auto-update.service"
 echo ""

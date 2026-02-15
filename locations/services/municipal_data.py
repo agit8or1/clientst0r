@@ -138,7 +138,7 @@ class MunicipalDataService:
             }
 
             headers = {
-                'User-Agent': 'HuduGlue/2.11 (Property Research Tool)'
+                'User-Agent': 'Client St0r/2.11 (Property Research Tool)'
             }
 
             response = requests.get(api_url, params=params, headers=headers, timeout=10)

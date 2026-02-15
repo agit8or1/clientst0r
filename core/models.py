@@ -352,12 +352,12 @@ class SystemSetting(models.Model):
     Singleton pattern - only one instance should exist.
     """
     # General Settings
-    site_name = models.CharField(max_length=255, default='HuduGlue')
+    site_name = models.CharField(max_length=255, default='Client St0r')
     site_url = models.URLField(max_length=500, blank=True, help_text='Base URL for email links')
     default_timezone = models.CharField(max_length=50, default='UTC', help_text='Default timezone for new users')
 
     # Whitelabeling Settings
-    custom_company_name = models.CharField(max_length=255, blank=True, help_text='Custom company name (replaces HuduGlue branding)')
+    custom_company_name = models.CharField(max_length=255, blank=True, help_text='Custom company name (replaces Client St0r branding)')
     custom_logo = models.ImageField(upload_to='branding/', blank=True, null=True, help_text='Custom logo (recommended: 200x40px PNG with transparent background)')
     custom_logo_height = models.PositiveIntegerField(default=30, help_text='Logo height in pixels (default: 30px)')
 
@@ -378,7 +378,7 @@ class SystemSetting(models.Model):
     smtp_use_tls = models.BooleanField(default=True, help_text='Use TLS for SMTP')
     smtp_use_ssl = models.BooleanField(default=False, help_text='Use SSL for SMTP')
     smtp_from_email = models.EmailField(blank=True, help_text='From email address')
-    smtp_from_name = models.CharField(max_length=255, default='HuduGlue', help_text='From name')
+    smtp_from_name = models.CharField(max_length=255, default='Client St0r', help_text='From name')
 
     # Notification Settings
     notify_on_user_created = models.BooleanField(default=True, help_text='Notify admins when users are created')

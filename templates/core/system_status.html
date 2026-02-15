@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}System Status - HuduGlue{% endblock %}
+{% block title %}System Status - Client St0r{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -28,7 +28,7 @@
                             <div class="card-body p-3">
                                 <h6 class="mb-2"><i class="fas fa-server"></i> System</h6>
                                 <div class="small">
-                                    <strong>{{ system_info.huduglue_version }}</strong><br>
+                                    <strong>{{ system_info.clientst0r_version }}</strong><br>
                                     {{ system_info.os }} {{ system_info.os_version }}<br>
                                     Python {{ system_info.python_version }} | Django {{ system_info.django_version }}
                                 </div>

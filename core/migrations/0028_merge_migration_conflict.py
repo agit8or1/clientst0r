@@ -1,5 +1,5 @@
 # Generated manually to resolve migration conflict
-# Fixes Issue #65: https://github.com/agit8or1/huduglue/issues/65
+# Fixes Issue #65: https://github.com/agit8or1/clientst0r/issues/65
 
 from django.db import migrations
 

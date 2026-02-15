@@ -6,7 +6,7 @@ GitHub requires repository admin privileges to add workflow files. Here's how to
 
 ### Step 1: Add Security Workflow
 
-1. Go to: https://github.com/agit8or1/huduglue
+1. Go to: https://github.com/agit8or1/clientst0r
 2. Click: **Add file** → **Create new file**
 3. Filename: `.github/workflows/security.yml`
 4. Paste this content:
@@ -125,7 +125,7 @@ If you want to push workflows from command line:
 5. Copy new token
 6. Update local git remote:
    ```bash
-   git remote set-url origin https://YOUR_NEW_TOKEN@github.com/agit8or1/huduglue.git
+   git remote set-url origin https://YOUR_NEW_TOKEN@github.com/agit8or1/clientst0r.git
    ```
 7. Push workflows:
    ```bash
@@ -142,7 +142,7 @@ If you want to push workflows from command line:
 
 After adding workflows:
 
-1. Go to: https://github.com/agit8or1/huduglue/actions
+1. Go to: https://github.com/agit8or1/clientst0r/actions
 2. Should see two new workflows:
    - `security` (running)
    - `codeql` (running)

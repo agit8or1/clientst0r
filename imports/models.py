@@ -160,7 +160,7 @@ class ImportJob(BaseModel):
 
 class OrganizationMapping(BaseModel):
     """
-    Tracks mappings between source organizations/companies and HuduGlue organizations.
+    Tracks mappings between source organizations/companies and Client St0r organizations.
     """
 
     import_job = models.ForeignKey(
@@ -216,7 +216,7 @@ class ImportMapping(BaseModel):
 
     # Target object
     target_model = models.CharField(max_length=100, help_text="Django model name (Asset, Password, etc.)")
-    target_id = models.PositiveIntegerField(help_text="ID in HuduGlue")
+    target_id = models.PositiveIntegerField(help_text="ID in Client St0r")
     target_organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,

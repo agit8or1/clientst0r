@@ -1,4 +1,4 @@
-# HuduGlue Changes Summary
+# Client St0r Changes Summary
 
 ## Date: 2026-01-19
 
@@ -33,7 +33,7 @@
 ### 2. Automatic Fail2ban Installation
 
 **New Files:**
-- `deploy/huduglue-install-sudoers` - Sudo permissions for installation
+- `deploy/clientst0r-install-sudoers` - Sudo permissions for installation
 - `deploy/FAIL2BAN_INSTALL.md` - Installation documentation
 
 **Modified Files:**
@@ -78,11 +78,11 @@
 
 ```bash
 # Check service is running
-sudo systemctl status huduglue-gunicorn.service
+sudo systemctl status clientst0r-gunicorn.service
 
 # Verify new files exist
 ls -lh templates/core/_settings_menu.html
-ls -lh deploy/huduglue-install-sudoers
+ls -lh deploy/clientst0r-install-sudoers
 ls -lh deploy/FAIL2BAN_INSTALL.md
 
 # Check the route exists
@@ -101,7 +101,7 @@ python manage.py shell -c "from django.template.loader import get_template; t = 
 2. **Clear browser cache completely**
 3. **Try a different browser or incognito mode**
 4. **Check you're logged in as superuser** (settings menu only shows for superusers)
-5. **Verify service restarted:** `sudo systemctl restart huduglue-gunicorn.service`
+5. **Verify service restarted:** `sudo systemctl restart clientst0r-gunicorn.service`
 
 ---
 

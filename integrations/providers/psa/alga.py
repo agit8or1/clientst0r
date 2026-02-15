@@ -63,7 +63,7 @@ class AlgaPSAProvider(BaseProvider):
             'x-tenant-id': tenant_id,
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'User-Agent': 'HuduGlue/2.24 (PSA Integration Client)',
+            'User-Agent': 'Client St0r/2.24 (PSA Integration Client)',
         }
 
     def _safe_json(self, response):

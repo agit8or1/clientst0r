@@ -1,5 +1,5 @@
 """
-Management command to set up initial data for HuduGlue installation.
+Management command to set up initial data for Client St0r installation.
 
 This command runs all necessary seed commands in the correct order:
 1. Document templates (global)
@@ -19,7 +19,7 @@ from django.core.management import call_command
 
 
 class Command(BaseCommand):
-    help = 'Set up initial data for HuduGlue (templates + sample data)'
+    help = 'Set up initial data for Client St0r (templates + sample data)'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -38,7 +38,7 @@ class Command(BaseCommand):
         skip_equipment = options.get('skip_equipment', False)
 
         self.stdout.write(self.style.SUCCESS('='*60))
-        self.stdout.write(self.style.SUCCESS('HuduGlue Initial Data Setup'))
+        self.stdout.write(self.style.SUCCESS('Client St0r Initial Data Setup'))
         self.stdout.write(self.style.SUCCESS('='*60))
         self.stdout.write('')
 
@@ -113,7 +113,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Setup Complete!'))
         self.stdout.write(self.style.SUCCESS('='*60))
         self.stdout.write('')
-        self.stdout.write('Your HuduGlue installation now includes:')
+        self.stdout.write('Your Client St0r installation now includes:')
         self.stdout.write('  - Global document templates (5)')
         self.stdout.write('  - Global diagram templates (3)')
         if not skip_equipment:

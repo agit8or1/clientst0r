@@ -1,6 +1,6 @@
-# HuduGlue Auto-Update System
+# Client St0r Auto-Update System
 
-Automatically keep HuduGlue up to date with the latest releases from GitHub.
+Automatically keep Client St0r up to date with the latest releases from GitHub.
 
 ## Features
 
@@ -29,14 +29,14 @@ Automatically keep HuduGlue up to date with the latest releases from GitHub.
 ### Quick Install
 
 ```bash
-cd /path/to/huduglue
+cd /path/to/clientst0r
 ./scripts/install_auto_update.sh
 ```
 
 This installs:
 - Auto-update script at `scripts/auto_update.sh`
-- Systemd service: `huduglue-auto-update.service`
-- Systemd timer: `huduglue-auto-update.timer`
+- Systemd service: `clientst0r-auto-update.service`
+- Systemd timer: `clientst0r-auto-update.timer`
 - Sudo permissions for service restarts
 
 ### What Gets Automated
@@ -46,7 +46,7 @@ The auto-update system handles:
 2. ✅ `pip install -r requirements.txt` - Update dependencies
 3. ✅ `python manage.py migrate` - Run database migrations
 4. ✅ `python manage.py collectstatic` - Collect static files
-5. ✅ `systemctl restart huduglue-*` - Restart all services
+5. ✅ `systemctl restart clientst0r-*` - Restart all services
 
 ## Usage
 
@@ -64,13 +64,13 @@ To update immediately:
 
 ```bash
 # Using the script directly
-/path/to/huduglue/scripts/auto_update.sh
+/path/to/clientst0r/scripts/auto_update.sh
 
 # Using systemd service
-sudo systemctl start huduglue-auto-update.service
+sudo systemctl start clientst0r-auto-update.service
 
 # Using Django management command
-cd /path/to/huduglue
+cd /path/to/clientst0r
 source venv/bin/activate
 python manage.py auto_update
 ```
@@ -92,41 +92,41 @@ git log HEAD..origin/main
 
 ```bash
 # Check timer status
-sudo systemctl status huduglue-auto-update.timer
+sudo systemctl status clientst0r-auto-update.timer
 
 # View next scheduled run
-sudo systemctl list-timers huduglue-auto-update.timer
+sudo systemctl list-timers clientst0r-auto-update.timer
 
 # Check last service run
-sudo systemctl status huduglue-auto-update.service
+sudo systemctl status clientst0r-auto-update.service
 ```
 
 ### View Logs
 
 ```bash
 # Watch logs in real-time
-tail -f /var/log/huduglue/auto-update.log
+tail -f /var/log/clientst0r/auto-update.log
 
 # View recent logs
-tail -n 50 /var/log/huduglue/auto-update.log
+tail -n 50 /var/log/clientst0r/auto-update.log
 
 # View all logs
-cat /var/log/huduglue/auto-update.log
+cat /var/log/clientst0r/auto-update.log
 ```
 
 ### Control Auto-Updates
 
 ```bash
 # Disable automatic updates
-sudo systemctl disable huduglue-auto-update.timer
-sudo systemctl stop huduglue-auto-update.timer
+sudo systemctl disable clientst0r-auto-update.timer
+sudo systemctl stop clientst0r-auto-update.timer
 
 # Enable automatic updates
-sudo systemctl enable huduglue-auto-update.timer
-sudo systemctl start huduglue-auto-update.timer
+sudo systemctl enable clientst0r-auto-update.timer
+sudo systemctl start clientst0r-auto-update.timer
 
 # Trigger update now
-sudo systemctl start huduglue-auto-update.service
+sudo systemctl start clientst0r-auto-update.service
 ```
 
 ## How It Works
@@ -180,8 +180,8 @@ sudo systemctl start huduglue-auto-update.service
 ### Logging
 
 All update activity logged to:
-- **Main log:** `/var/log/huduglue/auto-update.log`
-- **Service output:** `journalctl -u huduglue-auto-update.service`
+- **Main log:** `/var/log/clientst0r/auto-update.log`
+- **Service output:** `journalctl -u clientst0r-auto-update.service`
 
 Log includes:
 - Timestamps
@@ -197,7 +197,7 @@ Log includes:
 Edit the timer:
 
 ```bash
-sudo systemctl edit huduglue-auto-update.timer
+sudo systemctl edit clientst0r-auto-update.timer
 ```
 
 Add custom schedule:
@@ -219,7 +219,7 @@ Then reload:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl restart huduglue-auto-update.timer
+sudo systemctl restart clientst0r-auto-update.timer
 ```
 
 ### Customize Update Script
@@ -236,24 +236,24 @@ Edit `scripts/auto_update.sh` to customize:
 
 Check timer is enabled:
 ```bash
-sudo systemctl is-enabled huduglue-auto-update.timer
+sudo systemctl is-enabled clientst0r-auto-update.timer
 ```
 
 Check next run time:
 ```bash
-sudo systemctl list-timers --all | grep huduglue
+sudo systemctl list-timers --all | grep clientst0r
 ```
 
 ### Update Failed
 
 View error logs:
 ```bash
-sudo journalctl -u huduglue-auto-update.service -n 50
+sudo journalctl -u clientst0r-auto-update.service -n 50
 ```
 
 Or:
 ```bash
-tail -n 50 /var/log/huduglue/auto-update.log
+tail -n 50 /var/log/clientst0r/auto-update.log
 ```
 
 Common issues:
@@ -267,17 +267,17 @@ If auto-update fails:
 
 ```bash
 # View what failed
-sudo systemctl status huduglue-auto-update.service
+sudo systemctl status clientst0r-auto-update.service
 
 # Run update manually to see errors
-cd /path/to/huduglue
+cd /path/to/clientst0r
 ./scripts/auto_update.sh
 
 # Or update completely manually
 git pull origin main
 source venv/bin/activate
 python manage.py migrate
-sudo systemctl restart huduglue-gunicorn
+sudo systemctl restart clientst0r-gunicorn
 ```
 
 ### Restore Stashed Changes
@@ -285,22 +285,22 @@ sudo systemctl restart huduglue-gunicorn
 If your local changes were stashed:
 
 ```bash
-cd /path/to/huduglue
+cd /path/to/clientst0r
 git stash list
 git stash pop  # Restore most recent stash
 ```
 
 ## Security
 
-The auto-update system requires sudo permissions to restart services. These are granted via `/etc/sudoers.d/huduglue-auto-update`:
+The auto-update system requires sudo permissions to restart services. These are granted via `/etc/sudoers.d/clientst0r-auto-update`:
 
 ```
-# Allow user to restart HuduGlue services without password
-username ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-*.service
+# Allow user to restart Client St0r services without password
+username ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-*.service
 ```
 
 This is **minimal privilege** - only allows:
-- Restarting HuduGlue services (not other services)
+- Restarting Client St0r services (not other services)
 - Checking service status
 - No other sudo commands
 
@@ -310,19 +310,19 @@ To remove auto-update system:
 
 ```bash
 # Disable and stop timer
-sudo systemctl disable huduglue-auto-update.timer
-sudo systemctl stop huduglue-auto-update.timer
+sudo systemctl disable clientst0r-auto-update.timer
+sudo systemctl stop clientst0r-auto-update.timer
 
 # Remove systemd files
-sudo rm /etc/systemd/system/huduglue-auto-update.service
-sudo rm /etc/systemd/system/huduglue-auto-update.timer
-sudo rm /etc/sudoers.d/huduglue-auto-update
+sudo rm /etc/systemd/system/clientst0r-auto-update.service
+sudo rm /etc/systemd/system/clientst0r-auto-update.timer
+sudo rm /etc/sudoers.d/clientst0r-auto-update
 
 # Reload systemd
 sudo systemctl daemon-reload
 
 # Optionally remove script
-rm /path/to/huduglue/scripts/auto_update.sh
+rm /path/to/clientst0r/scripts/auto_update.sh
 ```
 
 ## FAQ
@@ -334,7 +334,7 @@ A: No. The script pulls official releases which are tested. Migrations are run a
 A: Local changes are automatically stashed before update and can be restored after.
 
 **Q: Can I disable auto-updates?**
-A: Yes. Run: `sudo systemctl disable huduglue-auto-update.timer`
+A: Yes. Run: `sudo systemctl disable clientst0r-auto-update.timer`
 
 **Q: Will this restart my services in the middle of the day?**
 A: No. Default schedule is 2 AM when traffic is lowest. You can customize the schedule.
@@ -349,8 +349,8 @@ A: Yes! The System Updates page still shows available updates, but now they're a
 
 If auto-updates aren't working:
 
-1. Check timer status: `sudo systemctl status huduglue-auto-update.timer`
-2. View logs: `tail -f /var/log/huduglue/auto-update.log`
+1. Check timer status: `sudo systemctl status clientst0r-auto-update.timer`
+2. View logs: `tail -f /var/log/clientst0r/auto-update.log`
 3. Test manually: `./scripts/auto_update.sh`
 4. Open GitHub issue with logs
 

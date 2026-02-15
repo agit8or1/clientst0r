@@ -3,11 +3,11 @@
 # Run this on remote servers that are having demo data import issues
 
 echo "=========================================="
-echo "HuduGlue Gunicorn Environment Diagnostic"
+echo "client st0r Gunicorn Environment Diagnostic"
 echo "=========================================="
 echo ""
 
-SERVICE_FILE="/etc/systemd/system/huduglue-gunicorn.service"
+SERVICE_FILE="/etc/systemd/system/clientst0r-gunicorn.service"
 ENV_FILE="/home/administrator/.env"
 
 # Check 1: Does .env file exist and have APP_MASTER_KEY?
@@ -42,7 +42,7 @@ if sudo grep -q "EnvironmentFile=$ENV_FILE" "$SERVICE_FILE" 2>/dev/null; then
     echo ""
     echo "If you're still getting encryption errors, try:"
     echo "   sudo systemctl daemon-reload"
-    echo "   sudo systemctl restart huduglue-gunicorn.service"
+    echo "   sudo systemctl restart clientst0r-gunicorn.service"
 elif grep -q "EnvironmentFile=$ENV_FILE" "$SERVICE_FILE" 2>/dev/null; then
     echo "✅ EnvironmentFile IS configured in service"
     echo "   The fix has been applied!"
@@ -57,16 +57,16 @@ else
     echo "Check 4: Sudo permissions"
 
     # Test systemctl
-    if sudo -n systemctl status huduglue-gunicorn.service >/dev/null 2>&1; then
+    if sudo -n systemctl status clientst0r-gunicorn.service >/dev/null 2>&1; then
         echo "✅ sudo systemctl works"
     else
         echo "❌ sudo systemctl needs password"
         echo "   Configure sudo with:"
-        echo "   sudo tee /etc/sudoers.d/huduglue-auto-update > /dev/null <<'SUDOERS'"
-        echo "administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.service, /bin/systemctl status huduglue-gunicorn.service, /bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/huduglue-gunicorn.service"
+        echo "   sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<'SUDOERS'"
+        echo "administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-gunicorn.service, /bin/systemctl status clientst0r-gunicorn.service, /bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service"
         echo "SUDOERS"
         echo ""
-        echo "   sudo chmod 0440 /etc/sudoers.d/huduglue-auto-update"
+        echo "   sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update"
         exit 1
     fi
 
@@ -82,11 +82,11 @@ else
         echo ""
         echo "You need to configure sudo permissions first:"
         echo ""
-        echo "sudo tee /etc/sudoers.d/huduglue-auto-update > /dev/null <<'SUDOERS'"
-        echo "administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.service, /bin/systemctl status huduglue-gunicorn.service, /bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/huduglue-gunicorn.service"
+        echo "sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<'SUDOERS'"
+        echo "administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-gunicorn.service, /bin/systemctl status clientst0r-gunicorn.service, /bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service"
         echo "SUDOERS"
         echo ""
-        echo "sudo chmod 0440 /etc/sudoers.d/huduglue-auto-update"
+        echo "sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update"
     fi
 fi
 

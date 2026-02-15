@@ -1,5 +1,5 @@
 """
-URL Configuration for HuduGlue
+URL Configuration for Client St0r
 """
 from django.contrib import admin
 from django.contrib.auth.views import LogoutView

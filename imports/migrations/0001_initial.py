@@ -57,7 +57,7 @@ class Migration(migrations.Migration):
                 ('source_type', models.CharField(help_text='Source object type (asset, password, document, etc.)', max_length=50)),
                 ('source_id', models.CharField(help_text='ID in source system', max_length=100)),
                 ('target_model', models.CharField(help_text='Django model name (Asset, Password, etc.)', max_length=100)),
-                ('target_id', models.PositiveIntegerField(help_text='ID in HuduGlue')),
+                ('target_id', models.PositiveIntegerField(help_text='ID in Client St0r')),
                 ('import_job', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='mappings', to='imports.importjob')),
             ],
             options={

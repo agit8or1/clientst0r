@@ -121,7 +121,7 @@ class PSAManager:
         headers = {
             'Authorization': f'Basic {encoded_auth}',
             'Content-Type': 'application/json',
-            'clientId': creds.get('client_id', 'HuduGlue')
+            'clientId': creds.get('client_id', 'Client St0r')
         }
 
         data = {

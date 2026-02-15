@@ -1,7 +1,7 @@
-// HuduGlue Service Worker
+// Client St0r Service Worker
 // Provides offline support and caching for PWA
 
-const CACHE_NAME = 'huduglue-v1';
+const CACHE_NAME = 'clientst0r-v1';
 const OFFLINE_URL = '/offline/';
 
 // Assets to cache immediately on install
@@ -113,7 +113,7 @@ self.addEventListener('push', (event) => {
     console.log('[Service Worker] Push received');
     const data = event.data ? event.data.json() : {};
 
-    const title = data.title || 'HuduGlue Notification';
+    const title = data.title || 'Client St0r Notification';
     const options = {
         body: data.body || 'You have a new notification',
         icon: '/static/images/pwa-icon-192.png',

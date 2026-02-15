@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "HuduGlue",
-    "slug": "huduglue-mobile",
+    "name": "Client St0r",
+    "slug": "clientst0r-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,14 +16,14 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.huduglue.mobile"
+      "bundleIdentifier": "com.clientst0r.mobile"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0d1117"
       },
-      "package": "com.huduglue.mobile"
+      "package": "com.clientst0r.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -9,8 +9,8 @@ echo ""
 
 # Check if running from correct directory
 if [ ! -f "manage.py" ]; then
-    echo "ERROR: Not in HuduGlue root directory!"
-    echo "Please run from: /home/administrator or /var/www/huduglue"
+    echo "ERROR: Not in client st0r root directory!"
+    echo "Please run from: /home/administrator or /var/www/clientst0r"
     exit 1
 fi
 

@@ -1,5 +1,5 @@
 """
-Auto-update service for HuduGlue.
+Auto-update service for Client St0r.
 
 Checks GitHub for new releases and performs automated updates.
 """
@@ -23,7 +23,7 @@ class UpdateService:
     def __init__(self):
         self.github_api = 'https://api.github.com/repos'
         self.repo_owner = getattr(settings, 'GITHUB_REPO_OWNER', 'agit8or1')
-        self.repo_name = getattr(settings, 'GITHUB_REPO_NAME', 'huduglue')
+        self.repo_name = getattr(settings, 'GITHUB_REPO_NAME', 'clientst0r')
         self.current_version = self.get_current_version()
         self.base_dir = settings.BASE_DIR
 
@@ -217,13 +217,13 @@ class UpdateService:
                     raise Exception(
                         "Passwordless sudo is not configured for auto-updates. "
                         "Please configure it by running these commands:\n\n"
-                        "sudo tee /etc/sudoers.d/huduglue-auto-update > /dev/null <<SUDOERS\n"
-                        f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart huduglue-gunicorn.service, "
-                        "/usr/bin/systemctl status huduglue-gunicorn.service, /usr/bin/systemctl daemon-reload, "
-                        "/usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/huduglue-gunicorn.service, "
+                        "sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<SUDOERS\n"
+                        f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-gunicorn.service, "
+                        "/usr/bin/systemctl status clientst0r-gunicorn.service, /usr/bin/systemctl daemon-reload, "
+                        "/usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service, "
                         "/usr/bin/cp, /usr/bin/chmod\n"
                         "SUDOERS\n\n"
-                        "sudo chmod 0440 /etc/sudoers.d/huduglue-auto-update\n\n"
+                        "sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update\n\n"
                         "After configuring, refresh this page and try again. "
                         "Or update manually via command line (see instructions below)."
                     )
@@ -429,12 +429,12 @@ class UpdateService:
 
                 if fail2ban_check.returncode == 0:
                     # fail2ban is installed, check if sudoers is configured
-                    sudoers_path = '/etc/sudoers.d/huduglue-fail2ban'
+                    sudoers_path = '/etc/sudoers.d/clientst0r-fail2ban'
                     if not os.path.exists(sudoers_path):
                         logger.info("fail2ban installed but sudoers not configured - installing...")
 
                         # Copy sudoers file from deploy directory
-                        source_path = os.path.join(self.base_dir, 'deploy', 'huduglue-fail2ban-sudoers')
+                        source_path = os.path.join(self.base_dir, 'deploy', 'clientst0r-fail2ban-sudoers')
                         if os.path.exists(source_path):
                             # Install sudoers file
                             copy_result = subprocess.run(
@@ -459,7 +459,7 @@ class UpdateService:
                                     logger.info("Fail2ban sudoers configuration installed successfully")
                                 else:
                                     logger.warning(f"Failed to set sudoers permissions: {chmod_result.stderr}")
-                                    result['output'].append("⚠ Fail2ban sudoers installed but permissions not set - please run: sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban")
+                                    result['output'].append("⚠ Fail2ban sudoers installed but permissions not set - please run: sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban")
                             else:
                                 logger.warning(f"Failed to copy sudoers file: {copy_result.stderr}")
                                 result['output'].append(f"⚠ Fail2ban sudoers installation failed: {copy_result.stderr[:100]}")
@@ -494,10 +494,10 @@ class UpdateService:
                 deploy_dir = os.path.join(install_dir, 'deploy')
                 os.makedirs(deploy_dir, exist_ok=True)
 
-                # Generate huduglue-install-sudoers
-                install_sudoers_content = f"""# Sudoers configuration for HuduGlue automatic fail2ban installation
-# Install: sudo cp {install_dir}/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install
-# Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-install
+                # Generate clientst0r-install-sudoers
+                install_sudoers_content = f"""# Sudoers configuration for Client St0r automatic fail2ban installation
+# Install: sudo cp {install_dir}/deploy/clientst0r-install-sudoers /etc/sudoers.d/clientst0r-install
+# Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-install
 
 # Allow {current_user} user to install and configure fail2ban without password
 {current_user} ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
@@ -505,22 +505,22 @@ class UpdateService:
 {current_user} ALL=(ALL) NOPASSWD: /bin/systemctl enable fail2ban
 {current_user} ALL=(ALL) NOPASSWD: /bin/systemctl start fail2ban
 {current_user} ALL=(ALL) NOPASSWD: /bin/systemctl status fail2ban
-{current_user} ALL=(ALL) NOPASSWD: /bin/cp {install_dir}/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
-{current_user} ALL=(ALL) NOPASSWD: /bin/chmod 0440 /etc/sudoers.d/huduglue-fail2ban
+{current_user} ALL=(ALL) NOPASSWD: /bin/cp {install_dir}/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
+{current_user} ALL=(ALL) NOPASSWD: /bin/chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
 """
 
-                # Generate huduglue-fail2ban-sudoers
-                fb_sudoers_content = f"""# Sudoers configuration for HuduGlue fail2ban integration
-# Install: sudo cp {install_dir}/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
-# Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban
+                # Generate clientst0r-fail2ban-sudoers
+                fb_sudoers_content = f"""# Sudoers configuration for Client St0r fail2ban integration
+# Install: sudo cp {install_dir}/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
+# Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
 
 # Allow {current_user} user to run fail2ban-client without password
 {current_user} ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
 """
 
                 # Write files
-                install_sudoers_path = os.path.join(deploy_dir, 'huduglue-install-sudoers')
-                fb_sudoers_path = os.path.join(deploy_dir, 'huduglue-fail2ban-sudoers')
+                install_sudoers_path = os.path.join(deploy_dir, 'clientst0r-install-sudoers')
+                fb_sudoers_path = os.path.join(deploy_dir, 'clientst0r-fail2ban-sudoers')
 
                 with open(install_sudoers_path, 'w') as f:
                     f.write(install_sudoers_content)
@@ -533,31 +533,31 @@ class UpdateService:
                 # Now install them if needed
                 install_needed = []
 
-                # Check huduglue-install
-                install_dest = '/etc/sudoers.d/huduglue-install'
+                # Check clientst0r-install
+                install_dest = '/etc/sudoers.d/clientst0r-install'
                 if not os.path.exists(install_dest):
-                    install_needed.append(('huduglue-install', install_sudoers_path, install_dest))
+                    install_needed.append(('clientst0r-install', install_sudoers_path, install_dest))
                 else:
                     # Check if content differs
                     try:
                         with open(install_dest, 'r') as f:
                             existing_content = f.read()
                         if existing_content != install_sudoers_content:
-                            install_needed.append(('huduglue-install', install_sudoers_path, install_dest))
+                            install_needed.append(('clientst0r-install', install_sudoers_path, install_dest))
                     except:
                         pass
 
-                # Check huduglue-fail2ban
-                fb_dest = '/etc/sudoers.d/huduglue-fail2ban'
+                # Check clientst0r-fail2ban
+                fb_dest = '/etc/sudoers.d/clientst0r-fail2ban'
                 if not os.path.exists(fb_dest):
-                    install_needed.append(('huduglue-fail2ban', fb_sudoers_path, fb_dest))
+                    install_needed.append(('clientst0r-fail2ban', fb_sudoers_path, fb_dest))
                 else:
                     # Check if content differs
                     try:
                         with open(fb_dest, 'r') as f:
                             existing_content = f.read()
                         if existing_content != fb_sudoers_content:
-                            install_needed.append(('huduglue-fail2ban', fb_sudoers_path, fb_dest))
+                            install_needed.append(('clientst0r-fail2ban', fb_sudoers_path, fb_dest))
                     except:
                         pass
 
@@ -654,7 +654,7 @@ class UpdateService:
                     # Using systemd-run with --on-active=1 for immediate restart after this request completes
                     restart_output = self._run_command([
                         '/usr/bin/sudo', '/usr/bin/systemd-run', '--on-active=1',
-                        '/usr/bin/systemctl', 'restart', 'huduglue-gunicorn.service'
+                        '/usr/bin/systemctl', 'restart', 'clientst0r-gunicorn.service'
                     ])
                     logger.info(f"Service restart scheduled: {restart_output}")
                     result['steps_completed'].append('restart_service')
@@ -668,13 +668,13 @@ class UpdateService:
                         raise Exception(
                             "Passwordless sudo is not configured. Auto-update requires passwordless sudo "
                             "to restart the service. Please configure it by running:\n\n"
-                            "sudo tee /etc/sudoers.d/huduglue-auto-update > /dev/null <<SUDOERS\n"
-                            f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart huduglue-gunicorn.service, "
-                            "/usr/bin/systemctl status huduglue-gunicorn.service, /usr/bin/systemctl daemon-reload, "
-                            "/usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/huduglue-gunicorn.service, "
+                            "sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<SUDOERS\n"
+                            f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-gunicorn.service, "
+                            "/usr/bin/systemctl status clientst0r-gunicorn.service, /usr/bin/systemctl daemon-reload, "
+                            "/usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service, "
                             "/usr/bin/cp, /usr/bin/chmod\n"
                             "SUDOERS\n\n"
-                            "sudo chmod 0440 /etc/sudoers.d/huduglue-auto-update\n\n"
+                            "sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update\n\n"
                             "Or update manually via command line. See the system updates page for instructions."
                         )
                     else:
@@ -715,7 +715,7 @@ class UpdateService:
                     f"cd {self.base_dir}\n"
                     "git fetch origin\n"
                     "git reset --hard origin/main\n"
-                    "sudo systemctl restart huduglue-gunicorn.service\n\n"
+                    "sudo systemctl restart clientst0r-gunicorn.service\n\n"
                     "After this one-time fix, future updates will handle this automatically.\n\n"
                     "See Issue #24 on GitHub for more details."
                 )
@@ -774,7 +774,7 @@ class UpdateService:
         """Check if running as a systemd service."""
         try:
             result = subprocess.run(
-                ['/usr/bin/systemctl', 'is-active', 'huduglue-gunicorn.service'],
+                ['/usr/bin/systemctl', 'is-active', 'clientst0r-gunicorn.service'],
                 capture_output=True,
                 text=True,
                 timeout=5
@@ -794,7 +794,7 @@ class UpdateService:
         try:
             # Test if we can run sudo without password using -n (non-interactive)
             result = subprocess.run(
-                ['/usr/bin/sudo', '-n', '/usr/bin/systemctl', 'status', 'huduglue-gunicorn.service'],
+                ['/usr/bin/sudo', '-n', '/usr/bin/systemctl', 'status', 'clientst0r-gunicorn.service'],
                 capture_output=True,
                 text=True,
                 timeout=5

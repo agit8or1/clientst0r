@@ -1,5 +1,5 @@
 """
-Master seed command for new HuduGlue installations.
+Master seed command for new Client St0r installations.
 
 Seeds:
 - Equipment catalog (3000+ models across Dell, HP, Lenovo, Cisco, etc.)
@@ -42,7 +42,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('=' * 70))
-        self.stdout.write(self.style.SUCCESS('HuduGlue Data Seeding'))
+        self.stdout.write(self.style.SUCCESS('Client St0r Data Seeding'))
         self.stdout.write(self.style.SUCCESS('=' * 70))
 
         seed_equipment = options['equipment'] or not options['kb']

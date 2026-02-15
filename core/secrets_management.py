@@ -53,7 +53,7 @@ class SecretsManager:
         kdf = PBKDF2(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=b'huduglue-salt-v1',  # Static salt (OK for app-wide master key)
+            salt=b'clientst0r-salt-v1',  # Static salt (OK for app-wide master key)
             iterations=100000,
             backend=default_backend()
         )

@@ -83,7 +83,7 @@ class ITFlowProvider(BaseProvider):
             'X-API-KEY': api_key,
             'Accept': 'application/json',
             'Content-Type': 'application/json',
-            'User-Agent': 'HuduGlue/2.24 (PSA Integration Client)',
+            'User-Agent': 'Client St0r/2.24 (PSA Integration Client)',
         }
 
     def _safe_json(self, response):

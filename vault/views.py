@@ -244,11 +244,11 @@ def password_create(request):
                         request,
                         "🔐 Encryption Key Error: Your APP_MASTER_KEY is malformed. "
                         "Please regenerate it using the following commands:<br><br>"
-                        "<code>cd ~/huduglue<br>"
+                        "<code>cd ~/clientst0r<br>"
                         "source venv/bin/activate<br>"
                         "NEW_KEY=$(python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\")<br>"
                         "sed -i \"s|^APP_MASTER_KEY=.*|APP_MASTER_KEY=${NEW_KEY}|\" .env<br>"
-                        "sudo systemctl restart huduglue-gunicorn.service</code><br><br>"
+                        "sudo systemctl restart clientst0r-gunicorn.service</code><br><br>"
                         "The key must be exactly 44 characters (base64-encoded 32 bytes).",
                         extra_tags='safe'
                     )
@@ -290,11 +290,11 @@ def password_edit(request, pk):
                         request,
                         "🔐 Encryption Key Error: Your APP_MASTER_KEY is malformed. "
                         "Please regenerate it using the following commands:<br><br>"
-                        "<code>cd ~/huduglue<br>"
+                        "<code>cd ~/clientst0r<br>"
                         "source venv/bin/activate<br>"
                         "NEW_KEY=$(python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\")<br>"
                         "sed -i \"s|^APP_MASTER_KEY=.*|APP_MASTER_KEY=${NEW_KEY}|\" .env<br>"
-                        "sudo systemctl restart huduglue-gunicorn.service</code><br><br>"
+                        "sudo systemctl restart clientst0r-gunicorn.service</code><br><br>"
                         "The key must be exactly 44 characters (base64-encoded 32 bytes).",
                         extra_tags='safe'
                     )

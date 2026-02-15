@@ -1,6 +1,6 @@
 # Seeding Data for New Installations
 
-HuduGlue includes comprehensive seed data to help you get started immediately:
+Client St0r includes comprehensive seed data to help you get started immediately:
 
 - **Equipment Catalog**: 3,000+ models across Dell, HP, Lenovo, Cisco, and other major vendors
 - **Knowledge Base Articles**: 1,000+ professional IT documentation articles across 20+ categories
@@ -10,7 +10,7 @@ HuduGlue includes comprehensive seed data to help you get started immediately:
 ### Seed Everything (Recommended for New Installations)
 
 ```bash
-cd /path/to/huduglue
+cd /path/to/clientst0r
 source venv/bin/activate
 python manage.py seed_all --from-github
 ```
@@ -32,7 +32,7 @@ python manage.py seed_equipment_catalog
 python manage.py fetch_kb_from_github
 ```
 
-This fetches curated KB articles from the HuduGlue GitHub repository.
+This fetches curated KB articles from the Client St0r GitHub repository.
 
 #### KB Articles Locally Generated
 ```bash
@@ -290,7 +290,7 @@ Increase available RAM or use `--quick` mode.
 
 For issues with seed data:
 1. Check logs: `tail -f /var/log/itdocs/gunicorn-error.log`
-2. Report issues: https://github.com/anthropics/huduglue/issues
+2. Report issues: https://github.com/anthropics/clientst0r/issues
 3. Community support: Check documentation wiki
 
 ## Version Information

@@ -220,7 +220,7 @@ class APIKeyValidator:
 
             headers = {
                 "Authorization": f"Basic {auth_header}",
-                "clientId": "huduglue",
+                "clientId": "clientst0r",
                 "Content-Type": "application/json"
             }
 

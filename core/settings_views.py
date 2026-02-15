@@ -309,8 +309,8 @@ def test_smtp_email(request):
         )
 
         # Send test email
-        subject = 'HuduGlue SMTP Test Email'
-        message = f"""This is a test email from HuduGlue.
+        subject = 'Client St0r SMTP Test Email'
+        message = f"""This is a test email from Client St0r.
 
 Your SMTP configuration is working correctly!
 
@@ -325,7 +325,7 @@ Configuration Details:
 This email was sent at: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')} UTC
 
 ---
-HuduGlue - IT Documentation Platform
+Client St0r - IT Documentation Platform
 """
 
         from_email = f'{settings.smtp_from_name} <{settings.smtp_from_email}>' if settings.smtp_from_name else settings.smtp_from_email
@@ -443,7 +443,7 @@ def system_status(request):
         'platform': platform.platform(),
         'python_version': sys.version.split()[0],
         'django_version': django.get_version(),
-        'huduglue_version': get_full_version(),
+        'clientst0r_version': get_full_version(),
         'hostname': platform.node(),
     }
 
@@ -557,17 +557,17 @@ def system_status(request):
     try:
         import subprocess
         # Check Gunicorn
-        result = subprocess.run(['/usr/bin/systemctl', 'is-active', 'huduglue-gunicorn'],
+        result = subprocess.run(['/usr/bin/systemctl', 'is-active', 'clientst0r-gunicorn'],
                               capture_output=True, text=True, timeout=5)
         services_status['gunicorn'] = result.stdout.strip() == 'active'
 
         # Check PSA Sync timer
-        result = subprocess.run(['/usr/bin/systemctl', 'is-active', 'huduglue-psa-sync.timer'],
+        result = subprocess.run(['/usr/bin/systemctl', 'is-active', 'clientst0r-psa-sync.timer'],
                               capture_output=True, text=True, timeout=5)
         services_status['psa_sync'] = result.stdout.strip() == 'active'
 
         # Check Monitor timer
-        result = subprocess.run(['/usr/bin/systemctl', 'is-active', 'huduglue-monitor.timer'],
+        result = subprocess.run(['/usr/bin/systemctl', 'is-active', 'clientst0r-monitor.timer'],
                               capture_output=True, text=True, timeout=5)
         services_status['monitor'] = result.stdout.strip() == 'active'
     except Exception as e:
@@ -986,7 +986,7 @@ def settings_ai(request):
             # If we don't have permission to send signal, try systemctl restart with sudo
             try:
                 result = subprocess.run(
-                    ['sudo', 'systemctl', 'restart', 'huduglue-gunicorn'],
+                    ['sudo', 'systemctl', 'restart', 'clientst0r-gunicorn'],
                     capture_output=True,
                     text=True,
                     timeout=10
@@ -1936,7 +1936,7 @@ def restart_application(request):
     try:
         # Restart Gunicorn service using sudo (full path)
         result = subprocess.run(
-            ['/usr/bin/sudo', '/bin/systemctl', 'restart', 'huduglue-gunicorn.service'],
+            ['/usr/bin/sudo', '/bin/systemctl', 'restart', 'clientst0r-gunicorn.service'],
             capture_output=True,
             text=True,
             timeout=30
@@ -2218,7 +2218,7 @@ def export_data(request):
 
         # Generate filename
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'huduglue_export_{export_type}_{timestamp}.json'
+        filename = f'clientst0r_export_{export_type}_{timestamp}.json'
 
         # Return as downloadable file
         response = HttpResponse(
@@ -2312,7 +2312,7 @@ def _format_for_hudu(data):
     # Hudu API structure
     formatted = {
         'export_info': {
-            'source': 'HuduGlue',
+            'source': 'Client St0r',
             'format': 'hudu',
             'version': '1.0',
         },
@@ -2353,7 +2353,7 @@ def _format_for_itglue(data):
     # IT Glue API structure
     formatted = {
         'export_info': {
-            'source': 'HuduGlue',
+            'source': 'Client St0r',
             'format': 'itglue',
             'version': '1.0',
         },

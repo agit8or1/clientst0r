@@ -32,7 +32,7 @@ export default function DashboardScreen({ navigation }) {
     >
       <View style={styles.header}>
         <Title style={styles.title}>Welcome, {user?.first_name || user?.username}!</Title>
-        <Paragraph style={styles.subtitle}>HuduGlue Dashboard</Paragraph>
+        <Paragraph style={styles.subtitle}>Client St0r Dashboard</Paragraph>
       </View>
 
       <View style={styles.statsGrid}>

@@ -1,5 +1,5 @@
 """
-REST API Serializers for HuduGlue
+REST API Serializers for Client St0r
 """
 from rest_framework import serializers
 from django.contrib.auth.models import User

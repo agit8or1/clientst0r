@@ -93,11 +93,11 @@ When encountering a malformed encryption key, users now see:
 🔐 Encryption Key Error: Your APP_MASTER_KEY is malformed.
 Please regenerate it using the following commands:
 
-cd ~/huduglue
+cd ~/clientst0r
 source venv/bin/activate
 NEW_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
 sed -i "s|^APP_MASTER_KEY=.*|APP_MASTER_KEY=${NEW_KEY}|" .env
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 
 The key must be exactly 44 characters (base64-encoded 32 bytes).
 ```
@@ -232,14 +232,14 @@ The key must be exactly 44 characters (base64-encoded 32 bytes).
 
 ### Auto-Update Service Restart
 - Fixed service restart failing during auto-update process
-- Changed service name from `huduglue` to `huduglue-gunicorn.service`
+- Changed service name from `clientst0r` to `clientst0r-gunicorn.service`
 - Auto-updates now properly restart the application after code updates
 - Users no longer need to manually restart after applying updates
 
 ## 🔧 Technical Details
 
 - Fixed `_is_systemd_service()` to check correct service name
-- Fixed restart command to use `huduglue-gunicorn.service`
+- Fixed restart command to use `clientst0r-gunicorn.service`
 - Update process now completes fully: git pull → pip install → migrate → collectstatic → **restart** ✅
 
 ## 🎯 What's Fixed
@@ -450,7 +450,7 @@ This version represents the **fully working auto-update system** with:
 ## 🔧 Technical Details
 
 **The Problem:**
-A process can't restart itself while it's running. When the update thread called `systemctl restart huduglue-gunicorn.service`, it immediately killed the Gunicorn process that was running the update, terminating the thread before it could finish.
+A process can't restart itself while it's running. When the update thread called `systemctl restart clientst0r-gunicorn.service`, it immediately killed the Gunicorn process that was running the update, terminating the thread before it could finish.
 
 **The Solution:**
 Use `systemd-run --on-active=3` to schedule the restart to happen 3 seconds later. This gives the update thread time to:
@@ -461,7 +461,7 @@ Use `systemd-run --on-active=3` to schedule the restart to happen 3 seconds late
 
 **Command used:**
 ```bash
-sudo systemd-run --on-active=3 systemctl restart huduglue-gunicorn.service
+sudo systemd-run --on-active=3 systemctl restart clientst0r-gunicorn.service
 ```
 
 This is the industry-standard approach for self-updating services!
@@ -475,7 +475,7 @@ This is the industry-standard approach for self-updating services!
 
 ### Auto-Update Sudo Permissions
 - Added sudoers configuration for passwordless systemctl restart
-- Created `/etc/sudoers.d/huduglue-auto-update` with required permissions
+- Created `/etc/sudoers.d/clientst0r-auto-update` with required permissions
 - Allows auto-update to restart service without password prompt
 - **Fixes issue where service restart silently failed due to sudo authentication**
 
@@ -485,9 +485,9 @@ This is the industry-standard approach for self-updating services!
 v2.14.13 fixed the self-restart timing issue with `systemd-run --on-active=3`, but the restart still wasn't happening because the `administrator` user didn't have passwordless sudo permissions to run systemctl commands.
 
 **The Solution:**
-Added `/etc/sudoers.d/huduglue-auto-update` with:
+Added `/etc/sudoers.d/clientst0r-auto-update` with:
 ```
-administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.service, /bin/systemctl status huduglue-gunicorn.service, /usr/bin/systemd-run
+administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-gunicorn.service, /bin/systemctl status clientst0r-gunicorn.service, /usr/bin/systemd-run
 ```
 
 This allows the auto-update process to execute the scheduled restart without prompting for a password.
@@ -573,7 +573,7 @@ The complete auto-update stack is now production-ready:
    - Industry-standard approach for self-updating services
 
 4. **Passwordless Sudo Permissions** (v2.14.14)
-   - Added `/etc/sudoers.d/huduglue-auto-update`
+   - Added `/etc/sudoers.d/clientst0r-auto-update`
    - Allows systemctl commands without password prompt
    - Secure, limited-scope permissions
 
@@ -614,7 +614,7 @@ To help diagnose restart issues, this version includes:
 
 After updating, check if restart is working:
 ```bash
-sudo journalctl -u huduglue-gunicorn.service -n 100 | grep -i "systemd service check"
+sudo journalctl -u clientst0r-gunicorn.service -n 100 | grep -i "systemd service check"
 ```
 
 You should see: "Systemd service check result: True"
@@ -649,7 +649,7 @@ Then the service will automatically restart and load v2.14.18.
 
 After clicking "Apply Update", watch the logs:
 ```bash
-sudo journalctl -u huduglue-gunicorn.service -f
+sudo journalctl -u clientst0r-gunicorn.service -f
 ```
 
 You should see the systemd check pass and the restart command execute.
@@ -922,7 +922,7 @@ Both fixes ensure:
             releases = {k: v for k, v in releases.items() if k in version_list}
 
         # Create releases
-        repo = 'agit8or1/huduglue'
+        repo = 'agit8or1/clientst0r'
         api_url = f'https://api.github.com/repos/{repo}/releases'
 
         headers = {

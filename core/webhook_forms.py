@@ -24,7 +24,7 @@ class WebhookForm(forms.ModelForm):
             }),
             'url': forms.URLInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'https://your-api.com/webhooks/huduglue'
+                'placeholder': 'https://your-api.com/webhooks/clientst0r'
             }),
             'secret': forms.TextInput(attrs={
                 'class': 'form-control',

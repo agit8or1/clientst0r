@@ -1,7 +1,7 @@
 """
 Fetch demo/sample KB articles from GitHub repository.
 
-Pulls curated KB articles from the HuduGlue GitHub repository
+Pulls curated KB articles from the Client St0r GitHub repository
 and populates the knowledge base with professional IT documentation.
 """
 from django.core.management.base import BaseCommand
@@ -14,7 +14,7 @@ import json
 class Command(BaseCommand):
     help = 'Fetch KB articles from GitHub repository'
 
-    GITHUB_REPO = 'agit8or1/huduglue'
+    GITHUB_REPO = 'agit8or1/clientst0r'
     GITHUB_BRANCH = 'main'
     KB_ARTICLES_PATH = 'fixtures/kb_articles.json'
 
@@ -27,7 +27,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--repo',
             type=str,
-            default='agit8or1/huduglue',
+            default='agit8or1/clientst0r',
             help='GitHub repository (owner/repo)',
         )
         parser.add_argument(

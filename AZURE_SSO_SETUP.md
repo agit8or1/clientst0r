@@ -2,7 +2,7 @@
 
 ## Overview
 
-HuduGlue now supports Azure AD (Microsoft Entra ID) Single Sign-On authentication. Users can log in using their Microsoft work accounts.
+Client St0r now supports Azure AD (Microsoft Entra ID) Single Sign-On authentication. Users can log in using their Microsoft work accounts.
 
 ## Setup Steps
 
@@ -12,7 +12,7 @@ HuduGlue now supports Azure AD (Microsoft Entra ID) Single Sign-On authenticatio
 2. Navigate to **Azure Active Directory** → **App registrations**
 3. Click **New registration**
 4. Configure:
-   - **Name**: HuduGlue
+   - **Name**: Client St0r
    - **Supported account types**: Accounts in this organizational directory only
    - **Redirect URI**:
      - Type: Web
@@ -30,7 +30,7 @@ After registration, note the following values (you'll need them later):
 
 1. Go to **Certificates & secrets** → **Client secrets**
 2. Click **New client secret**
-3. Add description: "HuduGlue OAuth"
+3. Add description: "Client St0r OAuth"
 4. Select expiration (recommended: 24 months)
 5. Click **Add**
 6. **IMPORTANT**: Copy the **Value** immediately (you won't be able to see it again)
@@ -45,11 +45,11 @@ After registration, note the following values (you'll need them later):
    - Add **User.Read**
 4. Click **Grant admin consent** (if you have admin rights)
 
-### 5. Configure HuduGlue
+### 5. Configure Client St0r
 
 #### Option A: Via Admin UI (Recommended)
 
-1. Log in to HuduGlue as superuser
+1. Log in to Client St0r as superuser
 2. Go to **Admin** → **Settings** → **Directory Services**
 3. Under **Azure AD / Microsoft Entra ID**, configure:
    - **Enable Azure AD**: ✓ (checked)
@@ -105,13 +105,13 @@ python manage.py migrate accounts
 2. You should see a **"Sign in with Microsoft"** button
 3. Click the button
 4. You'll be redirected to Microsoft login
-5. After successful authentication, you'll be logged into HuduGlue
+5. After successful authentication, you'll be logged into Client St0r
 
 ## Features
 
 ### Auto-User Creation
 
-When enabled, users who successfully authenticate via Azure AD will automatically have accounts created in HuduGlue:
+When enabled, users who successfully authenticate via Azure AD will automatically have accounts created in Client St0r:
 
 - **Username**: Derived from email (e.g., `john.doe` from `john.doe@company.com`)
 - **Email**: From Azure AD
@@ -144,13 +144,13 @@ User information (name, email) is automatically updated from Azure AD on each lo
 ### "Failed to obtain access token" Error
 
 - Verify client secret is correct (may have expired)
-- Check redirect URI matches exactly between Azure and HuduGlue
+- Check redirect URI matches exactly between Azure and Client St0r
 - Ensure Azure app has User.Read permission
 
 ### "Authentication failed" Error
 
 - Check that user's email is valid
-- If auto-create is disabled, ensure user already exists in HuduGlue
+- If auto-create is disabled, ensure user already exists in Client St0r
 - Review audit logs for more details
 
 ### Azure Button Not Showing
@@ -181,7 +181,7 @@ User information (name, email) is automatically updated from Azure AD on each lo
 3. MSAL generates authorization URL
 4. User redirected to Microsoft login
 5. After authentication, Microsoft redirects to `/accounts/auth/azure/callback/`
-6. HuduGlue exchanges code for access token
+6. Client St0r exchanges code for access token
 7. Fetches user info from Microsoft Graph API
 8. Authenticates user in Django
 9. Creates user account if needed

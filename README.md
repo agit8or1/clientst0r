@@ -1,14 +1,14 @@
-# HuduGlue 🐕
+# Client St0r
 
-[![Version 2.76.2](https://img.shields.io/badge/version-2.76.2-brightgreen)](https://github.com/agit8or1/huduglue)
-[![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/huduglue)
+[![Version 2.76.2](https://img.shields.io/badge/version-2.76.2-brightgreen)](https://github.com/agit8or1/clientst0r)
+[![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/clientst0r)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)](https://www.python.org/)
-[![Known Vulnerabilities](https://snyk.io/test/github/agit8or1/huduglue/badge.svg)](https://snyk.io/test/github/agit8or1/huduglue)
-[![Security Monitoring](https://img.shields.io/badge/security-Snyk%20%7C%20HaveIBeenPwned-blue)](https://github.com/agit8or1/huduglue)
+[![Known Vulnerabilities](https://snyk.io/test/github/agit8or1/clientst0r/badge.svg)](https://snyk.io/test/github/agit8or1/clientst0r)
+[![Security Monitoring](https://img.shields.io/badge/security-Snyk%20%7C%20HaveIBeenPwned-blue)](https://github.com/agit8or1/clientst0r)
 
-A complete, self-hosted IT documentation platform designed for Managed Service Providers (MSPs) and IT departments. Built with Django 6, HuduGlue provides secure asset management, encrypted password vault, knowledge base, PSA integrations, and comprehensive monitoring tools.
+A complete, self-hosted IT documentation platform designed for Managed Service Providers (MSPs) and IT departments. Built with Django 6, Client St0r provides secure asset management, encrypted password vault, knowledge base, PSA integrations, and comprehensive monitoring tools.
 
 ## 📸 Screenshots
 
@@ -194,7 +194,7 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 **🎉 New in v2.76:**
 - **Asset Lifespan Tracking** - Track purchase dates, expected lifespan (years), and receive reminders before assets reach end-of-life
 - **Reports & Analytics Toggle** - Enable/disable Reports feature per organization via Feature Toggles
-- **Progressive Web App** - Install HuduGlue on mobile devices with offline support and push notifications
+- **Progressive Web App** - Install Client St0r on mobile devices with offline support and push notifications
 - **Global View Asset Editing** - Edit assets from any organization while in global view mode
 
 **Recent Highlights (v2.27):**
@@ -219,10 +219,10 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 
 ### One-Line Installation (Recommended)
 
-The easiest way to install HuduGlue:
+The easiest way to install Client St0r:
 
 ```bash
-git clone https://github.com/agit8or1/huduglue.git && cd huduglue && bash install.sh
+git clone https://github.com/agit8or1/clientst0r.git && cd clientst0r && bash install.sh
 ```
 
 This automated installer will:
@@ -253,7 +253,7 @@ No manual cleanup needed! The installer handles everything.
 
 ### Web-Based Auto-Update (NEW in 2.14.21!)
 
-Once installed, you can update HuduGlue **directly from the web interface**:
+Once installed, you can update Client St0r **directly from the web interface**:
 
 1. Navigate to **System Settings → System Updates**
 2. Click **"Check for Updates Now"** to detect new versions
@@ -277,7 +277,7 @@ Once installed, you can update HuduGlue **directly from the web interface**:
 
 #### LDAP/Active Directory Integration
 
-By default, HuduGlue installs with Azure AD SSO support but **without** LDAP/Active Directory. This is because LDAP requires C compilation and system libraries.
+By default, Client St0r installs with Azure AD SSO support but **without** LDAP/Active Directory. This is because LDAP requires C compilation and system libraries.
 
 **If you need LDAP/AD support**, install it after the main installation:
 
@@ -287,17 +287,17 @@ sudo apt-get update
 sudo apt-get install -y build-essential python3-dev libldap2-dev libsasl2-dev
 
 # Install LDAP Python packages
-cd ~/huduglue
+cd ~/clientst0r
 source venv/bin/activate
 pip install -r requirements-optional.txt
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 **Note:** Azure AD SSO does **not** require these packages. LDAP is only needed for on-premises Active Directory or other LDAP servers.
 
 #### Mobile App (iOS & Android)
 
-HuduGlue includes a native React Native mobile app for iOS and Android devices.
+Client St0r includes a native React Native mobile app for iOS and Android devices.
 
 **Features:**
 - 📱 Native iOS and Android apps
@@ -312,23 +312,23 @@ HuduGlue includes a native React Native mobile app for iOS and Android devices.
 **Prerequisites:**
 - Node.js 18+
 - Expo CLI
-- HuduGlue backend with GraphQL enabled
+- Client St0r backend with GraphQL enabled
 
 **Setup:**
 
 ```bash
 # 1. Install GraphQL dependencies on backend
-cd ~/huduglue
+cd ~/clientst0r
 source venv/bin/activate
 pip install -r requirements-graphql.txt
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 
 # 2. Set up mobile app
-cd ~/huduglue/mobile-app
+cd ~/clientst0r/mobile-app
 npm install
 
 # 3. Configure API URL
-# Edit app.json and set your HuduGlue server URL
+# Edit app.json and set your Client St0r server URL
 
 # 4. Start development server
 npm start
@@ -354,8 +354,8 @@ If you prefer to install manually or need more control:
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/agit8or1/huduglue.git
-cd huduglue
+git clone https://github.com/agit8or1/clientst0r.git
+cd clientst0r
 
 # 2. Install system dependencies
 sudo apt-get update
@@ -381,8 +381,8 @@ DEBUG=True
 SECRET_KEY=<paste_secret_key_here>
 ALLOWED_HOSTS=localhost,127.0.0.1
 
-DB_NAME=huduglue
-DB_USER=huduglue
+DB_NAME=clientst0r
+DB_USER=clientst0r
 DB_PASSWORD=your_secure_password
 DB_HOST=localhost
 DB_PORT=3306
@@ -391,16 +391,16 @@ APP_MASTER_KEY=<paste_master_key_here>
 API_KEY_SECRET=<paste_api_key_secret_here>
 
 EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-SITE_NAME=HuduGlue
+SITE_NAME=Client St0r
 SITE_URL=http://localhost:8000
 EOF
 
 # 7. Start MariaDB and create database
 sudo systemctl start mariadb
 sudo mysql << 'EOSQL'
-CREATE DATABASE huduglue CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'huduglue'@'localhost' IDENTIFIED BY 'your_secure_password';
-GRANT ALL PRIVILEGES ON huduglue.* TO 'huduglue'@'localhost';
+CREATE DATABASE clientst0r CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'clientst0r'@'localhost' IDENTIFIED BY 'your_secure_password';
+GRANT ALL PRIVILEGES ON clientst0r.* TO 'clientst0r'@'localhost';
 FLUSH PRIVILEGES;
 EOSQL
 
@@ -456,7 +456,7 @@ Visit `http://localhost:8000` and log in with the credentials you created in ste
 
 ## 🔒 Security
 
-HuduGlue has undergone comprehensive security auditing and continuous vulnerability monitoring:
+Client St0r has undergone comprehensive security auditing and continuous vulnerability monitoring:
 
 ### Continuous Security Monitoring
 - ✅ **Automated CVE Scanning** - Codebase scanned for known vulnerabilities and CVEs
@@ -495,9 +495,9 @@ We welcome contributions! Here's how you can help:
 
 Have an idea for a new feature? We use a community-driven voting system:
 
-1. **Start with a Discussion** → [Share your idea](https://github.com/agit8or1/huduglue/discussions/new?category=ideas)
-2. **Vote on existing ideas** → [Browse and upvote](https://github.com/agit8or1/huduglue/discussions/categories/ideas) (👍 reactions)
-3. **Track the Roadmap** → [View what's being built](https://github.com/agit8or1/huduglue/projects)
+1. **Start with a Discussion** → [Share your idea](https://github.com/agit8or1/clientst0r/discussions/new?category=ideas)
+2. **Vote on existing ideas** → [Browse and upvote](https://github.com/agit8or1/clientst0r/discussions/categories/ideas) (👍 reactions)
+3. **Track the Roadmap** → [View what's being built](https://github.com/agit8or1/clientst0r/projects)
 
 Popular ideas (high votes + alignment with project goals) are promoted to Feature Request issues and added to the Roadmap.
 
@@ -505,7 +505,7 @@ Popular ideas (high votes + alignment with project goals) are promoted to Featur
 
 ### 🐛 Bug Reports
 
-Found a bug? [Report it here](https://github.com/agit8or1/huduglue/issues/new?template=bug_report.yml)
+Found a bug? [Report it here](https://github.com/agit8or1/clientst0r/issues/new?template=bug_report.yml)
 
 ### 🔨 Code Contributions
 
@@ -515,8 +515,8 @@ Ready to contribute code? See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ```bash
 # 1. Fork and clone
-git clone https://github.com/agit8or1/huduglue.git
-cd huduglue
+git clone https://github.com/agit8or1/clientst0r.git
+cd clientst0r
 
 # 2. Create feature branch
 git checkout -b feature/amazing-feature
@@ -553,15 +553,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 💬 Support
 
-- **Issues**: [GitHub Issues](https://github.com/agit8or1/huduglue/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/agit8or1/huduglue/discussions)
+- **Issues**: [GitHub Issues](https://github.com/agit8or1/clientst0r/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/agit8or1/clientst0r/discussions)
 - **Security**: See [SECURITY.md](SECURITY.md) for vulnerability disclosure
 
 ## 💝 Supporting This Project
 
-If you find HuduGlue useful for your MSP or IT department, please consider supporting the developer's business: **[MSP Reboot](https://www.mspreboot.com)** - Professional MSP services and consulting.
+If you find Client St0r useful for your MSP or IT department, please consider supporting the developer's business: **[MSP Reboot](https://www.mspreboot.com)** - Professional MSP services and consulting.
 
-Your support allows me to continue developing open-source tools like HuduGlue and contribute to the MSP community. Thank you!
+Your support allows me to continue developing open-source tools like Client St0r and contribute to the MSP community. Thank you!
 
 ## 🗺️ Roadmap
 
@@ -584,4 +584,4 @@ Your support allows me to continue developing open-source tools like HuduGlue an
 
 ---
 
-**Made with ❤️ and 🐕 by the HuduGlue Team and Luna the German Shepherd**
+**Made with ❤️ and 🐕 by the Client St0r Team and Luna the German Shepherd**

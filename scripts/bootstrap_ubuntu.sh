@@ -6,7 +6,7 @@
 set -e
 
 echo "========================================="
-echo "HuduGlue - Bootstrap"
+echo "client st0r - Bootstrap"
 echo "========================================="
 
 # Check if running as root

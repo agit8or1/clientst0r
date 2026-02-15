@@ -1,6 +1,6 @@
-# HuduGlue Installation Guide
+# Client St0r Installation Guide
 
-Complete guide for installing, upgrading, and managing HuduGlue.
+Complete guide for installing, upgrading, and managing Client St0r.
 
 ## Table of Contents
 
@@ -21,10 +21,10 @@ Complete guide for installing, upgrading, and managing HuduGlue.
 
 ### One-Line Installation
 
-Install HuduGlue on a fresh Ubuntu/Debian server:
+Install Client St0r on a fresh Ubuntu/Debian server:
 
 ```bash
-git clone https://github.com/agit8or1/huduglue.git && cd huduglue && bash install.sh
+git clone https://github.com/agit8or1/clientst0r.git && cd clientst0r && bash install.sh
 ```
 
 **That's it!** When complete, the server is running at `http://YOUR_IP:8000`
@@ -58,8 +58,8 @@ The installer handles all dependencies:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/agit8or1/huduglue.git
-   cd huduglue
+   git clone https://github.com/agit8or1/clientst0r.git
+   cd clientst0r
    ```
 
 2. **Run the installer:**
@@ -115,7 +115,7 @@ The installer automatically detects existing installations by checking for:
 
 - `.env` configuration file
 - Python virtual environment (`venv/` directory)
-- Systemd service (`huduglue-gunicorn.service`)
+- Systemd service (`clientst0r-gunicorn.service`)
 - Database with user data
 
 ### Detection Example
@@ -123,13 +123,13 @@ The installer automatically detects existing installations by checking for:
 When you run the installer on an existing installation:
 
 ```
-[!] Existing HuduGlue installation detected!
+[!] Existing Client St0r installation detected!
 
   • Found: .env configuration file
   • Found: Python virtual environment
   • Found: systemd service
     Status: Running ✓
-  • Found: Database 'huduglue' with 1 user(s)
+  • Found: Database 'clientst0r' with 1 user(s)
 
 What would you like to do?
 
@@ -150,7 +150,7 @@ Update an existing installation to the latest version.
 ### Quick Upgrade
 
 ```bash
-cd ~/huduglue
+cd ~/clientst0r
 git pull origin main
 bash install.sh
 ```
@@ -195,7 +195,7 @@ Verify all components are working correctly.
 ### Run System Check
 
 ```bash
-cd ~/huduglue
+cd ~/clientst0r
 bash install.sh
 ```
 
@@ -216,7 +216,7 @@ Choose **Option 2** when prompted.
 [i] Running system check...
 
 [✓] Python: Python 3.12.3
-[✓] Database: huduglue exists
+[✓] Database: clientst0r exists
   Tables: 56
 [✓] Service: Running
   602570 - active
@@ -245,7 +245,7 @@ Remove everything and perform a fresh installation.
 ### Run Clean Reinstall
 
 ```bash
-cd ~/huduglue
+cd ~/clientst0r
 bash install.sh
 ```
 
@@ -303,8 +303,8 @@ sudo apt-get install -y \
 
 1. **Clone and enter directory:**
    ```bash
-   git clone https://github.com/agit8or1/huduglue.git
-   cd huduglue
+   git clone https://github.com/agit8or1/clientst0r.git
+   cd clientst0r
    ```
 
 2. **Create virtual environment:**
@@ -333,8 +333,8 @@ sudo apt-get install -y \
    SECRET_KEY=<paste_secret_key>
    ALLOWED_HOSTS=localhost,127.0.0.1,YOUR_IP
 
-   DB_NAME=huduglue
-   DB_USER=huduglue
+   DB_NAME=clientst0r
+   DB_USER=clientst0r
    DB_PASSWORD=your_secure_password
    DB_HOST=localhost
    DB_PORT=3306
@@ -343,7 +343,7 @@ sudo apt-get install -y \
    API_KEY_SECRET=<paste_api_key_secret>
 
    EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-   SITE_NAME=HuduGlue
+   SITE_NAME=Client St0r
    SITE_URL=http://YOUR_IP:8000
    EOF
    ```
@@ -352,9 +352,9 @@ sudo apt-get install -y \
    ```bash
    sudo systemctl start mariadb
    sudo mysql << 'EOSQL'
-   CREATE DATABASE huduglue CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-   CREATE USER 'huduglue'@'localhost' IDENTIFIED BY 'your_secure_password';
-   GRANT ALL PRIVILEGES ON huduglue.* TO 'huduglue'@'localhost';
+   CREATE DATABASE clientst0r CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE USER 'clientst0r'@'localhost' IDENTIFIED BY 'your_secure_password';
+   GRANT ALL PRIVILEGES ON clientst0r.* TO 'clientst0r'@'localhost';
    FLUSH PRIVILEGES;
    EOSQL
    ```
@@ -402,7 +402,7 @@ sudo apt-get install -y \
 sudo ss -tlnp | grep :8000
 
 # Stop the service
-sudo systemctl stop huduglue-gunicorn.service
+sudo systemctl stop clientst0r-gunicorn.service
 
 # Or kill the process
 sudo kill <PID>
@@ -421,7 +421,7 @@ sudo systemctl status mariadb
 sudo systemctl start mariadb
 
 # Check database exists
-sudo mysql -e "SHOW DATABASES LIKE 'huduglue';"
+sudo mysql -e "SHOW DATABASES LIKE 'clientst0r';"
 ```
 
 #### Missing Python Module
@@ -430,7 +430,7 @@ sudo mysql -e "SHOW DATABASES LIKE 'huduglue';"
 
 **Solution:**
 ```bash
-cd ~/huduglue
+cd ~/clientst0r
 source venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -453,18 +453,18 @@ sudo chmod 755 /var/log/itdocs
 **Solution:**
 ```bash
 # Check service status and logs
-sudo systemctl status huduglue-gunicorn.service
-sudo journalctl -u huduglue-gunicorn.service -n 50
+sudo systemctl status clientst0r-gunicorn.service
+sudo journalctl -u clientst0r-gunicorn.service -n 50
 
 # Common fixes:
 # 1. Check .env file exists
-ls -la ~/huduglue/.env
+ls -la ~/clientst0r/.env
 
 # 2. Check virtual environment
-ls -la ~/huduglue/venv/bin/activate
+ls -la ~/clientst0r/venv/bin/activate
 
 # 3. Test manually
-cd ~/huduglue
+cd ~/clientst0r
 source venv/bin/activate
 python3 manage.py check
 ```
@@ -473,7 +473,7 @@ python3 manage.py check
 
 **Application logs:**
 ```bash
-sudo journalctl -u huduglue-gunicorn.service -f
+sudo journalctl -u clientst0r-gunicorn.service -f
 ```
 
 **Gunicorn access logs:**
@@ -505,7 +505,7 @@ tail -f /var/log/itdocs/django.log
    - Loads comprehensive demo data under "Acme Corporation" organization
    - Includes assets, documents, passwords, workflows, diagrams, and more
    ```bash
-   cd ~/huduglue
+   cd ~/clientst0r
    source venv/bin/activate
    python manage.py seed_demo_data
    ```
@@ -537,11 +537,11 @@ tail -f /var/log/itdocs/django.log
    - Change `DB_PASSWORD` from default
    - Update in MySQL:
      ```bash
-     sudo mysql -e "ALTER USER 'huduglue'@'localhost' IDENTIFIED BY 'new_password';"
+     sudo mysql -e "ALTER USER 'clientst0r'@'localhost' IDENTIFIED BY 'new_password';"
      ```
    - Restart service:
      ```bash
-     sudo systemctl restart huduglue-gunicorn.service
+     sudo systemctl restart clientst0r-gunicorn.service
      ```
 
 6. **Configure for production:**
@@ -557,51 +557,51 @@ tail -f /var/log/itdocs/django.log
 
 **Check status:**
 ```bash
-sudo systemctl status huduglue-gunicorn.service
+sudo systemctl status clientst0r-gunicorn.service
 ```
 
 **Start service:**
 ```bash
-sudo systemctl start huduglue-gunicorn.service
+sudo systemctl start clientst0r-gunicorn.service
 ```
 
 **Stop service:**
 ```bash
-sudo systemctl stop huduglue-gunicorn.service
+sudo systemctl stop clientst0r-gunicorn.service
 ```
 
 **Restart service:**
 ```bash
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 **Enable auto-start on boot:**
 ```bash
-sudo systemctl enable huduglue-gunicorn.service
+sudo systemctl enable clientst0r-gunicorn.service
 ```
 
 **Disable auto-start:**
 ```bash
-sudo systemctl disable huduglue-gunicorn.service
+sudo systemctl disable clientst0r-gunicorn.service
 ```
 
 ### Backup and Restore
 
 **Backup database:**
 ```bash
-mysqldump -u huduglue -p huduglue > huduglue_backup_$(date +%Y%m%d).sql
+mysqldump -u clientst0r -p clientst0r > clientst0r_backup_$(date +%Y%m%d).sql
 ```
 
 **Restore database:**
 ```bash
-mysql -u huduglue -p huduglue < huduglue_backup_YYYYMMDD.sql
+mysql -u clientst0r -p clientst0r < clientst0r_backup_YYYYMMDD.sql
 ```
 
 **Backup files:**
 ```bash
-tar -czf huduglue_files_$(date +%Y%m%d).tar.gz \
-    ~/huduglue/.env \
-    ~/huduglue/media/ \
+tar -czf clientst0r_files_$(date +%Y%m%d).tar.gz \
+    ~/clientst0r/.env \
+    ~/clientst0r/media/ \
     /var/log/itdocs/
 ```
 
@@ -636,10 +636,10 @@ tar -czf huduglue_files_$(date +%Y%m%d).tar.gz \
 
 ## Support
 
-- **Documentation:** https://github.com/agit8or1/huduglue
-- **Issues:** https://github.com/agit8or1/huduglue/issues
+- **Documentation:** https://github.com/agit8or1/clientst0r
+- **Issues:** https://github.com/agit8or1/clientst0r/issues
 - **Security:** See SECURITY.md for vulnerability disclosure
 
 ---
 
-**Made with ❤️ and 🐕 by the HuduGlue Team and Luna the German Shepherd**
+**Made with ❤️ and 🐕 by the Client St0r Team and Luna the German Shepherd**

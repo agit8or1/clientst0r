@@ -1,6 +1,6 @@
-# HuduGlue Mobile App
+# Client St0r Mobile App
 
-React Native mobile application for HuduGlue IT Documentation Platform.
+React Native mobile application for Client St0r IT Documentation Platform.
 
 ## Features
 
@@ -19,7 +19,7 @@ React Native mobile application for HuduGlue IT Documentation Platform.
 - Node.js 18+ and npm
 - Expo CLI (`npm install -g expo-cli`)
 - iOS Simulator (Mac only) or Android Studio
-- HuduGlue backend running with GraphQL API enabled
+- Client St0r backend running with GraphQL API enabled
 
 ## Installation
 
@@ -31,11 +31,11 @@ React Native mobile application for HuduGlue IT Documentation Platform.
 
 2. **Configure API URL:**
 
-   Edit `app.json` and set your HuduGlue server URL:
+   Edit `app.json` and set your Client St0r server URL:
    ```json
    "extra": {
-     "apiUrl": "https://your-huduglue-server.com",
-     "graphqlUrl": "https://your-huduglue-server.com/api/v2/graphql/"
+     "apiUrl": "https://your-clientst0r-server.com",
+     "graphqlUrl": "https://your-clientst0r-server.com/api/v2/graphql/"
    }
    ```
 
@@ -122,7 +122,7 @@ export const MY_QUERY = gql`
 
 ## API Integration
 
-The app connects to HuduGlue's GraphQL API at `/api/v2/graphql/`.
+The app connects to Client St0r's GraphQL API at `/api/v2/graphql/`.
 
 ### Required Backend Setup
 
@@ -142,13 +142,13 @@ The app connects to HuduGlue's GraphQL API at `/api/v2/graphql/`.
 ### "Network request failed"
 
 - Check that the API URL in `app.json` is correct
-- Ensure HuduGlue backend is running and accessible
+- Ensure Client St0r backend is running and accessible
 - Verify CORS settings allow mobile app origin
 
 ### "No module named graphene_django"
 
 - Install GraphQL dependencies on backend: `pip install -r requirements-graphql.txt`
-- Restart HuduGlue server
+- Restart Client St0r server
 
 ### iOS build issues
 
@@ -170,8 +170,8 @@ The app connects to HuduGlue's GraphQL API at `/api/v2/graphql/`.
 
 ## Contributing
 
-See main HuduGlue repository for contribution guidelines.
+See main Client St0r repository for contribution guidelines.
 
 ## License
 
-MIT License - Same as HuduGlue parent project
+MIT License - Same as Client St0r parent project

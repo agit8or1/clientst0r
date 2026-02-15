@@ -1,6 +1,6 @@
-# HuduGlue Features
+# Client St0r Features
 
-Complete feature documentation for HuduGlue - Self-hosted IT documentation platform.
+Complete feature documentation for Client St0r - Self-hosted IT documentation platform.
 
 ## 🔐 Security Features
 
@@ -298,7 +298,7 @@ Complete feature documentation for HuduGlue - Self-hosted IT documentation platf
 - **Error Handling** - Comprehensive error logging and sync history
 
 ### Organization Auto-Import
-- **Auto-Create Organizations** - Automatically create HuduGlue organizations from PSA companies
+- **Auto-Create Organizations** - Automatically create Client St0r organizations from PSA companies
 - **Smart Duplicate Prevention** - Detects existing organizations by external ID
 - **Configurable Settings** - Enable/disable per connection, set active/inactive state, add custom name prefixes
 - **External ID Tracking** - Links organizations to PSA companies for update sync
@@ -324,7 +324,7 @@ Complete feature documentation for HuduGlue - Self-hosted IT documentation platf
 - **Provider Abstraction** - Unified interface across all RMM platforms
 
 ### Organization Auto-Import
-- **Auto-Create Organizations** - Automatically create HuduGlue organizations from RMM sites/clients
+- **Auto-Create Organizations** - Automatically create Client St0r organizations from RMM sites/clients
 - **Smart Duplicate Prevention** - Detects existing organizations by external ID
 - **Configurable Settings** - Enable/disable per connection, set active/inactive state, add custom name prefixes
 - **External ID Tracking** - Links organizations to RMM sites for update sync

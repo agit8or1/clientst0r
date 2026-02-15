@@ -1,5 +1,5 @@
 """
-Django management command for auto-updating HuduGlue.
+Django management command for auto-updating Client St0r.
 Usage: python manage.py auto_update [--check-only]
 """
 import subprocess
@@ -11,7 +11,7 @@ from core.models import SystemSetting
 
 
 class Command(BaseCommand):
-    help = 'Automatically update HuduGlue from GitHub (pull, migrate, restart)'
+    help = 'Automatically update Client St0r from GitHub (pull, migrate, restart)'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -32,7 +32,7 @@ class Command(BaseCommand):
         project_dir = settings.BASE_DIR
         update_script = project_dir / 'scripts' / 'auto_update.sh'
 
-        self.stdout.write(self.style.HTTP_INFO('HuduGlue Auto-Update'))
+        self.stdout.write(self.style.HTTP_INFO('Client St0r Auto-Update'))
         self.stdout.write(self.style.HTTP_INFO('=' * 50))
 
         # Check if auto_update.sh exists
@@ -109,7 +109,7 @@ class Command(BaseCommand):
 
                 if result.returncode == 0:
                     self.stdout.write(self.style.SUCCESS('\n✓ Update completed successfully'))
-                    self.stdout.write('Check /var/log/huduglue/auto-update.log for details')
+                    self.stdout.write('Check /var/log/clientst0r/auto-update.log for details')
                 else:
                     raise CommandError(f'Update script failed with exit code {result.returncode}')
 

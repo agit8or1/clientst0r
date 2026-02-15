@@ -1,5 +1,5 @@
 """
-API URL Configuration for HuduGlue REST API
+API URL Configuration for Client St0r REST API
 """
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter

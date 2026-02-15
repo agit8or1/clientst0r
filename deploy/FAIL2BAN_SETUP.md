@@ -1,6 +1,6 @@
-# Fail2Ban Setup for HuduGlue
+# Fail2Ban Setup for Client St0r
 
-This guide explains how to set up Fail2Ban to protect your HuduGlue installation from brute-force attacks.
+This guide explains how to set up Fail2Ban to protect your Client St0r installation from brute-force attacks.
 
 ## What is Fail2Ban?
 
@@ -10,7 +10,7 @@ Fail2Ban monitors log files for suspicious activity (like repeated failed login 
 
 ### Option 1: Automatic Setup (via Web Interface - Recommended)
 
-1. Log into HuduGlue as an admin
+1. Log into Client St0r as an admin
 2. Go to **Settings → Security → Fail2Ban**
 3. Click **"Auto-Install Fail2Ban"**
 4. The system will automatically:
@@ -33,13 +33,13 @@ sudo apt-get install -y fail2ban
 #### Step 2: Copy Filter Configuration
 
 ```bash
-sudo cp /path/to/huduglue/deploy/huduglue-fail2ban-filter.conf /etc/fail2ban/filter.d/huduglue.conf
+sudo cp /path/to/clientst0r/deploy/clientst0r-fail2ban-filter.conf /etc/fail2ban/filter.d/clientst0r.conf
 ```
 
 #### Step 3: Add Jail Configuration
 
 ```bash
-sudo bash -c 'cat /path/to/huduglue/deploy/huduglue-fail2ban-jail.conf >> /etc/fail2ban/jail.local'
+sudo bash -c 'cat /path/to/clientst0r/deploy/clientst0r-fail2ban-jail.conf >> /etc/fail2ban/jail.local'
 ```
 
 Or manually add the jail configuration to `/etc/fail2ban/jail.local`
@@ -54,7 +54,7 @@ sudo systemctl enable fail2ban
 #### Step 5: Verify Setup
 
 ```bash
-sudo fail2ban-client status huduglue
+sudo fail2ban-client status clientst0r
 ```
 
 You should see output showing the jail is active with 0 current bans.
@@ -63,7 +63,7 @@ You should see output showing the jail is active with 0 current bans.
 
 ### Filter Rules
 
-The filter (`/etc/fail2ban/filter.d/huduglue.conf`) detects:
+The filter (`/etc/fail2ban/filter.d/clientst0r.conf`) detects:
 - Django-axes blocked login attempts
 - Django-axes account lockouts
 - Invalid HTTP_HOST header attempts (potential host header injection)
@@ -83,7 +83,7 @@ The filter (`/etc/fail2ban/filter.d/huduglue.conf`) detects:
 Edit `/etc/fail2ban/jail.local` to customize:
 
 ```ini
-[huduglue]
+[clientst0r]
 maxretry = 3          # Fewer attempts before ban
 findtime = 300        # Shorter detection window (5 minutes)
 bantime  = 7200       # Longer ban time (2 hours)
@@ -96,19 +96,19 @@ After changes: `sudo systemctl restart fail2ban`
 ### Check Jail Status
 
 ```bash
-sudo fail2ban-client status huduglue
+sudo fail2ban-client status clientst0r
 ```
 
 ### View Banned IPs
 
 ```bash
-sudo fail2ban-client get huduglue banned
+sudo fail2ban-client get clientst0r banned
 ```
 
 ### Unban an IP
 
 ```bash
-sudo fail2ban-client set huduglue unbanip 192.168.1.100
+sudo fail2ban-client set clientst0r unbanip 192.168.1.100
 ```
 
 ### View Fail2Ban Logs
@@ -122,9 +122,9 @@ sudo tail -f /var/log/fail2ban.log
 ### Trigger a Ban (for testing)
 
 1. Try logging in with wrong password 5 times
-2. Check jail status: `sudo fail2ban-client status huduglue`
+2. Check jail status: `sudo fail2ban-client status clientst0r`
 3. Your IP should be in the banned list
-4. Unban yourself: `sudo fail2ban-client set huduglue unbanip YOUR_IP`
+4. Unban yourself: `sudo fail2ban-client set clientst0r unbanip YOUR_IP`
 
 ### Whitelist Your IP
 
@@ -153,7 +153,7 @@ sudo fail2ban-client -t
 
 2. Test filter manually:
    ```bash
-   sudo fail2ban-regex /var/log/itdocs/gunicorn-error.log /etc/fail2ban/filter.d/huduglue.conf
+   sudo fail2ban-regex /var/log/itdocs/gunicorn-error.log /etc/fail2ban/filter.d/clientst0r.conf
    ```
 
 3. Check fail2ban logs:
@@ -168,9 +168,9 @@ Ensure fail2ban can read log files:
 sudo chmod 644 /var/log/itdocs/*.log
 ```
 
-## Integration with HuduGlue
+## Integration with Client St0r
 
-HuduGlue's built-in Fail2Ban management (Settings → Security) provides:
+Client St0r's built-in Fail2Ban management (Settings → Security) provides:
 - Real-time ban statistics
 - One-click IP unbanning
 - Ban history and analytics
@@ -189,15 +189,15 @@ This requires sudoers configuration to work passwordlessly. The installer sets t
 ## Support
 
 For issues or questions:
-- GitHub Issues: https://github.com/agit8or1/huduglue/issues
+- GitHub Issues: https://github.com/agit8or1/clientst0r/issues
 - Documentation: See main README.md
 
 ## Files Reference
 
-- **Filter:** `/etc/fail2ban/filter.d/huduglue.conf`
-- **Jail:** `/etc/fail2ban/jail.local` (add huduglue section)
+- **Filter:** `/etc/fail2ban/filter.d/clientst0r.conf`
+- **Jail:** `/etc/fail2ban/jail.local` (add clientst0r section)
 - **Logs:** `/var/log/fail2ban.log`
-- **Source Files:** `/path/to/huduglue/deploy/`
-  - `huduglue-fail2ban-filter.conf`
-  - `huduglue-fail2ban-jail.conf`
-  - `huduglue-fail2ban-sudoers`
+- **Source Files:** `/path/to/clientst0r/deploy/`
+  - `clientst0r-fail2ban-filter.conf`
+  - `clientst0r-fail2ban-jail.conf`
+  - `clientst0r-fail2ban-sudoers`

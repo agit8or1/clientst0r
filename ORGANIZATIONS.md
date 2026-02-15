@@ -14,7 +14,7 @@
 
 ## Overview
 
-HuduGlue uses a **multi-tenant architecture** where all data is isolated by **Organization**. This design is specifically built for:
+Client St0r uses a **multi-tenant architecture** where all data is isolated by **Organization**. This design is specifically built for:
 
 - **MSPs (Managed Service Providers)** - Manage multiple client organizations from a single installation
 - **IT Departments** - Separate data by department, division, or subsidiary
@@ -67,7 +67,7 @@ Users with access to multiple organizations can switch between them:
 
 ## User Types
 
-HuduGlue supports two distinct user types, designed for the MSP model:
+Client St0r supports two distinct user types, designed for the MSP model:
 
 ### 1. Organization Users (Client Users)
 
@@ -119,7 +119,7 @@ Automatic: Admin-level access to all organizations
 
 ## Roles & Permissions
 
-HuduGlue provides a **4-tier simple role system** plus optional **granular role templates**.
+Client St0r provides a **4-tier simple role system** plus optional **granular role templates**.
 
 ### Simple Roles
 
@@ -711,7 +711,7 @@ if permissions.vault_view:
 
 ## Summary
 
-HuduGlue's multi-tenant architecture provides:
+Client St0r's multi-tenant architecture provides:
 
 ✅ **Complete data isolation** between organizations
 ✅ **Flexible access control** with 4 simple roles + 42 granular permissions
@@ -719,6 +719,6 @@ HuduGlue's multi-tenant architecture provides:
 ✅ **Scalable** for 1 organization or 100+ clients
 ✅ **Secure by default** with least-privilege access
 
-**Key Takeaway:** Everything in HuduGlue is scoped to an organization, and users can only access what they're explicitly granted through memberships.
+**Key Takeaway:** Everything in Client St0r is scoped to an organization, and users can only access what they're explicitly granted through memberships.
 
-For questions or issues, see [GitHub Issues](https://github.com/agit8or1/huduglue/issues).
+For questions or issues, see [GitHub Issues](https://github.com/agit8or1/clientst0r/issues).

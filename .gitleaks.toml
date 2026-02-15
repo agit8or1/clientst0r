@@ -1,5 +1,5 @@
 # Gitleaks Configuration
-title = "HuduGlue Gitleaks Config"
+title = "client st0r Gitleaks Config"
 
 [allowlist]
 description = "Allowlist for false positives"

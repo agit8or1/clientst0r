@@ -5,14 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token }}">
-    <title>{% block title %}HuduGlue - IT Documentation Platform{% endblock %}</title>
+    <title>{% block title %}Client St0r - IT Documentation Platform{% endblock %}</title>
     <meta name="description" content="Secure, Self-Hosted IT Documentation Platform for MSPs and IT Departments">
-    <meta name="generator" content="HuduGlue v{{ app_version }}">
+    <meta name="generator" content="Client St0r v{{ app_version }}">
     <meta name="theme-color" content="#58a6ff">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="HuduGlue">
+    <meta name="apple-mobile-web-app-title" content="Client St0r">
     <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
     <link rel="manifest" href="{% static 'manifest.json' %}">
     <link rel="apple-touch-icon" href="{% static 'icons/icon-192x192.png' %}">
@@ -38,7 +38,7 @@
 
     <!-- PWA Install Banner -->
     <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #58a6ff; color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 9999; max-width: 90%; text-align: center;">
-        <p style="margin: 0 0 10px 0; font-weight: bold;">📱 Install HuduGlue</p>
+        <p style="margin: 0 0 10px 0; font-weight: bold;">📱 Install Client St0r</p>
         <p style="margin: 0 0 15px 0; font-size: 0.9em;">Add to your home screen for quick access!</p>
         <button id="pwa-install-button" style="background: white; color: #58a6ff; border: none; padding: 8px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-right: 10px;">Install</button>
         <button id="pwa-dismiss-button" style="background: transparent; color: white; border: 1px solid white; padding: 8px 20px; border-radius: 5px; cursor: pointer;">Not Now</button>
@@ -49,9 +49,9 @@
         <div class="container-fluid navbar-container">
             <a class="navbar-brand" href="{% url 'home' %}">
                 {% if system_settings.custom_logo %}
-                    <img src="{{ system_settings.custom_logo.url }}" alt="{{ system_settings.custom_company_name|default:'HuduGlue' }}" height="{{ system_settings.custom_logo_height }}">
+                    <img src="{{ system_settings.custom_logo.url }}" alt="{{ system_settings.custom_company_name|default:'Client St0r' }}" height="{{ system_settings.custom_logo_height }}">
                 {% else %}
-                    <img src="{% static 'images/logo-light.svg' %}" alt="{{ system_settings.custom_company_name|default:'HuduGlue' }}" height="30">
+                    <img src="{% static 'images/logo-light.svg' %}" alt="{{ system_settings.custom_company_name|default:'Client St0r' }}" height="30">
                 {% endif %}
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -242,7 +242,7 @@
                             <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#supportProjectModal" title="Support this open-source project"><i class="fas fa-heart"></i> Support This Project</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li class="dropdown-header"><i class="fas fa-mobile-alt me-2"></i>Mobile Access</li>
-                            <li><a class="dropdown-item" href="#" id="menu-install-pwa" title="Install HuduGlue as an app"><i class="fas fa-download"></i> Install App (PWA)</a></li>
+                            <li><a class="dropdown-item" href="#" id="menu-install-pwa" title="Install Client St0r as an app"><i class="fas fa-download"></i> Install App (PWA)</a></li>
                             <li><small class="dropdown-item-text text-muted" style="font-size: 0.75em; padding: 0 1rem;">Works on Android, iOS, and desktop!</small></li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
@@ -282,9 +282,9 @@
 
     <footer>
         <div class="container text-center">
-            <small class="text-muted">HuduGlue v{{ app_version }} | Secure, Self-Hosted IT Documentation</small>
+            <small class="text-muted">Client St0r v{{ app_version }} | Secure, Self-Hosted IT Documentation</small>
             <small class="text-muted">
-                {# Like HuduGlue? <a href="https://mspreboot.com/donations.php" target="_blank" class="text-decoration-none">Support the project ❤️</a> #}
+                {# Like Client St0r? <a href="https://mspreboot.com/donations.php" target="_blank" class="text-decoration-none">Support the project ❤️</a> #}
             </small>
         </div>
     </footer>
@@ -382,7 +382,7 @@
                             <label class="form-label">System Information (Auto-collected)</label>
                             <div class="card bg-light">
                                 <div class="card-body small">
-                                    <strong>HuduGlue Version:</strong> {{ app_version }}<br>
+                                    <strong>Client St0r Version:</strong> {{ app_version }}<br>
                                     <strong>Django Version:</strong> {{ DJANGO_VERSION }}<br>
                                     <strong>Python Version:</strong> {{ PYTHON_VERSION }}<br>
                                     <strong>Browser:</strong> <span id="browserInfo">Detecting...</span><br>
@@ -503,7 +503,7 @@
                 <div class="modal-body">
                     <div class="text-center mb-4">
                         <i class="fas fa-heart fa-4x text-danger mb-3"></i>
-                        <p class="lead">Thank you for using HuduGlue!</p>
+                        <p class="lead">Thank you for using Client St0r!</p>
                         <p>If you find this project helpful, here are two ways you can support it:</p>
                     </div>
 
@@ -529,7 +529,7 @@
 
                     <div class="alert alert-info mb-0">
                         <small>
-                            <i class="fas fa-code"></i> HuduGlue is free and open-source software. Your support helps keep this project alive and growing!
+                            <i class="fas fa-code"></i> Client St0r is free and open-source software. Your support helps keep this project alive and growing!
                         </small>
                     </div>
                 </div>
@@ -596,7 +596,7 @@
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                 // New service worker available, prompt user to refresh
-                                if (confirm('A new version of HuduGlue is available. Reload to update?')) {
+                                if (confirm('A new version of Client St0r is available. Reload to update?')) {
                                     newWorker.postMessage({ type: 'SKIP_WAITING' });
                                     window.location.reload();
                                 }
@@ -714,7 +714,7 @@
                         } else if (isAndroid) {
                             alert('📱 To install on Android:\n\n1. Tap the menu (⋮) in your browser\n2. Tap "Install app" or "Add to Home screen"\n3. Follow the prompts');
                         } else {
-                            alert('💻 To install on desktop:\n\n1. Look for the install icon in your address bar\n2. Or check your browser menu for "Install HuduGlue"\n3. Follow the prompts');
+                            alert('💻 To install on desktop:\n\n1. Look for the install icon in your address bar\n2. Or check your browser menu for "Install Client St0r"\n3. Follow the prompts');
                         }
                     }
                 });

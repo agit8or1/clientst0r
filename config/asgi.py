@@ -1,5 +1,5 @@
 """
-ASGI config for HuduGlue
+ASGI config for Client St0r
 """
 import os
 from django.core.asgi import get_asgi_application

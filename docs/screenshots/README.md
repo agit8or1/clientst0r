@@ -1,10 +1,10 @@
-# HuduGlue Screenshots
+# Client St0r Screenshots
 
 **Version:** v2.24.52
 **Date:** January 2026
 **Total Screenshots:** 34
 
-All screenshots showcase HuduGlue with random backgrounds enabled and include demo data watermarks.
+All screenshots showcase Client St0r with random backgrounds enabled and include demo data watermarks.
 
 ---
 
@@ -150,5 +150,5 @@ All screenshots showcase HuduGlue with random backgrounds enabled and include de
 
 ---
 
-**HuduGlue** - Self-Hosted IT Documentation Platform
-https://github.com/agit8or1/huduglue
+**Client St0r** - Self-Hosted IT Documentation Platform
+https://github.com/agit8or1/clientst0r

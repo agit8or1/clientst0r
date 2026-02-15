@@ -1,5 +1,5 @@
 #!/bin/bash
-# HuduGlue Auto-Update Script
+# client st0r Auto-Update Script
 # Automatically pulls latest code, runs migrations, and restarts services
 
 set -e  # Exit on error
@@ -15,11 +15,11 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 VENV_DIR="$PROJECT_DIR/venv"
-LOG_FILE="/var/log/huduglue/auto-update.log"
+LOG_FILE="/var/log/clientst0r/auto-update.log"
 
 # Ensure log directory exists
-sudo mkdir -p /var/log/huduglue
-sudo chown -R $(whoami):$(whoami) /var/log/huduglue
+sudo mkdir -p /var/log/clientst0r
+sudo chown -R $(whoami):$(whoami) /var/log/clientst0r
 
 # Logging function
 log() {
@@ -44,12 +44,12 @@ log_warning() {
 
 # Check if running as correct user
 if [ "$EUID" -eq 0 ]; then
-    log_error "Do not run this script as root. Run as the user who owns the HuduGlue installation."
+    log_error "Do not run this script as root. Run as the user who owns the client st0r installation."
     exit 1
 fi
 
 log_info "=========================================="
-log_info "HuduGlue Auto-Update Script"
+log_info "client st0r Auto-Update Script"
 log_info "=========================================="
 log_info "Project directory: $PROJECT_DIR"
 
@@ -147,14 +147,14 @@ fi
 log_info "Step 8/8: Restarting services..."
 
 # Restart Gunicorn
-if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
-    sudo systemctl restart huduglue-gunicorn.service
+if sudo systemctl is-active --quiet clientst0r-gunicorn.service; then
+    sudo systemctl restart clientst0r-gunicorn.service
     sleep 3
-    if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
+    if sudo systemctl is-active --quiet clientst0r-gunicorn.service; then
         log_success "Gunicorn restarted successfully"
     else
         log_error "Gunicorn failed to restart!"
-        sudo systemctl status huduglue-gunicorn.service
+        sudo systemctl status clientst0r-gunicorn.service
         exit 1
     fi
 else
@@ -162,26 +162,26 @@ else
 fi
 
 # Restart Scheduler (if exists)
-if sudo systemctl is-active --quiet huduglue-scheduler.service; then
-    sudo systemctl restart huduglue-scheduler.service
+if sudo systemctl is-active --quiet clientst0r-scheduler.service; then
+    sudo systemctl restart clientst0r-scheduler.service
     log_success "Scheduler restarted"
 fi
 
 # Restart PSA Sync (if exists)
-if sudo systemctl is-active --quiet huduglue-psa-sync.service; then
-    sudo systemctl restart huduglue-psa-sync.service
+if sudo systemctl is-active --quiet clientst0r-psa-sync.service; then
+    sudo systemctl restart clientst0r-psa-sync.service
     log_success "PSA Sync restarted"
 fi
 
 # Restart RMM Sync (if exists)
-if sudo systemctl is-active --quiet huduglue-rmm-sync.service; then
-    sudo systemctl restart huduglue-rmm-sync.service
+if sudo systemctl is-active --quiet clientst0r-rmm-sync.service; then
+    sudo systemctl restart clientst0r-rmm-sync.service
     log_success "RMM Sync restarted"
 fi
 
 # Restart Monitor (if exists)
-if sudo systemctl is-active --quiet huduglue-monitor.service; then
-    sudo systemctl restart huduglue-monitor.service
+if sudo systemctl is-active --quiet clientst0r-monitor.service; then
+    sudo systemctl restart clientst0r-monitor.service
     log_success "Monitor restarted"
 fi
 
@@ -192,7 +192,7 @@ log_info "=========================================="
 
 # Send notification (optional - if configured)
 if command -v notify-send &> /dev/null; then
-    notify-send "HuduGlue Updated" "Updated from $CURRENT_VERSION to $NEW_VERSION"
+    notify-send "client st0r Updated" "Updated from $CURRENT_VERSION to $NEW_VERSION"
 fi
 
 exit 0

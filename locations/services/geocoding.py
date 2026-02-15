@@ -126,7 +126,7 @@ class GeocodingService:
         try:
             # Nominatim requires a user agent
             headers = {
-                'User-Agent': 'HuduGlue/2.5.0 (IT Documentation Platform)'
+                'User-Agent': 'Client St0r/2.5.0 (IT Documentation Platform)'
             }
 
             params = {
@@ -234,7 +234,7 @@ class GeocodingService:
         """Reverse geocode using OSM Nominatim."""
         try:
             headers = {
-                'User-Agent': 'HuduGlue/2.5.0 (IT Documentation Platform)'
+                'User-Agent': 'Client St0r/2.5.0 (IT Documentation Platform)'
             }
 
             params = {

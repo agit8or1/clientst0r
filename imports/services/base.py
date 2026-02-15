@@ -29,7 +29,7 @@ class BaseImportService:
         else:
             self.org_matcher = None
 
-        # Cache for organization mappings (source_org_id -> HuduGlue Organization)
+        # Cache for organization mappings (source_org_id -> Client St0r Organization)
         self.org_map = {}
 
     def _get_auth_headers(self):

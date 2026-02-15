@@ -1,20 +1,71 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
-  <!-- Background -->
-  <rect width="200" height="60" fill="none"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 70" width="280" height="70">
+  <!-- Modern geometric icon representing storage/documentation -->
+  <defs>
+    <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563eb;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="zeroGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
 
-  <!-- Logo design - Hexagon with "H" -->
-  <g transform="translate(10, 10)">
-    <polygon points="20,0 40,10 40,30 20,40 0,30 0,10" fill="#0d6efd" stroke="#0a58ca" stroke-width="2"/>
-    <text x="20" y="28" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">H</text>
+  <!-- Icon - Stylized storage/document icon -->
+  <g transform="translate(8, 10)">
+    <!-- Base shape - modern hexagonal storage concept -->
+    <path d="M 25 5 L 45 5 L 50 15 L 50 40 L 45 50 L 25 50 L 20 40 L 20 15 Z"
+          fill="url(#iconGradient)"
+          stroke="#2563eb"
+          stroke-width="2"
+          stroke-linejoin="round"/>
+
+    <!-- Inner detail lines suggesting layers/documents -->
+    <line x1="25" y1="18" x2="45" y2="18" stroke="white" stroke-width="2" opacity="0.6"/>
+    <line x1="25" y1="27" x2="45" y2="27" stroke="white" stroke-width="2" opacity="0.6"/>
+    <line x1="25" y1="36" x2="45" y2="36" stroke="white" stroke-width="2" opacity="0.6"/>
+
+    <!-- Accent circle in center -->
+    <circle cx="35" cy="27" r="6" fill="white" opacity="0.3"/>
   </g>
 
-  <!-- Text "HuduGlue" -->
-  <text x="55" y="35" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#212529">
-    Hudu<tspan fill="#0d6efd">Glue</tspan>
-  </text>
+  <!-- Brand text "Client" -->
+  <text x="75" y="33"
+        font-family="'Segoe UI', 'Roboto', 'Arial', sans-serif"
+        font-size="26"
+        font-weight="600"
+        fill="#1e293b"
+        letter-spacing="-0.5">Client</text>
 
-  <!-- Tagline -->
-  <text x="55" y="50" font-family="Arial, sans-serif" font-size="10" fill="#6c757d">
-    IT Documentation Platform
-  </text>
+  <!-- Brand text "St" -->
+  <text x="75" y="53"
+        font-family="'Segoe UI', 'Roboto', 'Arial', sans-serif"
+        font-size="26"
+        font-weight="600"
+        fill="#1e293b"
+        letter-spacing="-0.5">St</text>
+
+  <!-- Stylized "0" (zero) with gradient -->
+  <text x="99" y="53"
+        font-family="'Segoe UI', 'Roboto', 'Arial', sans-serif"
+        font-size="28"
+        font-weight="700"
+        fill="url(#zeroGradient)"
+        letter-spacing="-0.5">0</text>
+
+  <!-- Brand text "r" -->
+  <text x="115" y="53"
+        font-family="'Segoe UI', 'Roboto', 'Arial', sans-serif"
+        font-size="26"
+        font-weight="600"
+        fill="#1e293b"
+        letter-spacing="-0.5">r</text>
+
+  <!-- Tagline with updated styling -->
+  <text x="75" y="63"
+        font-family="'Segoe UI', 'Roboto', 'Arial', sans-serif"
+        font-size="10"
+        font-weight="400"
+        fill="#64748b"
+        letter-spacing="0.5">IT DOCUMENTATION PLATFORM</text>
 </svg>

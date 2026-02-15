@@ -1,5 +1,5 @@
 #!/bin/bash
-# Automated release script for HuduGlue
+# Automated release script for client st0r
 # Usage: ./scripts/release.sh <version> "<title>" "<notes>"
 # Example: ./scripts/release.sh 2.50.0 "Add dashboard widget" "Adds revenue tracking widget"
 
@@ -17,7 +17,7 @@ TITLE="$2"
 NOTES="$3"
 
 echo "=========================================="
-echo "HuduGlue Release Process"
+echo "client st0r Release Process"
 echo "=========================================="
 echo "Version: v$VERSION"
 echo "Title: $TITLE"
@@ -47,7 +47,7 @@ IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
 # Update version.py
 cat > config/version.py << EOF
 """
-Version information for HuduGlue
+Version information for client st0r
 """
 
 VERSION = '$VERSION'
@@ -100,16 +100,16 @@ gh release create "v$VERSION" \
 echo "✓ GitHub release created"
 
 echo "Step 7/9: Restarting application..."
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 sleep 3
 echo "✓ Application restarted"
 
 echo "Step 8/9: Verifying service status..."
-if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
+if sudo systemctl is-active --quiet clientst0r-gunicorn.service; then
     echo "✓ Service is running"
 else
     echo "❌ Service failed to start!"
-    sudo systemctl status huduglue-gunicorn.service
+    sudo systemctl status clientst0r-gunicorn.service
     exit 1
 fi
 
@@ -126,7 +126,7 @@ echo "=========================================="
 echo "✅ Release v$VERSION Complete!"
 echo "=========================================="
 echo ""
-echo "Release URL: https://github.com/agit8or1/huduglue/releases/tag/v$VERSION"
+echo "Release URL: https://github.com/agit8or1/clientst0r/releases/tag/v$VERSION"
 echo ""
 echo "Next steps:"
 echo "- Verify update appears on System Updates page"

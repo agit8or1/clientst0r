@@ -18,9 +18,9 @@ To fully configure the mobile app, you'll need to create these assets:
 
 ## Creating Icons
 
-You can use the HuduGlue logo and create properly sized versions:
+You can use the Client St0r logo and create properly sized versions:
 
-1. Take the main HuduGlue logo from `/static/images/`
+1. Take the main Client St0r logo from `/static/images/`
 2. Use an image editor or online tool to create proper sizes
 3. Save in this directory with the filenames above
 

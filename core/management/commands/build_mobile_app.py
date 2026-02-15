@@ -185,7 +185,7 @@ class Command(BaseCommand):
                     apk_path = os.path.join(android_dir, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk')
                     if os.path.exists(apk_path):
                         # Copy to builds directory
-                        dest_path = os.path.join(builds_dir, 'huduglue.apk')
+                        dest_path = os.path.join(builds_dir, 'clientst0r.apk')
                         import shutil as sh
                         sh.copy2(apk_path, dest_path)
                         self._update_status(status_file, 'complete', 'APK built successfully!')

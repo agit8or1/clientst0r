@@ -34,7 +34,7 @@ export default function LoginScreen() {
     >
       <View style={styles.content}>
         <View style={styles.logoContainer}>
-          <Title style={styles.title}>HuduGlue</Title>
+          <Title style={styles.title}>Client St0r</Title>
           <Text style={styles.subtitle}>IT Documentation Platform</Text>
         </View>
 

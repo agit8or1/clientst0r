@@ -95,11 +95,11 @@
                 </p>
                 <p class="mb-2"><strong>Run this command once on your server:</strong></p>
                 <div class="bg-dark text-light p-3 rounded" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
-                    <div class="mb-2 text-white">sudo tee /etc/sudoers.d/huduglue-auto-update > /dev/null <<'SUDOERS'</div>
-                    <div class="mb-2 text-white">administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.service, /bin/systemctl status huduglue-gunicorn.service, /bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/huduglue-gunicorn.service</div>
+                    <div class="mb-2 text-white">sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<'SUDOERS'</div>
+                    <div class="mb-2 text-white">administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-gunicorn.service, /bin/systemctl status clientst0r-gunicorn.service, /bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service</div>
                     <div class="mb-2 text-white">SUDOERS</div>
                     <div class="mb-3"></div>
-                    <div class="mb-2 text-white">sudo chmod 0440 /etc/sudoers.d/huduglue-auto-update</div>
+                    <div class="mb-2 text-white">sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update</div>
                 </div>
                 <p class="mt-3 mb-0">
                     <i class="fas fa-info-circle"></i>
@@ -298,7 +298,7 @@
                             The easiest way to update is using our automated update script. It checks everything first, then runs the update safely:
                         </p>
                         <div class="bg-dark text-light p-3 rounded mt-3" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
-                            <div class="mb-2 text-white">cd /path/to/your/huduglue</div>
+                            <div class="mb-2 text-white">cd /path/to/your/clientst0r</div>
                             <div class="mb-2"><span class="text-white-50" style="font-size: 0.85em;"># (use find command below if you don't know the path)</span></div>
                             <div class="mb-3"></div>
                             <div class="mb-2 text-white">./update.sh</div>
@@ -337,14 +337,14 @@
                     <h6 class="mb-2"><i class="fas fa-folder"></i> Step 1: Navigate to Application Directory</h6>
                     <p class="small text-muted mb-2">Find where your application is installed:</p>
                     <div class="bg-dark text-light p-3 rounded mb-3" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
-                        <div class="mb-2 text-white">find /home -name "manage.py" -type f 2>/dev/null | grep huduglue</div>
+                        <div class="mb-2 text-white">find /home -name "manage.py" -type f 2>/dev/null | grep clientst0r</div>
                         <div class="mb-2"><span class="text-white-50" style="font-size: 0.85em;"># This will show the path to your installation</span></div>
                     </div>
 
                     <p class="small text-muted mb-2">Then navigate to that directory (replace with YOUR path from above):</p>
                     <div class="bg-dark text-light p-3 rounded mb-3" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
-                        <div class="mb-2 text-white">cd /path/to/your/huduglue</div>
-                        <div class="mb-2"><span class="text-white-50" style="font-size: 0.85em;"># Example: cd /home/administrator/huduglue</span></div>
+                        <div class="mb-2 text-white">cd /path/to/your/clientst0r</div>
+                        <div class="mb-2"><span class="text-white-50" style="font-size: 0.85em;"># Example: cd /home/administrator/clientst0r</span></div>
                         <div class="mb-2"><span class="text-white-50" style="font-size: 0.85em;"># OR: cd /home/administrator</span></div>
                     </div>
 
@@ -369,7 +369,7 @@
                         <div class="mb-3"></div>
                         <div class="mb-2 text-white">python manage.py collectstatic --noinput</div>
                         <div class="mb-3"></div>
-                        <div class="mb-2 text-white">sudo systemctl restart huduglue-gunicorn.service</div>
+                        <div class="mb-2 text-white">sudo systemctl restart clientst0r-gunicorn.service</div>
                     </div>
                     <div class="alert alert-info mt-3 mb-0">
                         <i class="fas fa-info-circle"></i>
@@ -500,7 +500,7 @@
             </div>
             <div class="modal-body">
                 <p>
-                    <strong>You are about to update HuduGlue from v{{ version }} to v{{ update_info.latest_version }}</strong>
+                    <strong>You are about to update Client St0r from v{{ version }} to v{{ update_info.latest_version }}</strong>
                 </p>
                 <p>The update process will:</p>
                 <ul>

@@ -1,6 +1,6 @@
 # 💡 Feature Requests & Voting
 
-HuduGlue uses a community-driven approach to feature development. This guide explains how to suggest features, vote on ideas, and track what's being worked on.
+Client St0r uses a community-driven approach to feature development. This guide explains how to suggest features, vote on ideas, and track what's being worked on.
 
 ---
 
@@ -20,33 +20,33 @@ HuduGlue uses a community-driven approach to feature development. This guide exp
 
 **Want to suggest a new feature?**
 
-1. **Start with a Discussion** → [Share your idea here](https://github.com/agit8or1/huduglue/discussions/new?category=ideas)
-2. **Vote on existing ideas** → [Browse and upvote](https://github.com/agit8or1/huduglue/discussions/categories/ideas) (👍 reaction)
-3. **Track progress** → [View the Roadmap](https://github.com/agit8or1/huduglue/projects)
+1. **Start with a Discussion** → [Share your idea here](https://github.com/agit8or1/clientst0r/discussions/new?category=ideas)
+2. **Vote on existing ideas** → [Browse and upvote](https://github.com/agit8or1/clientst0r/discussions/categories/ideas) (👍 reaction)
+3. **Track progress** → [View the Roadmap](https://github.com/agit8or1/clientst0r/projects)
 
 **Already have a detailed specification?**
 
-→ [Create a Feature Request Issue](https://github.com/agit8or1/huduglue/issues/new?template=feature_request.yml)
+→ [Create a Feature Request Issue](https://github.com/agit8or1/clientst0r/issues/new?template=feature_request.yml)
 
 ---
 
 ## The Process
 
-HuduGlue uses a **two-stage system** for feature development:
+Client St0r uses a **two-stage system** for feature development:
 
 ### Stage 1: Ideas & Discussion 💬
 
-- **Where:** [GitHub Discussions → Ideas](https://github.com/agit8or1/huduglue/discussions/categories/ideas)
+- **Where:** [GitHub Discussions → Ideas](https://github.com/agit8or1/clientst0r/discussions/categories/ideas)
 - **Purpose:** Explore, refine, and gather community feedback
 - **Who:** Anyone can post and vote (👍 reactions)
 - **Timeline:** Open-ended discussion
 
 ### Stage 2: Structured Request 📋
 
-- **Where:** [GitHub Issues → Feature Request](https://github.com/agit8or1/huduglue/issues/new?template=feature_request.yml)
+- **Where:** [GitHub Issues → Feature Request](https://github.com/agit8or1/clientst0r/issues/new?template=feature_request.yml)
 - **Purpose:** Formal specification ready for implementation
 - **Who:** Maintainers promote from discussions, or users can submit directly
-- **Timeline:** Tracked on the [Roadmap Project](https://github.com/agit8or1/huduglue/projects)
+- **Timeline:** Tracked on the [Roadmap Project](https://github.com/agit8or1/clientst0r/projects)
 
 ---
 
@@ -56,14 +56,14 @@ HuduGlue uses a **two-stage system** for feature development:
 
 **Use this if:**
 - You're exploring an idea and want feedback
-- You're not sure if it fits HuduGlue's scope
+- You're not sure if it fits Client St0r's scope
 - You want to gauge community interest first
 
 **Steps:**
-1. Go to [Discussions → Ideas](https://github.com/agit8or1/huduglue/discussions/new?category=ideas)
+1. Go to [Discussions → Ideas](https://github.com/agit8or1/clientst0r/discussions/new?category=ideas)
 2. Use the "Idea" template
 3. Fill in:
-   - **The Idea:** What should HuduGlue do?
+   - **The Idea:** What should Client St0r do?
    - **Problem:** What pain point does this solve?
    - **Benefit:** Who would use this?
 4. Submit and share with the community!
@@ -83,12 +83,12 @@ HuduGlue uses a **two-stage system** for feature development:
 - You're ready to contribute to implementation
 
 **Steps:**
-1. Go to [Issues → New Feature Request](https://github.com/agit8or1/huduglue/issues/new?template=feature_request.yml)
+1. Go to [Issues → New Feature Request](https://github.com/agit8or1/clientst0r/issues/new?template=feature_request.yml)
 2. Fill in the structured form:
    - **Problem Statement:** The pain point you're solving
    - **Proposed Solution:** How it should work
    - **Priority:** Impact on your workflow
-   - **Feature Area:** Which part of HuduGlue (Assets, Vault, etc.)
+   - **Feature Area:** Which part of Client St0r (Assets, Vault, etc.)
    - **Use Case:** Real-world scenario
 3. Submit for triage
 
@@ -105,7 +105,7 @@ Voting helps prioritize features based on community need.
 
 ### Voting on Discussions (Ideas)
 
-1. Browse [Ideas Category](https://github.com/agit8or1/huduglue/discussions/categories/ideas)
+1. Browse [Ideas Category](https://github.com/agit8or1/clientst0r/discussions/categories/ideas)
 2. Read the idea thoroughly
 3. **👍 Upvote** the first post if you want this feature
 4. ❌ Avoid "+1" comments—use reactions instead
@@ -128,7 +128,7 @@ Once an idea becomes a Feature Request issue:
 
 ## Tracking the Roadmap
 
-The [Roadmap Project Board](https://github.com/agit8or1/huduglue/projects) shows what's being worked on.
+The [Roadmap Project Board](https://github.com/agit8or1/clientst0r/projects) shows what's being worked on.
 
 ### Project Columns
 
@@ -222,7 +222,7 @@ You can speed things up by:
 ### Q: My idea was closed as "Won't Do"—why?
 
 **A:** Common reasons:
-- **Out of scope:** Doesn't align with HuduGlue's core purpose (IT documentation platform)
+- **Out of scope:** Doesn't align with Client St0r's core purpose (IT documentation platform)
 - **Security risk:** Would introduce vulnerabilities
 - **Maintenance burden:** Would create long-term technical debt
 - **Better alternatives:** Existing features or integrations solve the problem
@@ -247,7 +247,7 @@ If you disagree, you can:
 
 ### Q: I found a bug—should I use this process?
 
-**A:** **No.** Bugs should be reported via the [Bug Report template](https://github.com/agit8or1/huduglue/issues/new?template=bug_report.yml), not as feature requests.
+**A:** **No.** Bugs should be reported via the [Bug Report template](https://github.com/agit8or1/clientst0r/issues/new?template=bug_report.yml), not as feature requests.
 
 Bug fixes are prioritized separately and don't go through voting.
 
@@ -267,9 +267,9 @@ Exception: If features are tightly coupled (e.g., "Add Markdown support" and "Ad
 ### Q: How do I know if a feature is already being discussed?
 
 **Before posting:**
-1. Search [Discussions → Ideas](https://github.com/agit8or1/huduglue/discussions?discussions_q=category%3AIdeas)
-2. Search [Issues with `type:feature` label](https://github.com/agit8or1/huduglue/issues?q=is%3Aissue+label%3Atype%3Afeature)
-3. Check the [Roadmap Project](https://github.com/agit8or1/huduglue/projects)
+1. Search [Discussions → Ideas](https://github.com/agit8or1/clientst0r/discussions?discussions_q=category%3AIdeas)
+2. Search [Issues with `type:feature` label](https://github.com/agit8or1/clientst0r/issues?q=is%3Aissue+label%3Atype%3Afeature)
+3. Check the [Roadmap Project](https://github.com/agit8or1/clientst0r/projects)
 
 If you find a duplicate:
 - Upvote it instead of creating a new one
@@ -279,7 +279,7 @@ If you find a duplicate:
 
 ### Q: Can I create polls for feature voting?
 
-**A:** Yes! Use [GitHub Discussions Polls](https://github.com/agit8or1/huduglue/discussions/new?category=polls) to:
+**A:** Yes! Use [GitHub Discussions Polls](https://github.com/agit8or1/clientst0r/discussions/new?category=polls) to:
 - Vote on UI design options
 - Prioritize multiple related features
 - Gather feedback on breaking changes
@@ -291,13 +291,13 @@ Maintainers may also create periodic "What should we build next?" polls.
 ## Getting Help
 
 **Need clarification on the process?**
-- 💬 [Discussions → Q&A](https://github.com/agit8or1/huduglue/discussions/categories/q-a)
+- 💬 [Discussions → Q&A](https://github.com/agit8or1/clientst0r/discussions/categories/q-a)
 - 📧 Email: [your-support-email]
 - 💻 Join our [Discord/Slack community] (if applicable)
 
 **Want to contribute code?**
 - 📖 Read [CONTRIBUTING.md](CONTRIBUTING.md)
-- 🛠️ Check [Good First Issues](https://github.com/agit8or1/huduglue/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+- 🛠️ Check [Good First Issues](https://github.com/agit8or1/clientst0r/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 
 ---
 
@@ -305,13 +305,13 @@ Maintainers may also create periodic "What should we build next?" polls.
 
 | Scenario | Use This | Link |
 |----------|----------|------|
-| Exploring a new idea | 💬 Discussion (Idea) | [Start here](https://github.com/agit8or1/huduglue/discussions/new?category=ideas) |
-| Voting on existing ideas | 👍 Upvote discussions | [Browse Ideas](https://github.com/agit8or1/huduglue/discussions/categories/ideas) |
-| Proposing a feature with full spec | 📋 Feature Request Issue | [Create Issue](https://github.com/agit8or1/huduglue/issues/new?template=feature_request.yml) |
-| Tracking what's being built | 🗺️ Roadmap Project | [View Roadmap](https://github.com/agit8or1/huduglue/projects) |
-| Reporting a bug | 🐛 Bug Report | [Report Bug](https://github.com/agit8or1/huduglue/issues/new?template=bug_report.yml) |
-| Asking a question | ❓ Q&A Discussion | [Ask here](https://github.com/agit8or1/huduglue/discussions/new?category=q-a) |
+| Exploring a new idea | 💬 Discussion (Idea) | [Start here](https://github.com/agit8or1/clientst0r/discussions/new?category=ideas) |
+| Voting on existing ideas | 👍 Upvote discussions | [Browse Ideas](https://github.com/agit8or1/clientst0r/discussions/categories/ideas) |
+| Proposing a feature with full spec | 📋 Feature Request Issue | [Create Issue](https://github.com/agit8or1/clientst0r/issues/new?template=feature_request.yml) |
+| Tracking what's being built | 🗺️ Roadmap Project | [View Roadmap](https://github.com/agit8or1/clientst0r/projects) |
+| Reporting a bug | 🐛 Bug Report | [Report Bug](https://github.com/agit8or1/clientst0r/issues/new?template=bug_report.yml) |
+| Asking a question | ❓ Q&A Discussion | [Ask here](https://github.com/agit8or1/clientst0r/discussions/new?category=q-a) |
 
 ---
 
-**Thank you for helping shape the future of HuduGlue!** 🚀
+**Thank you for helping shape the future of Client St0r!** 🚀

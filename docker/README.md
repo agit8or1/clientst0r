@@ -1,6 +1,6 @@
-# HuduGlue Docker Deployment
+# Client St0r Docker Deployment
 
-This directory contains Docker deployment configurations for HuduGlue.
+This directory contains Docker deployment configurations for Client St0r.
 
 ## Quick Start
 
@@ -22,8 +22,8 @@ ALLOWED_HOSTS=localhost,yourdomain.com
 SITE_URL=https://yourdomain.com
 
 # Database
-DB_NAME=huduglue
-DB_USER=huduglue
+DB_NAME=clientst0r
+DB_USER=clientst0r
 DB_PASSWORD=secure-password-here
 DB_HOST=db
 DB_PORT=3306
@@ -71,7 +71,7 @@ docker-compose ps
 
 - **db**: MariaDB 10.11 database
 - **redis**: Redis cache for sessions and caching
-- **web**: HuduGlue Django application (Gunicorn)
+- **web**: Client St0r Django application (Gunicorn)
 - **nginx**: Reverse proxy and static file server
 
 ### Optional Services (Profiles)
@@ -90,10 +90,10 @@ This starts:
 
 Data is persisted in named volumes:
 
-- `huduglue-mariadb-data`: Database files
-- `huduglue-redis-data`: Redis persistence
-- `huduglue-media`: Uploaded files
-- `huduglue-static`: Static files (CSS, JS, images)
+- `clientst0r-mariadb-data`: Database files
+- `clientst0r-redis-data`: Redis persistence
+- `clientst0r-media`: Uploaded files
+- `clientst0r-static`: Static files (CSS, JS, images)
 
 ## Management Commands
 
@@ -160,7 +160,7 @@ cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem docker/nginx/ssl/cert.pem
 cp /etc/letsencrypt/live/yourdomain.com/privkey.pem docker/nginx/ssl/key.pem
 ```
 
-4. Uncomment HTTPS server block in `docker/nginx/conf.d/huduglue.conf`
+4. Uncomment HTTPS server block in `docker/nginx/conf.d/clientst0r.conf`
 
 5. Restart nginx:
 ```bash
@@ -210,7 +210,7 @@ All services have health checks configured:
 docker-compose ps
 
 # View health check logs
-docker inspect huduglue-web --format='{{json .State.Health}}' | jq
+docker inspect clientst0r-web --format='{{json .State.Health}}' | jq
 ```
 
 ### Container Stats
@@ -252,7 +252,7 @@ docker-compose logs db
 
 ```bash
 # Fix ownership
-docker-compose exec web chown -R huduglue:huduglue /app/media /app/logs
+docker-compose exec web chown -R clientst0r:clientst0r /app/media /app/logs
 ```
 
 ## Production Recommendations
@@ -281,7 +281,7 @@ mkdir -p $BACKUP_DIR
 docker-compose exec -T db mysqldump -u$DB_USER -p$DB_PASSWORD $DB_NAME | gzip > $BACKUP_DIR/database.sql.gz
 
 # Media files backup
-docker cp huduglue-web:/app/media $BACKUP_DIR/media
+docker cp clientst0r-web:/app/media $BACKUP_DIR/media
 
 # Keep last 30 days
 find /backups -type d -mtime +30 -exec rm -rf {} \;
@@ -294,7 +294,7 @@ Schedule with cron:
 
 ## Updates
 
-### Updating HuduGlue
+### Updating Client St0r
 
 ```bash
 # Pull latest changes
@@ -311,5 +311,5 @@ docker-compose exec web python manage.py migrate
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/agit8or1/huduglue/issues
-- Discussions: https://github.com/agit8or1/huduglue/discussions
+- GitHub Issues: https://github.com/agit8or1/clientst0r/issues
+- Discussions: https://github.com/agit8or1/clientst0r/discussions

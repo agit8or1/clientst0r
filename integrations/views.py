@@ -91,7 +91,7 @@ def integration_create(request):
                         "<strong>Or run diagnostic to see what's wrong:</strong><br>"
                         "<code>./diagnose_gunicorn_fix.sh</code><br><br>"
                         "This will configure Gunicorn to load environment variables from your .env file. "
-                        "See <a href='https://github.com/agit8or1/huduglue/issues/4' target='_blank'>Issue #4</a> for details.",
+                        "See <a href='https://github.com/agit8or1/clientst0r/issues/4' target='_blank'>Issue #4</a> for details.",
                         extra_tags='safe'
                     )
                 else:
@@ -155,7 +155,7 @@ def integration_edit(request, pk):
                         "<strong>Or run diagnostic to see what's wrong:</strong><br>"
                         "<code>./diagnose_gunicorn_fix.sh</code><br><br>"
                         "This will configure Gunicorn to load environment variables from your .env file. "
-                        "See <a href='https://github.com/agit8or1/huduglue/issues/4' target='_blank'>Issue #4</a> for details.",
+                        "See <a href='https://github.com/agit8or1/clientst0r/issues/4' target='_blank'>Issue #4</a> for details.",
                         extra_tags='safe'
                     )
                 else:
@@ -433,7 +433,7 @@ def rmm_create(request):
                         "<strong>Or run diagnostic to see what's wrong:</strong><br>"
                         "<code>./diagnose_gunicorn_fix.sh</code><br><br>"
                         "This will configure Gunicorn to load environment variables from your .env file. "
-                        "See <a href='https://github.com/agit8or1/huduglue/issues/4' target='_blank'>Issue #4</a> for details.",
+                        "See <a href='https://github.com/agit8or1/clientst0r/issues/4' target='_blank'>Issue #4</a> for details.",
                         extra_tags='safe'
                     )
                 else:
@@ -494,7 +494,7 @@ def rmm_edit(request, pk):
                         "<strong>Or run diagnostic to see what's wrong:</strong><br>"
                         "<code>./diagnose_gunicorn_fix.sh</code><br><br>"
                         "This will configure Gunicorn to load environment variables from your .env file. "
-                        "See <a href='https://github.com/agit8or1/huduglue/issues/4' target='_blank'>Issue #4</a> for details.",
+                        "See <a href='https://github.com/agit8or1/clientst0r/issues/4' target='_blank'>Issue #4</a> for details.",
                         extra_tags='safe'
                     )
                 else:
@@ -927,7 +927,7 @@ def rmm_import_clients(request, pk):
 @require_admin
 def psa_organization_mapping(request, pk):
     """
-    Map PSA companies to existing HuduGlue organizations.
+    Map PSA companies to existing Client St0r organizations.
     Allows pre-sync mapping to prevent duplicate organizations.
     """
     from core.models import Organization
@@ -1059,7 +1059,7 @@ def psa_organization_mapping(request, pk):
 @require_admin
 def rmm_organization_mapping(request, pk):
     """
-    Map RMM sites to existing HuduGlue organizations.
+    Map RMM sites to existing Client St0r organizations.
     Note: RMM uses name-based matching instead of ExternalObjectMap.
     """
     from core.models import Organization

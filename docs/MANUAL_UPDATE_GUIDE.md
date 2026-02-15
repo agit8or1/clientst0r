@@ -1,6 +1,6 @@
-# 🔄 How to Manually Update HuduGlue from CLI
+# 🔄 How to Manually Update Client St0r from CLI
 
-This guide explains how to manually update your HuduGlue installation when automatic updates fail or when you need to pull specific commits.
+This guide explains how to manually update your Client St0r installation when automatic updates fail or when you need to pull specific commits.
 
 ---
 
@@ -19,13 +19,13 @@ This guide explains how to manually update your HuduGlue installation when autom
 For most cases, these commands will update your installation:
 
 ```bash
-cd /home/administrator  # Or your HuduGlue directory
+cd /home/administrator  # Or your Client St0r directory
 git pull origin main
 source venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py collectstatic --noinput
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 python manage.py shell -c "from django.core.cache import cache; cache.clear()"
 ```
 
@@ -52,7 +52,7 @@ python manage.py shell -c "from config.version import VERSION; print(f'Version: 
 
 2. **Check if Gunicorn is running the updated code:**
    ```bash
-   sudo systemctl status huduglue-gunicorn.service
+   sudo systemctl status clientst0r-gunicorn.service
    ps aux | grep gunicorn
    ```
 
@@ -69,7 +69,7 @@ python manage.py shell -c "from config.version import VERSION; print(f'Version: 
 
 ```bash
 # 1. Stop services
-sudo systemctl stop huduglue-gunicorn.service
+sudo systemctl stop clientst0r-gunicorn.service
 sudo systemctl stop nginx
 
 # 2. Pull latest code
@@ -92,7 +92,7 @@ python manage.py shell -c "from django.core.cache import cache; cache.clear()"
 
 # 7. Restart services
 sudo systemctl start nginx
-sudo systemctl start huduglue-gunicorn.service
+sudo systemctl start clientst0r-gunicorn.service
 
 # 8. Verify
 sleep 3
@@ -110,10 +110,10 @@ Always backup before updating:
 
 ```bash
 # Backup database
-sudo mysqldump -u huduglue -p huduglue > ~/huduglue_backup_$(date +%Y%m%d).sql
+sudo mysqldump -u clientst0r -p clientst0r > ~/clientst0r_backup_$(date +%Y%m%d).sql
 
 # Backup media files
-tar -czf ~/huduglue_media_backup_$(date +%Y%m%d).tar.gz /home/administrator/media/
+tar -czf ~/clientst0r_media_backup_$(date +%Y%m%d).tar.gz /home/administrator/media/
 
 # Backup configuration
 cp /home/administrator/config/settings.py ~/settings_backup_$(date +%Y%m%d).py
@@ -216,10 +216,10 @@ python manage.py shell -c "from django.core.cache import cache; cache.clear(); p
 
 ```bash
 # Restart Gunicorn
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 
 # Check status
-sudo systemctl status huduglue-gunicorn.service
+sudo systemctl status clientst0r-gunicorn.service
 
 # Restart Nginx (if needed)
 sudo systemctl restart nginx
@@ -235,7 +235,7 @@ python manage.py shell -c "from config.version import VERSION; print(f'Updated t
 curl -I http://localhost:8000 2>&1 | grep "HTTP"
 
 # Check logs for errors
-sudo journalctl -u huduglue-gunicorn.service -n 50 --no-pager
+sudo journalctl -u clientst0r-gunicorn.service -n 50 --no-pager
 tail -f /home/administrator/logs/django.log
 ```
 
@@ -296,7 +296,7 @@ rm -rf /home/administrator/static_collected/*
 python manage.py collectstatic --noinput --clear
 
 # Restart Gunicorn
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 
 # Check file timestamps
 ls -lt /home/administrator/static_collected/css/ | head -10
@@ -327,7 +327,7 @@ python manage.py migrate appname zero
 python manage.py migrate appname
 
 # Last resort: Check manual schema fix
-mysql -u huduglue -p huduglue
+mysql -u clientst0r -p clientst0r
 # Run manual ALTER TABLE commands if needed
 ```
 
@@ -337,15 +337,15 @@ mysql -u huduglue -p huduglue
 
 **Symptoms:**
 ```
-sudo systemctl status huduglue-gunicorn.service
-● huduglue-gunicorn.service - HuduGlue Gunicorn
+sudo systemctl status clientst0r-gunicorn.service
+● clientst0r-gunicorn.service - Client St0r Gunicorn
    Active: failed (Result: exit-code)
 ```
 
 **Diagnosis:**
 ```bash
 # Check logs
-sudo journalctl -u huduglue-gunicorn.service -n 100 --no-pager
+sudo journalctl -u clientst0r-gunicorn.service -n 100 --no-pager
 
 # Try running Gunicorn manually
 cd /home/administrator
@@ -371,7 +371,7 @@ sudo chown -R administrator:administrator /home/administrator
 sudo chmod -R 755 /home/administrator
 
 # Restart
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ---
@@ -388,14 +388,14 @@ ps aux | grep gunicorn
 
 # Check Nginx config
 sudo nginx -t
-sudo cat /etc/nginx/sites-enabled/huduglue | grep "upstream"
+sudo cat /etc/nginx/sites-enabled/clientst0r | grep "upstream"
 
 # Ensure www-data can access socket
 sudo usermod -a -G administrator www-data
 sudo chmod 755 /home/administrator
 
 # Restart both
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 sudo systemctl restart nginx
 ```
 
@@ -411,7 +411,7 @@ python manage.py shell -c "from config.version import VERSION; print(f'Code vers
 
 # 2. Web UI (after logging in)
 # Navigate to: Settings → About or Profile
-# Should show: "HuduGlue v2.XX.X"
+# Should show: "Client St0r v2.XX.X"
 
 # 3. Git commit
 git log -1 --oneline
@@ -424,7 +424,7 @@ grep "##" CHANGELOG.md | head -5
 
 ```bash
 # Gunicorn
-sudo systemctl status huduglue-gunicorn.service | grep "Active"
+sudo systemctl status clientst0r-gunicorn.service | grep "Active"
 
 # Nginx
 sudo systemctl status nginx | grep "Active"
@@ -437,7 +437,7 @@ sudo systemctl status mariadb | grep "Active"
 
 ```bash
 # Gunicorn logs (last 50 lines)
-sudo journalctl -u huduglue-gunicorn.service -n 50 --no-pager
+sudo journalctl -u clientst0r-gunicorn.service -n 50 --no-pager
 
 # Django logs
 tail -50 /home/administrator/logs/django.log
@@ -472,7 +472,7 @@ Use this checklist for updates:
 [ ] Run migrations: python manage.py migrate
 [ ] Collect static files: python manage.py collectstatic --noinput
 [ ] Clear Django cache
-[ ] Restart Gunicorn: sudo systemctl restart huduglue-gunicorn.service
+[ ] Restart Gunicorn: sudo systemctl restart clientst0r-gunicorn.service
 [ ] Hard refresh browser: Ctrl + Shift + R
 [ ] Verify version matches in UI
 [ ] Test key features
@@ -483,19 +483,19 @@ Use this checklist for updates:
 
 ## Automated Update Script
 
-Save this as `~/update_huduglue.sh`:
+Save this as `~/update_clientst0r.sh`:
 
 ```bash
 #!/bin/bash
 set -e
 
-echo "🔄 HuduGlue Update Script"
+echo "🔄 Client St0r Update Script"
 echo "=========================="
 
 # Variables
 INSTALL_DIR="/home/administrator"
 VENV_DIR="$INSTALL_DIR/venv"
-BACKUP_DIR="$HOME/huduglue_backups"
+BACKUP_DIR="$HOME/clientst0r_backups"
 
 # Create backup directory
 mkdir -p "$BACKUP_DIR"
@@ -503,7 +503,7 @@ mkdir -p "$BACKUP_DIR"
 # 1. Backup
 echo "📦 Creating backup..."
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-mysqldump -u huduglue -p huduglue > "$BACKUP_DIR/db_$TIMESTAMP.sql"
+mysqldump -u clientst0r -p clientst0r > "$BACKUP_DIR/db_$TIMESTAMP.sql"
 echo "✓ Database backed up"
 
 # 2. Pull updates
@@ -536,7 +536,7 @@ echo "✓ Cache cleared"
 
 # 7. Restart services
 echo "🔄 Restarting services..."
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 sudo systemctl restart nginx
 sleep 2
 echo "✓ Services restarted"
@@ -557,12 +557,12 @@ echo "💾 Backup saved to: $BACKUP_DIR/db_$TIMESTAMP.sql"
 
 Make it executable:
 ```bash
-chmod +x ~/update_huduglue.sh
+chmod +x ~/update_clientst0r.sh
 ```
 
 Run it:
 ```bash
-~/update_huduglue.sh
+~/update_clientst0r.sh
 ```
 
 ---
@@ -573,25 +573,25 @@ If you're still having issues after following this guide:
 
 1. **Check the logs:**
    ```bash
-   sudo journalctl -u huduglue-gunicorn.service -n 100
+   sudo journalctl -u clientst0r-gunicorn.service -n 100
    tail -100 /home/administrator/logs/django.log
    ```
 
 2. **Ask for help:**
-   - 💬 [GitHub Discussions → Q&A](https://github.com/agit8or1/huduglue/discussions/categories/q-a)
-   - 🐛 [Report a Bug](https://github.com/agit8or1/huduglue/issues/new?template=bug_report.yml)
+   - 💬 [GitHub Discussions → Q&A](https://github.com/agit8or1/clientst0r/discussions/categories/q-a)
+   - 🐛 [Report a Bug](https://github.com/agit8or1/clientst0r/issues/new?template=bug_report.yml)
    - 📧 Email: [your-support-email]
 
 3. **Emergency rollback:**
    ```bash
    # Restore database from backup
-   mysql -u huduglue -p huduglue < ~/huduglue_backup_YYYYMMDD.sql
+   mysql -u clientst0r -p clientst0r < ~/clientst0r_backup_YYYYMMDD.sql
 
    # Revert code to previous version
    cd /home/administrator
    git log --oneline | head -10  # Find previous commit
    git checkout <commit-hash>
-   sudo systemctl restart huduglue-gunicorn.service
+   sudo systemctl restart clientst0r-gunicorn.service
    ```
 
 ---

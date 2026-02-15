@@ -90,8 +90,8 @@ def fail2ban_status(request):
     """Fail2ban status and management page."""
 
     # Get sudoers paths for installation instructions
-    install_sudoers_path = settings.BASE_DIR / 'deploy' / 'huduglue-install-sudoers'
-    fail2ban_sudoers_path = settings.BASE_DIR / 'deploy' / 'huduglue-fail2ban-sudoers'
+    install_sudoers_path = settings.BASE_DIR / 'deploy' / 'clientst0r-install-sudoers'
+    fail2ban_sudoers_path = settings.BASE_DIR / 'deploy' / 'clientst0r-fail2ban-sudoers'
 
     # Check if fail2ban is installed
     package_installed, service_running, sudo_configured, error_msg = is_fail2ban_installed()
@@ -117,7 +117,7 @@ def fail2ban_status(request):
         }
         messages.warning(
             request,
-            f'Fail2ban is installed but sudo access not configured. Run: sudo cp {fail2ban_sudoers_path} /etc/sudoers.d/huduglue-fail2ban && sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban'
+            f'Fail2ban is installed but sudo access not configured. Run: sudo cp {fail2ban_sudoers_path} /etc/sudoers.d/clientst0r-fail2ban && sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban'
         )
         return render(request, 'core/fail2ban_status.html', context)
 
@@ -386,7 +386,7 @@ def fail2ban_install_sudoers(request):
         # Generate sudoers content with actual username
         username = pwd.getpwuid(os.getuid()).pw_name
 
-        sudoers_content = f"""# Sudoers configuration for HuduGlue fail2ban integration
+        sudoers_content = f"""# Sudoers configuration for Client St0r fail2ban integration
 # Generated automatically during installation
 
 # Allow {username} user to run fail2ban-client and systemctl commands without password
@@ -401,7 +401,7 @@ def fail2ban_install_sudoers(request):
             temp_path = tmp.name
 
         try:
-            dest_path = '/etc/sudoers.d/huduglue-fail2ban'
+            dest_path = '/etc/sudoers.d/clientst0r-fail2ban'
 
             # Try to install the sudoers file
             result = subprocess.run(
@@ -415,7 +415,7 @@ def fail2ban_install_sudoers(request):
             if result.returncode != 0:
                 messages.error(
                     request,
-                    f'Failed to install fail2ban sudoers. Make sure base install sudoers is configured: sudo cp {settings.BASE_DIR}/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install && sudo chmod 0440 /etc/sudoers.d/huduglue-install'
+                    f'Failed to install fail2ban sudoers. Make sure base install sudoers is configured: sudo cp {settings.BASE_DIR}/deploy/clientst0r-install-sudoers /etc/sudoers.d/clientst0r-install && sudo chmod 0440 /etc/sudoers.d/clientst0r-install'
                 )
                 logger.error(f"Failed to copy fail2ban sudoers: {result.stderr}")
                 return redirect('core:fail2ban_status')
@@ -498,12 +498,12 @@ def fail2ban_install(request):
 
             # Step 0: Install sudoers files using password
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            install_sudoers_src = os.path.join(base_dir, 'deploy', 'huduglue-install-sudoers')
-            fail2ban_sudoers_src = os.path.join(base_dir, 'deploy', 'huduglue-fail2ban-sudoers')
+            install_sudoers_src = os.path.join(base_dir, 'deploy', 'clientst0r-install-sudoers')
+            fail2ban_sudoers_src = os.path.join(base_dir, 'deploy', 'clientst0r-fail2ban-sudoers')
 
-            # Install huduglue-install-sudoers
+            # Install clientst0r-install-sudoers
             result = subprocess.run(
-                ['/usr/bin/sudo', '-S', '/bin/cp', install_sudoers_src, '/etc/sudoers.d/huduglue-install'],
+                ['/usr/bin/sudo', '-S', '/bin/cp', install_sudoers_src, '/etc/sudoers.d/clientst0r-install'],
                 input=f"{sudo_password}\n",
                 capture_output=True,
                 text=True,
@@ -519,7 +519,7 @@ def fail2ban_install(request):
 
             # Set permissions on install sudoers
             subprocess.run(
-                ['/usr/bin/sudo', '-S', '/bin/chmod', '0440', '/etc/sudoers.d/huduglue-install'],
+                ['/usr/bin/sudo', '-S', '/bin/chmod', '0440', '/etc/sudoers.d/clientst0r-install'],
                 input=f"{sudo_password}\n",
                 capture_output=True,
                 text=True,
@@ -596,7 +596,7 @@ def fail2ban_install(request):
         import pwd
         username = pwd.getpwuid(os.getuid()).pw_name
 
-        sudoers_content = f"""# Sudoers configuration for HuduGlue fail2ban integration
+        sudoers_content = f"""# Sudoers configuration for Client St0r fail2ban integration
 # Generated automatically during installation
 
 # Allow {username} user to run fail2ban-client and systemctl commands without password
@@ -613,7 +613,7 @@ def fail2ban_install(request):
 
         try:
             logger.info("Installing fail2ban sudoers configuration...")
-            dest_path = '/etc/sudoers.d/huduglue-fail2ban'
+            dest_path = '/etc/sudoers.d/clientst0r-fail2ban'
 
             if sudo_password:
                 subprocess.run(['/usr/bin/sudo', '-S', '/bin/cp', temp_path, dest_path],

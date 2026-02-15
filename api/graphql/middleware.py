@@ -1,5 +1,5 @@
 """
-GraphQL Middleware for HuduGlue
+GraphQL Middleware for Client St0r
 """
 
 from django.contrib.auth.models import AnonymousUser

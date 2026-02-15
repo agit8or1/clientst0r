@@ -1,5 +1,5 @@
 """
-Custom GraphQL Types for HuduGlue
+Custom GraphQL Types for Client St0r
 """
 
 import graphene

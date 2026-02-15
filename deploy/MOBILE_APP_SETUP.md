@@ -1,10 +1,10 @@
 # Mobile App Setup Guide
 
-Complete guide for setting up and deploying the HuduGlue mobile apps for iOS and Android.
+Complete guide for setting up and deploying the Client St0r mobile apps for iOS and Android.
 
 ## Overview
 
-HuduGlue includes a native React Native mobile application that provides full access to your IT documentation platform on iOS and Android devices.
+Client St0r includes a native React Native mobile application that provides full access to your IT documentation platform on iOS and Android devices.
 
 **Key Features:**
 - Native performance on iOS and Android
@@ -18,7 +18,7 @@ HuduGlue includes a native React Native mobile application that provides full ac
 
 ### Backend Requirements
 
-1. **HuduGlue v2.66.0+** installed and running
+1. **Client St0r v2.66.0+** installed and running
 2. **GraphQL API enabled** - Required for mobile app
 3. **HTTPS enabled** - Recommended for production (mobile apps require secure connections)
 
@@ -37,13 +37,13 @@ To develop or build the mobile app, you need:
 
 ### 1. Install GraphQL Dependencies
 
-The mobile app requires the GraphQL API to be enabled on your HuduGlue backend.
+The mobile app requires the GraphQL API to be enabled on your Client St0r backend.
 
 ```bash
-cd ~/huduglue
+cd ~/clientst0r
 source venv/bin/activate
 pip install -r requirements-graphql.txt
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ### 2. Configure CORS
@@ -78,7 +78,7 @@ You should see a JSON response with schema information.
 ### 1. Install Dependencies
 
 ```bash
-cd ~/huduglue/mobile-app
+cd ~/clientst0r/mobile-app
 npm install
 ```
 
@@ -96,8 +96,8 @@ Edit `mobile-app/app.json` and update the API URLs:
 {
   "expo": {
     "extra": {
-      "apiUrl": "https://your-huduglue-server.com",
-      "graphqlUrl": "https://your-huduglue-server.com/api/v2/graphql/"
+      "apiUrl": "https://your-clientst0r-server.com",
+      "graphqlUrl": "https://your-clientst0r-server.com/api/v2/graphql/"
     }
   }
 }
@@ -110,7 +110,7 @@ Edit `mobile-app/app.json` and update the API URLs:
 
 The mobile app needs branded icons. You can:
 
-**Option A: Use existing HuduGlue logo**
+**Option A: Use existing Client St0r logo**
 ```bash
 cd mobile-app/assets
 # Copy and resize your logo to create:
@@ -133,7 +133,7 @@ expo-icon generate path/to/your-logo.png
 Start the Expo development server:
 
 ```bash
-cd ~/huduglue/mobile-app
+cd ~/clientst0r/mobile-app
 npm start
 ```
 
@@ -267,7 +267,7 @@ const FEATURES = {
 
 **Solutions:**
 1. Check API URL in `app.json`
-2. Ensure backend is running: `sudo systemctl status huduglue-gunicorn`
+2. Ensure backend is running: `sudo systemctl status clientst0r-gunicorn`
 3. Verify CORS settings allow mobile app origin
 4. On physical device, use real IP not localhost
 5. Check firewall allows connections
@@ -278,10 +278,10 @@ const FEATURES = {
 
 **Solution:**
 ```bash
-cd ~/huduglue
+cd ~/clientst0r
 source venv/bin/activate
 pip install -r requirements-graphql.txt
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ### App crashes on startup
@@ -331,7 +331,7 @@ sudo systemctl restart huduglue-gunicorn.service
 
 ### Updating the App
 
-When HuduGlue backend is updated:
+When Client St0r backend is updated:
 
 1. Check for API changes in release notes
 2. Update mobile app to match new API
@@ -357,7 +357,7 @@ Users get updates automatically without app store approval.
 1. Check mobile app logs: Expo DevTools console
 2. Check backend logs: `/var/log/itdocs/gunicorn-error.log`
 3. Review GraphQL errors in browser DevTools (Network tab)
-4. File issues: https://github.com/agit8or1/huduglue/issues
+4. File issues: https://github.com/agit8or1/clientst0r/issues
 
 ### Documentation
 
@@ -384,4 +384,4 @@ Planned features for future releases:
 
 ## License
 
-MIT License - Same as HuduGlue parent project
+MIT License - Same as Client St0r parent project

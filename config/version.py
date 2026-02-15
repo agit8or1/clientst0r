@@ -1,5 +1,5 @@
 """
-Version information for HuduGlue
+Version information for Client St0r
 """
 
 VERSION = '2.86.17'

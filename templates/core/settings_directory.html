@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Directory Services - HuduGlue{% endblock %}
+{% block title %}Directory Services - Client St0r{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -88,7 +88,7 @@
                             <label for="ldap_require_group" class="form-label">Require Group (Optional)</label>
                             <input type="text" class="form-control" id="ldap_require_group" name="ldap_require_group"
                                    value="{{ settings.ldap_require_group }}"
-                                   placeholder="CN=HuduGlueUsers,OU=Groups,DC=example,DC=com">
+                                   placeholder="CN=Client St0rUsers,OU=Groups,DC=example,DC=com">
                             <div class="form-text">Only allow login if user is member of this group (full DN)</div>
                         </div>
 
@@ -122,7 +122,7 @@
                             <ul class="small">
                                 <li>Go to <a href="https://portal.azure.com" target="_blank" rel="noopener">Azure Portal</a> → Azure Active Directory → App registrations</li>
                                 <li>Click <strong>New registration</strong></li>
-                                <li>Name: <code>HuduGlue</code></li>
+                                <li>Name: <code>Client St0r</code></li>
                                 <li>Supported account types: <strong>Accounts in this organizational directory only</strong></li>
                                 <li>Redirect URI: Web → <code>{{ request.scheme }}://{{ request.get_host }}/accounts/auth/azure/callback/</code></li>
                                 <li>Click <strong>Register</strong></li>
@@ -138,7 +138,7 @@
                             <ul class="small">
                                 <li>Go to <strong>Certificates & secrets</strong> → <strong>Client secrets</strong></li>
                                 <li>Click <strong>New client secret</strong></li>
-                                <li>Description: <code>HuduGlue OAuth</code></li>
+                                <li>Description: <code>Client St0r OAuth</code></li>
                                 <li>Expiration: <strong>24 months</strong> (recommended)</li>
                                 <li><strong>⚠️ IMPORTANT:</strong> Copy the <strong>Value</strong> immediately (you won't be able to see it again!)</li>
                             </ul>
@@ -208,7 +208,7 @@
                             <label class="form-check-label" for="azure_ad_sync_groups">
                                 Sync Azure AD groups to roles
                             </label>
-                            <div class="form-text">Map Azure AD groups to HuduGlue roles</div>
+                            <div class="form-text">Map Azure AD groups to Client St0r roles</div>
                         </div>
                     </div>
 

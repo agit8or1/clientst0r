@@ -15,7 +15,7 @@ class UpdateProgress:
     def __init__(self, update_id='current'):
         self.update_id = update_id
         # Store progress in /tmp which persists across gunicorn restarts
-        self.progress_file = Path(f'/tmp/huduglue_update_progress_{update_id}.json')
+        self.progress_file = Path(f'/tmp/clientst0r_update_progress_{update_id}.json')
 
     def start(self):
         """Initialize progress tracking."""

@@ -1,5 +1,5 @@
 name: 💡 Feature Request
-description: Suggest a new feature or enhancement for HuduGlue
+description: Suggest a new feature or enhancement for Client St0r
 title: "[Feature]: "
 labels: ["type:feature", "needs-triage"]
 body:
@@ -9,10 +9,10 @@ body:
         Thanks for taking the time to suggest a new feature! 🚀
 
         **Before submitting:**
-        1. Check if a similar feature request already exists in [Discussions → Ideas](https://github.com/agit8or1/huduglue/discussions/categories/ideas)
-        2. Review the [Roadmap Project](https://github.com/agit8or1/huduglue/projects) to see if it's already planned
+        1. Check if a similar feature request already exists in [Discussions → Ideas](https://github.com/agit8or1/clientst0r/discussions/categories/ideas)
+        2. Review the [Roadmap Project](https://github.com/agit8or1/clientst0r/projects) to see if it's already planned
 
-        This form is for **structured feature requests ready for implementation**. If you want to propose an idea for community discussion first, please use [GitHub Discussions](https://github.com/agit8or1/huduglue/discussions/new?category=ideas) instead.
+        This form is for **structured feature requests ready for implementation**. If you want to propose an idea for community discussion first, please use [GitHub Discussions](https://github.com/agit8or1/clientst0r/discussions/new?category=ideas) instead.
 
   - type: textarea
     id: problem
@@ -58,7 +58,7 @@ body:
     id: area
     attributes:
       label: Feature Area
-      description: Which part of HuduGlue does this affect?
+      description: Which part of Client St0r does this affect?
       multiple: true
       options:
         - "Assets - Asset Management"
@@ -116,7 +116,7 @@ body:
       options:
         - label: "I have searched existing issues and discussions to avoid duplicates"
           required: true
-        - label: "This feature aligns with HuduGlue's purpose (IT documentation platform)"
+        - label: "This feature aligns with Client St0r's purpose (IT documentation platform)"
           required: true
         - label: "I have provided enough detail for someone else to understand the request"
           required: true

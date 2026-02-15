@@ -1,6 +1,6 @@
-# HuduGlue Integration Setup Guide
+# Client St0r Integration Setup Guide
 
-Complete guide for connecting PSA and RMM platforms to HuduGlue with exact connection parameters and setup instructions.
+Complete guide for connecting PSA and RMM platforms to Client St0r with exact connection parameters and setup instructions.
 
 ---
 
@@ -30,7 +30,7 @@ https://your-custom-url.connectwise.com
 5. Copy the **Public Key** and **Private Key** (save immediately - shown only once)
 6. Get your **Company ID** from System → Company settings
 7. Register at ConnectWise Developer Network to get **Client ID**
-8. In HuduGlue, use full URL including region (na/eu/au)
+8. In Client St0r, use full URL including region (na/eu/au)
 
 **API Documentation:** https://developer.connectwise.com/
 
@@ -131,7 +131,7 @@ https://yourdomain.syncromsp.com
 1. Log in to Syncro
 2. Go to **Admin → API Tokens**
 3. Click **New API Token**
-4. Enter **Name** (e.g., "HuduGlue Integration")
+4. Enter **Name** (e.g., "Client St0r Integration")
 5. Copy the **API Key** (shown only once)
 6. Extract subdomain from your Syncro URL
 7. Base URL: `https://[subdomain].syncromsp.com`
@@ -181,7 +181,7 @@ https://yoursubdomain.zendesk.com
 3. Navigate to **Zendesk API** tab
 4. Enable **Token Access**
 5. Click **Add API Token**
-6. Enter **Description** (e.g., "HuduGlue")
+6. Enter **Description** (e.g., "Client St0r")
 7. Copy the **API Token** (shown only once)
 8. Use admin email as username
 9. Base URL: `https://[subdomain].zendesk.com`
@@ -205,7 +205,7 @@ https://yourdomain.com/itflow
 1. Log in to ITFlow
 2. Go to **Settings → API Keys**
 3. Click **Create API Key**
-4. Enter **Name** (e.g., "HuduGlue Integration")
+4. Enter **Name** (e.g., "Client St0r Integration")
 5. Copy the **API Key**
 6. Use your ITFlow installation URL as base URL
 
@@ -229,7 +229,7 @@ https://your-server.com:8443/api/v1 (Self-Hosted)
 1. Log in to RangerMSP Admin Panel
 2. Go to **Setup → Security → API Access**
 3. Click **Generate New API Key**
-4. Enter **Application Name** (e.g., "HuduGlue")
+4. Enter **Application Name** (e.g., "Client St0r")
 5. Select **Permissions** (Companies, Contacts, Tickets, Contracts)
 6. Copy the **API Key**
 7. **Cloud URL:** Use `https://api.commitcrm.com/api/v1`
@@ -260,7 +260,7 @@ https://oc.ninjarmm.com
 2. Go to **Administration → Apps → API**
 3. Click **Add** to create new application
 4. Select **OAuth** authentication
-5. Set **Redirect URI** (use `https://your-huduglue.com/integrations/callback`)
+5. Set **Redirect URI** (use `https://your-clientst0r.com/integrations/callback`)
 6. Copy **Client ID** and **Client Secret**
 7. Complete OAuth flow to get **Refresh Token**
 8. Use region-specific URL (app/eu/oc based on your instance)
@@ -284,7 +284,7 @@ https://pinotage-api.centrastage.net
 1. Log in to Datto RMM
 2. Go to **Setup → Account Settings → API Credentials**
 3. Click **New**
-4. Enter **Name** (e.g., "HuduGlue")
+4. Enter **Name** (e.g., "Client St0r")
 5. Copy **API URL**, **API Key**, and **Secret Key**
 6. Use the provided API URL as base URL
 
@@ -354,7 +354,7 @@ https://your-tactical-instance.com
 1. Log in to Tactical RMM
 2. Go to **Settings → API Keys**
 3. Click **New**
-4. Enter **Name** (e.g., "HuduGlue")
+4. Enter **Name** (e.g., "Client St0r")
 5. Select **Permissions** (read agents, alerts, software)
 6. Copy the **API Key** (shown only once)
 7. Use your Tactical RMM installation URL
@@ -407,7 +407,7 @@ https://your-tactical-instance.com
 - Check provider's API documentation
 - Review error logs for specific error messages
 - Contact provider support for API access issues
-- Open GitHub issue: https://github.com/agit8or1/huduglue/issues
+- Open GitHub issue: https://github.com/agit8or1/clientst0r/issues
 
 ---
 

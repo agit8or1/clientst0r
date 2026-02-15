@@ -1,5 +1,5 @@
 """
-GraphQL Schema for HuduGlue API v2
+GraphQL Schema for Client St0r API v2
 Provides modern GraphQL API alongside REST API v1
 """
 

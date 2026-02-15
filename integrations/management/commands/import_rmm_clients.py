@@ -5,7 +5,7 @@ Usage:
     python manage.py import_rmm_clients <connection_id> [--dry-run]
 
 This command fetches all unique clients from an RMM system (e.g., Tactical RMM)
-and creates corresponding organizations in HuduGlue.
+and creates corresponding organizations in Client St0r.
 """
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction

@@ -1,5 +1,5 @@
 """
-Backup management command for HuduGlue
+Backup management command for Client St0r
 Creates encrypted backups of database and media files
 """
 
@@ -23,7 +23,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--output-dir',
             type=str,
-            default='/tmp/huduglue-backups',
+            default='/tmp/clientst0r-backups',
             help='Directory to store backup files'
         )
         parser.add_argument(
@@ -55,7 +55,7 @@ class Command(BaseCommand):
         output_dir.mkdir(parents=True, exist_ok=True)
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_name = f'huduglue_backup_{timestamp}'
+        backup_name = f'clientst0r_backup_{timestamp}'
 
         self.stdout.write(self.style.SUCCESS(f'Starting backup: {backup_name}'))
 
@@ -168,7 +168,7 @@ class Command(BaseCommand):
 
         metadata = {
             'backup_time': timestamp,
-            'huduglue_version': getattr(settings, 'VERSION', 'unknown'),
+            'clientst0r_version': getattr(settings, 'VERSION', 'unknown'),
             'django_version': '.'.join(map(str, DJANGO_VERSION)),
             'python_version': sys.version,
             'database_engine': settings.DATABASES['default']['ENGINE'],
@@ -221,7 +221,7 @@ class Command(BaseCommand):
         cutoff_time = time.time() - (retention_days * 86400)
         removed_count = 0
 
-        for backup_file in backup_dir.glob('huduglue_backup_*'):
+        for backup_file in backup_dir.glob('clientst0r_backup_*'):
             if backup_file.stat().st_mtime < cutoff_time:
                 backup_file.unlink()
                 removed_count += 1

@@ -67,7 +67,7 @@
                 <ul class="mb-0">
                     <li><strong>fail2ban</strong> package via apt-get</li>
                     <li>Systemd service (enabled and started)</li>
-                    <li>Sudoers configuration for HuduGlue</li>
+                    <li>Sudoers configuration for Client St0r</li>
                 </ul>
             </div>
         </div>
@@ -100,7 +100,7 @@ document.getElementById('installForm').addEventListener('submit', function(e) {
     </div>
     <div class="card-body">
         <div class="alert alert-info mb-4">
-            <i class="fas fa-info-circle"></i> Fail2ban is installed but HuduGlue needs sudo permissions to manage it.
+            <i class="fas fa-info-circle"></i> Fail2ban is installed but Client St0r needs sudo permissions to manage it.
         </div>
 
         <div class="text-center mb-4">
@@ -118,8 +118,8 @@ document.getElementById('installForm').addEventListener('submit', function(e) {
         <div class="alert alert-light">
             <h6 class="mb-2"><i class="fas fa-info-circle"></i> What This Does:</h6>
             <p class="mb-2">This will run the following commands automatically:</p>
-            <pre class="bg-dark text-white p-2 mb-0 rounded"><code>sudo cp {{ fail2ban_sudoers_path }} /etc/sudoers.d/huduglue-fail2ban
-sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban</code></pre>
+            <pre class="bg-dark text-white p-2 mb-0 rounded"><code>sudo cp {{ fail2ban_sudoers_path }} /etc/sudoers.d/clientst0r-fail2ban
+sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban</code></pre>
             <p class="mb-0 mt-2"><small><strong>Note:</strong> This requires that the base install sudoers file is already configured.</small></p>
         </div>
 

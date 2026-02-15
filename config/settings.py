@@ -1,5 +1,5 @@
 """
-Django settings for HuduGlue
+Django settings for Client St0r
 """
 import os
 from pathlib import Path
@@ -513,7 +513,7 @@ if not DEBUG:
 
 # Auto-Update Settings
 GITHUB_REPO_OWNER = os.getenv('GITHUB_REPO_OWNER', 'agit8or1')
-GITHUB_REPO_NAME = os.getenv('GITHUB_REPO_NAME', 'huduglue')
+GITHUB_REPO_NAME = os.getenv('GITHUB_REPO_NAME', 'clientst0r')
 AUTO_UPDATE_ENABLED = os.getenv('AUTO_UPDATE_ENABLED', 'True').lower() == 'true'
 AUTO_UPDATE_CHECK_INTERVAL = int(os.getenv('AUTO_UPDATE_CHECK_INTERVAL', '21600'))  # 6 hours in seconds (reduced API calls)
 

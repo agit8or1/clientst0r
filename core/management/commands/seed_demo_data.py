@@ -56,7 +56,7 @@ class Command(BaseCommand):
         self.demo_org, created = Organization.objects.get_or_create(
             name='Acme Corporation',
             defaults={
-                'description': 'Demo company for testing HuduGlue features',
+                'description': 'Demo company for testing Client St0r features',
                 'is_active': True,
             }
         )

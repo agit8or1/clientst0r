@@ -1,6 +1,6 @@
-# HuduGlue API v2 - GraphQL
+# Client St0r API v2 - GraphQL
 
-Modern GraphQL API for HuduGlue, providing flexible and efficient data querying alongside the REST API v1.
+Modern GraphQL API for Client St0r, providing flexible and efficient data querying alongside the REST API v1.
 
 ## Quick Start
 
@@ -572,6 +572,6 @@ subscription {
 
 ## Support
 
-- **Documentation**: https://github.com/agit8or1/huduglue/wiki/GraphQL-API
-- **Issues**: https://github.com/agit8or1/huduglue/issues
-- **Discussions**: https://github.com/agit8or1/huduglue/discussions
+- **Documentation**: https://github.com/agit8or1/clientst0r/wiki/GraphQL-API
+- **Issues**: https://github.com/agit8or1/clientst0r/issues
+- **Discussions**: https://github.com/agit8or1/clientst0r/discussions

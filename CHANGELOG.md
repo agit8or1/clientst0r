@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to HuduGlue will be documented in this file.
+All notable changes to Client St0r will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -260,7 +260,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### ✨ Features
 
 **Whitelabeling & Custom Branding (GitHub Discussion #26):**
-- **Added** custom company name field to replace "HuduGlue" branding throughout the application
+- **Added** custom company name field to replace "Client St0r" branding throughout the application
 - **Added** custom logo upload functionality with image preview
 - **Added** configurable logo height setting (20-100px, default 30px)
 - **Added** ability to remove uploaded logo via checkbox
@@ -314,10 +314,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Corrected Command:**
 ```bash
-sudo tee /etc/sudoers.d/huduglue-auto-update > /dev/null <<'SUDOERS'
-$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart huduglue-gunicorn.service, /usr/bin/systemctl status huduglue-gunicorn.service, /usr/bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/huduglue-gunicorn.service, /usr/bin/cp, /usr/bin/chmod
+sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<'SUDOERS'
+$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-gunicorn.service, /usr/bin/systemctl status clientst0r-gunicorn.service, /usr/bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service, /usr/bin/cp, /usr/bin/chmod
 SUDOERS
-sudo chmod 0440 /etc/sudoers.d/huduglue-auto-update
+sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update
 ```
 
 ## [2.24.178] - 2026-01-19
@@ -939,13 +939,13 @@ Fixes #25
 - **Redesigned** login page with modern, professional styling
 - **Added** gradient background and improved card-based layout
 - **Improved** form styling with better focus states and validation
-- **Added** HuduGlue branding with shield icon
+- **Added** Client St0r branding with shield icon
 - **Enhanced** mobile responsiveness
 
 **Fixed Django Admin Redirect Issue:**
 - **Fixed** System Updates page redirecting to Django admin login
 - **Replaced** `@staff_member_required` with `@login_required` + `@user_passes_test(is_superuser)`
-- **Fixed** session timeout now redirects to proper HuduGlue login (not Django admin)
+- **Fixed** session timeout now redirects to proper Client St0r login (not Django admin)
 - **Result**: Consistent login experience across the application
 
 **Cleaned Up Repository:**
@@ -994,7 +994,7 @@ Fixes #25
 - **Result**: Progress now persists across service restarts and shows accurate completion (5/5)
 
 **Technical Details:**
-- Update progress is stored as JSON in `/tmp/huduglue_update_progress_{id}.json`
+- Update progress is stored as JSON in `/tmp/clientst0r_update_progress_{id}.json`
 - File persists across gunicorn/nginx restarts
 - Automatic cleanup via clear() method after update completes
 - Graceful fallback to default values if file can't be read/written
@@ -1261,7 +1261,7 @@ Fixes #25
 - **API Authentication** via API key (Bearer token)
 - **Pagination** support for large datasets
 - **Cloud/Self-Hosted** works with both cloud API and self-hosted instances
-- **Automatic Normalization** converts RangerMSP data to standard HuduGlue format
+- **Automatic Normalization** converts RangerMSP data to standard Client St0r format
 - **Status Mapping** translates RangerMSP ticket statuses to standard values
 - **Date Parsing** handles ISO 8601 datetime formats from RangerMSP API
 
@@ -1382,7 +1382,7 @@ Fixes #25
 **Use Cases:**
 - Testing and demonstration
 - Onboarding and training
-- Exploring HuduGlue features with realistic data
+- Exploring Client St0r features with realistic data
 
 **Commands:**
 - `python manage.py import_demo_data --organization <org_id>` - CLI import command
@@ -1516,7 +1516,7 @@ Multiple UI fixes and enhancements based on user feedback.
 Added a donation link in the footer to support the MSP Reboot community project.
 
 **Changes:**
-- Footer now includes: "Like HuduGlue? Support the project ❤️"
+- Footer now includes: "Like Client St0r? Support the project ❤️"
 - Links to: https://mspreboot.com/donations.php
 - Opens in new tab
 - Subtle, non-intrusive placement
@@ -1661,7 +1661,7 @@ except other_error:
 
 **Problem 1: Web-based auto-update still failing with divergent branches**
 ```
-Update failed: Command failed: From https://github.com/agit8or1/huduglue
+Update failed: Command failed: From https://github.com/agit8or1/clientst0r
  * branch main -> FETCH_HEAD
 fatal: Need to specify how to reconcile divergent branches.
 ```
@@ -2406,7 +2406,7 @@ Reset to remote version and update? (y/N):
 - **Added:** Theme support with 10 color palettes
   - Users can now select their preferred color theme in profile settings
   - **11 Themes Available:**
-    1. Default Blue (original HuduGlue theme)
+    1. Default Blue (original Client St0r theme)
     2. Dark Mode (dark background, high contrast)
     3. Purple Haze (purple accents, modern)
     4. Forest Green (green theme, natural)
@@ -3299,7 +3299,7 @@ The scan data structure is designed for future dashboard widgets showing:
 1. Create free Snyk account at snyk.io
 2. Get API token from Account Settings
 3. Add token to GitHub Secrets as `SNYK_TOKEN`
-4. Configure settings in HuduGlue UI
+4. Configure settings in Client St0r UI
 5. GitHub Actions runs automatically
 
 **Benefits:**
@@ -3310,7 +3310,7 @@ The scan data structure is designed for future dashboard widgets showing:
 - Prioritized vulnerability reports
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.26] - 2026-01-14
 
@@ -3340,10 +3340,10 @@ sudo apt-get update
 sudo apt-get install -y build-essential python3-dev libldap2-dev libsasl2-dev
 
 # Install optional LDAP packages
-cd ~/huduglue
+cd ~/clientst0r
 source venv/bin/activate
 pip install -r requirements-optional.txt
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 **For new installations:**
@@ -3362,7 +3362,7 @@ sudo systemctl restart huduglue-gunicorn.service
 - All other integrations and features
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.25] - 2026-01-13
 
@@ -3393,7 +3393,7 @@ sudo systemctl restart huduglue-gunicorn.service
 - v2.14.23 fixed the button display, v2.14.25 fixes the actual authentication
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.24] - 2026-01-13
 
@@ -3424,7 +3424,7 @@ sudo systemctl restart huduglue-gunicorn.service
 - Applies same protection to PSA integrations for consistency
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.23] - 2026-01-13
 
@@ -3443,7 +3443,7 @@ sudo systemctl restart huduglue-gunicorn.service
 - All Azure AD settings (tenant ID, client ID, client secret, redirect URI) are now properly loaded from the database
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.22] - 2026-01-12
 
@@ -3466,7 +3466,7 @@ sudo systemctl restart huduglue-gunicorn.service
 - Both fixes ensure data integrity and prevent database constraint violations
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.21] - 2026-01-12
 
@@ -3491,7 +3491,7 @@ The auto-update system has been fully tested and verified working end-to-end:
 **Auto-updates now require ZERO manual intervention!**
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.20] - 2026-01-12
 
@@ -3514,7 +3514,7 @@ When updating from v2.14.19 → v2.14.20:
 **If successful: Auto-update system is COMPLETE!** 🎉
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.19] - 2026-01-12
 
@@ -3534,7 +3534,7 @@ When updating from v2.14.19 → v2.14.20:
 - This fix should complete the auto-update implementation
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.18] - 2026-01-12
 
@@ -3547,7 +3547,7 @@ When updating from v2.14.19 → v2.14.20:
   - Completes the auto-update system implementation
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.17] - 2026-01-12
 
@@ -3566,7 +3566,7 @@ When updating from v2.14.19 → v2.14.20:
 - Better exception handling in _is_systemd_service()
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.16] - 2026-01-12
 
@@ -3590,7 +3590,7 @@ The auto-update system is now **complete and working**:
 **No manual intervention required for updates!**
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.15] - 2026-01-12
 
@@ -3611,7 +3611,7 @@ When updating from v2.14.14 → v2.14.15:
 4. Page reloads showing v2.14.15
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.14] - 2026-01-12
 
@@ -3619,7 +3619,7 @@ When updating from v2.14.14 → v2.14.15:
 
 - **Auto-Update Sudo Permissions**
   - Added sudoers configuration for passwordless systemctl restart
-  - Created `/etc/sudoers.d/huduglue-auto-update` with required permissions
+  - Created `/etc/sudoers.d/clientst0r-auto-update` with required permissions
   - Allows auto-update to restart service without password prompt
   - Fixes issue where service restart silently failed due to sudo authentication
 
@@ -3627,11 +3627,11 @@ When updating from v2.14.14 → v2.14.15:
 
 This release includes automated setup of sudo permissions. The installer will create:
 ```
-administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.service, /bin/systemctl status huduglue-gunicorn.service, /usr/bin/systemd-run
+administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-gunicorn.service, /bin/systemctl status clientst0r-gunicorn.service, /usr/bin/systemd-run
 ```
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.13] - 2026-01-12
 
@@ -3651,7 +3651,7 @@ administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart huduglue-gunicorn.servi
 **The Solution:** Use `systemd-run --on-active=3` to schedule the restart 3 seconds later. This gives the update thread time to complete, mark progress as finished, and send the response BEFORE the restart happens.
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.12] - 2026-01-12
 
@@ -3667,7 +3667,7 @@ Test release to verify complete auto-update flow from v2.14.11 → v2.14.12.
 - Complete end-to-end success!
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.11] - 2026-01-12
 
@@ -3682,7 +3682,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 - Version instantly updated to v2.14.11
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.10] - 2026-01-12
 
@@ -3704,7 +3704,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 - ✅ More reliable updates on minimal systems
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.9] - 2026-01-12
 
@@ -3729,7 +3729,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 - Can't accidentally close progress modal during update
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.8] - 2026-01-12
 
@@ -3758,7 +3758,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 - `apply_update` now returns JSON for AJAX handling
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.7] - 2026-01-12
 
@@ -3766,18 +3766,18 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 
 - **Auto-Update Service Restart**
   - Fixed service restart failing during auto-update process
-  - Changed service name from `huduglue` to `huduglue-gunicorn.service`
+  - Changed service name from `clientst0r` to `clientst0r-gunicorn.service`
   - Auto-updates now properly restart the application after code updates
   - Users no longer need to manually restart after applying updates
 
 ### 🔧 Technical Details
 
 - Fixed `_is_systemd_service()` to check correct service name
-- Fixed restart command to use `huduglue-gunicorn.service`
+- Fixed restart command to use `clientst0r-gunicorn.service`
 - Update process now completes fully: git pull → pip install → migrate → collectstatic → restart
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.6] - 2026-01-12
 
@@ -3794,7 +3794,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 - Clean interface for production auto-update feature
 
 ---
-🤖 Generated with [Luna the GSD](https://github.com/agit8or1/huduglue)
+🤖 Generated with [Luna the GSD](https://github.com/agit8or1/clientst0r)
 
 ## [2.14.5] - 2026-01-12
 
@@ -3985,7 +3985,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
     - Graceful failure handling
   - Configuration:
     - `GITHUB_REPO_OWNER` (default: agit8or1)
-    - `GITHUB_REPO_NAME` (default: huduglue)
+    - `GITHUB_REPO_NAME` (default: clientst0r)
     - `AUTO_UPDATE_ENABLED` (default: true)
     - `AUTO_UPDATE_CHECK_INTERVAL` (default: 3600 seconds)
   - Files: `core/updater.py`, `core/management/commands/check_updates.py`, `templates/core/system_updates.html`
@@ -4825,7 +4825,7 @@ This is a test release to demonstrate the complete auto-update flow with real-ti
 
 - **System Status Page**
   - Fixed Gunicorn service status detection
-  - Corrected service names from `itdocs-*` to `huduglue-*`
+  - Corrected service names from `itdocs-*` to `clientst0r-*`
   - Now accurately shows running services
   - Fixed PSA/Monitor timer status checks
 
@@ -5182,7 +5182,7 @@ This release represents 8+ hours of iterative debugging and refinement:
 **Major improvement:** Complete automated installation with zero manual steps!
 
 ```bash
-git clone https://github.com/agit8or1/huduglue.git && cd huduglue && bash install.sh
+git clone https://github.com/agit8or1/clientst0r.git && cd clientst0r && bash install.sh
 ```
 
 The installer now does EVERYTHING:
@@ -5651,4 +5651,4 @@ Format: `MAJOR.MINOR.PATCH` (e.g., `2.0.0`)
 
 ---
 
-**Changelog maintained by the HuduGlue Team and Luna the GSD 🐕**
+**Changelog maintained by the Client St0r Team and Luna the GSD 🐕**

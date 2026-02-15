@@ -1,4 +1,4 @@
-const CACHE_NAME = 'huduglue-v1';
+const CACHE_NAME = 'clientst0r-v1';
 const urlsToCache = [
   '/',
   '/static/manifest.json',

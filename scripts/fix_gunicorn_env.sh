@@ -5,9 +5,9 @@
 
 set -e
 
-SERVICE_FILE="/etc/systemd/system/huduglue-gunicorn.service"
+SERVICE_FILE="/etc/systemd/system/clientst0r-gunicorn.service"
 ENV_FILE="/home/administrator/.env"
-TEMP_FILE="/tmp/huduglue-service-$$.tmp"
+TEMP_FILE="/tmp/clientst0r-service-$$.tmp"
 
 echo "🔧 Checking Gunicorn service configuration..."
 
@@ -57,15 +57,15 @@ echo "🔄 Reloading systemd daemon..."
 sudo systemctl daemon-reload
 
 echo "🔄 Restarting Gunicorn service..."
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 
 # Check if service is running
-if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
+if sudo systemctl is-active --quiet clientst0r-gunicorn.service; then
     echo "✅ Gunicorn service restarted successfully"
     echo ""
     echo "🎉 Fix applied! Demo data import and password encryption should now work from the web UI."
 else
     echo "❌ Error: Gunicorn service failed to start"
-    echo "Check logs: sudo journalctl -u huduglue-gunicorn.service -n 50"
+    echo "Check logs: sudo journalctl -u clientst0r-gunicorn.service -n 50"
     exit 1
 fi

@@ -1,5 +1,5 @@
 """
-WSGI config for HuduGlue
+WSGI config for Client St0r
 """
 import os
 from django.core.wsgi import get_wsgi_application
