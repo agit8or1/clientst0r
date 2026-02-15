@@ -143,22 +143,47 @@ else
     log_warning "Static file collection failed (non-critical)"
 fi
 
-# Step 11: Restart services
-log_info "Step 8/8: Restarting services..."
+# Step 11: Restart services with enhanced cleanup
+log_info "Step 8/8: Restarting services with full cleanup..."
 
-# Restart Gunicorn
-if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
-    sudo systemctl restart huduglue-gunicorn.service
-    sleep 3
-    if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
-        log_success "Gunicorn restarted successfully"
-    else
-        log_error "Gunicorn failed to restart!"
-        sudo systemctl status huduglue-gunicorn.service
-        exit 1
+# Detect which gunicorn service exists
+GUNICORN_SERVICE=""
+for service in huduglue-gunicorn.service clientst0r-gunicorn.service itdocs-gunicorn.service; do
+    if systemctl list-unit-files | grep -q "^$service"; then
+        GUNICORN_SERVICE="$service"
+        break
     fi
+done
+
+if [ -z "$GUNICORN_SERVICE" ]; then
+    log_error "No gunicorn service found!"
+    exit 1
+fi
+
+log_info "Using service: $GUNICORN_SERVICE"
+
+# ENHANCED RESTART: Stop, kill processes, clear cache, start fresh
+log_info "Stopping service..."
+sudo systemctl stop "$GUNICORN_SERVICE" 2>/dev/null || true
+
+log_info "Killing any lingering gunicorn processes..."
+sudo pkill -9 -f gunicorn 2>/dev/null || true
+sleep 2
+
+log_info "Clearing Python bytecode cache..."
+find "$PROJECT_DIR" -type d -name __pycache__ -not -path "*/venv/*" -exec rm -rf {} + 2>/dev/null || true
+find "$PROJECT_DIR" -name "*.pyc" -not -path "*/venv/*" -delete 2>/dev/null || true
+
+log_info "Starting service fresh..."
+sudo systemctl start "$GUNICORN_SERVICE"
+sleep 5
+
+if sudo systemctl is-active --quiet "$GUNICORN_SERVICE"; then
+    log_success "Gunicorn restarted successfully with clean cache"
 else
-    log_warning "Gunicorn service not found or not running"
+    log_error "Gunicorn failed to restart!"
+    sudo systemctl status "$GUNICORN_SERVICE"
+    exit 1
 fi
 
 # Restart Scheduler (if exists)
