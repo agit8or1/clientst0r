@@ -180,20 +180,33 @@ def apply_update(request):
     try:
         # Use systemd-run to make the update script COMPLETELY independent
         # This prevents the script from dying when gunicorn stops
+        import logging
+        logger = logging.getLogger(__name__)
+
+        cmd = [
+            'sudo', 'systemd-run',
+            '--unit=clientst0r-web-update',
+            '--description=Client St0r Web Update',
+            str(script_path)
+        ]
+
+        logger.info(f"Running command: {' '.join(cmd)}")
+
         result = subprocess.run(
-            [
-                'sudo', 'systemd-run',
-                '--unit=clientst0r-web-update',
-                '--description=Client St0r Web Update',
-                str(script_path)
-            ],
+            cmd,
             capture_output=True,
             text=True,
             timeout=5
         )
 
+        logger.info(f"Return code: {result.returncode}")
+        logger.info(f"Stdout: {result.stdout}")
+        logger.info(f"Stderr: {result.stderr}")
+
         if result.returncode != 0:
-            raise Exception(f"Failed to start update: {result.stderr}")
+            error_msg = f"systemd-run failed (code {result.returncode})\nStdout: {result.stdout}\nStderr: {result.stderr}"
+            logger.error(error_msg)
+            raise Exception(error_msg)
 
         messages.success(
             request,
