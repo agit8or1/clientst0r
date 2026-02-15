@@ -38,6 +38,9 @@ urlpatterns = [
     path('diagrams/<slug:slug>/delete/', views.diagram_delete, name='diagram_delete'),
     path('diagrams/<int:pk>/save/', views.diagram_save, name='diagram_save'),
 
+    # API Endpoints
+    path('api/template/<int:template_id>/', views.api_get_template, name='api_get_template'),
+
     # AI Documentation Features
     path('ai/assistant/', views.ai_assistant, name='ai_assistant'),
     path('ai/generate/', views.ai_generate, name='ai_generate'),

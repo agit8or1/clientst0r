@@ -1285,3 +1285,40 @@ def ai_validate(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+@require_http_methods(['GET'])
+def api_get_template(request, template_id):
+    """
+    API endpoint to fetch template data for auto-loading.
+    Returns template content as JSON.
+    """
+    org = get_request_organization(request)
+
+    try:
+        from django.db.models import Q
+        # Allow both org-specific templates and global templates
+        template = Document.objects.get(
+            Q(organization=org) | Q(organization=None, is_global=True),
+            id=template_id,
+            is_template=True
+        )
+
+        return JsonResponse({
+            'success': True,
+            'title': template.title,
+            'body': template.body,
+            'content_type': template.content_type,
+        })
+
+    except Document.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Template not found'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

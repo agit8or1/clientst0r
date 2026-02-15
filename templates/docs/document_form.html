@@ -635,13 +635,48 @@
         });
     }
 
-    // Load template function
+    // Load template function - auto-loads without requiring "use example" click
     function loadTemplate() {
         const templateSelector = document.getElementById('template-selector');
         const templateId = templateSelector.value;
 
         if (templateId) {
-            window.location.href = '?template=' + templateId;
+            // Fetch template data and populate form directly
+            fetch(`/docs/api/template/${templateId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Set content type
+                        const contentTypeSelect = document.getElementById('{{ form.content_type.id_for_label }}');
+                        contentTypeSelect.value = data.content_type;
+                        contentTypeSelect.dispatchEvent(new Event('change'));
+
+                        // Wait for editor to switch, then set content
+                        setTimeout(() => {
+                            if (data.content_type === 'html' && quillEditor) {
+                                quillEditor.root.innerHTML = data.body;
+                            } else if (data.content_type === 'markdown' && markdownTextarea) {
+                                markdownTextarea.value = data.body;
+                            }
+                        }, 100);
+
+                        // Keep title empty (user will provide their own)
+                        // But show success message
+                        const alert = document.createElement('div');
+                        alert.className = 'alert alert-success alert-dismissible fade show';
+                        alert.innerHTML = `
+                            <i class="fas fa-check-circle"></i> Template "${data.title}" loaded successfully. Add your own title to create the document.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        `;
+                        document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.card'));
+
+                        // Auto-dismiss after 3 seconds
+                        setTimeout(() => alert.remove(), 3000);
+                    }
+                })
+                .catch(error => {
+                    alert('Failed to load template: ' + error.message);
+                });
         } else {
             alert('Please select a template first.');
         }
@@ -726,11 +761,31 @@
             document.querySelectorAll('.enhancement-option').forEach(btn => btn.disabled = false);
 
             if (result.success) {
-                // Update content
-                if (contentType === 'html' && quillEditor) {
-                    quillEditor.root.innerHTML = result.content;
-                } else if (contentType === 'markdown' && markdownTextarea) {
-                    markdownTextarea.value = result.content;
+                // Update content based on OUTPUT format (not current content_type)
+                const resultContentType = outputFormat === 'html' ? 'html' : 'markdown';
+
+                // Switch content type if enhancement changed format
+                if (resultContentType !== contentType) {
+                    const contentTypeSelect = document.getElementById('{{ form.content_type.id_for_label }}');
+                    contentTypeSelect.value = resultContentType;
+                    // Trigger change event to switch editors
+                    contentTypeSelect.dispatchEvent(new Event('change'));
+
+                    // Wait for editor switch, then set content
+                    setTimeout(() => {
+                        if (resultContentType === 'html' && quillEditor) {
+                            quillEditor.root.innerHTML = result.content;
+                        } else if (resultContentType === 'markdown' && markdownTextarea) {
+                            markdownTextarea.value = result.content;
+                        }
+                    }, 100);
+                } else {
+                    // Same content type, update directly
+                    if (contentType === 'html' && quillEditor) {
+                        quillEditor.root.innerHTML = result.content;
+                    } else if (contentType === 'markdown' && markdownTextarea) {
+                        markdownTextarea.value = result.content;
+                    }
                 }
 
                 // Update title if changed
