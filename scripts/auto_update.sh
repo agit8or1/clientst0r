@@ -76,7 +76,8 @@ REMOTE=$(git rev-parse @{u})
 
 if [ "$LOCAL" = "$REMOTE" ]; then
     log_success "Already up to date!"
-    exit 0
+    log_info "Will still restart services to ensure fresh Python imports..."
+    # Don't exit - continue to restart services to clear any cached imports
 fi
 
 log_info "Updates available!"
