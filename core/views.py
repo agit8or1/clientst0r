@@ -179,12 +179,18 @@ def apply_update(request):
 
     try:
         # Start the update script in background
-        subprocess.Popen(
-            [str(script_path)],
-            cwd=str(settings.BASE_DIR),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
+        # Write output to log file so we can debug issues
+        log_file = settings.BASE_DIR / 'logs' / 'web-update.log'
+        log_file.parent.mkdir(exist_ok=True)
+
+        with open(log_file, 'w') as log:
+            subprocess.Popen(
+                [str(script_path)],
+                cwd=str(settings.BASE_DIR),
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True  # Fully detach from parent
+            )
 
         messages.success(
             request,
