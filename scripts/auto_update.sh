@@ -48,6 +48,13 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
+# Safety check: Don't run from web context (prevents suicide)
+if [ -n "$REMOTE_ADDR" ] || [ -n "$HTTP_HOST" ]; then
+    log_error "This script cannot be run from web context (would cause service suicide)"
+    log_error "Use: python manage.py auto_update (from command line only)"
+    exit 1
+fi
+
 log_info "=========================================="
 log_info "client st0r Auto-Update Script"
 log_info "=========================================="
