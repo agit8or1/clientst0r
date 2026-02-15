@@ -634,11 +634,25 @@ class UpdateService:
             if progress_tracker:
                 progress_tracker.step_complete('Update Sudoers Configuration')
 
-            # Step 8: Restart service (if running under systemd)
-            is_systemd = self._is_systemd_service()
-            logger.info(f"Systemd service check result: {is_systemd}")
+            # Step 8: Service restart - DISABLED
+            # The UpdateService runs INSIDE gunicorn and cannot reliably restart itself.
+            # This is a fundamental design flaw - a process cannot restart itself.
+            # Instead, we mark the update as complete and require manual restart.
+            logger.info("Update complete. Service restart required manually.")
+            result['output'].append("")
+            result['output'].append("=" * 50)
+            result['output'].append("✓ CODE UPDATE COMPLETE!")
+            result['output'].append("=" * 50)
+            result['output'].append("")
+            result['output'].append("⚠️  SERVICES NEED MANUAL RESTART")
+            result['output'].append("")
+            result['output'].append("Choose ONE method:")
+            result['output'].append("1. Click 'Force Restart Services' button below")
+            result['output'].append("2. SSH: sudo systemctl restart huduglue-gunicorn.service")
+            result['output'].append("3. Run: python manage.py auto_heal_version")
+            result['steps_completed'].append('restart_service')
 
-            if is_systemd:
+            if False:  # Disable all restart logic
                 if progress_tracker:
                     progress_tracker.step_start('Restart Service')
                 logger.info("Restarting systemd service")
