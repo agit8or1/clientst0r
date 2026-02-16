@@ -85,7 +85,13 @@
 
                         <div class="mb-3">
                             <label for="moonshot_api_key" class="form-label">Moonshot API Key</label>
-                            <input type="password" class="form-control font-monospace" id="moonshot_api_key" name="moonshot_api_key" value="{{ current_moonshot_key }}" placeholder="sk-...">
+                            <div class="input-group">
+                                <input type="password" class="form-control font-monospace" id="moonshot_api_key" name="moonshot_api_key" value="{{ current_moonshot_key }}" placeholder="sk-...">
+                                <button type="button" class="btn btn-outline-secondary" id="test-moonshot-btn" onclick="testMoonshotKey()">
+                                    <i class="fas fa-vial"></i> Test
+                                </button>
+                            </div>
+                            <div id="moonshot-test-result" class="mt-2" style="display: none;"></div>
                             <div class="form-text">
                                 Get your API key at <a href="https://platform.moonshot.cn/" target="_blank">platform.moonshot.cn</a>
                             </div>
@@ -110,9 +116,15 @@
 
                         <div class="mb-3">
                             <label for="minimax_api_key" class="form-label">MiniMax API Key</label>
-                            <input type="password" class="form-control font-monospace" id="minimax_api_key" name="minimax_api_key" value="{{ current_minimax_key }}" placeholder="...">
+                            <div class="input-group">
+                                <input type="password" class="form-control font-monospace" id="minimax_api_key" name="minimax_api_key" value="{{ current_minimax_key }}" placeholder="...">
+                                <button type="button" class="btn btn-outline-secondary" id="test-minimax-btn" onclick="testMinimaxKey()">
+                                    <i class="fas fa-vial"></i> Test
+                                </button>
+                            </div>
+                            <div id="minimax-test-result" class="mt-2" style="display: none;"></div>
                             <div class="form-text">
-                                Get your API key at <a href="https://api.minimax.chat/" target="_blank">api.minimax.chat</a>
+                                Get your API key at <a href="https://api.minimax.chat/" target="_blank">api.minimax.chat</a> or <a href="https://platform.minimax.io/" target="_blank">platform.minimax.io</a>
                             </div>
                         </div>
 
@@ -143,7 +155,13 @@
 
                         <div class="mb-3">
                             <label for="openai_api_key" class="form-label">OpenAI API Key</label>
-                            <input type="password" class="form-control font-monospace" id="openai_api_key" name="openai_api_key" value="{{ current_openai_key }}" placeholder="sk-...">
+                            <div class="input-group">
+                                <input type="password" class="form-control font-monospace" id="openai_api_key" name="openai_api_key" value="{{ current_openai_key }}" placeholder="sk-...">
+                                <button type="button" class="btn btn-outline-secondary" id="test-openai-btn" onclick="testOpenAIKey()">
+                                    <i class="fas fa-vial"></i> Test
+                                </button>
+                            </div>
+                            <div id="openai-test-result" class="mt-2" style="display: none;"></div>
                             <div class="form-text">
                                 Get your API key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a>
                             </div>
@@ -493,6 +511,142 @@ function testGoogleMapsKey() {
             resultDiv.innerHTML = `<div class="alert alert-success small mb-0"><i class="fas fa-check-circle"></i> ${data.message}</div>`;
         } else {
             resultDiv.innerHTML = `<div class="alert alert-danger small mb-0"><i class="fas fa-times-circle"></i> ${data.message}</div>`;
+        }
+        resultDiv.style.display = 'block';
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-vial"></i> Test';
+        resultDiv.innerHTML = `<div class="alert alert-danger small mb-0"><i class="fas fa-times-circle"></i> Error: ${error.message}</div>`;
+        resultDiv.style.display = 'block';
+    });
+}
+
+function testMoonshotKey() {
+    const apiKey = document.getElementById('moonshot_api_key').value;
+    const model = document.getElementById('moonshot_model').value;
+    const btn = document.getElementById('test-moonshot-btn');
+    const resultDiv = document.getElementById('moonshot-test-result');
+
+    if (!apiKey) {
+        resultDiv.innerHTML = '<div class="alert alert-warning small mb-0"><i class="fas fa-exclamation-circle"></i> Please enter an API key first</div>';
+        resultDiv.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    resultDiv.innerHTML = '<div class="alert alert-info small mb-0"><i class="fas fa-spinner fa-spin"></i> Testing Moonshot connection...</div>';
+    resultDiv.style.display = 'block';
+
+    fetch('{% url "core:test_llm_connection" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ provider: 'moonshot', api_key: apiKey, model: model })
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-vial"></i> Test';
+
+        if (data.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success small mb-0"><i class="fas fa-check-circle"></i> ${data.message}</div>`;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger small mb-0"><i class="fas fa-times-circle"></i> ${data.error}</div>`;
+        }
+        resultDiv.style.display = 'block';
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-vial"></i> Test';
+        resultDiv.innerHTML = `<div class="alert alert-danger small mb-0"><i class="fas fa-times-circle"></i> Error: ${error.message}</div>`;
+        resultDiv.style.display = 'block';
+    });
+}
+
+function testMinimaxKey() {
+    const apiKey = document.getElementById('minimax_api_key').value;
+    const groupId = document.getElementById('minimax_group_id').value;
+    const model = document.getElementById('minimax_model').value;
+    const btn = document.getElementById('test-minimax-btn');
+    const resultDiv = document.getElementById('minimax-test-result');
+
+    if (!apiKey || !groupId) {
+        resultDiv.innerHTML = '<div class="alert alert-warning small mb-0"><i class="fas fa-exclamation-circle"></i> Please enter both API key and Group ID</div>';
+        resultDiv.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    resultDiv.innerHTML = '<div class="alert alert-info small mb-0"><i class="fas fa-spinner fa-spin"></i> Testing MiniMax connection...</div>';
+    resultDiv.style.display = 'block';
+
+    fetch('{% url "core:test_llm_connection" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ provider: 'minimax', api_key: apiKey, group_id: groupId, model: model })
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-vial"></i> Test';
+
+        if (data.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success small mb-0"><i class="fas fa-check-circle"></i> ${data.message}</div>`;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger small mb-0"><i class="fas fa-times-circle"></i> ${data.error}</div>`;
+        }
+        resultDiv.style.display = 'block';
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-vial"></i> Test';
+        resultDiv.innerHTML = `<div class="alert alert-danger small mb-0"><i class="fas fa-times-circle"></i> Error: ${error.message}</div>`;
+        resultDiv.style.display = 'block';
+    });
+}
+
+function testOpenAIKey() {
+    const apiKey = document.getElementById('openai_api_key').value;
+    const model = document.getElementById('openai_model').value;
+    const btn = document.getElementById('test-openai-btn');
+    const resultDiv = document.getElementById('openai-test-result');
+
+    if (!apiKey) {
+        resultDiv.innerHTML = '<div class="alert alert-warning small mb-0"><i class="fas fa-exclamation-circle"></i> Please enter an API key first</div>';
+        resultDiv.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    resultDiv.innerHTML = '<div class="alert alert-info small mb-0"><i class="fas fa-spinner fa-spin"></i> Testing OpenAI connection...</div>';
+    resultDiv.style.display = 'block';
+
+    fetch('{% url "core:test_llm_connection" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ provider: 'openai', api_key: apiKey, model: model })
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-vial"></i> Test';
+
+        if (data.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success small mb-0"><i class="fas fa-check-circle"></i> ${data.message}</div>`;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger small mb-0"><i class="fas fa-times-circle"></i> ${data.error}</div>`;
         }
         resultDiv.style.display = 'block';
     })
