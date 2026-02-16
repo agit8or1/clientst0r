@@ -162,16 +162,33 @@ def check_updates_now(request):
 @require_http_methods(["POST"])
 def apply_update(request):
     """
-    Trigger an update immediately by running the update script in background.
-    Uses nohup to completely detach the process so it survives the service restart.
+    Start system update using UpdateService with proper progress tracking.
     """
-    import os
-    import subprocess
-    from django.conf import settings
+    from core.updater import UpdateService
+    from core.update_progress import UpdateProgress
 
     try:
         # Clear cache
         cache.delete('system_update_check')
+
+        # Initialize progress tracker
+        progress = UpdateProgress()
+        progress.start()
+
+        # Start update in background thread
+        import threading
+        updater = UpdateService()
+
+        def run_update():
+            try:
+                updater.perform_update(user=request.user, progress_tracker=progress)
+            except Exception as e:
+                logger.error(f"Update failed: {e}")
+                progress.fail(str(e))
+
+        update_thread = threading.Thread(target=run_update)
+        update_thread.daemon = True
+        update_thread.start()
 
         # Log the action
         AuditLog.objects.create(
@@ -181,47 +198,14 @@ def apply_update(request):
             username=request.user.username
         )
 
-        # Run update script immediately using nohup for complete detachment
-        project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        update_script = os.path.join(project_dir, 'scripts', 'auto_update.sh')
-        log_file = '/var/log/clientst0r/web-triggered-update.log'
-
-        # Use nohup to completely detach - survives parent death
-        # Set proper PATH for subprocess
-        env = os.environ.copy()
-        env['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-
-        subprocess.Popen(
-            ['/usr/bin/nohup', '/bin/bash', update_script],
-            stdout=open(log_file, 'a'),
-            stderr=subprocess.STDOUT,
-            start_new_session=True,  # Create new session (detach from terminal)
-            cwd=project_dir,
-            env=env
-        )
-
-        messages.success(
-            request,
-            "✅ Update started! Services will restart in ~30 seconds. "
-            "This page will reload automatically."
-        )
+        messages.success(request, "✅ Update started!")
 
         return JsonResponse({
-            'status': 'update_triggered',  # Different status to avoid polling
-            'message': 'Update started. Please wait 2 minutes for services to restart.',
-            'reload_seconds': 120  # Tell page to reload after 2 minutes
+            'status': 'started',
+            'message': 'Update started. Follow progress below.'
         })
 
     except Exception as e:
-        # Log detailed error for debugging
-        import traceback
-        error_details = f"Error: {e}\n{traceback.format_exc()}"
-        try:
-            with open('/var/log/clientst0r/apply_update_error.log', 'a') as f:
-                f.write(f"\n=== {timezone.now()} ===\n{error_details}\n")
-        except:
-            pass
-
         messages.error(request, f"Failed to start update: {e}")
         return JsonResponse({
             'status': 'error',

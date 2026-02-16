@@ -652,32 +652,8 @@ function startUpdate() {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.status === 'update_triggered') {
-            // Show simple waiting message and reload after specified time
-            const reloadSeconds = data.reload_seconds || 120;
-
-            // Hide step list, show progress bar
-            document.getElementById('updateSteps').style.display = 'none';
-            document.getElementById('updateProgressBar').style.width = '100%';
-            document.getElementById('updateProgressText').textContent = data.message;
-            document.querySelector('#updateProgressModalLabel').textContent = 'Update In Progress';
-
-            // Show countdown
-            let remaining = reloadSeconds;
-            const countdownInterval = setInterval(function() {
-                remaining--;
-                const percentComplete = ((reloadSeconds - remaining) / reloadSeconds) * 100;
-                document.getElementById('updateProgressBar').style.width = percentComplete + '%';
-                document.getElementById('updateProgressText').textContent =
-                    `Reloading in ${remaining} seconds... DO NOT CLOSE THIS TAB!`;
-                if (remaining <= 0) {
-                    clearInterval(countdownInterval);
-                    document.getElementById('updateProgressText').textContent = 'Reloading now...';
-                    setTimeout(() => location.reload(), 1000);
-                }
-            }, 1000);
-        } else if (data.status === 'started') {
-            // Legacy: Start polling for progress
+        if (data.status === 'started') {
+            // Start polling for progress
             pollProgress();
         } else {
             showError('Failed to start update');
