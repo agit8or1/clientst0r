@@ -65,9 +65,18 @@ class AnthropicProvider(LLMProvider):
                 ]
             )
 
+            # Extract text from response, handling different block types (text, thinking, etc.)
+            content_text = ""
+            for block in response.content:
+                if hasattr(block, 'text'):
+                    content_text += block.text
+                elif hasattr(block, 'thinking'):
+                    # Skip thinking blocks, only use text blocks for output
+                    continue
+
             return {
                 'success': True,
-                'content': response.content[0].text
+                'content': content_text
             }
         except Exception as e:
             return {
@@ -125,9 +134,18 @@ class MiniMaxCodingProvider(LLMProvider):
                 ]
             )
 
+            # Extract text from response, handling different block types
+            content_text = ""
+            for block in response.content:
+                if hasattr(block, 'text'):
+                    content_text += block.text
+                elif hasattr(block, 'thinking'):
+                    # Skip thinking blocks, only use text blocks
+                    continue
+
             return {
                 'success': True,
-                'content': response.content[0].text
+                'content': content_text
             }
         except Exception as e:
             return {
@@ -148,6 +166,7 @@ class MiniMaxCodingProvider(LLMProvider):
                     {"role": "user", "content": "Say 'ok'"}
                 ]
             )
+            # Just check if we got a response (don't need to extract text for test)
             return {
                 'success': True,
                 'message': f'Connected to MiniMax {self.model} successfully!'
