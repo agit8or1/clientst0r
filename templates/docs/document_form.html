@@ -470,6 +470,16 @@
     function toggleEditor() {
         const contentType = contentTypeSelect.value;
 
+        // IMPORTANT: Sync current editor content to hidden textarea before switching
+        // This preserves content when user switches between HTML/Markdown modes
+        if (quillEditor && quillContainer.style.display !== 'none') {
+            // Switching away from HTML mode - save Quill content
+            bodyTextarea.value = quillEditor.root.innerHTML;
+        } else if (markdownTextarea && markdownContainer.style.display !== 'none') {
+            // Switching away from Markdown mode - save Markdown content
+            bodyTextarea.value = markdownTextarea.value;
+        }
+
         if (contentType === 'html') {
             // Show WYSIWYG
             quillContainer.style.display = 'block';
@@ -481,8 +491,8 @@
             } else {
                 document.getElementById('quill-editor').style.display = 'block';
 
-                // Reload content from textarea if it exists but editor is empty
-                if (bodyTextarea.value && quillEditor.getLength() <= 1) {
+                // Reload content from textarea (always, not just when empty)
+                if (bodyTextarea.value) {
                     const delta = quillEditor.clipboard.convert(bodyTextarea.value);
                     quillEditor.setContents(delta, 'silent');
                 }
@@ -493,8 +503,8 @@
             markdownContainer.style.display = 'block';
             fileUploadContainer.style.display = 'none';
 
-            // Load existing content into markdown textarea if not already loaded
-            if (!markdownTextarea.value && bodyTextarea.value) {
+            // Load content from hidden textarea to markdown textarea
+            if (bodyTextarea.value) {
                 markdownTextarea.value = bodyTextarea.value;
             }
 
