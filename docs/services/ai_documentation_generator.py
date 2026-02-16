@@ -1,24 +1,59 @@
 """
-AI-powered documentation generation service using Claude API.
-Supports generating documentation from prompts, enhancing existing content,
-and using predefined templates with guardrails.
+AI-powered documentation generation service with multi-LLM provider support.
+Supports Anthropic Claude, Moonshot AI (Kimi), MiniMax, and OpenAI.
 """
 
-import anthropic
 from django.conf import settings
 import json
+from .llm_providers import get_llm_provider
 
 
 class AIDocumentationGenerator:
     """Service for AI-powered documentation generation and enhancement."""
 
     def __init__(self):
-        """Initialize the Claude API client."""
-        api_key = settings.ANTHROPIC_API_KEY
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY not configured. Please configure in Settings → AI.")
-        self.client = anthropic.Anthropic(api_key=api_key)
-        self.model = settings.CLAUDE_MODEL
+        """Initialize the LLM provider based on settings."""
+        # Get provider configuration from settings
+        provider_name = getattr(settings, 'LLM_PROVIDER', 'anthropic')
+
+        # Build provider-specific kwargs
+        if provider_name == 'anthropic':
+            api_key = settings.ANTHROPIC_API_KEY
+            model = getattr(settings, 'CLAUDE_MODEL', 'claude-sonnet-4-5-20250929')
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY not configured. Please configure in Settings → AI.")
+            provider_kwargs = {'api_key': api_key, 'model': model}
+
+        elif provider_name == 'moonshot':
+            api_key = getattr(settings, 'MOONSHOT_API_KEY', '')
+            model = getattr(settings, 'MOONSHOT_MODEL', 'moonshot-v1-8k')
+            if not api_key:
+                raise ValueError("MOONSHOT_API_KEY not configured. Please configure in Settings → AI.")
+            provider_kwargs = {'api_key': api_key, 'model': model}
+
+        elif provider_name == 'minimax':
+            api_key = getattr(settings, 'MINIMAX_API_KEY', '')
+            group_id = getattr(settings, 'MINIMAX_GROUP_ID', '')
+            model = getattr(settings, 'MINIMAX_MODEL', 'abab6.5-chat')
+            if not api_key or not group_id:
+                raise ValueError("MINIMAX_API_KEY and MINIMAX_GROUP_ID not configured. Please configure in Settings → AI.")
+            provider_kwargs = {'api_key': api_key, 'group_id': group_id, 'model': model}
+
+        elif provider_name == 'openai':
+            api_key = getattr(settings, 'OPENAI_API_KEY', '')
+            model = getattr(settings, 'OPENAI_MODEL', 'gpt-4o')
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY not configured. Please configure in Settings → AI.")
+            provider_kwargs = {'api_key': api_key, 'model': model}
+        else:
+            raise ValueError(f"Unknown LLM provider: {provider_name}")
+
+        # Get the provider instance
+        self.provider = get_llm_provider(provider_name, **provider_kwargs)
+        if not self.provider:
+            raise ValueError(f"Failed to initialize {provider_name} provider")
+
+        self.provider_name = provider_name
 
     def generate_documentation(self, prompt, template_type=None, context=None, output_format='markdown'):
         """
@@ -40,18 +75,18 @@ class AIDocumentationGenerator:
         user_prompt = self._build_user_prompt(prompt, context, output_format)
 
         try:
-            # Call Claude API
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=4096,
-                system=system_prompt,
-                messages=[
-                    {"role": "user", "content": user_prompt}
-                ]
+            # Call LLM provider
+            response = self.provider.generate(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=4096
             )
 
+            if not response['success']:
+                return response
+
             # Parse response
-            content = response.content[0].text
+            content = response['content']
 
             # Try to extract JSON if present
             result = self._parse_response(content)
@@ -137,16 +172,16 @@ Return the enhanced documentation in this JSON format:
 }}"""
 
         try:
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=8192,
-                system=system_prompt,
-                messages=[
-                    {"role": "user", "content": user_prompt}
-                ]
+            response = self.provider.generate(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=8192
             )
 
-            content_text = response.content[0].text
+            if not response['success']:
+                return response
+
+            content_text = response['content']
             result = self._parse_response(content_text)
 
             return {
@@ -197,16 +232,16 @@ Return your analysis in JSON format:
 }}"""
 
         try:
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=4096,
-                system=system_prompt,
-                messages=[
-                    {"role": "user", "content": user_prompt}
-                ]
+            response = self.provider.generate(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=4096
             )
 
-            content_text = response.content[0].text
+            if not response['success']:
+                return response
+
+            content_text = response['content']
             result = self._parse_response(content_text)
 
             return {

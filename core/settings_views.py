@@ -909,16 +909,35 @@ def settings_ai(request):
                     key, value = line.split('=', 1)
                     env_values[key] = value
 
+    # LLM Provider settings
+    current_llm_provider = env_values.get('LLM_PROVIDER', 'anthropic')
     current_anthropic_key = env_values.get('ANTHROPIC_API_KEY', '')
     current_claude_model = env_values.get('CLAUDE_MODEL', 'claude-sonnet-4-5-20250929')
+    current_moonshot_key = env_values.get('MOONSHOT_API_KEY', '')
+    current_moonshot_model = env_values.get('MOONSHOT_MODEL', 'moonshot-v1-8k')
+    current_minimax_key = env_values.get('MINIMAX_API_KEY', '')
+    current_minimax_group_id = env_values.get('MINIMAX_GROUP_ID', '')
+    current_minimax_model = env_values.get('MINIMAX_MODEL', 'abab6.5-chat')
+    current_openai_key = env_values.get('OPENAI_API_KEY', '')
+    current_openai_model = env_values.get('OPENAI_MODEL', 'gpt-4o')
+
+    # Mapping/Geocoding settings
     current_google_maps_key = env_values.get('GOOGLE_MAPS_API_KEY', '')
     current_regrid_key = env_values.get('REGRID_API_KEY', '')
     current_attom_key = env_values.get('ATTOM_API_KEY', '')
 
     if request.method == 'POST':
         # Update .env file with new values
+        llm_provider = request.POST.get('llm_provider', 'anthropic').strip()
         anthropic_key = request.POST.get('anthropic_api_key', '').strip()
         claude_model = request.POST.get('claude_model', 'claude-sonnet-4-5-20250929')
+        moonshot_key = request.POST.get('moonshot_api_key', '').strip()
+        moonshot_model = request.POST.get('moonshot_model', 'moonshot-v1-8k')
+        minimax_key = request.POST.get('minimax_api_key', '').strip()
+        minimax_group_id = request.POST.get('minimax_group_id', '').strip()
+        minimax_model = request.POST.get('minimax_model', 'abab6.5-chat')
+        openai_key = request.POST.get('openai_api_key', '').strip()
+        openai_model = request.POST.get('openai_model', 'gpt-4o')
         google_maps_key = request.POST.get('google_maps_api_key', '').strip()
         regrid_key = request.POST.get('regrid_api_key', '').strip()
         attom_key = request.POST.get('attom_api_key', '').strip()
@@ -931,8 +950,16 @@ def settings_ai(request):
 
         # Update or add the keys
         keys_to_update = {
+            'LLM_PROVIDER': llm_provider,
             'ANTHROPIC_API_KEY': anthropic_key,
             'CLAUDE_MODEL': claude_model,
+            'MOONSHOT_API_KEY': moonshot_key,
+            'MOONSHOT_MODEL': moonshot_model,
+            'MINIMAX_API_KEY': minimax_key,
+            'MINIMAX_GROUP_ID': minimax_group_id,
+            'MINIMAX_MODEL': minimax_model,
+            'OPENAI_API_KEY': openai_key,
+            'OPENAI_MODEL': openai_model,
             'GOOGLE_MAPS_API_KEY': google_maps_key,
             'REGRID_API_KEY': regrid_key,
             'ATTOM_API_KEY': attom_key,
@@ -1004,8 +1031,16 @@ def settings_ai(request):
         return redirect('core:settings_ai')
 
     return render(request, 'core/settings_ai.html', {
+        'current_llm_provider': current_llm_provider,
         'current_anthropic_key': current_anthropic_key,
         'current_claude_model': current_claude_model,
+        'current_moonshot_key': current_moonshot_key,
+        'current_moonshot_model': current_moonshot_model,
+        'current_minimax_key': current_minimax_key,
+        'current_minimax_group_id': current_minimax_group_id,
+        'current_minimax_model': current_minimax_model,
+        'current_openai_key': current_openai_key,
+        'current_openai_model': current_openai_model,
         'current_google_maps_key': current_google_maps_key,
         'current_regrid_key': current_regrid_key,
         'current_attom_key': current_attom_key,

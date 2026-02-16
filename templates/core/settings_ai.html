@@ -23,13 +23,33 @@
             <div class="card-body">
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i>
-                    <strong>About AI Floor Plan Generation:</strong> Client St0r uses Claude AI to intelligently design office floor plans based on building dimensions, employee count, departments, and network requirements. The AI analyzes your specifications and generates professional Draw.io diagrams with proper room layouts, network infrastructure, and security systems.
+                    <strong>Multi-LLM Provider Support:</strong> Client St0r now supports multiple LLM providers for AI documentation generation! Choose from Anthropic Claude, Moonshot AI (Kimi), MiniMax, or OpenAI. Each provider offers different capabilities, pricing, and language support.
                 </div>
 
                 <form method="post">
                     {% csrf_token %}
 
-                    <h5 class="mb-3">Anthropic (Claude AI)</h5>
+                    <!-- LLM Provider Selection -->
+                    <h5 class="mb-3"><i class="fas fa-network-wired"></i> LLM Provider Selection</h5>
+
+                    <div class="mb-4">
+                        <label for="llm_provider" class="form-label fw-bold">Active LLM Provider</label>
+                        <select class="form-select form-select-lg" id="llm_provider" name="llm_provider" onchange="toggleProviderSections()">
+                            <option value="anthropic" {% if current_llm_provider == 'anthropic' %}selected{% endif %}>🇺🇸 Anthropic Claude (English, Multilingual)</option>
+                            <option value="moonshot" {% if current_llm_provider == 'moonshot' %}selected{% endif %}>🇨🇳 Moonshot AI - Kimi (Chinese, English)</option>
+                            <option value="minimax" {% if current_llm_provider == 'minimax' %}selected{% endif %}>🇨🇳 MiniMax (Chinese, English)</option>
+                            <option value="openai" {% if current_llm_provider == 'openai' %}selected{% endif %}>🇺🇸 OpenAI GPT (English, Multilingual)</option>
+                        </select>
+                        <div class="form-text">
+                            Select which LLM provider to use for AI documentation generation, floor plans, and content enhancement.
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Anthropic Claude Section -->
+                    <div id="anthropic-section" class="provider-section">
+                        <h5 class="mb-3"><i class="fas fa-robot"></i> Anthropic Claude</h5>
 
                     <div class="mb-3">
                         <label for="anthropic_api_key" class="form-label">Anthropic API Key</label>
@@ -54,13 +74,97 @@
                             <option value="claude-3-5-haiku-20241022" {% if current_claude_model == 'claude-3-5-haiku-20241022' %}selected{% endif %}>Claude 3.5 Haiku (Fastest, Lower Cost)</option>
                         </select>
                         <div class="form-text">
-                            Choose the Claude model for floor plan generation. Sonnet 4.5 offers the best balance of quality and cost.
+                            Choose the Claude model for AI generation. Sonnet 4.5 offers the best balance of quality and cost.
+                        </div>
+                    </div>
+                    </div>
+
+                    <!-- Moonshot AI (Kimi) Section -->
+                    <div id="moonshot-section" class="provider-section" style="display: none;">
+                        <h5 class="mb-3"><i class="fas fa-moon"></i> Moonshot AI (Kimi)</h5>
+
+                        <div class="mb-3">
+                            <label for="moonshot_api_key" class="form-label">Moonshot API Key</label>
+                            <input type="password" class="form-control font-monospace" id="moonshot_api_key" name="moonshot_api_key" value="{{ current_moonshot_key }}" placeholder="sk-...">
+                            <div class="form-text">
+                                Get your API key at <a href="https://platform.moonshot.cn/" target="_blank">platform.moonshot.cn</a>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="moonshot_model" class="form-label">Kimi Model</label>
+                            <select class="form-select" id="moonshot_model" name="moonshot_model">
+                                <option value="moonshot-v1-8k" {% if current_moonshot_model == 'moonshot-v1-8k' %}selected{% endif %}>Kimi v1 8K (Standard)</option>
+                                <option value="moonshot-v1-32k" {% if current_moonshot_model == 'moonshot-v1-32k' %}selected{% endif %}>Kimi v1 32K (Extended Context)</option>
+                                <option value="moonshot-v1-128k" {% if current_moonshot_model == 'moonshot-v1-128k' %}selected{% endif %}>Kimi v1 128K (Maximum Context)</option>
+                            </select>
+                            <div class="form-text">
+                                Excellent for Chinese language documentation. Supports both Chinese and English.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MiniMax Section -->
+                    <div id="minimax-section" class="provider-section" style="display: none;">
+                        <h5 class="mb-3"><i class="fas fa-dragon"></i> MiniMax</h5>
+
+                        <div class="mb-3">
+                            <label for="minimax_api_key" class="form-label">MiniMax API Key</label>
+                            <input type="password" class="form-control font-monospace" id="minimax_api_key" name="minimax_api_key" value="{{ current_minimax_key }}" placeholder="...">
+                            <div class="form-text">
+                                Get your API key at <a href="https://api.minimax.chat/" target="_blank">api.minimax.chat</a>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="minimax_group_id" class="form-label">MiniMax Group ID</label>
+                            <input type="text" class="form-control font-monospace" id="minimax_group_id" name="minimax_group_id" value="{{ current_minimax_group_id }}" placeholder="Group ID from MiniMax console">
+                            <div class="form-text">
+                                Required for MiniMax API. Find this in your MiniMax console dashboard.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="minimax_model" class="form-label">MiniMax Model</label>
+                            <select class="form-select" id="minimax_model" name="minimax_model">
+                                <option value="abab6.5-chat" {% if current_minimax_model == 'abab6.5-chat' %}selected{% endif %}>abab6.5-chat (Latest)</option>
+                                <option value="abab6.5s-chat" {% if current_minimax_model == 'abab6.5s-chat' %}selected{% endif %}>abab6.5s-chat (Speed Optimized)</option>
+                                <option value="abab5.5-chat" {% if current_minimax_model == 'abab5.5-chat' %}selected{% endif %}>abab5.5-chat (Legacy)</option>
+                            </select>
+                            <div class="form-text">
+                                Strong Chinese language support with competitive pricing.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- OpenAI Section -->
+                    <div id="openai-section" class="provider-section" style="display: none;">
+                        <h5 class="mb-3"><i class="fas fa-brain"></i> OpenAI GPT</h5>
+
+                        <div class="mb-3">
+                            <label for="openai_api_key" class="form-label">OpenAI API Key</label>
+                            <input type="password" class="form-control font-monospace" id="openai_api_key" name="openai_api_key" value="{{ current_openai_key }}" placeholder="sk-...">
+                            <div class="form-text">
+                                Get your API key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="openai_model" class="form-label">OpenAI Model</label>
+                            <select class="form-select" id="openai_model" name="openai_model">
+                                <option value="gpt-4o" {% if current_openai_model == 'gpt-4o' %}selected{% endif %}>GPT-4o (Latest, Multimodal)</option>
+                                <option value="gpt-4-turbo" {% if current_openai_model == 'gpt-4-turbo' %}selected{% endif %}>GPT-4 Turbo (Fast)</option>
+                                <option value="gpt-3.5-turbo" {% if current_openai_model == 'gpt-3.5-turbo' %}selected{% endif %}>GPT-3.5 Turbo (Budget)</option>
+                            </select>
+                            <div class="form-text">
+                                Industry-standard models with excellent multilingual support.
+                            </div>
                         </div>
                     </div>
 
                     <hr class="my-4">
 
-                    <h5 class="mb-3">Mapping & Geocoding (Optional)</h5>
+                    <h5 class="mb-3"><i class="fas fa-map"></i> Mapping & Geocoding (Optional)</h5>
 
                     <div class="mb-3">
                         <label for="google_maps_api_key" class="form-label">Google Maps API Key</label>
@@ -289,6 +393,24 @@
 </style>
 
 <script>
+// Toggle provider sections based on selection
+function toggleProviderSections() {
+    const provider = document.getElementById('llm_provider').value;
+    const sections = ['anthropic', 'moonshot', 'minimax', 'openai'];
+
+    sections.forEach(section => {
+        const element = document.getElementById(section + '-section');
+        if (element) {
+            element.style.display = (section === provider) ? 'block' : 'none';
+        }
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleProviderSections();
+});
+
 // API Key Testing Functions
 function testAnthropicKey() {
     const apiKey = document.getElementById('anthropic_api_key').value;

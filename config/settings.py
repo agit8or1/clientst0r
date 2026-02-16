@@ -372,9 +372,25 @@ HIBP_DEFAULT_SCAN_FREQUENCY = int(os.getenv('HIBP_SCAN_FREQUENCY', '24'))
 ALLOW_PRIVATE_IP_INTEGRATIONS = os.getenv('ALLOW_PRIVATE_IP_INTEGRATIONS', 'False').lower() == 'true'
 
 # AI and External API Configuration
-# Claude AI (Anthropic) for floor plan generation
+# Multi-LLM Provider Support
+LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'anthropic')  # anthropic, moonshot, minimax, openai
+
+# Anthropic Claude
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
 CLAUDE_MODEL = os.getenv('CLAUDE_MODEL', 'claude-sonnet-4-5-20250929')
+
+# Moonshot AI (Kimi)
+MOONSHOT_API_KEY = os.getenv('MOONSHOT_API_KEY', '')
+MOONSHOT_MODEL = os.getenv('MOONSHOT_MODEL', 'moonshot-v1-8k')  # moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k
+
+# MiniMax
+MINIMAX_API_KEY = os.getenv('MINIMAX_API_KEY', '')
+MINIMAX_GROUP_ID = os.getenv('MINIMAX_GROUP_ID', '')
+MINIMAX_MODEL = os.getenv('MINIMAX_MODEL', 'abab6.5-chat')  # abab6.5-chat, abab6.5s-chat, abab5.5-chat
+
+# OpenAI (future support)
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o')  # gpt-4o, gpt-4-turbo, gpt-3.5-turbo
 
 # AI Abuse Controls (cost protection and PII redaction)
 AI_MAX_PROMPT_LENGTH = int(os.getenv('AI_MAX_PROMPT_LENGTH', '10000'))  # characters
