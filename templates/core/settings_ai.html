@@ -37,7 +37,8 @@
                         <select class="form-select form-select-lg" id="llm_provider" name="llm_provider" onchange="toggleProviderSections()">
                             <option value="anthropic" {% if current_llm_provider == 'anthropic' %}selected{% endif %}>🇺🇸 Anthropic Claude (English, Multilingual)</option>
                             <option value="moonshot" {% if current_llm_provider == 'moonshot' %}selected{% endif %}>🇨🇳 Moonshot AI - Kimi (Chinese, English)</option>
-                            <option value="minimax" {% if current_llm_provider == 'minimax' %}selected{% endif %}>🇨🇳 MiniMax (Chinese, English)</option>
+                            <option value="minimax" {% if current_llm_provider == 'minimax' %}selected{% endif %}>🇨🇳 MiniMax Chat API (Chinese, English)</option>
+                            <option value="minimax_coding" {% if current_llm_provider == 'minimax_coding' %}selected{% endif %}>🇨🇳 MiniMax Coding Plan M2.5 (Code Generation)</option>
                             <option value="openai" {% if current_llm_provider == 'openai' %}selected{% endif %}>🇺🇸 OpenAI GPT (English, Multilingual)</option>
                         </select>
                         <div class="form-text">
@@ -145,6 +146,40 @@
                             </select>
                             <div class="form-text">
                                 Strong Chinese language support with competitive pricing.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MiniMax Coding Plan Section -->
+                    <div id="minimax_coding-section" class="provider-section" style="display: none;">
+                        <h5 class="mb-3"><i class="fas fa-code"></i> MiniMax Coding Plan (M2.5)</h5>
+
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Note:</strong> This is for the MiniMax Coding Plan API from platform.minimax.io, which is different from the Chat API. If you have a Coding Plan subscription with M2.5 model, use this option.
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="minimax_coding_api_key" class="form-label">MiniMax Coding API Key</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control font-monospace" id="minimax_coding_api_key" name="minimax_coding_api_key" value="{{ current_minimax_coding_key }}" placeholder="Your Coding Plan API key">
+                                <button type="button" class="btn btn-outline-secondary" id="test-minimax-coding-btn" onclick="testMinimaxCodingKey()">
+                                    <i class="fas fa-vial"></i> Test
+                                </button>
+                            </div>
+                            <div id="minimax-coding-test-result" class="mt-2" style="display: none;"></div>
+                            <div class="form-text">
+                                Get your Coding Plan API key at <a href="https://platform.minimax.io/user-center/basic-information/interface-key" target="_blank">platform.minimax.io</a>. This key is different from the Chat API key.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="minimax_coding_model" class="form-label">Model</label>
+                            <select class="form-select" id="minimax_coding_model" name="minimax_coding_model">
+                                <option value="MiniMax-M2.5" {% if current_minimax_coding_model == 'MiniMax-M2.5' %}selected{% endif %}>MiniMax-M2.5 (Coding Optimized)</option>
+                            </select>
+                            <div class="form-text">
+                                M2.5 model optimized for code generation and documentation.
                             </div>
                         </div>
                     </div>
@@ -414,7 +449,7 @@
 // Toggle provider sections based on selection
 function toggleProviderSections() {
     const provider = document.getElementById('llm_provider').value;
-    const sections = ['anthropic', 'moonshot', 'minimax', 'openai'];
+    const sections = ['anthropic', 'moonshot', 'minimax', 'minimax_coding', 'openai'];
 
     sections.forEach(section => {
         const element = document.getElementById(section + '-section');
@@ -637,6 +672,51 @@ function testOpenAIKey() {
             'X-CSRFToken': '{{ csrf_token }}'
         },
         body: JSON.stringify({ provider: 'openai', api_key: apiKey, model: model })
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-vial"></i> Test';
+
+        if (data.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success small mb-0"><i class="fas fa-check-circle"></i> ${data.message}</div>`;
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger small mb-0"><i class="fas fa-times-circle"></i> ${data.error}</div>`;
+        }
+        resultDiv.style.display = 'block';
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-vial"></i> Test';
+        resultDiv.innerHTML = `<div class="alert alert-danger small mb-0"><i class="fas fa-times-circle"></i> Error: ${error.message}</div>`;
+        resultDiv.style.display = 'block';
+    });
+}
+
+function testMinimaxCodingKey() {
+    const apiKey = document.getElementById('minimax_coding_api_key').value;
+    const model = document.getElementById('minimax_coding_model').value;
+    const btn = document.getElementById('test-minimax-coding-btn');
+    const resultDiv = document.getElementById('minimax-coding-test-result');
+
+    if (!apiKey) {
+        resultDiv.innerHTML = '<div class="alert alert-warning small mb-0"><i class="fas fa-exclamation-circle"></i> Please enter an API key first</div>';
+        resultDiv.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    resultDiv.innerHTML = '<div class="alert alert-info small mb-0"><i class="fas fa-spinner fa-spin"></i> Testing MiniMax Coding connection...</div>';
+    resultDiv.style.display = 'block';
+
+    fetch('{% url "core:test_llm_connection" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ provider: 'minimax_coding', api_key: apiKey, model: model })
     })
     .then(response => response.json())
     .then(data => {

@@ -39,6 +39,13 @@ class AIDocumentationGenerator:
                 raise ValueError("MINIMAX_API_KEY and MINIMAX_GROUP_ID not configured. Please configure in Settings → AI.")
             provider_kwargs = {'api_key': api_key, 'group_id': group_id, 'model': model}
 
+        elif provider_name == 'minimax_coding':
+            api_key = getattr(settings, 'MINIMAX_CODING_API_KEY', '')
+            model = getattr(settings, 'MINIMAX_CODING_MODEL', 'MiniMax-M2.5')
+            if not api_key:
+                raise ValueError("MINIMAX_CODING_API_KEY not configured. Please configure in Settings → AI.")
+            provider_kwargs = {'api_key': api_key, 'model': model}
+
         elif provider_name == 'openai':
             api_key = getattr(settings, 'OPENAI_API_KEY', '')
             model = getattr(settings, 'OPENAI_MODEL', 'gpt-4o')

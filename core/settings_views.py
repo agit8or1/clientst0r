@@ -918,6 +918,8 @@ def settings_ai(request):
     current_minimax_key = env_values.get('MINIMAX_API_KEY', '')
     current_minimax_group_id = env_values.get('MINIMAX_GROUP_ID', '')
     current_minimax_model = env_values.get('MINIMAX_MODEL', 'abab6.5-chat')
+    current_minimax_coding_key = env_values.get('MINIMAX_CODING_API_KEY', '')
+    current_minimax_coding_model = env_values.get('MINIMAX_CODING_MODEL', 'MiniMax-M2.5')
     current_openai_key = env_values.get('OPENAI_API_KEY', '')
     current_openai_model = env_values.get('OPENAI_MODEL', 'gpt-4o')
 
@@ -936,6 +938,8 @@ def settings_ai(request):
         minimax_key = request.POST.get('minimax_api_key', '').strip()
         minimax_group_id = request.POST.get('minimax_group_id', '').strip()
         minimax_model = request.POST.get('minimax_model', 'abab6.5-chat')
+        minimax_coding_key = request.POST.get('minimax_coding_api_key', '').strip()
+        minimax_coding_model = request.POST.get('minimax_coding_model', 'MiniMax-M2.5')
         openai_key = request.POST.get('openai_api_key', '').strip()
         openai_model = request.POST.get('openai_model', 'gpt-4o')
         google_maps_key = request.POST.get('google_maps_api_key', '').strip()
@@ -958,6 +962,8 @@ def settings_ai(request):
             'MINIMAX_API_KEY': minimax_key,
             'MINIMAX_GROUP_ID': minimax_group_id,
             'MINIMAX_MODEL': minimax_model,
+            'MINIMAX_CODING_API_KEY': minimax_coding_key,
+            'MINIMAX_CODING_MODEL': minimax_coding_model,
             'OPENAI_API_KEY': openai_key,
             'OPENAI_MODEL': openai_model,
             'GOOGLE_MAPS_API_KEY': google_maps_key,
@@ -1039,6 +1045,8 @@ def settings_ai(request):
         'current_minimax_key': current_minimax_key,
         'current_minimax_group_id': current_minimax_group_id,
         'current_minimax_model': current_minimax_model,
+        'current_minimax_coding_key': current_minimax_coding_key,
+        'current_minimax_coding_model': current_minimax_coding_model,
         'current_openai_key': current_openai_key,
         'current_openai_model': current_openai_model,
         'current_google_maps_key': current_google_maps_key,
@@ -1100,6 +1108,16 @@ def test_llm_connection(request):
                     'error': 'MiniMax requires both API key and Group ID'
                 }, status=400)
             provider_kwargs = {'api_key': api_key, 'group_id': group_id, 'model': model}
+
+        elif provider_name == 'minimax_coding':
+            api_key = data.get('api_key', '').strip()
+            model = data.get('model', 'MiniMax-M2.5')
+            if not api_key:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'MiniMax Coding API key is required'
+                }, status=400)
+            provider_kwargs = {'api_key': api_key, 'model': model}
 
         elif provider_name == 'openai':
             api_key = data.get('api_key', '').strip()

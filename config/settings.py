@@ -383,10 +383,14 @@ CLAUDE_MODEL = os.getenv('CLAUDE_MODEL', 'claude-sonnet-4-5-20250929')
 MOONSHOT_API_KEY = os.getenv('MOONSHOT_API_KEY', '')
 MOONSHOT_MODEL = os.getenv('MOONSHOT_MODEL', 'moonshot-v1-8k')  # moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k
 
-# MiniMax
+# MiniMax Chat API
 MINIMAX_API_KEY = os.getenv('MINIMAX_API_KEY', '')
 MINIMAX_GROUP_ID = os.getenv('MINIMAX_GROUP_ID', '')
 MINIMAX_MODEL = os.getenv('MINIMAX_MODEL', 'abab6.5-chat')  # abab6.5-chat, abab6.5s-chat, abab5.5-chat
+
+# MiniMax Coding Plan API (M2.5)
+MINIMAX_CODING_API_KEY = os.getenv('MINIMAX_CODING_API_KEY', '')
+MINIMAX_CODING_MODEL = os.getenv('MINIMAX_CODING_MODEL', 'MiniMax-M2.5')
 
 # OpenAI (future support)
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')

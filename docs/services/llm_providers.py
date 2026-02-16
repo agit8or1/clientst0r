@@ -99,6 +99,66 @@ class AnthropicProvider(LLMProvider):
             }
 
 
+class MiniMaxCodingProvider(LLMProvider):
+    """MiniMax Coding Plan (M2.5) provider - uses Anthropic-compatible API."""
+
+    def __init__(self, api_key: str, model: str = 'MiniMax-M2.5'):
+        self.api_key = api_key
+        self.model = model
+
+        # MiniMax Coding Plan uses Anthropic-compatible API
+        # Base URL: https://api.minimax.io/anthropic
+        import anthropic
+        self.client = anthropic.Anthropic(
+            api_key=api_key,
+            base_url='https://api.minimax.io/anthropic'
+        )
+
+    def generate(self, system_prompt: str, user_prompt: str, max_tokens: int = 4096) -> Dict[str, Any]:
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=max_tokens,
+                system=system_prompt,
+                messages=[
+                    {"role": "user", "content": user_prompt}
+                ]
+            )
+
+            return {
+                'success': True,
+                'content': response.content[0].text
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def get_model_name(self) -> str:
+        return self.model
+
+    def test_connection(self) -> Dict[str, Any]:
+        try:
+            # Simple test with minimal tokens
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=10,
+                messages=[
+                    {"role": "user", "content": "Say 'ok'"}
+                ]
+            )
+            return {
+                'success': True,
+                'message': f'Connected to MiniMax {self.model} successfully!'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+
 class MoonshotProvider(LLMProvider):
     """Moonshot AI (Kimi) provider."""
 
@@ -395,7 +455,7 @@ def get_llm_provider(provider_name: str, **kwargs) -> Optional[LLMProvider]:
     Factory function to get the appropriate LLM provider.
 
     Args:
-        provider_name: Name of the provider ('anthropic', 'moonshot', 'minimax', 'openai')
+        provider_name: Name of the provider ('anthropic', 'moonshot', 'minimax', 'minimax_coding', 'openai')
         **kwargs: Provider-specific configuration (api_key, model, etc.)
 
     Returns:
@@ -405,6 +465,7 @@ def get_llm_provider(provider_name: str, **kwargs) -> Optional[LLMProvider]:
         'anthropic': AnthropicProvider,
         'moonshot': MoonshotProvider,
         'minimax': MiniMaxProvider,
+        'minimax_coding': MiniMaxCodingProvider,
         'openai': OpenAIProvider,
     }
 
@@ -435,7 +496,10 @@ def is_llm_configured() -> tuple[bool, str]:
     elif provider_name == 'minimax':
         api_key = getattr(settings, 'MINIMAX_API_KEY', '')
         group_id = getattr(settings, 'MINIMAX_GROUP_ID', '')
-        return (bool(api_key and group_id), 'MiniMax')
+        return (bool(api_key and group_id), 'MiniMax Chat')
+    elif provider_name == 'minimax_coding':
+        api_key = getattr(settings, 'MINIMAX_CODING_API_KEY', '')
+        return (bool(api_key), 'MiniMax Coding Plan (M2.5)')
     elif provider_name == 'openai':
         api_key = getattr(settings, 'OPENAI_API_KEY', '')
         return (bool(api_key), 'OpenAI')
