@@ -652,7 +652,7 @@ class UpdateService:
             result['output'].append("3. Run: python manage.py auto_heal_version")
             result['steps_completed'].append('restart_service')
 
-            if False:  # Disable all restart logic
+            if True:  # Enable restart logic
                 if progress_tracker:
                     progress_tracker.step_start('Restart Service')
                 logger.info("Restarting systemd service")
