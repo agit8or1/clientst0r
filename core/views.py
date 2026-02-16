@@ -208,6 +208,15 @@ def apply_update(request):
         })
 
     except Exception as e:
+        # Log detailed error for debugging
+        import traceback
+        error_details = f"Error: {e}\n{traceback.format_exc()}"
+        try:
+            with open('/var/log/clientst0r/apply_update_error.log', 'a') as f:
+                f.write(f"\n=== {timezone.now()} ===\n{error_details}\n")
+        except:
+            pass
+
         messages.error(request, f"Failed to start update: {e}")
         return JsonResponse({
             'status': 'error',
