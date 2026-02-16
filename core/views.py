@@ -188,7 +188,7 @@ def apply_update(request):
 
         # Use nohup to completely detach - survives parent death
         subprocess.Popen(
-            ['nohup', 'bash', update_script],
+            ['/usr/bin/nohup', '/bin/bash', update_script],
             stdout=open(log_file, 'a'),
             stderr=subprocess.STDOUT,
             start_new_session=True,  # Create new session (detach from terminal)
