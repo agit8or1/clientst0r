@@ -459,8 +459,10 @@
         });
 
         // Set initial content if exists
+        // Use clipboard.dangerouslyPasteHTML instead of innerHTML to preserve formatting
         if (bodyTextarea.value) {
-            quillEditor.root.innerHTML = bodyTextarea.value;
+            const delta = quillEditor.clipboard.convert(bodyTextarea.value);
+            quillEditor.setContents(delta, 'silent');
         }
     }
 
@@ -654,7 +656,8 @@
                         // Wait for editor to switch, then set content
                         setTimeout(() => {
                             if (data.content_type === 'html' && quillEditor) {
-                                quillEditor.root.innerHTML = data.body;
+                                const delta = quillEditor.clipboard.convert(data.body);
+                                quillEditor.setContents(delta, 'silent');
                             } else if (data.content_type === 'markdown' && markdownTextarea) {
                                 markdownTextarea.value = data.body;
                             }
@@ -774,7 +777,8 @@
                     // Wait for editor switch, then set content
                     setTimeout(() => {
                         if (resultContentType === 'html' && quillEditor) {
-                            quillEditor.root.innerHTML = result.content;
+                            const delta = quillEditor.clipboard.convert(result.content);
+                            quillEditor.setContents(delta, 'silent');
                         } else if (resultContentType === 'markdown' && markdownTextarea) {
                             markdownTextarea.value = result.content;
                         }
@@ -782,7 +786,8 @@
                 } else {
                     // Same content type, update directly
                     if (contentType === 'html' && quillEditor) {
-                        quillEditor.root.innerHTML = result.content;
+                        const delta = quillEditor.clipboard.convert(result.content);
+                        quillEditor.setContents(delta, 'silent');
                     } else if (contentType === 'markdown' && markdownTextarea) {
                         markdownTextarea.value = result.content;
                     }

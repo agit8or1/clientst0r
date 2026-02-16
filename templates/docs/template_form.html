@@ -149,8 +149,10 @@
             }
         });
 
+        // Use clipboard.convert to preserve formatting properly
         if (bodyTextarea.value) {
-            quillEditor.root.innerHTML = bodyTextarea.value;
+            const delta = quillEditor.clipboard.convert(bodyTextarea.value);
+            quillEditor.setContents(delta, 'silent');
         }
     }
 

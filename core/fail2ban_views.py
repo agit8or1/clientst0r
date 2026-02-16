@@ -64,22 +64,46 @@ def is_fail2ban_installed():
     if not package_installed:
         return False, False, False, 'fail2ban package not installed'
 
-    # Check if fail2ban service exists and is running
-    # Use -n flag for non-interactive passwordless sudo check
+    # Check if sudo permissions are configured FIRST
+    # Try a simple sudo -n test to check passwordless sudo
+    sudo_configured = False
     try:
-        result = subprocess.run(
-            ['sudo', '-n', 'systemctl', 'is-active', 'fail2ban'],
+        test_result = subprocess.run(
+            ['sudo', '-n', 'true'],
             capture_output=True,
             text=True,
             timeout=5
         )
-        service_running = result.returncode == 0 and result.stdout.strip() == 'active'
+        sudo_configured = test_result.returncode == 0
     except Exception:
-        service_running = False
+        sudo_configured = False
 
-    # Check if sudo permissions are configured
-    success, output, error = run_fail2ban_command(['ping'])
-    sudo_configured = success
+    # Check if fail2ban service is running
+    # If sudo is configured, use it; otherwise try without sudo first
+    service_running = False
+    if sudo_configured:
+        try:
+            result = subprocess.run(
+                ['sudo', '-n', 'systemctl', 'is-active', 'fail2ban'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            service_running = result.returncode == 0 and result.stdout.strip() == 'active'
+        except Exception:
+            service_running = False
+    else:
+        # Try without sudo (might work if user is in systemd-journal group)
+        try:
+            result = subprocess.run(
+                ['systemctl', 'is-active', 'fail2ban'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            service_running = result.returncode == 0 and result.stdout.strip() == 'active'
+        except Exception:
+            service_running = False
 
     return package_installed, service_running, sudo_configured, ''
 
