@@ -480,6 +480,12 @@
                 initQuill();
             } else {
                 document.getElementById('quill-editor').style.display = 'block';
+
+                // Reload content from textarea if it exists but editor is empty
+                if (bodyTextarea.value && quillEditor.getLength() <= 1) {
+                    const delta = quillEditor.clipboard.convert(bodyTextarea.value);
+                    quillEditor.setContents(delta, 'silent');
+                }
             }
         } else if (contentType === 'markdown') {
             // Show Markdown textarea

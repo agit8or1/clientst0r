@@ -412,3 +412,32 @@ def get_llm_provider(provider_name: str, **kwargs) -> Optional[LLMProvider]:
     if provider_class:
         return provider_class(**kwargs)
     return None
+
+
+def is_llm_configured() -> tuple[bool, str]:
+    """
+    Check if any LLM provider is properly configured.
+
+    Returns:
+        tuple: (is_configured: bool, provider_name: str)
+    """
+    from django.conf import settings
+
+    provider_name = getattr(settings, 'LLM_PROVIDER', 'anthropic').lower()
+
+    # Check if the selected provider has its required credentials
+    if provider_name == 'anthropic':
+        api_key = getattr(settings, 'ANTHROPIC_API_KEY', '')
+        return (bool(api_key), 'Anthropic Claude')
+    elif provider_name == 'moonshot':
+        api_key = getattr(settings, 'MOONSHOT_API_KEY', '')
+        return (bool(api_key), 'Moonshot AI (Kimi)')
+    elif provider_name == 'minimax':
+        api_key = getattr(settings, 'MINIMAX_API_KEY', '')
+        group_id = getattr(settings, 'MINIMAX_GROUP_ID', '')
+        return (bool(api_key and group_id), 'MiniMax')
+    elif provider_name == 'openai':
+        api_key = getattr(settings, 'OPENAI_API_KEY', '')
+        return (bool(api_key), 'OpenAI')
+    else:
+        return (False, 'Unknown')

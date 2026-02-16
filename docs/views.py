@@ -1152,18 +1152,20 @@ def ai_assistant(request):
     AI Documentation Assistant - Generate documentation from prompts with templates.
     """
     from .services.ai_documentation_generator import DOCUMENTATION_TEMPLATES
-    from django.conf import settings
+    from .services.llm_providers import is_llm_configured
 
     org = get_request_organization(request)
 
     # Check if AI is configured
-    if not settings.ANTHROPIC_API_KEY:
-        messages.error(request, 'Claude API is not configured. Please configure in Settings → AI.')
+    has_ai, provider_name = is_llm_configured()
+    if not has_ai:
+        messages.error(request, f'LLM provider is not configured. Please configure {provider_name} in Settings → AI.')
         return redirect('docs:document_list')
 
     return render(request, 'docs/ai_assistant.html', {
         'templates': DOCUMENTATION_TEMPLATES,
-        'has_ai': bool(settings.ANTHROPIC_API_KEY),
+        'has_ai': has_ai,
+        'provider_name': provider_name,
     })
 
 
@@ -1174,13 +1176,14 @@ def ai_generate(request):
     Generate documentation using AI.
     """
     from .services.ai_documentation_generator import AIDocumentationGenerator
-    from django.conf import settings
+    from .services.llm_providers import is_llm_configured
     import json
 
-    if not settings.ANTHROPIC_API_KEY:
+    has_ai, provider_name = is_llm_configured()
+    if not has_ai:
         return JsonResponse({
             'success': False,
-            'error': 'Claude API is not configured'
+            'error': f'LLM provider is not configured. Please configure {provider_name} in Settings → AI.'
         }, status=400)
 
     try:
@@ -1215,13 +1218,14 @@ def ai_enhance(request):
     Enhance existing documentation using AI.
     """
     from .services.ai_documentation_generator import AIDocumentationGenerator
-    from django.conf import settings
+    from .services.llm_providers import is_llm_configured
     import json
 
-    if not settings.ANTHROPIC_API_KEY:
+    has_ai, provider_name = is_llm_configured()
+    if not has_ai:
         return JsonResponse({
             'success': False,
-            'error': 'Claude API is not configured'
+            'error': f'LLM provider is not configured. Please configure {provider_name} in Settings → AI.'
         }, status=400)
 
     try:
@@ -1256,13 +1260,14 @@ def ai_validate(request):
     Validate documentation quality using AI.
     """
     from .services.ai_documentation_generator import AIDocumentationGenerator
-    from django.conf import settings
+    from .services.llm_providers import is_llm_configured
     import json
 
-    if not settings.ANTHROPIC_API_KEY:
+    has_ai, provider_name = is_llm_configured()
+    if not has_ai:
         return JsonResponse({
             'success': False,
-            'error': 'Claude API is not configured'
+            'error': f'LLM provider is not configured. Please configure {provider_name} in Settings → AI.'
         }, status=400)
 
     try:
