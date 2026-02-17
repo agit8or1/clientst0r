@@ -401,6 +401,8 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
+// Wait for DOM to be fully loaded before initializing
+document.addEventListener('DOMContentLoaded', function() {
     const contentTypeSelect = document.getElementById('content-type-select');
     const bodyTextarea = document.getElementById('document-body');
     const quillContainer = document.getElementById('tinymce-editor-container');
@@ -416,6 +418,12 @@
     const removeFileBtn = document.getElementById('remove-file');
 
     let quillEditor = null;
+
+    // Debug: Log initial textarea content
+    console.log('Document form initializing...');
+    console.log('Body textarea found:', bodyTextarea ? 'yes' : 'no');
+    console.log('Body textarea value length:', bodyTextarea ? bodyTextarea.value.length : 0);
+    console.log('Initial content type:', contentTypeSelect ? contentTypeSelect.value : 'unknown');
 
     // Initialize Quill
     function initQuill() {
@@ -863,5 +871,6 @@
             console.error('AI Enhancement Error:', error);
         });
     }
+}); // End DOMContentLoaded
 </script>
 {% endblock %}
