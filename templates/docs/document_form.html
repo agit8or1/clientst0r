@@ -490,22 +490,27 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Track current editor mode to know what to save when switching
+    let currentEditorMode = contentTypeSelect.value;
+
     // Toggle editor based on content type
     function toggleEditor() {
-        const contentType = contentTypeSelect.value;
-        console.log('toggleEditor: Called, content type =', contentType);
+        const newContentType = contentTypeSelect.value;
+        console.log('toggleEditor: Called, switching from', currentEditorMode, 'to', newContentType);
 
-        // IMPORTANT: Sync current editor content to hidden textarea before switching
-        // This preserves content when user switches between HTML/Markdown modes
-        if (quillEditor && quillContainer.style.display !== 'none') {
+        // IMPORTANT: Only save content when LEAVING a mode, not when entering it
+        // Save from current mode before switching to new mode
+        if (currentEditorMode === 'html' && quillEditor) {
             // Switching away from HTML mode - save Quill content
-            console.log('toggleEditor: Saving Quill content to textarea before switch');
+            console.log('toggleEditor: Saving Quill content to textarea before leaving HTML mode');
             bodyTextarea.value = quillEditor.root.innerHTML;
-        } else if (markdownTextarea && markdownContainer.style.display !== 'none') {
+        } else if (currentEditorMode === 'markdown' && markdownTextarea) {
             // Switching away from Markdown mode - save Markdown content
-            console.log('toggleEditor: Saving Markdown content to textarea before switch');
+            console.log('toggleEditor: Saving Markdown content to textarea before leaving Markdown mode');
             bodyTextarea.value = markdownTextarea.value;
         }
+
+        const contentType = newContentType;
 
         if (contentType === 'html') {
             console.log('toggleEditor: Switching to HTML mode');
@@ -556,6 +561,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('quill-editor').style.display = 'none';
             }
         }
+
+        // Update current mode tracker
+        currentEditorMode = contentType;
+        console.log('toggleEditor: Mode switched to', currentEditorMode);
     }
 
     // Initialize on page load
