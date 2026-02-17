@@ -130,6 +130,19 @@ class HuduImportService(BaseImportService):
         """Create Asset from Hudu asset."""
         from assets.models import Asset
 
+        # Get organization for this asset
+        # In multi-org imports, look up by company_id
+        # In single-org imports, use target organization
+        organization = self.organization
+        if not organization and item.get('company_id'):
+            organization = self.get_or_create_organization(
+                source_org_id=item['company_id'],
+                source_org_name=item.get('company_name', f"Company {item['company_id']}")
+            )
+
+        if not organization:
+            raise ValueError(f"Cannot determine organization for asset {item.get('id')}. company_id: {item.get('company_id')}")
+
         # Map Hudu asset layout name to asset type
         layout_name = item.get('asset_layout_name', '').lower()
         asset_type_map = {
@@ -156,7 +169,7 @@ class HuduImportService(BaseImportService):
         field_dict = {f.get('label', '').lower(): f.get('value', '') for f in fields}
 
         return Asset.objects.create(
-            organization=self.organization,
+            organization=organization,
             name=item.get('name', 'Imported Asset'),
             asset_type=asset_type,
             serial_number=field_dict.get('serial number', ''),
@@ -236,8 +249,21 @@ class HuduImportService(BaseImportService):
         """Create Password from Hudu password."""
         from vault.models import Password
 
+        # Get organization for this password
+        # In multi-org imports, look up by company_id
+        # In single-org imports, use target organization
+        organization = self.organization
+        if not organization and item.get('company_id'):
+            organization = self.get_or_create_organization(
+                source_org_id=item['company_id'],
+                source_org_name=item.get('company_name', f"Company {item['company_id']}")
+            )
+
+        if not organization:
+            raise ValueError(f"Cannot determine organization for password {item.get('id')}. company_id: {item.get('company_id')}")
+
         password = Password.objects.create(
-            organization=self.organization,
+            organization=organization,
             title=item.get('name', 'Imported Password'),
             username=item.get('username', ''),
             url=item.get('url', ''),
