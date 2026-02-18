@@ -498,16 +498,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const newContentType = contentTypeSelect.value;
         console.log('toggleEditor: Called, switching from', currentEditorMode, 'to', newContentType);
 
-        // IMPORTANT: Only save content when LEAVING a mode, not when entering it
-        // Save from current mode before switching to new mode
-        if (currentEditorMode === 'html' && quillEditor) {
-            // Switching away from HTML mode - save Quill content
-            console.log('toggleEditor: Saving Quill content to textarea before leaving HTML mode');
-            bodyTextarea.value = quillEditor.root.innerHTML;
-        } else if (currentEditorMode === 'markdown' && markdownTextarea) {
-            // Switching away from Markdown mode - save Markdown content
-            console.log('toggleEditor: Saving Markdown content to textarea before leaving Markdown mode');
-            bodyTextarea.value = markdownTextarea.value;
+        // IMPORTANT: Only save content when ACTUALLY switching modes (not on initial load)
+        // If switching from markdown→markdown or html→html, don't save (would overwrite with empty)
+        if (currentEditorMode !== newContentType) {
+            // Save from current mode before switching to new mode
+            if (currentEditorMode === 'html' && quillEditor) {
+                // Switching away from HTML mode - save Quill content
+                console.log('toggleEditor: Saving Quill content to textarea before leaving HTML mode');
+                bodyTextarea.value = quillEditor.root.innerHTML;
+            } else if (currentEditorMode === 'markdown' && markdownTextarea) {
+                // Switching away from Markdown mode - save Markdown content
+                console.log('toggleEditor: Saving Markdown content to textarea before leaving Markdown mode');
+                bodyTextarea.value = markdownTextarea.value;
+            }
+        } else {
+            console.log('toggleEditor: Not switching modes (', currentEditorMode, '), skipping save');
         }
 
         const contentType = newContentType;
