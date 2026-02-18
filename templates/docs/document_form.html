@@ -478,9 +478,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (bodyTextarea.value) {
             try {
-                const delta = quillEditor.clipboard.convert(bodyTextarea.value);
-                console.log('initQuill: Delta conversion successful, delta ops count:', delta.ops ? delta.ops.length : 0);
-                quillEditor.setContents(delta, 'silent');
+                // Use dangerouslyPasteHTML for reliable HTML loading (better than clipboard.convert)
+                console.log('initQuill: Using dangerouslyPasteHTML to load content...');
+                quillEditor.clipboard.dangerouslyPasteHTML(bodyTextarea.value);
                 console.log('initQuill: Content set successfully, editor length:', quillEditor.getLength());
             } catch (error) {
                 console.error('initQuill: Error loading content:', error);
@@ -529,8 +529,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Reload content from textarea (always, not just when empty)
                 if (bodyTextarea.value) {
                     console.log('toggleEditor: Reloading', bodyTextarea.value.length, 'chars into existing editor');
-                    const delta = quillEditor.clipboard.convert(bodyTextarea.value);
-                    quillEditor.setContents(delta, 'silent');
+                    quillEditor.clipboard.dangerouslyPasteHTML(bodyTextarea.value);
                 } else {
                     console.log('toggleEditor: No content to reload');
                 }
@@ -714,8 +713,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Wait for editor to switch, then set content
                         setTimeout(() => {
                             if (data.content_type === 'html' && quillEditor) {
-                                const delta = quillEditor.clipboard.convert(data.body);
-                                quillEditor.setContents(delta, 'silent');
+                                quillEditor.clipboard.dangerouslyPasteHTML(data.body);
                             } else if (data.content_type === 'markdown' && markdownTextarea) {
                                 markdownTextarea.value = data.body;
                             }
@@ -855,8 +853,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Wait for editor switch, then set content
                     setTimeout(() => {
                         if (resultContentType === 'html' && quillEditor) {
-                            const delta = quillEditor.clipboard.convert(result.content);
-                            quillEditor.setContents(delta, 'silent');
+                            quillEditor.clipboard.dangerouslyPasteHTML(result.content);
                         } else if (resultContentType === 'markdown' && markdownTextarea) {
                             markdownTextarea.value = result.content;
                         }
@@ -864,8 +861,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     // Same content type, update directly
                     if (contentType === 'html' && quillEditor) {
-                        const delta = quillEditor.clipboard.convert(result.content);
-                        quillEditor.setContents(delta, 'silent');
+                        quillEditor.clipboard.dangerouslyPasteHTML(result.content);
                     } else if (contentType === 'markdown' && markdownTextarea) {
                         markdownTextarea.value = result.content;
                     }
