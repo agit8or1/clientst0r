@@ -81,7 +81,7 @@ class BitwardenImporter:
         for folder_data in folders:
             try:
                 folder_id = folder_data.get('id')
-                folder_name = folder_data.get('name', 'Untitled Folder')
+                folder_name = folder_data.get('name') or 'Untitled Folder'
 
                 # Add prefix if specified
                 if self.folder_prefix:
@@ -144,24 +144,25 @@ class BitwardenImporter:
 
     def _import_login_item(self, item_data, update_existing):
         """Import a login item."""
-        name = item_data.get('name', 'Untitled')
+        name = item_data.get('name') or 'Untitled'
         login = item_data.get('login', {})
 
-        username = login.get('username', '')
-        password = login.get('password', '')
-        totp = login.get('totp', '')
+        # Handle null values from Bitwarden export (use 'or' instead of default)
+        username = login.get('username') or ''
+        password = login.get('password') or ''
+        totp = login.get('totp') or ''
 
         # Get first URI if available
         url = ''
         uris = login.get('uris', [])
         if uris and len(uris) > 0:
-            url = uris[0].get('uri', '')
+            url = uris[0].get('uri') or ''
 
         # Get folder
         folder = self._get_folder(item_data.get('folderId'))
 
-        # Get notes
-        notes = item_data.get('notes', '')
+        # Get notes (handle null values from Bitwarden export)
+        notes = item_data.get('notes') or ''
 
         # Check if password exists
         existing = None
@@ -227,8 +228,8 @@ class BitwardenImporter:
 
     def _import_note_item(self, item_data, update_existing):
         """Import a secure note item."""
-        name = item_data.get('name', 'Untitled Note')
-        notes = item_data.get('notes', '')
+        name = item_data.get('name') or 'Untitled Note'
+        notes = item_data.get('notes') or ''
         folder = self._get_folder(item_data.get('folderId'))
 
         # Check if exists
@@ -267,10 +268,10 @@ class BitwardenImporter:
 
     def _import_card_item(self, item_data, update_existing):
         """Import a card item."""
-        name = item_data.get('name', 'Untitled Card')
+        name = item_data.get('name') or 'Untitled Card'
         card = item_data.get('card', {})
         folder = self._get_folder(item_data.get('folderId'))
-        notes = item_data.get('notes', '')
+        notes = item_data.get('notes') or ''
 
         # Build custom fields from card data
         custom_fields = {}
@@ -324,10 +325,10 @@ class BitwardenImporter:
 
     def _import_identity_item(self, item_data, update_existing):
         """Import an identity item."""
-        name = item_data.get('name', 'Untitled Identity')
+        name = item_data.get('name') or 'Untitled Identity'
         identity = item_data.get('identity', {})
         folder = self._get_folder(item_data.get('folderId'))
-        notes = item_data.get('notes', '')
+        notes = item_data.get('notes') or ''
 
         # Build custom fields from identity data
         custom_fields = {}
