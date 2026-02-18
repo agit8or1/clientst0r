@@ -126,7 +126,7 @@ class OrganizationMatcher:
         else:
             new_org = Organization.objects.create(
                 name=source_name,
-                notes=f"Imported from {source_id}" if source_id else "Imported"
+                description=f"Imported from {source_id}" if source_id else "Imported"
             )
             logger.info(f"Created new organization: {new_org.name} (ID: {new_org.id})")
             return new_org, True, None
