@@ -184,14 +184,36 @@ class Password(BaseModel):
     def get_otp_secret(self):
         """
         Decrypt and return OTP secret using TOTP-specific decryption context.
-        Falls back to v1 decryption for legacy secrets.
+        Falls back to v1 decryption for legacy secrets, or returns plaintext if stored unencrypted.
         """
+        import logging
+        logger = logging.getLogger('vault')
+
         if not self.otp_secret:
             return None
-        return decrypt_totp_secret(
-            self.otp_secret,
-            org_id=self.organization_id
-        )
+
+        # Check if it's stored as plaintext (migration case - old imports stored otpauth:// URIs unencrypted)
+        if self.otp_secret.startswith('otpauth://'):
+            logger.warning(f"Password {self.id}: TOTP secret is stored as plaintext otpauth:// URI, re-encrypting...")
+            plaintext_secret = self.otp_secret
+            # Re-encrypt it properly for future use
+            try:
+                self.set_otp_secret(plaintext_secret)
+                self.save(update_fields=['otp_secret'])
+                logger.info(f"Password {self.id}: TOTP secret re-encrypted successfully")
+            except Exception as e:
+                logger.error(f"Password {self.id}: Failed to re-encrypt TOTP secret: {e}")
+            return plaintext_secret  # Return the plaintext URI for parsing
+
+        try:
+            logger.debug(f"Password {self.id}: Attempting TOTP decryption with org_id={self.organization_id}")
+            return decrypt_totp_secret(
+                self.otp_secret,
+                org_id=self.organization_id
+            )
+        except Exception as e:
+            logger.error(f"Password {self.id}: TOTP decryption failed: {e}", exc_info=True)
+            raise
 
     def generate_otp(self):
         """
