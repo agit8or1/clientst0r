@@ -217,17 +217,19 @@ class Password(BaseModel):
             # Handle otpauth:// URI format from Bitwarden
             if secret.startswith('otpauth://'):
                 logger.debug(f"Password {self.id}: TOTP secret is otpauth:// URI, parsing...")
+                logger.debug(f"Password {self.id}: Full URI: {secret[:100]}...")  # Log first 100 chars
                 try:
                     parsed = urllib.parse.urlparse(secret)
                     params = urllib.parse.parse_qs(parsed.query)
+                    logger.debug(f"Password {self.id}: Parsed parameters: {list(params.keys())}")
                     if 'secret' in params:
                         secret = params['secret'][0]
                         logger.info(f"Password {self.id}: Extracted secret from otpauth:// URI")
                     else:
-                        logger.error(f"Password {self.id}: otpauth:// URI missing 'secret' parameter")
+                        logger.error(f"Password {self.id}: otpauth:// URI missing 'secret' parameter. Available params: {list(params.keys())}")
                         return {
                             'error': True,
-                            'message': 'Invalid TOTP URI format (missing secret parameter)'
+                            'message': f'Invalid TOTP URI format (missing secret parameter). Found: {", ".join(params.keys()) if params else "no parameters"}'
                         }
                 except Exception as e:
                     logger.error(f"Password {self.id}: Failed to parse otpauth:// URI: {e}")

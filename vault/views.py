@@ -410,6 +410,10 @@ def generate_otp_api(request, pk):
     try:
         otp_data = password.generate_otp()
         if otp_data:
+            # Check if error dict was returned
+            if otp_data.get('error'):
+                return JsonResponse({'error': otp_data.get('message', 'Failed to generate OTP code')}, status=400)
+
             # Log TOTP generation for audit
             AuditLog.objects.create(
                 organization=org,
