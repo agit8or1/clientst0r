@@ -65,13 +65,14 @@ Complete feature documentation for Client St0r - Self-hosted IT documentation pl
   - Auto-installation during updates
   - Sudoers configuration for web management
 
-## 🏢 Multi-Tenancy & RBAC
+## 🏢 Multi-Organization Management & RBAC
 
 ### Organization Management
-- **Complete Data Isolation** - Organization-based data separation
-- **Unlimited Organizations** - Support for multiple tenants
+- **Complete Data Isolation** - Organization-based data separation for managing multiple client organizations
+- **Unlimited Organizations** - MSPs can manage unlimited client organizations
 - **Custom Branding** - Per-organization customization
 - **Flexible Structure** - Hierarchical organization support
+- **Staff Access** - Staff users have global access across all organizations for management
 
 ### Role-Based Access Control (RBAC)
 - **42 Granular Permissions** - Across 10 permission categories

@@ -73,7 +73,7 @@ A complete, self-hosted IT documentation platform designed for Managed Service P
 </td>
 <td width="50%">
 
-### 🏢 Multi-Tenancy & Access
+### 🏢 Multi-Organization & Access
 ![Organizations](docs/screenshots/organizations.png)
 ![Access Management](docs/screenshots/access-management.png)
 
@@ -125,7 +125,7 @@ A complete, self-hosted IT documentation platform designed for Managed Service P
 - [Settings](docs/screenshots/settings-general.png) - General system configuration
 - [System Status](docs/screenshots/system-status.png) - Health monitoring and scheduled tasks
 - [System Updates](docs/screenshots/system-updates.png) - One-click update system
-- [Organizations](docs/screenshots/organizations.png) - Multi-tenant organization management
+- [Organizations](docs/screenshots/organizations.png) - Multi-organization management for MSPs
 - [Access Management](docs/screenshots/access-management.png) - User and role management
 - [Integrations](docs/screenshots/integrations.png) - PSA and external integrations
 - [Import Data](docs/screenshots/import-data.png) - Bulk data import tools
@@ -153,10 +153,10 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 - **Rate Limiting**, CSRF, XSS, SQL injection, SSRF, path traversal protection
 - **Encrypted Backups** with automatic retention policies
 
-### 🏢 Multi-Tenancy & Access Control
-- **Complete Organization Isolation** with 42 granular permissions
+### 🏢 Multi-Organization Management & Access Control
+- **Complete Organization Isolation** - Manage multiple client organizations with data separation and 42 granular permissions
 - **Four-Tier Access Levels** - Owner, Admin, Editor, Read-Only
-- **MSP User Types** - Staff (global) and Organization (scoped) users
+- **MSP User Types** - Staff users (global access to all organizations) and Organization users (scoped to specific clients)
 
 ### 📦 Core Platform
 - **Auto-Update System** - One-click web updates (20-30 seconds, no SSH)
