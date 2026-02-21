@@ -49,12 +49,32 @@ if [ ! -f "manage.py" ]; then
 fi
 success "Found manage.py"
 
-# Check if venv exists
+# Check if venv exists (try multiple common locations)
 info "Checking for virtual environment..."
-if [ ! -d "venv" ]; then
-    error_exit "venv directory not found. Virtual environment is missing."
+VENV_DIR=""
+if [ -d "venv" ]; then
+    VENV_DIR="venv"
+elif [ -d "ENV" ]; then
+    VENV_DIR="ENV"
+elif [ -d "env" ]; then
+    VENV_DIR="env"
+elif [ -d ".venv" ]; then
+    VENV_DIR=".venv"
+else
+    # Try to find it in parent or common locations
+    if [ -d "../venv" ]; then
+        VENV_DIR="../venv"
+    elif [ -d "/home/administrator/venv" ]; then
+        VENV_DIR="/home/administrator/venv"
+    elif [ -d "$HOME/venv" ]; then
+        VENV_DIR="$HOME/venv"
+    fi
 fi
-success "Found venv/"
+
+if [ -z "$VENV_DIR" ]; then
+    error_exit "Virtual environment not found. Checked: venv, ENV, env, .venv, ../venv, /home/administrator/venv"
+fi
+success "Found virtual environment at: $VENV_DIR"
 
 # Check if this is a git repository
 info "Checking git repository..."
@@ -82,7 +102,7 @@ fi
 info "Checking virtual environment activation..."
 if [ -z "$VIRTUAL_ENV" ]; then
     warning "Virtual environment not activated. Activating now..."
-    source venv/bin/activate || error_exit "Failed to activate virtual environment"
+    source "$VENV_DIR/bin/activate" || error_exit "Failed to activate virtual environment"
     success "Virtual environment activated"
 else
     success "Virtual environment already active"
