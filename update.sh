@@ -1,6 +1,6 @@
 #!/bin/bash
 #################################################
-# HuduGlue Update Script
+# Client St0r Update Script
 # Safely updates the application from GitHub
 #################################################
 
@@ -14,7 +14,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}HuduGlue Update Script${NC}"
+echo -e "${BLUE}Client St0r Update Script${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
@@ -246,7 +246,7 @@ mkdir -p "$INSTALL_DIR/deploy"
 
 # Generate clientst0r-install-sudoers
 cat > "$INSTALL_DIR/deploy/clientst0r-install-sudoers" <<SUDOEOF
-# Sudoers configuration for HuduGlue automatic fail2ban installation
+# Sudoers configuration for Client St0r automatic fail2ban installation
 # Install: sudo cp $INSTALL_DIR/deploy/clientst0r-install-sudoers /etc/sudoers.d/clientst0r-install
 # Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-install
 
@@ -262,7 +262,7 @@ SUDOEOF
 
 # Generate clientst0r-fail2ban-sudoers
 cat > "$INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers" <<FBSUDOEOF
-# Sudoers configuration for HuduGlue fail2ban integration
+# Sudoers configuration for Client St0r fail2ban integration
 # Install: sudo cp $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
 # Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
 
@@ -307,7 +307,7 @@ if [ "$INSTALL_SUDOERS" = true ] || [ "$FB_SUDOERS" = true ]; then
     info "Installing sudoers files (requires sudo access)..."
     echo ""
     warning "NOTE: You may be prompted for your sudo password to install sudoers files."
-    info "These files enable passwordless sudo for specific HuduGlue operations."
+    info "These files enable passwordless sudo for specific Client St0r operations."
     echo ""
 
     INSTALL_SUCCESS=true
@@ -422,7 +422,7 @@ echo ""
 # Show current version if available
 if [ -f "config/version.py" ]; then
     info "Current version:"
-    python -c "from config.version import get_version; print(f'  HuduGlue v{get_version()}')" 2>/dev/null || true
+    python -c "from config.version import get_version; print(f'  Client St0r v{get_version()}')" 2>/dev/null || true
 fi
 
 echo ""
