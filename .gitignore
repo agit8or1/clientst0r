@@ -159,7 +159,6 @@ ssh_config
 scripts/generate_screenshots.py
 scripts/screenshot_selector.py
 take_screenshots.sh
-screenshots/
 screenshots_selected/
 core/management/commands/create_test_data.py
 snap/
