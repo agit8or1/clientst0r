@@ -57,4 +57,10 @@ urlpatterns = [
     # Port Configuration API
     path('api/port-configs/<int:pk>/ports/', port_config_views.port_config_api_ports, name='port_config_api_ports'),
     path('api/equipment-model/<int:pk>/image/', port_config_views.equipment_model_image_api, name='equipment_model_image_api'),
+
+    # Network Scan Import
+    path('network-scan/', views.network_scan_import, name='network_scan_import'),
+    path('network-scan/upload/', views.network_scan_upload, name='network_scan_upload'),
+    path('network-scan/preview/', views.network_scan_preview, name='network_scan_preview'),
+    path('network-scan/apply/', views.network_scan_apply, name='network_scan_apply'),
 ]

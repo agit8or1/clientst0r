@@ -608,3 +608,313 @@ def equipment_model_edit(request, pk):
         'model': model,
         'action': 'Edit',
     })
+
+# ============================================================================
+# Network Scan Import
+# ============================================================================
+
+@login_required
+@require_organization_context
+def network_scan_import(request):
+    """
+    Upload and preview network scan results.
+    """
+    org = get_request_organization(request)
+
+    return render(request, 'assets/network_scan_import.html', {
+        'org': org,
+    })
+
+
+@login_required
+@require_organization_context
+def network_scan_upload(request):
+    """
+    Handle network scan file upload and show preview.
+    """
+    import json
+    from django.http import JsonResponse
+
+    org = get_request_organization(request)
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    if 'scan_file' not in request.FILES:
+        return JsonResponse({'error': 'No file uploaded'}, status=400)
+
+    scan_file = request.FILES['scan_file']
+
+    try:
+        # Parse JSON
+        scan_data = json.load(scan_file)
+
+        if 'devices' not in scan_data:
+            return JsonResponse({'error': 'Invalid scan file format'}, status=400)
+
+        devices = scan_data['devices']
+
+        # Match devices against existing assets
+        matched_devices = []
+        for device in devices:
+            match_info = match_device_to_asset(device, org)
+            matched_devices.append({
+                'device': device,
+                'match': match_info,
+            })
+
+        # Store in session for confirmation
+        request.session['pending_scan_import'] = {
+            'scan_date': scan_data.get('scan_date'),
+            'device_count': len(devices),
+            'devices': matched_devices,
+        }
+
+        return JsonResponse({
+            'success': True,
+            'redirect': '/assets/network-scan/preview/'
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON file'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_organization_context
+def network_scan_preview(request):
+    """
+    Preview network scan import before applying.
+    """
+    org = get_request_organization(request)
+
+    scan_import = request.session.get('pending_scan_import')
+    if not scan_import:
+        messages.error(request, "No pending scan import found.")
+        return redirect('assets:network_scan_import')
+
+    # Categorize devices
+    new_devices = []
+    update_devices = []
+    duplicate_devices = []
+
+    for item in scan_import['devices']:
+        match = item['match']
+        if match['status'] == 'new':
+            new_devices.append(item)
+        elif match['status'] == 'update':
+            update_devices.append(item)
+        elif match['status'] == 'duplicate':
+            duplicate_devices.append(item)
+
+    return render(request, 'assets/network_scan_preview.html', {
+        'org': org,
+        'scan_import': scan_import,
+        'new_devices': new_devices,
+        'update_devices': update_devices,
+        'duplicate_devices': duplicate_devices,
+    })
+
+
+@login_required
+@require_organization_context
+@require_write
+def network_scan_apply(request):
+    """
+    Apply network scan import after user confirmation.
+    """
+    from django.db import transaction
+
+    org = get_request_organization(request)
+
+    if request.method != 'POST':
+        return redirect('assets:network_scan_preview')
+
+    scan_import = request.session.get('pending_scan_import')
+    if not scan_import:
+        messages.error(request, "No pending scan import found.")
+        return redirect('assets:network_scan_import')
+
+    # Get user selections
+    selected_new = request.POST.getlist('create_new')
+    selected_updates = request.POST.getlist('update_existing')
+
+    created_count = 0
+    updated_count = 0
+    skipped_count = 0
+
+    try:
+        with transaction.atomic():
+            for item in scan_import['devices']:
+                device = item['device']
+                match = item['match']
+
+                # Create new asset
+                if match['status'] == 'new' and device['mac_address'] in selected_new:
+                    create_asset_from_scan(device, org)
+                    created_count += 1
+
+                # Update existing asset
+                elif match['status'] == 'update' and device['mac_address'] in selected_updates:
+                    update_asset_from_scan(device, match['asset'], org)
+                    updated_count += 1
+
+                else:
+                    skipped_count += 1
+
+        # Clear session
+        del request.session['pending_scan_import']
+
+        messages.success(
+            request,
+            f"Network scan import complete! Created: {created_count}, Updated: {updated_count}, Skipped: {skipped_count}"
+        )
+
+        return redirect('assets:asset_list')
+
+    except Exception as e:
+        messages.error(request, f"Import failed: {str(e)}")
+        return redirect('assets:network_scan_preview')
+
+
+def match_device_to_asset(device, org):
+    """
+    Match scanned device to existing asset.
+
+    Returns:
+        dict with keys: status, asset, match_reason
+        status: 'new', 'update', 'duplicate'
+    """
+    mac = device.get('mac_address', '').upper()
+    ip = device.get('ip')
+
+    # Try matching by MAC address (most reliable)
+    if mac:
+        existing = Asset.objects.filter(
+            organization=org,
+            mac_address__iexact=mac
+        ).first()
+
+        if existing:
+            return {
+                'status': 'update',
+                'asset': {
+                    'id': existing.id,
+                    'name': existing.name,
+                    'asset_type': existing.asset_type,
+                    'mac_address': existing.mac_address,
+                    'ip_address': str(existing.ip_address) if existing.ip_address else None,
+                },
+                'match_reason': 'MAC address match',
+            }
+
+    # Try matching by IP address (less reliable)
+    if ip:
+        existing = Asset.objects.filter(
+            organization=org,
+            ip_address=ip
+        ).first()
+
+        if existing:
+            # Check if MAC is different (possible duplicate/IP reassignment)
+            if mac and existing.mac_address and existing.mac_address.upper() != mac:
+                return {
+                    'status': 'duplicate',
+                    'asset': {
+                        'id': existing.id,
+                        'name': existing.name,
+                        'asset_type': existing.asset_type,
+                        'mac_address': existing.mac_address,
+                        'ip_address': str(existing.ip_address) if existing.ip_address else None,
+                    },
+                    'match_reason': 'IP address match but different MAC (possible reassignment)',
+                }
+
+            return {
+                'status': 'update',
+                'asset': {
+                    'id': existing.id,
+                    'name': existing.name,
+                    'asset_type': existing.asset_type,
+                    'mac_address': existing.mac_address,
+                    'ip_address': str(existing.ip_address) if existing.ip_address else None,
+                },
+                'match_reason': 'IP address match',
+            }
+
+    # No match - new device
+    return {
+        'status': 'new',
+        'asset': None,
+        'match_reason': 'No existing asset found',
+    }
+
+
+def create_asset_from_scan(device, org):
+    """Create new asset from scanned device data."""
+    # Generate name
+    hostname = device.get('hostname') or device['ip'].replace('.', '-')
+    name = hostname if hostname else f"Device-{device['ip']}"
+
+    # Create asset
+    asset = Asset.objects.create(
+        organization=org,
+        name=name,
+        asset_type=device.get('device_type', 'other'),
+        manufacturer=device.get('vendor', ''),
+        hostname=device.get('hostname', ''),
+        ip_address=device.get('ip'),
+        mac_address=device.get('mac_address', '').upper(),
+        port_count=len(device.get('ports', [])),
+        custom_fields={
+            'discovered_os': device.get('os', ''),
+            'discovery_date': device.get('last_seen'),
+            'open_ports': [f"{p['port']}/{p['protocol']}" for p in device.get('ports', [])],
+            'discovery_method': 'network_scan',
+        },
+        notes=f"Auto-discovered via network scan on {device.get('last_seen', 'unknown date')}\n\n"
+              f"OS: {device.get('os', 'Unknown')}\n"
+              f"Open ports: {', '.join([str(p['port']) for p in device.get('ports', [])])}"
+    )
+
+    return asset
+
+
+def update_asset_from_scan(device, existing_asset_data, org):
+    """Update existing asset with scanned device data."""
+    asset = Asset.objects.get(id=existing_asset_data['id'], organization=org)
+
+    # Update fields
+    if device.get('ip'):
+        asset.ip_address = device['ip']
+
+    if device.get('mac_address'):
+        asset.mac_address = device['mac_address'].upper()
+
+    if device.get('hostname') and not asset.hostname:
+        asset.hostname = device['hostname']
+
+    if device.get('vendor') and not asset.manufacturer:
+        asset.manufacturer = device['vendor']
+
+    # Update port count
+    if device.get('ports'):
+        asset.port_count = len(device['ports'])
+
+    # Update custom fields
+    if not asset.custom_fields:
+        asset.custom_fields = {}
+
+    asset.custom_fields['last_scanned'] = device.get('last_seen')
+    asset.custom_fields['discovered_os'] = device.get('os', '')
+    asset.custom_fields['open_ports'] = [f"{p['port']}/{p['protocol']}" for p in device.get('ports', [])]
+
+    # Append to notes
+    asset.notes += f"\n\nUpdated from network scan on {device.get('last_seen', 'unknown date')}\n"
+    asset.notes += f"OS: {device.get('os', 'Unknown')}\n"
+    asset.notes += f"Open ports: {', '.join([str(p['port']) for p in device.get('ports', [])])}\n"
+
+    asset.save()
+
+    return asset

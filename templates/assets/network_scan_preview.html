@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Preview Network Scan Import - Client St0r{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-eye"></i> Preview Network Scan Import</h2>
+        <div>
+            <a href="{% url 'assets:network_scan_import' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Card -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h3 class="text-primary">{{ scan_import.device_count }}</h3>
+                        <p class="text-muted mb-0">Total Devices Scanned</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h3 class="text-success">{{ new_devices|length }}</h3>
+                        <p class="text-muted mb-0">New Devices</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h3 class="text-warning">{{ update_devices|length }}</h3>
+                        <p class="text-muted mb-0">Updates</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h3 class="text-danger">{{ duplicate_devices|length }}</h3>
+                        <p class="text-muted mb-0">Potential Duplicates</p>
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <p class="text-muted mb-0">
+                <i class="fas fa-clock"></i> Scan Date: {{ scan_import.scan_date }}
+            </p>
+        </div>
+    </div>
+
+    <form method="post" action="{% url 'assets:network_scan_apply' %}">
+        {% csrf_token %}
+
+        <!-- New Devices -->
+        {% if new_devices %}
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-plus-circle"></i> New Devices ({{ new_devices|length }})</h5>
+                <button type="button" class="btn btn-sm btn-light" onclick="toggleAll('new', true)">
+                    <i class="fas fa-check-square"></i> Select All
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th width="50">Import</th>
+                                <th>IP Address</th>
+                                <th>Hostname</th>
+                                <th>MAC Address</th>
+                                <th>Type</th>
+                                <th>Vendor</th>
+                                <th>Open Ports</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in new_devices %}
+                            <tr>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input new-device-checkbox" name="create_new" value="{{ item.device.mac_address }}" checked>
+                                </td>
+                                <td><code>{{ item.device.ip }}</code></td>
+                                <td>{{ item.device.hostname|default:"<em>No hostname</em>" }}</td>
+                                <td><code>{{ item.device.mac_address|default:"<em>Unknown</em>" }}</code></td>
+                                <td>
+                                    <span class="badge bg-primary">{{ item.device.device_type }}</span>
+                                </td>
+                                <td>{{ item.device.vendor|default:"<em>Unknown</em>" }}</td>
+                                <td>
+                                    <small>
+                                        {% for port in item.device.ports|slice:":5" %}
+                                            <span class="badge bg-secondary">{{ port.port }}</span>
+                                        {% endfor %}
+                                        {% if item.device.ports|length > 5 %}
+                                            <span class="text-muted">+{{ item.device.ports|length|add:"-5" }} more</span>
+                                        {% endif %}
+                                    </small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Update Existing -->
+        {% if update_devices %}
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-sync-alt"></i> Update Existing Assets ({{ update_devices|length }})</h5>
+                <button type="button" class="btn btn-sm btn-dark" onclick="toggleAll('update', true)">
+                    <i class="fas fa-check-square"></i> Select All
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th width="50">Update</th>
+                                <th>Scanned IP</th>
+                                <th>Scanned MAC</th>
+                                <th>Existing Asset</th>
+                                <th>Current IP</th>
+                                <th>Current MAC</th>
+                                <th>Match Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in update_devices %}
+                            <tr>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input update-device-checkbox" name="update_existing" value="{{ item.device.mac_address }}" checked>
+                                </td>
+                                <td><code>{{ item.device.ip }}</code></td>
+                                <td><code>{{ item.device.mac_address }}</code></td>
+                                <td>
+                                    <a href="{% url 'assets:asset_detail' item.match.asset.id %}" target="_blank">
+                                        {{ item.match.asset.name }}
+                                    </a>
+                                    <br><small class="text-muted">{{ item.match.asset.asset_type }}</small>
+                                </td>
+                                <td><code>{{ item.match.asset.ip_address|default:"<em>None</em>" }}</code></td>
+                                <td><code>{{ item.match.asset.mac_address|default:"<em>None</em>" }}</code></td>
+                                <td><small class="text-muted">{{ item.match.match_reason }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Duplicates / Conflicts -->
+        {% if duplicate_devices %}
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Potential Duplicates ({{ duplicate_devices|length }})</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="alert alert-warning m-3">
+                    <i class="fas fa-info-circle"></i> These devices matched by IP address but have different MAC addresses. This could indicate IP reassignment or DHCP changes. Review carefully before importing.
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Scanned IP</th>
+                                <th>Scanned MAC</th>
+                                <th>Existing Asset</th>
+                                <th>Existing MAC</th>
+                                <th>Issue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in duplicate_devices %}
+                            <tr class="table-danger">
+                                <td><code>{{ item.device.ip }}</code></td>
+                                <td><code>{{ item.device.mac_address }}</code></td>
+                                <td>
+                                    <a href="{% url 'assets:asset_detail' item.match.asset.id %}" target="_blank">
+                                        {{ item.match.asset.name }}
+                                    </a>
+                                </td>
+                                <td><code>{{ item.match.asset.mac_address }}</code></td>
+                                <td><small>{{ item.match.match_reason }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <small class="text-muted">
+                        <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> Review these manually and update the existing assets if needed. These devices will be skipped during import.
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="mb-0 text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            Review the selections above. Only checked items will be imported.
+                        </p>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-check"></i> Confirm & Import
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleAll(type, checked) {
+    const checkboxes = document.querySelectorAll(`.${type}-device-checkbox`);
+    checkboxes.forEach(cb => cb.checked = checked);
+}
+</script>
+{% endblock %}
