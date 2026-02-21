@@ -401,13 +401,20 @@ class RackDevice(BaseModel):
     """
     Device mounted in a rack.
     Tracks position, size, power draw, and links to assets.
+    Supports both vertical rack mounting (U positions) and horizontal board mounting (X/Y positions).
     """
     rack = models.ForeignKey(Rack, on_delete=models.CASCADE, related_name='rack_devices')
     name = models.CharField(max_length=255)
 
-    # Position in rack (1U = bottom)
+    # Position in rack (1U = bottom) - for vertical racks
     start_unit = models.PositiveIntegerField(help_text="Starting U position (1 = bottom)")
     units = models.PositiveIntegerField(default=1, help_text="Height in U")
+
+    # Position on board (X/Y coordinates) - for wall-mounted/board layouts
+    board_position_x = models.PositiveIntegerField(null=True, blank=True, help_text="X position on board (pixels)")
+    board_position_y = models.PositiveIntegerField(null=True, blank=True, help_text="Y position on board (pixels)")
+    board_width = models.PositiveIntegerField(null=True, blank=True, help_text="Width on board (pixels)")
+    board_height = models.PositiveIntegerField(null=True, blank=True, help_text="Height on board (pixels)")
 
     # Power draw
     power_draw_watts = models.PositiveIntegerField(null=True, blank=True)
@@ -676,6 +683,12 @@ class RackResource(BaseModel):
 
     # Optional rack mount position
     rack_position = models.PositiveIntegerField(null=True, blank=True, help_text="U position if rack-mounted")
+
+    # Position on board (X/Y coordinates) - for wall-mounted/board layouts
+    board_position_x = models.PositiveIntegerField(null=True, blank=True, help_text="X position on board (pixels)")
+    board_position_y = models.PositiveIntegerField(null=True, blank=True, help_text="Y position on board (pixels)")
+    board_width = models.PositiveIntegerField(null=True, blank=True, help_text="Width on board (pixels)")
+    board_height = models.PositiveIntegerField(null=True, blank=True, help_text="Height on board (pixels)")
 
     # Management
     ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="Management IP")

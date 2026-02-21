@@ -563,3 +563,128 @@ def rack_resources_list(request, pk):
         'success': True,
         'resources': resources_data
     })
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_device_board_position(request, pk):
+    """
+    POST /api/rack-devices/<id>/update-board-position/
+    Update device position on wall-mounted board.
+    Request body: {"x": 100, "y": 200, "width": 300, "height": 150}
+    """
+    org = get_request_organization(request)
+    device = get_object_or_404(RackDevice, pk=pk, rack__organization=org)
+
+    try:
+        data = json.loads(request.body)
+        x = int(data.get('x', device.board_position_x or 0))
+        y = int(data.get('y', device.board_position_y or 0))
+        width = int(data.get('width', device.board_width or 100))
+        height = int(data.get('height', device.board_height or 100))
+
+        # Validate positions are non-negative
+        if x < 0 or y < 0 or width < 1 or height < 1:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid position or dimensions'
+            }, status=400)
+
+        # Update device
+        with transaction.atomic():
+            device.board_position_x = x
+            device.board_position_y = y
+            device.board_width = width
+            device.board_height = height
+            device.save()
+
+        return JsonResponse({
+            'success': True,
+            'device': {
+                'id': device.id,
+                'name': device.name,
+                'x': device.board_position_x,
+                'y': device.board_position_y,
+                'width': device.board_width,
+                'height': device.board_height,
+            }
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON in request body'
+        }, status=400)
+    except ValueError as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Invalid value: {str(e)}'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_resource_board_position(request, pk):
+    """
+    POST /api/rack-resources/<id>/update-board-position/
+    Update resource position on wall-mounted board.
+    Request body: {"x": 100, "y": 200, "width": 300, "height": 150}
+    """
+    org = get_request_organization(request)
+    resource = get_object_or_404(RackResource, pk=pk, rack__organization=org)
+
+    try:
+        data = json.loads(request.body)
+        x = int(data.get('x', resource.board_position_x or 0))
+        y = int(data.get('y', resource.board_position_y or 0))
+        width = int(data.get('width', resource.board_width or 100))
+        height = int(data.get('height', resource.board_height or 100))
+
+        # Validate positions
+        if x < 0 or y < 0 or width < 1 or height < 1:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid position or dimensions'
+            }, status=400)
+
+        # Update resource
+        with transaction.atomic():
+            resource.board_position_x = x
+            resource.board_position_y = y
+            resource.board_width = width
+            resource.board_height = height
+            resource.save()
+
+        return JsonResponse({
+            'success': True,
+            'resource': {
+                'id': resource.id,
+                'name': resource.name,
+                'resource_type': resource.resource_type,
+                'x': resource.board_position_x,
+                'y': resource.board_position_y,
+                'width': resource.board_width,
+                'height': resource.board_height,
+            }
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON in request body'
+        }, status=400)
+    except ValueError as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Invalid value: {str(e)}'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)
