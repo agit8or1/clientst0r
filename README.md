@@ -1,6 +1,6 @@
 # Client St0r
 
-[![Version 2.76.2](https://img.shields.io/badge/version-2.76.2-brightgreen)](https://github.com/agit8or1/clientst0r)
+[![Version 3.8.0](https://img.shields.io/badge/version-3.8.0-brightgreen)](https://github.com/agit8or1/clientst0r)
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](https://github.com/agit8or1/clientst0r)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Django 6.0](https://img.shields.io/badge/django-6.0-blue)](https://www.djangoproject.com/)
@@ -160,14 +160,19 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 
 ### 📦 Core Platform
 - **Auto-Update System** - One-click web updates (20-30 seconds, no SSH)
-- **Asset Management** - Comprehensive tracking with NetBox-style rack visualization
+- **Asset Management** - Comprehensive tracking with interactive rack/board visualization
+- **Network Scanner** - Automated network discovery with nmap, smart asset import, duplicate prevention
+- **Interactive Racks** - Drag-and-drop device positioning, realistic equipment visuals, zoom controls
+- **Wall-Mounted Boards** - 2D canvas layout for wall/ceiling equipment, snap-to-grid, free-form positioning
+- **Patch Panels** - Click-to-connect port management, visual cable paths, color-coded connections
+- **Equipment Visuals** - Type-specific indicators (LEDs, ports, drive bays), equipment model images
 - **Password Vault** - AES-GCM encrypted with breach detection, personal vaults, and Bitwarden import
 - **Bitwarden Import** - Import passwords from Bitwarden/Vaultwarden JSON exports (logins, notes, cards, identities, folders, custom fields, TOTP)
 - **SMS/Navigation** - Send location navigation links via SMS (Twilio, Plivo, Vonage, Telnyx, AWS SNS)
 - **Documentation** - Per-org docs with version control, templates, and global MSP knowledge base
 - **Diagrams & Floor Plans** - Draw.io integration, MagicPlan import, auto-generated flowcharts
-- **Infrastructure** - IPAM, rack visualization, network documentation, cable/power management
-- **Monitoring** - Website uptime, SSL certificates, domain expiration, custom alerts
+- **Infrastructure** - IPAM with subnet management, VLAN tracking, network closets, cable documentation
+- **Monitoring** - Website uptime, SSL certificates, domain expiration, custom alerts, WAN monitoring
 - **Workflows** - Process automation with audit logging, PSA integration, execution tracking
 - **Firewall Management** - iptables firewall rules, GeoIP country blocking, IP whitelist/blacklist
 - **Intrusion Prevention** - Fail2ban integration with ban management and IP checking
@@ -189,29 +194,71 @@ This project was developed with the assistance of **Luna**, a brilliant German S
 
 ## 🆕 What's New
 
-### Latest Release - v2.76.2 (February 2026)
+### Latest Release - v3.8.0 (February 2026)
 
-**🎉 New in v2.76:**
-- **Asset Lifespan Tracking** - Track purchase dates, expected lifespan (years), and receive reminders before assets reach end-of-life
-- **Reports & Analytics Toggle** - Enable/disable Reports feature per organization via Feature Toggles
-- **Progressive Web App** - Install Client St0r on mobile devices with offline support and push notifications
-- **Global View Asset Editing** - Edit assets from any organization while in global view mode
+**🎉 Major Features in v3.8:**
+- **🔍 Network Scanner & Asset Discovery** - Automated network scanning using nmap with intelligent device detection and smart import system
+- **🎨 Interactive Rack/Board Visualization** - Wall-mounted board layout with drag-and-drop, realistic device visuals, and snap-to-grid
+- **📡 Patch Panel Management** - Interactive port management with click-to-connect, visual cable tracking, and connection visualization
 
-**Recent Highlights (v2.27):**
-- **Bitwarden/Vaultwarden Import** - Import passwords from Bitwarden/Vaultwarden JSON exports with full support for all item types (logins, notes, cards, identities), folders, custom fields, and TOTP secrets
-- **SMS/Navigation Links** - Send location navigation links via SMS using Twilio, Plivo, Vonage, Telnyx, or AWS SNS for Google Maps, Apple Maps, and Waze
-- **Firewall & GeoIP** - iptables-based firewall management with country blocking capabilities
-- **Fail2ban Integration** - Automated intrusion prevention with ban/unban management
+#### Network Scanner & Asset Discovery (v3.8.0)
+Scan your network to automatically discover and import devices into your asset inventory:
+- **Automated Discovery**: Uses nmap to scan network ranges (CIDR, IP ranges, single IPs)
+- **Intelligent Matching**: Matches devices by MAC address (primary) or IP address (secondary)
+- **Smart Import**: Preview what will be created/updated, select devices to import, avoid duplicates
+- **Device Detection**: Auto-identifies servers, switches, routers, printers, cameras, phones, APs
+- **Rich Metadata**: Captures IP, MAC, hostname, OS, open ports, services, vendor info
+- **Conflict Resolution**: Flags potential duplicates for manual review
+- **Selective Import**: Checkbox selection for each discovered device
+- **Update Existing**: Updates existing assets with latest network data without creating duplicates
 
-**Additional Recent Features:**
-- **User-Configurable Tooltips** - Per-user tooltip preferences with helpful hints throughout the interface
-- **RMM Device Location Mapping** - Display devices with location data on interactive map with status-based markers
-- **Workflow Automation** - One-click launch with automatic assignment, complete audit logging, PSA ticket integration
-- **Execution Tracking** - Full history view with filtering, color-coded status badges, progress bars
-- **Auto-Update System** - One-click web updates with real-time progress (20-30 seconds, no SSH required)
-- **Azure AD SSO** - Single sign-on with Microsoft accounts
-- **Organization Auto-Import** - Automatically create organizations from PSA/RMM systems
-- **Security Scanning** - Snyk vulnerability scanning, HaveIBeenPwned password breach detection
+```bash
+# Run scanner
+python3 scripts/network_scanner.py 192.168.1.0/24
+
+# Upload scan file to: Assets → Import Network Scan
+# Review matches, select devices, confirm import
+```
+
+#### Wall-Mounted Board Layout (v3.7.0)
+Transform rack visualization into a 2D board for wall/ceiling mounted equipment:
+- **Dual View Modes**: Toggle between vertical rack view and horizontal board layout
+- **Free-Form Positioning**: Drag devices anywhere on 2D canvas
+- **Snap-to-Grid**: 50px grid overlay with toggle for precise alignment
+- **Drag-to-Resize**: Resize devices visually by dragging corners
+- **Zoom Controls**: Zoom in/out works in both rack and board views
+- **Asset Sidebar**: Drag assets directly from sidebar onto board or rack
+
+#### Realistic Device Visuals (v3.7.0)
+Devices now look like actual equipment with type-specific visual indicators:
+- **Equipment Images**: Display actual product photos from equipment models
+- **Server Visuals**: Drive bays + power/status/activity LEDs
+- **Network Equipment**: Port indicators (24/48 ports) + link status LEDs
+- **Patch Panels**: Port grid layout with visual numbering
+- **UPS/PDU**: Power outlet indicators + dual power LEDs
+- **Wireless APs**: Signal indicator (📡) + status LEDs
+- **Security Cameras**: Recording indicator (📹) + activity LED
+- **Storage Devices**: Drive bay grid + activity LEDs
+- **Auto-Scaling**: Visual indicators scale with device size
+
+#### Interactive Patch Panel Management (v3.6.0)
+Click-to-connect interface for managing patch panel connections:
+- **Click-to-Connect**: Click source port → click destination port to create connection
+- **Visual Connections**: SVG curved lines show cable paths between connected ports
+- **Color-Coded Cables**: Customize cable colors for visual organization
+- **Port Status**: Color-coded ports (available, in-use, reserved)
+- **Connection Details**: Track destination, cable type, notes per port
+- **Drag Assets to Ports**: Drag assets from sidebar directly to ports
+- **Port Grid View**: Visual 24/48 port layouts matching physical panels
+- **Quick Disconnect**: Right-click or button to disconnect ports
+
+**Previous Highlights (v2.76):**
+- **Asset Lifespan Tracking** - Track purchase dates, expected lifespan, and end-of-life reminders
+- **Bitwarden/Vaultwarden Import** - Import passwords with folders, TOTP, custom fields
+- **SMS/Navigation Links** - Send location navigation via SMS (Google Maps, Apple Maps, Waze)
+- **Firewall & GeoIP** - iptables management with country blocking
+- **Fail2ban Integration** - Automated intrusion prevention
+- **Progressive Web App** - Install on mobile devices with offline support
 
 **For complete version history, see [CHANGELOG.md](CHANGELOG.md)**
 
@@ -545,11 +592,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📊 Project Status
 
-- **Version**: 2.25.1
-- **Release Date**: January 2026
+- **Version**: 3.8.0
+- **Release Date**: February 2026
 - **Status**: Production Ready
 - **Maintained**: Yes
-- **Security**: Snyk monitored, HaveIBeenPwned integrated
+- **Security**: Continuous monitoring, automated scanning, HaveIBeenPwned integrated
 
 ## 💬 Support
 
