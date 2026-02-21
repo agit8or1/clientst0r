@@ -6,9 +6,10 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
 from django.db import transaction
+from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from core.middleware import get_request_organization
-from .models import Rack, RackDevice, RackResource
+from .models import Rack, RackDevice, RackResource, RackConnection
 from assets.models import Asset
 import json
 
@@ -708,3 +709,71 @@ def update_resource_board_position(request, pk):
             'success': False,
             'error': f'Server error: {str(e)}'
         }, status=500)
+
+
+@login_required
+def rack_connections_list(request, pk):
+    """
+    GET /api/racks/<id>/connections/
+    Return JSON list of all connections in a rack.
+    """
+    org = get_request_organization(request)
+    rack = get_object_or_404(Rack, pk=pk, organization=org)
+    
+    # Get all connections where either from_device or to_device is in this rack
+    connections = RackConnection.objects.filter(
+        Q(from_device__rack=rack) | Q(to_device__rack=rack)
+    ).select_related('from_device', 'to_device')
+    
+    connections_data = []
+    for conn in connections:
+        connections_data.append({
+            'id': conn.id,
+            'from_device_id': conn.from_device.id,
+            'from_device_name': conn.from_device.name,
+            'from_device_unit': conn.from_device.start_unit,
+            'to_device_id': conn.to_device.id,
+            'to_device_name': conn.to_device.name,
+            'to_device_unit': conn.to_device.start_unit,
+            'connection_type': conn.connection_type,
+            'from_port': conn.from_port,
+            'to_port': conn.to_port,
+            'cable_color': conn.cable_color,
+            'speed': conn.speed,
+        })
+    
+    return JsonResponse({'connections': connections_data})
+
+
+@login_required
+def device_connections_list(request, pk):
+    """
+    GET /api/rack-devices/<id>/connections/
+    Return JSON list of all connections for a specific device.
+    """
+    org = get_request_organization(request)
+    device = get_object_or_404(RackDevice, pk=pk, rack__organization=org)
+    
+    # Get all connections where this device is either from or to
+    connections = RackConnection.objects.filter(
+        Q(from_device=device) | Q(to_device=device)
+    ).select_related('from_device', 'to_device')
+    
+    connections_data = []
+    for conn in connections:
+        connections_data.append({
+            'id': conn.id,
+            'from_device_id': conn.from_device.id,
+            'from_device_name': conn.from_device.name,
+            'to_device_id': conn.to_device.id,
+            'to_device_name': conn.to_device.name,
+            'connection_type': conn.connection_type,
+            'connection_type_display': conn.get_connection_type_display(),
+            'from_port': conn.from_port,
+            'to_port': conn.to_port,
+            'cable_color': conn.cable_color,
+            'speed': conn.speed,
+            'is_from': conn.from_device.id == device.id,
+        })
+    
+    return JsonResponse({'connections': connections_data})

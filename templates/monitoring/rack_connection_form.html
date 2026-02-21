@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Client St0r{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'monitoring:rack_list' %}">Racks</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'monitoring:rack_detail' rack.pk %}">{{ rack.name }}</a></li>
+        <li class="breadcrumb-item active">{{ title }}</li>
+    </ol>
+</nav>
+
+<h2><i class="fas fa-link"></i> {{ title }}</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">From Device *</label>
+                        {{ form.from_device }}
+                        {% if form.from_device.errors %}
+                        <div class="invalid-feedback d-block">{{ form.from_device.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">From Port</label>
+                        {{ form.from_port }}
+                        <small class="form-text text-muted">e.g., eth0, port 24, Gi1/0/1</small>
+                        {% if form.from_port.errors %}
+                        <div class="invalid-feedback d-block">{{ form.from_port.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Connection Type *</label>
+                        {{ form.connection_type }}
+                        {% if form.connection_type.errors %}
+                        <div class="invalid-feedback d-block">{{ form.connection_type.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">To Device *</label>
+                        {{ form.to_device }}
+                        {% if form.to_device.errors %}
+                        <div class="invalid-feedback d-block">{{ form.to_device.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">To Port</label>
+                        {{ form.to_port }}
+                        <small class="form-text text-muted">e.g., eth1, port 12, Gi1/0/2</small>
+                        {% if form.to_port.errors %}
+                        <div class="invalid-feedback d-block">{{ form.to_port.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Cable Color</label>
+                            {{ form.cable_color }}
+                            {% if form.cable_color.errors %}
+                            <div class="invalid-feedback d-block">{{ form.cable_color.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Speed</label>
+                            {{ form.speed }}
+                            <small class="form-text text-muted">e.g., 1Gbps, 10Gbps</small>
+                            {% if form.speed.errors %}
+                            <div class="invalid-feedback d-block">{{ form.speed.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> {{ button_text }}
+                </button>
+                <a href="{% url 'monitoring:rack_detail' rack.pk %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

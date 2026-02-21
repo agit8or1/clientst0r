@@ -39,6 +39,11 @@ urlpatterns = [
     path('devices/<int:pk>/edit/', views.rack_device_edit, name='rack_device_edit'),
     path('devices/<int:pk>/delete/', views.rack_device_delete, name='rack_device_delete'),
 
+    # Rack Connections
+    path('devices/<int:device_id>/connections/create/', views.rack_connection_create, name='rack_connection_create'),
+    path('connections/<int:pk>/edit/', views.rack_connection_edit, name='rack_connection_edit'),
+    path('connections/<int:pk>/delete/', views.rack_connection_delete, name='rack_connection_delete'),
+
     # IPAM - Subnets
     path('ipam/', views.subnet_list, name='subnet_list'),
     path('ipam/subnets/create/', views.subnet_create, name='subnet_create'),
@@ -82,6 +87,10 @@ urlpatterns = [
     path('api/rack-resources/<int:pk>/update-board-position/', api_views.update_resource_board_position, name='api_update_resource_board_position'),
     path('api/rack-devices/<int:pk>/', api_views.rack_device_detail, name='api_rack_device_detail'),
     path('api/racks/<int:pk>/devices/create/', api_views.create_rack_device, name='api_create_rack_device'),
+
+    # Rack Connection API endpoints
+    path('api/racks/<int:pk>/connections/', api_views.rack_connections_list, name='api_rack_connections_list'),
+    path('api/rack-devices/<int:pk>/connections/', api_views.device_connections_list, name='api_device_connections_list'),
 
     # Patch Panel Port API endpoints
     path('api/patch-panels/<int:pk>/ports/', api_views.patch_panel_ports_list, name='api_patch_panel_ports_list'),

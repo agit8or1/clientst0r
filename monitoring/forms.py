@@ -2,7 +2,7 @@
 Monitoring forms
 """
 from django import forms
-from .models import WebsiteMonitor, Expiration, Rack, RackDevice, Subnet, IPAddress, VLAN
+from .models import WebsiteMonitor, Expiration, Rack, RackDevice, RackConnection, Subnet, IPAddress, VLAN
 
 
 class WebsiteMonitorForm(forms.ModelForm):
@@ -253,3 +253,43 @@ class IPAddressForm(forms.ModelForm):
             from assets.models import Asset
             self.fields['asset'].queryset = Asset.objects.filter(organization=organization)
             self.fields['asset'].required = False  # IP addresses can be unassigned
+
+
+class RackConnectionForm(forms.ModelForm):
+    """Form for rack device connections (cables/wiring)."""
+
+    class Meta:
+        model = RackConnection
+        fields = [
+            'from_device', 'to_device', 'connection_type',
+            'from_port', 'to_port', 'cable_color', 'speed',
+        ]
+        widgets = {
+            'from_device': forms.Select(attrs={'class': 'form-select'}),
+            'to_device': forms.Select(attrs={'class': 'form-select'}),
+            'connection_type': forms.Select(attrs={'class': 'form-select'}),
+            'from_port': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., eth0, port 24, Gi1/0/1'}),
+            'to_port': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., eth1, port 12, Gi1/0/2'}),
+            'cable_color': forms.TextInput(attrs={'class': 'form-control', 'type': 'color'}),
+            'speed': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., 1Gbps, 10Gbps, 40Gbps'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        rack = kwargs.pop('rack', None)
+        from_device = kwargs.pop('from_device', None)
+        organization = kwargs.pop('organization', None)
+        super().__init__(*args, **kwargs)
+
+        # Filter devices to only show devices in the same rack
+        if rack:
+            self.fields['from_device'].queryset = RackDevice.objects.filter(rack=rack).order_by('start_unit')
+            self.fields['to_device'].queryset = RackDevice.objects.filter(rack=rack).order_by('start_unit')
+        elif organization:
+            self.fields['from_device'].queryset = RackDevice.objects.filter(rack__organization=organization).select_related('rack').order_by('rack__name', 'start_unit')
+            self.fields['to_device'].queryset = RackDevice.objects.filter(rack__organization=organization).select_related('rack').order_by('rack__name', 'start_unit')
+
+        # Pre-select from_device if provided
+        if from_device:
+            self.fields['from_device'].initial = from_device
+            # Exclude from_device from to_device choices (can't connect to itself)
+            self.fields['to_device'].queryset = self.fields['to_device'].queryset.exclude(id=from_device.id)

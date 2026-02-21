@@ -878,3 +878,112 @@ def wan_monitor_list(request):
         'locations': locations,
         'in_global_view': in_global_view,
     })
+
+
+# ============================================================================
+# Rack Connection Management
+# ============================================================================
+
+@login_required
+@require_write
+def rack_connection_create(request, device_id):
+    """Create a new connection from a device."""
+    org = get_request_organization(request)
+    from_device = get_object_or_404(RackDevice, pk=device_id, rack__organization=org)
+    
+    if request.method == 'POST':
+        from .forms import RackConnectionForm
+        form = RackConnectionForm(request.POST, rack=from_device.rack, from_device=from_device, organization=org)
+        if form.is_valid():
+            connection = form.save()
+            messages.success(request, f'Connection created: {connection}')
+            
+            # Return JSON for AJAX requests
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'connection': {
+                        'id': connection.id,
+                        'from_device': connection.from_device.name,
+                        'to_device': connection.to_device.name,
+                        'connection_type': connection.connection_type,
+                        'from_port': connection.from_port,
+                        'to_port': connection.to_port,
+                        'cable_color': connection.cable_color,
+                        'speed': connection.speed,
+                    }
+                })
+            return redirect('monitoring:rack_detail', pk=from_device.rack.pk)
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+    else:
+        from .forms import RackConnectionForm
+        form = RackConnectionForm(rack=from_device.rack, from_device=from_device, organization=org)
+    
+    return render(request, 'monitoring/rack_connection_form.html', {
+        'form': form,
+        'from_device': from_device,
+        'rack': from_device.rack,
+        'title': 'Create Connection',
+        'button_text': 'Create Connection',
+    })
+
+
+@login_required
+@require_write
+def rack_connection_edit(request, pk):
+    """Edit an existing connection."""
+    org = get_request_organization(request)
+    from .models import RackConnection
+    connection = get_object_or_404(RackConnection, pk=pk, from_device__rack__organization=org)
+    
+    if request.method == 'POST':
+        from .forms import RackConnectionForm
+        form = RackConnectionForm(request.POST, instance=connection, rack=connection.from_device.rack, organization=org)
+        if form.is_valid():
+            connection = form.save()
+            messages.success(request, f'Connection updated: {connection}')
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            return redirect('monitoring:rack_detail', pk=connection.from_device.rack.pk)
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+    else:
+        from .forms import RackConnectionForm
+        form = RackConnectionForm(instance=connection, rack=connection.from_device.rack, organization=org)
+    
+    return render(request, 'monitoring/rack_connection_form.html', {
+        'form': form,
+        'connection': connection,
+        'from_device': connection.from_device,
+        'rack': connection.from_device.rack,
+        'title': 'Edit Connection',
+        'button_text': 'Update Connection',
+    })
+
+
+@login_required
+@require_write
+def rack_connection_delete(request, pk):
+    """Delete a connection."""
+    org = get_request_organization(request)
+    from .models import RackConnection
+    connection = get_object_or_404(RackConnection, pk=pk, from_device__rack__organization=org)
+    rack = connection.from_device.rack
+    
+    if request.method == 'POST':
+        connection_str = str(connection)
+        connection.delete()
+        messages.success(request, f'Connection deleted: {connection_str}')
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True})
+        return redirect('monitoring:rack_detail', pk=rack.pk)
+    
+    return render(request, 'monitoring/rack_connection_confirm_delete.html', {
+        'connection': connection,
+        'rack': rack,
+    })
