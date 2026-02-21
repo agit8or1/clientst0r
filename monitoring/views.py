@@ -527,6 +527,16 @@ def subnet_detail(request, pk):
     # Get IP addresses
     ip_addresses = subnet.ip_addresses.all().order_by('ip_address')
 
+    # Calculate IP statistics
+    all_ips = subnet.ip_addresses.all()
+    ip_stats = {
+        'total': all_ips.count(),
+        'available': all_ips.filter(status='available').count(),
+        'assigned': all_ips.filter(status='assigned').count(),
+        'reserved': all_ips.filter(status='reserved').count(),
+        'dhcp': all_ips.filter(status='dhcp').count(),
+    }
+
     # Filter by status
     status_filter = request.GET.get('status')
     if status_filter:
@@ -535,6 +545,7 @@ def subnet_detail(request, pk):
     return render(request, 'monitoring/subnet_detail.html', {
         'subnet': subnet,
         'ip_addresses': ip_addresses,
+        'ip_stats': ip_stats,
         'status_filter': status_filter,
     })
 

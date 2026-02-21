@@ -32,7 +32,7 @@
     <div class="col-md-3">
         <div class="card text-center">
             <div class="card-body">
-                <h3 class="text-primary mb-0">{{ ip_addresses.count }}</h3>
+                <h3 class="text-primary mb-0">{{ ip_stats.total }}</h3>
                 <p class="text-muted small mb-0">Total IPs</p>
             </div>
         </div>
@@ -40,7 +40,7 @@
     <div class="col-md-3">
         <div class="card text-center">
             <div class="card-body">
-                <h3 class="text-success mb-0">{{ ip_addresses|filter_by_status:"available"|length }}</h3>
+                <h3 class="text-success mb-0">{{ ip_stats.available }}</h3>
                 <p class="text-muted small mb-0">Available</p>
             </div>
         </div>
@@ -48,7 +48,7 @@
     <div class="col-md-3">
         <div class="card text-center">
             <div class="card-body">
-                <h3 class="text-info mb-0">{{ ip_addresses|filter_by_status:"assigned"|length }}</h3>
+                <h3 class="text-info mb-0">{{ ip_stats.assigned }}</h3>
                 <p class="text-muted small mb-0">Assigned</p>
             </div>
         </div>
@@ -56,7 +56,7 @@
     <div class="col-md-3">
         <div class="card text-center">
             <div class="card-body">
-                <h3 class="text-warning mb-0">{{ ip_addresses|filter_by_status:"reserved"|length }}</h3>
+                <h3 class="text-warning mb-0">{{ ip_stats.reserved }}</h3>
                 <p class="text-muted small mb-0">Reserved</p>
             </div>
         </div>
@@ -67,8 +67,8 @@
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
             <h5 class="mb-0"><i class="fas fa-info-circle"></i> Subnet Information</h5>
-            {% if subnet.vlan_id %}
-            <span class="badge bg-primary">VLAN {{ subnet.vlan_id }}{% if subnet.vlan_name %} - {{ subnet.vlan_name }}{% endif %}</span>
+            {% if subnet.vlan %}
+            <span class="badge bg-primary">VLAN {{ subnet.vlan.vlan_id }} - {{ subnet.vlan.name }}</span>
             {% endif %}
         </div>
     </div>
