@@ -64,13 +64,15 @@
 
 .rack-device {
     color: white;
-    cursor: move;
+    cursor: pointer;
     user-select: none;
 }
 
 .rack-device:hover {
     opacity: 0.9;
-    box-shadow: 0 0 8px rgba(255,255,255,0.3);
+    box-shadow: 0 0 12px rgba(255,255,255,0.5);
+    transform: scale(1.02);
+    transition: all 0.2s;
 }
 
 .rack-device.draggable .device-name {
@@ -102,6 +104,26 @@
 }
 
 .rack-device:hover .device-resize-handle {
+    opacity: 1;
+}
+
+.device-edit-icon {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 0.7rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+    cursor: pointer;
+    z-index: 10;
+    color: rgba(255,255,255,0.8);
+}
+
+.device-edit-icon:hover {
+    color: white;
+}
+
+.rack-device:hover .device-edit-icon {
     opacity: 1;
 }
 
@@ -846,10 +868,20 @@ function createUnitDiv(unitNumber, device) {
                 <span class="rack-unit-number">${unitNumber}</span>
                 ${visual}
                 <span class="device-name" title="${device.name}">${device.name}</span>
+                <i class="fas fa-edit device-edit-icon" title="Edit device" data-device-id="${device.id}"></i>
                 <div class="device-resize-handle"></div>
             `;
             // Make the start unit draggable
             div.classList.add('draggable');
+
+            // Add click handler for edit icon
+            const editIcon = div.querySelector('.device-edit-icon');
+            if (editIcon) {
+                editIcon.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Prevent drag from starting
+                    window.location.href = `/monitoring/devices/${device.id}/edit/`;
+                });
+            }
         } else {
             div.innerHTML = `<span class="rack-unit-number">${unitNumber}</span>`;
             div.classList.add('device-continuation');
@@ -984,7 +1016,7 @@ function initializeSortable() {
         },
         animation: 200,
         // Removed handle restriction - drag entire device
-        filter: '.device-continuation, .rack-unit-empty',  // Can't drag continuation units or empty spaces
+        filter: '.device-continuation, .rack-unit-empty, .device-edit-icon',  // Can't drag continuation units, empty spaces, or edit icon
         draggable: '.draggable',
         ghostClass: 'sortable-ghost',
         dragClass: 'sortable-drag',
