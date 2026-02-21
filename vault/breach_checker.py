@@ -30,8 +30,11 @@ class PasswordBreachChecker:
         if not getattr(settings, 'HIBP_ENABLED', True):
             return False, 0
 
-        # Generate SHA-1 hash
-        sha1_hash = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
+        # Generate SHA-1 hash (required by HIBP API k-anonymity protocol)
+        # NOTE: SHA1 is NOT used for cryptographic security here, only for HIBP API compatibility
+        # The HIBP API uses SHA1 hashes with k-anonymity (sending only first 5 chars)
+        # Security scanners may flag this, but it's intentional and correct for this use case
+        sha1_hash = hashlib.sha1(password.encode('utf-8'), usedforsecurity=False).hexdigest().upper()
         hash_prefix = sha1_hash[:5]
         hash_suffix = sha1_hash[5:]
 

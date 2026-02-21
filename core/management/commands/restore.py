@@ -126,12 +126,30 @@ class Command(BaseCommand):
         return decrypted_file
 
     def _extract_archive(self, archive_file, temp_dir):
-        """Extract tar/tar.gz archive"""
+        """Extract tar/tar.gz archive with path traversal protection"""
         extract_dir = temp_dir / 'extracted'
         extract_dir.mkdir(exist_ok=True)
 
         with tarfile.open(archive_file, 'r:*') as tar:
-            tar.extractall(extract_dir)
+            # Validate all members before extraction (prevent path traversal)
+            for member in tar.getmembers():
+                # Resolve the member path and ensure it's within extract_dir
+                member_path = (extract_dir / member.name).resolve()
+                if not str(member_path).startswith(str(extract_dir.resolve())):
+                    raise CommandError(
+                        f'Archive member {member.name} attempts path traversal. '
+                        f'This archive may be malicious.'
+                    )
+
+                # Block absolute paths
+                if member.name.startswith('/') or member.name.startswith('..'):
+                    raise CommandError(
+                        f'Archive member {member.name} uses absolute or parent paths. '
+                        f'This archive may be malicious.'
+                    )
+
+            # Safe to extract after validation
+            tar.extractall(extract_dir, filter='data')  # Use data filter (Python 3.12+)
 
         # Find backup directory (should be named 'backup')
         backup_dir = extract_dir / 'backup'

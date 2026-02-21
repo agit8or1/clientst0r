@@ -1,0 +1,1892 @@
+
+
++===========================================================================================================================================================================================+
+
+
+DEPRECATED: this command (`check`) has been DEPRECATED, and will be unsupported beyond 01 June 2024.
+
+
+We highly encourage switching to the new `scan` command which is easier to use, more powerful, and can be set up to mimic the deprecated command if required.
+
+
++===========================================================================================================================================================================================+
+
+
+{
+    "report_meta": {
+        "scan_target": "environment",
+        "scanned": [
+            "/home/administrator/venv/lib/python3.12/site-packages"
+        ],
+        "scanned_full_path": [
+            "/home/administrator/venv/lib/python3.12/site-packages"
+        ],
+        "target_languages": [
+            "python"
+        ],
+        "policy_file": null,
+        "policy_file_source": "local",
+        "audit_and_monitor": false,
+        "api_key": false,
+        "account": "",
+        "local_database_path": null,
+        "safety_version": "3.7.0",
+        "timestamp": "2026-02-21 05:11:53",
+        "packages_found": 120,
+        "vulnerabilities_found": 0,
+        "vulnerabilities_ignored": 0,
+        "remediations_recommended": 0,
+        "telemetry": {
+            "safety_options": {
+                "json": {
+                    "--json": 1
+                }
+            },
+            "safety_version": "3.7.0",
+            "safety_source": "cli",
+            "os_type": "Linux",
+            "os_release": "6.8.0-87-generic",
+            "os_description": "Linux-6.8.0-87-generic-x86_64-with-glibc2.39",
+            "python_version": "3.12.3",
+            "safety_command": "check"
+        },
+        "git": {
+            "branch": "main",
+            "tag": "",
+            "commit": "d64250db88a30e3e81a69f02738a955456eaf54b",
+            "dirty": "True",
+            "origin": "https://github.com/agit8or1/clientst0r.git"
+        },
+        "project": null,
+        "json_version": "1.1",
+        "remediations_attempted": 0,
+        "remediations_completed": 0,
+        "remediation_mode": "NON_INTERACTIVE"
+    },
+    "scanned_packages": {
+        "gunicorn": {
+            "name": "gunicorn",
+            "version": "23.0.0",
+            "requirements": [
+                {
+                    "raw": "gunicorn==23.0.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "gunicorn",
+                    "specifier": "==23.0.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/gunicorn-23.0.0.dist-info"
+                }
+            ]
+        },
+        "safety-schemas": {
+            "name": "safety-schemas",
+            "version": "0.0.16",
+            "requirements": [
+                {
+                    "raw": "safety-schemas==0.0.16",
+                    "extras": [],
+                    "marker": null,
+                    "name": "safety-schemas",
+                    "specifier": "==0.0.16",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/safety_schemas-0.0.16.dist-info"
+                }
+            ]
+        },
+        "wheel": {
+            "name": "wheel",
+            "version": "0.46.3",
+            "requirements": [
+                {
+                    "raw": "wheel==0.46.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "wheel",
+                    "specifier": "==0.46.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/wheel-0.46.3.dist-info"
+                }
+            ]
+        },
+        "graphene-django-optimizer": {
+            "name": "graphene-django-optimizer",
+            "version": "0.10.0",
+            "requirements": [
+                {
+                    "raw": "graphene-django-optimizer==0.10.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "graphene-django-optimizer",
+                    "specifier": "==0.10.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/graphene_django_optimizer-0.10.0.dist-info"
+                }
+            ]
+        },
+        "certifi": {
+            "name": "certifi",
+            "version": "2026.1.4",
+            "requirements": [
+                {
+                    "raw": "certifi==2026.1.4",
+                    "extras": [],
+                    "marker": null,
+                    "name": "certifi",
+                    "specifier": "==2026.1.4",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/certifi-2026.1.4.dist-info"
+                }
+            ]
+        },
+        "setuptools": {
+            "name": "setuptools",
+            "version": "82.0.0",
+            "requirements": [
+                {
+                    "raw": "setuptools==82.0.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "setuptools",
+                    "specifier": "==82.0.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/setuptools-82.0.0.dist-info"
+                }
+            ]
+        },
+        "httpcore": {
+            "name": "httpcore",
+            "version": "1.0.9",
+            "requirements": [
+                {
+                    "raw": "httpcore==1.0.9",
+                    "extras": [],
+                    "marker": null,
+                    "name": "httpcore",
+                    "specifier": "==1.0.9",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/httpcore-1.0.9.dist-info"
+                }
+            ]
+        },
+        "platformdirs": {
+            "name": "platformdirs",
+            "version": "4.5.1",
+            "requirements": [
+                {
+                    "raw": "platformdirs==4.5.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "platformdirs",
+                    "specifier": "==4.5.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/platformdirs-4.5.1.dist-info"
+                }
+            ]
+        },
+        "jiter": {
+            "name": "jiter",
+            "version": "0.12.0",
+            "requirements": [
+                {
+                    "raw": "jiter==0.12.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "jiter",
+                    "specifier": "==0.12.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/jiter-0.12.0.dist-info"
+                }
+            ]
+        },
+        "Django": {
+            "name": "Django",
+            "version": "6.0.2",
+            "requirements": [
+                {
+                    "raw": "Django==6.0.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "Django",
+                    "specifier": "==6.0.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/django-6.0.2.dist-info"
+                }
+            ]
+        },
+        "boolean.py": {
+            "name": "boolean.py",
+            "version": "5.0",
+            "requirements": [
+                {
+                    "raw": "boolean.py==5.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "boolean.py",
+                    "specifier": "==5.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/boolean_py-5.0.dist-info"
+                }
+            ]
+        },
+        "webencodings": {
+            "name": "webencodings",
+            "version": "0.5.1",
+            "requirements": [
+                {
+                    "raw": "webencodings==0.5.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "webencodings",
+                    "specifier": "==0.5.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/webencodings-0.5.1.dist-info"
+                }
+            ]
+        },
+        "anyio": {
+            "name": "anyio",
+            "version": "4.12.1",
+            "requirements": [
+                {
+                    "raw": "anyio==4.12.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "anyio",
+                    "specifier": "==4.12.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/anyio-4.12.1.dist-info"
+                }
+            ]
+        },
+        "asgiref": {
+            "name": "asgiref",
+            "version": "3.11.0",
+            "requirements": [
+                {
+                    "raw": "asgiref==3.11.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "asgiref",
+                    "specifier": "==3.11.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/asgiref-3.11.0.dist-info"
+                }
+            ]
+        },
+        "httpx": {
+            "name": "httpx",
+            "version": "0.28.1",
+            "requirements": [
+                {
+                    "raw": "httpx==0.28.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "httpx",
+                    "specifier": "==0.28.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/httpx-0.28.1.dist-info"
+                }
+            ]
+        },
+        "pycparser": {
+            "name": "pycparser",
+            "version": "2.23",
+            "requirements": [
+                {
+                    "raw": "pycparser==2.23",
+                    "extras": [],
+                    "marker": null,
+                    "name": "pycparser",
+                    "specifier": "==2.23",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pycparser-2.23.dist-info"
+                }
+            ]
+        },
+        "pyotp": {
+            "name": "pyotp",
+            "version": "2.9.0",
+            "requirements": [
+                {
+                    "raw": "pyotp==2.9.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "pyotp",
+                    "specifier": "==2.9.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pyotp-2.9.0.dist-info"
+                }
+            ]
+        },
+        "whitenoise": {
+            "name": "whitenoise",
+            "version": "6.6.0",
+            "requirements": [
+                {
+                    "raw": "whitenoise==6.6.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "whitenoise",
+                    "specifier": "==6.6.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/whitenoise-6.6.0.dist-info"
+                }
+            ]
+        },
+        "pillow": {
+            "name": "pillow",
+            "version": "12.1.1",
+            "requirements": [
+                {
+                    "raw": "pillow==12.1.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "pillow",
+                    "specifier": "==12.1.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pillow-12.1.1.dist-info"
+                }
+            ]
+        },
+        "pytz": {
+            "name": "pytz",
+            "version": "2024.1",
+            "requirements": [
+                {
+                    "raw": "pytz==2024.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "pytz",
+                    "specifier": "==2024.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pytz-2024.1.dist-info"
+                }
+            ]
+        },
+        "django-formtools": {
+            "name": "django-formtools",
+            "version": "2.5.1",
+            "requirements": [
+                {
+                    "raw": "django-formtools==2.5.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "django-formtools",
+                    "specifier": "==2.5.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/django_formtools-2.5.1.dist-info"
+                }
+            ]
+        },
+        "sortedcontainers": {
+            "name": "sortedcontainers",
+            "version": "2.4.0",
+            "requirements": [
+                {
+                    "raw": "sortedcontainers==2.4.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "sortedcontainers",
+                    "specifier": "==2.4.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/sortedcontainers-2.4.0.dist-info"
+                }
+            ]
+        },
+        "django-otp": {
+            "name": "django-otp",
+            "version": "1.7.0",
+            "requirements": [
+                {
+                    "raw": "django-otp==1.7.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "django-otp",
+                    "specifier": "==1.7.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/django_otp-1.7.0.dist-info"
+                }
+            ]
+        },
+        "bleach": {
+            "name": "bleach",
+            "version": "6.1.0",
+            "requirements": [
+                {
+                    "raw": "bleach==6.1.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "bleach",
+                    "specifier": "==6.1.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/bleach-6.1.0.dist-info"
+                }
+            ]
+        },
+        "html5lib": {
+            "name": "html5lib",
+            "version": "1.1",
+            "requirements": [
+                {
+                    "raw": "html5lib==1.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "html5lib",
+                    "specifier": "==1.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/html5lib-1.1.dist-info"
+                }
+            ]
+        },
+        "idna": {
+            "name": "idna",
+            "version": "3.11",
+            "requirements": [
+                {
+                    "raw": "idna==3.11",
+                    "extras": [],
+                    "marker": null,
+                    "name": "idna",
+                    "specifier": "==3.11",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/idna-3.11.dist-info"
+                }
+            ]
+        },
+        "attrs": {
+            "name": "attrs",
+            "version": "25.4.0",
+            "requirements": [
+                {
+                    "raw": "attrs==25.4.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "attrs",
+                    "specifier": "==25.4.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/attrs-25.4.0.dist-info"
+                }
+            ]
+        },
+        "pip_audit": {
+            "name": "pip_audit",
+            "version": "2.7.3",
+            "requirements": [
+                {
+                    "raw": "pip_audit==2.7.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "pip_audit",
+                    "specifier": "==2.7.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pip_audit-2.7.3.dist-info"
+                }
+            ]
+        },
+        "pydantic": {
+            "name": "pydantic",
+            "version": "2.12.5",
+            "requirements": [
+                {
+                    "raw": "pydantic==2.12.5",
+                    "extras": [],
+                    "marker": null,
+                    "name": "pydantic",
+                    "specifier": "==2.12.5",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pydantic-2.12.5.dist-info"
+                }
+            ]
+        },
+        "tqdm": {
+            "name": "tqdm",
+            "version": "4.67.1",
+            "requirements": [
+                {
+                    "raw": "tqdm==4.67.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "tqdm",
+                    "specifier": "==4.67.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/tqdm-4.67.1.dist-info"
+                }
+            ]
+        },
+        "packaging": {
+            "name": "packaging",
+            "version": "24.1",
+            "requirements": [
+                {
+                    "raw": "packaging==24.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "packaging",
+                    "specifier": "==24.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/packaging-24.1.dist-info"
+                }
+            ]
+        },
+        "tenacity": {
+            "name": "tenacity",
+            "version": "9.1.2",
+            "requirements": [
+                {
+                    "raw": "tenacity==9.1.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "tenacity",
+                    "specifier": "==9.1.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/tenacity-9.1.2.dist-info"
+                }
+            ]
+        },
+        "sqlparse": {
+            "name": "sqlparse",
+            "version": "0.5.5",
+            "requirements": [
+                {
+                    "raw": "sqlparse==0.5.5",
+                    "extras": [],
+                    "marker": null,
+                    "name": "sqlparse",
+                    "specifier": "==0.5.5",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/sqlparse-0.5.5.dist-info"
+                }
+            ]
+        },
+        "py-serializable": {
+            "name": "py-serializable",
+            "version": "1.1.2",
+            "requirements": [
+                {
+                    "raw": "py-serializable==1.1.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "py-serializable",
+                    "specifier": "==1.1.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/py_serializable-1.1.2.dist-info"
+                }
+            ]
+        },
+        "requests": {
+            "name": "requests",
+            "version": "2.32.4",
+            "requirements": [
+                {
+                    "raw": "requests==2.32.4",
+                    "extras": [],
+                    "marker": null,
+                    "name": "requests",
+                    "specifier": "==2.32.4",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/requests-2.32.4.dist-info"
+                }
+            ]
+        },
+        "license-expression": {
+            "name": "license-expression",
+            "version": "30.4.4",
+            "requirements": [
+                {
+                    "raw": "license-expression==30.4.4",
+                    "extras": [],
+                    "marker": null,
+                    "name": "license-expression",
+                    "specifier": "==30.4.4",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/license_expression-30.4.4.dist-info"
+                }
+            ]
+        },
+        "charset-normalizer": {
+            "name": "charset-normalizer",
+            "version": "3.4.4",
+            "requirements": [
+                {
+                    "raw": "charset-normalizer==3.4.4",
+                    "extras": [],
+                    "marker": null,
+                    "name": "charset-normalizer",
+                    "specifier": "==3.4.4",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/charset_normalizer-3.4.4.dist-info"
+                }
+            ]
+        },
+        "typer": {
+            "name": "typer",
+            "version": "0.21.1",
+            "requirements": [
+                {
+                    "raw": "typer==0.21.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "typer",
+                    "specifier": "==0.21.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/typer-0.21.1.dist-info"
+                }
+            ]
+        },
+        "text-unidecode": {
+            "name": "text-unidecode",
+            "version": "1.3",
+            "requirements": [
+                {
+                    "raw": "text-unidecode==1.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "text-unidecode",
+                    "specifier": "==1.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/text_unidecode-1.3.dist-info"
+                }
+            ]
+        },
+        "click": {
+            "name": "click",
+            "version": "8.3.1",
+            "requirements": [
+                {
+                    "raw": "click==8.3.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "click",
+                    "specifier": "==8.3.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/click-8.3.1.dist-info"
+                }
+            ]
+        },
+        "argon2-cffi-bindings": {
+            "name": "argon2-cffi-bindings",
+            "version": "25.1.0",
+            "requirements": [
+                {
+                    "raw": "argon2-cffi-bindings==25.1.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "argon2-cffi-bindings",
+                    "specifier": "==25.1.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/argon2_cffi_bindings-25.1.0.dist-info"
+                }
+            ]
+        },
+        "stevedore": {
+            "name": "stevedore",
+            "version": "5.7.0",
+            "requirements": [
+                {
+                    "raw": "stevedore==5.7.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "stevedore",
+                    "specifier": "==5.7.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/stevedore-5.7.0.dist-info"
+                }
+            ]
+        },
+        "python-dotenv": {
+            "name": "python-dotenv",
+            "version": "1.0.1",
+            "requirements": [
+                {
+                    "raw": "python-dotenv==1.0.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "python-dotenv",
+                    "specifier": "==1.0.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/python_dotenv-1.0.1.dist-info"
+                }
+            ]
+        },
+        "django-phonenumber-field": {
+            "name": "django-phonenumber-field",
+            "version": "7.3.0",
+            "requirements": [
+                {
+                    "raw": "django-phonenumber-field==7.3.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "django-phonenumber-field",
+                    "specifier": "==7.3.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/django_phonenumber_field-7.3.0.dist-info"
+                }
+            ]
+        },
+        "anthropic": {
+            "name": "anthropic",
+            "version": "0.75.0",
+            "requirements": [
+                {
+                    "raw": "anthropic==0.75.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "anthropic",
+                    "specifier": "==0.75.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/anthropic-0.75.0.dist-info"
+                }
+            ]
+        },
+        "tomlkit": {
+            "name": "tomlkit",
+            "version": "0.13.3",
+            "requirements": [
+                {
+                    "raw": "tomlkit==0.13.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "tomlkit",
+                    "specifier": "==0.13.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/tomlkit-0.13.3.dist-info"
+                }
+            ]
+        },
+        "six": {
+            "name": "six",
+            "version": "1.17.0",
+            "requirements": [
+                {
+                    "raw": "six==1.17.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "six",
+                    "specifier": "==1.17.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/six-1.17.0.dist-info"
+                }
+            ]
+        },
+        "Authlib": {
+            "name": "Authlib",
+            "version": "1.6.6",
+            "requirements": [
+                {
+                    "raw": "Authlib==1.6.6",
+                    "extras": [],
+                    "marker": null,
+                    "name": "Authlib",
+                    "specifier": "==1.6.6",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/authlib-1.6.6.dist-info"
+                }
+            ]
+        },
+        "trio-websocket": {
+            "name": "trio-websocket",
+            "version": "0.12.2",
+            "requirements": [
+                {
+                    "raw": "trio-websocket==0.12.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "trio-websocket",
+                    "specifier": "==0.12.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/trio_websocket-0.12.2.dist-info"
+                }
+            ]
+        },
+        "PySocks": {
+            "name": "PySocks",
+            "version": "1.7.1",
+            "requirements": [
+                {
+                    "raw": "PySocks==1.7.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "PySocks",
+                    "specifier": "==1.7.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/PySocks-1.7.1.dist-info"
+                }
+            ]
+        },
+        "Jinja2": {
+            "name": "Jinja2",
+            "version": "3.1.6",
+            "requirements": [
+                {
+                    "raw": "Jinja2==3.1.6",
+                    "extras": [],
+                    "marker": null,
+                    "name": "Jinja2",
+                    "specifier": "==3.1.6",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/jinja2-3.1.6.dist-info"
+                }
+            ]
+        },
+        "cyclonedx-python-lib": {
+            "name": "cyclonedx-python-lib",
+            "version": "7.6.2",
+            "requirements": [
+                {
+                    "raw": "cyclonedx-python-lib==7.6.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "cyclonedx-python-lib",
+                    "specifier": "==7.6.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/cyclonedx_python_lib-7.6.2.dist-info"
+                }
+            ]
+        },
+        "defusedxml": {
+            "name": "defusedxml",
+            "version": "0.7.1",
+            "requirements": [
+                {
+                    "raw": "defusedxml==0.7.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "defusedxml",
+                    "specifier": "==0.7.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/defusedxml-0.7.1.dist-info"
+                }
+            ]
+        },
+        "outcome": {
+            "name": "outcome",
+            "version": "1.3.0.post0",
+            "requirements": [
+                {
+                    "raw": "outcome==1.3.0.post0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "outcome",
+                    "specifier": "==1.3.0.post0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/outcome-1.3.0.post0.dist-info"
+                }
+            ]
+        },
+        "promise": {
+            "name": "promise",
+            "version": "2.3",
+            "requirements": [
+                {
+                    "raw": "promise==2.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "promise",
+                    "specifier": "==2.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/promise-2.3.dist-info"
+                }
+            ]
+        },
+        "python-dateutil": {
+            "name": "python-dateutil",
+            "version": "2.9.0.post0",
+            "requirements": [
+                {
+                    "raw": "python-dateutil==2.9.0.post0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "python-dateutil",
+                    "specifier": "==2.9.0.post0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/python_dateutil-2.9.0.post0.dist-info"
+                }
+            ]
+        },
+        "mysqlclient": {
+            "name": "mysqlclient",
+            "version": "2.2.7",
+            "requirements": [
+                {
+                    "raw": "mysqlclient==2.2.7",
+                    "extras": [],
+                    "marker": null,
+                    "name": "mysqlclient",
+                    "specifier": "==2.2.7",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/mysqlclient-2.2.7.dist-info"
+                }
+            ]
+        },
+        "Pygments": {
+            "name": "Pygments",
+            "version": "2.19.2",
+            "requirements": [
+                {
+                    "raw": "Pygments==2.19.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "Pygments",
+                    "specifier": "==2.19.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pygments-2.19.2.dist-info"
+                }
+            ]
+        },
+        "sniffio": {
+            "name": "sniffio",
+            "version": "1.3.1",
+            "requirements": [
+                {
+                    "raw": "sniffio==1.3.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "sniffio",
+                    "specifier": "==1.3.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/sniffio-1.3.1.dist-info"
+                }
+            ]
+        },
+        "typing-inspection": {
+            "name": "typing-inspection",
+            "version": "0.4.2",
+            "requirements": [
+                {
+                    "raw": "typing-inspection==0.4.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "typing-inspection",
+                    "specifier": "==0.4.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/typing_inspection-0.4.2.dist-info"
+                }
+            ]
+        },
+        "safety": {
+            "name": "safety",
+            "version": "3.7.0",
+            "requirements": [
+                {
+                    "raw": "safety==3.7.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "safety",
+                    "specifier": "==3.7.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/safety-3.7.0.dist-info"
+                }
+            ]
+        },
+        "mdurl": {
+            "name": "mdurl",
+            "version": "0.1.2",
+            "requirements": [
+                {
+                    "raw": "mdurl==0.1.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "mdurl",
+                    "specifier": "==0.1.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/mdurl-0.1.2.dist-info"
+                }
+            ]
+        },
+        "graphql-relay": {
+            "name": "graphql-relay",
+            "version": "3.2.0",
+            "requirements": [
+                {
+                    "raw": "graphql-relay==3.2.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "graphql-relay",
+                    "specifier": "==3.2.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/graphql_relay-3.2.0.dist-info"
+                }
+            ]
+        },
+        "graphene-file-upload": {
+            "name": "graphene-file-upload",
+            "version": "1.3.0",
+            "requirements": [
+                {
+                    "raw": "graphene-file-upload==1.3.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "graphene-file-upload",
+                    "specifier": "==1.3.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/graphene_file_upload-1.3.0.dist-info"
+                }
+            ]
+        },
+        "tomli": {
+            "name": "tomli",
+            "version": "2.4.0",
+            "requirements": [
+                {
+                    "raw": "tomli==2.4.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "tomli",
+                    "specifier": "==2.4.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/tomli-2.4.0.dist-info"
+                }
+            ]
+        },
+        "docstring_parser": {
+            "name": "docstring_parser",
+            "version": "0.17.0",
+            "requirements": [
+                {
+                    "raw": "docstring_parser==0.17.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "docstring_parser",
+                    "specifier": "==0.17.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/docstring_parser-0.17.0.dist-info"
+                }
+            ]
+        },
+        "PyJWT": {
+            "name": "PyJWT",
+            "version": "2.10.1",
+            "requirements": [
+                {
+                    "raw": "PyJWT==2.10.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "PyJWT",
+                    "specifier": "==2.10.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/PyJWT-2.10.1.dist-info"
+                }
+            ]
+        },
+        "django-ratelimit": {
+            "name": "django-ratelimit",
+            "version": "4.1.0",
+            "requirements": [
+                {
+                    "raw": "django-ratelimit==4.1.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "django-ratelimit",
+                    "specifier": "==4.1.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/django_ratelimit-4.1.0.dist-info"
+                }
+            ]
+        },
+        "requests-oauthlib": {
+            "name": "requests-oauthlib",
+            "version": "1.3.1",
+            "requirements": [
+                {
+                    "raw": "requests-oauthlib==1.3.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "requests-oauthlib",
+                    "specifier": "==1.3.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/requests_oauthlib-1.3.1.dist-info"
+                }
+            ]
+        },
+        "CacheControl": {
+            "name": "CacheControl",
+            "version": "0.14.4",
+            "requirements": [
+                {
+                    "raw": "CacheControl==0.14.4",
+                    "extras": [],
+                    "marker": null,
+                    "name": "CacheControl",
+                    "specifier": "==0.14.4",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/cachecontrol-0.14.4.dist-info"
+                }
+            ]
+        },
+        "psutil": {
+            "name": "psutil",
+            "version": "5.9.8",
+            "requirements": [
+                {
+                    "raw": "psutil==5.9.8",
+                    "extras": [],
+                    "marker": null,
+                    "name": "psutil",
+                    "specifier": "==5.9.8",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/psutil-5.9.8.dist-info"
+                }
+            ]
+        },
+        "markdown-it-py": {
+            "name": "markdown-it-py",
+            "version": "4.0.0",
+            "requirements": [
+                {
+                    "raw": "markdown-it-py==4.0.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "markdown-it-py",
+                    "specifier": "==4.0.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/markdown_it_py-4.0.0.dist-info"
+                }
+            ]
+        },
+        "django-axes": {
+            "name": "django-axes",
+            "version": "6.1.1",
+            "requirements": [
+                {
+                    "raw": "django-axes==6.1.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "django-axes",
+                    "specifier": "==6.1.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/django_axes-6.1.1.dist-info"
+                }
+            ]
+        },
+        "trio": {
+            "name": "trio",
+            "version": "0.32.0",
+            "requirements": [
+                {
+                    "raw": "trio==0.32.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "trio",
+                    "specifier": "==0.32.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/trio-0.32.0.dist-info"
+                }
+            ]
+        },
+        "django-filter": {
+            "name": "django-filter",
+            "version": "25.2",
+            "requirements": [
+                {
+                    "raw": "django-filter==25.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "django-filter",
+                    "specifier": "==25.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/django_filter-25.2.dist-info"
+                }
+            ]
+        },
+        "tomli_w": {
+            "name": "tomli_w",
+            "version": "1.2.0",
+            "requirements": [
+                {
+                    "raw": "tomli_w==1.2.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "tomli_w",
+                    "specifier": "==1.2.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/tomli_w-1.2.0.dist-info"
+                }
+            ]
+        },
+        "qrcode": {
+            "name": "qrcode",
+            "version": "7.4.2",
+            "requirements": [
+                {
+                    "raw": "qrcode==7.4.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "qrcode",
+                    "specifier": "==7.4.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/qrcode-7.4.2.dist-info"
+                }
+            ]
+        },
+        "wsproto": {
+            "name": "wsproto",
+            "version": "1.3.2",
+            "requirements": [
+                {
+                    "raw": "wsproto==1.3.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "wsproto",
+                    "specifier": "==1.3.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/wsproto-1.3.2.dist-info"
+                }
+            ]
+        },
+        "marshmallow": {
+            "name": "marshmallow",
+            "version": "4.2.0",
+            "requirements": [
+                {
+                    "raw": "marshmallow==4.2.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "marshmallow",
+                    "specifier": "==4.2.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/marshmallow-4.2.0.dist-info"
+                }
+            ]
+        },
+        "filelock": {
+            "name": "filelock",
+            "version": "3.20.3",
+            "requirements": [
+                {
+                    "raw": "filelock==3.20.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "filelock",
+                    "specifier": "==3.20.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/filelock-3.20.3.dist-info"
+                }
+            ]
+        },
+        "pyparsing": {
+            "name": "pyparsing",
+            "version": "3.3.1",
+            "requirements": [
+                {
+                    "raw": "pyparsing==3.3.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "pyparsing",
+                    "specifier": "==3.3.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pyparsing-3.3.1.dist-info"
+                }
+            ]
+        },
+        "PyYAML": {
+            "name": "PyYAML",
+            "version": "6.0.3",
+            "requirements": [
+                {
+                    "raw": "PyYAML==6.0.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "PyYAML",
+                    "specifier": "==6.0.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pyyaml-6.0.3.dist-info"
+                }
+            ]
+        },
+        "graphql-core": {
+            "name": "graphql-core",
+            "version": "3.2.0",
+            "requirements": [
+                {
+                    "raw": "graphql-core==3.2.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "graphql-core",
+                    "specifier": "==3.2.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/graphql_core-3.2.0.dist-info"
+                }
+            ]
+        },
+        "bandit": {
+            "name": "bandit",
+            "version": "1.9.3",
+            "requirements": [
+                {
+                    "raw": "bandit==1.9.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "bandit",
+                    "specifier": "==1.9.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/bandit-1.9.3.dist-info"
+                }
+            ]
+        },
+        "annotated-types": {
+            "name": "annotated-types",
+            "version": "0.7.0",
+            "requirements": [
+                {
+                    "raw": "annotated-types==0.7.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "annotated-types",
+                    "specifier": "==0.7.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/annotated_types-0.7.0.dist-info"
+                }
+            ]
+        },
+        "ruamel.yaml": {
+            "name": "ruamel.yaml",
+            "version": "0.19.1",
+            "requirements": [
+                {
+                    "raw": "ruamel.yaml==0.19.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "ruamel.yaml",
+                    "specifier": "==0.19.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/ruamel_yaml-0.19.1.dist-info"
+                }
+            ]
+        },
+        "urllib3": {
+            "name": "urllib3",
+            "version": "2.6.3",
+            "requirements": [
+                {
+                    "raw": "urllib3==2.6.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "urllib3",
+                    "specifier": "==2.6.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/urllib3-2.6.3.dist-info"
+                }
+            ]
+        },
+        "graphene": {
+            "name": "graphene",
+            "version": "3.4.3",
+            "requirements": [
+                {
+                    "raw": "graphene==3.4.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "graphene",
+                    "specifier": "==3.4.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/graphene-3.4.3.dist-info"
+                }
+            ]
+        },
+        "pydantic_core": {
+            "name": "pydantic_core",
+            "version": "2.41.5",
+            "requirements": [
+                {
+                    "raw": "pydantic_core==2.41.5",
+                    "extras": [],
+                    "marker": null,
+                    "name": "pydantic_core",
+                    "specifier": "==2.41.5",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pydantic_core-2.41.5.dist-info"
+                }
+            ]
+        },
+        "MarkupSafe": {
+            "name": "MarkupSafe",
+            "version": "3.0.3",
+            "requirements": [
+                {
+                    "raw": "MarkupSafe==3.0.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "MarkupSafe",
+                    "specifier": "==3.0.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/markupsafe-3.0.3.dist-info"
+                }
+            ]
+        },
+        "django-cors-headers": {
+            "name": "django-cors-headers",
+            "version": "4.3.1",
+            "requirements": [
+                {
+                    "raw": "django-cors-headers==4.3.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "django-cors-headers",
+                    "specifier": "==4.3.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/django_cors_headers-4.3.1.dist-info"
+                }
+            ]
+        },
+        "msal": {
+            "name": "msal",
+            "version": "1.34.0",
+            "requirements": [
+                {
+                    "raw": "msal==1.34.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "msal",
+                    "specifier": "==1.34.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/msal-1.34.0.dist-info"
+                }
+            ]
+        },
+        "graphene-django": {
+            "name": "graphene-django",
+            "version": "3.2.0",
+            "requirements": [
+                {
+                    "raw": "graphene-django==3.2.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "graphene-django",
+                    "specifier": "==3.2.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/graphene_django-3.2.0.dist-info"
+                }
+            ]
+        },
+        "Markdown": {
+            "name": "Markdown",
+            "version": "3.5.2",
+            "requirements": [
+                {
+                    "raw": "Markdown==3.5.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "Markdown",
+                    "specifier": "==3.5.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/Markdown-3.5.2.dist-info"
+                }
+            ]
+        },
+        "toml": {
+            "name": "toml",
+            "version": "0.10.2",
+            "requirements": [
+                {
+                    "raw": "toml==0.10.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "toml",
+                    "specifier": "==0.10.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/toml-0.10.2.dist-info"
+                }
+            ]
+        },
+        "rich": {
+            "name": "rich",
+            "version": "14.2.0",
+            "requirements": [
+                {
+                    "raw": "rich==14.2.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "rich",
+                    "specifier": "==14.2.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/rich-14.2.0.dist-info"
+                }
+            ]
+        },
+        "argon2-cffi": {
+            "name": "argon2-cffi",
+            "version": "23.1.0",
+            "requirements": [
+                {
+                    "raw": "argon2-cffi==23.1.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "argon2-cffi",
+                    "specifier": "==23.1.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/argon2_cffi-23.1.0.dist-info"
+                }
+            ]
+        },
+        "django-two-factor-auth": {
+            "name": "django-two-factor-auth",
+            "version": "1.16.0",
+            "requirements": [
+                {
+                    "raw": "django-two-factor-auth==1.16.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "django-two-factor-auth",
+                    "specifier": "==1.16.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/django_two_factor_auth-1.16.0.dist-info"
+                }
+            ]
+        },
+        "joblib": {
+            "name": "joblib",
+            "version": "1.5.3",
+            "requirements": [
+                {
+                    "raw": "joblib==1.5.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "joblib",
+                    "specifier": "==1.5.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/joblib-1.5.3.dist-info"
+                }
+            ]
+        },
+        "shellingham": {
+            "name": "shellingham",
+            "version": "1.5.4",
+            "requirements": [
+                {
+                    "raw": "shellingham==1.5.4",
+                    "extras": [],
+                    "marker": null,
+                    "name": "shellingham",
+                    "specifier": "==1.5.4",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/shellingham-1.5.4.dist-info"
+                }
+            ]
+        },
+        "pip-api": {
+            "name": "pip-api",
+            "version": "0.0.34",
+            "requirements": [
+                {
+                    "raw": "pip-api==0.0.34",
+                    "extras": [],
+                    "marker": null,
+                    "name": "pip-api",
+                    "specifier": "==0.0.34",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pip_api-0.0.34.dist-info"
+                }
+            ]
+        },
+        "pypng": {
+            "name": "pypng",
+            "version": "0.20220715.0",
+            "requirements": [
+                {
+                    "raw": "pypng==0.20220715.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "pypng",
+                    "specifier": "==0.20220715.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pypng-0.20220715.0.dist-info"
+                }
+            ]
+        },
+        "packageurl-python": {
+            "name": "packageurl-python",
+            "version": "0.17.6",
+            "requirements": [
+                {
+                    "raw": "packageurl-python==0.17.6",
+                    "extras": [],
+                    "marker": null,
+                    "name": "packageurl-python",
+                    "specifier": "==0.17.6",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/packageurl_python-0.17.6.dist-info"
+                }
+            ]
+        },
+        "pip": {
+            "name": "pip",
+            "version": "26.0.1",
+            "requirements": [
+                {
+                    "raw": "pip==26.0.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "pip",
+                    "specifier": "==26.0.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pip-26.0.1.dist-info"
+                }
+            ]
+        },
+        "django-graphql-jwt": {
+            "name": "django-graphql-jwt",
+            "version": "0.4.0",
+            "requirements": [
+                {
+                    "raw": "django-graphql-jwt==0.4.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "django-graphql-jwt",
+                    "specifier": "==0.4.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/django_graphql_jwt-0.4.0.dist-info"
+                }
+            ]
+        },
+        "cryptography": {
+            "name": "cryptography",
+            "version": "46.0.5",
+            "requirements": [
+                {
+                    "raw": "cryptography==46.0.5",
+                    "extras": [],
+                    "marker": null,
+                    "name": "cryptography",
+                    "specifier": "==46.0.5",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/cryptography-46.0.5.dist-info"
+                }
+            ]
+        },
+        "dparse": {
+            "name": "dparse",
+            "version": "0.6.4",
+            "requirements": [
+                {
+                    "raw": "dparse==0.6.4",
+                    "extras": [],
+                    "marker": null,
+                    "name": "dparse",
+                    "specifier": "==0.6.4",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/dparse-0.6.4.dist-info"
+                }
+            ]
+        },
+        "distro": {
+            "name": "distro",
+            "version": "1.9.0",
+            "requirements": [
+                {
+                    "raw": "distro==1.9.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "distro",
+                    "specifier": "==1.9.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/distro-1.9.0.dist-info"
+                }
+            ]
+        },
+        "websocket-client": {
+            "name": "websocket-client",
+            "version": "1.9.0",
+            "requirements": [
+                {
+                    "raw": "websocket-client==1.9.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "websocket-client",
+                    "specifier": "==1.9.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/websocket_client-1.9.0.dist-info"
+                }
+            ]
+        },
+        "djangorestframework": {
+            "name": "djangorestframework",
+            "version": "3.15.2",
+            "requirements": [
+                {
+                    "raw": "djangorestframework==3.15.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "djangorestframework",
+                    "specifier": "==3.15.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/djangorestframework-3.15.2.dist-info"
+                }
+            ]
+        },
+        "msgpack": {
+            "name": "msgpack",
+            "version": "1.1.2",
+            "requirements": [
+                {
+                    "raw": "msgpack==1.1.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "msgpack",
+                    "specifier": "==1.1.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/msgpack-1.1.2.dist-info"
+                }
+            ]
+        },
+        "nltk": {
+            "name": "nltk",
+            "version": "3.9.2",
+            "requirements": [
+                {
+                    "raw": "nltk==3.9.2",
+                    "extras": [],
+                    "marker": null,
+                    "name": "nltk",
+                    "specifier": "==3.9.2",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/nltk-3.9.2.dist-info"
+                }
+            ]
+        },
+        "oauthlib": {
+            "name": "oauthlib",
+            "version": "3.3.1",
+            "requirements": [
+                {
+                    "raw": "oauthlib==3.3.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "oauthlib",
+                    "specifier": "==3.3.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/oauthlib-3.3.1.dist-info"
+                }
+            ]
+        },
+        "typing_extensions": {
+            "name": "typing_extensions",
+            "version": "4.15.0",
+            "requirements": [
+                {
+                    "raw": "typing_extensions==4.15.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "typing_extensions",
+                    "specifier": "==4.15.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/typing_extensions-4.15.0.dist-info"
+                }
+            ]
+        },
+        "phonenumbers": {
+            "name": "phonenumbers",
+            "version": "8.13.55",
+            "requirements": [
+                {
+                    "raw": "phonenumbers==8.13.55",
+                    "extras": [],
+                    "marker": null,
+                    "name": "phonenumbers",
+                    "specifier": "==8.13.55",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/phonenumbers-8.13.55.dist-info"
+                }
+            ]
+        },
+        "selenium": {
+            "name": "selenium",
+            "version": "4.39.0",
+            "requirements": [
+                {
+                    "raw": "selenium==4.39.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "selenium",
+                    "specifier": "==4.39.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/selenium-4.39.0.dist-info"
+                }
+            ]
+        },
+        "pip-requirements-parser": {
+            "name": "pip-requirements-parser",
+            "version": "32.0.1",
+            "requirements": [
+                {
+                    "raw": "pip-requirements-parser==32.0.1",
+                    "extras": [],
+                    "marker": null,
+                    "name": "pip-requirements-parser",
+                    "specifier": "==32.0.1",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/pip_requirements_parser-32.0.1.dist-info"
+                }
+            ]
+        },
+        "regex": {
+            "name": "regex",
+            "version": "2025.11.3",
+            "requirements": [
+                {
+                    "raw": "regex==2025.11.3",
+                    "extras": [],
+                    "marker": null,
+                    "name": "regex",
+                    "specifier": "==2025.11.3",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/regex-2025.11.3.dist-info"
+                }
+            ]
+        },
+        "h11": {
+            "name": "h11",
+            "version": "0.16.0",
+            "requirements": [
+                {
+                    "raw": "h11==0.16.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "h11",
+                    "specifier": "==0.16.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/h11-0.16.0.dist-info"
+                }
+            ]
+        },
+        "cffi": {
+            "name": "cffi",
+            "version": "2.0.0",
+            "requirements": [
+                {
+                    "raw": "cffi==2.0.0",
+                    "extras": [],
+                    "marker": null,
+                    "name": "cffi",
+                    "specifier": "==2.0.0",
+                    "url": null,
+                    "found": "/home/administrator/venv/lib/python3.12/site-packages/cffi-2.0.0.dist-info"
+                }
+            ]
+        }
+    },
+    "affected_packages": {},
+    "announcements": [],
+    "vulnerabilities": [],
+    "ignored_vulnerabilities": [],
+    "remediations": {},
+    "remediations_results": {
+        "vulnerabilities_fixed": [],
+        "remediations_applied": {},
+        "remediations_skipped": {}
+    }
+}
+
+
++===========================================================================================================================================================================================+
+
+
+DEPRECATED: this command (`check`) has been DEPRECATED, and will be unsupported beyond 01 June 2024.
+
+
+We highly encourage switching to the new `scan` command which is easier to use, more powerful, and can be set up to mimic the deprecated command if required.
+
+
++===========================================================================================================================================================================================+
+
+
