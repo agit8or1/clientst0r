@@ -220,6 +220,11 @@ class VehicleInventoryItem(BaseModel):
         validators=[MinValueValidator(0)],
         help_text="Minimum quantity alert threshold"
     )
+    reorder_quantity = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="How many to order when restocking"
+    )
 
     # Value
     unit_cost = models.DecimalField(
@@ -266,11 +271,43 @@ class VehicleInventoryItem(BaseModel):
         return self.quantity <= self.min_quantity
 
     @property
+    def needs_restock(self):
+        """Check if item needs to be reordered"""
+        return self.is_low_stock and self.reorder_quantity > 0
+
+    @property
     def total_value(self):
         """Calculate total value of this item"""
         if self.unit_cost:
             return self.quantity * self.unit_cost
         return None
+
+    def generate_qr_code(self):
+        """Generate unique QR code for this inventory item"""
+        if not self.qr_code:
+            import uuid
+            self.qr_code = f"VEH-INV-{uuid.uuid4().hex[:12].upper()}"
+        return self.qr_code
+
+    def get_qr_code_url(self):
+        """Get URL to scan this item"""
+        from django.urls import reverse
+        if self.qr_code:
+            return reverse('vehicles:inventory_scan', kwargs={'qr_code': self.qr_code})
+        return None
+
+    def get_qr_code_image_url(self):
+        """Get URL for QR code image"""
+        from django.urls import reverse
+        if self.qr_code:
+            return reverse('vehicles:inventory_qr_image', kwargs={'pk': self.pk})
+        return None
+
+    def save(self, *args, **kwargs):
+        """Auto-generate QR code on save"""
+        if not self.qr_code:
+            self.generate_qr_code()
+        super().save(*args, **kwargs)
 
 
 class VehicleDamageReport(BaseModel):

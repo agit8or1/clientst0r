@@ -65,7 +65,7 @@ class VehicleInventoryItemForm(forms.ModelForm):
         model = VehicleInventoryItem
         fields = [
             'name', 'category', 'quantity', 'unit', 'min_quantity',
-            'unit_cost', 'description', 'location_in_vehicle',
+            'reorder_quantity', 'unit_cost', 'description', 'location_in_vehicle',
             'qr_code', 'reorder_link'
         ]
         widgets = {
@@ -74,10 +74,11 @@ class VehicleInventoryItemForm(forms.ModelForm):
             'quantity': forms.NumberInput(attrs={'class': 'form-control'}),
             'unit': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ea, ft, box, etc.'}),
             'min_quantity': forms.NumberInput(attrs={'class': 'form-control'}),
+            'reorder_quantity': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'How many to order when restocking'}),
             'unit_cost': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'location_in_vehicle': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Toolbox, Rear compartment'}),
-            'qr_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Scan or enter QR code'}),
+            'qr_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Auto-generated on save (or enter custom)'}),
             'reorder_link': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://amazon.com/...'}),
         }
 

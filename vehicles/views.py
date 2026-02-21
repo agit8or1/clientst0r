@@ -608,3 +608,180 @@ def assignment_end(request, pk):
         'assignment': assignment,
         'vehicle': assignment.vehicle
     })
+
+
+# ============================================================================
+# QR Code & Mobile Scanner Views
+# ============================================================================
+
+@login_required
+def inventory_qr_image(request, pk):
+    """
+    Generate QR code image for inventory item.
+    Returns PNG image.
+    """
+    item = get_object_or_404(VehicleInventoryItem, pk=pk)
+
+    # Check permissions
+    if not request.user.is_staff and item.vehicle.organization != request.user.current_organization:
+        raise PermissionDenied
+
+    # Generate QR code
+    import qrcode
+    from io import BytesIO
+    from django.http import HttpResponse
+
+    # Generate QR code data (URL to scan page)
+    qr_url = request.build_absolute_uri(item.get_qr_code_url())
+
+    # Create QR code
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(qr_url)
+    qr.make(fit=True)
+
+    # Create image
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    # Save to bytes
+    buffer = BytesIO()
+    img.save(buffer, format='PNG')
+    buffer.seek(0)
+
+    # Return image
+    response = HttpResponse(buffer.getvalue(), content_type='image/png')
+    response['Content-Disposition'] = f'inline; filename="inventory-{item.qr_code}.png"'
+    return response
+
+
+@login_required
+def inventory_print_qr_codes(request, vehicle_id):
+    """
+    Print page for all inventory item QR codes.
+    Shows grid of QR codes with labels for printing.
+    """
+    vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
+
+    # Check permissions
+    if not request.user.is_staff and vehicle.organization != request.user.current_organization:
+        raise PermissionDenied
+
+    # Get all inventory items for this vehicle
+    items = vehicle.inventory_items.all().order_by('category', 'name')
+
+    return render(request, 'vehicles/inventory_print_qr.html', {
+        'vehicle': vehicle,
+        'items': items
+    })
+
+
+@login_required
+def inventory_scan(request, qr_code):
+    """
+    Mobile scanner interface - scan QR code to update quantity.
+    Optimized for phone/tablet use.
+    """
+    item = get_object_or_404(VehicleInventoryItem, qr_code=qr_code)
+
+    # Check permissions
+    if not request.user.is_staff and item.vehicle.organization != request.user.current_organization:
+        raise PermissionDenied
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'increment':
+            item.quantity += 1
+            item.save()
+            messages.success(request, f'Increased {item.name} to {item.quantity}')
+
+        elif action == 'decrement':
+            if item.quantity > 0:
+                item.quantity -= 1
+                item.save()
+                messages.success(request, f'Decreased {item.name} to {item.quantity}')
+            else:
+                messages.error(request, 'Quantity cannot be negative')
+
+        elif action == 'set':
+            try:
+                new_quantity = int(request.POST.get('quantity', 0))
+                if new_quantity >= 0:
+                    item.quantity = new_quantity
+                    item.save()
+                    messages.success(request, f'Set {item.name} to {item.quantity}')
+                else:
+                    messages.error(request, 'Quantity cannot be negative')
+            except ValueError:
+                messages.error(request, 'Invalid quantity')
+
+        # Return JSON for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            from django.http import JsonResponse
+            return JsonResponse({
+                'success': True,
+                'quantity': item.quantity,
+                'is_low_stock': item.is_low_stock,
+                'needs_restock': item.needs_restock
+            })
+
+        return redirect('vehicles:inventory_scan', qr_code=qr_code)
+
+    return render(request, 'vehicles/inventory_scan.html', {
+        'item': item,
+        'vehicle': item.vehicle
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def inventory_quick_update(request, pk):
+    """
+    API endpoint for quick quantity updates.
+    Used by mobile scanner interface.
+    """
+    from django.http import JsonResponse
+
+    item = get_object_or_404(VehicleInventoryItem, pk=pk)
+
+    # Check permissions
+    if not request.user.is_staff and item.vehicle.organization != request.user.current_organization:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+
+    try:
+        import json
+        data = json.loads(request.body)
+        action = data.get('action')
+
+        if action == 'increment':
+            item.quantity += 1
+        elif action == 'decrement':
+            if item.quantity > 0:
+                item.quantity -= 1
+            else:
+                return JsonResponse({'error': 'Quantity cannot be negative'}, status=400)
+        elif action == 'set':
+            quantity = int(data.get('quantity', 0))
+            if quantity >= 0:
+                item.quantity = quantity
+            else:
+                return JsonResponse({'error': 'Quantity cannot be negative'}, status=400)
+        else:
+            return JsonResponse({'error': 'Invalid action'}, status=400)
+
+        item.save()
+
+        return JsonResponse({
+            'success': True,
+            'quantity': item.quantity,
+            'is_low_stock': item.is_low_stock,
+            'needs_restock': item.needs_restock,
+            'message': f'Updated {item.name} to {item.quantity} {item.unit}'
+        })
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)

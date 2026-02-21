@@ -40,4 +40,10 @@ urlpatterns = [
     # Assignments
     path('vehicles/<int:vehicle_id>/assign/', views.assignment_create, name='assignment_create'),
     path('assignments/<int:pk>/end/', views.assignment_end, name='assignment_end'),
+
+    # QR Codes & Mobile Scanner
+    path('inventory/<int:pk>/qr-image/', views.inventory_qr_image, name='inventory_qr_image'),
+    path('vehicles/<int:vehicle_id>/inventory/print-qr/', views.inventory_print_qr_codes, name='inventory_print_qr_codes'),
+    path('scan/<str:qr_code>/', views.inventory_scan, name='inventory_scan'),
+    path('inventory/<int:pk>/quick-update/', views.inventory_quick_update, name='inventory_quick_update'),
 ]

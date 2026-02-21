@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Print QR Codes - {{ vehicle.display_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        .navbar, .breadcrumb, footer {
+            display: none !important;
+        }
+        body {
+            background: white;
+        }
+        .qr-grid {
+            page-break-inside: avoid;
+        }
+    }
+
+    .qr-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+
+    .qr-item {
+        border: 2px solid #dee2e6;
+        padding: 15px;
+        text-align: center;
+        background: white;
+        border-radius: 8px;
+        page-break-inside: avoid;
+    }
+
+    .qr-item img {
+        max-width: 100%;
+        height: auto;
+        margin-bottom: 10px;
+    }
+
+    .qr-item-info {
+        margin-top: 10px;
+    }
+
+    .qr-item-name {
+        font-weight: bold;
+        font-size: 14px;
+        margin-bottom: 5px;
+    }
+
+    .qr-item-code {
+        font-family: monospace;
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .qr-item-details {
+        font-size: 12px;
+        color: #495057;
+        margin-top: 5px;
+    }
+
+    @media print {
+        .qr-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        .qr-item {
+            border: 1px solid #000;
+            margin-bottom: 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="no-print">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'vehicles:vehicles_dashboard' %}">Vehicles</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'vehicles:vehicle_detail' vehicle.pk %}">{{ vehicle.display_name }}</a></li>
+                <li class="breadcrumb-item active">Print QR Codes</li>
+            </ol>
+        </nav>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-qrcode"></i> Print QR Codes - {{ vehicle.display_name }}</h2>
+            <div>
+                <button onclick="window.print()" class="btn btn-primary">
+                    <i class="fas fa-print"></i> Print QR Codes
+                </button>
+                <a href="{% url 'vehicles:vehicle_detail' vehicle.pk %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </div>
+
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>Printing Instructions:</strong>
+            <ul class="mb-0 mt-2">
+                <li>Use <strong>landscape orientation</strong> for best results</li>
+                <li>Print on <strong>adhesive label sheets</strong> or regular paper</li>
+                <li>Cut out each QR code and attach to inventory items</li>
+                <li>Scan QR codes with phone/tablet to update quantities</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="text-center mb-3">
+        <h3>{{ vehicle.display_name }} - Inventory QR Codes</h3>
+        <p class="text-muted">Scan with phone/tablet to update inventory quantities</p>
+    </div>
+
+    {% if items %}
+    <div class="qr-grid">
+        {% for item in items %}
+        <div class="qr-item">
+            <img src="{% url 'vehicles:inventory_qr_image' item.pk %}" alt="QR Code for {{ item.name }}">
+            <div class="qr-item-info">
+                <div class="qr-item-name">{{ item.name }}</div>
+                <div class="qr-item-code">{{ item.qr_code }}</div>
+                <div class="qr-item-details">
+                    <div><strong>Current:</strong> {{ item.quantity }} {{ item.unit }}</div>
+                    {% if item.category %}<div><strong>Category:</strong> {{ item.category }}</div>{% endif %}
+                    {% if item.location_in_vehicle %}<div><strong>Location:</strong> {{ item.location_in_vehicle }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-warning no-print">
+        <i class="fas fa-exclamation-triangle"></i> No inventory items found for this vehicle.
+        <a href="{% url 'vehicles:inventory_item_create' vehicle.pk %}">Add inventory items</a> first.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

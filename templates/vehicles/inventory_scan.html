@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Scan: {{ item.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Mobile-optimized scanner interface */
+    .scanner-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .item-card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+
+    .item-name {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #212529;
+    }
+
+    .item-category {
+        font-size: 16px;
+        color: #6c757d;
+        margin-bottom: 15px;
+    }
+
+    .quantity-display {
+        text-align: center;
+        padding: 30px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        margin: 20px 0;
+    }
+
+    .quantity-number {
+        font-size: 72px;
+        font-weight: bold;
+        color: #0d6efd;
+        margin: 0;
+    }
+
+    .quantity-unit {
+        font-size: 24px;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+
+    .stock-alert {
+        text-align: center;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        font-weight: bold;
+    }
+
+    .stock-alert.low {
+        background: #fff3cd;
+        color: #856404;
+        border: 2px solid #ffc107;
+    }
+
+    .stock-alert.restock {
+        background: #f8d7da;
+        color: #721c24;
+        border: 2px solid #dc3545;
+    }
+
+    .stock-alert.ok {
+        background: #d1e7dd;
+        color: #0f5132;
+        border: 2px solid #198754;
+    }
+
+    .action-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin: 20px 0;
+    }
+
+    .action-btn {
+        padding: 20px;
+        font-size: 48px;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .action-btn:active {
+        transform: scale(0.95);
+    }
+
+    .action-btn.decrement {
+        background: #dc3545;
+        color: white;
+    }
+
+    .action-btn.increment {
+        background: #198754;
+        color: white;
+    }
+
+    .action-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .set-quantity-form {
+        display: flex;
+        gap: 10px;
+        margin: 20px 0;
+    }
+
+    .set-quantity-form input {
+        flex: 1;
+        padding: 15px;
+        font-size: 24px;
+        text-align: center;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+    }
+
+    .set-quantity-form button {
+        padding: 15px 30px;
+        font-size: 18px;
+        background: #0d6efd;
+        color: white;
+        border: none;
+        border-radius: 8px;
+    }
+
+    .item-info {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+    }
+
+    .item-info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .item-info-row:last-child {
+        border-bottom: none;
+    }
+
+    .item-info-label {
+        font-weight: bold;
+        color: #495057;
+    }
+
+    .item-info-value {
+        color: #212529;
+    }
+
+    @media (max-width: 576px) {
+        .scanner-container {
+            padding: 10px;
+        }
+
+        .item-card {
+            padding: 15px;
+        }
+
+        .item-name {
+            font-size: 22px;
+        }
+
+        .quantity-number {
+            font-size: 56px;
+        }
+
+        .action-btn {
+            font-size: 36px;
+            padding: 15px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="scanner-container">
+    <div class="mb-3">
+        <a href="{% url 'vehicles:vehicle_detail' vehicle.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to {{ vehicle.display_name }}
+        </a>
+    </div>
+
+    <div class="item-card">
+        <div class="item-name">{{ item.name }}</div>
+        {% if item.category %}
+        <div class="item-category">
+            <i class="fas fa-tag"></i> {{ item.category }}
+        </div>
+        {% endif %}
+
+        <div class="quantity-display">
+            <div class="quantity-number" id="quantity-display">{{ item.quantity }}</div>
+            <div class="quantity-unit">{{ item.unit|default:"units" }}</div>
+        </div>
+
+        {% if item.needs_restock %}
+        <div class="stock-alert restock">
+            <i class="fas fa-exclamation-triangle"></i> NEEDS RESTOCK
+            <br><small>Order {{ item.reorder_quantity }} {{ item.unit }} soon!</small>
+        </div>
+        {% elif item.is_low_stock %}
+        <div class="stock-alert low">
+            <i class="fas fa-exclamation-circle"></i> LOW STOCK
+            <br><small>Below minimum of {{ item.min_quantity }}</small>
+        </div>
+        {% else %}
+        <div class="stock-alert ok">
+            <i class="fas fa-check-circle"></i> STOCK OK
+        </div>
+        {% endif %}
+
+        <div class="action-buttons">
+            <form method="post" style="margin: 0;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="decrement">
+                <button type="submit" class="action-btn decrement" {% if item.quantity == 0 %}disabled{% endif %}>
+                    <i class="fas fa-minus"></i>
+                </button>
+            </form>
+            <form method="post" style="margin: 0;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="increment">
+                <button type="submit" class="action-btn increment">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </form>
+        </div>
+
+        <form method="post" class="set-quantity-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="set">
+            <input type="number" name="quantity" min="0" placeholder="Enter quantity" required>
+            <button type="submit">
+                <i class="fas fa-check"></i> Set
+            </button>
+        </form>
+
+        <div class="item-info">
+            <div class="item-info-row">
+                <span class="item-info-label">QR Code:</span>
+                <span class="item-info-value">{{ item.qr_code }}</span>
+            </div>
+            {% if item.min_quantity > 0 %}
+            <div class="item-info-row">
+                <span class="item-info-label">Min Quantity:</span>
+                <span class="item-info-value">{{ item.min_quantity }} {{ item.unit }}</span>
+            </div>
+            {% endif %}
+            {% if item.reorder_quantity > 0 %}
+            <div class="item-info-row">
+                <span class="item-info-label">Reorder Qty:</span>
+                <span class="item-info-value">{{ item.reorder_quantity }} {{ item.unit }}</span>
+            </div>
+            {% endif %}
+            {% if item.location_in_vehicle %}
+            <div class="item-info-row">
+                <span class="item-info-label">Location:</span>
+                <span class="item-info-value">{{ item.location_in_vehicle }}</span>
+            </div>
+            {% endif %}
+            {% if item.unit_cost %}
+            <div class="item-info-row">
+                <span class="item-info-label">Unit Cost:</span>
+                <span class="item-info-value">${{ item.unit_cost }}</span>
+            </div>
+            <div class="item-info-row">
+                <span class="item-info-label">Total Value:</span>
+                <span class="item-info-value">${{ item.total_value|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+            {% if item.reorder_link %}
+            <div class="item-info-row">
+                <span class="item-info-label">Reorder Link:</span>
+                <span class="item-info-value">
+                    <a href="{{ item.reorder_link }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-external-link-alt"></i> Order More
+                    </a>
+                </span>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if item.description %}
+        <div class="alert alert-info mt-3">
+            <strong>Description:</strong><br>
+            {{ item.description }}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="text-center text-muted">
+        <small>
+            <i class="fas fa-mobile-alt"></i> Optimized for mobile scanning<br>
+            Last updated: {{ item.updated_at|date:"Y-m-d H:i" }}
+        </small>
+    </div>
+</div>
+
+{% if messages %}
+<script>
+    // Auto-hide success messages after 2 seconds
+    setTimeout(function() {
+        let alerts = document.querySelectorAll('.alert-success');
+        alerts.forEach(function(alert) {
+            alert.style.transition = 'opacity 0.5s';
+            alert.style.opacity = '0';
+            setTimeout(function() { alert.remove(); }, 500);
+        });
+    }, 2000);
+</script>
+{% endif %}
+{% endblock %}
