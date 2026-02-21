@@ -31,6 +31,14 @@ Complete feature documentation for Client St0r - Self-hosted IT documentation pl
 
 ### Vulnerability Scanning & Monitoring
 - **Snyk Security Integration** - Automated vulnerability scanning for Python and JavaScript dependencies with web UI dashboard
+- **OS Package Security Scanner** - System package vulnerability scanning with automated security update detection
+  - Multi-platform support (apt, yum/dnf, pacman)
+  - Security-specific update detection
+  - Scheduled daily scans with configurable frequency
+  - Dashboard widget with security status overview
+  - Scan history with trend visualization
+  - Manual scan triggers via web interface
+  - Webhook notifications for critical updates
 - **Scheduled Scanning** - Configurable automatic scans (daily, weekly, monthly)
 - **Remediation Guidance** - Detailed upgrade paths and security advisories
 - **Trend Analysis** - Track vulnerabilities over time
@@ -243,6 +251,74 @@ Complete feature documentation for Client St0r - Self-hosted IT documentation pl
 - **Delivery Options** - Send via email, SMS, or both
 - **Custom Messages** - Add personalized message to navigation links
 - **Map Service Selection** - Choose specific service or send all navigation links
+
+## 🚗 Service Vehicles Fleet Management
+
+### Vehicle Tracking
+- **Comprehensive Vehicle Details** - Make, model, year, VIN, license plate, color, purchase info
+- **Vehicle Types** - Sedan, SUV, truck, van, cargo van, pickup truck
+- **Status Management** - Active, inactive, in maintenance, retired
+- **Condition Tracking** - Excellent, good, fair, poor, needs repair
+- **Mileage Tracking** - Current odometer reading with automatic updates from fuel logs
+- **GPS Location** - Store current vehicle coordinates (6 decimal precision), last update timestamp
+
+### Maintenance Management
+- **Service History** - Complete maintenance record tracking with service dates and mileage
+- **Maintenance Types** - Oil change, tire rotation, brake service, inspection, tune-up, transmission, coolant, battery, repairs
+- **Cost Tracking** - Labor costs, parts costs, total cost calculations
+- **Recurring Schedules** - Set next due date and/or mileage for scheduled maintenance
+- **Overdue Detection** - Automatic alerts for overdue maintenance based on date or mileage
+- **Service Provider** - Track mechanic or service center details
+
+### Fuel Tracking & Analytics
+- **Fuel Purchases** - Log fuel purchases with date, mileage, gallons, cost per gallon
+- **Automatic MPG Calculation** - Calculate miles per gallon based on previous fill-up
+- **Cost Analysis** - Track total fuel costs, average cost per gallon
+- **Efficiency Trends** - Monitor MPG trends over time (30-day average)
+- **Station Tracking** - Record gas station locations for each fill-up
+
+### Damage Reports & Insurance
+- **Interactive Vehicle Diagrams** - SVG-based vehicle diagrams with clickable areas for damage reporting
+- **Damage Severity** - Minor, moderate, major, total loss classifications
+- **Photo Documentation** - Upload damage photos via attachment system
+- **Repair Tracking** - Repair status (reported, assessed, in repair, completed, deferred)
+- **Cost Estimates** - Track estimated and actual repair costs
+- **Insurance Claims** - Claim number, insurance payout tracking
+- **Repair Details** - Repair date, shop, notes
+- **Condition Changes** - Track before/after condition status
+
+### Vehicle Inventory
+- **Per-Vehicle Inventory** - Track tools, cables, connectors, hardware, supplies stored in each vehicle
+- **Categories** - Organize by cables, tools, hardware, supplies, etc.
+- **Quantity Tracking** - Current quantity with units (ea, ft, box, etc.)
+- **Low Stock Alerts** - Set minimum quantity thresholds for automated alerts
+- **Value Tracking** - Unit cost and total value calculations
+- **Storage Location** - Note where items are stored within vehicle (toolbox, compartment, etc.)
+
+### User Assignments & History
+- **Assignment Management** - Assign vehicles to users/technicians
+- **Assignment History** - Track full assignment history with dates
+- **Mileage Attribution** - Record starting and ending mileage for each assignment
+- **Duration Tracking** - Calculate assignment duration in days
+- **Miles Driven** - Calculate miles driven during each assignment period
+- **Active Status** - Identify currently assigned vehicles
+
+### Insurance & Registration
+- **Insurance Details** - Provider, policy number, premium amount
+- **Expiration Tracking** - Insurance and registration expiration dates
+- **Expiration Warnings** - 30-day advance warnings for expiring insurance/registration
+- **Automatic Alerts** - Dashboard and webhook notifications for expiring documents
+
+### Dashboard & Analytics
+- **Fleet Statistics** - Total vehicles, active count, in maintenance, total mileage
+- **Clickable Stats** - Navigate to filtered vehicle lists from dashboard cards
+- **Recent Activity** - Recent fuel logs, maintenance, damage reports
+- **Fleet Metrics** - Average mileage per vehicle, average MPG, total fuel costs
+- **Alert System** - Insurance/registration expiration, maintenance due, low inventory
+
+### Feature Toggle
+- **Enable/Disable** - Toggle vehicles module on/off via system settings
+- **Menu Integration** - Dynamic navigation menu based on feature status
 
 ## 📋 Workflows & Process Automation
 
