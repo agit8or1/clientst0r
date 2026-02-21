@@ -152,6 +152,66 @@
             </div>
         </div>
 
+        <!-- OS Package Scanner Widget -->
+        <div class="card mb-3" id="package-scanner-widget">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-shield-alt"></i> OS Package Security</h6>
+            </div>
+            <div class="card-body">
+                <div id="package-scanner-loading" class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="text-muted mb-0 mt-2"><small>Loading scanner data...</small></p>
+                </div>
+                <div id="package-scanner-content" style="display: none;">
+                    <div class="text-center mb-3">
+                        <div class="d-inline-block">
+                            <div id="security-status-badge" class="badge fs-6 px-3 py-2">
+                                <i class="fas fa-shield-alt me-1"></i>
+                                <span id="security-status-text">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <div class="border rounded p-2">
+                                <h4 id="security-updates-count" class="mb-0 text-danger">0</h4>
+                                <small class="text-muted">Security Updates</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="border rounded p-2">
+                                <h4 id="total-updates-count" class="mb-0 text-primary">0</h4>
+                                <small class="text-muted">Total Updates</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            Last scan: <span id="last-scan-time">Never</span>
+                        </small>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'core:package_scanner_dashboard' %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i> View Details
+                        </a>
+                    </div>
+                </div>
+                <div id="package-scanner-error" style="display: none;">
+                    <div class="alert alert-warning mb-0">
+                        <small><i class="fas fa-exclamation-triangle"></i> No scan data available</small>
+                    </div>
+                    <div class="d-grid mt-2">
+                        <a href="{% url 'core:package_scanner_dashboard' %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-play"></i> Run First Scan
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Quick Actions -->
         <div class="card">
             <div class="card-header">
@@ -167,6 +227,9 @@
                     </a>
                     <a href="{% url 'core:settings_snyk' %}" class="btn btn-outline-secondary">
                         <i class="fas fa-cog"></i> Scan Configuration
+                    </a>
+                    <a href="{% url 'core:package_scanner_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-shield-alt"></i> Package Scanner
                     </a>
                     <a href="{% url 'core:restart_application' %}" class="btn btn-outline-warning" onclick="return confirm('Restart application? This will briefly disconnect all users.');">
                         <i class="fas fa-sync-alt"></i> Restart Application
@@ -234,3 +297,83 @@
 {% endif %}
 
 {% endblock %}
+
+{% block extra_js %}
+<script>
+// Load package scanner widget data
+document.addEventListener('DOMContentLoaded', function() {
+    loadPackageScannerWidget();
+});
+
+function loadPackageScannerWidget() {
+    fetch('{% url "core:package_scanner_widget_data" %}')
+        .then(response => response.json())
+        .then(data => {
+            const loading = document.getElementById('package-scanner-loading');
+            const content = document.getElementById('package-scanner-content');
+            const error = document.getElementById('package-scanner-error');
+
+            loading.style.display = 'none';
+
+            if (data.status === 'no_data' || data.security_updates === undefined) {
+                error.style.display = 'block';
+                return;
+            }
+
+            // Update security status badge
+            const statusBadge = document.getElementById('security-status-badge');
+            const statusText = document.getElementById('security-status-text');
+            statusBadge.className = 'badge fs-6 px-3 py-2 bg-' + data.status;
+            statusText.textContent = data.status_label;
+
+            // Update counts
+            document.getElementById('security-updates-count').textContent = data.security_updates;
+            document.getElementById('total-updates-count').textContent = data.total_updates;
+
+            // Update last scan time
+            if (data.scan_date) {
+                const scanDate = new Date(data.scan_date);
+                const now = new Date();
+                const diffMs = now - scanDate;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+
+                let timeAgo;
+                if (diffMins < 1) {
+                    timeAgo = 'Just now';
+                } else if (diffMins < 60) {
+                    timeAgo = diffMins + ' minute' + (diffMins > 1 ? 's' : '') + ' ago';
+                } else if (diffHours < 24) {
+                    timeAgo = diffHours + ' hour' + (diffHours > 1 ? 's' : '') + ' ago';
+                } else if (diffDays < 7) {
+                    timeAgo = diffDays + ' day' + (diffDays > 1 ? 's' : '') + ' ago';
+                } else {
+                    timeAgo = scanDate.toLocaleDateString();
+                }
+
+                document.getElementById('last-scan-time').textContent = timeAgo;
+            }
+
+            // Apply color to security updates count based on severity
+            const securityCount = data.security_updates;
+            const securityElement = document.getElementById('security-updates-count');
+            if (securityCount === 0) {
+                securityElement.className = 'mb-0 text-success';
+            } else if (securityCount < 5) {
+                securityElement.className = 'mb-0 text-warning';
+            } else {
+                securityElement.className = 'mb-0 text-danger';
+            }
+
+            content.style.display = 'block';
+        })
+        .catch(err => {
+            console.error('Failed to load package scanner widget:', err);
+            document.getElementById('package-scanner-loading').style.display = 'none';
+            document.getElementById('package-scanner-error').style.display = 'block';
+        });
+}
+</script>
+{% endblock %}
+
