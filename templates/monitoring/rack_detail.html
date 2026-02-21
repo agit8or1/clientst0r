@@ -64,8 +64,12 @@
 
 .rack-device {
     color: white;
-    cursor: pointer;
+    cursor: grab;
     user-select: none;
+}
+
+.rack-device:active {
+    cursor: grabbing;
 }
 
 .rack-device:hover {
@@ -73,6 +77,10 @@
     box-shadow: 0 0 12px rgba(255,255,255,0.5);
     transform: scale(1.02);
     transition: all 0.2s;
+}
+
+.rack-device .device-edit-icon {
+    cursor: pointer !important;
 }
 
 .rack-device.draggable .device-name {

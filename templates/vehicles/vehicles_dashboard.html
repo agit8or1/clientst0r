@@ -169,4 +169,87 @@
     </div>
 </div>
 
+<!-- Active Vehicles Grid -->
+<div class="row mt-4">
+    <div class="col-12">
+        <h5><i class="fas fa-truck"></i> Active Vehicles</h5>
+    </div>
+    {% for vehicle in active_vehicles_list %}
+    <div class="col-md-4 col-lg-3 mb-3">
+        <a href="{% url 'vehicles:vehicle_detail' vehicle.pk %}" class="text-decoration-none">
+            <div class="card h-100 vehicle-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="mb-0">{{ vehicle.display_name }}</h6>
+                        <span class="badge bg-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span>
+                    </div>
+                    <p class="text-muted small mb-1">{{ vehicle.year }} {{ vehicle.make }} {{ vehicle.model }}</p>
+                    <p class="text-muted small mb-1"><i class="fas fa-id-card"></i> {{ vehicle.license_plate }}</p>
+                    <p class="text-muted small mb-2"><i class="fas fa-tachometer-alt"></i> {{ vehicle.current_mileage|floatformat:0 }} mi</p>
+                    {% if vehicle.assigned_to %}
+                    <p class="small mb-0"><i class="fas fa-user"></i> {{ vehicle.assigned_to.get_full_name|default:vehicle.assigned_to.username }}</p>
+                    {% endif %}
+                    <div class="mt-2">
+                        <span class="badge bg-{{ vehicle.condition }}-subtle">{{ vehicle.get_condition_display }}</span>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> No active vehicles yet. <a href="{% url 'vehicles:vehicle_create' %}">Add your first vehicle</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+.vehicle-card {
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid #dee2e6;
+}
+
+.vehicle-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-color: #0d6efd;
+}
+
+.badge.bg-active {
+    background-color: #28a745 !important;
+}
+
+.badge.bg-inactive {
+    background-color: #6c757d !important;
+}
+
+.badge.bg-maintenance {
+    background-color: #ffc107 !important;
+}
+
+.badge.bg-excellent-subtle {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.badge.bg-good-subtle {
+    background-color: #cfe2ff;
+    color: #084298;
+}
+
+.badge.bg-fair-subtle {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+.badge.bg-poor-subtle,
+.badge.bg-needs_repair-subtle {
+    background-color: #f8d7da;
+    color: #842029;
+}
+</style>
+
 {% endblock %}

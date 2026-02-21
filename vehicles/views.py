@@ -102,6 +102,9 @@ def vehicles_dashboard(request):
     total_fuel_cost = recent_fuel_logs.aggregate(total=Sum('total_cost'))['total'] or 0
     avg_mpg = recent_fuel_logs.aggregate(avg=Avg('mpg'))['avg'] or 0
 
+    # Get list of active vehicles for grid
+    active_vehicles_list = vehicles.filter(status='active').select_related('assigned_to').order_by('name')
+
     context = {
         'total_vehicles': total_vehicles,
         'active_vehicles': active_vehicles,
@@ -113,7 +116,8 @@ def vehicles_dashboard(request):
         'total_mileage': total_mileage,
         'avg_mileage': avg_mileage,
         'total_fuel_cost': total_fuel_cost,
-        'avg_mpg': avg_mpg
+        'avg_mpg': avg_mpg,
+        'active_vehicles_list': active_vehicles_list,
     }
 
     return render(request, 'vehicles/vehicles_dashboard.html', context)
