@@ -1405,3 +1405,53 @@ class WebhookDelivery(models.Model):
 
     def __str__(self):
         return f"{self.webhook.name} - {self.event_type} ({self.status})"
+
+
+# ============================================================================
+# System Package Scanning
+# ============================================================================
+
+class SystemPackageScan(models.Model):
+    """
+    Store results from system package vulnerability scans.
+    Tracks OS package updates and security vulnerabilities.
+    """
+    scan_date = models.DateTimeField(auto_now_add=True)
+    package_manager = models.CharField(
+        max_length=50,
+        help_text="Package manager used (apt, yum, dnf, pacman)"
+    )
+    total_packages = models.IntegerField(default=0)
+    upgradeable_packages = models.IntegerField(default=0)
+    security_updates = models.IntegerField(default=0)
+    scan_data = models.JSONField(
+        default=dict,
+        help_text="Full scan results including package details"
+    )
+
+    class Meta:
+        db_table = 'system_package_scans'
+        ordering = ['-scan_date']
+        indexes = [
+            models.Index(fields=['-scan_date']),
+        ]
+
+    def __str__(self):
+        return f"Scan {self.scan_date.strftime('%Y-%m-%d %H:%M')} - {self.security_updates} security updates"
+
+    @property
+    def has_security_updates(self):
+        """Check if security updates are available"""
+        return self.security_updates > 0
+
+    @property
+    def security_status(self):
+        """Get security status as color/label"""
+        if self.security_updates == 0:
+            return 'success', 'Secure'
+        elif self.security_updates < 5:
+            return 'warning', 'Low Risk'
+        elif self.security_updates < 20:
+            return 'danger', 'Medium Risk'
+        else:
+            return 'danger', 'High Risk'
