@@ -124,16 +124,6 @@
                         {% endif %}
                     </div>
                 </div>
-
-                {% if vehicle.has_location %}
-                <div class="card mb-3">
-                    <div class="card-header"><h6 class="mb-0"><i class="fas fa-map-marker-alt"></i> GPS Location</h6></div>
-                    <div class="card-body">
-                        <p><strong>Coordinates:</strong> {{ vehicle.latitude }}, {{ vehicle.longitude }}</p>
-                        {% if vehicle.last_location_update %}<p class="mb-0"><small class="text-muted">Last updated: {{ vehicle.last_location_update }}</small></p>{% endif %}
-                    </div>
-                </div>
-                {% endif %}
             </div>
         </div>
 
