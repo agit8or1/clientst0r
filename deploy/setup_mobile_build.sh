@@ -15,20 +15,20 @@ echo "Setting up for user: $CURRENT_USER"
 
 # Copy sudoers file
 echo "Configuring passwordless sudo for mobile app builds..."
-sudo cp "$(dirname "$0")/huduglue-mobile-build-sudoers" /etc/sudoers.d/huduglue-mobile-build
+sudo cp "$(dirname "$0")/clientst0r-mobile-build-sudoers" /etc/sudoers.d/clientst0r-mobile-build
 
 # Update user in sudoers file
-sudo sed -i "s/administrator/$CURRENT_USER/g" /etc/sudoers.d/huduglue-mobile-build
+sudo sed -i "s/administrator/$CURRENT_USER/g" /etc/sudoers.d/clientst0r-mobile-build
 
 # Set correct permissions
-sudo chmod 0440 /etc/sudoers.d/huduglue-mobile-build
+sudo chmod 0440 /etc/sudoers.d/clientst0r-mobile-build
 
 # Validate sudoers syntax
-if sudo visudo -c -f /etc/sudoers.d/huduglue-mobile-build; then
+if sudo visudo -c -f /etc/sudoers.d/clientst0r-mobile-build; then
     echo "✓ Sudoers configuration installed successfully"
 else
     echo "✗ Sudoers configuration invalid, removing..."
-    sudo rm /etc/sudoers.d/huduglue-mobile-build
+    sudo rm /etc/sudoers.d/clientst0r-mobile-build
     exit 1
 fi
 

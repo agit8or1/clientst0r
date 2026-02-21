@@ -218,11 +218,11 @@ class UpdateService:
                         "Passwordless sudo is not configured for auto-updates. "
                         "Please configure it by running these commands:\n\n"
                         "sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<SUDOERS\n"
-                        f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart huduglue-gunicorn.service, "
-                        "/usr/bin/systemctl stop huduglue-gunicorn.service, /usr/bin/systemctl start huduglue-gunicorn.service, "
-                        "/usr/bin/systemctl status huduglue-gunicorn.service, /usr/bin/systemctl daemon-reload, "
+                        f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-gunicorn.service, "
+                        "/usr/bin/systemctl stop clientst0r-gunicorn.service, /usr/bin/systemctl start clientst0r-gunicorn.service, "
+                        "/usr/bin/systemctl status clientst0r-gunicorn.service, /usr/bin/systemctl daemon-reload, "
                         "/usr/bin/systemd-run, /usr/bin/pkill, "
-                        "/usr/bin/tee /etc/systemd/system/huduglue-gunicorn.service, "
+                        "/usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service, "
                         "/usr/bin/cp, /usr/bin/chmod\n"
                         "SUDOERS\n\n"
                         "sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update\n\n"
@@ -648,7 +648,7 @@ class UpdateService:
             result['output'].append("")
             result['output'].append("Choose ONE method:")
             result['output'].append("1. Click 'Force Restart Services' button below")
-            result['output'].append("2. SSH: sudo systemctl restart huduglue-gunicorn.service")
+            result['output'].append("2. SSH: sudo systemctl restart clientst0r-gunicorn.service")
             result['output'].append("3. Run: python manage.py auto_heal_version")
             result['steps_completed'].append('restart_service')
 
@@ -675,7 +675,7 @@ class UpdateService:
                         restart_output = self._run_command([
                             '/usr/bin/sudo', '/usr/bin/systemd-run',
                             '--on-active=5',  # Wait 5 seconds for response to complete
-                            '/usr/bin/systemctl', 'restart', 'huduglue-gunicorn.service'
+                            '/usr/bin/systemctl', 'restart', 'clientst0r-gunicorn.service'
                         ])
                         logger.info(f"Service restart scheduled: {restart_output}")
 
@@ -701,11 +701,11 @@ class UpdateService:
                             "Passwordless sudo is not configured. Auto-update requires passwordless sudo "
                             "to restart the service. Please configure it by running:\n\n"
                             "sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<SUDOERS\n"
-                            f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart huduglue-gunicorn.service, "
-                            "/usr/bin/systemctl stop huduglue-gunicorn.service, /usr/bin/systemctl start huduglue-gunicorn.service, "
-                            "/usr/bin/systemctl status huduglue-gunicorn.service, /usr/bin/systemctl daemon-reload, "
+                            f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-gunicorn.service, "
+                            "/usr/bin/systemctl stop clientst0r-gunicorn.service, /usr/bin/systemctl start clientst0r-gunicorn.service, "
+                            "/usr/bin/systemctl status clientst0r-gunicorn.service, /usr/bin/systemctl daemon-reload, "
                             "/usr/bin/systemd-run, /usr/bin/pkill, "
-                            "/usr/bin/tee /etc/systemd/system/huduglue-gunicorn.service, "
+                            "/usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service, "
                             "/usr/bin/cp, /usr/bin/chmod\n"
                             "SUDOERS\n\n"
                             "sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update\n\n"
@@ -754,7 +754,7 @@ class UpdateService:
                     f"cd {self.base_dir}\n"
                     "git fetch origin\n"
                     "git reset --hard origin/main\n"
-                    "sudo systemctl restart huduglue-gunicorn.service\n\n"
+                    "sudo systemctl restart clientst0r-gunicorn.service\n\n"
                     "After this one-time fix, future updates will handle this automatically.\n\n"
                     "See Issue #24 on GitHub for more details."
                 )
@@ -813,7 +813,7 @@ class UpdateService:
         """Check if running as a systemd service."""
         try:
             result = subprocess.run(
-                ['/usr/bin/systemctl', 'is-active', 'huduglue-gunicorn.service'],
+                ['/usr/bin/systemctl', 'is-active', 'clientst0r-gunicorn.service'],
                 capture_output=True,
                 text=True,
                 timeout=5
@@ -833,7 +833,7 @@ class UpdateService:
         try:
             # Test if we can run sudo without password using -n (non-interactive)
             result = subprocess.run(
-                ['/usr/bin/sudo', '-n', '/usr/bin/systemctl', 'status', 'huduglue-gunicorn.service'],
+                ['/usr/bin/sudo', '-n', '/usr/bin/systemctl', 'status', 'clientst0r-gunicorn.service'],
                 capture_output=True,
                 text=True,
                 timeout=5

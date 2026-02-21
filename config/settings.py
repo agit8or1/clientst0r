@@ -174,11 +174,12 @@ else:
         }
     }
 
-# Caching - Use database cache for production, dummy cache for debug
+# Caching - Use locmem cache (in-memory) for better compatibility
+# Database cache requires running createcachetable which may not be done on all systems
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'cache_table',
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'client-st0r-cache',
         'TIMEOUT': 300,  # 5 minutes default timeout
         'OPTIONS': {
             'MAX_ENTRIES': 10000,  # Maximum number of cache entries

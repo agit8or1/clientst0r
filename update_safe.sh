@@ -173,16 +173,16 @@ echo ""
 
 # Step 10: Restart service
 log_info "Restarting Gunicorn service..."
-sudo systemctl restart huduglue-gunicorn.service
+sudo systemctl restart clientst0r-gunicorn.service
 
 # Wait a moment for service to start
 sleep 2
 
 # Check service status
-if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
+if sudo systemctl is-active --quiet clientst0r-gunicorn.service; then
     log_success "Service restarted successfully"
 else
-    log_error "Service failed to start. Check: sudo systemctl status huduglue-gunicorn.service"
+    log_error "Service failed to start. Check: sudo systemctl status clientst0r-gunicorn.service"
     exit 1
 fi
 echo ""

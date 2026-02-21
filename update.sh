@@ -244,11 +244,11 @@ INSTALL_DIR="$(pwd)"
 # Create deploy directory if it doesn't exist
 mkdir -p "$INSTALL_DIR/deploy"
 
-# Generate huduglue-install-sudoers
-cat > "$INSTALL_DIR/deploy/huduglue-install-sudoers" <<SUDOEOF
+# Generate clientst0r-install-sudoers
+cat > "$INSTALL_DIR/deploy/clientst0r-install-sudoers" <<SUDOEOF
 # Sudoers configuration for HuduGlue automatic fail2ban installation
-# Install: sudo cp $INSTALL_DIR/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install
-# Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-install
+# Install: sudo cp $INSTALL_DIR/deploy/clientst0r-install-sudoers /etc/sudoers.d/clientst0r-install
+# Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-install
 
 # Allow $CURRENT_USER user to install and configure fail2ban without password
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
@@ -256,49 +256,49 @@ $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y fail2ban
 $CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl enable fail2ban
 $CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl start fail2ban
 $CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl status fail2ban
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/chmod 0440 /etc/sudoers.d/huduglue-fail2ban
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/cp $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
+$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
 SUDOEOF
 
-# Generate huduglue-fail2ban-sudoers
-cat > "$INSTALL_DIR/deploy/huduglue-fail2ban-sudoers" <<FBSUDOEOF
+# Generate clientst0r-fail2ban-sudoers
+cat > "$INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers" <<FBSUDOEOF
 # Sudoers configuration for HuduGlue fail2ban integration
-# Install: sudo cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
-# Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban
+# Install: sudo cp $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
+# Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
 
 # Allow $CURRENT_USER user to run fail2ban-client without password
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
 FBSUDOEOF
 
 success "Sudoers files regenerated for user: $CURRENT_USER"
-info "  • $INSTALL_DIR/deploy/huduglue-install-sudoers"
-info "  • $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers"
+info "  • $INSTALL_DIR/deploy/clientst0r-install-sudoers"
+info "  • $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers"
 
 # Automatically install sudoers files if they don't exist or have changed
 info "Checking sudoers installation..."
 INSTALL_SUDOERS=false
 FB_SUDOERS=false
 
-# Check huduglue-install sudoers
-if [ ! -f "/etc/sudoers.d/huduglue-install" ]; then
+# Check clientst0r-install sudoers
+if [ ! -f "/etc/sudoers.d/clientst0r-install" ]; then
     INSTALL_SUDOERS=true
-    info "  • huduglue-install not found - will install"
-elif ! sudo diff -q "$INSTALL_DIR/deploy/huduglue-install-sudoers" "/etc/sudoers.d/huduglue-install" &>/dev/null; then
+    info "  • clientst0r-install not found - will install"
+elif ! sudo diff -q "$INSTALL_DIR/deploy/clientst0r-install-sudoers" "/etc/sudoers.d/clientst0r-install" &>/dev/null; then
     INSTALL_SUDOERS=true
-    info "  • huduglue-install has changed - will update"
+    info "  • clientst0r-install has changed - will update"
 else
-    success "  • huduglue-install already up to date"
+    success "  • clientst0r-install already up to date"
 fi
 
-# Check huduglue-fail2ban sudoers
-if [ ! -f "/etc/sudoers.d/huduglue-fail2ban" ]; then
+# Check clientst0r-fail2ban sudoers
+if [ ! -f "/etc/sudoers.d/clientst0r-fail2ban" ]; then
     FB_SUDOERS=true
-    info "  • huduglue-fail2ban not found - will install"
-elif ! sudo diff -q "$INSTALL_DIR/deploy/huduglue-fail2ban-sudoers" "/etc/sudoers.d/huduglue-fail2ban" &>/dev/null; then
+    info "  • clientst0r-fail2ban not found - will install"
+elif ! sudo diff -q "$INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers" "/etc/sudoers.d/clientst0r-fail2ban" &>/dev/null; then
     FB_SUDOERS=true
-    info "  • huduglue-fail2ban has changed - will update"
+    info "  • clientst0r-fail2ban has changed - will update"
 else
-    success "  • huduglue-fail2ban already up to date"
+    success "  • clientst0r-fail2ban already up to date"
 fi
 
 # Install/update sudoers files if needed
@@ -313,32 +313,32 @@ if [ "$INSTALL_SUDOERS" = true ] || [ "$FB_SUDOERS" = true ]; then
     INSTALL_SUCCESS=true
 
     if [ "$INSTALL_SUDOERS" = true ]; then
-        echo -n "Installing huduglue-install sudoers... "
+        echo -n "Installing clientst0r-install sudoers... "
         # Store output and check return code properly
-        if OUTPUT=$(sudo cp "$INSTALL_DIR/deploy/huduglue-install-sudoers" /etc/sudoers.d/huduglue-install 2>&1) && \
-           sudo chmod 0440 /etc/sudoers.d/huduglue-install 2>&1; then
+        if OUTPUT=$(sudo cp "$INSTALL_DIR/deploy/clientst0r-install-sudoers" /etc/sudoers.d/clientst0r-install 2>&1) && \
+           sudo chmod 0440 /etc/sudoers.d/clientst0r-install 2>&1; then
             success "✓ Installed"
         else
             INSTALL_SUCCESS=false
             echo -e "${RED}✗ FAILED${NC}"
             warning "Error: $OUTPUT"
             warning "Manual installation required. Run this command:"
-            echo -e "${YELLOW}    sudo cp $INSTALL_DIR/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install && sudo chmod 0440 /etc/sudoers.d/huduglue-install${NC}"
+            echo -e "${YELLOW}    sudo cp $INSTALL_DIR/deploy/clientst0r-install-sudoers /etc/sudoers.d/clientst0r-install && sudo chmod 0440 /etc/sudoers.d/clientst0r-install${NC}"
         fi
     fi
 
     if [ "$FB_SUDOERS" = true ]; then
-        echo -n "Installing huduglue-fail2ban sudoers... "
+        echo -n "Installing clientst0r-fail2ban sudoers... "
         # Store output and check return code properly
-        if OUTPUT=$(sudo cp "$INSTALL_DIR/deploy/huduglue-fail2ban-sudoers" /etc/sudoers.d/huduglue-fail2ban 2>&1) && \
-           sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban 2>&1; then
+        if OUTPUT=$(sudo cp "$INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers" /etc/sudoers.d/clientst0r-fail2ban 2>&1) && \
+           sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban 2>&1; then
             success "✓ Installed"
         else
             INSTALL_SUCCESS=false
             echo -e "${RED}✗ FAILED${NC}"
             warning "Error: $OUTPUT"
             warning "Manual installation required. Run this command:"
-            echo -e "${YELLOW}    sudo cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban && sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban${NC}"
+            echo -e "${YELLOW}    sudo cp $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban && sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban${NC}"
         fi
     fi
 
@@ -384,17 +384,17 @@ echo "-----------------------------------"
 if [ "$RESTART_SERVICE" = true ]; then
     info "Detecting Gunicorn service name..."
 
-    # Auto-detect service name (supports both clientst0r-gunicorn and huduglue-gunicorn)
+    # Auto-detect service name (supports both clientst0r-gunicorn and clientst0r-gunicorn)
     SERVICE_NAME=""
     if systemctl list-units --type=service --all | grep -q "clientst0r-gunicorn.service"; then
         SERVICE_NAME="clientst0r-gunicorn.service"
         info "Found service: clientst0r-gunicorn.service"
-    elif systemctl list-units --type=service --all | grep -q "huduglue-gunicorn.service"; then
-        SERVICE_NAME="huduglue-gunicorn.service"
-        info "Found service: huduglue-gunicorn.service"
+    elif systemctl list-units --type=service --all | grep -q "clientst0r-gunicorn.service"; then
+        SERVICE_NAME="clientst0r-gunicorn.service"
+        info "Found service: clientst0r-gunicorn.service"
     else
-        warning "Could not find gunicorn service. Trying huduglue-gunicorn.service..."
-        SERVICE_NAME="huduglue-gunicorn.service"
+        warning "Could not find gunicorn service. Trying clientst0r-gunicorn.service..."
+        SERVICE_NAME="clientst0r-gunicorn.service"
     fi
 
     info "Restarting $SERVICE_NAME..."

@@ -68,9 +68,9 @@ fi
 if [ ! -f "$SCRIPT_DIR/venv/bin/activate" ] && [ ! -f "$SCRIPT_DIR/.env" ]; then
     # Look for installation in common locations
     POSSIBLE_DIRS=(
-        "$HOME/huduglue"
+        "$HOME/clientst0r"
         "$(dirname "$SCRIPT_DIR")"
-        "/home/administrator/huduglue"
+        "/home/administrator/clientst0r"
     )
 
     for dir in "${POSSIBLE_DIRS[@]}"; do
@@ -95,7 +95,7 @@ HAS_SERVICE=false
 HAS_ENV=false
 
 # Check for database with data
-if sudo mysql -e "USE huduglue; SELECT COUNT(*) FROM auth_user;" 2>/dev/null | grep -q -E "[0-9]+"; then
+if sudo mysql -e "USE clientst0r; SELECT COUNT(*) FROM auth_user;" 2>/dev/null | grep -q -E "[0-9]+"; then
     HAS_DATABASE=true
     EXISTING_INSTALL=true
 fi
@@ -107,7 +107,7 @@ if [ -f "$INSTALL_DIR/venv/bin/activate" ]; then
 fi
 
 # Check for service
-if sudo systemctl list-unit-files | grep -q huduglue-gunicorn.service; then
+if sudo systemctl list-unit-files | grep -q clientst0r-gunicorn.service; then
     HAS_SERVICE=true
     EXISTING_INSTALL=true
 fi
@@ -132,15 +132,15 @@ if [ "$EXISTING_INSTALL" = true ]; then
     fi
     if [ "$HAS_SERVICE" = true ]; then
         echo "  • Found: systemd service"
-        if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
+        if sudo systemctl is-active --quiet clientst0r-gunicorn.service; then
             echo "    Status: Running ✓"
         else
             echo "    Status: Stopped"
         fi
     fi
     if [ "$HAS_DATABASE" = true ]; then
-        USER_COUNT=$(sudo mysql -e "USE huduglue; SELECT COUNT(*) FROM auth_user;" 2>/dev/null | tail -n1)
-        echo "  • Found: Database 'huduglue' with $USER_COUNT user(s)"
+        USER_COUNT=$(sudo mysql -e "USE clientst0r; SELECT COUNT(*) FROM auth_user;" 2>/dev/null | tail -n1)
+        echo "  • Found: Database 'clientst0r' with $USER_COUNT user(s)"
     fi
 
     echo ""
@@ -180,7 +180,7 @@ if [ "$EXISTING_INSTALL" = true ]; then
 
             # Stop service and kill any gunicorn processes
             print_info "Stopping service..."
-            sudo systemctl stop huduglue-gunicorn.service 2>/dev/null || true
+            sudo systemctl stop clientst0r-gunicorn.service 2>/dev/null || true
             sudo pkill -9 gunicorn 2>/dev/null || true
             sleep 1
 
@@ -258,18 +258,18 @@ if [ "$EXISTING_INSTALL" = true ]; then
 
             # Restart service
             print_info "Restarting service..."
-            sudo systemctl start huduglue-gunicorn.service
+            sudo systemctl start clientst0r-gunicorn.service
 
             # Check status
             sleep 2
-            if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
+            if sudo systemctl is-active --quiet clientst0r-gunicorn.service; then
                 print_status "Upgrade complete! Service is running."
                 SERVER_IP=$(hostname -I | awk '{print $1}')
                 echo ""
                 echo "Access at: http://${SERVER_IP}:8000"
             else
                 print_error "Service failed to start. Check logs:"
-                echo "  sudo journalctl -u huduglue-gunicorn.service -n 50"
+                echo "  sudo journalctl -u clientst0r-gunicorn.service -n 50"
             fi
             exit 0
             ;;
@@ -286,21 +286,21 @@ if [ "$EXISTING_INSTALL" = true ]; then
             fi
 
             # Check database
-            if sudo mysql -e "SHOW DATABASES LIKE 'huduglue';" 2>/dev/null | grep -q huduglue; then
-                print_status "Database: huduglue exists"
-                TABLE_COUNT=$(sudo mysql -e "USE huduglue; SHOW TABLES;" 2>/dev/null | wc -l)
+            if sudo mysql -e "SHOW DATABASES LIKE 'clientst0r';" 2>/dev/null | grep -q clientst0r; then
+                print_status "Database: clientst0r exists"
+                TABLE_COUNT=$(sudo mysql -e "USE clientst0r; SHOW TABLES;" 2>/dev/null | wc -l)
                 echo "  Tables: $((TABLE_COUNT - 1))"
             else
-                print_error "Database: huduglue not found"
+                print_error "Database: clientst0r not found"
             fi
 
             # Check service
-            if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
+            if sudo systemctl is-active --quiet clientst0r-gunicorn.service; then
                 print_status "Service: Running"
-                echo "  $(sudo systemctl show huduglue-gunicorn.service -p MainPID --value) - $(sudo systemctl show huduglue-gunicorn.service -p ActiveState --value)"
-            elif sudo systemctl list-unit-files | grep -q huduglue-gunicorn.service; then
+                echo "  $(sudo systemctl show clientst0r-gunicorn.service -p MainPID --value) - $(sudo systemctl show clientst0r-gunicorn.service -p ActiveState --value)"
+            elif sudo systemctl list-unit-files | grep -q clientst0r-gunicorn.service; then
                 print_warning "Service: Installed but not running"
-                echo "  Start with: sudo systemctl start huduglue-gunicorn.service"
+                echo "  Start with: sudo systemctl start clientst0r-gunicorn.service"
             else
                 print_error "Service: Not installed"
             fi
@@ -345,16 +345,16 @@ if [ "$EXISTING_INSTALL" = true ]; then
             print_info "Removing existing installation..."
 
             # Stop and remove service
-            sudo systemctl stop huduglue-gunicorn.service 2>/dev/null || true
-            sudo systemctl disable huduglue-gunicorn.service 2>/dev/null || true
-            sudo rm -f /etc/systemd/system/huduglue-gunicorn.service
+            sudo systemctl stop clientst0r-gunicorn.service 2>/dev/null || true
+            sudo systemctl disable clientst0r-gunicorn.service 2>/dev/null || true
+            sudo rm -f /etc/systemd/system/clientst0r-gunicorn.service
             sudo systemctl daemon-reload
 
             # Drop database
             print_info "Dropping database..."
             sudo mysql << 'EOSQL'
-DROP DATABASE IF EXISTS huduglue;
-DROP USER IF EXISTS 'huduglue'@'localhost';
+DROP DATABASE IF EXISTS clientst0r;
+DROP USER IF EXISTS 'clientst0r'@'localhost';
 FLUSH PRIVILEGES;
 EOSQL
 
@@ -606,8 +606,8 @@ SECRET_KEY=${SECRET_KEY}
 ALLOWED_HOSTS=localhost,127.0.0.1
 
 # Database (MariaDB/MySQL)
-DB_NAME=huduglue
-DB_USER=huduglue
+DB_NAME=clientst0r
+DB_USER=clientst0r
 DB_PASSWORD=${DB_PASSWORD}
 DB_HOST=localhost
 DB_PORT=3306
@@ -642,11 +642,11 @@ print_info "Step 5.5/11: Generating sudoers files..."
 # Create deploy directory if it doesn't exist
 mkdir -p "$INSTALL_DIR/deploy"
 
-# Generate huduglue-install-sudoers
-cat > "$INSTALL_DIR/deploy/huduglue-install-sudoers" <<SUDOEOF
+# Generate clientst0r-install-sudoers
+cat > "$INSTALL_DIR/deploy/clientst0r-install-sudoers" <<SUDOEOF
 # Sudoers configuration for Client St0r automatic fail2ban installation
-# Install: sudo cp $INSTALL_DIR/deploy/huduglue-install-sudoers /etc/sudoers.d/huduglue-install
-# Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-install
+# Install: sudo cp $INSTALL_DIR/deploy/clientst0r-install-sudoers /etc/sudoers.d/clientst0r-install
+# Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-install
 
 # Allow $USER user to install and configure fail2ban without password
 $USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
@@ -654,15 +654,15 @@ $USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y fail2ban
 $USER ALL=(ALL) NOPASSWD: /bin/systemctl enable fail2ban
 $USER ALL=(ALL) NOPASSWD: /bin/systemctl start fail2ban
 $USER ALL=(ALL) NOPASSWD: /bin/systemctl status fail2ban
-$USER ALL=(ALL) NOPASSWD: /bin/cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
-$USER ALL=(ALL) NOPASSWD: /bin/chmod 0440 /etc/sudoers.d/huduglue-fail2ban
+$USER ALL=(ALL) NOPASSWD: /bin/cp $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
+$USER ALL=(ALL) NOPASSWD: /bin/chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
 SUDOEOF
 
-# Generate huduglue-fail2ban-sudoers
-cat > "$INSTALL_DIR/deploy/huduglue-fail2ban-sudoers" <<FBSUDOEOF
+# Generate clientst0r-fail2ban-sudoers
+cat > "$INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers" <<FBSUDOEOF
 # Sudoers configuration for Client St0r fail2ban integration
-# Install: sudo cp $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers /etc/sudoers.d/huduglue-fail2ban
-# Permissions: sudo chmod 0440 /etc/sudoers.d/huduglue-fail2ban
+# Install: sudo cp $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
+# Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
 
 # Allow $USER user to run fail2ban-client without password
 $USER ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
@@ -670,8 +670,8 @@ FBSUDOEOF
 
 print_status "Sudoers files generated with correct paths for user: $USER"
 print_info "Files created:"
-print_info "  • $INSTALL_DIR/deploy/huduglue-install-sudoers"
-print_info "  • $INSTALL_DIR/deploy/huduglue-fail2ban-sudoers"
+print_info "  • $INSTALL_DIR/deploy/clientst0r-install-sudoers"
+print_info "  • $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers"
 
 # Step 6: Database setup
 echo ""
@@ -699,24 +699,24 @@ echo ""
 
 # Create database and user with the generated password
 sudo mysql << EOSQL
-CREATE DATABASE IF NOT EXISTS huduglue CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'huduglue'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
-GRANT ALL PRIVILEGES ON huduglue.* TO 'huduglue'@'localhost';
+CREATE DATABASE IF NOT EXISTS clientst0r CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'clientst0r'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
+GRANT ALL PRIVILEGES ON clientst0r.* TO 'clientst0r'@'localhost';
 FLUSH PRIVILEGES;
 EOSQL
 
 if [ $? -eq 0 ]; then
     print_status "Database created successfully"
-    print_info "  Database: huduglue"
-    print_info "  User: huduglue"
+    print_info "  Database: clientst0r"
+    print_info "  User: clientst0r"
     print_info "  Password: (stored in .env file)"
 else
     print_error "Database creation failed. You may need to create it manually."
     echo ""
     echo "Run these commands in MySQL as root (use the password from .env file):"
-    echo "  CREATE DATABASE huduglue CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-    echo "  CREATE USER 'huduglue'@'localhost' IDENTIFIED BY '<password from .env>';"
-    echo "  GRANT ALL PRIVILEGES ON huduglue.* TO 'huduglue'@'localhost';"
+    echo "  CREATE DATABASE clientst0r CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    echo "  CREATE USER 'clientst0r'@'localhost' IDENTIFIED BY '<password from .env>';"
+    echo "  GRANT ALL PRIVILEGES ON clientst0r.* TO 'clientst0r'@'localhost';"
     echo "  FLUSH PRIVILEGES;"
     echo ""
     read -p "Press Enter once you've created the database manually..."
@@ -750,7 +750,7 @@ print_info "Step 9/10: Creating superuser account..."
 export DJANGO_SUPERUSER_PASSWORD='ChangeMe123!'
 python3 manage.py createsuperuser \
     --username admin \
-    --email admin@huduglue.local \
+    --email admin@clientst0r.local \
     --noinput 2>/dev/null || true
 
 if python3 manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); exit(0 if User.objects.filter(username='admin').exists() else 1)" 2>/dev/null; then
@@ -795,12 +795,12 @@ echo ""
 print_info "Step 12/12: Starting production server..."
 
 # Stop any existing service and kill processes
-sudo systemctl stop huduglue-gunicorn.service 2>/dev/null || true
+sudo systemctl stop clientst0r-gunicorn.service 2>/dev/null || true
 sudo pkill -9 gunicorn 2>/dev/null || true
 sleep 2
 
 # Create systemd service file
-sudo tee /etc/systemd/system/huduglue-gunicorn.service > /dev/null << 'SVCEOF'
+sudo tee /etc/systemd/system/clientst0r-gunicorn.service > /dev/null << 'SVCEOF'
 [Unit]
 Description=Client St0r Gunicorn
 After=network.target mariadb.service
@@ -827,23 +827,23 @@ WantedBy=multi-user.target
 SVCEOF
 
 # Replace placeholders with actual values
-sudo sed -i "s|USER_PLACEHOLDER|$USER|g" /etc/systemd/system/huduglue-gunicorn.service
-sudo sed -i "s|WORKDIR_PLACEHOLDER|$INSTALL_DIR|g" /etc/systemd/system/huduglue-gunicorn.service
+sudo sed -i "s|USER_PLACEHOLDER|$USER|g" /etc/systemd/system/clientst0r-gunicorn.service
+sudo sed -i "s|WORKDIR_PLACEHOLDER|$INSTALL_DIR|g" /etc/systemd/system/clientst0r-gunicorn.service
 
 # Reload systemd and start service
 sudo systemctl daemon-reload
-sudo systemctl enable huduglue-gunicorn.service 2>&1 | grep -v "Created symlink" || true
-sudo systemctl start huduglue-gunicorn.service
+sudo systemctl enable clientst0r-gunicorn.service 2>&1 | grep -v "Created symlink" || true
+sudo systemctl start clientst0r-gunicorn.service
 
 # Wait for service to start (gunicorn takes a moment to initialize workers)
 sleep 4
 
 # Check if service started successfully
-if sudo systemctl is-active --quiet huduglue-gunicorn.service; then
+if sudo systemctl is-active --quiet clientst0r-gunicorn.service; then
     print_status "Production server started successfully!"
 else
     print_error "Failed to start production server. Checking logs..."
-    sudo journalctl -u huduglue-gunicorn.service -n 30 --no-pager
+    sudo journalctl -u clientst0r-gunicorn.service -n 30 --no-pager
     echo ""
     print_info "Trying to diagnose the issue..."
     sudo ss -tlnp | grep :8000 || echo "Port 8000 is not in use"
@@ -876,17 +876,17 @@ echo "  • Password: (the password you entered)"
 echo ""
 
 print_info "📊 What's Running:"
-echo "  ✅ MariaDB Database: huduglue"
+echo "  ✅ MariaDB Database: clientst0r"
 echo "  ✅ Gunicorn Server: 4 workers on port 8000"
 echo "  ✅ Auto-start on boot: Enabled"
 echo "  ✅ Auto-restart on failure: Enabled"
 echo ""
 
 print_info "🔧 Server Management:"
-echo "  • Check status:  sudo systemctl status huduglue-gunicorn.service"
-echo "  • Restart:       sudo systemctl restart huduglue-gunicorn.service"
-echo "  • Stop:          sudo systemctl stop huduglue-gunicorn.service"
-echo "  • View logs:     sudo journalctl -u huduglue-gunicorn.service -f"
+echo "  • Check status:  sudo systemctl status clientst0r-gunicorn.service"
+echo "  • Restart:       sudo systemctl restart clientst0r-gunicorn.service"
+echo "  • Stop:          sudo systemctl stop clientst0r-gunicorn.service"
+echo "  • View logs:     sudo journalctl -u clientst0r-gunicorn.service -f"
 echo ""
 
 print_warning "⚠️  IMPORTANT SECURITY STEPS:"

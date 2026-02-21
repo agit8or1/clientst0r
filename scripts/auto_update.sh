@@ -18,8 +18,8 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 # Auto-detect venv location (try multiple common paths)
 if [ -d "$PROJECT_DIR/venv" ]; then
     VENV_DIR="$PROJECT_DIR/venv"
-elif [ -d "$PROJECT_DIR/huduglue/venv" ]; then
-    VENV_DIR="$PROJECT_DIR/huduglue/venv"
+elif [ -d "$PROJECT_DIR/clientst0r/venv" ]; then
+    VENV_DIR="$PROJECT_DIR/clientst0r/venv"
 elif [ -d "$(dirname "$PROJECT_DIR")/venv" ]; then
     VENV_DIR="$(dirname "$PROJECT_DIR")/venv"
 else
@@ -161,7 +161,7 @@ log_info "Step 8/8: Restarting services with full cleanup..."
 
 # Detect which gunicorn service exists
 GUNICORN_SERVICE=""
-for service in huduglue-gunicorn.service clientst0r-gunicorn.service itdocs-gunicorn.service; do
+for service in clientst0r-gunicorn.service clientst0r-gunicorn.service itdocs-gunicorn.service; do
     if systemctl list-unit-files | grep -q "^$service"; then
         GUNICORN_SERVICE="$service"
         break
@@ -209,26 +209,26 @@ else
 fi
 
 # Restart Scheduler (if exists)
-if sudo systemctl is-active --quiet huduglue-scheduler.service; then
-    sudo systemctl restart huduglue-scheduler.service
+if sudo systemctl is-active --quiet clientst0r-scheduler.service; then
+    sudo systemctl restart clientst0r-scheduler.service
     log_success "Scheduler restarted"
 fi
 
 # Restart PSA Sync (if exists)
-if sudo systemctl is-active --quiet huduglue-psa-sync.service; then
-    sudo systemctl restart huduglue-psa-sync.service
+if sudo systemctl is-active --quiet clientst0r-psa-sync.service; then
+    sudo systemctl restart clientst0r-psa-sync.service
     log_success "PSA Sync restarted"
 fi
 
 # Restart RMM Sync (if exists)
-if sudo systemctl is-active --quiet huduglue-rmm-sync.service; then
-    sudo systemctl restart huduglue-rmm-sync.service
+if sudo systemctl is-active --quiet clientst0r-rmm-sync.service; then
+    sudo systemctl restart clientst0r-rmm-sync.service
     log_success "RMM Sync restarted"
 fi
 
 # Restart Monitor (if exists)
-if sudo systemctl is-active --quiet huduglue-monitor.service; then
-    sudo systemctl restart huduglue-monitor.service
+if sudo systemctl is-active --quiet clientst0r-monitor.service; then
+    sudo systemctl restart clientst0r-monitor.service
     log_success "Monitor restarted"
 fi
 

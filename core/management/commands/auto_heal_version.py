@@ -49,7 +49,7 @@ class Command(BaseCommand):
             self.stdout.write('Starting auto-heal process...')
 
             # Detect which service is running
-            service_names = ['huduglue-gunicorn.service', 'clientst0r-gunicorn.service', 'itdocs-gunicorn.service']
+            service_names = ['clientst0r-gunicorn.service', 'clientst0r-gunicorn.service', 'itdocs-gunicorn.service']
             gunicorn_service = None
 
             for service in service_names:

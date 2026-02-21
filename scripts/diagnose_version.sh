@@ -34,7 +34,7 @@ echo "   Running processes:"
 ps aux | grep gunicorn | grep -v grep | grep -v "diagnose" | head -5
 echo ""
 echo "   Service status:"
-sudo systemctl status huduglue-gunicorn.service | grep -E "(Active|Main PID)" | head -2
+sudo systemctl status clientst0r-gunicorn.service | grep -E "(Active|Main PID)" | head -2
 echo ""
 
 echo "6. WORKER VERSION CHECK:"
@@ -49,7 +49,7 @@ echo ""
 
 echo "8. SERVICE CONFIGURATION:"
 echo "   Service working directory:"
-sudo systemctl cat huduglue-gunicorn.service 2>/dev/null | grep "WorkingDirectory" || echo "   (service not found)"
+sudo systemctl cat clientst0r-gunicorn.service 2>/dev/null | grep "WorkingDirectory" || echo "   (service not found)"
 echo "   Current script directory:"
 pwd
 echo ""
