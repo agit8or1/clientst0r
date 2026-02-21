@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Details - {{ scan.scan_date|date:"M d, Y H:i" }} - Client St0r{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-alt"></i> Package Scan Details</h2>
+    <div>
+        <a href="{% url 'core:package_scanner_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Scanner
+        </a>
+    </div>
+</div>
+
+<!-- Scan Overview Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-info-circle"></i> Scan Overview</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Scan Date:</th>
+                        <td>{{ scan.scan_date|date:"F d, Y H:i:s" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Package Manager:</th>
+                        <td><code>{{ scan.package_manager }}</code></td>
+                    </tr>
+                    <tr>
+                        <th>Total Packages:</th>
+                        <td>{{ scan.total_packages|default:"0" }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Upgradeable Packages:</th>
+                        <td><span class="badge bg-primary">{{ scan.upgradeable_packages|default:"0" }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Security Updates:</th>
+                        <td><span class="badge bg-{{ scan.security_status.0 }}">{{ scan.security_updates|default:"0" }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Security Status:</th>
+                        <td><span class="badge bg-{{ scan.security_status.0 }}">{{ scan.security_status.1 }}</span></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Security Updates -->
+{% if scan.scan_data.security_packages %}
+<div class="card mb-4">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Security Updates Available ({{ scan.scan_data.security_packages|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Package Name</th>
+                        <th>Current Version</th>
+                        <th>New Version</th>
+                        <th>Repository</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pkg in scan.scan_data.security_packages %}
+                    <tr>
+                        <td><code>{{ pkg.name }}</code></td>
+                        <td><small class="text-muted">{{ pkg.current_version|default:"?" }}</small></td>
+                        <td><small class="text-success fw-bold">{{ pkg.new_version|default:"?" }}</small></td>
+                        <td><small>{{ pkg.repo|default:"security" }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Other Upgradeable Packages -->
+{% if scan.scan_data.upgradeable_packages %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-box-open"></i> Other Updates Available ({{ scan.scan_data.upgradeable_packages|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Package Name</th>
+                        <th>Current Version</th>
+                        <th>New Version</th>
+                        <th>Repository</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pkg in scan.scan_data.upgradeable_packages %}
+                    <tr>
+                        <td><code>{{ pkg.name }}</code></td>
+                        <td><small class="text-muted">{{ pkg.current_version|default:"?" }}</small></td>
+                        <td><small class="text-primary">{{ pkg.new_version|default:"?" }}</small></td>
+                        <td><small>{{ pkg.repo|default:"-" }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- All Installed Packages -->
+{% if scan.scan_data.installed_packages %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-cubes"></i> All Installed Packages
+            <span class="text-muted">({{ scan.scan_data.installed_packages|length }})</span>
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="sticky-top bg-white">
+                    <tr>
+                        <th>Package Name</th>
+                        <th>Version</th>
+                        <th>Architecture</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pkg in scan.scan_data.installed_packages %}
+                    <tr>
+                        <td><code class="text-muted">{{ pkg.name }}</code></td>
+                        <td><small>{{ pkg.version|default:"?" }}</small></td>
+                        <td><small>{{ pkg.architecture|default:"-" }}</small></td>
+                        <td>
+                            {% if pkg.status == "security_update" %}
+                            <span class="badge bg-danger">Security Update</span>
+                            {% elif pkg.status == "upgradeable" %}
+                            <span class="badge bg-primary">Update Available</span>
+                            {% else %}
+                            <span class="badge bg-success">Up to date</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- No Data -->
+{% if not scan.scan_data.security_packages and not scan.scan_data.upgradeable_packages and not scan.scan_data.installed_packages %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i> No package data available for this scan.
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+code {
+    font-size: 0.9em;
+}
+
+.table-sm td, .table-sm th {
+    padding: 0.5rem;
+}
+
+.card-header h5 {
+    margin-bottom: 0;
+}
+</style>
+{% endblock %}

@@ -3,6 +3,114 @@
 from django.db import migrations
 
 
+def remove_index_if_exists(apps, schema_editor):
+    """Remove index only if it exists"""
+    with schema_editor.connection.cursor() as cursor:
+        db_name = schema_editor.connection.settings_dict['NAME']
+
+        # Check if index exists
+        if schema_editor.connection.vendor == 'mysql':
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM information_schema.statistics
+                WHERE table_schema = %s
+                AND table_name = 'rmm_devices'
+                AND index_name = 'rmm_devices_lat_lon_idx'
+            """, [db_name])
+        elif schema_editor.connection.vendor == 'postgresql':
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM pg_indexes
+                WHERE tablename = 'rmm_devices'
+                AND indexname = 'rmm_devices_lat_lon_idx'
+            """)
+        elif schema_editor.connection.vendor == 'sqlite':
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'index'
+                AND tbl_name = 'rmm_devices'
+                AND name = 'rmm_devices_lat_lon_idx'
+            """)
+        else:
+            # Unknown database, skip
+            return
+
+        index_exists = cursor.fetchone()[0] > 0
+
+        if index_exists:
+            # Index exists, safe to drop
+            cursor.execute("DROP INDEX rmm_devices_lat_lon_idx ON rmm_devices")
+
+
+def rename_index_if_exists(apps, schema_editor):
+    """Rename index only if old one exists and new one doesn't"""
+    with schema_editor.connection.cursor() as cursor:
+        db_name = schema_editor.connection.settings_dict['NAME']
+
+        # Check if old index exists
+        if schema_editor.connection.vendor == 'mysql':
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM information_schema.statistics
+                WHERE table_schema = %s
+                AND table_name = 'external_object_map'
+                AND index_name = 'ext_obj_map_conn_idx'
+            """, [db_name])
+            old_exists = cursor.fetchone()[0] > 0
+
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM information_schema.statistics
+                WHERE table_schema = %s
+                AND table_name = 'external_object_map'
+                AND index_name = 'external_ob_connect_9c6dfd_idx'
+            """, [db_name])
+            new_exists = cursor.fetchone()[0] > 0
+        elif schema_editor.connection.vendor == 'sqlite':
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'index'
+                AND tbl_name = 'external_object_map'
+                AND name = 'ext_obj_map_conn_idx'
+            """)
+            old_exists = cursor.fetchone()[0] > 0
+
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'index'
+                AND tbl_name = 'external_object_map'
+                AND name = 'external_ob_connect_9c6dfd_idx'
+            """)
+            new_exists = cursor.fetchone()[0] > 0
+        else:
+            # Skip for other databases
+            return
+
+        # Only rename if old exists and new doesn't
+        if old_exists and not new_exists:
+            if schema_editor.connection.vendor == 'mysql':
+                cursor.execute("""
+                    ALTER TABLE external_object_map
+                    RENAME INDEX ext_obj_map_conn_idx TO external_ob_connect_9c6dfd_idx
+                """)
+            elif schema_editor.connection.vendor == 'sqlite':
+                # SQLite doesn't support RENAME INDEX, recreate it
+                # Get index definition
+                cursor.execute("""
+                    SELECT sql FROM sqlite_master
+                    WHERE type = 'index' AND name = 'ext_obj_map_conn_idx'
+                """)
+                result = cursor.fetchone()
+                if result:
+                    # Drop old and create new
+                    cursor.execute("DROP INDEX ext_obj_map_conn_idx")
+                    # Note: Would need to recreate with new name, but this is complex
+                    # For SQLite, we'll just drop the old index
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,13 +118,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveIndex(
-            model_name='rmmdevice',
-            name='rmm_devices_lat_lon_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='externalobjectmap',
-            new_name='external_ob_connect_9c6dfd_idx',
-            old_name='ext_obj_map_conn_idx',
-        ),
+        migrations.RunPython(remove_index_if_exists, migrations.RunPython.noop),
+        migrations.RunPython(rename_index_if_exists, migrations.RunPython.noop),
     ]

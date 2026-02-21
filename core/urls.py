@@ -12,6 +12,7 @@ from . import tag_views
 from . import firewall_views
 from . import fail2ban_views
 from . import webhook_views
+from . import security_views
 
 app_name = 'core'
 
@@ -48,6 +49,12 @@ urlpatterns = [
 
     # Security (superuser only)
     path('security/', settings_views.security_dashboard, name='security_dashboard'),
+
+    # Package Scanner (staff only)
+    path('security/package-scanner/', security_views.package_scanner_dashboard, name='package_scanner_dashboard'),
+    path('security/package-scanner/run/', security_views.run_package_scan, name='run_package_scan'),
+    path('security/package-scanner/scan/<int:pk>/', security_views.scan_detail, name='scan_detail'),
+    path('api/security/package-scanner/widget/', security_views.get_dashboard_widget_data, name='package_scanner_widget_data'),
 
     # Firewall (superuser only)
     path('settings/firewall/', firewall_views.firewall_settings, name='firewall_settings'),

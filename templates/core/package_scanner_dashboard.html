@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}OS Package Scanner - Client St0r{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-shield-alt"></i> OS Package Security Scanner</h2>
+    <div>
+        <button type="button" class="btn btn-primary" id="runScanBtn">
+            <i class="fas fa-sync"></i> Run Scan Now
+        </button>
+        <a href="{% url 'core:security_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Security Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Security Status Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card {% if stats.security_status.0 == 'success' %}border-success{% elif stats.security_status.0 == 'warning' %}border-warning{% else %}border-danger{% endif %}">
+            <div class="card-body text-center">
+                <i class="fas fa-shield-alt fa-3x mb-2 text-{{ stats.security_status.0 }}"></i>
+                <h3 class="text-{{ stats.security_status.0 }}">{{ stats.security_updates }}</h3>
+                <p class="mb-0">Security Updates</p>
+                <small class="text-muted">{{ stats.security_status.1 }}</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-box-open fa-3x mb-2 text-primary"></i>
+                <h3 class="text-primary">{{ stats.total_updates }}</h3>
+                <p class="mb-0">Total Updates</p>
+                <small class="text-muted">Available</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-cubes fa-3x mb-2 text-info"></i>
+                <h3 class="text-info">{{ stats.total_packages }}</h3>
+                <p class="mb-0">Total Packages</p>
+                <small class="text-muted">Installed</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-3x mb-2 text-secondary"></i>
+                <h3 class="text-secondary">{{ stats.scan_count }}</h3>
+                <p class="mb-0">Scans Recorded</p>
+                {% if stats.latest_scan_date %}
+                <small class="text-muted">Last: {{ stats.latest_scan_date|timesince }} ago</small>
+                {% else %}
+                <small class="text-muted">No scans yet</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Latest Scan Details -->
+{% if latest_scan %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-info-circle"></i> Latest Scan Results</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Scan Date:</th>
+                        <td>{{ latest_scan.scan_date }}</td>
+                    </tr>
+                    <tr>
+                        <th>Package Manager:</th>
+                        <td><code>{{ latest_scan.package_manager }}</code></td>
+                    </tr>
+                    <tr>
+                        <th>Total Packages:</th>
+                        <td>{{ latest_scan.total_packages }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <table class="table table-sm">
+                    <tr>
+                        <th width="40%">Security Updates:</th>
+                        <td><span class="badge bg-{{ stats.security_status.0 }}">{{ latest_scan.security_updates }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Other Updates:</th>
+                        <td><span class="badge bg-primary">{{ latest_scan.upgradeable_packages }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Security Status:</th>
+                        <td><span class="badge bg-{{ stats.security_status.0 }}">{{ stats.security_status.1 }}</span></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        {% if latest_scan.scan_data.security_packages %}
+        <hr>
+        <h6>Security Updates Available:</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Package</th>
+                        <th>Current Version</th>
+                        <th>New Version</th>
+                        <th>Repository</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pkg in latest_scan.scan_data.security_packages|slice:":20" %}
+                    <tr>
+                        <td><code>{{ pkg.name }}</code></td>
+                        <td><small>{{ pkg.current_version|default:"?" }}</small></td>
+                        <td><small>{{ pkg.new_version|default:"?" }}</small></td>
+                        <td><small>{{ pkg.repo|default:"security" }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if latest_scan.scan_data.security_packages|length > 20 %}
+            <p class="text-muted"><small>Showing 20 of {{ latest_scan.scan_data.security_packages|length }} security updates. <a href="{% url 'core:scan_detail' latest_scan.pk %}">View all</a></small></p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> No scans have been run yet. Click "Run Scan Now" to perform your first scan.
+</div>
+{% endif %}
+
+<!-- Scan History -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-history"></i> Scan History</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if scan_history %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Scan Date</th>
+                        <th>Package Manager</th>
+                        <th>Total Packages</th>
+                        <th>Updates</th>
+                        <th>Security</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in scan_history %}
+                    <tr>
+                        <td>{{ scan.scan_date }}</td>
+                        <td><code>{{ scan.package_manager }}</code></td>
+                        <td>{{ scan.total_packages }}</td>
+                        <td><span class="badge bg-primary">{{ scan.upgradeable_packages }}</span></td>
+                        <td>
+                            {% if scan.security_updates > 0 %}
+                            <span class="badge bg-danger">{{ scan.security_updates }}</span>
+                            {% else %}
+                            <span class="badge bg-success">0</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% with status=scan.security_status %}
+                            <span class="badge bg-{{ status.0 }}">{{ status.1 }}</span>
+                            {% endwith %}
+                        </td>
+                        <td>
+                            <a href="{% url 'core:scan_detail' scan.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
+            <p>No scan history available</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Scan Progress Modal -->
+<div class="modal fade" id="scanModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Running Package Scan</h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Scanning...</span>
+                </div>
+                <p>Scanning system packages for updates and vulnerabilities...</p>
+                <p class="text-muted"><small>This may take 30-60 seconds</small></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('runScanBtn').addEventListener('click', function() {
+    const btn = this;
+    const modal = new bootstrap.Modal(document.getElementById('scanModal'));
+
+    // Disable button and show modal
+    btn.disabled = true;
+    modal.show();
+
+    // Run scan
+    fetch('{% url "core:run_package_scan" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        modal.hide();
+        if (data.success) {
+            // Show success message and reload
+            alert('Scan completed successfully!');
+            location.reload();
+        } else {
+            alert('Scan failed: ' + (data.error || 'Unknown error'));
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        modal.hide();
+        alert('Scan failed: ' + error.message);
+        btn.disabled = false;
+    });
+});
+</script>
+{% endblock %}
