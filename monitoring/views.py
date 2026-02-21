@@ -302,7 +302,7 @@ def rack_detail(request, pk):
     rack = get_object_or_404(Rack, pk=pk, organization=org)
 
     # Get devices ordered by position
-    devices = rack.rack_devices.all().order_by('start_unit')
+    devices = rack.rack_devices.select_related('asset', 'equipment_model').order_by('start_unit')
 
     # Create rack layout (list of units)
     rack_units = []
@@ -320,6 +320,15 @@ def rack_detail(request, pk):
             'is_start': device and device.start_unit == unit_num if device else False,
         })
 
+    # Get available rack-mountable assets not yet in this rack
+    existing_asset_ids = devices.filter(asset__isnull=False).values_list('asset_id', flat=True)
+    available_rack_assets = Asset.objects.filter(
+        organization=org,
+        is_rackmount=True
+    ).exclude(
+        id__in=existing_asset_ids
+    ).order_by('name')
+
     # Query rack images
     from files.models import Attachment
     rack_images = Attachment.objects.filter(
@@ -333,6 +342,7 @@ def rack_detail(request, pk):
         'rack': rack,
         'devices': devices,
         'rack_units': rack_units,
+        'available_rack_assets': available_rack_assets,
         'rack_images': rack_images,
     })
 

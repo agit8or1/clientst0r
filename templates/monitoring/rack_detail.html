@@ -4,13 +4,42 @@
 
 {% block extra_css %}
 <style>
+.rack-visual-container {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.rack-main-area {
+    flex: 1;
+}
+
+.rack-container {
+    overflow: auto;
+    transform-origin: top left;
+    transition: transform 0.3s ease;
+}
+
+.rack-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 8px;
+    background: var(--bs-light);
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+
 .rack-visual {
     border: 2px solid #495057;
     background: #212529;
     padding: 8px;
     border-radius: 6px;
-    max-width: 250px;
+    max-width: 350px;
+    min-width: 300px;
+    transition: transform 0.3s ease;
 }
+
 .rack-unit {
     height: 22px;
     border: 1px solid #495057;
@@ -21,42 +50,167 @@
     padding: 0 6px;
     font-size: 0.7rem;
     color: #e9ecef;
+    position: relative;
 }
+
 .rack-unit-number {
     width: 24px;
     text-align: center;
     font-weight: bold;
     font-size: 0.65rem;
     color: #f8f9fa;
+    flex-shrink: 0;
 }
+
 .rack-device {
     color: white;
-    cursor: pointer;
+    cursor: move;
+    user-select: none;
 }
+
 .rack-device:hover {
     opacity: 0.9;
+    box-shadow: 0 0 8px rgba(255,255,255,0.3);
 }
-.rack-device-multi {
-    border-bottom: none;
-    margin-bottom: 0;
+
+.rack-device.draggable .device-name {
+    cursor: grab;
 }
+
+.rack-device.draggable .device-name:active {
+    cursor: grabbing;
+}
+
+.device-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.65rem;
+}
+
+.device-resize-handle {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: rgba(255,255,255,0.2);
+    cursor: ns-resize;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.rack-device:hover .device-resize-handle {
+    opacity: 1;
+}
+
+.device-continuation {
+    cursor: default;
+    border-top: none;
+}
+
 .rack-unit-empty {
     cursor: pointer;
     transition: all 0.15s ease;
 }
+
 .rack-unit-empty:hover {
-    background: #495057 !important;
-    border-color: #6c757d !important;
+    background: #495057;
+    border-color: #6c757d;
 }
+
+.rack-unit-empty .empty-indicator {
+    opacity: 0.3;
+    font-size: 0.6rem;
+    margin-left: auto;
+}
+
+.assets-sidebar {
+    width: 250px;
+    background: var(--bs-light);
+    border-radius: 6px;
+    padding: 12px;
+    max-height: 600px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.assets-sidebar h6 {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.asset-item {
+    padding: 8px;
+    margin-bottom: 6px;
+    background: white;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 4px;
+    cursor: move;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.asset-item:hover {
+    background: var(--bs-primary-bg-subtle);
+    border-color: var(--bs-primary);
+    transform: translateX(4px);
+}
+
+.asset-item .fas.fa-grip-vertical {
+    color: var(--bs-secondary);
+}
+
+.asset-item .asset-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.asset-item .asset-units {
+    font-size: 0.75rem;
+}
+
+/* Sortable ghost/drag styles */
+.sortable-ghost {
+    opacity: 0.4;
+}
+
+.sortable-drag {
+    opacity: 0.8;
+}
+
+/* Dark theme support */
 [data-bs-theme="dark"] .rack-visual {
     background: #0d1117;
 }
+
 [data-bs-theme="dark"] .rack-unit {
     background: #1a1d23;
-    color: #e6edf3;
+    border-color: #30363d;
 }
-[data-bs-theme="dark"] .rack-unit-number {
-    color: #f0f6fc;
+
+[data-bs-theme="dark"] .rack-toolbar {
+    background: #161b22;
+}
+
+[data-bs-theme="dark"] .assets-sidebar {
+    background: #0d1117;
+}
+
+[data-bs-theme="dark"] .asset-item {
+    background: #161b22;
+    border-color: #30363d;
+}
+
+[data-bs-theme="dark"] .asset-item:hover {
+    background: #1f2937;
 }
 </style>
 {% endblock %}
@@ -122,60 +276,69 @@
                 <div class="tab-content">
                     <!-- Rack Visual Tab -->
                     <div class="tab-pane fade show active" id="visual" role="tabpanel">
-                        <div class="row">
-                            <div class="col-md-6 col-lg-4">
-                                <div class="rack-visual">
-                                    {% for unit in rack_units %}
-                                    {% if unit.device %}
-                                    <a href="{% url 'monitoring:rack_device_edit' unit.device.pk %}" style="text-decoration: none; display: block;">
-                                        <div class="rack-unit {% if unit.is_start %}rack-device{% else %}rack-device rack-device-multi{% endif %}"
-                                             style="background-color: {{ unit.device.color }};"
-                                             data-bs-toggle="tooltip"
-                                             data-bs-placement="right"
-                                             data-bs-html="true"
-                                             title="<strong>{{ unit.device.name }}</strong><br>U{{ unit.device.start_unit }}-U{{ unit.device.end_unit }}{% if unit.device.power_draw_watts %}<br>{{ unit.device.power_draw_watts }}W{% endif %}">
-                                            <span class="rack-unit-number">{{ unit.number }}</span>
-                                            {% if unit.is_start %}
-                                            <span class="flex-fill text-truncate" style="font-size: 0.65rem;">{{ unit.device.name }}</span>
-                                            {% endif %}
-                                        </div>
-                                    </a>
-                                    {% else %}
-                                    <a href="{% url 'monitoring:rack_device_create' rack.pk %}?start_unit={{ unit.number }}" style="text-decoration: none; display: block;">
-                                        <div class="rack-unit rack-unit-empty"
-                                             data-bs-toggle="tooltip"
-                                             data-bs-placement="right"
-                                             title="U{{ unit.number }} - Click to assign asset">
-                                            <span class="rack-unit-number">{{ unit.number }}</span>
-                                            <span class="flex-fill text-end" style="font-size: 0.6rem; opacity: 0.5;">
-                                                <i class="fas fa-plus"></i>
-                                            </span>
-                                        </div>
-                                    </a>
-                                    {% endif %}
-                                    {% endfor %}
+                        <div class="rack-visual-container">
+                            <!-- Main Rack Area -->
+                            <div class="rack-main-area">
+                                <!-- Toolbar -->
+                                <div class="rack-toolbar">
+                                    <button id="toggle-view-mode" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-cube"></i> 3D View
+                                    </button>
+                                    <button id="zoom-in" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-search-plus"></i>
+                                    </button>
+                                    <button id="zoom-out" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-search-minus"></i>
+                                    </button>
+                                    <button id="reset-view" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-undo"></i> Reset
+                                    </button>
                                 </div>
+
+                                <!-- Rack Container -->
+                                <div id="rack-container" class="rack-container" data-rack-id="{{ rack.id }}">
+                                    <div id="rack-visual" class="rack-visual" data-units="{{ rack.units }}">
+                                        <!-- Units rendered by JavaScript -->
+                                    </div>
+                                </div>
+
+                                {% if rack_images %}
+                                <div class="mt-3">
+                                    <h6 class="mb-3"><i class="fas fa-camera"></i> Featured Images</h6>
+                                    <div class="row g-2">
+                                        {% for image in rack_images|slice:":4" %}
+                                        <div class="col-6 col-md-3">
+                                            <img src="{% url 'files:serve_attachment' image.id %}"
+                                                 class="img-fluid rounded"
+                                                 alt="{{ image.original_filename }}"
+                                                 style="height: 120px; width: 100%; object-fit: cover; cursor: pointer;"
+                                                 onclick="viewImage('{% url 'files:serve_attachment' image.id %}', '{{ image.original_filename }}')">
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% if rack_images.count > 4 %}
+                                    <p class="text-muted small mt-2 mb-0">
+                                        <i class="fas fa-info-circle"></i> Showing 4 of {{ rack_images.count }} images.
+                                        <a href="#images" onclick="document.getElementById('images-tab').click();">View all</a>
+                                    </p>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </div>
-                            {% if rack_images %}
-                            <div class="col-md-6 col-lg-8">
-                                <h6 class="mb-3"><i class="fas fa-camera"></i> Featured Images</h6>
-                                <div class="row g-2">
-                                    {% for image in rack_images|slice:":4" %}
-                                    <div class="col-6">
-                                        <img src="{% url 'files:serve_attachment' image.id %}"
-                                             class="img-fluid rounded"
-                                             alt="{{ image.original_filename }}"
-                                             style="height: 150px; width: 100%; object-fit: cover; cursor: pointer;"
-                                             onclick="viewImage('{% url 'files:serve_attachment' image.id %}', '{{ image.original_filename }}')">
+
+                            <!-- Available Assets Sidebar -->
+                            {% if available_rack_assets %}
+                            <div id="assets-sidebar" class="assets-sidebar">
+                                <h6><i class="fas fa-server"></i> Available Assets</h6>
+                                <div id="available-assets">
+                                    {% for asset in available_rack_assets %}
+                                    <div class="asset-item" data-asset-id="{{ asset.id }}" data-units="{{ asset.rack_units|default:'1' }}">
+                                        <i class="fas fa-grip-vertical"></i>
+                                        <span class="asset-name">{{ asset.name }}</span>
+                                        <small class="text-muted asset-units">{{ asset.rack_units|default:'1' }}U</small>
                                     </div>
                                     {% endfor %}
                                 </div>
-                                {% if rack_images.count > 4 %}
-                                <p class="text-muted small mt-2 mb-0">
-                                    <i class="fas fa-info-circle"></i> Showing 4 of {{ rack_images.count }} images.
-                                    <a href="#images" onclick="document.getElementById('images-tab').click();">View all</a>
-                                </p>
-                                {% endif %}
                             </div>
                             {% endif %}
                         </div>
@@ -329,13 +492,446 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- SortableJS Library -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
 <script>
-// Initialize Bootstrap tooltips for rack units
+// Configuration
+const RACK_ID = {{ rack.id }};
+const RACK_UNITS = {{ rack.units }};
+let VIEW_MODE = '2d';  // '2d' or '3d'
+let ZOOM_LEVEL = 1.0;
+
+// State management
+let rackDevices = [];
+let draggedAsset = null;
+
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+    loadRackDevices();
+    initializeToolbar();
 });
 
+// Load rack devices via API
+function loadRackDevices() {
+    fetch(`/monitoring/api/racks/${RACK_ID}/devices/`)
+        .then(response => response.json())
+        .then(data => {
+            rackDevices = data.devices;
+            renderRack();
+        })
+        .catch(error => {
+            console.error('Failed to load rack devices:', error);
+            showToast('Error loading rack data', 'danger');
+        });
+}
+
+// Render the rack visualization
+function renderRack() {
+    const rackVisual = document.getElementById('rack-visual');
+    rackVisual.innerHTML = '';
+
+    // Create unit divs (top to bottom)
+    for (let unit = RACK_UNITS; unit >= 1; unit--) {
+        const device = getDeviceAtUnit(unit);
+        const unitDiv = createUnitDiv(unit, device);
+        rackVisual.appendChild(unitDiv);
+    }
+
+    // Apply 3D transform if in 3D mode
+    if (VIEW_MODE === '3d') {
+        applyIsometricTransform();
+    }
+
+    // Initialize drag-and-drop
+    initializeSortable();
+}
+
+// Create a unit div element
+function createUnitDiv(unitNumber, device) {
+    const div = document.createElement('div');
+    div.classList.add('rack-unit');
+    div.dataset.unit = unitNumber;
+
+    if (device) {
+        // Device occupies this unit
+        const isStart = device.start_unit === unitNumber;
+        div.classList.add('rack-device');
+        div.style.backgroundColor = device.color;
+        div.dataset.deviceId = device.id;
+        div.dataset.startUnit = device.start_unit;
+        div.dataset.units = device.units;
+
+        if (isStart) {
+            div.innerHTML = `
+                <span class="rack-unit-number">${unitNumber}</span>
+                <span class="device-name" title="${device.name}">${device.name}</span>
+                <div class="device-resize-handle"></div>
+            `;
+            // Make the start unit draggable
+            div.classList.add('draggable');
+        } else {
+            div.innerHTML = `<span class="rack-unit-number">${unitNumber}</span>`;
+            div.classList.add('device-continuation');
+        }
+    } else {
+        // Empty unit
+        div.classList.add('rack-unit-empty');
+        div.innerHTML = `
+            <span class="rack-unit-number">${unitNumber}</span>
+            <span class="empty-indicator"><i class="fas fa-plus"></i></span>
+        `;
+    }
+
+    return div;
+}
+
+// Get device occupying a specific unit
+function getDeviceAtUnit(unitNumber) {
+    return rackDevices.find(d =>
+        d.start_unit <= unitNumber &&
+        unitNumber <= (d.start_unit + d.units - 1)
+    );
+}
+
+// Initialize SortableJS for rack
+function initializeSortable() {
+    const rackVisual = document.getElementById('rack-visual');
+
+    new Sortable(rackVisual, {
+        animation: 200,
+        handle: '.device-name',  // Drag by device name
+        filter: '.device-continuation',  // Can't drag continuation units
+        draggable: '.draggable',
+        ghostClass: 'sortable-ghost',
+        dragClass: 'sortable-drag',
+
+        // On drag start
+        onStart: function(evt) {
+            const deviceId = evt.item.dataset.deviceId;
+            const device = rackDevices.find(d => d.id == deviceId);
+            console.log('Dragging device:', device.name);
+        },
+
+        // On drop
+        onEnd: function(evt) {
+            const deviceId = parseInt(evt.item.dataset.deviceId);
+            const oldStartUnit = parseInt(evt.item.dataset.startUnit);
+
+            // Calculate new start unit based on drop position
+            // Index 0 = highest unit number, so reverse the calculation
+            let newStartUnit = RACK_UNITS - evt.newIndex;
+
+            // Update device position via API
+            updateDevicePosition(deviceId, oldStartUnit, newStartUnit);
+        }
+    });
+
+    // Initialize asset sidebar if it exists
+    const assetsSidebar = document.getElementById('available-assets');
+    if (assetsSidebar) {
+        initializeAssetSidebar();
+    }
+}
+
+// Initialize asset sidebar drag-and-drop
+function initializeAssetSidebar() {
+    const sidebar = document.getElementById('available-assets');
+
+    new Sortable(sidebar, {
+        group: {
+            name: 'assets',
+            pull: 'clone',
+            put: false
+        },
+        animation: 200,
+        sort: false,
+        ghostClass: 'sortable-ghost',
+
+        onEnd: function(evt) {
+            // Remove the cloned element that was added to the rack
+            if (evt.to.id === 'rack-visual') {
+                evt.item.remove();
+            }
+        }
+    });
+
+    // Enable drop on rack visual
+    const rackVisual = document.getElementById('rack-visual');
+    const rackSortable = Sortable.get(rackVisual);
+
+    // Create new Sortable for accepting assets
+    new Sortable(rackVisual, {
+        group: 'assets',
+        animation: 200,
+
+        onAdd: function(evt) {
+            // Asset dropped onto rack
+            const assetId = parseInt(evt.item.dataset.assetId);
+            const units = parseInt(evt.item.dataset.units);
+
+            // Calculate target unit based on drop index
+            const targetUnit = RACK_UNITS - evt.newIndex;
+
+            // Remove the cloned element
+            evt.item.remove();
+
+            // Create device from asset
+            createDeviceFromAsset(assetId, targetUnit, units);
+        }
+    });
+}
+
+// Update device position via API
+function updateDevicePosition(deviceId, oldStartUnit, newStartUnit) {
+    const device = rackDevices.find(d => d.id === deviceId);
+
+    // Check if position actually changed
+    if (oldStartUnit === newStartUnit) {
+        renderRack();  // Re-render to reset visual
+        return;
+    }
+
+    // Show loading indicator
+    showToast(`Moving ${device.name} to U${newStartUnit}...`, 'info');
+
+    fetch(`/monitoring/api/rack-devices/${deviceId}/update-position/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            start_unit: newStartUnit,
+            units: device.units
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error || !data.success) {
+            showToast(data.error || 'Failed to move device', 'danger');
+            renderRack();  // Revert visual
+        } else {
+            // Update local state
+            const deviceIndex = rackDevices.findIndex(d => d.id === deviceId);
+            rackDevices[deviceIndex].start_unit = newStartUnit;
+
+            showToast(`${device.name} moved to U${newStartUnit}`, 'success');
+            renderRack();  // Re-render with new position
+        }
+    })
+    .catch(error => {
+        console.error('Failed to update position:', error);
+        showToast('Failed to update device position', 'danger');
+        renderRack();  // Revert visual
+    });
+}
+
+// Create device from dragged asset
+function createDeviceFromAsset(assetId, startUnit, units) {
+    showToast('Adding asset to rack...', 'info');
+
+    fetch(`/monitoring/api/racks/${RACK_ID}/devices/create/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            asset_id: assetId,
+            start_unit: startUnit,
+            units: units
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error || !data.success) {
+            showToast(data.error || 'Failed to add asset', 'danger');
+        } else {
+            rackDevices.push(data.device);
+            showToast(`Asset added at U${startUnit}`, 'success');
+            renderRack();
+
+            // Reload page after short delay to update assets sidebar
+            setTimeout(() => location.reload(), 1500);
+        }
+    })
+    .catch(error => {
+        console.error('Failed to create device:', error);
+        showToast('Failed to add asset to rack', 'danger');
+    });
+}
+
+// Toolbar functions
+function initializeToolbar() {
+    document.getElementById('toggle-view-mode').addEventListener('click', toggleViewMode);
+    document.getElementById('zoom-in').addEventListener('click', () => setZoom(ZOOM_LEVEL + 0.1));
+    document.getElementById('zoom-out').addEventListener('click', () => setZoom(ZOOM_LEVEL - 0.1));
+    document.getElementById('reset-view').addEventListener('click', resetView);
+}
+
+function toggleViewMode() {
+    VIEW_MODE = VIEW_MODE === '2d' ? '3d' : '2d';
+    const btn = document.getElementById('toggle-view-mode');
+    btn.innerHTML = VIEW_MODE === '3d'
+        ? '<i class="fas fa-th"></i> 2D View'
+        : '<i class="fas fa-cube"></i> 3D View';
+    renderRack();
+}
+
+function applyIsometricTransform() {
+    const rackVisual = document.getElementById('rack-visual');
+    rackVisual.style.transform = 'rotateX(60deg) rotateZ(-45deg) scale(1.2)';
+    rackVisual.style.transformStyle = 'preserve-3d';
+    rackVisual.style.perspective = '1000px';
+
+    // Add 3D depth to units
+    document.querySelectorAll('.rack-unit').forEach((unit, index) => {
+        unit.style.transform = `translateZ(${index * 0.5}px)`;
+    });
+}
+
+function setZoom(level) {
+    ZOOM_LEVEL = Math.max(0.5, Math.min(2.0, level));
+    const container = document.getElementById('rack-container');
+    container.style.transform = `scale(${ZOOM_LEVEL})`;
+}
+
+function resetView() {
+    VIEW_MODE = '2d';
+    ZOOM_LEVEL = 1.0;
+    const btn = document.getElementById('toggle-view-mode');
+    btn.innerHTML = '<i class="fas fa-cube"></i> 3D View';
+    const container = document.getElementById('rack-container');
+    container.style.transform = 'scale(1.0)';
+    const rackVisual = document.getElementById('rack-visual');
+    rackVisual.style.transform = '';
+    rackVisual.style.transformStyle = '';
+    rackVisual.style.perspective = '';
+    renderRack();
+}
+
+// Resize handle functionality
+document.addEventListener('mousedown', function(e) {
+    if (e.target.classList.contains('device-resize-handle')) {
+        startResize(e);
+    }
+});
+
+function startResize(e) {
+    e.preventDefault();
+    const handle = e.target;
+    const deviceDiv = handle.closest('.rack-device');
+    const deviceId = parseInt(deviceDiv.dataset.deviceId);
+    const startY = e.clientY;
+    const originalUnits = parseInt(deviceDiv.dataset.units);
+
+    function onMouseMove(e) {
+        const deltaY = e.clientY - startY;
+        const newUnits = Math.max(1, originalUnits + Math.round(deltaY / 22));  // 22px per unit
+        // Visual feedback only - don't commit until mouseup
+        deviceDiv.style.height = `${newUnits * 22}px`;
+    }
+
+    function onMouseUp(e) {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+
+        const deltaY = e.clientY - startY;
+        const newUnits = Math.max(1, originalUnits + Math.round(deltaY / 22));
+
+        if (newUnits !== originalUnits) {
+            updateDeviceSize(deviceId, newUnits);
+        } else {
+            renderRack();  // Revert visual
+        }
+    }
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+}
+
+function updateDeviceSize(deviceId, newUnits) {
+    const device = rackDevices.find(d => d.id === deviceId);
+    showToast(`Resizing ${device.name} to ${newUnits}U...`, 'info');
+
+    fetch(`/monitoring/api/rack-devices/${deviceId}/update-position/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            start_unit: device.start_unit,
+            units: newUnits
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error || !data.success) {
+            showToast(data.error || 'Failed to resize', 'danger');
+            renderRack();
+        } else {
+            const deviceIndex = rackDevices.findIndex(d => d.id === deviceId);
+            rackDevices[deviceIndex].units = newUnits;
+            showToast(`${device.name} resized to ${newUnits}U`, 'success');
+            renderRack();
+        }
+    })
+    .catch(error => {
+        console.error('Failed to resize device:', error);
+        showToast('Failed to resize device', 'danger');
+        renderRack();
+    });
+}
+
+// Utility functions
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showToast(message, type = 'info') {
+    // Bootstrap toast notification
+    const toastHTML = `
+        <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+    const toastEl = toastContainer.lastElementChild;
+    const toast = new bootstrap.Toast(toastEl, {autohide: true, delay: 3000});
+    toast.show();
+
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.classList.add('toast-container', 'position-fixed', 'top-0', 'end-0', 'p-3');
+    container.style.zIndex = 9999;
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+
+<script>
 function uploadImage() {
     const form = document.getElementById('imageUploadForm');
     const formData = new FormData(form);

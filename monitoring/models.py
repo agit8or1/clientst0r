@@ -496,6 +496,36 @@ class RackDevice(BaseModel):
         super().save(*args, **kwargs)
 
 
+class RackConnection(BaseModel):
+    """
+    Represents a cable/connection between two rack devices.
+    Supports network, power, and fiber connections for cable visualization.
+    """
+    CONNECTION_TYPES = [
+        ('network', 'Network Cable'),
+        ('fiber', 'Fiber Optic'),
+        ('power', 'Power Cable'),
+        ('console', 'Console Cable'),
+        ('storage', 'Storage (SAN/NAS)'),
+    ]
+
+    from_device = models.ForeignKey(RackDevice, on_delete=models.CASCADE, related_name='connections_from')
+    to_device = models.ForeignKey(RackDevice, on_delete=models.CASCADE, related_name='connections_to')
+
+    connection_type = models.CharField(max_length=50, choices=CONNECTION_TYPES)
+    from_port = models.CharField(max_length=50, blank=True, help_text="Source port (e.g., eth0, port 24)")
+    to_port = models.CharField(max_length=50, blank=True, help_text="Destination port")
+
+    cable_color = models.CharField(max_length=7, default='#0d6efd', help_text="Cable color for visualization")
+    speed = models.CharField(max_length=50, blank=True, help_text="Connection speed (e.g., 1Gbps, 10Gbps)")
+
+    class Meta:
+        db_table = 'rack_connections'
+
+    def __str__(self):
+        return f"{self.from_device.name} → {self.to_device.name} ({self.connection_type})"
+
+
 class VLAN(BaseModel):
     """
     Virtual LAN configuration.

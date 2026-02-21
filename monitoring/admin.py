@@ -2,7 +2,7 @@
 Admin configuration for monitoring app
 """
 from django.contrib import admin
-from .models import WebsiteMonitor, Expiration, Rack, RackDevice, RackResource, Subnet, IPAddress
+from .models import WebsiteMonitor, Expiration, Rack, RackDevice, RackConnection, RackResource, Subnet, IPAddress
 
 
 @admin.register(WebsiteMonitor)
@@ -51,7 +51,15 @@ class RackAdmin(admin.ModelAdmin):
 class RackDeviceAdmin(admin.ModelAdmin):
     list_display = ('name', 'rack', 'start_unit', 'units', 'power_draw_watts', 'asset')
     list_filter = ('rack__organization', 'rack')
-    search_fields = ('name', 'notes')
+    search_fields = ('name', 'notes')  # Needed for autocomplete in RackConnection
+
+
+@admin.register(RackConnection)
+class RackConnectionAdmin(admin.ModelAdmin):
+    list_display = ('from_device', 'to_device', 'connection_type', 'from_port', 'to_port', 'speed')
+    list_filter = ('connection_type',)
+    search_fields = ('from_device__name', 'to_device__name', 'from_port', 'to_port')
+    autocomplete_fields = ('from_device', 'to_device')
 
 
 @admin.register(RackResource)

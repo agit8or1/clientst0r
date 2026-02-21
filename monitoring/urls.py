@@ -3,6 +3,7 @@ Monitoring URL configuration
 """
 from django.urls import path
 from . import views
+from . import api_views
 from . import patch_panel_views
 from . import vlan_views
 
@@ -72,4 +73,10 @@ urlpatterns = [
     path('patch-panels/<int:pk>/edit/', patch_panel_views.patch_panel_edit, name='patch_panel_edit'),
     path('patch-panels/<int:pk>/delete/', patch_panel_views.patch_panel_delete, name='patch_panel_delete'),
     path('api/patch-panels/<int:pk>/ports/', patch_panel_views.patch_panel_api_ports, name='patch_panel_api_ports'),
+
+    # Rack Device API endpoints
+    path('api/racks/<int:pk>/devices/', api_views.rack_devices_list, name='api_rack_devices_list'),
+    path('api/rack-devices/<int:pk>/update-position/', api_views.update_rack_device_position, name='api_update_rack_device_position'),
+    path('api/rack-devices/<int:pk>/', api_views.rack_device_detail, name='api_rack_device_detail'),
+    path('api/racks/<int:pk>/devices/create/', api_views.create_rack_device, name='api_create_rack_device'),
 ]
