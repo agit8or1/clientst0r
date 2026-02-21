@@ -27,6 +27,13 @@ def rack_devices_list(request, pk):
 
     devices_data = []
     for device in devices:
+        # Get equipment image if available
+        equipment_image_url = None
+        if device.asset and device.asset.equipment_model:
+            image = device.asset.equipment_model.get_primary_image()
+            if image:
+                equipment_image_url = f'/files/attachments/{image.id}/'
+
         devices_data.append({
             'id': device.id,
             'name': device.name,
@@ -37,6 +44,13 @@ def rack_devices_list(request, pk):
             'power_draw_watts': device.power_draw_watts,
             'asset_id': device.asset_id,
             'asset_name': device.asset.name if device.asset else None,
+            'asset_type': device.asset.asset_type if device.asset else 'other',
+            'port_count': device.asset.port_count if device.asset else None,
+            'equipment_image_url': equipment_image_url,
+            'board_position_x': device.board_position_x,
+            'board_position_y': device.board_position_y,
+            'board_width': device.board_width,
+            'board_height': device.board_height,
             'notes': device.notes,
         })
 
@@ -554,9 +568,15 @@ def rack_resources_list(request, pk):
             'name': resource.name,
             'resource_type': resource.resource_type,
             'resource_type_display': resource.get_resource_type_display(),
+            'asset_type': resource.resource_type,  # Use resource_type as asset_type for consistency
             'rack_position': resource.rack_position,
             'port_count': resource.port_count,
             'color': '#9b59b6',  # Purple for resources
+            'board_position_x': resource.board_position_x,
+            'board_position_y': resource.board_position_y,
+            'board_width': resource.board_width,
+            'board_height': resource.board_height,
+            'equipment_image_url': None,  # Resources don't have equipment models
         })
 
     return JsonResponse({

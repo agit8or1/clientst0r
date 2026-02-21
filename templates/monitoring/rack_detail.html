@@ -212,6 +212,225 @@
 [data-bs-theme="dark"] .asset-item:hover {
     background: #1f2937;
 }
+
+/* Board Layout Styles */
+.board-layout-container {
+    position: relative;
+    background: #f8f9fa;
+    border: 2px solid #495057;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.board-canvas {
+    width: 100%;
+    height: 600px;
+    position: relative;
+    cursor: crosshair;
+}
+
+.board-grid-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 49px, rgba(0,0,0,0.1) 49px, rgba(0,0,0,0.1) 50px),
+        repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(0,0,0,0.1) 49px, rgba(0,0,0,0.1) 50px);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.board-grid-overlay.active {
+    opacity: 1;
+}
+
+.board-device {
+    position: absolute;
+    border: 2px solid #495057;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: move;
+    user-select: none;
+    background: #6c757d;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-align: center;
+    padding: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: box-shadow 0.2s;
+}
+
+.board-device:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    z-index: 10;
+}
+
+.board-device.dragging {
+    opacity: 0.7;
+    cursor: grabbing;
+}
+
+.board-device-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.board-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
+    background: rgba(255,255,255,0.3);
+    cursor: nwse-resize;
+    border-top-left-radius: 4px;
+}
+
+.layout-toggle-buttons {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+[data-bs-theme="dark"] .board-layout-container {
+    background: #0d1117;
+}
+
+[data-bs-theme="dark"] .board-grid-overlay {
+    background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 49px, rgba(255,255,255,0.1) 49px, rgba(255,255,255,0.1) 50px),
+        repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(255,255,255,0.1) 49px, rgba(255,255,255,0.1) 50px);
+}
+
+/* Device Visual Indicators */
+.device-visual {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 4px;
+    font-size: 0.6rem;
+}
+
+.device-image {
+    max-width: 40px;
+    height: auto;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.1);
+    padding: 1px;
+}
+
+.led-row {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+}
+
+.led {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 2px currentColor;
+}
+
+.led-green {
+    background: #28a745;
+    box-shadow: 0 0 4px #28a745;
+}
+
+.led-amber {
+    background: #ffc107;
+    box-shadow: 0 0 4px #ffc107;
+}
+
+.led-blue {
+    background: #17a2b8;
+    box-shadow: 0 0 4px #17a2b8;
+}
+
+.led-red {
+    background: #dc3545;
+    box-shadow: 0 0 4px #dc3545;
+}
+
+.drive-bays, .port-indicators, .port-grid, .outlet-indicators {
+    font-size: 0.55rem;
+    line-height: 1;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    white-space: nowrap;
+}
+
+.server-visual {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.switch-visual, .patch-panel-visual {
+    flex-direction: row;
+}
+
+.power-visual {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.storage-visual {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+/* Board device enhanced styling */
+.board-device.has-image {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.board-device-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    background: rgba(0,0,0,0.2);
+}
+
+.board-device-image {
+    width: 100%;
+    height: 70%;
+    object-fit: contain;
+    margin-bottom: 4px;
+}
+
+.board-device-ports {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 6px);
+    gap: 2px;
+    margin-top: auto;
+    font-size: 0.5rem;
+}
+
+.board-port-indicator {
+    width: 6px;
+    height: 6px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 50%;
+}
+
+.board-port-indicator.active {
+    background: #28a745;
+    box-shadow: 0 0 3px #28a745;
+}
 </style>
 {% endblock %}
 
@@ -281,6 +500,17 @@
                             <div class="rack-main-area">
                                 <!-- Toolbar -->
                                 <div class="rack-toolbar">
+                                    <div class="layout-toggle-buttons">
+                                        <button id="toggle-rack-view" class="btn btn-sm btn-outline-primary active">
+                                            <i class="fas fa-server"></i> Rack View
+                                        </button>
+                                        <button id="toggle-board-view" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-th"></i> Board View
+                                        </button>
+                                    </div>
+                                    <button id="toggle-grid" class="btn btn-sm btn-outline-secondary" style="display: none;">
+                                        <i class="fas fa-border-all"></i> Snap to Grid
+                                    </button>
                                     <button id="zoom-in" class="btn btn-sm btn-outline-secondary">
                                         <i class="fas fa-search-plus"></i> Zoom In
                                     </button>
@@ -288,7 +518,7 @@
                                         <i class="fas fa-search-minus"></i> Zoom Out
                                     </button>
                                     <button id="reset-view" class="btn btn-sm btn-outline-secondary">
-                                        <i class="fas fa-undo"></i> Reset Zoom
+                                        <i class="fas fa-undo"></i> Reset
                                     </button>
                                 </div>
 
@@ -297,6 +527,14 @@
                                     <div id="rack-visual" class="rack-visual" data-units="{{ rack.units }}">
                                         <!-- Units rendered by JavaScript -->
                                     </div>
+                                </div>
+
+                                <!-- Board Layout Container -->
+                                <div id="board-container" class="board-layout-container" style="display: none;">
+                                    <div id="board-canvas" class="board-canvas">
+                                        <!-- Devices rendered by JavaScript -->
+                                    </div>
+                                    <div id="board-grid-overlay" class="board-grid-overlay"></div>
                                 </div>
 
                                 {% if rack_images %}
@@ -497,10 +735,15 @@
 const RACK_ID = {{ rack.id }};
 const RACK_UNITS = {{ rack.units }};
 let ZOOM_LEVEL = 1.0;
+const GRID_SIZE = 50; // Grid cell size in pixels
 
 // State management
 let rackDevices = [];
+let rackResources = [];
 let draggedAsset = null;
+let currentView = 'rack'; // 'rack' or 'board'
+let snapToGrid = false;
+let boardDragState = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -514,12 +757,32 @@ function loadRackDevices() {
         .then(response => response.json())
         .then(data => {
             rackDevices = data.devices;
-            renderRack();
+            renderCurrentView();
         })
         .catch(error => {
             console.error('Failed to load rack devices:', error);
             showToast('Error loading rack data', 'danger');
         });
+
+    // Also load resources for board view
+    fetch(`/monitoring/api/racks/${RACK_ID}/resources/`)
+        .then(response => response.json())
+        .then(data => {
+            rackResources = data.resources || [];
+            renderCurrentView();
+        })
+        .catch(error => {
+            console.error('Failed to load rack resources:', error);
+        });
+}
+
+// Render current view (rack or board)
+function renderCurrentView() {
+    if (currentView === 'rack') {
+        renderRack();
+    } else {
+        renderBoard();
+    }
 }
 
 // Render the rack visualization
@@ -554,8 +817,11 @@ function createUnitDiv(unitNumber, device) {
         div.dataset.units = device.units;
 
         if (isStart) {
+            // Enhanced visual representation
+            const visual = getDeviceVisualHTML(device);
             div.innerHTML = `
                 <span class="rack-unit-number">${unitNumber}</span>
+                ${visual}
                 <span class="device-name" title="${device.name}">${device.name}</span>
                 <div class="device-resize-handle"></div>
             `;
@@ -575,6 +841,89 @@ function createUnitDiv(unitNumber, device) {
     }
 
     return div;
+}
+
+// Get visual HTML for device based on equipment type
+function getDeviceVisualHTML(device) {
+    const assetType = device.asset_type || 'other';
+    const units = device.units || 1;
+
+    // Check if device has equipment image
+    if (device.equipment_image_url) {
+        return `<img src="${device.equipment_image_url}" class="device-image" alt="${device.name}" style="height: ${units * 22}px; object-fit: contain; margin-right: 4px;">`;
+    }
+
+    // Generate visual indicators based on equipment type
+    let indicators = '';
+
+    switch(assetType) {
+        case 'server':
+            // Server with drive bays and status LEDs
+            indicators = `<div class="device-visual server-visual">
+                <div class="led-row">
+                    <span class="led led-green"></span>
+                    <span class="led led-amber"></span>
+                </div>
+                <div class="drive-bays">${'▯'.repeat(Math.min(units * 2, 8))}</div>
+            </div>`;
+            break;
+
+        case 'switch':
+        case 'router':
+        case 'firewall':
+            // Network device with port indicators
+            const portCount = device.port_count || 24;
+            const displayPorts = Math.min(portCount, units * 12);
+            indicators = `<div class="device-visual switch-visual">
+                <div class="port-indicators">${'●'.repeat(displayPorts)}</div>
+                <div class="led-row">
+                    <span class="led led-green"></span>
+                </div>
+            </div>`;
+            break;
+
+        case 'patch_panel':
+        case 'fiber_panel':
+            // Patch panel with port grid
+            const panelPorts = device.port_count || 24;
+            indicators = `<div class="device-visual patch-panel-visual">
+                <div class="port-grid">${'◯'.repeat(Math.min(panelPorts, units * 24))}</div>
+            </div>`;
+            break;
+
+        case 'ups':
+        case 'pdu':
+            // Power device with outlet indicators
+            indicators = `<div class="device-visual power-visual">
+                <div class="led-row">
+                    <span class="led led-green"></span>
+                    <span class="led led-green"></span>
+                </div>
+                <div class="outlet-indicators">⚡ ${'◼'.repeat(8)}</div>
+            </div>`;
+            break;
+
+        case 'storage':
+        case 'nas':
+        case 'san':
+            // Storage device with drive indicators
+            indicators = `<div class="device-visual storage-visual">
+                <div class="drive-bays">${'▯'.repeat(units * 4)}</div>
+                <div class="led-row">
+                    <span class="led led-blue"></span>
+                    <span class="led led-green"></span>
+                </div>
+            </div>`;
+            break;
+
+        default:
+            // Generic device with LED
+            indicators = `<div class="device-visual generic-visual">
+                <span class="led led-green"></span>
+            </div>`;
+    }
+
+    return indicators;
 }
 
 // Get device occupying a specific unit
@@ -753,23 +1102,530 @@ function createDeviceFromAsset(assetId, startUnit, units) {
     });
 }
 
+// ============================================================================
+// BOARD LAYOUT FUNCTIONS
+// ============================================================================
+
+// Render board layout view
+function renderBoard() {
+    const boardCanvas = document.getElementById('board-canvas');
+    boardCanvas.innerHTML = '';
+
+    // Render devices on board
+    rackDevices.forEach(device => {
+        if (device.board_position_x !== null && device.board_position_y !== null) {
+            createBoardDevice(device, 'device');
+        }
+    });
+
+    // Render resources on board
+    rackResources.forEach(resource => {
+        if (resource.board_position_x !== null && resource.board_position_y !== null) {
+            createBoardDevice(resource, 'resource');
+        }
+    });
+
+    // Initialize drag-and-drop for board
+    initializeBoardDragDrop();
+}
+
+// Create a board device element
+function createBoardDevice(item, type) {
+    const boardCanvas = document.getElementById('board-canvas');
+    const div = document.createElement('div');
+    div.classList.add('board-device');
+    div.dataset.itemId = item.id;
+    div.dataset.itemType = type;
+
+    // Position and size
+    div.style.left = item.board_position_x + 'px';
+    div.style.top = item.board_position_y + 'px';
+    div.style.width = (item.board_width || 150) + 'px';
+    div.style.height = (item.board_height || 100) + 'px';
+    div.style.backgroundColor = item.color || '#6c757d';
+
+    // Enhanced visual content
+    const content = getBoardDeviceContent(item);
+    div.innerHTML = `
+        <div class="board-device-content">
+            ${content}
+            <div class="board-device-label">${item.name}</div>
+        </div>
+        <div class="board-resize-handle"></div>
+    `;
+
+    boardCanvas.appendChild(div);
+}
+
+// Get enhanced content for board device
+function getBoardDeviceContent(item) {
+    const assetType = item.asset_type || 'other';
+
+    // If equipment has image, show it
+    if (item.equipment_image_url) {
+        return `<img src="${item.equipment_image_url}" class="board-device-image" alt="${item.name}">`;
+    }
+
+    // Generate visual representation based on type
+    let visual = '';
+
+    switch(assetType) {
+        case 'server':
+            visual = `
+                <div class="led-row" style="margin-bottom: 4px;">
+                    <span class="led led-green"></span>
+                    <span class="led led-amber"></span>
+                    <span class="led led-blue"></span>
+                </div>
+                <div class="drive-bays" style="font-size: 0.7rem;">
+                    ${'▯▯▯▯<br>'.repeat(3)}
+                </div>
+            `;
+            break;
+
+        case 'switch':
+        case 'router':
+        case 'firewall':
+            const portCount = item.port_count || 24;
+            const rows = Math.ceil(portCount / 12);
+            let portHTML = '';
+            for (let i = 0; i < rows; i++) {
+                portHTML += '<div class="board-device-ports">';
+                for (let j = 0; j < Math.min(12, portCount - (i * 12)); j++) {
+                    const active = Math.random() > 0.5 ? 'active' : '';
+                    portHTML += `<span class="board-port-indicator ${active}"></span>`;
+                }
+                portHTML += '</div>';
+            }
+            visual = `
+                <div class="led-row" style="margin-bottom: 4px;">
+                    <span class="led led-green"></span>
+                    <span style="font-size: 0.6rem; margin-left: 4px;">${portCount} Ports</span>
+                </div>
+                ${portHTML}
+            `;
+            break;
+
+        case 'patch_panel':
+        case 'fiber_panel':
+            const panelPorts = item.port_count || 24;
+            let panelHTML = '<div class="board-device-ports" style="grid-template-columns: repeat(12, 8px);">';
+            for (let i = 0; i < panelPorts; i++) {
+                panelHTML += '<span class="board-port-indicator"></span>';
+            }
+            panelHTML += '</div>';
+            visual = `
+                <div style="font-size: 0.6rem; margin-bottom: 4px;">${panelPorts} Port Panel</div>
+                ${panelHTML}
+            `;
+            break;
+
+        case 'ups':
+        case 'pdu':
+            visual = `
+                <div class="led-row" style="margin-bottom: 4px;">
+                    <span class="led led-green"></span>
+                    <span class="led led-green"></span>
+                    <span style="font-size: 0.6rem; margin-left: 4px;">AC Power</span>
+                </div>
+                <div style="font-size: 0.7rem;">⚡ ${'◼ '.repeat(4)}</div>
+            `;
+            break;
+
+        case 'wireless_ap':
+            visual = `
+                <div class="led-row" style="margin-bottom: 4px;">
+                    <span class="led led-blue"></span>
+                    <span class="led led-green"></span>
+                </div>
+                <div style="font-size: 1.5rem; text-align: center;">📡</div>
+            `;
+            break;
+
+        case 'security_camera':
+        case 'camera':
+            visual = `
+                <div class="led-row" style="margin-bottom: 4px;">
+                    <span class="led led-red"></span>
+                </div>
+                <div style="font-size: 1.5rem; text-align: center;">📹</div>
+            `;
+            break;
+
+        case 'phone':
+            visual = `
+                <div class="led-row" style="margin-bottom: 4px;">
+                    <span class="led led-green"></span>
+                </div>
+                <div style="font-size: 1.5rem; text-align: center;">📞</div>
+            `;
+            break;
+
+        default:
+            visual = `
+                <div class="led-row">
+                    <span class="led led-green"></span>
+                </div>
+            `;
+    }
+
+    return visual;
+}
+
+// Initialize board drag-and-drop
+function initializeBoardDragDrop() {
+    const boardCanvas = document.getElementById('board-canvas');
+
+    // Make existing devices draggable
+    boardCanvas.querySelectorAll('.board-device').forEach(deviceEl => {
+        deviceEl.addEventListener('mousedown', handleBoardDeviceDragStart);
+    });
+
+    // Handle asset drops from sidebar
+    boardCanvas.addEventListener('dragover', handleBoardDragOver);
+    boardCanvas.addEventListener('drop', handleBoardAssetDrop);
+
+    // Make assets in sidebar draggable
+    document.querySelectorAll('.asset-item').forEach(asset => {
+        asset.setAttribute('draggable', 'true');
+        asset.addEventListener('dragstart', handleAssetDragStart);
+    });
+}
+
+// Handle drag start for assets from sidebar
+function handleAssetDragStart(e) {
+    if (currentView !== 'board') return;
+
+    draggedAsset = {
+        id: parseInt(e.target.dataset.assetId),
+        units: parseInt(e.target.dataset.units)
+    };
+    e.dataTransfer.effectAllowed = 'copy';
+}
+
+// Handle drag over board canvas
+function handleBoardDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+}
+
+// Handle asset drop on board
+function handleBoardAssetDrop(e) {
+    e.preventDefault();
+
+    if (!draggedAsset) return;
+
+    const rect = e.target.getBoundingClientRect();
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+
+    // Apply snap to grid if enabled
+    if (snapToGrid) {
+        x = Math.round(x / GRID_SIZE) * GRID_SIZE;
+        y = Math.round(y / GRID_SIZE) * GRID_SIZE;
+    }
+
+    // Create device on board
+    createDeviceOnBoard(draggedAsset.id, x, y, 150, 100);
+    draggedAsset = null;
+}
+
+// Create device from asset on board
+function createDeviceOnBoard(assetId, x, y, width, height) {
+    showToast('Adding asset to board...', 'info');
+
+    fetch(`/monitoring/api/racks/${RACK_ID}/devices/create/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            asset_id: assetId,
+            start_unit: 1, // Default for board view
+            units: 1,
+            board_position_x: x,
+            board_position_y: y,
+            board_width: width,
+            board_height: height
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error || !data.success) {
+            showToast(data.error || 'Failed to add asset', 'danger');
+        } else {
+            rackDevices.push(data.device);
+            showToast('Asset added to board', 'success');
+            renderBoard();
+            setTimeout(() => location.reload(), 1500);
+        }
+    })
+    .catch(error => {
+        console.error('Failed to create device:', error);
+        showToast('Failed to add asset', 'danger');
+    });
+}
+
+// Handle board device drag start
+function handleBoardDeviceDragStart(e) {
+    // Ignore if clicking resize handle
+    if (e.target.classList.contains('board-resize-handle')) {
+        handleBoardDeviceResizeStart(e);
+        return;
+    }
+
+    const deviceEl = e.target.closest('.board-device');
+    if (!deviceEl) return;
+
+    e.preventDefault();
+    deviceEl.classList.add('dragging');
+
+    const rect = deviceEl.getBoundingClientRect();
+    const canvas = document.getElementById('board-canvas');
+    const canvasRect = canvas.getBoundingClientRect();
+
+    boardDragState = {
+        element: deviceEl,
+        itemId: parseInt(deviceEl.dataset.itemId),
+        itemType: deviceEl.dataset.itemType,
+        offsetX: e.clientX - rect.left,
+        offsetY: e.clientY - rect.top,
+        canvasRect: canvasRect
+    };
+
+    document.addEventListener('mousemove', handleBoardDeviceDragMove);
+    document.addEventListener('mouseup', handleBoardDeviceDragEnd);
+}
+
+// Handle board device drag move
+function handleBoardDeviceDragMove(e) {
+    if (!boardDragState) return;
+
+    let x = e.clientX - boardDragState.canvasRect.left - boardDragState.offsetX;
+    let y = e.clientY - boardDragState.canvasRect.top - boardDragState.offsetY;
+
+    // Apply snap to grid if enabled
+    if (snapToGrid) {
+        x = Math.round(x / GRID_SIZE) * GRID_SIZE;
+        y = Math.round(y / GRID_SIZE) * GRID_SIZE;
+    }
+
+    // Constrain to canvas bounds
+    x = Math.max(0, Math.min(x, boardDragState.canvasRect.width - boardDragState.element.offsetWidth));
+    y = Math.max(0, Math.min(y, boardDragState.canvasRect.height - boardDragState.element.offsetHeight));
+
+    boardDragState.element.style.left = x + 'px';
+    boardDragState.element.style.top = y + 'px';
+}
+
+// Handle board device drag end
+function handleBoardDeviceDragEnd(e) {
+    if (!boardDragState) return;
+
+    document.removeEventListener('mousemove', handleBoardDeviceDragMove);
+    document.removeEventListener('mouseup', handleBoardDeviceDragEnd);
+
+    boardDragState.element.classList.remove('dragging');
+
+    const x = parseInt(boardDragState.element.style.left);
+    const y = parseInt(boardDragState.element.style.top);
+    const width = parseInt(boardDragState.element.style.width);
+    const height = parseInt(boardDragState.element.style.height);
+
+    // Update position via API
+    updateBoardPosition(boardDragState.itemId, boardDragState.itemType, x, y, width, height);
+
+    boardDragState = null;
+}
+
+// Handle board device resize start
+function handleBoardDeviceResizeStart(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const deviceEl = e.target.closest('.board-device');
+    if (!deviceEl) return;
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = deviceEl.offsetWidth;
+    const startHeight = deviceEl.offsetHeight;
+    const itemId = parseInt(deviceEl.dataset.itemId);
+    const itemType = deviceEl.dataset.itemType;
+
+    function onMouseMove(e) {
+        let newWidth = startWidth + (e.clientX - startX);
+        let newHeight = startHeight + (e.clientY - startY);
+
+        // Apply snap to grid if enabled
+        if (snapToGrid) {
+            newWidth = Math.round(newWidth / GRID_SIZE) * GRID_SIZE;
+            newHeight = Math.round(newHeight / GRID_SIZE) * GRID_SIZE;
+        }
+
+        // Minimum size
+        newWidth = Math.max(50, newWidth);
+        newHeight = Math.max(50, newHeight);
+
+        deviceEl.style.width = newWidth + 'px';
+        deviceEl.style.height = newHeight + 'px';
+    }
+
+    function onMouseUp(e) {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+
+        const x = parseInt(deviceEl.style.left);
+        const y = parseInt(deviceEl.style.top);
+        const width = parseInt(deviceEl.style.width);
+        const height = parseInt(deviceEl.style.height);
+
+        // Update via API
+        updateBoardPosition(itemId, itemType, x, y, width, height);
+    }
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+}
+
+// Update board position via API
+function updateBoardPosition(itemId, itemType, x, y, width, height) {
+    const endpoint = itemType === 'device'
+        ? `/monitoring/api/rack-devices/${itemId}/update-board-position/`
+        : `/monitoring/api/rack-resources/${itemId}/update-board-position/`;
+
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            x: x,
+            y: y,
+            width: width,
+            height: height
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error || !data.success) {
+            showToast(data.error || 'Failed to update position', 'danger');
+            loadRackDevices(); // Reload to reset
+        } else {
+            showToast('Position updated', 'success');
+
+            // Update local state
+            if (itemType === 'device') {
+                const device = rackDevices.find(d => d.id === itemId);
+                if (device) {
+                    device.board_position_x = x;
+                    device.board_position_y = y;
+                    device.board_width = width;
+                    device.board_height = height;
+                }
+            } else {
+                const resource = rackResources.find(r => r.id === itemId);
+                if (resource) {
+                    resource.board_position_x = x;
+                    resource.board_position_y = y;
+                    resource.board_width = width;
+                    resource.board_height = height;
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Failed to update position:', error);
+        showToast('Failed to update position', 'danger');
+    });
+}
+
+// ============================================================================
+// TOOLBAR FUNCTIONS
+// ============================================================================
+
 // Toolbar functions
 function initializeToolbar() {
+    document.getElementById('toggle-rack-view').addEventListener('click', switchToRackView);
+    document.getElementById('toggle-board-view').addEventListener('click', switchToBoardView);
+    document.getElementById('toggle-grid').addEventListener('click', toggleSnapToGrid);
     document.getElementById('zoom-in').addEventListener('click', () => setZoom(ZOOM_LEVEL + 0.1));
     document.getElementById('zoom-out').addEventListener('click', () => setZoom(ZOOM_LEVEL - 0.1));
     document.getElementById('reset-view').addEventListener('click', resetView);
 }
 
+// Switch to rack view
+function switchToRackView() {
+    currentView = 'rack';
+    document.getElementById('rack-container').style.display = 'block';
+    document.getElementById('board-container').style.display = 'none';
+    document.getElementById('toggle-grid').style.display = 'none';
+
+    document.getElementById('toggle-rack-view').classList.add('active');
+    document.getElementById('toggle-board-view').classList.remove('active');
+
+    renderRack();
+}
+
+// Switch to board view
+function switchToBoardView() {
+    currentView = 'board';
+    document.getElementById('rack-container').style.display = 'none';
+    document.getElementById('board-container').style.display = 'block';
+    document.getElementById('toggle-grid').style.display = 'inline-block';
+
+    document.getElementById('toggle-rack-view').classList.remove('active');
+    document.getElementById('toggle-board-view').classList.add('active');
+
+    renderBoard();
+}
+
+// Toggle snap to grid
+function toggleSnapToGrid() {
+    snapToGrid = !snapToGrid;
+    const btn = document.getElementById('toggle-grid');
+    const overlay = document.getElementById('board-grid-overlay');
+
+    if (snapToGrid) {
+        btn.classList.add('active');
+        overlay.classList.add('active');
+        showToast('Snap to grid enabled', 'info');
+    } else {
+        btn.classList.remove('active');
+        overlay.classList.remove('active');
+        showToast('Snap to grid disabled', 'info');
+    }
+}
+
 function setZoom(level) {
     ZOOM_LEVEL = Math.max(0.5, Math.min(2.0, level));
-    const container = document.getElementById('rack-container');
-    container.style.transform = `scale(${ZOOM_LEVEL})`;
+
+    if (currentView === 'rack') {
+        const container = document.getElementById('rack-container');
+        container.style.transform = `scale(${ZOOM_LEVEL})`;
+    } else {
+        const container = document.getElementById('board-container');
+        container.style.transform = `scale(${ZOOM_LEVEL})`;
+    }
 }
 
 function resetView() {
     ZOOM_LEVEL = 1.0;
-    const container = document.getElementById('rack-container');
-    container.style.transform = 'scale(1.0)';
+    snapToGrid = false;
+
+    const rackContainer = document.getElementById('rack-container');
+    const boardContainer = document.getElementById('board-container');
+    const gridOverlay = document.getElementById('board-grid-overlay');
+    const toggleGridBtn = document.getElementById('toggle-grid');
+
+    rackContainer.style.transform = 'scale(1.0)';
+    boardContainer.style.transform = 'scale(1.0)';
+    gridOverlay.classList.remove('active');
+    toggleGridBtn.classList.remove('active');
+
+    showToast('View reset', 'info');
 }
 
 // Resize handle functionality
