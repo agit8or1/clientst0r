@@ -1,0 +1,27 @@
+[Unit]
+Description=Client St0r OS Package Security Scanner
+After=network.target
+
+[Service]
+Type=oneshot
+User=administrator
+Group=administrator
+WorkingDirectory=/home/administrator
+ExecStart=/home/administrator/venv/bin/python /home/administrator/manage.py scan_system_packages --save
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=package-scanner
+
+# Security hardening
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/administrator
+
+# Restart on failure
+Restart=on-failure
+RestartSec=5min
+
+[Install]
+WantedBy=multi-user.target

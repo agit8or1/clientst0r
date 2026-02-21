@@ -1,0 +1,16 @@
+[Unit]
+Description=Client St0r OS Package Scanner - Daily Schedule
+Requires=package-scanner.service
+
+[Timer]
+# Run daily at 2:00 AM
+OnCalendar=daily
+# Add random delay of 0-30 minutes to avoid thundering herd
+RandomizedDelaySec=30min
+# Run on boot if missed (e.g., system was powered off)
+Persistent=true
+# Timezone
+# OnCalendar uses the system timezone by default
+
+[Install]
+WantedBy=timers.target
