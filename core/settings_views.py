@@ -450,8 +450,11 @@ def system_status(request):
     }
 
     # Database information
-    db_info = {}
+    db_info = {'connected': False}  # Initialize as disconnected
     try:
+        # Ensure fresh connection
+        connection.ensure_connection()
+
         db_engine = connection.settings_dict['ENGINE']
         db_info['engine'] = db_engine.split('.')[-1]
 
