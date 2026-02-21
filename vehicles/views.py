@@ -8,7 +8,6 @@ from django.db.models import Q, Count, Sum, Avg, Max
 from django.utils import timezone
 from datetime import timedelta
 
-from core.decorators import organization_required
 from .models import (
     ServiceVehicle, VehicleInventoryItem, VehicleDamageReport,
     VehicleMaintenanceRecord, VehicleFuelLog, VehicleAssignment
@@ -164,9 +163,7 @@ def vehicle_list(request):
 @login_required
 def vehicle_detail(request, pk):
     """Vehicle detail view with tabs"""
-        vehicle = get_object_or_404(ServiceVehicle, pk=pk)
-    else:
-        vehicle = get_object_or_404(ServiceVehicle, pk=pk)
+    vehicle = get_object_or_404(ServiceVehicle, pk=pk)
 
     # Get related data
     inventory_items = vehicle.inventory_items.all().order_by('category', 'name')
@@ -214,7 +211,8 @@ def vehicle_create(request):
     if request.method == 'POST':
         form = ServiceVehicleForm(request.POST)
         if form.is_valid():
-            vehicle = form.save(commit=False)            vehicle.save()
+            vehicle = form.save(commit=False)
+            vehicle.save()
 
             messages.success(request, f'Vehicle "{vehicle.display_name}" created successfully.')
             return redirect('vehicles:vehicle_detail', pk=vehicle.pk)
@@ -231,9 +229,7 @@ def vehicle_create(request):
 @login_required
 def vehicle_edit(request, pk):
     """Edit vehicle"""
-        vehicle = get_object_or_404(ServiceVehicle, pk=pk)
-    else:
-        vehicle = get_object_or_404(ServiceVehicle, pk=pk)
+    vehicle = get_object_or_404(ServiceVehicle, pk=pk)
 
     if request.method == 'POST':
         form = ServiceVehicleForm(request.POST, instance=vehicle)
@@ -255,9 +251,7 @@ def vehicle_edit(request, pk):
 @login_required
 def vehicle_delete(request, pk):
     """Delete vehicle"""
-        vehicle = get_object_or_404(ServiceVehicle, pk=pk)
-    else:
-        vehicle = get_object_or_404(ServiceVehicle, pk=pk)
+    vehicle = get_object_or_404(ServiceVehicle, pk=pk)
 
     if request.method == 'POST':
         vehicle_name = vehicle.display_name
@@ -275,15 +269,14 @@ def vehicle_delete(request, pk):
 @login_required
 def inventory_item_create(request, vehicle_id):
     """Create inventory item for vehicle"""
-        vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
-    else:
-        vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
+    vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
 
     if request.method == 'POST':
         form = VehicleInventoryItemForm(request.POST)
         if form.is_valid():
             item = form.save(commit=False)
-            item.vehicle = vehicle            item.save()
+            item.vehicle = vehicle
+            item.save()
 
             messages.success(request, f'Inventory item "{item.name}" added successfully.')
             return redirect('vehicles:vehicle_detail', pk=vehicle.pk)
@@ -301,9 +294,7 @@ def inventory_item_create(request, vehicle_id):
 @login_required
 def inventory_item_edit(request, pk):
     """Edit inventory item"""
-        item = get_object_or_404(VehicleInventoryItem, pk=pk)
-    else:
-        item = get_object_or_404(VehicleInventoryItem, pk=pk)
+    item = get_object_or_404(VehicleInventoryItem, pk=pk)
 
     if request.method == 'POST':
         form = VehicleInventoryItemForm(request.POST, instance=item)
@@ -326,9 +317,7 @@ def inventory_item_edit(request, pk):
 @login_required
 def inventory_item_delete(request, pk):
     """Delete inventory item"""
-        item = get_object_or_404(VehicleInventoryItem, pk=pk)
-    else:
-        item = get_object_or_404(VehicleInventoryItem, pk=pk)
+    item = get_object_or_404(VehicleInventoryItem, pk=pk)
 
     vehicle = item.vehicle
 
@@ -349,15 +338,14 @@ def inventory_item_delete(request, pk):
 @login_required
 def damage_report_create(request, vehicle_id):
     """Create damage report"""
-        vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
-    else:
-        vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
+    vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
 
     if request.method == 'POST':
         form = VehicleDamageReportForm(request.POST)
         if form.is_valid():
             report = form.save(commit=False)
-            report.vehicle = vehicle            report.save()
+            report.vehicle = vehicle
+            report.save()
 
             messages.success(request, 'Damage report created successfully.')
             return redirect('vehicles:vehicle_detail', pk=vehicle.pk)
@@ -378,9 +366,7 @@ def damage_report_create(request, vehicle_id):
 @login_required
 def damage_report_edit(request, pk):
     """Edit damage report"""
-        report = get_object_or_404(VehicleDamageReport, pk=pk)
-    else:
-        report = get_object_or_404(VehicleDamageReport, pk=pk)
+    report = get_object_or_404(VehicleDamageReport, pk=pk)
 
     if request.method == 'POST':
         form = VehicleDamageReportForm(request.POST, instance=report)
@@ -403,9 +389,7 @@ def damage_report_edit(request, pk):
 @login_required
 def damage_report_delete(request, pk):
     """Delete damage report"""
-        report = get_object_or_404(VehicleDamageReport, pk=pk)
-    else:
-        report = get_object_or_404(VehicleDamageReport, pk=pk)
+    report = get_object_or_404(VehicleDamageReport, pk=pk)
 
     vehicle = report.vehicle
 
@@ -425,15 +409,14 @@ def damage_report_delete(request, pk):
 @login_required
 def maintenance_record_create(request, vehicle_id):
     """Create maintenance record"""
-        vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
-    else:
-        vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
+    vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
 
     if request.method == 'POST':
         form = VehicleMaintenanceRecordForm(request.POST)
         if form.is_valid():
             record = form.save(commit=False)
-            record.vehicle = vehicle            record.save()
+            record.vehicle = vehicle
+            record.save()
 
             messages.success(request, 'Maintenance record created successfully.')
             return redirect('vehicles:vehicle_detail', pk=vehicle.pk)
@@ -454,9 +437,7 @@ def maintenance_record_create(request, vehicle_id):
 @login_required
 def maintenance_record_edit(request, pk):
     """Edit maintenance record"""
-        record = get_object_or_404(VehicleMaintenanceRecord, pk=pk)
-    else:
-        record = get_object_or_404(VehicleMaintenanceRecord, pk=pk)
+    record = get_object_or_404(VehicleMaintenanceRecord, pk=pk)
 
     if request.method == 'POST':
         form = VehicleMaintenanceRecordForm(request.POST, instance=record)
@@ -479,9 +460,7 @@ def maintenance_record_edit(request, pk):
 @login_required
 def maintenance_record_delete(request, pk):
     """Delete maintenance record"""
-        record = get_object_or_404(VehicleMaintenanceRecord, pk=pk)
-    else:
-        record = get_object_or_404(VehicleMaintenanceRecord, pk=pk)
+    record = get_object_or_404(VehicleMaintenanceRecord, pk=pk)
 
     vehicle = record.vehicle
 
@@ -501,15 +480,14 @@ def maintenance_record_delete(request, pk):
 @login_required
 def fuel_log_create(request, vehicle_id):
     """Create fuel log"""
-        vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
-    else:
-        vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
+    vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
 
     if request.method == 'POST':
         form = VehicleFuelLogForm(request.POST)
         if form.is_valid():
             log = form.save(commit=False)
-            log.vehicle = vehicle            log.save()
+            log.vehicle = vehicle
+            log.save()
 
             messages.success(request, 'Fuel log created successfully.')
             return redirect('vehicles:vehicle_detail', pk=vehicle.pk)
@@ -530,9 +508,7 @@ def fuel_log_create(request, vehicle_id):
 @login_required
 def fuel_log_edit(request, pk):
     """Edit fuel log"""
-        log = get_object_or_404(VehicleFuelLog, pk=pk)
-    else:
-        log = get_object_or_404(VehicleFuelLog, pk=pk)
+    log = get_object_or_404(VehicleFuelLog, pk=pk)
 
     if request.method == 'POST':
         form = VehicleFuelLogForm(request.POST, instance=log)
@@ -555,9 +531,7 @@ def fuel_log_edit(request, pk):
 @login_required
 def fuel_log_delete(request, pk):
     """Delete fuel log"""
-        log = get_object_or_404(VehicleFuelLog, pk=pk)
-    else:
-        log = get_object_or_404(VehicleFuelLog, pk=pk)
+    log = get_object_or_404(VehicleFuelLog, pk=pk)
 
     vehicle = log.vehicle
 
@@ -577,15 +551,14 @@ def fuel_log_delete(request, pk):
 @login_required
 def assignment_create(request, vehicle_id):
     """Create vehicle assignment"""
-        vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
-    else:
-        vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
+    vehicle = get_object_or_404(ServiceVehicle, pk=vehicle_id)
 
     if request.method == 'POST':
         form = VehicleAssignmentForm(request.POST, vehicle=vehicle)
         if form.is_valid():
             assignment = form.save(commit=False)
-            assignment.vehicle = vehicle            assignment.save()
+            assignment.vehicle = vehicle
+            assignment.save()
 
             # Update vehicle's assigned_to field
             vehicle.assigned_to = assignment.user
@@ -610,9 +583,7 @@ def assignment_create(request, vehicle_id):
 @login_required
 def assignment_end(request, pk):
     """End vehicle assignment"""
-        assignment = get_object_or_404(VehicleAssignment, pk=pk)
-    else:
-        assignment = get_object_or_404(VehicleAssignment, pk=pk)
+    assignment = get_object_or_404(VehicleAssignment, pk=pk)
 
     if request.method == 'POST':
         ending_mileage = request.POST.get('ending_mileage')
