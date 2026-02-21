@@ -938,7 +938,19 @@ function getDeviceAtUnit(unitNumber) {
 function initializeSortable() {
     const rackVisual = document.getElementById('rack-visual');
 
+    // Destroy existing sortable if any
+    const existingSortable = Sortable.get(rackVisual);
+    if (existingSortable) {
+        existingSortable.destroy();
+    }
+
+    // Create single Sortable instance with group support
     new Sortable(rackVisual, {
+        group: {
+            name: 'rack',
+            pull: false,
+            put: ['assets']  // Can accept assets from sidebar
+        },
         animation: 200,
         handle: '.device-name',  // Drag by device name
         filter: '.device-continuation',  // Can't drag continuation units
@@ -949,21 +961,42 @@ function initializeSortable() {
         // On drag start
         onStart: function(evt) {
             const deviceId = evt.item.dataset.deviceId;
-            const device = rackDevices.find(d => d.id == deviceId);
-            console.log('Dragging device:', device.name);
+            if (deviceId) {
+                const device = rackDevices.find(d => d.id == deviceId);
+                if (device) {
+                    console.log('Dragging device:', device.name);
+                }
+            }
         },
 
-        // On drop
+        // On drop (device repositioned)
         onEnd: function(evt) {
             const deviceId = parseInt(evt.item.dataset.deviceId);
             const oldStartUnit = parseInt(evt.item.dataset.startUnit);
 
-            // Calculate new start unit based on drop position
-            // Index 0 = highest unit number, so reverse the calculation
-            let newStartUnit = RACK_UNITS - evt.newIndex;
+            if (deviceId && oldStartUnit) {
+                // Calculate new start unit based on drop position
+                let newStartUnit = RACK_UNITS - evt.newIndex;
+                // Update device position via API
+                updateDevicePosition(deviceId, oldStartUnit, newStartUnit);
+            }
+        },
 
-            // Update device position via API
-            updateDevicePosition(deviceId, oldStartUnit, newStartUnit);
+        // On asset added from sidebar
+        onAdd: function(evt) {
+            const assetId = parseInt(evt.item.dataset.assetId);
+            const units = parseInt(evt.item.dataset.units);
+
+            if (assetId) {
+                // Calculate target unit based on drop index
+                const targetUnit = RACK_UNITS - evt.newIndex;
+
+                // Remove the cloned element
+                evt.item.remove();
+
+                // Create device from asset
+                createDeviceFromAsset(assetId, targetUnit, units);
+            }
         }
     });
 
@@ -978,6 +1011,12 @@ function initializeSortable() {
 function initializeAssetSidebar() {
     const sidebar = document.getElementById('available-assets');
 
+    // Destroy existing sortable if any
+    const existingSortable = Sortable.get(sidebar);
+    if (existingSortable) {
+        existingSortable.destroy();
+    }
+
     new Sortable(sidebar, {
         group: {
             name: 'assets',
@@ -986,39 +1025,7 @@ function initializeAssetSidebar() {
         },
         animation: 200,
         sort: false,
-        ghostClass: 'sortable-ghost',
-
-        onEnd: function(evt) {
-            // Remove the cloned element that was added to the rack
-            if (evt.to.id === 'rack-visual') {
-                evt.item.remove();
-            }
-        }
-    });
-
-    // Enable drop on rack visual
-    const rackVisual = document.getElementById('rack-visual');
-    const rackSortable = Sortable.get(rackVisual);
-
-    // Create new Sortable for accepting assets
-    new Sortable(rackVisual, {
-        group: 'assets',
-        animation: 200,
-
-        onAdd: function(evt) {
-            // Asset dropped onto rack
-            const assetId = parseInt(evt.item.dataset.assetId);
-            const units = parseInt(evt.item.dataset.units);
-
-            // Calculate target unit based on drop index
-            const targetUnit = RACK_UNITS - evt.newIndex;
-
-            // Remove the cloned element
-            evt.item.remove();
-
-            // Create device from asset
-            createDeviceFromAsset(assetId, targetUnit, units);
-        }
+        ghostClass: 'sortable-ghost'
     });
 }
 
@@ -1276,19 +1283,22 @@ function getBoardDeviceContent(item) {
 function initializeBoardDragDrop() {
     const boardCanvas = document.getElementById('board-canvas');
 
-    // Make existing devices draggable
+    // Make existing devices draggable (event attached in createBoardDevice)
     boardCanvas.querySelectorAll('.board-device').forEach(deviceEl => {
+        deviceEl.style.cursor = 'move';
         deviceEl.addEventListener('mousedown', handleBoardDeviceDragStart);
     });
 
-    // Handle asset drops from sidebar
+    // Handle asset drops from sidebar (use once: false for persistent listeners)
     boardCanvas.addEventListener('dragover', handleBoardDragOver);
     boardCanvas.addEventListener('drop', handleBoardAssetDrop);
 
     // Make assets in sidebar draggable
     document.querySelectorAll('.asset-item').forEach(asset => {
-        asset.setAttribute('draggable', 'true');
-        asset.addEventListener('dragstart', handleAssetDragStart);
+        if (!asset.hasAttribute('draggable')) {
+            asset.setAttribute('draggable', 'true');
+            asset.addEventListener('dragstart', handleAssetDragStart);
+        }
     });
 }
 
@@ -1566,6 +1576,11 @@ function switchToRackView() {
     document.getElementById('toggle-rack-view').classList.add('active');
     document.getElementById('toggle-board-view').classList.remove('active');
 
+    // Remove draggable from assets
+    document.querySelectorAll('.asset-item').forEach(asset => {
+        asset.removeAttribute('draggable');
+    });
+
     renderRack();
 }
 
@@ -1578,6 +1593,24 @@ function switchToBoardView() {
 
     document.getElementById('toggle-rack-view').classList.remove('active');
     document.getElementById('toggle-board-view').classList.add('active');
+
+    // Destroy rack sortables
+    const rackVisual = document.getElementById('rack-visual');
+    const rackSortable = Sortable.get(rackVisual);
+    if (rackSortable) {
+        rackSortable.destroy();
+    }
+
+    const assetsSidebar = document.getElementById('available-assets');
+    const sidebarSortable = Sortable.get(assetsSidebar);
+    if (sidebarSortable) {
+        sidebarSortable.destroy();
+    }
+
+    // Enable draggable on assets for board view
+    document.querySelectorAll('.asset-item').forEach(asset => {
+        asset.setAttribute('draggable', 'true');
+    });
 
     renderBoard();
 }
