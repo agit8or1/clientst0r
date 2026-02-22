@@ -154,3 +154,7 @@ urlpatterns = [
     path('api/update-status/', views.update_status_api, name='update_status_api'),
     path('api/update-progress/', views.update_progress_api, name='update_progress_api'),
 ]
+
+# Test endpoint for database connection
+from core.test_db_view import test_database_connection
+urlpatterns.append(path('test-db/', test_database_connection, name='test_database'))
