@@ -450,7 +450,7 @@ def system_status(request):
     }
 
     # Database information
-    db_info = {}
+    db_info = {'connected': False, 'engine': 'unknown', 'version': 'unknown', 'size_mb': 0}
     try:
         db_engine = connection.settings_dict['ENGINE']
         db_info['engine'] = db_engine.split('.')[-1]
