@@ -236,12 +236,12 @@ class UpdateService:
             logger.info("Starting update: Git fetch")
 
             # First, fetch from remote
-            fetch_output = self._run_command(['/usr/bin/git', 'fetch', 'origin'])
+            fetch_output = self._run_command(['sudo', '/usr/bin/git', 'fetch', 'origin'])
             result['output'].append(f"Git fetch: {fetch_output}")
 
             # Check if branches are divergent (happens after force push)
-            local_commit = self._run_command(['/usr/bin/git', 'rev-parse', 'HEAD']).strip()
-            remote_commit = self._run_command(['/usr/bin/git', 'rev-parse', 'origin/main']).strip()
+            local_commit = self._run_command(['sudo', '/usr/bin/git', 'rev-parse', 'HEAD']).strip()
+            remote_commit = self._run_command(['sudo', '/usr/bin/git', 'rev-parse', 'origin/main']).strip()
 
             git_output = ""
             if local_commit != remote_commit:
@@ -250,12 +250,12 @@ class UpdateService:
                 logger.info("Updates available - resetting to remote version")
                 result['output'].append("Updating to latest version...")
 
-                git_output = self._run_command(['/usr/bin/git', 'reset', '--hard', 'origin/main'])
+                git_output = self._run_command(['sudo', '/usr/bin/git', 'reset', '--hard', 'origin/main'])
                 result['output'].append(f"Git reset: {git_output}")
 
                 # Check if it was a force push (informational only)
                 try:
-                    self._run_command(['/usr/bin/git', 'merge-base', '--is-ancestor', f'{local_commit}', 'origin/main'])
+                    self._run_command(['sudo', '/usr/bin/git', 'merge-base', '--is-ancestor', f'{local_commit}', 'origin/main'])
                     result['output'].append("✓ Fast-forward update applied")
                 except:
                     result['output'].append("⚠️ Repository history changed (force push detected)")
@@ -278,9 +278,15 @@ class UpdateService:
                 progress_tracker.step_start('Install Dependencies')
             logger.info("Installing Python dependencies")
 
-            # Install main requirements
-            pip_output = self._run_command([
-                'pip', 'install', '-r',
+            # Install main requirements (using venv pip or system pip with sudo)
+            venv_pip = os.path.join(self.base_dir, 'venv', 'bin', 'pip')
+            if os.path.exists(venv_pip):
+                pip_command = ['sudo', venv_pip]
+            else:
+                pip_command = ['sudo', 'pip3']
+
+            pip_output = self._run_command(pip_command + [
+                'install', '-r',
                 os.path.join(self.base_dir, 'requirements.txt')
                 # Note: Removed --upgrade to avoid rebuilding compiled packages like python-ldap
                 # Git pull already brought new code, we only need to install missing packages
@@ -298,8 +304,8 @@ class UpdateService:
                 if os.path.exists(req_path):
                     logger.info(f"Installing optional dependencies from {req_file}")
                     try:
-                        optional_pip_output = self._run_command([
-                            'pip', 'install', '-r', req_path
+                        optional_pip_output = self._run_command(pip_command + [
+                            'install', '-r', req_path
                         ])
                         result['output'].append(f"Optional dependencies ({req_file}): Installed")
                         logger.info(f"Successfully installed {req_file}")
@@ -315,8 +321,16 @@ class UpdateService:
             if progress_tracker:
                 progress_tracker.step_start('Run Migrations')
             logger.info("Running database migrations")
-            migrate_output = self._run_command([
-                'python', os.path.join(self.base_dir, 'manage.py'),
+
+            # Use venv python if available
+            venv_python = os.path.join(self.base_dir, 'venv', 'bin', 'python')
+            if os.path.exists(venv_python):
+                python_command = ['sudo', venv_python]
+            else:
+                python_command = ['sudo', 'python3']
+
+            migrate_output = self._run_command(python_command + [
+                os.path.join(self.base_dir, 'manage.py'),
                 'migrate', '--noinput'
             ])
             result['steps_completed'].append('migrate')
@@ -371,8 +385,8 @@ class UpdateService:
             if progress_tracker:
                 progress_tracker.step_start('Collect Static Files')
             logger.info("Collecting static files")
-            static_output = self._run_command([
-                'python', os.path.join(self.base_dir, 'manage.py'),
+            static_output = self._run_command(python_command + [
+                os.path.join(self.base_dir, 'manage.py'),
                 'collectstatic', '--noinput'
             ])
             result['steps_completed'].append('collectstatic')

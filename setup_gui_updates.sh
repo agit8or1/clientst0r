@@ -26,8 +26,13 @@ cat > /tmp/clientst0r-gui-updates <<EOF
 
 # Git operations
 $USERNAME ALL=(ALL) NOPASSWD: /usr/bin/git pull
+$USERNAME ALL=(ALL) NOPASSWD: /usr/bin/git pull *
 $USERNAME ALL=(ALL) NOPASSWD: /usr/bin/git fetch
+$USERNAME ALL=(ALL) NOPASSWD: /usr/bin/git fetch *
 $USERNAME ALL=(ALL) NOPASSWD: /usr/bin/git reset
+$USERNAME ALL=(ALL) NOPASSWD: /usr/bin/git reset *
+$USERNAME ALL=(ALL) NOPASSWD: /usr/bin/git rev-parse *
+$USERNAME ALL=(ALL) NOPASSWD: /usr/bin/git merge-base *
 
 # Service management
 $USERNAME ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-gunicorn.service
@@ -35,14 +40,23 @@ $USERNAME ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload clientst0r-gunicorn.serv
 $USERNAME ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-gunicorn
 $USERNAME ALL=(ALL) NOPASSWD: /usr/bin/systemctl status clientst0r-gunicorn.service
 $USERNAME ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
+$USERNAME ALL=(ALL) NOPASSWD: /usr/bin/systemd-run *
 
 # Python/pip for package installs
+$USERNAME ALL=(ALL) NOPASSWD: /home/*/venv/bin/pip
 $USERNAME ALL=(ALL) NOPASSWD: /home/*/venv/bin/pip install *
+$USERNAME ALL=(ALL) NOPASSWD: /home/*/venv/bin/pip3
+$USERNAME ALL=(ALL) NOPASSWD: /home/*/venv/bin/pip3 install *
+$USERNAME ALL=(ALL) NOPASSWD: /usr/bin/pip3
 $USERNAME ALL=(ALL) NOPASSWD: /usr/bin/pip3 install *
 
-# Database migrations
-$USERNAME ALL=(ALL) NOPASSWD: /home/*/venv/bin/python */manage.py migrate
-$USERNAME ALL=(ALL) NOPASSWD: /home/*/venv/bin/python */manage.py collectstatic *
+# Database migrations and management
+$USERNAME ALL=(ALL) NOPASSWD: /home/*/venv/bin/python
+$USERNAME ALL=(ALL) NOPASSWD: /home/*/venv/bin/python *
+$USERNAME ALL=(ALL) NOPASSWD: /home/*/venv/bin/python3
+$USERNAME ALL=(ALL) NOPASSWD: /home/*/venv/bin/python3 *
+$USERNAME ALL=(ALL) NOPASSWD: /usr/bin/python3 */manage.py migrate *
+$USERNAME ALL=(ALL) NOPASSWD: /usr/bin/python3 */manage.py collectstatic *
 
 # Package scanner (already configured separately)
 $USERNAME ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
