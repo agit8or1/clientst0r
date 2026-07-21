@@ -481,6 +481,7 @@ Planned capabilities:
 - Public knowledge publishing (selected articles → public URL)
 - Documentation lifecycle management (draft → published → archived) *(model fields shipped v3.17.245 — `is_draft`, `published_at`; full pipeline is v2)*
 - Linked SOP automation (KB article triggers a workflow run)
+- Import DOCX/PDF as editable documents + AI review (**OPTIONAL AI**) *(shipped v3.17.503 — `/docs/import/` bulk-extracts Word/PDF/TXT/Markdown text into editable KB documents; optional per-document AI reformat-to-standard + gap analysis via `review_imported_document`, gated by `psa_ai_enabled`. DOCX parsed dependency-free; PDF via PyMuPDF — issue #140)*
 
 **Goal:** Improve operational knowledge management and documentation governance.
 

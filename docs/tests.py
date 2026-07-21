@@ -532,3 +532,231 @@ class DocumentFileUploadTests(TestCase):
         self.assertEqual(r.status_code, 302)
         doc.refresh_from_db()
         self.assertEqual(doc.file_type, 'image/png')
+
+
+# ---------------------------------------------------------------------------
+# Issue #140 — DOCX/PDF import + AI review
+# ---------------------------------------------------------------------------
+
+import io
+import zipfile as _zipfile
+from unittest import mock
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+
+def _make_docx_bytes(paragraphs):
+    """Build a minimal but valid .docx (a ZIP whose word/document.xml holds
+    the body) for extraction tests — avoids a python-docx test dependency."""
+    ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+    body = ''.join(
+        f'<w:p><w:r><w:t>{p}</w:t></w:r></w:p>' for p in paragraphs
+    )
+    document_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<w:document xmlns:w="{ns}"><w:body>{body}</w:body></w:document>'
+    )
+    buf = io.BytesIO()
+    with _zipfile.ZipFile(buf, 'w', _zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr('word/document.xml', document_xml)
+    return buf.getvalue()
+
+
+def _make_pdf_bytes(text):
+    """Build a one-page PDF with the given text using PyMuPDF."""
+    import fitz
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), text)
+    data = doc.tobytes()
+    doc.close()
+    return data
+
+
+class DocumentExtractionTests(TestCase):
+    """Text extraction from uploaded DOCX / PDF / TXT files (issue #140)."""
+
+    def test_extract_docx_paragraphs(self):
+        from docs.services.document_import import extract_document_text
+        f = SimpleUploadedFile(
+            'guide.docx', _make_docx_bytes(['First line', 'Second line']))
+        res = extract_document_text(f)
+        self.assertTrue(res['success'], res.get('error'))
+        self.assertEqual(res['kind'], 'docx')
+        self.assertIn('First line', res['text'])
+        self.assertIn('Second line', res['text'])
+
+    def test_extract_pdf_text(self):
+        from docs.services.document_import import extract_document_text
+        f = SimpleUploadedFile(
+            'runbook.pdf', _make_pdf_bytes('Reboot the router'),
+            content_type='application/pdf')
+        res = extract_document_text(f)
+        self.assertTrue(res['success'], res.get('error'))
+        self.assertEqual(res['kind'], 'pdf')
+        self.assertIn('Reboot the router', res['text'])
+
+    def test_extract_txt(self):
+        from docs.services.document_import import extract_document_text
+        f = SimpleUploadedFile('notes.txt', b'plain text notes')
+        res = extract_document_text(f)
+        self.assertTrue(res['success'])
+        self.assertEqual(res['kind'], 'text')
+        self.assertEqual(res['text'], 'plain text notes')
+
+    def test_unsupported_extension_rejected(self):
+        from docs.services.document_import import extract_document_text
+        f = SimpleUploadedFile('image.xyz', b'\x00\x01')
+        res = extract_document_text(f)
+        self.assertFalse(res['success'])
+
+    def test_legacy_doc_rejected_with_hint(self):
+        from docs.services.document_import import extract_document_text
+        f = SimpleUploadedFile('old.doc', b'\xd0\xcf\x11\xe0')
+        res = extract_document_text(f)
+        self.assertFalse(res['success'])
+        self.assertIn('.docx', res['error'])
+
+    def test_corrupt_docx_rejected(self):
+        from docs.services.document_import import extract_document_text
+        f = SimpleUploadedFile('broken.docx', b'not a zip file at all')
+        res = extract_document_text(f)
+        self.assertFalse(res['success'])
+
+    def test_truncation_flagged(self):
+        from docs.services import document_import
+        big = ('x' * (document_import.MAX_EXTRACTED_CHARS + 500)).encode()
+        f = SimpleUploadedFile('big.txt', big)
+        res = document_import.extract_document_text(f)
+        self.assertTrue(res['success'])
+        self.assertTrue(res['truncated'])
+        self.assertEqual(len(res['text']), document_import.MAX_EXTRACTED_CHARS)
+
+
+class ReviewImportedParseTests(TestCase):
+    """review_imported_document splits reformatted body from gap analysis."""
+
+    def _generator(self):
+        with override_settings(LLM_PROVIDER='ollama'):
+            from docs.services.ai_documentation_generator import AIDocumentationGenerator
+            return AIDocumentationGenerator()
+
+    def _stub(self, gen, content):
+        gen.provider = mock.Mock()
+        gen.provider.generate.return_value = {'success': True, 'content': content}
+
+    def test_parses_body_and_gaps(self):
+        gen = self._generator()
+        self._stub(gen, '<h2>Doc</h2><p>Body</p>\n<!--GAP-ANALYSIS-->\n- Missing DR section\n- No contacts')
+        res = gen.review_imported_document('T', 'raw text')
+        self.assertTrue(res['success'])
+        self.assertIn('<h2>Doc</h2>', res['content'])
+        self.assertNotIn('GAP-ANALYSIS', res['content'])
+        self.assertEqual(res['gaps'], ['Missing DR section', 'No contacts'])
+
+    def test_no_marker_returns_all_as_body(self):
+        gen = self._generator()
+        self._stub(gen, '<p>Just a body, no gaps section</p>')
+        res = gen.review_imported_document('T', 'raw')
+        self.assertTrue(res['success'])
+        self.assertIn('Just a body', res['content'])
+        self.assertEqual(res['gaps'], [])
+
+    def test_strips_code_fences(self):
+        gen = self._generator()
+        self._stub(gen, '```html\n<p>Fenced</p>\n```\n<!--GAP-ANALYSIS-->\n- one')
+        res = gen.review_imported_document('T', 'raw')
+        self.assertEqual(res['content'], '<p>Fenced</p>')
+        self.assertEqual(res['gaps'], ['one'])
+
+    def test_provider_failure_propagates(self):
+        gen = self._generator()
+        gen.provider = mock.Mock()
+        gen.provider.generate.return_value = {'success': False, 'error': 'boom'}
+        res = gen.review_imported_document('T', 'raw')
+        self.assertFalse(res['success'])
+
+
+@override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class DocumentImportViewTests(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        from core.models import Organization
+        cls.org = Organization.objects.create(name='ImportCo', slug='import-co')
+        cls.staff = User.objects.create_user(
+            'import-staff', 'imp@x.com', 'pw', is_staff=True, is_superuser=True)
+
+    def _login(self, c):
+        c.force_login(self.staff)
+        s = c.session
+        s['2fa_prompted'] = True
+        s['current_organization_id'] = self.org.id
+        s.save()
+
+    def test_import_page_loads(self):
+        c = Client()
+        self._login(c)
+        r = c.get('/docs/import/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_bulk_import_creates_editable_documents(self):
+        c = Client()
+        self._login(c)
+        docx = SimpleUploadedFile('policy.docx', _make_docx_bytes(['Password policy']))
+        txt = SimpleUploadedFile('notes.txt', b'onboarding steps')
+        r = c.post('/docs/import/', {'files': [docx, txt]})
+        self.assertEqual(r.status_code, 200)
+        policy = Document.objects.get(organization=self.org, title='policy')
+        self.assertEqual(policy.content_type, 'markdown')
+        self.assertIn('Password policy', policy.body)
+        notes = Document.objects.get(organization=self.org, title='notes')
+        self.assertIn('onboarding steps', notes.body)
+
+    def test_import_no_files_redirects(self):
+        c = Client()
+        self._login(c)
+        r = c.post('/docs/import/', {})
+        self.assertEqual(r.status_code, 302)
+
+    def test_ai_review_blocked_when_ai_disabled(self):
+        from core.models import SystemSetting
+        ss = SystemSetting.get_settings()
+        ss.psa_ai_enabled = False
+        ss.save()
+        c = Client()
+        self._login(c)
+        doc = Document.objects.create(
+            organization=self.org, title='Imported', body='raw',
+            content_type='markdown', created_by=self.staff, last_modified_by=self.staff)
+        r = c.post('/docs/ai/review-import/',
+                   data={'document_id': doc.id, 'standard': 'general'},
+                   content_type='application/json')
+        self.assertEqual(r.status_code, 400)
+
+    def test_ai_review_reformats_and_saves(self):
+        from core.models import SystemSetting
+        ss = SystemSetting.get_settings()
+        ss.psa_ai_enabled = True
+        ss.save()
+        c = Client()
+        self._login(c)
+        doc = Document.objects.create(
+            organization=self.org, title='Imported', body='raw text',
+            content_type='markdown', created_by=self.staff, last_modified_by=self.staff)
+        fake = {'success': True, 'title': 'Imported',
+                'content': '<h2>Imported</h2>', 'gaps': ['Add owner']}
+        with override_settings(LLM_PROVIDER='ollama'), \
+                mock.patch('docs.services.ai_documentation_generator.'
+                           'AIDocumentationGenerator.review_imported_document',
+                           return_value=fake):
+            r = c.post('/docs/ai/review-import/',
+                       data={'document_id': doc.id, 'standard': 'security'},
+                       content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        payload = r.json()
+        self.assertTrue(payload['success'])
+        self.assertEqual(payload['gaps'], ['Add owner'])
+        doc.refresh_from_db()
+        self.assertEqual(doc.content_type, 'html')
+        self.assertIn('<h2>Imported</h2>', doc.body)

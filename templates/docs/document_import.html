@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Import Documents - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1><i class="fas fa-file-import"></i> Import Documents</h1>
+    <a href="{% url 'docs:document_list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Back to Documents</a>
+</div>
+
+<p class="text-muted">
+    Upload one or more Word (<code>.docx</code>), PDF, text, or Markdown files. The text is
+    extracted into editable Knowledge Base documents. Optionally let AI reformat each document
+    to a documentation standard and flag gaps for improvement.
+</p>
+
+{% if not results %}
+<div class="card">
+    <div class="card-body">
+        <form method="post" action="{% url 'docs:document_import' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="files" class="form-label">Files</label>
+                <input type="file" class="form-control" id="files" name="files" multiple
+                       accept="{{ accept }}" required>
+                <div class="form-text">Supported: DOCX, PDF, TXT, Markdown. Scanned/image-only PDFs cannot be read (no OCR).</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="category" class="form-label">Category (optional)</label>
+                <select class="form-select" id="category" name="category">
+                    <option value="">— None —</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="card bg-light border-info mb-3">
+                <div class="card-body">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="run_ai" name="run_ai"
+                               {% if not ai_ok %}disabled{% endif %}>
+                        <label class="form-check-label" for="run_ai">
+                            <i class="fas fa-robot text-info"></i> AI review after import
+                            <span class="text-muted">— reformat to a standard &amp; find gaps</span>
+                        </label>
+                    </div>
+                    {% if ai_ok %}
+                    <label for="standard" class="form-label">Documentation standard</label>
+                    <select class="form-select" id="standard" name="standard">
+                        {% for key, desc in standards.items %}
+                        <option value="{{ key }}">{{ key|capfirst }} — {{ desc }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <div class="alert alert-secondary mb-0 py-2 small"><i class="fas fa-info-circle"></i> {{ ai_message }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary"><i class="fas fa-file-import"></i> Import</button>
+        </form>
+    </div>
+</div>
+
+{% else %}
+{# ---- Results view ---- #}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-list-check"></i> Import results</span>
+        <a href="{% url 'docs:document_import' %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-plus"></i> Import more</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>File</th>
+                    <th>Document</th>
+                    <th>AI review</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in results %}
+                <tr>
+                    <td>{{ r.name }}{% if r.truncated %} <span class="badge bg-warning text-dark" title="Only the first part of a large file was imported.">truncated</span>{% endif %}</td>
+                    <td>
+                        {% if r.success %}
+                            <a href="{% url 'docs:document_detail' r.slug %}"><i class="fas fa-file-alt"></i> {{ r.title }}</a>
+                            <span class="badge bg-secondary">{{ r.kind }}</span>
+                        {% else %}
+                            <span class="text-danger"><i class="fas fa-triangle-exclamation"></i> {{ r.error }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.success and run_ai %}
+                            <div class="ai-review" data-document-id="{{ r.document_id }}" data-slug="{{ r.slug }}">
+                                <span class="ai-status text-muted"><i class="fas fa-hourglass-half"></i> Queued…</span>
+                                <div class="ai-gaps mt-1"></div>
+                            </div>
+                        {% elif r.success %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if results and run_ai %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const standard = '{{ standard|escapejs }}';
+    const rows = Array.from(document.querySelectorAll('.ai-review'));
+
+    function setStatus(row, html, cls) {
+        const el = row.querySelector('.ai-status');
+        el.className = 'ai-status ' + (cls || 'text-muted');
+        el.innerHTML = html;
+    }
+
+    // Process one document at a time so each LLM call is its own short request.
+    async function reviewNext(i) {
+        if (i >= rows.length) return;
+        const row = rows[i];
+        const documentId = row.dataset.documentId;
+        setStatus(row, '<i class="fas fa-spinner fa-spin"></i> Reviewing…');
+        try {
+            const resp = await fetch('{% url "docs:ai_review_import" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                body: JSON.stringify({ document_id: documentId, standard: standard }),
+            });
+            const data = await resp.json();
+            if (data.success) {
+                setStatus(row, '<i class="fas fa-check"></i> Reviewed', 'text-success');
+                const gapsEl = row.querySelector('.ai-gaps');
+                if (data.gaps && data.gaps.length) {
+                    let html = '<div class="small"><strong><i class="fas fa-lightbulb text-warning"></i> Gaps found:</strong><ul class="mb-0">';
+                    data.gaps.forEach(function (g) {
+                        const div = document.createElement('div');
+                        div.textContent = g;
+                        html += '<li>' + div.innerHTML + '</li>';
+                    });
+                    html += '</ul></div>';
+                    gapsEl.innerHTML = html;
+                }
+            } else {
+                setStatus(row, '<i class="fas fa-triangle-exclamation"></i> ' + (data.error || 'Review failed'), 'text-danger');
+            }
+        } catch (e) {
+            setStatus(row, '<i class="fas fa-triangle-exclamation"></i> Review failed', 'text-danger');
+        }
+        reviewNext(i + 1);
+    }
+
+    reviewNext(0);
+});
+</script>
+{% endif %}
+{% endblock %}

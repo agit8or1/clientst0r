@@ -5,6 +5,37 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.503] - 2026-07-21
+
+### Feature: import DOCX/PDF as editable docs with optional AI review (issue #140)
+
+A new **Import & AI Review** flow at `/docs/import/` turns uploaded Word, PDF, text, and
+Markdown files into editable Knowledge Base documents — extracting their text into
+`Document.body` (searchable/editable) rather than storing them as opaque file blobs like the
+existing "Upload Files" path. Bulk by design: select many files at once.
+
+Optionally, an **OPTIONAL AI** review runs after import (gated by `psa_ai_enabled` **and** a
+configured LLM provider). For each imported document the AI reformats it to a chosen
+documentation standard (general / SOP / runbook / network / security / M365 / AD) and returns a
+list of gaps for improvement, surfaced on the results page.
+
+- `docs/services/document_import.py` (new): `extract_document_text()` — DOCX via stdlib
+  `zipfile` + XML (no new dependency), PDF via **PyMuPDF** (`fitz`), plus TXT/Markdown. Guards
+  against corrupt files, image-only PDFs, legacy `.doc`, and oversized files (60k-char cap,
+  flagged as truncated).
+- `docs/services/ai_documentation_generator.py`: new `review_imported_document()` — one LLM
+  call that returns the reformatted body **and** a parsed gap list (split on a sentinel so
+  HTML-in-JSON fragility is avoided).
+- `docs/views.py`: `document_import` (bulk extract + create) and `ai_review_import` (per-document
+  AI review, one short request each so the gunicorn worker timeout is never at risk — cf. #138).
+  New `_docs_ai_ready()` helper enforces the `psa_ai_enabled` gate.
+- New template `templates/docs/document_import.html`; **Import & AI Review** button on the
+  documents list; routes `docs:document_import` and `docs:ai_review_import`.
+- `requirements.txt`: added `PyMuPDF>=1.24,<2`.
+- Tests in `docs/tests.py`: extraction (DOCX/PDF/TXT, corrupt/unsupported/truncated), review
+  parsing (marker split, code-fence strip, provider failure), and the import + AI-review views
+  (bulk create, AI-off gating, reformat-and-save).
+
 ## [3.17.502] - 2026-07-17
 
 ### Fix: creating/editing a file document crashed with AttributeError (issue #139)

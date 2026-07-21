@@ -393,6 +393,185 @@ def document_upload(request):
         return redirect('docs:document_list')
 
 
+def _docs_ai_ready():
+    """
+    Whether AI document features are usable right now.
+
+    Per project convention (CLAUDE.md) AI features are gated by BOTH the
+    `psa_ai_enabled` master switch AND a configured LLM provider.
+
+    Returns (ok: bool, message: str). `message` is a user-facing reason when
+    not ok, otherwise the provider name.
+    """
+    from core.models import SystemSetting
+    from .services.llm_providers import is_llm_configured
+
+    if not SystemSetting.get_settings().psa_ai_enabled:
+        return (False, 'AI features are turned off. Enable them in Settings → PSA (AI).')
+    has_ai, provider_name = is_llm_configured()
+    if not has_ai:
+        return (False, f'LLM provider is not configured. Please configure {provider_name} in Settings → AI.')
+    return (True, provider_name)
+
+
+@login_required
+@require_write
+@require_organization_context
+def document_import(request):
+    """
+    Import one or more DOCX / PDF / TXT / Markdown files as editable Knowledge
+    Base documents, extracting their text so they can be edited and AI-reviewed.
+
+    Issue #140. Unlike `document_upload` (which stores files as opaque blobs),
+    this pulls the text out into `Document.body` so the content is searchable,
+    editable, and reviewable by AI. Bulk by design — accepts multiple files.
+    """
+    from .services.document_import import extract_document_text, SUPPORTED_EXTENSIONS
+
+    org = get_request_organization(request)
+    ai_ok, ai_message = _docs_ai_ready()
+
+    from .services.ai_documentation_generator import AIDocumentationGenerator
+
+    if request.method == 'POST':
+        files = request.FILES.getlist('files')
+        category_id = request.POST.get('category')
+        run_ai = request.POST.get('run_ai') == 'on'
+        standard = request.POST.get('standard', 'general')
+
+        category = None
+        if category_id:
+            try:
+                category = DocumentCategory.objects.get(id=category_id, organization=org)
+            except (DocumentCategory.DoesNotExist, ValueError):
+                pass
+
+        if not files:
+            messages.warning(request, 'No files were selected for import.')
+            return redirect('docs:document_import')
+
+        results = []
+        for f in files:
+            extraction = extract_document_text(f)
+            if not extraction['success']:
+                results.append({'name': f.name, 'success': False, 'error': extraction['error']})
+                continue
+
+            try:
+                title = os.path.splitext(f.name)[0]
+                base_slug = slugify(title) or 'imported-document'
+                slug = base_slug
+                counter = 1
+                while Document.objects.filter(organization=org, slug=slug).exists():
+                    slug = f"{base_slug}-{counter}"
+                    counter += 1
+
+                document = Document.objects.create(
+                    organization=org,
+                    title=title,
+                    slug=slug,
+                    body=extraction['text'],
+                    content_type='markdown',  # extracted plain text; AI review may upgrade to html
+                    file=f,
+                    file_size=f.size,
+                    file_type=_uploaded_file_type(request, 'files', f.name),
+                    category=category,
+                    created_by=request.user,
+                    last_modified_by=request.user,
+                    is_published=True,
+                )
+                results.append({
+                    'name': f.name,
+                    'success': True,
+                    'title': document.title,
+                    'slug': document.slug,
+                    'document_id': document.id,
+                    'kind': extraction['kind'],
+                    'truncated': extraction['truncated'],
+                })
+            except Exception as e:  # noqa: BLE001 — one bad file shouldn't abort the batch.
+                results.append({'name': f.name, 'success': False, 'error': str(e)})
+
+        imported = [r for r in results if r['success']]
+        if imported:
+            messages.success(request, f"Imported {len(imported)} document(s).")
+        failed = [r for r in results if not r['success']]
+        if failed:
+            messages.warning(request, f"{len(failed)} file(s) could not be imported.")
+
+        return render(request, 'docs/document_import.html', {
+            'results': results,
+            'run_ai': run_ai and ai_ok,
+            'standard': standard,
+            'ai_ok': ai_ok,
+            'ai_message': ai_message,
+            'categories': DocumentCategory.objects.filter(organization=org).order_by('name'),
+            'standards': AIDocumentationGenerator.REVIEW_STANDARDS,
+            'accept': ','.join(SUPPORTED_EXTENSIONS),
+        })
+
+    return render(request, 'docs/document_import.html', {
+        'ai_ok': ai_ok,
+        'ai_message': ai_message,
+        'categories': DocumentCategory.objects.filter(organization=org).order_by('name'),
+        'standards': AIDocumentationGenerator.REVIEW_STANDARDS,
+        'accept': ','.join(SUPPORTED_EXTENSIONS),
+    })
+
+
+@login_required
+@require_write
+@require_http_methods(["POST"])
+def ai_review_import(request):
+    """
+    Run AI review on a single imported document: reformat it to the chosen
+    standard and return the list of gaps found. Saves the improved body.
+
+    Issue #140. Called once per document from the import results page so each
+    LLM call is its own short request (never a multi-doc request that would
+    blow the gunicorn worker timeout — cf. issue #138).
+    """
+    from .services.ai_documentation_generator import AIDocumentationGenerator
+    import json
+
+    ai_ok, ai_message = _docs_ai_ready()
+    if not ai_ok:
+        return JsonResponse({'success': False, 'error': ai_message}, status=400)
+
+    try:
+        data = json.loads(request.body or '{}')
+        document_id = data.get('document_id')
+        standard = data.get('standard', 'general')
+
+        org = get_request_organization(request)
+        try:
+            document = Document.objects.get(id=document_id, organization=org)
+        except (Document.DoesNotExist, ValueError, TypeError):
+            return JsonResponse({'success': False, 'error': 'Document not found.'}, status=404)
+
+        generator = AIDocumentationGenerator()
+        result = generator.review_imported_document(
+            document.title, document.body, standard=standard, output_format='html'
+        )
+
+        if not result['success']:
+            return JsonResponse(result, status=502)
+
+        document.body = result['content']
+        document.content_type = 'html'
+        document.last_modified_by = request.user
+        document.save()
+
+        return JsonResponse({
+            'success': True,
+            'slug': document.slug,
+            'gaps': result.get('gaps', []),
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
 # ============================================================================
 # Global KB Views (Staff Only)
 # ============================================================================

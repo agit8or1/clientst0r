@@ -407,6 +407,131 @@ Return ONLY the HTML content starting with a <div> tag."""
                 'error': str(e)
             }
 
+    # Sentinel that separates the reformatted document from the gap analysis in
+    # review_imported_document's single-call output. An HTML comment so that if
+    # it ever leaks into the body, bleach strips it on render.
+    REVIEW_GAP_MARKER = '<!--GAP-ANALYSIS-->'
+
+    # Documentation standards the user can target on import. Each maps to extra
+    # guidance appended to the review system prompt so the reformatted output
+    # matches the expected shape for that kind of document.
+    REVIEW_STANDARDS = {
+        'general': 'a general MSP IT documentation article — clear overview, then logically grouped detail sections.',
+        'process': 'a Standard Operating Procedure (SOP) — purpose/scope, prerequisites, numbered step-by-step instructions, validation, and rollback.',
+        'runbook': 'a troubleshooting runbook — problem statement, prerequisites, resolution steps with expected outcomes, and escalation.',
+        'network': 'network infrastructure documentation — topology, IP/VLAN scheme, device configs, firewall/security, and change management.',
+        'security': 'a security & compliance record — scope/classification, controls, access, patching status, and relevant frameworks.',
+        'm365': 'Microsoft 365 / Entra ID documentation — prerequisites (licenses/roles), sync considerations, and security/compliance notes.',
+        'ad': 'Active Directory documentation — GPO/OU structure, replication, security groups, and backup/recovery.',
+    }
+
+    def review_imported_document(self, title, content, standard='general', output_format='html'):
+        """
+        Review an imported/extracted document in a single LLM call: reformat it
+        to a ClientSt0r documentation standard AND identify gaps for improvement.
+
+        Issue #140. Returns both the cleaned document and a list of gap notes so
+        the importer can save the improved body and surface the gaps to the user.
+
+        Args:
+            title: Document title (usually derived from the filename).
+            content: The raw extracted text of the imported document.
+            standard: Key from REVIEW_STANDARDS to target.
+            output_format: 'html' (default, Bootstrap 5) or 'markdown'.
+
+        Returns:
+            dict: {'success', 'title', 'content', 'gaps': [str, ...]} or
+                  {'success': False, 'error': ...}
+        """
+        standard_desc = self.REVIEW_STANDARDS.get(standard, self.REVIEW_STANDARDS['general'])
+
+        if output_format == 'html':
+            format_guide = """- Output clean, semantic HTML5 styled with Bootstrap 5 classes
+- Use headings (<h2>/<h3>), styled tables (<table class="table table-sm table-striped">),
+  callouts (<div class="alert alert-info">), and badges (<span class="badge bg-primary">)
+- Use real newline characters, never the literal two-character sequence backslash-n
+- Start the document directly with an HTML tag"""
+        else:
+            format_guide = '- Output clean Markdown with proper headings, lists, and tables'
+
+        system_prompt = f"""You are a senior IT documentation engineer at an MSP.
+You are reviewing a document that was just imported from an external file (Word/PDF).
+Your job has two parts.
+
+PART 1 — Reformat the document to match this standard: {standard_desc}
+- Preserve ALL technical content, facts, names, IP addresses, commands, and steps exactly
+- Do NOT invent details. Where the source is missing information, leave a clearly
+  marked placeholder like [PLACEHOLDER — to confirm] rather than guessing
+- Fix structure, headings, grammar, and formatting only
+{format_guide}
+
+PART 2 — Identify gaps for improvement
+- List concrete missing sections, unclear steps, stale/ambiguous content, and
+  anything that should be added for this document to meet the standard above
+
+OUTPUT CONTRACT (follow exactly):
+1. First output ONLY the reformatted document (no preamble, no code fences).
+2. Then output this exact marker on its own line: {self.REVIEW_GAP_MARKER}
+3. Then output a Markdown bullet list (one "- " per line) of the gaps you found.
+   If there are no meaningful gaps, output the single line: - No significant gaps found."""
+
+        user_prompt = f"""Title: {title}
+
+Imported document content:
+{content}
+
+Reformat it and then list the gaps, following the output contract exactly."""
+
+        try:
+            response = self.provider.generate(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=8192,
+            )
+
+            if not response['success']:
+                return response
+
+            text = (response['content'] or '').strip()
+
+            # Split the reformatted body from the gap analysis on the marker.
+            if self.REVIEW_GAP_MARKER in text:
+                body_part, gap_part = text.split(self.REVIEW_GAP_MARKER, 1)
+            else:
+                body_part, gap_part = text, ''
+
+            body_part = body_part.strip()
+            # Strip any stray code fences the model may have wrapped the doc in.
+            if body_part.startswith('```'):
+                lines = body_part.split('\n')
+                if lines[0].startswith('```'):
+                    lines = lines[1:]
+                if lines and lines[-1].strip() == '```':
+                    lines = lines[:-1]
+                body_part = '\n'.join(lines).strip()
+
+            gaps = []
+            for line in gap_part.split('\n'):
+                line = line.strip()
+                # Accept "-", "*", or "•" bullet prefixes.
+                if line[:1] in ('-', '*', '•'):
+                    line = line[1:].strip()
+                    if line:
+                        gaps.append(line)
+
+            return {
+                'success': True,
+                'title': title,
+                'content': body_part,
+                'gaps': gaps,
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+            }
+
     def validate_documentation(self, content):
         """
         Validate documentation for consistency, completeness, and quality.

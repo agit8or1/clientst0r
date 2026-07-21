@@ -10,6 +10,9 @@ urlpatterns = [
     path('', views.document_list, name='document_list'),
     path('create/', views.document_create, name='document_create'),
     path('upload/', views.document_upload, name='document_upload'),
+    # Issue #140 — import DOCX/PDF/TXT/MD as editable docs + optional AI review.
+    path('import/', views.document_import, name='document_import'),
+    path('ai/review-import/', views.ai_review_import, name='ai_review_import'),
     # Phase 22 v1 (v3.17.245) — review queue + mark-reviewed.
     path('review-queue/', views.kb_review_queue, name='kb_review_queue'),
     path('<slug:slug>/mark-reviewed/', views.kb_mark_reviewed, name='kb_mark_reviewed'),

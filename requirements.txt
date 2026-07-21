@@ -33,6 +33,7 @@ anthropic==0.75.*
 python-dotenv>=1.2.2,<1.3  # Updated to 1.2.2+ to fix symlink-following arbitrary file overwrite in set_key
 Pillow>=12.2.0,<13.0  # Updated to 12.2.0+ to fix FITS GZIP decompression bomb (was 12.1.* for PSD oob-write)
 reportlab>=4.0,<5.0  # PDF generation for quotes + invoices
+PyMuPDF>=1.24,<2  # PDF text extraction for document import + AI review (issue #140)
 markdown>=3.8.1,<4.0  # Updated to 3.8.1+ to fix uncaught-exception DoS
 bleach>=6.4.0,<7  # 6.4.0+ fixes formaction URI-scheme sanitization bypass + Unicode>U+00A0 URI-scheme bypass (was 6.1.*)
 tinycss2>=1.2,<2  # required by bleach.css_sanitizer for #127 progress-bar widths
