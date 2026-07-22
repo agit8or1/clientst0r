@@ -139,7 +139,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({ document_id: documentId, standard: standard }),
             });
-            const data = await resp.json();
+            // A reverse proxy timing out a slow review returns a non-JSON error
+            // page (502/504). Parsing that as JSON throws and used to surface a
+            // bare "Review failed" with no reason (issue #140). Detect it and
+            // explain instead.
+            let data;
+            try {
+                data = await resp.json();
+            } catch (parseErr) {
+                if (resp.status === 502 || resp.status === 504) {
+                    setStatus(row, '<i class="fas fa-triangle-exclamation"></i> Server/proxy timed out (' + resp.status + ') — the document may be too large. Try re-running review from the document, or split the file.', 'text-danger');
+                } else {
+                    setStatus(row, '<i class="fas fa-triangle-exclamation"></i> Review failed (HTTP ' + resp.status + ')', 'text-danger');
+                }
+                reviewNext(i + 1);
+                return;
+            }
             if (data.success) {
                 setStatus(row, '<i class="fas fa-check"></i> Reviewed', 'text-success');
                 const gapsEl = row.querySelector('.ai-gaps');

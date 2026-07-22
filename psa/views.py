@@ -684,7 +684,16 @@ def psa_global_settings_view(request):
         settings.updated_by = request.user
         settings.save()
 
-        changed = {k: (previous[k], getattr(settings, k)) for k in previous if previous[k] != getattr(settings, k)}
+        # Build the current snapshot with the SAME normalisation as `previous`
+        # so the diff is like-for-like. `psa_ai_min_confidence` is a Decimal,
+        # which (a) never compares equal to the stringified `previous` value —
+        # so it always showed as "changed" — and (b) is not JSON-serialisable,
+        # which crashed the AuditLog JSONField write with
+        # "Object of type Decimal is not JSON serializable" (issue #141).
+        # Stringifying both sides fixes the false diff and the crash.
+        current = {k: getattr(settings, k) for k in previous}
+        current['psa_ai_min_confidence'] = str(settings.psa_ai_min_confidence)
+        changed = {k: (previous[k], current[k]) for k in previous if previous[k] != current[k]}
         AuditLog.log(
             user=request.user, action='update',
             object_type='core.SystemSetting',

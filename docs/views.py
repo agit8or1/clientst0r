@@ -414,6 +414,32 @@ def _docs_ai_ready():
     return (True, provider_name)
 
 
+def _looks_like_html(text):
+    """
+    Best-effort guess at whether AI-returned content is HTML or Markdown.
+
+    Issue #140: the review prompt ASKS for HTML, but models frequently return
+    Markdown anyway (especially when the source document was Markdown-ish, like
+    an SOP). If we blindly store it as content_type='html', `render_content`
+    passes it through verbatim and the reader sees literal '##' / '**' markup —
+    "goes to MD format instead of html". Detecting the real format lets us store
+    the matching content_type so the document always renders correctly.
+
+    Heuristic: real HTML from the model opens with a block-level tag. We look
+    for an early block-level element rather than any '<...>' so that stray angle
+    brackets or inline `<code>` in Markdown don't get misread as HTML.
+    """
+    import re
+    if not text:
+        return False
+    head = text.lstrip()[:2000]
+    return bool(re.search(
+        r'<(?:h[1-6]|p|div|section|article|table|ul|ol|pre|blockquote|header|main)[\s>]',
+        head,
+        re.IGNORECASE,
+    ))
+
+
 @login_required
 @require_write
 @require_organization_context
@@ -557,14 +583,22 @@ def ai_review_import(request):
         if not result['success']:
             return JsonResponse(result, status=502)
 
-        document.body = result['content']
-        document.content_type = 'html'
+        # The prompt asks for HTML, but models often return Markdown regardless
+        # (issue #140). Store the content_type that matches what actually came
+        # back so `render_content` renders it correctly instead of showing raw
+        # markup. If it's Markdown, `render_content` converts it on display.
+        content = result['content']
+        content_type = 'html' if _looks_like_html(content) else 'markdown'
+
+        document.body = content
+        document.content_type = content_type
         document.last_modified_by = request.user
         document.save()
 
         return JsonResponse({
             'success': True,
             'slug': document.slug,
+            'content_type': content_type,
             'gaps': result.get('gaps', []),
         })
 

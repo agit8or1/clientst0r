@@ -760,3 +760,53 @@ class DocumentImportViewTests(TestCase):
         doc.refresh_from_db()
         self.assertEqual(doc.content_type, 'html')
         self.assertIn('<h2>Imported</h2>', doc.body)
+
+    def test_ai_review_markdown_output_stored_as_markdown(self):
+        """Issue #140: models often return Markdown despite the HTML prompt.
+        Storing that as content_type='html' makes the reader see literal '##'
+        markup ('goes to MD format instead of html'). The view must detect the
+        real format and store 'markdown' so render_content converts it."""
+        from core.models import SystemSetting
+        ss = SystemSetting.get_settings()
+        ss.psa_ai_enabled = True
+        ss.save()
+        c = Client()
+        self._login(c)
+        doc = Document.objects.create(
+            organization=self.org, title='SOP', body='raw text',
+            content_type='markdown', created_by=self.staff, last_modified_by=self.staff)
+        fake = {'success': True, 'title': 'SOP',
+                'content': '## Purpose\n\n**Scope**: all servers\n\n- step one',
+                'gaps': []}
+        with override_settings(LLM_PROVIDER='ollama'), \
+                mock.patch('docs.services.ai_documentation_generator.'
+                           'AIDocumentationGenerator.review_imported_document',
+                           return_value=fake):
+            r = c.post('/docs/ai/review-import/',
+                       data={'document_id': doc.id, 'standard': 'process'},
+                       content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['content_type'], 'markdown')
+        doc.refresh_from_db()
+        self.assertEqual(doc.content_type, 'markdown')
+
+
+class LooksLikeHtmlTests(TestCase):
+    """_looks_like_html distinguishes AI-returned HTML from Markdown (issue #140)."""
+
+    def _fn(self):
+        from docs.views import _looks_like_html
+        return _looks_like_html
+
+    def test_html_block_tags_detected(self):
+        f = self._fn()
+        self.assertTrue(f('<h2>Title</h2><p>Body</p>'))
+        self.assertTrue(f('\n\n  <div class="alert">note</div>'))
+        self.assertTrue(f('<table class="table"><tr><td>x</td></tr></table>'))
+
+    def test_markdown_not_detected_as_html(self):
+        f = self._fn()
+        self.assertFalse(f('## Heading\n\n**bold** and a `<code>` snippet'))
+        self.assertFalse(f('- item one\n- item two'))
+        self.assertFalse(f(''))
+        self.assertFalse(f(None))

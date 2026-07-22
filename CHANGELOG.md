@@ -5,6 +5,38 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.504] - 2026-07-22
+
+### Fix: PSA settings save crashed with "Object of type Decimal is not JSON serializable" (issue #141)
+
+Saving **Settings → PSA/AI** (`/psa/settings/`) 500'd on every POST. The audit-log change diff
+compared a stringified snapshot of `psa_ai_min_confidence` against the live **Decimal** value, so
+the field (a) always showed as "changed" even when it wasn't, and (b) put a raw `Decimal` into
+`AuditLog.extra_data` — a `JSONField` using the plain `json.JSONEncoder`, which cannot serialize
+`Decimal`, crashing the save.
+
+- `psa/views.py`: build the "current" snapshot with the **same** normalisation as the "previous"
+  one (stringify the Decimal) before diffing, so the comparison is like-for-like and nothing
+  non-serialisable reaches the JSONField.
+- Tests: `psa/tests/test_global_settings_view.py` — save no longer 500s, `extra_data` round-trips
+  through JSON, and an unchanged confidence is no longer falsely reported as changed.
+
+### Fix: AI-reviewed imports rendered as raw Markdown instead of HTML (issue #140)
+
+The import AI review always stored the result as `content_type='html'`. But models frequently
+return **Markdown** despite the HTML prompt (especially for SOP-style source docs), so the reader
+saw literal `##` / `**` markup — "goes to MD format instead of html" — with no error, because the
+call had *succeeded*.
+
+- `docs/views.py`: `ai_review_import` now detects whether the returned content is actually HTML
+  (`_looks_like_html`) and stores the matching `content_type`, so `render_content` converts
+  Markdown on display instead of showing raw markup. The response now returns `content_type`.
+- `templates/docs/document_import.html`: a reverse proxy timing out a slow review returns a
+  non-JSON 502/504 page; the client used to surface a bare "Review failed". It now detects the
+  non-JSON response and explains it was a server/proxy timeout (likely an oversized document).
+- Tests: `docs/tests.py` — Markdown output is stored as `content_type='markdown'`, plus
+  `_looks_like_html` unit coverage.
+
 ## [3.17.503] - 2026-07-21
 
 ### Feature: import DOCX/PDF as editable docs with optional AI review (issue #140)
