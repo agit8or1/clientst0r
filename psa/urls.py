@@ -72,6 +72,9 @@ urlpatterns = [
     path('email-configs/', views.email_config_list, name='email_config_list'),
     path('email-configs/new/', views.email_config_form, name='email_config_create'),
     path('email-configs/<int:pk>/edit/', views.email_config_form, name='email_config_edit'),
+    # Issue #142 outbound — Graph readiness check + labeled test send.
+    path('email-configs/<int:pk>/graph-readiness/', views.email_graph_readiness, name='email_graph_readiness'),
+    path('email-configs/<int:pk>/graph-test-send/', views.email_graph_test_send, name='email_graph_test_send'),
     # Quotes / Estimates
     path('quotes/', views.quote_list, name='quote_list'),
     path('quotes/new/', views.quote_form, name='quote_create'),

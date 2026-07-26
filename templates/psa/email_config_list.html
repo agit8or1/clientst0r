@@ -33,6 +33,9 @@
                         {% else %}
                             {{ c.username }}@{{ c.imap_host }}:{{ c.imap_port }}{% if c.use_ssl %} <i class="fas fa-lock text-success" title="SSL"></i>{% endif %}
                         {% endif %}
+                        <div class="small text-muted">out:
+                            {% if c.outbound_method == 'graph' %}<span class="badge text-bg-info">Graph</span>{% else %}<span class="badge text-bg-light text-dark border">SMTP</span>{% endif %}
+                        </div>
                     </td>
                     <td>{{ c.folder }}</td>
                     <td>{% if c.is_active %}<span class="badge text-bg-success">Yes</span>{% else %}<span class="badge text-bg-secondary">No</span>{% endif %}</td>

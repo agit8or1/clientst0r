@@ -399,6 +399,7 @@ class Command(BaseCommand):
                 config, new_status, msg,
                 dmarc_strict=dmarc_strict, spam_threshold=spam_threshold,
                 ticket_pattern=ticket_pattern,
+                graph_message_id=message_id,
             )
             if result == 'created':
                 created_count += 1
@@ -416,9 +417,13 @@ class Command(BaseCommand):
         return created_count, replied_count
 
     def _process_message(self, config, new_status, msg, *, dmarc_strict,
-                         spam_threshold, ticket_pattern):
+                         spam_threshold, ticket_pattern, graph_message_id=''):
         """Turn one parsed ``email.message.Message`` into a ticket or reply
         comment. Source-agnostic — shared by the IMAP and Graph poll paths.
+
+        ``graph_message_id`` is the immutable Graph id (Graph source only); it
+        is stored on the inbound EmailMessage row so a later staff reply can use
+        POST /messages/{id}/reply and preserve the M365 conversation (issue #142).
 
         Returns one of 'created' | 'replied' | 'quarantined' | 'skipped'. The
         caller is responsible for marking the source message read afterwards.
@@ -455,6 +460,8 @@ class Command(BaseCommand):
                         'body_html': sanitize_html(html_body)[:200000],
                         'was_quarantined': True,
                         'quarantine_reason': quarantine[:200],
+                        'graph_message_id': graph_message_id or '',
+                        'transport': 'graph' if graph_message_id else '',
                     },
                 )
             logger.info('quarantined inbound msg=%r reason=%s',
@@ -555,6 +562,8 @@ class Command(BaseCommand):
                     'headers_raw': '\n'.join(f'{k}: {v}' for k, v in msg.items())[:16000],
                     'body_text': text_body[:50000],
                     'body_html': sanitize_html(html_body)[:200000],
+                    'graph_message_id': graph_message_id or '',
+                    'transport': 'graph' if graph_message_id else '',
                 },
             )
             if target.last_inbound_message_id != message_id_hdr:

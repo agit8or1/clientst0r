@@ -1833,6 +1833,33 @@ class EmailIngestionConfig(models.Model):
         help_text='Shared mailbox / user UPN to poll via Graph, e.g. support@contoso.com',
     )
 
+    # Outbound transport (issue #142 outbound). 'smtp' keeps the existing
+    # Django email-backend send (default — no existing customer changes).
+    # 'graph' sends via Microsoft Graph sendMail/reply on the same M365
+    # connection + mailbox (needs the Mail.Send application permission,
+    # scoped via Exchange Online RBAC for Applications).
+    OUTBOUND_SMTP = 'smtp'
+    OUTBOUND_GRAPH = 'graph'
+    OUTBOUND_CHOICES = [
+        (OUTBOUND_SMTP, 'SMTP (existing)'),
+        (OUTBOUND_GRAPH, 'Microsoft Graph'),
+    ]
+    outbound_method = models.CharField(
+        max_length=10, choices=OUTBOUND_CHOICES, default=OUTBOUND_SMTP,
+        help_text='How staff replies are sent. Graph requires an M365 connection + mailbox.',
+    )
+    # Set when a Test Outbound send returns HTTP 202 — drives the "send
+    # authorization" status indicator without re-sending on every page load.
+    graph_send_verified_at = models.DateTimeField(null=True, blank=True)
+    graph_send_last_error = models.CharField(max_length=300, blank=True)
+    # Only used when outbound_method='graph': permit a pre-submission fall back
+    # to SMTP when Graph is known-unavailable (never AFTER a Graph submission —
+    # that risks duplicates).
+    smtp_fallback_enabled = models.BooleanField(
+        default=False,
+        help_text='If Graph is known-unavailable before sending, fall back to SMTP.',
+    )
+
     # Defaults applied when creating a new ticket.
     default_queue = models.ForeignKey(Queue, on_delete=models.PROTECT,
                                       related_name='email_configs')
@@ -4343,6 +4370,15 @@ class EmailMessage(models.Model):
     to_emails = models.JSONField(default=list, blank=True)
     subject = models.CharField(max_length=512, blank=True)
 
+    # Which transport handled this message (issue #142). Blank for legacy rows.
+    # Inbound Graph rows are tagged 'graph'; outbound rows record the transport
+    # that actually sent them ('smtp' or 'graph').
+    transport = models.CharField(max_length=10, blank=True)
+    # For inbound Graph messages: the immutable Graph message id, stored so a
+    # later staff reply can use POST /messages/{id}/reply and preserve the M365
+    # conversation. Immutable ids survive the message moving between folders.
+    graph_message_id = models.CharField(max_length=255, blank=True, db_index=True)
+
     headers_raw = models.TextField(blank=True,
         help_text='Full raw headers; useful for debugging threading + DMARC later')
     body_text = models.TextField(blank=True)
@@ -4915,3 +4951,109 @@ class WebPushSubscription(models.Model):
         self.last_error = ''
         self.save(update_fields=['last_delivery_at', 'last_error'])
         return {'success': True, 'title': title, 'body': body, 'url': url}
+
+
+class EmailOutboundJob(models.Model):
+    """Issue #142 (outbound) — a durable, idempotent outbound-send record for
+    the Microsoft Graph transport.
+
+    Graph send actions return HTTP 202 Accepted (queued for processing, NOT a
+    delivery confirmation), and can fail transiently (429/5xx), so outbound
+    Graph sends go through this job:
+      * idempotency_key + a locking status transition prevent duplicate sends,
+      * transient failures retry with backoff (honoring Retry-After),
+      * permanent auth/validation errors fail fast,
+      * a read-timeout AFTER submission is marked 'uncertain' and never auto-resent.
+
+    The row also serves as the outbound audit trail (tenant, mailbox, sender,
+    recipients, ticket, Graph operation + request id, submission time, result,
+    error category, retry count). Full message bodies are stored here only so
+    the send can be retried — they are never written to the application log.
+
+    SMTP outbound stays synchronous and does NOT create a job (existing behavior
+    is unchanged).
+    """
+    STATUS_QUEUED = 'queued'
+    STATUS_SENDING = 'sending'
+    STATUS_SENT = 'sent'
+    STATUS_FAILED = 'failed'
+    STATUS_UNCERTAIN = 'uncertain'
+    STATUS_CHOICES = [
+        (STATUS_QUEUED, 'Queued'),
+        (STATUS_SENDING, 'Sending'),
+        (STATUS_SENT, 'Sent (accepted)'),
+        (STATUS_FAILED, 'Failed'),
+        (STATUS_UNCERTAIN, 'Uncertain — needs review'),
+    ]
+
+    OP_SEND = 'send'
+    OP_REPLY = 'reply'
+    OP_REPLY_ALL = 'reply_all'
+    OP_CHOICES = [
+        (OP_SEND, 'sendMail'),
+        (OP_REPLY, 'reply'),
+        (OP_REPLY_ALL, 'replyAll'),
+    ]
+
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE,
+                                     related_name='email_outbound_jobs')
+    ticket = models.ForeignKey(Ticket, on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='email_outbound_jobs')
+    config = models.ForeignKey(EmailIngestionConfig, on_delete=models.SET_NULL,
+                               null=True, blank=True, related_name='outbound_jobs')
+    email_message = models.ForeignKey(EmailMessage, on_delete=models.SET_NULL,
+                                      null=True, blank=True, related_name='outbound_job')
+
+    transport = models.CharField(max_length=10, default='graph')
+    operation = models.CharField(max_length=12, choices=OP_CHOICES, default=OP_SEND)
+
+    # Sender is always the server-configured mailbox — never caller-supplied.
+    mailbox = models.CharField(max_length=320)
+    # Immutable Graph id of the ingested message being replied to (reply ops).
+    graph_message_id = models.CharField(max_length=255, blank=True)
+
+    to_recipients = models.JSONField(default=list, blank=True)
+    cc_recipients = models.JSONField(default=list, blank=True)
+    bcc_recipients = models.JSONField(default=list, blank=True)
+    reply_to = models.JSONField(default=list, blank=True)
+
+    subject = models.CharField(max_length=998, blank=True)
+    body_html = models.TextField(blank=True)
+    body_text = models.TextField(blank=True)
+    save_to_sent_items = models.BooleanField(default=True)
+    attachment_ids = models.JSONField(default=list, blank=True)
+
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES,
+                              default=STATUS_QUEUED, db_index=True)
+    retry_count = models.PositiveIntegerField(default=0)
+    max_retries = models.PositiveIntegerField(default=5)
+    next_attempt_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    ms_request_id = models.CharField(max_length=200, blank=True)
+    last_error = models.TextField(blank=True)
+    # transient | auth | validation | permanent | uncertain
+    error_category = models.CharField(max_length=20, blank=True)
+
+    locked_at = models.DateTimeField(null=True, blank=True)
+    idempotency_key = models.CharField(max_length=64, unique=True)
+
+    created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_email_outbound_jobs'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'next_attempt_at']),
+            models.Index(fields=['organization', 'status']),
+        ]
+
+    def __str__(self):
+        return f'[{self.transport}:{self.operation}] {self.status} -> {self.to_recipients}'
+
+    @property
+    def is_terminal(self):
+        return self.status in (self.STATUS_SENT, self.STATUS_FAILED, self.STATUS_UNCERTAIN)

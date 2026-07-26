@@ -1214,9 +1214,10 @@ class M365ProviderMailMethodTests(TestCase):
         p = self._provider()
         captured = {}
 
-        def fake_get_all(path, params=None):
+        def fake_get_all(path, params=None, *, prefer_immutable=False):
             captured['path'] = path
             captured['params'] = params
+            captured['prefer_immutable'] = prefer_immutable
             return [{'id': 'a'}, {'id': 'b'}, {'no_id': 1}]
 
         p._get_all = fake_get_all
@@ -1227,16 +1228,20 @@ class M365ProviderMailMethodTests(TestCase):
         self.assertIn('mailFolders/inbox/messages', captured['path'])
         self.assertEqual(captured['params']['$filter'], 'isRead eq false')
         self.assertNotIn('$orderby', captured['params'])
+        # Issue #142 outbound — inbound list requests immutable ids.
+        self.assertTrue(captured['prefer_immutable'])
 
     def test_mark_message_read_patches_isread(self):
         p = self._provider()
         captured = {}
 
-        def fake_patch(path, body):
+        def fake_patch(path, body, *, prefer_immutable=False):
             captured['path'] = path
             captured['body'] = body
+            captured['prefer_immutable'] = prefer_immutable
 
         p._patch = fake_patch
         p.mark_message_read('support@x.com', 'MSGID')
         self.assertIn('/messages/MSGID', captured['path'])
         self.assertEqual(captured['body'], {'isRead': True})
+        self.assertTrue(captured['prefer_immutable'])

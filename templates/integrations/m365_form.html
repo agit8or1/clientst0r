@@ -93,11 +93,28 @@
                             <li>SecurityAlert.Read.All <span class="text-muted">(for Defender alerts)</span></li>
                             <li>TeamSettings.Read.All <span class="text-muted">(for Teams data)</span></li>
                             <li>Reports.Read.All <span class="text-muted">(for usage reports)</span></li>
-                            <li>Mail.Read <span class="text-muted">(only if using PSA inbound mailbox sync)</span></li>
+                            <li>Mail.Read <span class="text-muted">(only if using PSA inbound mailbox sync — optional)</span></li>
+                            <li>Mail.Send <span class="text-muted">(only if using PSA Graph outbound — optional)</span></li>
                         </ul>
                     </li>
                     <li>Click <strong>Grant admin consent</strong></li>
                 </ol>
+                <div class="alert alert-warning py-2 small mb-0">
+                    <strong>Least privilege for PSA mailbox sync (Mail.Read / Mail.Send).</strong>
+                    Microsoft's preferred way to restrict app mailbox access is
+                    <strong>Exchange Online RBAC for Applications</strong> (not the older Application Access Policies).
+                    Scope <code>Mail.Read</code> and <code>Mail.Send</code> to <em>only</em> the approved PSA mailbox
+                    (or a mail-enabled security group of PSA mailboxes) with a service-principal RBAC assignment, e.g.:
+                    <pre class="mb-1 mt-1"><code>New-ManagementRoleAssignment -App &lt;app-object-id&gt; \
+  -Role "Application Mail.Read" -RecipientGroupScope &lt;psa-mailboxes-group&gt;
+New-ManagementRoleAssignment -App &lt;app-object-id&gt; \
+  -Role "Application Mail.Send" -RecipientGroupScope &lt;psa-mailboxes-group&gt;</code></pre>
+                    <strong>Important:</strong> an unrestricted <code>Mail.Read</code>/<code>Mail.Send</code> grant left in
+                    Microsoft Entra is <em>additive</em> and defeats the RBAC scope. When using scoped Exchange RBAC,
+                    do not leave an unrestricted tenant-wide <code>Mail.Send</code> application permission in place.
+                    Outbound is optional — existing SMTP outbound remains fully supported. A Graph send returns
+                    <strong>HTTP 202 Accepted</strong> (accepted for processing), which is not a guaranteed-delivery receipt.
+                </div>
             </div>
         </div>
     </div>

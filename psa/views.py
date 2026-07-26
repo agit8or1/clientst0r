@@ -2674,6 +2674,9 @@ def email_config_form(request, pk=None):
         source = (request.POST.get('source') or 'imap').strip()
         if source not in ('imap', 'graph'):
             source = 'imap'
+        outbound_method = (request.POST.get('outbound_method') or 'smtp').strip()
+        if outbound_method not in ('smtp', 'graph'):
+            outbound_method = 'smtp'
         name = (request.POST.get('name') or '').strip()
         if not name:
             messages.error(request, 'Name is required.')
@@ -2685,17 +2688,20 @@ def email_config_form(request, pk=None):
         password = request.POST.get('password') or ''
         m365_conn = None
         graph_mailbox = (request.POST.get('graph_mailbox') or '').strip()
-        if source == 'graph':
+        # An M365 connection + mailbox are needed when Graph is used for EITHER
+        # inbound (source) or outbound.
+        needs_graph = (source == 'graph') or (outbound_method == 'graph')
+        if needs_graph:
             try:
                 m365_conn = M365Connection.objects.get(
                     pk=request.POST.get('m365_connection'), is_active=True)
             except (M365Connection.DoesNotExist, ValueError, TypeError):
-                messages.error(request, 'Select an active Microsoft 365 connection for Graph sync.')
+                messages.error(request, 'Select an active Microsoft 365 connection for Graph.')
                 return _render(selected_org_id=item_org.pk)
             if not graph_mailbox:
-                messages.error(request, 'Enter the mailbox address to poll (e.g. support@contoso.com).')
+                messages.error(request, 'Enter the Microsoft 365 mailbox address (e.g. support@contoso.com).')
                 return _render(selected_org_id=item_org.pk)
-        else:
+        if source == 'imap':
             if not host or not username:
                 messages.error(request, 'Host and username are required for IMAP.')
                 return _render(selected_org_id=item_org.pk)
@@ -2723,13 +2729,15 @@ def email_config_form(request, pk=None):
             item.default_type = ticket_type
         item.name = name
         item.source = source
-        if source == 'graph':
+        item.outbound_method = outbound_method
+        item.smtp_fallback_enabled = request.POST.get('smtp_fallback_enabled') == 'on'
+        if needs_graph:
             item.m365_connection = m365_conn
             item.graph_mailbox = graph_mailbox
-            # Leave IMAP fields as-is (harmless); credentials come from the M365 app.
         else:
             item.m365_connection = None
             item.graph_mailbox = ''
+        if source == 'imap':
             item.imap_host = host
             item.imap_port = port
             item.use_ssl = request.POST.get('use_ssl') == 'on'
@@ -2749,6 +2757,133 @@ def email_config_form(request, pk=None):
         return redirect('psa:email_config_list')
 
     return _render()
+
+
+@login_required
+@require_write
+@require_psa_enabled
+@require_http_methods(['GET'])
+def email_graph_readiness(request, pk):
+    """Issue #142 outbound — JSON readiness for the Graph transport. Reports
+    separate inbound (Mail.Read) and outbound (Mail.Send) status. Never returns
+    tokens, secrets, or raw auth headers — only Graph error messages."""
+    from django.http import JsonResponse
+    config = get_object_or_404(EmailIngestionConfig, pk=pk)
+    conn = config.m365_connection
+    result = {
+        'connection_active': bool(conn and conn.is_active),
+        'mailbox_configured': bool(config.graph_mailbox),
+        'token_ok': False,
+        'inbound_ok': False,
+        'inbound_message': '',
+        'outbound_verified': bool(config.graph_send_verified_at),
+        'outbound_message': '',
+    }
+    if config.graph_send_verified_at:
+        result['outbound_message'] = f'Verified {config.graph_send_verified_at:%Y-%m-%d %H:%M} UTC'
+    elif config.graph_send_last_error:
+        result['outbound_message'] = config.graph_send_last_error
+    else:
+        result['outbound_message'] = 'Not yet tested — use Test outbound.'
+
+    if not result['connection_active']:
+        result['inbound_message'] = 'No active Microsoft 365 connection.'
+        return JsonResponse(result)
+    if not result['mailbox_configured']:
+        result['inbound_message'] = 'No mailbox address configured.'
+        return JsonResponse(result)
+
+    try:
+        from integrations.providers.m365 import M365Provider
+        creds = conn.get_credentials()
+        provider = M365Provider(conn.tenant_id, creds.get('client_id', ''),
+                                creds.get('client_secret', ''))
+        folder = config.folder or 'inbox'
+        if folder.upper() == 'INBOX':
+            folder = 'inbox'
+        probe = provider.probe_mailbox(config.graph_mailbox, folder)
+        if probe.get('success'):
+            result['token_ok'] = True
+            result['inbound_ok'] = True
+            result['inbound_message'] = 'Mail.Read OK'
+        else:
+            err = probe.get('error', '')
+            # If we got an HTTP status back, the token was acquired.
+            result['token_ok'] = 'HTTP' in err
+            result['inbound_ok'] = False
+            result['inbound_message'] = err
+    except Exception as e:  # noqa: BLE001
+        result['token_ok'] = False
+        result['inbound_message'] = f'Token/connection error: {e}'[:300]
+    return JsonResponse(result)
+
+
+@login_required
+@require_write
+@require_psa_enabled
+@require_http_methods(['POST'])
+def email_graph_test_send(request, pk):
+    """Issue #142 outbound — send a single, clearly-labeled test message to an
+    admin-specified recipient to verify Mail.Send + Exchange RBAC scope."""
+    from django.http import JsonResponse
+    from django.utils import timezone
+    import json
+    config = get_object_or_404(EmailIngestionConfig, pk=pk)
+
+    try:
+        data = json.loads(request.body or '{}')
+    except ValueError:
+        data = {}
+    from psa.graph_outbound import validate_recipients, _extract_error, classify_error
+    valid, _invalid = validate_recipients([(data.get('test_recipient') or '').strip()])
+    if not valid:
+        return JsonResponse({'success': False, 'error': 'Enter a valid test recipient address.'}, status=400)
+
+    conn = config.m365_connection
+    if not (conn and conn.is_active and config.graph_mailbox):
+        return JsonResponse({'success': False,
+                             'error': 'Graph outbound is not fully configured (connection/mailbox).'},
+                            status=400)
+
+    from integrations.providers.m365 import M365Provider
+    from psa.email_parsing import sanitize_html
+    creds = conn.get_credentials()
+    provider = M365Provider(conn.tenant_id, creds.get('client_id', ''),
+                            creds.get('client_secret', ''))
+    message = {
+        'subject': '[TEST] ClientSt0r Microsoft Graph outbound test',
+        'body': {'contentType': 'HTML', 'content': sanitize_html(
+            '<p>This is a <strong>test message</strong> sent by ClientSt0r to verify '
+            'Microsoft Graph outbound (Mail.Send) for this mailbox. No action is required.</p>')},
+        'toRecipients': [{'emailAddress': {'address': valid[0]}}],
+    }
+    try:
+        resp = provider.send_mail(config.graph_mailbox, message, save_to_sent_items=True)
+    except Exception as e:  # noqa: BLE001
+        config.graph_send_last_error = str(e)[:300]
+        config.save(update_fields=['graph_send_last_error'])
+        return JsonResponse({'success': False, 'error': f'Send failed: {e}'[:300]}, status=502)
+
+    if resp.status_code in (200, 202):
+        config.graph_send_verified_at = timezone.now()
+        config.graph_send_last_error = ''
+        config.save(update_fields=['graph_send_verified_at', 'graph_send_last_error'])
+        return JsonResponse({
+            'success': True,
+            'request_id': resp.headers.get('request-id', ''),
+            'message': (f'Accepted (HTTP {resp.status_code}). Note: 202 means Microsoft accepted '
+                        'the message for processing — not a final delivery confirmation.'),
+        })
+
+    msg, _req = _extract_error(resp)
+    detail = msg
+    if resp.status_code == 403:
+        detail = (f'{msg} — Mail.Send may not be granted, or the mailbox is outside the app\'s '
+                  'Exchange RBAC scope.')
+    config.graph_send_last_error = f'HTTP {resp.status_code}: {detail}'[:300]
+    config.save(update_fields=['graph_send_last_error'])
+    return JsonResponse({'success': False, 'error': config.graph_send_last_error,
+                         'category': classify_error(resp.status_code, msg)}, status=502)
 
 
 # ---------------------------------------------------------------------------

@@ -33,18 +33,25 @@
                 <input type="text" name="name" class="form-control" required value="{{ item.name|default:'' }}">
             </div>
             <div class="col-md-3">
-                <label class="form-label">Source</label>
+                <label class="form-label">Inbound source</label>
                 <select name="source" id="source_select" class="form-select">
                     <option value="imap" {% if not item or item.source == 'imap' %}selected{% endif %}>IMAP</option>
-                    <option value="graph" {% if item and item.source == 'graph' %}selected{% endif %}>Microsoft 365 (Graph API)</option>
+                    <option value="graph" {% if item and item.source == 'graph' %}selected{% endif %}>Microsoft Graph</option>
                 </select>
             </div>
-            <div class="col-md-3 form-check ms-3 mt-4">
+            <div class="col-md-3">
+                <label class="form-label">Outbound method</label>
+                <select name="outbound_method" id="outbound_select" class="form-select">
+                    <option value="smtp" {% if not item or item.outbound_method == 'smtp' %}selected{% endif %}>SMTP (existing)</option>
+                    <option value="graph" {% if item and item.outbound_method == 'graph' %}selected{% endif %}>Microsoft Graph</option>
+                </select>
+            </div>
+
+            <div class="col-md-3 form-check ms-3 mt-2">
                 <input type="checkbox" name="is_active" class="form-check-input" id="is_active"
                        {% if not item or item.is_active %}checked{% endif %}>
                 <label class="form-check-label" for="is_active">Active</label>
             </div>
-
             <div class="col-md-6">
                 <label class="form-label">Folder</label>
                 <input type="text" name="folder" class="form-control" value="{{ item.folder|default:'INBOX' }}">
@@ -76,16 +83,16 @@
                        placeholder="{% if item %}(unchanged){% endif %}">
             </div>
 
-            <!-- Microsoft 365 (Graph) fields -->
-            <div class="col-12 graph-fields">
+            <!-- Microsoft 365 (Graph) connection + mailbox — shared by inbound & outbound -->
+            <div class="col-12 graph-inbound-note">
                 <div class="alert alert-info py-2 mb-2 small">
                     <i class="fas fa-circle-info me-1"></i>
-                    Graph sync reads the mailbox using an existing Microsoft 365 connection's app registration.
+                    Graph inbound reads the mailbox using an existing Microsoft 365 connection's app registration.
                     That app needs the <code>Mail.Read</code> <strong>application</strong> permission with admin consent.
                     No IMAP or password required.
                 </div>
             </div>
-            <div class="col-md-6 graph-fields">
+            <div class="col-md-6 graph-conn-fields">
                 <label class="form-label">Microsoft 365 connection</label>
                 <select name="m365_connection" class="form-select">
                     <option value="">-- Select connection --</option>
@@ -99,11 +106,58 @@
                 <small class="text-danger">No active M365 connections found. Create one under Integrations first.</small>
                 {% endif %}
             </div>
-            <div class="col-md-6 graph-fields">
+            <div class="col-md-6 graph-conn-fields">
                 <label class="form-label">Mailbox address</label>
                 <input type="text" name="graph_mailbox" class="form-control" autocomplete="off"
                        placeholder="support@contoso.com" value="{{ item.graph_mailbox|default:'' }}">
-                <small class="text-muted">The shared mailbox / user UPN to poll.</small>
+                <small class="text-muted">The shared mailbox / user UPN (used for inbound polling and as the Graph sender).</small>
+            </div>
+
+            <!-- Graph OUTBOUND section -->
+            <div class="col-12 graph-outbound-fields">
+                <div class="alert alert-warning py-2 mb-2 small">
+                    <i class="fas fa-paper-plane me-1"></i>
+                    Graph outbound sends replies via <code>sendMail</code>/<code>reply</code> from the mailbox above.
+                    The app needs the <code>Mail.Send</code> <strong>application</strong> permission,
+                    <strong>scoped to only this mailbox</strong> via Exchange Online RBAC for Applications.
+                    Do not leave an unrestricted tenant-wide <code>Mail.Send</code> grant in Entra — it defeats the RBAC scope.
+                </div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           id="smtp_fallback_enabled" name="smtp_fallback_enabled"
+                           {% if item and item.smtp_fallback_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="smtp_fallback_enabled">
+                        Fall back to SMTP if Graph is unavailable <span class="text-muted">(only before sending — never after an uncertain submission)</span>
+                    </label>
+                </div>
+                {% if item %}
+                <div class="card border-secondary">
+                    <div class="card-body py-2">
+                        <div class="row small">
+                            <div class="col-md-6"><span id="st-conn" class="badge text-bg-secondary">…</span> Connection</div>
+                            <div class="col-md-6"><span id="st-token" class="badge text-bg-secondary">…</span> Token</div>
+                            <div class="col-md-6"><span id="st-inbound" class="badge text-bg-secondary">…</span> Inbound (Mail.Read)</div>
+                            <div class="col-md-6"><span id="st-outbound" class="badge text-bg-secondary">…</span> Outbound (Mail.Send)</div>
+                        </div>
+                        <div id="st-detail" class="text-muted small mt-1"></div>
+                        <hr class="my-2">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-7">
+                                <label class="form-label mb-0 small">Test recipient</label>
+                                <input type="email" id="test_recipient" class="form-control form-control-sm" placeholder="you@yourmsp.com">
+                            </div>
+                            <div class="col-md-5">
+                                <button type="button" id="btn-test-outbound" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-vial"></i> Test outbound
+                                </button>
+                            </div>
+                        </div>
+                        <div id="test-result" class="small mt-2"></div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-secondary py-2 small mb-0">Save this mailbox first, then re-open it to run the outbound readiness check and test send.</div>
+                {% endif %}
             </div>
 
             <div class="col-12"><hr><h5>Ticket defaults</h5></div>
@@ -153,17 +207,86 @@
 
 <script>
 (function () {
-    const sel = document.getElementById('source_select');
+    const sourceSel = document.getElementById('source_select');
+    const outboundSel = document.getElementById('outbound_select');
+    const show = (selector, on) => document.querySelectorAll(selector).forEach(
+        el => { el.style.display = on ? '' : 'none'; });
+
+    let readinessLoaded = false;
     function toggle() {
-        const isGraph = sel.value === 'graph';
-        document.querySelectorAll('.imap-fields').forEach(function (el) {
-            el.style.display = isGraph ? 'none' : '';
-        });
-        document.querySelectorAll('.graph-fields').forEach(function (el) {
-            el.style.display = isGraph ? '' : 'none';
+        const inboundGraph = sourceSel.value === 'graph';
+        const outboundGraph = outboundSel.value === 'graph';
+        show('.imap-fields', !inboundGraph);
+        show('.graph-inbound-note', inboundGraph);
+        show('.graph-conn-fields', inboundGraph || outboundGraph);
+        show('.graph-outbound-fields', outboundGraph);
+        if (outboundGraph && !readinessLoaded) { loadReadiness(); }
+    }
+    sourceSel.addEventListener('change', toggle);
+    outboundSel.addEventListener('change', toggle);
+
+    function setBadge(id, ok, unknown) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (unknown) { el.className = 'badge text-bg-secondary'; el.textContent = '?'; }
+        else if (ok) { el.className = 'badge text-bg-success'; el.textContent = '✓'; }
+        else { el.className = 'badge text-bg-danger'; el.textContent = '✕'; }
+    }
+
+    {% if item %}
+    const READINESS_URL = "{% url 'psa:email_graph_readiness' item.pk %}";
+    const TEST_URL = "{% url 'psa:email_graph_test_send' item.pk %}";
+    const CSRF = "{{ csrf_token }}";
+
+    function loadReadiness() {
+        readinessLoaded = true;
+        fetch(READINESS_URL).then(r => r.json()).then(d => {
+            setBadge('st-conn', d.connection_active);
+            setBadge('st-token', d.token_ok);
+            setBadge('st-inbound', d.inbound_ok);
+            setBadge('st-outbound', d.outbound_verified);
+            const det = document.getElementById('st-detail');
+            if (det) {
+                const parts = [];
+                if (d.inbound_message) parts.push('Inbound: ' + d.inbound_message);
+                if (d.outbound_message) parts.push('Outbound: ' + d.outbound_message);
+                det.textContent = parts.join(' · ');
+            }
+        }).catch(() => {});
+    }
+
+    const btn = document.getElementById('btn-test-outbound');
+    if (btn) {
+        btn.addEventListener('click', function () {
+            const rcpt = (document.getElementById('test_recipient').value || '').trim();
+            const out = document.getElementById('test-result');
+            if (!rcpt) { out.innerHTML = '<span class="text-danger">Enter a test recipient.</span>'; return; }
+            btn.disabled = true;
+            out.innerHTML = '<span class="text-muted"><i class="fas fa-spinner fa-spin"></i> Sending test…</span>';
+            fetch(TEST_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+                body: JSON.stringify({test_recipient: rcpt}),
+            }).then(r => r.json().then(d => ({ok: r.ok, d}))).then(({ok, d}) => {
+                if (d.success) {
+                    out.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> ' +
+                        (d.message || 'Accepted.') + '</span>';
+                    setBadge('st-outbound', true);
+                } else {
+                    const esc = document.createElement('div'); esc.textContent = d.error || 'Test failed.';
+                    out.innerHTML = '<span class="text-danger"><i class="fas fa-triangle-exclamation"></i> ' +
+                        esc.innerHTML + '</span>';
+                    setBadge('st-outbound', false);
+                }
+            }).catch(() => {
+                out.innerHTML = '<span class="text-danger">Test request failed.</span>';
+            }).finally(() => { btn.disabled = false; });
         });
     }
-    sel.addEventListener('change', toggle);
+    {% else %}
+    function loadReadiness() {}
+    {% endif %}
+
     toggle();
 })();
 </script>

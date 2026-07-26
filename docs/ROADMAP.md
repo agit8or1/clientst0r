@@ -193,6 +193,7 @@ Planned capabilities:
 - Email security validation (SPF / DKIM / DMARC inspection) *(10.3 — shipped v3.17.188; opt-in via enforce_dmarc)*
 - Outbound threading + per-ticket conversation panel *(10.4 — shipped v3.17.189)*
 - Microsoft 365 mailbox source via Graph API (alternative to IMAP for tenants that can't enable IMAP) *(10.5 — shipped v3.17.506 — `EmailIngestionConfig.source='graph'` reuses an existing M365 connection's app registration (needs `Mail.Read`); the poller fetches each unread message's MIME via Graph and runs the identical threading/quarantine/attachment pipeline, then marks it read — issue #142)*
+- Microsoft 365 **outbound** via Graph (optional transport; SMTP remains default) *(10.6 — shipped v3.17.507 — `EmailIngestionConfig.outbound_method='graph'` sends staff replies via Graph `sendMail`/`reply`/`replyAll` on the same mailbox (needs `Mail.Send`, scoped via Exchange Online RBAC for Applications). Durable `EmailOutboundJob` with idempotent claim-lock, 202-accepted tracking, Retry-After-aware retries for 429/5xx, fail-fast on auth/validation, and an 'uncertain' state for post-submit timeouts (never auto-resent). Immutable Graph message ids stored on inbound so replies preserve the M365 conversation. Readiness check + labeled test-send in the mailbox form — issue #142)*
 - Ticket summarization (**OPTIONAL AI**)
 - Intent detection (**OPTIONAL AI**)
 

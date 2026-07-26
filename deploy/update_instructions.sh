@@ -205,6 +205,17 @@ if ! crontab -l 2>/dev/null | grep -q "psa_poll_email"; then
         || log "[WARN] PSA email-poll cron setup failed (non-critical)"
 fi
 
+# PSA Graph outbound retry worker — every 5 minutes (issue #142). Retries any
+# outbound Graph sends left queued by a transient failure; inline sends already
+# happen at request time, so this is a safety net (jobs are lock-claimed, so no
+# double-send).
+PSA_OUTBOUND="*/5 * * * * $VENV_DIR/bin/python $BASE_DIR/manage.py psa_send_outbound >/dev/null 2>&1"
+if ! crontab -l 2>/dev/null | grep -q "psa_send_outbound"; then
+    ( (crontab -l 2>/dev/null; echo "$PSA_OUTBOUND") | crontab - \
+        && log "Cron job configured for PSA Graph outbound worker" ) \
+        || log "[WARN] PSA outbound cron setup failed (non-critical)"
+fi
+
 # Contract auto-renewal — daily at 02:30
 PSA_RENEW="30 2 * * * $VENV_DIR/bin/python $BASE_DIR/manage.py psa_auto_renew_contracts >/dev/null 2>&1"
 if ! crontab -l 2>/dev/null | grep -q "psa_auto_renew_contracts"; then

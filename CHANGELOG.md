@@ -5,6 +5,43 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.507] - 2026-07-26
+
+### Feature: Microsoft 365 outbound email via Graph (optional transport, issue #142)
+
+Staff replies can now be sent through Microsoft Graph (`sendMail` / `reply` / `replyAll`) as an
+**optional** outbound transport on M365 mailbox connections. **SMTP outbound is unchanged and
+remains the default** — existing IMAP/SMTP customers are unaffected, and existing records default
+to SMTP (Graph outbound is never auto-enabled).
+
+- **Transport selector** — `EmailIngestionConfig.outbound_method` (`smtp` | `graph`). Graph is
+  only usable when the mailbox has a valid, active M365 connection + mailbox address. The sender
+  is always the server-configured mailbox — callers can't supply an arbitrary sender.
+- **Graph operations** (`integrations/providers/m365.py`) — `send_mail` (new messages,
+  `saveToSentItems` on), `reply_message` / `reply_all_message` (used when the original message was
+  ingested via Graph, preserving the M365 conversation). All send `Prefer: IdType="ImmutableId"`.
+- **Immutable message ids** — the inbound Graph poller now requests ImmutableIds and stores them on
+  `EmailMessage.graph_message_id`, so a later reply targets the right message even after it moves
+  folders.
+- **Durable, idempotent delivery** — new `EmailOutboundJob` model + `psa_send_outbound` worker.
+  Graph returns HTTP 202 (accepted, not delivered); jobs track queued/sent/failed/uncertain,
+  accepted-at, retry count, Microsoft request id, and a last-error summary. An atomic claim-lock
+  prevents duplicate sends; transient errors (429/5xx/connect-timeout) retry with backoff honoring
+  `Retry-After`; auth/validation/malformed-recipient errors fail fast; a read-timeout after
+  submission is marked **uncertain** and never auto-resent. Message bodies are never logged.
+- **Content** — HTML (sanitized with the app's bleach allowlist) + text, To/Cc/Bcc, Reply-To, and
+  attachments (from `TicketAttachment`, size/MIME validated) — at parity across SMTP and Graph.
+- **Setup UX** — the mailbox form has an outbound-method selector, a readiness check with separate
+  inbound (Mail.Read) and outbound (Mail.Send) status, and a **Test outbound** button that sends a
+  clearly-labeled test to an admin-chosen recipient. No secrets/tokens are exposed.
+- **Fallback** — optional pre-submission SMTP fallback when Graph is known-unavailable; never after
+  a Graph submission (avoids duplicates). Each message records which transport sent it.
+- **Docs** — M365 setup page now documents `Mail.Read` (inbound) and `Mail.Send` (outbound) as
+  optional, and Exchange Online RBAC for Applications as the preferred way to scope them to only
+  the PSA mailbox, warning that an unrestricted Entra grant defeats the RBAC scope.
+- Migration `psa/0058`. Tests: `psa/tests/test_graph_outbound.py` (24 tests across the 20 required
+  scenarios) plus the existing IMAP/SMTP suites still green.
+
 ## [3.17.506] - 2026-07-26
 
 ### Feature: Microsoft 365 mailbox sync for PSA inbound via Graph API (issue #142)

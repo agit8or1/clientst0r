@@ -45,43 +45,65 @@ class M365Provider:
         self._token = resp.json()['access_token']
         return self._token
 
-    def _get(self, path: str, params: dict = None) -> dict:
-        headers = {
-            'Authorization': f'Bearer {self._get_token()}',
-            'Accept': 'application/json',
-            # Required for $search and advanced $filter queries (Graph API ignores for others)
-            'ConsistencyLevel': 'eventual',
-        }
+    def _headers(self, *, accept_json=True, content_json=False, consistency=False,
+                 prefer_immutable=False) -> dict:
+        """Build request headers. ``prefer_immutable`` opts into Graph's
+        immutable message IDs (``Prefer: IdType="ImmutableId"``) so stored ids
+        stay valid when a message moves between folders — required for reliable
+        later replies (issue #142). Once opted in on the list call, the SAME
+        header must be sent on every operation that returns or accepts those
+        ids, so callers pass it consistently."""
+        headers = {'Authorization': f'Bearer {self._get_token()}'}
+        if accept_json:
+            headers['Accept'] = 'application/json'
+        if content_json:
+            headers['Content-Type'] = 'application/json'
+        if consistency:
+            # Required for $search and advanced $filter queries (ignored otherwise).
+            headers['ConsistencyLevel'] = 'eventual'
+        if prefer_immutable:
+            headers['Prefer'] = 'IdType="ImmutableId"'
+        return headers
+
+    def _get(self, path: str, params: dict = None, *, prefer_immutable=False) -> dict:
+        headers = self._headers(consistency=True, prefer_immutable=prefer_immutable)
         url = path if path.startswith('http') else f'{GRAPH_BASE}{path}'
         resp = requests.get(url, headers=headers, params=params, timeout=20)
         resp.raise_for_status()
         return resp.json()
 
-    def _get_raw(self, path: str) -> bytes:
+    def _get_raw(self, path: str, *, prefer_immutable=False) -> bytes:
         """GET returning the raw response body (e.g. a message's MIME /$value)."""
-        headers = {'Authorization': f'Bearer {self._get_token()}'}
+        headers = self._headers(accept_json=False, prefer_immutable=prefer_immutable)
         url = path if path.startswith('http') else f'{GRAPH_BASE}{path}'
         resp = requests.get(url, headers=headers, timeout=30)
         resp.raise_for_status()
         return resp.content
 
-    def _patch(self, path: str, json_body: dict) -> None:
+    def _patch(self, path: str, json_body: dict, *, prefer_immutable=False) -> None:
         """PATCH a Graph resource (e.g. mark a message read)."""
-        headers = {
-            'Authorization': f'Bearer {self._get_token()}',
-            'Content-Type': 'application/json',
-        }
+        headers = self._headers(content_json=True, prefer_immutable=prefer_immutable)
         url = path if path.startswith('http') else f'{GRAPH_BASE}{path}'
         resp = requests.patch(url, headers=headers, json=json_body, timeout=20)
         resp.raise_for_status()
 
-    def _get_all(self, path: str, params: dict = None) -> list:
+    def _post(self, path: str, json_body: dict, *, prefer_immutable=False,
+              timeout: int = 30) -> 'requests.Response':
+        """POST to a Graph action (sendMail / reply / replyAll). Returns the raw
+        Response WITHOUT raising so the caller can interpret status codes,
+        Retry-After, and the request-id header for retry/audit (Graph send
+        actions return 202 Accepted with an empty body)."""
+        headers = self._headers(content_json=True, prefer_immutable=prefer_immutable)
+        url = path if path.startswith('http') else f'{GRAPH_BASE}{path}'
+        return requests.post(url, headers=headers, json=json_body, timeout=timeout)
+
+    def _get_all(self, path: str, params: dict = None, *, prefer_immutable=False) -> list:
         """Follow @odata.nextLink to page through all results."""
         results = []
-        data = self._get(path, params)
+        data = self._get(path, params, prefer_immutable=prefer_immutable)
         results.extend(data.get('value', []))
         while '@odata.nextLink' in data:
-            data = self._get(data['@odata.nextLink'])
+            data = self._get(data['@odata.nextLink'], prefer_immutable=prefer_immutable)
             results.extend(data.get('value', []))
         return results
 
@@ -509,6 +531,8 @@ class M365Provider:
         /messages default order is receivedDateTime desc, so we reverse the
         collected ids to approximate oldest-first (tickets created in receipt
         order). Exact ordering isn't critical for correctness."""
+        # prefer_immutable=True so the returned ids are ImmutableIds — stable
+        # across folder moves, safe to store for a later reply (issue #142).
         rows = self._get_all(
             f"/users/{quote(mailbox)}/mailFolders/{quote(folder)}/messages",
             params={
@@ -516,6 +540,7 @@ class M365Provider:
                 '$select': 'id',
                 '$top': str(min(int(limit or 50), 100)),
             },
+            prefer_immutable=True,
         )
         ids = [r['id'] for r in rows if r.get('id')]
         ids.reverse()  # default desc -> oldest-first
@@ -525,7 +550,8 @@ class M365Provider:
         """Fetch a message's full RFC822 MIME (headers + body + attachments)
         so the existing stdlib-email parsing pipeline can consume it unchanged."""
         return self._get_raw(
-            f"/users/{quote(mailbox)}/messages/{quote(message_id, safe='')}/$value"
+            f"/users/{quote(mailbox)}/messages/{quote(message_id, safe='')}/$value",
+            prefer_immutable=True,
         )
 
     def mark_message_read(self, mailbox: str, message_id: str) -> None:
@@ -533,6 +559,49 @@ class M365Provider:
         self._patch(
             f"/users/{quote(mailbox)}/messages/{quote(message_id, safe='')}",
             {'isRead': True},
+            prefer_immutable=True,
+        )
+
+    # ------------------------------------------------------------------
+    # Outbound send (issue #142 outbound). Requires the Mail.Send application
+    # permission, scoped to the configured mailbox via Exchange Online RBAC for
+    # Applications. `mailbox` is always the server-configured sender — callers
+    # never supply an arbitrary sender. All three return the raw Response so the
+    # outbound worker can interpret 202/429/5xx + Retry-After + request-id.
+    # ------------------------------------------------------------------
+    def send_mail(self, mailbox: str, message: dict, save_to_sent_items: bool = True):
+        """POST /users/{mailbox}/sendMail — new outbound message."""
+        return self._post(
+            f"/users/{quote(mailbox)}/sendMail",
+            {'message': message, 'saveToSentItems': bool(save_to_sent_items)},
+        )
+
+    def reply_message(self, mailbox: str, message_id: str, *, message: dict = None,
+                      comment: str = ''):
+        """POST /users/{mailbox}/messages/{id}/reply — reply preserving the
+        Microsoft 365 conversation. `message_id` is the stored ImmutableId of
+        the originally-ingested Graph message, so the Prefer header is sent."""
+        body = {}
+        if comment:
+            body['comment'] = comment
+        if message:
+            body['message'] = message
+        return self._post(
+            f"/users/{quote(mailbox)}/messages/{quote(message_id, safe='')}/reply",
+            body, prefer_immutable=True,
+        )
+
+    def reply_all_message(self, mailbox: str, message_id: str, *, message: dict = None,
+                          comment: str = ''):
+        """POST /users/{mailbox}/messages/{id}/replyAll."""
+        body = {}
+        if comment:
+            body['comment'] = comment
+        if message:
+            body['message'] = message
+        return self._post(
+            f"/users/{quote(mailbox)}/messages/{quote(message_id, safe='')}/replyAll",
+            body, prefer_immutable=True,
         )
 
     def sync(self) -> dict:
