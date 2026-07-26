@@ -5,6 +5,28 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.505] - 2026-07-26
+
+### Fix: M365 sync showed a false "missing SecurityAlert.Read.All permission" warning (issue #143)
+
+When syncing a tenant that isn't onboarded/licensed for Microsoft Defender, Graph's
+`/security/alerts_v2` endpoint returns **HTTP 403** even though the app's
+`SecurityAlert.Read.All` permission is correctly granted and consented. The Defender-alerts
+handler treated *every* 403 as a missing permission and told the admin to add a permission they
+already had.
+
+- `integrations/providers/m365.py`: `get_defender_alerts()` now parses the Graph 403 error body
+  and only reports `permission_error` when the error is genuinely an authorization/consent denial
+  (`Authorization_RequestDenied` / "Insufficient privileges" / consent / token-validation).
+  Any other 403 (tenant not onboarded/licensed for Defender) returns an `unavailable` marker with
+  the tenant's reason instead.
+- `integrations/views.py`: the Defender section renders a neutral "Defender alerts are unavailable
+  for this tenant — this does not affect the rest of the M365 sync" note for the `unavailable`
+  case; the genuine-permission warning now adds a hint to re-run the sync if consent was just
+  granted (a token issued before consent won't carry the new permission).
+- Tests in `integrations/tests.py` (`M365DefenderAlert403Tests`) cover permission-denial vs.
+  not-onboarded vs. non-403 vs. success.
+
 ## [3.17.504] - 2026-07-22
 
 ### Fix: PSA settings save crashed with "Object of type Decimal is not JSON serializable" (issue #141)

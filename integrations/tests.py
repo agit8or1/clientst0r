@@ -1039,3 +1039,62 @@ class WarrantyConnectionScaffoldTests(TestCase):
         result = p.lookup_warranty('SN12345')
         self.assertFalse(result['success'])
         self.assertIn('missing', result['error'])
+
+
+# ---------------------------------------------------------------------------
+# Issue #143 — M365 Defender-alert 403 must not always read as "missing permission"
+# ---------------------------------------------------------------------------
+
+class M365DefenderAlert403Tests(TestCase):
+    """A 403 from Graph /security/alerts_v2 is ambiguous: it fires both for a
+    genuinely missing SecurityAlert.Read.All permission AND for tenants that have
+    the permission but aren't onboarded/licensed for Microsoft Defender. Only the
+    former should surface the alarming 'add the permission' warning (#143)."""
+
+    def _provider(self):
+        from integrations.providers.m365 import M365Provider
+        return M365Provider('tenant', 'client', 'secret')
+
+    def _raise_403(self, provider, err_code, err_msg):
+        from unittest import mock
+        import requests
+        resp = mock.MagicMock()
+        resp.status_code = 403
+        resp.json.return_value = {'error': {'code': err_code, 'message': err_msg}}
+        http_err = requests.exceptions.HTTPError(response=resp)
+        provider._get_all = mock.MagicMock(side_effect=http_err)
+
+    def test_genuine_permission_denial_flags_permission_error(self):
+        p = self._provider()
+        self._raise_403(p, 'Authorization_RequestDenied',
+                        'Insufficient privileges to complete the operation.')
+        result = p.get_defender_alerts()
+        self.assertTrue(result[0].get('permission_error'))
+        self.assertEqual(result[0].get('required'), 'SecurityAlert.Read.All')
+
+    def test_tenant_not_onboarded_flags_unavailable_not_permission(self):
+        p = self._provider()
+        self._raise_403(p, 'Forbidden',
+                        'The tenant is not licensed for Microsoft Defender.')
+        result = p.get_defender_alerts()
+        self.assertFalse(result[0].get('permission_error'))
+        self.assertTrue(result[0].get('unavailable'))
+        self.assertIn('Defender', result[0].get('reason'))
+
+    def test_non_403_returns_empty(self):
+        from unittest import mock
+        import requests
+        p = self._provider()
+        resp = mock.MagicMock()
+        resp.status_code = 500
+        resp.json.return_value = {}
+        p._get_all = mock.MagicMock(
+            side_effect=requests.exceptions.HTTPError(response=resp))
+        self.assertEqual(p.get_defender_alerts(), [])
+
+    def test_success_passes_through(self):
+        from unittest import mock
+        p = self._provider()
+        p._get_all = mock.MagicMock(return_value=[{'id': '1', 'title': 'Alert'}])
+        result = p.get_defender_alerts()
+        self.assertEqual(result[0]['title'], 'Alert')

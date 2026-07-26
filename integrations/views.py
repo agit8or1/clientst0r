@@ -2899,7 +2899,13 @@ def m365_sync(request, pk):
             if not defender_alerts:
                 return '<div class="card mb-3"><div class="card-header"><i class="fas fa-shield-virus me-2"></i>Microsoft Defender Alerts</div><div class="card-body"><p class="text-muted mb-0"><i class="fas fa-check-circle text-success me-1"></i>No active Defender alerts found.</p></div></div>'
             if defender_alerts[0].get('permission_error'):
-                return f'<div class="alert alert-warning mb-3"><i class="fas fa-key me-2"></i><strong>Defender Alerts</strong> — missing permission: <code>{defender_alerts[0].get("required")}</code>. Add <code>SecurityAlert.Read.All</code> to your Azure AD app registration (Application permission) and grant admin consent.</div>'
+                return f'<div class="alert alert-warning mb-3"><i class="fas fa-key me-2"></i><strong>Defender Alerts</strong> — missing permission: <code>{defender_alerts[0].get("required")}</code>. Add <code>SecurityAlert.Read.All</code> to your Azure AD app registration (Application permission) and grant admin consent. <span class="text-muted">If you have already added it and granted consent, re-run the sync — a token issued before consent won\'t carry the new permission.</span></div>'
+            if defender_alerts[0].get('unavailable'):
+                # Issue #143: permission is fine, but the tenant isn't onboarded/
+                # licensed for Microsoft Defender. Show a neutral note, not a
+                # scary "you're missing a permission" warning.
+                reason = html_lib.escape(defender_alerts[0].get('reason') or '')
+                return f'<div class="card mb-3"><div class="card-header"><i class="fas fa-shield-virus me-2"></i>Microsoft Defender Alerts</div><div class="card-body"><p class="text-muted mb-1"><i class="fas fa-circle-info me-1"></i>Defender alerts are unavailable for this tenant. This does not affect the rest of the M365 sync.</p><p class="small text-muted mb-0">{reason}</p></div></div>'
             sev_badge = {'high': 'bg-danger', 'medium': 'bg-warning text-dark', 'low': 'bg-info text-dark', 'informational': 'bg-secondary'}
             da_rows = ''
             for a in defender_alerts[:50]:

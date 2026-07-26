@@ -409,10 +409,37 @@ class M365Provider:
                 '$top': '100',
             })
         except requests.exceptions.HTTPError as e:
-            code = e.response.status_code if e.response is not None else 0
-            logger.warning(f"M365 get_defender_alerts failed (HTTP {code}): {e}")
+            resp = e.response
+            code = resp.status_code if resp is not None else 0
+            err_code, err_msg = '', ''
+            try:
+                err = (resp.json() or {}).get('error', {}) if resp is not None else {}
+                err_code = err.get('code') or ''
+                err_msg = err.get('message') or ''
+            except Exception:
+                pass
+            logger.warning(f"M365 get_defender_alerts failed (HTTP {code}, code={err_code!r}): {e}")
             if code == 403:
-                return [{'permission_error': True, 'required': 'SecurityAlert.Read.All'}]
+                # Issue #143: a 403 from alerts_v2 is ambiguous. It fires both when
+                # the app genuinely lacks SecurityAlert.Read.All / admin consent AND
+                # when the permission IS granted but the tenant simply isn't
+                # onboarded/licensed for Microsoft Defender (Graph returns 403 there
+                # too). Only surface the alarming "add the permission" warning when
+                # the error is genuinely an authorization/consent denial — otherwise
+                # tell the admin the feature is unavailable so they don't chase a
+                # permission they already have.
+                blob = f'{err_code} {err_msg}'.lower()
+                consent_problem = (
+                    'authorization_requestdenied' in blob
+                    or 'insufficient privileges' in blob
+                    or 'consent' in blob
+                    or 'token validation' in blob
+                )
+                if consent_problem:
+                    return [{'permission_error': True, 'required': 'SecurityAlert.Read.All'}]
+                return [{'unavailable': True, 'reason': err_msg or (
+                    'Microsoft Defender alerts are not available for this tenant '
+                    '(it may not be licensed or onboarded for Microsoft Defender).')}]
             return []
         except Exception as e:
             logger.warning(f"M365 get_defender_alerts failed: {e}")
