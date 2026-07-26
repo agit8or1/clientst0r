@@ -192,6 +192,7 @@ Planned capabilities:
 - Ticket tagging
 - Email security validation (SPF / DKIM / DMARC inspection) *(10.3 — shipped v3.17.188; opt-in via enforce_dmarc)*
 - Outbound threading + per-ticket conversation panel *(10.4 — shipped v3.17.189)*
+- Microsoft 365 mailbox source via Graph API (alternative to IMAP for tenants that can't enable IMAP) *(10.5 — shipped v3.17.506 — `EmailIngestionConfig.source='graph'` reuses an existing M365 connection's app registration (needs `Mail.Read`); the poller fetches each unread message's MIME via Graph and runs the identical threading/quarantine/attachment pipeline, then marks it read — issue #142)*
 - Ticket summarization (**OPTIONAL AI**)
 - Intent detection (**OPTIONAL AI**)
 

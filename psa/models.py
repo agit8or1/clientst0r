@@ -1801,12 +1801,37 @@ class EmailIngestionConfig(models.Model):
         related_name='email_ingestion_configs',
     )
     name = models.CharField(max_length=200)
-    imap_host = models.CharField(max_length=255)
+
+    # Message source (issue #142). 'imap' = classic IMAP polling (fields below);
+    # 'graph' = Microsoft 365 mailbox via Graph API (reuses an M365Connection's
+    # app-registration credentials — for tenants that can't enable IMAP).
+    SOURCE_IMAP = 'imap'
+    SOURCE_GRAPH = 'graph'
+    SOURCE_CHOICES = [
+        (SOURCE_IMAP, 'IMAP'),
+        (SOURCE_GRAPH, 'Microsoft 365 (Graph API)'),
+    ]
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default=SOURCE_IMAP)
+
+    # IMAP fields (blank when source='graph').
+    imap_host = models.CharField(max_length=255, blank=True)
     imap_port = models.PositiveIntegerField(default=993)
     use_ssl = models.BooleanField(default=True)
-    username = models.CharField(max_length=255)
+    username = models.CharField(max_length=255, blank=True)
     encrypted_password = models.TextField(blank=True)
     folder = models.CharField(max_length=100, default='INBOX')
+
+    # Graph fields (used when source='graph').
+    m365_connection = models.ForeignKey(
+        'integrations.M365Connection', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='email_ingestion_configs',
+        help_text='M365 tenant connection whose app registration is used for '
+                  'mailbox access (needs the Mail.Read application permission).',
+    )
+    graph_mailbox = models.CharField(
+        max_length=320, blank=True,
+        help_text='Shared mailbox / user UPN to poll via Graph, e.g. support@contoso.com',
+    )
 
     # Defaults applied when creating a new ticket.
     default_queue = models.ForeignKey(Queue, on_delete=models.PROTECT,
@@ -1837,6 +1862,8 @@ class EmailIngestionConfig(models.Model):
         ordering = ['name']
 
     def __str__(self):
+        if self.source == self.SOURCE_GRAPH:
+            return f'{self.name} (Graph: {self.graph_mailbox})'
         return f'{self.name} ({self.username}@{self.imap_host})'
 
     def set_password(self, password: str):

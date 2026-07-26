@@ -26,7 +26,14 @@
                 {% for c in configs %}
                 <tr>
                     <td><strong>{{ c.name }}</strong></td>
-                    <td>{{ c.username }}@{{ c.imap_host }}:{{ c.imap_port }}{% if c.use_ssl %} <i class="fas fa-lock text-success" title="SSL"></i>{% endif %}</td>
+                    <td>
+                        {% if c.source == 'graph' %}
+                            <span class="badge text-bg-info" title="Microsoft 365 Graph API"><i class="fab fa-microsoft me-1"></i>M365</span>
+                            {{ c.graph_mailbox }}
+                        {% else %}
+                            {{ c.username }}@{{ c.imap_host }}:{{ c.imap_port }}{% if c.use_ssl %} <i class="fas fa-lock text-success" title="SSL"></i>{% endif %}
+                        {% endif %}
+                    </td>
                     <td>{{ c.folder }}</td>
                     <td>{% if c.is_active %}<span class="badge text-bg-success">Yes</span>{% else %}<span class="badge text-bg-secondary">No</span>{% endif %}</td>
                     <td>

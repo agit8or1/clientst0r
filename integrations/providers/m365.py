@@ -5,8 +5,12 @@ Required Graph API permissions (application, not delegated):
   User.Read.All, Group.Read.All, Sites.Read.All, TeamSettings.Read.All,
   Directory.Read.All, Organization.Read.All, SecurityAlert.Read.All,
   Reports.Read.All
+  Mail.Read  — only if using PSA inbound mailbox sync (issue #142); lets the
+              app read messages in the helpdesk mailbox it is configured to poll.
 """
 import logging
+from urllib.parse import quote
+
 import requests
 
 logger = logging.getLogger(__name__)
@@ -52,6 +56,24 @@ class M365Provider:
         resp = requests.get(url, headers=headers, params=params, timeout=20)
         resp.raise_for_status()
         return resp.json()
+
+    def _get_raw(self, path: str) -> bytes:
+        """GET returning the raw response body (e.g. a message's MIME /$value)."""
+        headers = {'Authorization': f'Bearer {self._get_token()}'}
+        url = path if path.startswith('http') else f'{GRAPH_BASE}{path}'
+        resp = requests.get(url, headers=headers, timeout=30)
+        resp.raise_for_status()
+        return resp.content
+
+    def _patch(self, path: str, json_body: dict) -> None:
+        """PATCH a Graph resource (e.g. mark a message read)."""
+        headers = {
+            'Authorization': f'Bearer {self._get_token()}',
+            'Content-Type': 'application/json',
+        }
+        url = path if path.startswith('http') else f'{GRAPH_BASE}{path}'
+        resp = requests.patch(url, headers=headers, json=json_body, timeout=20)
+        resp.raise_for_status()
 
     def _get_all(self, path: str, params: dict = None) -> list:
         """Follow @odata.nextLink to page through all results."""
@@ -444,6 +466,74 @@ class M365Provider:
         except Exception as e:
             logger.warning(f"M365 get_defender_alerts failed: {e}")
             return []
+
+    # ------------------------------------------------------------------
+    # Mailbox access for PSA inbound email sync (issue #142). Requires the
+    # Mail.Read application permission on the app registration + admin consent.
+    # `mailbox` is the target user/shared-mailbox UPN or id (e.g. support@x.com).
+    # ------------------------------------------------------------------
+    def probe_mailbox(self, mailbox: str, folder: str = 'inbox') -> dict:
+        """Cheap access check for the config UI. Returns {'success', ...}."""
+        try:
+            data = self._get(
+                f"/users/{quote(mailbox)}/mailFolders/{quote(folder)}",
+                params={'$select': 'displayName,totalItemCount,unreadItemCount'},
+            )
+            return {
+                'success': True,
+                'display_name': data.get('displayName'),
+                'total': data.get('totalItemCount'),
+                'unread': data.get('unreadItemCount'),
+            }
+        except requests.exceptions.HTTPError as e:
+            resp = e.response
+            code = resp.status_code if resp is not None else 0
+            msg = ''
+            try:
+                msg = (resp.json() or {}).get('error', {}).get('message', '') if resp is not None else ''
+            except Exception:
+                pass
+            if code == 403:
+                msg = (msg or '') + ' (the app may be missing the Mail.Read application permission + admin consent)'
+            elif code == 404:
+                msg = msg or f'Mailbox "{mailbox}" not found on this tenant.'
+            return {'success': False, 'error': f'HTTP {code}: {msg}'.strip()}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def list_unread_message_ids(self, mailbox: str, folder: str = 'inbox', limit: int = 50) -> list:
+        """Return message ids for UNREAD messages in the mailbox folder.
+
+        We intentionally do NOT combine $filter with $orderby — Graph rejects a
+        filter + sort on different properties with ErrorInefficientFilter. The
+        /messages default order is receivedDateTime desc, so we reverse the
+        collected ids to approximate oldest-first (tickets created in receipt
+        order). Exact ordering isn't critical for correctness."""
+        rows = self._get_all(
+            f"/users/{quote(mailbox)}/mailFolders/{quote(folder)}/messages",
+            params={
+                '$filter': 'isRead eq false',
+                '$select': 'id',
+                '$top': str(min(int(limit or 50), 100)),
+            },
+        )
+        ids = [r['id'] for r in rows if r.get('id')]
+        ids.reverse()  # default desc -> oldest-first
+        return ids[:limit] if limit else ids
+
+    def get_message_mime(self, mailbox: str, message_id: str) -> bytes:
+        """Fetch a message's full RFC822 MIME (headers + body + attachments)
+        so the existing stdlib-email parsing pipeline can consume it unchanged."""
+        return self._get_raw(
+            f"/users/{quote(mailbox)}/messages/{quote(message_id, safe='')}/$value"
+        )
+
+    def mark_message_read(self, mailbox: str, message_id: str) -> None:
+        """Mark a message read so it isn't polled again (mirrors IMAP \\Seen)."""
+        self._patch(
+            f"/users/{quote(mailbox)}/messages/{quote(message_id, safe='')}",
+            {'isRead': True},
+        )
 
     def sync(self) -> dict:
         """Pull all data and return structured summary.

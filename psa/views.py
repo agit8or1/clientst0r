@@ -2629,6 +2629,7 @@ def email_config_list(request):
 @require_http_methods(['GET', 'POST'])
 def email_config_form(request, pk=None):
     from core.models import Organization
+    from integrations.models import M365Connection
     if pk:
         item = get_object_or_404(EmailIngestionConfig, pk=pk)
         org = item.organization
@@ -2640,12 +2641,17 @@ def email_config_form(request, pk=None):
     priorities = TicketPriority.objects.all()
     types = TicketType.objects.all()
     client_orgs = Organization.objects.filter(is_active=True).order_by('name')
+    # Issue #142 — M365 Graph mailbox source reuses an existing M365 connection's
+    # app-registration credentials.
+    m365_connections = M365Connection.objects.filter(is_active=True).select_related(
+        'organization').order_by('organization__name', 'name')
 
     def _render(selected_org_id=None):
         return render(request, 'psa/email_config_form.html', {
             'item': item,
             'queues': queues, 'priorities': priorities, 'types': types,
             'client_orgs': client_orgs,
+            'm365_connections': m365_connections,
             'selected_client_org_id': selected_org_id if selected_org_id is not None
                                        else (item.organization_id if item else (org.pk if org else None)),
         })
@@ -2665,13 +2671,35 @@ def email_config_form(request, pk=None):
             messages.error(request, 'Please choose a client for this email config.')
             return _render()
 
+        source = (request.POST.get('source') or 'imap').strip()
+        if source not in ('imap', 'graph'):
+            source = 'imap'
         name = (request.POST.get('name') or '').strip()
+        if not name:
+            messages.error(request, 'Name is required.')
+            return _render(selected_org_id=item_org.pk)
+
+        # Source-specific required fields (issue #142).
         host = (request.POST.get('imap_host') or '').strip()
         username = (request.POST.get('username') or '').strip()
         password = request.POST.get('password') or ''
-        if not name or not host or not username:
-            messages.error(request, 'Name, host, username are required.')
-            return _render(selected_org_id=item_org.pk)
+        m365_conn = None
+        graph_mailbox = (request.POST.get('graph_mailbox') or '').strip()
+        if source == 'graph':
+            try:
+                m365_conn = M365Connection.objects.get(
+                    pk=request.POST.get('m365_connection'), is_active=True)
+            except (M365Connection.DoesNotExist, ValueError, TypeError):
+                messages.error(request, 'Select an active Microsoft 365 connection for Graph sync.')
+                return _render(selected_org_id=item_org.pk)
+            if not graph_mailbox:
+                messages.error(request, 'Enter the mailbox address to poll (e.g. support@contoso.com).')
+                return _render(selected_org_id=item_org.pk)
+        else:
+            if not host or not username:
+                messages.error(request, 'Host and username are required for IMAP.')
+                return _render(selected_org_id=item_org.pk)
+
         try:
             port = int(request.POST.get('imap_port') or 993)
         except ValueError:
@@ -2694,10 +2722,20 @@ def email_config_form(request, pk=None):
             item.default_priority = priority
             item.default_type = ticket_type
         item.name = name
-        item.imap_host = host
-        item.imap_port = port
-        item.use_ssl = request.POST.get('use_ssl') == 'on'
-        item.username = username
+        item.source = source
+        if source == 'graph':
+            item.m365_connection = m365_conn
+            item.graph_mailbox = graph_mailbox
+            # Leave IMAP fields as-is (harmless); credentials come from the M365 app.
+        else:
+            item.m365_connection = None
+            item.graph_mailbox = ''
+            item.imap_host = host
+            item.imap_port = port
+            item.use_ssl = request.POST.get('use_ssl') == 'on'
+            item.username = username
+            if password:
+                item.set_password(password)
         item.folder = (request.POST.get('folder') or 'INBOX').strip()
         item.subject_ticket_pattern = (request.POST.get('subject_ticket_pattern') or 'PSA-\\d{4}-\\d{6}')[:200]
         item.is_active = request.POST.get('is_active') == 'on'
@@ -2705,8 +2743,6 @@ def email_config_form(request, pk=None):
             item.poll_interval_minutes = max(1, int(request.POST.get('poll_interval_minutes') or 5))
         except ValueError:
             item.poll_interval_minutes = 5
-        if password:
-            item.set_password(password)
         item.save()
 
         messages.success(request, f'Saved "{item.name}".')

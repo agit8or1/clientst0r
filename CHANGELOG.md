@@ -5,6 +5,31 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.506] - 2026-07-26
+
+### Feature: Microsoft 365 mailbox sync for PSA inbound via Graph API (issue #142)
+
+PSA inbound email can now poll a Microsoft 365 mailbox over the **Graph API** instead of IMAP —
+for tenants that can't (or won't) enable IMAP on M365. The Graph path reuses an existing M365
+connection's app registration, so no extra credentials are stored.
+
+- `psa/models.py`: `EmailIngestionConfig` gains a `source` discriminator (`imap` | `graph`), an
+  optional `m365_connection` FK, and a `graph_mailbox` field. IMAP fields are now blank-able.
+  Migration `psa/0057`.
+- `integrations/providers/m365.py`: `M365Provider` gains mailbox methods — `list_unread_message_ids`,
+  `get_message_mime` (fetches full RFC822 MIME so the existing stdlib-email parser is reused
+  unchanged), `mark_message_read`, and `probe_mailbox` (for a config access check). Requires the
+  `Mail.Read` application permission (documented in the M365 setup form).
+- `psa/management/commands/psa_poll_email.py`: refactored so the per-message processing
+  (threading, quarantine, routing, attachments, `EmailMessage` persistence) is a single
+  source-agnostic `_process_message()`. `_poll_imap` and the new `_poll_graph` both feed it. The
+  existing `*/5` cron entry needs no change — the same command now handles both sources.
+- `psa/views.py` + `templates/psa/email_config_form.html`: the mailbox form has a Source selector
+  that toggles between IMAP fields and a Microsoft 365 connection + mailbox address; the list view
+  shows an M365 badge for Graph configs.
+- Tests: `GraphMailboxPollTests` (ticket creation, reply threading, marks-read, missing-connection
+  error) and `M365ProviderMailMethodTests` in `psa/tests/test_phase10_email.py`.
+
 ## [3.17.505] - 2026-07-26
 
 ### Fix: M365 sync showed a false "missing SecurityAlert.Read.All permission" warning (issue #143)

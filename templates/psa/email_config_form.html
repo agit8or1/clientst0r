@@ -32,37 +32,78 @@
                 <label class="form-label">Name (internal)</label>
                 <input type="text" name="name" class="form-control" required value="{{ item.name|default:'' }}">
             </div>
-            <div class="col-md-6">
-                <label class="form-label">Folder</label>
-                <input type="text" name="folder" class="form-control" value="{{ item.folder|default:'INBOX' }}">
+            <div class="col-md-3">
+                <label class="form-label">Source</label>
+                <select name="source" id="source_select" class="form-select">
+                    <option value="imap" {% if not item or item.source == 'imap' %}selected{% endif %}>IMAP</option>
+                    <option value="graph" {% if item and item.source == 'graph' %}selected{% endif %}>Microsoft 365 (Graph API)</option>
+                </select>
             </div>
-            <div class="col-md-6">
-                <label class="form-label">IMAP host</label>
-                <input type="text" name="imap_host" class="form-control" required value="{{ item.imap_host|default:'' }}">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Port</label>
-                <input type="number" name="imap_port" class="form-control" value="{{ item.imap_port|default:993 }}">
-            </div>
-            <div class="col-md-2 form-check ms-3 mt-4">
-                <input type="checkbox" name="use_ssl" class="form-check-input" id="use_ssl"
-                       {% if not item or item.use_ssl %}checked{% endif %}>
-                <label class="form-check-label" for="use_ssl">SSL</label>
-            </div>
-            <div class="col-md-2 form-check ms-3 mt-4">
+            <div class="col-md-3 form-check ms-3 mt-4">
                 <input type="checkbox" name="is_active" class="form-check-input" id="is_active"
                        {% if not item or item.is_active %}checked{% endif %}>
                 <label class="form-check-label" for="is_active">Active</label>
             </div>
+
             <div class="col-md-6">
+                <label class="form-label">Folder</label>
+                <input type="text" name="folder" class="form-control" value="{{ item.folder|default:'INBOX' }}">
+                <small class="text-muted">IMAP: e.g. <code>INBOX</code>. Graph: a well-known name like <code>inbox</code>.</small>
+            </div>
+
+            <!-- IMAP-only fields -->
+            <div class="col-md-6 imap-fields">
+                <label class="form-label">IMAP host</label>
+                <input type="text" name="imap_host" class="form-control" value="{{ item.imap_host|default:'' }}">
+            </div>
+            <div class="col-md-2 imap-fields">
+                <label class="form-label">Port</label>
+                <input type="number" name="imap_port" class="form-control" value="{{ item.imap_port|default:993 }}">
+            </div>
+            <div class="col-md-2 form-check ms-3 mt-4 imap-fields">
+                <input type="checkbox" name="use_ssl" class="form-check-input" id="use_ssl"
+                       {% if not item or item.use_ssl %}checked{% endif %}>
+                <label class="form-check-label" for="use_ssl">SSL</label>
+            </div>
+            <div class="col-md-6 imap-fields">
                 <label class="form-label">Username</label>
-                <input type="text" name="username" class="form-control" required autocomplete="off"
+                <input type="text" name="username" class="form-control" autocomplete="off"
                        value="{{ item.username|default:'' }}">
             </div>
-            <div class="col-md-6">
+            <div class="col-md-6 imap-fields">
                 <label class="form-label">Password</label>
                 <input type="password" name="password" class="form-control" autocomplete="new-password"
                        placeholder="{% if item %}(unchanged){% endif %}">
+            </div>
+
+            <!-- Microsoft 365 (Graph) fields -->
+            <div class="col-12 graph-fields">
+                <div class="alert alert-info py-2 mb-2 small">
+                    <i class="fas fa-circle-info me-1"></i>
+                    Graph sync reads the mailbox using an existing Microsoft 365 connection's app registration.
+                    That app needs the <code>Mail.Read</code> <strong>application</strong> permission with admin consent.
+                    No IMAP or password required.
+                </div>
+            </div>
+            <div class="col-md-6 graph-fields">
+                <label class="form-label">Microsoft 365 connection</label>
+                <select name="m365_connection" class="form-select">
+                    <option value="">-- Select connection --</option>
+                    {% for c in m365_connections %}
+                    <option value="{{ c.pk }}" {% if item and item.m365_connection_id == c.pk %}selected{% endif %}>
+                        {{ c.name }}{% if c.organization %} ({{ c.organization.name }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if not m365_connections %}
+                <small class="text-danger">No active M365 connections found. Create one under Integrations first.</small>
+                {% endif %}
+            </div>
+            <div class="col-md-6 graph-fields">
+                <label class="form-label">Mailbox address</label>
+                <input type="text" name="graph_mailbox" class="form-control" autocomplete="off"
+                       placeholder="support@contoso.com" value="{{ item.graph_mailbox|default:'' }}">
+                <small class="text-muted">The shared mailbox / user UPN to poll.</small>
             </div>
 
             <div class="col-12"><hr><h5>Ticket defaults</h5></div>
@@ -109,4 +150,21 @@
         <a href="{% url 'psa:email_config_list' %}" class="btn btn-outline-secondary">Cancel</a>
     </div>
 </form>
+
+<script>
+(function () {
+    const sel = document.getElementById('source_select');
+    function toggle() {
+        const isGraph = sel.value === 'graph';
+        document.querySelectorAll('.imap-fields').forEach(function (el) {
+            el.style.display = isGraph ? 'none' : '';
+        });
+        document.querySelectorAll('.graph-fields').forEach(function (el) {
+            el.style.display = isGraph ? '' : 'none';
+        });
+    }
+    sel.addEventListener('change', toggle);
+    toggle();
+})();
+</script>
 {% endblock %}

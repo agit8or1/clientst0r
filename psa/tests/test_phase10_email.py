@@ -1106,3 +1106,137 @@ class TicketConversationViewTests(TestCase, _EmailPollerSetup):
         s2.save()
         resp = c.get(f'/psa/t/{other_ticket.ticket_number}/conversation/')
         self.assertEqual(resp.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Issue #142 — Microsoft 365 Graph mailbox source for PSA inbound
+# ---------------------------------------------------------------------------
+
+class GraphMailboxPollTests(TestCase, _EmailPollerSetup):
+    """The Graph source must feed the SAME processing pipeline as IMAP: create
+    tickets, thread replies, and mark messages read — just via M365 Graph."""
+
+    def setUp(self):
+        self._seed_psa()
+        from psa.models import EmailIngestionConfig, Queue, TicketPriority, TicketType
+        from integrations.models import M365Connection
+        self.org = Organization.objects.create(name='GRAPHORG', slug='graphorg')
+        self.conn = M365Connection.objects.create(
+            organization=self.org, name='Tenant A', tenant_id='tenant-a', is_active=True)
+        self.conn.set_credentials({'client_id': 'cid', 'client_secret': 'sec'})
+        self.conn.save()
+        self.cfg = EmailIngestionConfig.objects.create(
+            organization=self.org, name='graph-helpdesk',
+            source='graph', m365_connection=self.conn,
+            graph_mailbox='support@graphorg.com',
+            default_queue=Queue.objects.first(),
+            default_priority=TicketPriority.objects.first(),
+            default_type=TicketType.objects.first(),
+        )
+
+    def _run_graph_poll(self, messages):
+        """messages: dict of graph_message_id -> raw MIME bytes."""
+        import integrations.providers.m365 as m365mod
+        marked = []
+
+        class _FakeProvider:
+            def __init__(self, tenant_id, client_id, client_secret):
+                self.tenant_id = tenant_id
+
+            def list_unread_message_ids(self, mailbox, folder='inbox', limit=50):
+                return list(messages.keys())
+
+            def get_message_mime(self, mailbox, message_id):
+                return messages[message_id]
+
+            def mark_message_read(self, mailbox, message_id):
+                marked.append(message_id)
+
+        original = m365mod.M365Provider
+        m365mod.M365Provider = _FakeProvider
+        try:
+            call_command('psa_poll_email', config_id=self.cfg.pk, verbosity=0)
+        finally:
+            m365mod.M365Provider = original
+        return marked
+
+    def test_graph_creates_ticket_and_marks_read(self):
+        raw = _build_raw_email(
+            message_id='<g1@x.com>', from_addr='cust@client.com',
+            to_addr='support@graphorg.com', subject='Printer down',
+            body='It is broken')
+        marked = self._run_graph_poll({'AAABBBID': raw})
+        t = Ticket.objects.get(organization=self.org, subject='Printer down')
+        self.assertEqual(t.source, 'email')
+        self.assertEqual(t.requester_email, 'cust@client.com')
+        self.assertEqual(marked, ['AAABBBID'])
+        self.cfg.refresh_from_db()
+        self.assertEqual(self.cfg.last_poll_status, 'ok')
+
+    def test_graph_threads_reply_onto_existing_ticket(self):
+        from psa.models import EmailMessage, TicketComment
+        ticket = self._make_ticket(self.org, subject='Original issue')
+        EmailMessage.objects.create(
+            organization=self.org, ticket=ticket, ingestion_config=self.cfg,
+            direction='in', message_id='<orig@x.com>',
+            from_email='cust@client.com', subject='Original issue')
+        ticket.last_inbound_message_id = '<orig@x.com>'
+        ticket.save(update_fields=['last_inbound_message_id'])
+
+        raw = _build_raw_email(
+            message_id='<reply1@x.com>', from_addr='cust@client.com',
+            to_addr='support@graphorg.com', subject='Re: Original issue',
+            body='Any update?', in_reply_to='<orig@x.com>')
+        before = Ticket.objects.count()
+        self._run_graph_poll({'MSG2': raw})
+        self.assertEqual(Ticket.objects.count(), before)  # no new ticket
+        self.assertTrue(TicketComment.objects.filter(
+            ticket=ticket, body__icontains='Any update?').exists())
+
+    def test_graph_missing_connection_records_error(self):
+        self.cfg.m365_connection = None
+        self.cfg.save()
+        call_command('psa_poll_email', config_id=self.cfg.pk, verbosity=0)
+        self.cfg.refresh_from_db()
+        self.assertEqual(self.cfg.last_poll_status, 'error')
+        self.assertIn('M365 connection', self.cfg.last_error)
+
+
+class M365ProviderMailMethodTests(TestCase):
+    """Graph mail helpers build the right URLs and parse results (issue #142)."""
+
+    def _provider(self):
+        from integrations.providers.m365 import M365Provider
+        return M365Provider('tenant', 'client', 'secret')
+
+    def test_list_unread_builds_filter_and_extracts_ids(self):
+        from unittest import mock
+        p = self._provider()
+        captured = {}
+
+        def fake_get_all(path, params=None):
+            captured['path'] = path
+            captured['params'] = params
+            return [{'id': 'a'}, {'id': 'b'}, {'no_id': 1}]
+
+        p._get_all = fake_get_all
+        ids = p.list_unread_message_ids('support@x.com', 'inbox')
+        # ids are reversed (Graph default desc -> oldest-first) and rows without
+        # an 'id' are dropped.
+        self.assertEqual(ids, ['b', 'a'])
+        self.assertIn('mailFolders/inbox/messages', captured['path'])
+        self.assertEqual(captured['params']['$filter'], 'isRead eq false')
+        self.assertNotIn('$orderby', captured['params'])
+
+    def test_mark_message_read_patches_isread(self):
+        p = self._provider()
+        captured = {}
+
+        def fake_patch(path, body):
+            captured['path'] = path
+            captured['body'] = body
+
+        p._patch = fake_patch
+        p.mark_message_read('support@x.com', 'MSGID')
+        self.assertIn('/messages/MSGID', captured['path'])
+        self.assertEqual(captured['body'], {'isRead': True})
