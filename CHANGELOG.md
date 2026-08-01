@@ -5,6 +5,36 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.508] - 2026-08-01
+
+### Feature: send a ticket reply to the requester from the ticket form (issue #142)
+
+The Graph/SMTP outbound transport added in 3.17.507 had no caller in the app — replies were saved
+as comments and never actually left the server, so nothing reached the customer and nothing was
+written to the mailbox's Sent Items. This release wires the reply box to that transport.
+
+- **Opt-in checkbox** — the ticket reply form gains "Email this reply to `<requester>`", shown only
+  when the ticket has a requester address. **Off by default**, so no existing workflow starts
+  emailing customers after upgrading; agents tick it per reply.
+- **Internal notes are never emailed** — enforced server-side (the flag is ignored on an internal
+  note) and reflected in the UI, which disables and clears the checkbox when "Internal note" is
+  ticked.
+- **Transport follows the mailbox** — `email_outbound.resolve_ticket_email_config()` picks the
+  config that ingested the ticket's most recent inbound message, so a reply leaves from the mailbox
+  it arrived on and preserves the M365 conversation. It falls back to the organization's single
+  active config, and deliberately returns `None` (plain SMTP backend) rather than guessing when
+  two or more are candidates.
+- **Failures never lose work** — the comment is committed before the send is attempted. Missing
+  requester address, an unavailable Graph connection, or a transport exception all report through
+  the message banner while the comment stays saved. Graph outcomes are reported distinctly:
+  accepted, queued-for-retry, failed, and `uncertain` (submitted but unconfirmed — flagged for
+  manual check rather than silently resent).
+- **Audited** — each send writes an `AuditLog` entry recording transport, resulting status, and
+  recipient.
+- Tests: `psa/tests/test_reply_email.py` — opt-in gate, SMTP send, Graph send, internal-note
+  suppression, missing-requester handling, failure-keeps-comment, and the four config-resolution
+  cases.
+
 ## [3.17.507] - 2026-07-26
 
 ### Feature: Microsoft 365 outbound email via Graph (optional transport, issue #142)

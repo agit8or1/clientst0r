@@ -168,6 +168,38 @@ def send_threaded_reply(
     return em
 
 
+def resolve_ticket_email_config(ticket: Ticket):
+    """Pick the ``EmailIngestionConfig`` a reply on ``ticket`` should send through.
+
+    Preference order:
+      1. The config that ingested the ticket's most recent inbound message —
+         a reply goes back out of the same mailbox it arrived on, which is
+         what keeps the M365 conversation (and Sent Items copy) coherent.
+      2. The organization's only active config, when there is exactly one.
+         Ambiguous (2+) is not guessed at.
+
+    Returns ``None`` when neither applies. ``None`` is a valid answer, not an
+    error — ``send_ticket_reply`` treats it as "use the plain SMTP backend".
+    """
+    from psa.models import EmailIngestionConfig
+
+    inbound = (
+        ticket.email_messages
+        .filter(direction='in', ingestion_config__isnull=False)
+        .select_related('ingestion_config')
+        .order_by('-received_at')
+        .first()
+    )
+    if inbound and inbound.ingestion_config and inbound.ingestion_config.is_active:
+        return inbound.ingestion_config
+
+    active = list(
+        EmailIngestionConfig.objects
+        .filter(organization_id=ticket.organization_id, is_active=True)[:2]
+    )
+    return active[0] if len(active) == 1 else None
+
+
 def send_ticket_reply(
     *,
     ticket: Ticket,

@@ -342,14 +342,39 @@
 
                     <textarea name="body" class="form-control mb-2" rows="3" placeholder="Add a reply or internal note…" required></textarea>
                     <div class="d-flex justify-content-between align-items-center">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="comment_is_internal" name="is_internal" value="1">
-                            <label class="form-check-label small" for="comment_is_internal">
-                                <i class="fas fa-lock me-1"></i>Internal note (staff-only, never sent to client)
-                            </label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="comment_is_internal" name="is_internal" value="1">
+                                <label class="form-check-label small" for="comment_is_internal">
+                                    <i class="fas fa-lock me-1"></i>Internal note (staff-only, never sent to client)
+                                </label>
+                            </div>
+                            {# Issue #142 — opt-in outbound email; off by default. #}
+                            {% if ticket.requester_email %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="comment_send_email" name="send_email" value="1">
+                                <label class="form-check-label small" for="comment_send_email">
+                                    <i class="fas fa-paper-plane me-1"></i>Email this reply to {{ ticket.requester_email }}
+                                </label>
+                            </div>
+                            {% endif %}
                         </div>
                         <button type="submit" class="btn btn-sm btn-primary">Post</button>
                     </div>
+                    {% if ticket.requester_email %}
+                    <script>
+                    (function() {
+                        // An internal note is never emailed — keep the UI honest about that.
+                        var internal = document.getElementById('comment_is_internal');
+                        var sendEmail = document.getElementById('comment_send_email');
+                        if (!internal || !sendEmail) return;
+                        internal.addEventListener('change', function() {
+                            sendEmail.disabled = internal.checked;
+                            if (internal.checked) sendEmail.checked = false;
+                        });
+                    })();
+                    </script>
+                    {% endif %}
                 </form>
             </div>
             {% endif %}

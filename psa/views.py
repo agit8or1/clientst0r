@@ -5,6 +5,8 @@ Phase 1: list + detail + minimal create — enough to exercise the feature
 flag gating, RBAC integration, audit logging, and tenant scoping. Phase 2
 will flesh out merge/split, macros, canned replies, etc.
 """
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import models
@@ -49,6 +51,8 @@ from .models import (
     TicketWatcher,
 )
 from .sla import apply_due_dates, hygiene_flags, status_chip
+
+logger = logging.getLogger('psa.views')
 
 
 # Phase 2a constants
@@ -820,7 +824,75 @@ def ticket_post_comment(request, ticket_number):
     # Parse @mentions, auto-add as watcher + notify.
     _process_mentions(ticket, comment, request.user)
     messages.success(request, 'Comment added.')
+
+    # Issue #142 — opt-in: also send this reply to the requester as email,
+    # via whichever transport the mailbox is configured for (SMTP or Graph).
+    # Internal notes are never emailed. Send failures surface as a message but
+    # never discard the comment that was already saved.
+    send_email = (request.POST.get('send_email') or '').lower() in ('1', 'true', 'on', 'yes')
+    if send_email and not is_internal:
+        _email_reply_to_requester(request, ticket, comment)
+
     return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
+
+
+def _email_reply_to_requester(request, ticket, comment):
+    """Email a public ticket reply to the requester (issue #142).
+
+    Best-effort by design: the comment is already committed, so every failure
+    path here reports through ``messages`` rather than raising. Graph sends
+    return an ``EmailOutboundJob`` whose status distinguishes accepted from
+    queued-for-retry from failed; SMTP returns the persisted ``EmailMessage``.
+    """
+    from psa.email_outbound import resolve_ticket_email_config, send_ticket_reply
+    from psa.models import EmailOutboundJob
+
+    if not ticket.requester_email:
+        messages.warning(
+            request,
+            'Comment saved, but no email was sent — this ticket has no requester email address.')
+        return
+
+    try:
+        config = resolve_ticket_email_config(ticket)
+        result = send_ticket_reply(
+            ticket=ticket, config=config, comment=comment,
+            body_text=comment.body, created_by=request.user,
+        )
+    except Exception as exc:
+        logger.warning('ticket reply email failed ticket=%s: %s', ticket.ticket_number, exc)
+        messages.error(request, f'Comment saved, but the email could not be sent: {exc}')
+        return
+
+    if isinstance(result, EmailOutboundJob):
+        if result.status == EmailOutboundJob.STATUS_SENT:
+            outcome = f'Reply accepted by Microsoft 365 for delivery to {ticket.requester_email}.'
+            messages.success(request, outcome)
+        elif result.status == EmailOutboundJob.STATUS_QUEUED:
+            outcome = 'Reply queued — Microsoft 365 was busy; it will retry automatically.'
+            messages.warning(request, outcome)
+        elif result.status == EmailOutboundJob.STATUS_UNCERTAIN:
+            outcome = ('Reply submitted but the result is unconfirmed. It will NOT be resent '
+                       'automatically — check the mailbox Sent Items before resending.')
+            messages.warning(request, outcome)
+        else:
+            outcome = f'Reply could not be sent: {result.last_error or "unknown error"}'
+            messages.error(request, outcome)
+        transport, status = 'graph', result.status
+    else:
+        outcome = f'Reply emailed to {ticket.requester_email}.'
+        messages.success(request, outcome)
+        transport, status = 'smtp', 'sent'
+
+    AuditLog.log(
+        user=request.user, action='update', organization=ticket.organization,
+        object_type='psa.TicketComment', object_id=comment.pk,
+        object_repr=f'emailed reply on {ticket.ticket_number}',
+        description=f'Emailed ticket reply to requester via {transport} ({status})',
+        ip_address=_client_ip(request), path=request.path,
+        extra_data={'transport': transport, 'status': status,
+                    'to': ticket.requester_email},
+    )
 
 
 # ---------------------------------------------------------------------------
