@@ -5,6 +5,37 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.509] - 2026-08-01
+
+### Fix: migration drift in `files`, `imports`, and `reports`
+
+`manage.py migrate` had been reporting *"Your models in app(s): 'files', 'imports', 'reports' have
+changes that are not yet reflected in a migration"* on every update run. Five field edits had been
+made in the models without a matching migration, so a fresh install's recorded migration state no
+longer matched the models. Nothing was broken at runtime — every one of the five is a Python-level
+attribute — but the drift meant `makemigrations --check` could never be clean and the warning
+masked any *real* drift that appeared later.
+
+- `files.Attachment.entity_type` — `choices` gained the vehicles entries (`vehicle`,
+  `damage_report`, `fuel_log`, `vehicle_receipt`).
+- `imports.ImportJob.source_type` — `choices` gained `csv`; `skip_duplicates` and `source_file`
+  had reworded `help_text`; `source_file.upload_to` moved from `imports/magicplan/%Y/%m/` to
+  `imports/files/%Y/%m/` when the importer grew CSV support.
+- `reports.SavedQuery.target_model` — `choices` + `help_text`.
+
+All three catch-up migrations are **no-ops against the database** — `sqlmigrate` emits `-- (no-op)`
+for each, and the columns are byte-for-byte identical before and after.
+
+The `imports` one needed care: `upload_to` is not in Django's `Field.non_db_attrs`, so the
+autodetector classifies it as schema-affecting. On SQLite that turns into a full `import_jobs`
+table rebuild — copy every row to a new table, drop the original, rename, recreate seven indexes —
+for a change that alters no column. That migration therefore wraps its operations in
+`SeparateDatabaseAndState` with an empty `database_operations`, so Django records the new field
+state and touches no data. Verified against a copy of a production database: the `import_jobs`
+schema (table + all seven indexes) is identical after applying.
+
+`makemigrations --check` now reports "No changes detected" across the whole project.
+
 ## [3.17.508] - 2026-08-01
 
 ### Feature: send a ticket reply to the requester from the ticket form (issue #142)
