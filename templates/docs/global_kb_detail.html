@@ -11,7 +11,8 @@
 </nav>
 
 <div class="d-flex justify-content-end mb-3">
-    <div>
+    <div class="d-flex gap-2">
+        {% include "docs/_export_menu.html" with url_name='docs:global_kb_export' slug=document.slug %}
         <a href="{% url 'docs:global_kb_edit' document.slug %}" class="btn btn-secondary">
             <i class="fas fa-edit"></i> Edit
         </a>

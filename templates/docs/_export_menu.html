@@ -1,0 +1,21 @@
+{% comment %}
+Issue #144 — document export menu.
+Params: url_name (a docs: URL name taking slug + format), slug.
+{% endcomment %}
+<div class="btn-group">
+    <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="fas fa-file-export"></i> Export
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="{% url url_name slug 'pdf' %}"><i class="fas fa-file-pdf fa-fw text-danger"></i> PDF</a></li>
+        <li><a class="dropdown-item" href="{% url url_name slug 'docx' %}"><i class="fas fa-file-word fa-fw text-primary"></i> Word (.docx)</a></li>
+        <li><a class="dropdown-item" href="{% url url_name slug 'md' %}"><i class="fas fa-hashtag fa-fw text-muted"></i> Markdown (.md)</a></li>
+        <li><a class="dropdown-item" href="{% url url_name slug 'html' %}"><i class="fas fa-file-code fa-fw text-success"></i> HTML (print-ready)</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+            <a class="dropdown-item" href="{% url url_name slug 'html' %}?inline=1" target="_blank" rel="noopener">
+                <i class="fas fa-print fa-fw"></i> Print preview
+            </a>
+        </li>
+    </ul>
+</div>

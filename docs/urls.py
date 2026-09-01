@@ -13,6 +13,9 @@ urlpatterns = [
     # Issue #140 — import DOCX/PDF/TXT/MD as editable docs + optional AI review.
     path('import/', views.document_import, name='document_import'),
     path('ai/review-import/', views.ai_review_import, name='ai_review_import'),
+    # Issue #144 — export docs back out as Markdown / print-ready HTML / DOCX / PDF.
+    # Bulk archive first: two literal segments, so it can never shadow a slug.
+    path('export/<str:fmt>/', views.document_export_bulk, name='document_export_bulk'),
     # Phase 22 v1 (v3.17.245) — review queue + mark-reviewed.
     path('review-queue/', views.kb_review_queue, name='kb_review_queue'),
     path('<slug:slug>/mark-reviewed/', views.kb_mark_reviewed, name='kb_mark_reviewed'),
@@ -30,6 +33,7 @@ urlpatterns = [
     path('kb/<slug:slug>/', views.global_kb_detail, name='global_kb_detail'),
     path('kb/<slug:slug>/edit/', views.global_kb_edit, name='global_kb_edit'),
     path('kb/<slug:slug>/delete/', views.global_kb_delete, name='global_kb_delete'),
+    path('kb/<slug:slug>/export/<str:fmt>/', views.global_kb_export, name='global_kb_export'),
 
     # Categories
     path('categories/', views.category_list, name='category_list'),
@@ -62,4 +66,5 @@ urlpatterns = [
     path('<slug:slug>/', views.document_detail, name='document_detail'),
     path('<slug:slug>/edit/', views.document_edit, name='document_edit'),
     path('<slug:slug>/delete/', views.document_delete, name='document_delete'),
+    path('<slug:slug>/export/<str:fmt>/', views.document_export, name='document_export'),
 ]

@@ -810,3 +810,360 @@ class LooksLikeHtmlTests(TestCase):
         self.assertFalse(f('- item one\n- item two'))
         self.assertFalse(f(''))
         self.assertFalse(f(None))
+
+
+# ---------------------------------------------------------------------------
+# Issue #144 — document export (Markdown / print-ready HTML / DOCX / PDF)
+# ---------------------------------------------------------------------------
+
+_SAMPLE_HTML = (
+    '<h2>Network Overview</h2>'
+    '<p>The <strong>core switch</strong> lives in <em>Rack 3</em> and is '
+    '<a href="https://example.com/switch">documented here</a>.</p>'
+    '<ul><li>VLAN 10 — users</li><li>VLAN 20 — servers</li></ul>'
+    '<ol><li>First</li><li>Second</li></ol>'
+    '<blockquote>Escalate to the NOC before a reboot.</blockquote>'
+    '<pre><code>show running-config\nwrite mem</code></pre>'
+    '<table><thead><tr><th>Host</th><th>IP</th></tr></thead>'
+    '<tbody><tr><td>sw-core</td><td>10.0.0.1</td></tr></tbody></table>'
+    '<hr>'
+)
+
+
+class DocumentExportParserTests(TestCase):
+    """`parse_blocks` is the spine every writer sits on — cover it directly."""
+
+    def setUp(self):
+        from docs.services.document_export import parse_blocks
+        self.blocks = parse_blocks(_SAMPLE_HTML)
+        self.kinds = [b['type'] for b in self.blocks]
+
+    def test_block_kinds_in_document_order(self):
+        self.assertEqual(self.kinds, [
+            'heading', 'paragraph',
+            'list_item', 'list_item', 'list_item', 'list_item',
+            'quote', 'code', 'table', 'rule',
+        ])
+
+    def test_heading_level_preserved(self):
+        self.assertEqual(self.blocks[0]['level'], 2)
+        self.assertEqual(
+            ''.join(r['text'] for r in self.blocks[0]['runs']), 'Network Overview')
+
+    def test_inline_formatting_and_links_survive(self):
+        runs = self.blocks[1]['runs']
+        self.assertTrue(any(r['bold'] and 'core switch' in r['text'] for r in runs))
+        self.assertTrue(any(r['italic'] and 'Rack 3' in r['text'] for r in runs))
+        self.assertTrue(any(r['href'] == 'https://example.com/switch' for r in runs))
+
+    def test_ordered_flag_distinguishes_ul_from_ol(self):
+        items = [b for b in self.blocks if b['type'] == 'list_item']
+        self.assertEqual([b['ordered'] for b in items], [False, False, True, True])
+
+    def test_code_block_keeps_newlines(self):
+        code = next(b for b in self.blocks if b['type'] == 'code')
+        self.assertEqual(code['text'], 'show running-config\nwrite mem')
+
+    def test_table_rows_and_header_flag(self):
+        table = next(b for b in self.blocks if b['type'] == 'table')
+        self.assertTrue(table['has_header'])
+        self.assertEqual(table['rows'], [['Host', 'IP'], ['sw-core', '10.0.0.1']])
+
+    def test_script_content_is_dropped(self):
+        from docs.services.document_export import parse_blocks
+        blocks = parse_blocks('<p>keep</p><script>alert("x")</script>')
+        self.assertNotIn('alert', str(blocks))
+
+    def test_empty_html_yields_no_blocks(self):
+        from docs.services.document_export import parse_blocks
+        self.assertEqual(parse_blocks(''), [])
+        self.assertEqual(parse_blocks(None), [])
+
+
+class DocumentExportWriterTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.org = Organization.objects.create(name='ExportCo', slug='export-co')
+        cls.cat = DocumentCategory.objects.create(organization=cls.org, name='Network')
+        cls.doc = Document.objects.create(
+            organization=cls.org, title='Network Overview', body=_SAMPLE_HTML,
+            content_type='html', category=cls.cat, is_published=True,
+        )
+        cls.md_doc = Document.objects.create(
+            organization=cls.org, title='Runbook',
+            body='# Runbook\n\n- step one\n- step two\n',
+            content_type='markdown', is_published=True,
+        )
+
+    # -- Markdown ---------------------------------------------------------
+    def test_markdown_export_structure(self):
+        from docs.services.document_export import export_markdown
+        text = export_markdown(self.doc).decode('utf-8')
+        self.assertIn('# Network Overview', text)
+        self.assertIn('**Organization:** ExportCo', text)
+        self.assertIn('**Category:** Network', text)
+        self.assertIn('## Network Overview', text)
+        self.assertIn('- VLAN 10', text)
+        self.assertIn('1. First', text)
+        self.assertIn('> Escalate to the NOC', text)
+        self.assertIn('```', text)
+        self.assertIn('[documented here](https://example.com/switch)', text)
+        self.assertIn('| Host | IP |', text)
+
+    def test_markdown_source_documents_round_trip_verbatim(self):
+        """A doc authored as Markdown exports its own source, not a re-render."""
+        from docs.services.document_export import export_markdown
+        text = export_markdown(self.md_doc).decode('utf-8')
+        self.assertIn('- step one\n- step two', text)
+
+    # -- HTML -------------------------------------------------------------
+    def test_html_export_is_standalone_and_print_ready(self):
+        from docs.services.document_export import export_html
+        text = export_html(self.doc).decode('utf-8')
+        self.assertTrue(text.startswith('<!DOCTYPE html>'))
+        self.assertIn('<title>Network Overview</title>', text)
+        self.assertIn('@media print', text)
+        # The issue asked for background images gone on the printed page.
+        self.assertIn('background-image: none !important', text)
+        self.assertIn('Rack 3', text)
+        self.assertIn('ExportCo', text)
+
+    def test_html_export_escapes_metadata(self):
+        from docs.services.document_export import export_html
+        doc = Document.objects.create(
+            organization=self.org, title='<script>x</script>', body='<p>hi</p>',
+            content_type='html',
+        )
+        text = export_html(doc).decode('utf-8')
+        self.assertIn('&lt;script&gt;x&lt;/script&gt;', text)
+        self.assertNotIn('<title><script>', text)
+
+    # -- DOCX -------------------------------------------------------------
+    def _docx_parts(self, payload):
+        import io as _io
+        import zipfile
+        with zipfile.ZipFile(_io.BytesIO(payload)) as zf:
+            return {name: zf.read(name).decode('utf-8') for name in zf.namelist()}
+
+    def test_docx_export_is_a_valid_ooxml_package(self):
+        from docs.services.document_export import export_docx
+        parts = self._docx_parts(export_docx(self.doc))
+        for required in ('[Content_Types].xml', '_rels/.rels', 'word/document.xml',
+                         'word/_rels/document.xml.rels', 'word/styles.xml',
+                         'word/numbering.xml', 'docProps/core.xml'):
+            self.assertIn(required, parts)
+
+    def test_docx_document_xml_is_well_formed_and_carries_content(self):
+        import xml.etree.ElementTree as ET
+        from docs.services.document_export import export_docx
+        parts = self._docx_parts(export_docx(self.doc))
+        body = parts['word/document.xml']
+        ET.fromstring(body)  # raises if malformed
+        self.assertIn('Network Overview', body)
+        self.assertIn('sw-core', body)
+        self.assertIn('<w:tbl>', body)
+        self.assertIn('Heading2', body)
+        self.assertIn('<w:numPr>', body)
+
+    def test_docx_hyperlinks_get_external_relationships(self):
+        from docs.services.document_export import export_docx
+        parts = self._docx_parts(export_docx(self.doc))
+        self.assertIn('https://example.com/switch', parts['word/_rels/document.xml.rels'])
+        self.assertIn('TargetMode="External"', parts['word/_rels/document.xml.rels'])
+        self.assertIn('<w:hyperlink', parts['word/document.xml'])
+
+    def test_docx_escapes_xml_metacharacters(self):
+        import xml.etree.ElementTree as ET
+        from docs.services.document_export import export_docx
+        doc = Document.objects.create(
+            organization=self.org, title='Fish & Chips <v2>',
+            body='<p>a &lt; b &amp; c</p>', content_type='html',
+        )
+        parts = self._docx_parts(export_docx(doc))
+        ET.fromstring(parts['word/document.xml'])
+        self.assertIn('Fish &amp; Chips &lt;v2&gt;', parts['word/document.xml'])
+
+    # -- PDF --------------------------------------------------------------
+    def test_pdf_export_produces_a_pdf(self):
+        from docs.services.document_export import export_pdf
+        payload = export_pdf(self.doc)
+        self.assertTrue(payload.startswith(b'%PDF'))
+        self.assertIn(b'%%EOF', payload[-2048:])
+        self.assertGreater(len(payload), 1500)
+
+    def test_pdf_export_handles_an_empty_document(self):
+        from docs.services.document_export import export_pdf
+        doc = Document.objects.create(
+            organization=self.org, title='Empty', body='', content_type='html')
+        self.assertTrue(export_pdf(doc).startswith(b'%PDF'))
+
+    # -- dispatch + archive ----------------------------------------------
+    def test_export_document_returns_filename_and_mime(self):
+        from docs.services.document_export import export_document
+        payload, filename, mime = export_document(self.doc, 'docx')
+        self.assertEqual(filename, 'network-overview.docx')
+        self.assertIn('wordprocessingml', mime)
+        self.assertTrue(payload)
+
+    def test_unknown_format_raises(self):
+        from docs.services.document_export import export_document
+        with self.assertRaises(ValueError):
+            export_document(self.doc, 'rtf')
+
+    def test_archive_bundles_every_document_plus_an_index(self):
+        import io as _io
+        import zipfile
+        from docs.services.document_export import export_archive
+        payload = export_archive([self.doc, self.md_doc], 'md',
+                                 archive_title='ExportCo documentation')
+        with zipfile.ZipFile(_io.BytesIO(payload)) as zf:
+            names = zf.namelist()
+            self.assertIn('index.md', names)
+            self.assertIn('network-overview.md', names)
+            self.assertIn('runbook.md', names)
+            index = zf.read('index.md').decode('utf-8')
+        self.assertIn('# ExportCo documentation', index)
+        self.assertIn('[Network Overview](network-overview.md)', index)
+        self.assertIn('## Network', index)
+
+    def test_archive_deduplicates_colliding_filenames(self):
+        import io as _io
+        import zipfile
+        from docs.services.document_export import export_archive
+        twin = Document.objects.create(
+            organization=self.org, title='Network Overview', slug='network-overview-2',
+            body='<p>copy</p>', content_type='html')
+        payload = export_archive([self.doc, twin], 'md')
+        with zipfile.ZipFile(_io.BytesIO(payload)) as zf:
+            names = set(zf.namelist())
+        self.assertIn('network-overview.md', names)
+        self.assertIn('network-overview-1.md', names)
+
+
+@override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class DocumentExportViewTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.org = Organization.objects.create(name='ExportViewCo', slug='export-view-co')
+        cls.other_org = Organization.objects.create(name='OtherCo', slug='other-co-exp')
+        cls.staff = User.objects.create_user(
+            'exp-staff', 'exp@x.com', 'pw', is_staff=True, is_superuser=True)
+        cls.doc = Document.objects.create(
+            organization=cls.org, title='Firewall Rules', body=_SAMPLE_HTML,
+            content_type='html', is_published=True)
+        cls.foreign = Document.objects.create(
+            organization=cls.other_org, title='Foreign Doc', body='<p>secret</p>',
+            content_type='html', is_published=True)
+        cls.global_article = Document.objects.create(
+            organization=None, title='Global Playbook', body='<p>global</p>',
+            content_type='html', is_global=True, is_published=True)
+
+    def _login(self, c):
+        c.force_login(self.staff)
+        s = c.session
+        s['2fa_prompted'] = True
+        s['current_organization_id'] = self.org.id
+        s.save()
+
+    def test_every_format_downloads(self):
+        c = Client()
+        self._login(c)
+        expected = {
+            'md': 'text/markdown',
+            'html': 'text/html',
+            'docx': 'wordprocessingml',
+            'pdf': 'application/pdf',
+        }
+        for fmt, mime in expected.items():
+            with self.subTest(fmt=fmt):
+                r = c.get(f'/docs/{self.doc.slug}/export/{fmt}/')
+                self.assertEqual(r.status_code, 200)
+                self.assertIn(mime, r['Content-Type'])
+                self.assertIn('attachment;', r['Content-Disposition'])
+                self.assertIn(f'firewall-rules.{fmt}', r['Content-Disposition'])
+                self.assertTrue(r.content)
+
+    def test_html_inline_renders_in_browser(self):
+        c = Client()
+        self._login(c)
+        r = c.get(f'/docs/{self.doc.slug}/export/html/?inline=1')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('inline;', r['Content-Disposition'])
+
+    def test_exports_are_not_cached_by_proxies(self):
+        c = Client()
+        self._login(c)
+        r = c.get(f'/docs/{self.doc.slug}/export/pdf/')
+        self.assertIn('no-store', r['Cache-Control'])
+
+    def test_unknown_format_404s(self):
+        c = Client()
+        self._login(c)
+        self.assertEqual(c.get(f'/docs/{self.doc.slug}/export/rtf/').status_code, 404)
+
+    def test_other_org_document_is_not_exportable(self):
+        """Tenant isolation — the export path must not become a data leak."""
+        c = Client()
+        self._login(c)
+        r = c.get(f'/docs/{self.foreign.slug}/export/md/')
+        self.assertEqual(r.status_code, 404)
+
+    def test_export_requires_login(self):
+        r = Client().get(f'/docs/{self.doc.slug}/export/pdf/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/login', r['Location'])
+
+    def test_global_kb_export(self):
+        c = Client()
+        self._login(c)
+        r = c.get(f'/docs/kb/{self.global_article.slug}/export/docx/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('global-playbook.docx', r['Content-Disposition'])
+
+    def test_bulk_export_returns_zip_of_current_org(self):
+        import io as _io
+        import zipfile
+        c = Client()
+        self._login(c)
+        r = c.get('/docs/export/md/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/zip')
+        with zipfile.ZipFile(_io.BytesIO(r.content)) as zf:
+            names = zf.namelist()
+        self.assertIn('index.md', names)
+        self.assertIn('firewall-rules.md', names)
+        self.assertNotIn('foreign-doc.md', names)
+
+    def test_bulk_export_honours_the_search_filter(self):
+        import io as _io
+        import zipfile
+        Document.objects.create(
+            organization=self.org, title='Backup Policy', body='<p>nightly</p>',
+            content_type='html', is_published=True)
+        c = Client()
+        self._login(c)
+        r = c.get('/docs/export/md/?q=Backup')
+        with zipfile.ZipFile(_io.BytesIO(r.content)) as zf:
+            names = zf.namelist()
+        self.assertIn('backup-policy.md', names)
+        self.assertNotIn('firewall-rules.md', names)
+
+    def test_bulk_export_with_no_matches_redirects(self):
+        c = Client()
+        self._login(c)
+        r = c.get('/docs/export/md/?q=nothing-matches-this')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/docs/', r['Location'])
+
+    def test_bulk_export_unknown_format_404s(self):
+        c = Client()
+        self._login(c)
+        self.assertEqual(c.get('/docs/export/rtf/').status_code, 404)
+
+    def test_export_menu_rendered_on_detail_page(self):
+        c = Client()
+        self._login(c)
+        r = c.get(f'/docs/{self.doc.slug}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, f'/docs/{self.doc.slug}/export/pdf/')
+        self.assertContains(r, f'/docs/{self.doc.slug}/export/docx/')

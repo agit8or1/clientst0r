@@ -13,6 +13,17 @@
             <i class="fas fa-upload"></i> Upload Files
         </button>
         <a href="{% url 'docs:document_import' %}" class="btn btn-success"><i class="fas fa-file-import"></i> Import &amp; AI Review</a>
+        {# Issue #144 — bulk export of whatever the current filters select. #}
+        <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-file-export"></i> Export All
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><h6 class="dropdown-header">Download a ZIP of the {{ org_docs|length }} listed document{{ org_docs|length|pluralize }}</h6></li>
+            <li><a class="dropdown-item" href="{% url 'docs:document_export_bulk' 'pdf' %}{{ export_query }}"><i class="fas fa-file-pdf fa-fw text-danger"></i> PDF</a></li>
+            <li><a class="dropdown-item" href="{% url 'docs:document_export_bulk' 'docx' %}{{ export_query }}"><i class="fas fa-file-word fa-fw text-primary"></i> Word (.docx)</a></li>
+            <li><a class="dropdown-item" href="{% url 'docs:document_export_bulk' 'md' %}{{ export_query }}"><i class="fas fa-hashtag fa-fw text-muted"></i> Markdown (.md)</a></li>
+            <li><a class="dropdown-item" href="{% url 'docs:document_export_bulk' 'html' %}{{ export_query }}"><i class="fas fa-file-code fa-fw text-success"></i> HTML (print-ready)</a></li>
+        </ul>
         <a href="{% url 'docs:document_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New Document</a>
     </div>
 </div>

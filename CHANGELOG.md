@@ -5,6 +5,57 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.510] - 2026-09-01
+
+### Feature: document export — Markdown, print-ready HTML, DOCX and PDF (issue #144)
+
+The Knowledge Base could take documentation *in* (v3.17.503 added DOCX/PDF/TXT/MD import) but had
+no way to get it back *out*. Issue #144 put it plainly: *"client departing needs documentation and
+you should treat outbound as good as inbound."* This is the matching outbound half.
+
+**Per-article export.** Every KB article and Global KB article gains an **Export** menu:
+
+- **PDF** — letter-size, ReportLab-rendered, with a title block, running page footer, real tables,
+  bullet/numbered lists, code blocks and clickable links.
+- **Word (.docx)** — a genuine OOXML package built straight into the ZIP with `zipfile`, mirroring
+  how the import side reads DOCX without python-docx. Ships `styles.xml` (Title / Subtitle /
+  Heading 1-6 / Quote / Source Code) and `numbering.xml`, so headings show up in Word's navigation
+  pane, lists are real Word lists, tables are real Word tables and hyperlinks are live external
+  relationships — not a text dump with a `.docx` extension.
+- **Markdown (.md)** — an article authored *as* Markdown exports its own source verbatim, so the
+  import → edit → export round-trip is lossless. HTML articles are converted from their rendered
+  body.
+- **HTML (print-ready)** — one standalone, self-contained page with the stylesheet inlined.
+
+**Bulk export.** **Export All** on the document list bundles every document the current
+category / tag / search filters select into a single ZIP, in whichever format you pick, alongside an
+`index.md` table of contents grouped by category. That is the departing-client handover in one
+click, and the archive is readable with no app at all.
+
+**Print visibility.** The issue asked for output that prints legibly — *"easy to print visibility ie
+obscure background images etc"*. Both the exported HTML and the article page itself carry an
+`@media print` block that drops background images, box shadows and text shadows, forces
+black-on-white body text, hides the app chrome (nav, sidebar, action buttons), expands link targets
+to their URLs, and keeps tables, code blocks and images off page breaks.
+
+**Implementation.** `docs/services/document_export.py` parses a document's rendered, already
+sanitised HTML **once** into a neutral block structure (headings / paragraphs / list items / quotes
+/ code / tables / rules / images, each with formatted inline runs). All four writers consume that
+same structure, so the formats can't drift apart — fix the parser, fix everything. No new
+dependencies: ReportLab was already required for the PSA quote/invoice PDFs, and DOCX is
+hand-rolled.
+
+New routes (all login-required, all org-scoped exactly like the matching detail view, all served
+`Cache-Control: private, no-store` since exports carry client-confidential documentation):
+
+- `GET /docs/<slug>/export/<md|html|docx|pdf>/` — one article (`?inline=1` on `html` opens the
+  print preview in the browser instead of downloading).
+- `GET /docs/kb/<slug>/export/<fmt>/` — one Global KB article (staff only).
+- `GET /docs/export/<fmt>/` — ZIP archive, honouring `?category=`/`?tag=`/`?q=`.
+
+A file-upload document (an opaque PDF/DOCX/image blob) redirects to the original file rather than
+exporting an empty shell.
+
 ## [3.17.509] - 2026-08-01
 
 ### Fix: migration drift in `files`, `imports`, and `reports`

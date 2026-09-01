@@ -105,9 +105,17 @@ def document_list(request):
         if membership and membership.can_write():
             has_write_permission = True
 
+    # Issue #144: carry the active filters onto the bulk-export links so
+    # "Export All" exports exactly what the list is showing.
+    from urllib.parse import urlencode
+    export_params = {k: v for k, v in (
+        ('category', category_id), ('tag', tag_id), ('q', query)) if v}
+    export_query = ('?' + urlencode(export_params)) if export_params else ''
+
     return render(request, 'docs/document_list.html', {
         'org_docs': documents,
         'org': org,
+        'export_query': export_query,
         'categories': categories,
         'tags': tags,
         'selected_category': category_id,
@@ -1819,3 +1827,147 @@ def kb_submit_for_review(request, slug):
     article.save(update_fields=['is_draft', 'is_published', 'updated_at'])
     messages.success(request, f'"{article.title}" submitted for review.')
     return redirect('docs:document_detail', slug=slug)
+
+
+# ---------------------------------------------------------------------------
+# Issue #144 — document export (Markdown / print-ready HTML / DOCX / PDF).
+# ---------------------------------------------------------------------------
+
+# Most documents render in well under a second; 250 keeps the worst-case
+# archive comfortably inside a request while still covering a whole client.
+BULK_EXPORT_LIMIT = 250
+
+
+def _export_response(payload, filename, content_type, *, inline=False):
+    """Wrap exported bytes in a download (or inline) HttpResponse."""
+    from django.http import HttpResponse
+
+    response = HttpResponse(payload, content_type=content_type)
+    disposition = 'inline' if inline else 'attachment'
+    response['Content-Disposition'] = f'{disposition}; filename="{filename}"'
+    response['Content-Length'] = str(len(payload))
+    # Exports carry client-confidential documentation — never let a shared
+    # proxy hold on to one.
+    response['Cache-Control'] = 'private, no-store'
+    return response
+
+
+def _resolve_document_for_export(request, slug):
+    """Same org-scoping rules as `document_detail`, reused by the exporters."""
+    org = get_request_organization(request)
+    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+    if in_global_view:
+        return get_object_or_404(Document, slug=slug)
+    return get_object_or_404(Document, slug=slug, organization=org)
+
+
+@login_required
+def document_export(request, slug, fmt):
+    """
+    Export a single Knowledge Base document.
+
+    Issue #144: the outbound half of the DOCX/PDF import added in #140 —
+    "client departing needs documentation and you should treat outbound as
+    good as inbound". `?inline=1` renders the print-ready HTML in the browser
+    instead of downloading it, which is what the Print button uses.
+    """
+    from django.http import Http404
+    from .services.document_export import export_document
+
+    document = _resolve_document_for_export(request, slug)
+
+    # An uploaded blob (PDF/DOCX/image) has no body to re-render — hand the
+    # original file back rather than exporting an empty shell.
+    if document.content_type == 'file' and document.file:
+        return redirect(document.file.url)
+
+    try:
+        payload, filename, content_type = export_document(document, fmt)
+    except ValueError:
+        raise Http404(f'Unknown export format: {fmt}')
+
+    inline = fmt == 'html' and request.GET.get('inline') == '1'
+    return _export_response(payload, filename, content_type, inline=inline)
+
+
+@login_required
+@require_staff_user
+def global_kb_export(request, slug, fmt):
+    """Export a global KB article (staff only — mirrors `global_kb_detail`)."""
+    from django.http import Http404
+    from .services.document_export import export_document
+
+    document = get_object_or_404(Document, slug=slug, is_global=True)
+    try:
+        payload, filename, content_type = export_document(document, fmt)
+    except ValueError:
+        raise Http404(f'Unknown export format: {fmt}')
+
+    inline = fmt == 'html' and request.GET.get('inline') == '1'
+    return _export_response(payload, filename, content_type, inline=inline)
+
+
+@login_required
+def document_export_bulk(request, fmt):
+    """
+    Export every document matching the current Knowledge Base filters as one
+    ZIP archive, with an `index.md` table of contents.
+
+    Issue #144's real use case is a departing client: one archive, all their
+    documentation, readable without the app. Honours the same category / tag /
+    search filters as `document_list`, so "export what I'm looking at" does
+    what it says.
+    """
+    from django.db.models import Q
+    from django.http import Http404
+    from django.utils.text import slugify as _slugify
+    from .services.document_export import EXPORT_FORMATS, export_archive
+
+    if fmt not in EXPORT_FORMATS:
+        raise Http404(f'Unknown export format: {fmt}')
+
+    org = get_request_organization(request)
+    is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
+    in_global_view = not org and (request.user.is_superuser or is_staff)
+
+    documents = Document.objects.filter(
+        is_published=True, is_archived=False, is_global=False, is_template=False,
+    )
+    if not in_global_view:
+        documents = documents.filter(organization=org)
+
+    category_id = request.GET.get('category')
+    if category_id:
+        documents = documents.filter(category_id=category_id)
+    tag_id = request.GET.get('tag')
+    if tag_id:
+        documents = documents.filter(tags__id=tag_id)
+    query = request.GET.get('q', '').strip()
+    if query:
+        documents = documents.filter(Q(title__icontains=query) | Q(body__icontains=query))
+
+    documents = documents.select_related('organization', 'category').prefetch_related(
+        'tags').order_by('title').distinct()
+
+    if not documents.exists():
+        messages.warning(request, 'Nothing to export — no documents match the current filters.')
+        return redirect('docs:document_list')
+
+    # Rendering a PDF per document is the expensive path; cap the batch so a
+    # 2,000-article KB can't run the gunicorn worker past its timeout (cf.
+    # issue #138). Filters are right there on the list page for slicing it up.
+    total = documents.count()
+    if total > BULK_EXPORT_LIMIT:
+        messages.warning(
+            request,
+            f'That would export {total} documents — the limit is '
+            f'{BULK_EXPORT_LIMIT} per archive. Narrow it with the category, '
+            f'tag or search filters and export in batches.')
+        return redirect('docs:document_list')
+
+    archive_title = f'{org.name} documentation' if org else 'Knowledge Base documentation'
+    payload = export_archive(documents, fmt, archive_title=archive_title)
+    stem = _slugify(archive_title) or 'documentation'
+    filename = f'{stem}-{fmt}.zip'
+    return _export_response(payload, filename, 'application/zip')

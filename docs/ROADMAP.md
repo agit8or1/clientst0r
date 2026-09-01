@@ -485,6 +485,7 @@ Planned capabilities:
 - Documentation lifecycle management (draft → published → archived) *(model fields shipped v3.17.245 — `is_draft`, `published_at`; full pipeline is v2)*
 - Linked SOP automation (KB article triggers a workflow run)
 - Import DOCX/PDF as editable documents + AI review (**OPTIONAL AI**) *(shipped v3.17.503 — `/docs/import/` bulk-extracts Word/PDF/TXT/Markdown text into editable KB documents; optional per-document AI reformat-to-standard + gap analysis via `review_imported_document`, gated by `psa_ai_enabled`. DOCX parsed dependency-free; PDF via PyMuPDF — issue #140)*
+- Document export — Markdown / print-ready HTML / DOCX / PDF, single article or bulk ZIP *(shipped v3.17.510 — `Export` menu on every KB article and Global KB article writes Markdown, a standalone print-optimised HTML page, a real Word .docx (built dependency-free straight into the OOXML package, with Word styles, bullet/number lists, tables and live hyperlinks) or a letter-size PDF; `Export All` on the document list bundles everything the current category / tag / search filters select into one ZIP with an `index.md` table of contents, for handing a departing client their whole documentation set. Exported HTML and the article page itself carry an `@media print` block that strips background images, shadows and app chrome so a printed copy is legible — issue #144)*
 
 **Goal:** Improve operational knowledge management and documentation governance.
 
