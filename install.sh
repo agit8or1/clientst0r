@@ -280,6 +280,18 @@ ExecStart=WORKDIR_PLACEHOLDER/venv/bin/gunicorn \
     --error-logfile /var/log/itdocs/gunicorn-error.log \
     --log-level info \
     config.wsgi:application
+# Zero-downtime reload (v3.17.512): SIGHUP tells the gunicorn master to start
+# fresh workers and retire the old ones one at a time. The master keeps the
+# listening sockets bound throughout, so no connection is refused. Workers
+# re-import the app on fork (there is deliberately no --preload), so a reload
+# picks up new code — which is what lets an update use it instead of a restart.
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# Gunicorn's master forwards signals to its workers; KillMode=mixed sends the
+# stop signal to the master alone so it can shut them down gracefully, rather
+# than systemd SIGTERMing the whole cgroup at once.
+KillMode=mixed
+TimeoutStopSec=10
 Restart=always
 
 [Install]
@@ -856,6 +868,18 @@ ExecStart=WORKDIR_PLACEHOLDER/venv/bin/gunicorn \
     --error-logfile /var/log/itdocs/gunicorn-error.log \
     --log-level info \
     config.wsgi:application
+# Zero-downtime reload (v3.17.512): SIGHUP tells the gunicorn master to start
+# fresh workers and retire the old ones one at a time. The master keeps the
+# listening sockets bound throughout, so no connection is refused. Workers
+# re-import the app on fork (there is deliberately no --preload), so a reload
+# picks up new code — which is what lets an update use it instead of a restart.
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# Gunicorn's master forwards signals to its workers; KillMode=mixed sends the
+# stop signal to the master alone so it can shut them down gracefully, rather
+# than systemd SIGTERMing the whole cgroup at once.
+KillMode=mixed
+TimeoutStopSec=10
 Restart=always
 
 [Install]

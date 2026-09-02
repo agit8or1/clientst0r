@@ -5,6 +5,56 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.512] - 2026-09-02
+
+### Fix: updates are now zero-downtime — the gunicorn unit had no `ExecReload`
+
+Every update logged the same pair of lines:
+
+```
+[WARN] reload failed — falling back to restart (brief downtime expected)
+Step 5/5: Restart of 'clientst0r-gunicorn.service' scheduled via systemd-run (3-second delay)
+```
+
+`deploy/update_instructions.sh` has always *tried* a graceful reload first and only fallen back to
+a restart if that failed. It failed every time, for a mundane reason:
+
+```
+Failed to reload clientst0r-gunicorn.service:
+  Job type reload is not applicable for unit clientst0r-gunicorn.service.
+```
+
+The unit had no `ExecReload=` line, so `systemctl reload` was never a valid operation on it and the
+fallback restart — with its few seconds of 502s — was the only path updates ever took.
+
+The unit now carries:
+
+```ini
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=10
+```
+
+SIGHUP makes the gunicorn master start fresh workers and retire the old ones one at a time while it
+holds the listening sockets open, so nothing is refused. `KillMode=mixed` sends the stop signal to
+the master alone, letting it wind its workers down gracefully rather than having systemd SIGTERM the
+whole cgroup at once.
+
+This is only a valid substitute for a restart because the app is **not** started with `--preload`:
+workers import the app when they fork, so new workers pick up new code from disk. Verified rather
+than assumed — with a sentinel version string written to disk, a reload, and the live `/health/`
+endpoint reporting the new value (then reverted and reloaded back).
+
+Measured on a live reload: **71 consecutive HTTPS requests, 0 failures**, master PID unchanged, all
+four workers replaced.
+
+Added in all three places the unit is defined — `deploy/clientst0r-gunicorn.service` and both inline
+heredocs in `install.sh` — so fresh installs get it too, not just this host.
+
+Note for anyone running backwards-incompatible migrations: a graceful reload briefly overlaps old
+and new workers, so old code runs against the new schema for a second or two. Additive migrations
+are unaffected; a destructive one still wants a hard restart.
+
 ## [3.17.511] - 2026-09-02
 
 ### Fix: stray code-block language badges in every export (issue #144 follow-up)
