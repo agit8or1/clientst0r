@@ -53,6 +53,29 @@ _CODE_TAGS = {'code', 'kbd', 'samp', 'tt'}
 _HEADINGS = {'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6}
 _IGNORED_CONTENT = {'script', 'style', 'head', 'title'}
 
+# Tags with no end tag — they must never open a "skip this subtree" scope.
+_VOID_TAGS = {
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link',
+    'meta', 'param', 'source', 'track', 'wbr',
+}
+
+# Classes marking an element as chrome rather than content. Editors emit these
+# around code blocks (a floating "CODE" / "POWERSHELL" language badge pinned to
+# the corner via `position-absolute`), and they read fine in the browser but
+# flatten into stray one-word paragraphs in a linear export. `d-print-none`
+# and the screen-reader-only classes say outright that the element isn't meant
+# for a printed page, which is exactly what an export is.
+_DECORATIVE_CLASSES = frozenset({
+    'position-absolute',
+    'visually-hidden', 'visually-hidden-focusable', 'sr-only', 'sr-only-focusable',
+    'd-print-none', 'no-print',
+})
+
+
+def _is_decorative(attrs: dict) -> bool:
+    classes = (attrs.get('class') or '').split()
+    return any(c in _DECORATIVE_CLASSES for c in classes)
+
 
 class _BlockParser(HTMLParser):
     """Flatten sanitised document HTML into a list of block dicts.
@@ -79,6 +102,8 @@ class _BlockParser(HTMLParser):
         self._code = 0
         self._href: str | None = None
         self._skip = 0
+        # Nesting depth inside a decorative subtree being dropped wholesale.
+        self._drop = 0
         # Stack of 'ul' / 'ol' for nested lists.
         self._list_stack: list[str] = []
         self._pending: dict[str, Any] | None = None
@@ -123,6 +148,15 @@ class _BlockParser(HTMLParser):
     # -- HTMLParser hooks --------------------------------------------------
     def handle_starttag(self, tag, attrs):  # noqa: C901 — flat tag dispatch
         attrs_d = {k: (v or '') for k, v in attrs}
+        # Inside a dropped subtree: track nesting so we know where it ends.
+        if self._drop:
+            if tag not in _VOID_TAGS:
+                self._drop += 1
+            return
+        if _is_decorative(attrs_d):
+            if tag not in _VOID_TAGS:
+                self._drop = 1
+            return
         if self._skip:
             return
         if tag in _IGNORED_CONTENT:
@@ -197,6 +231,9 @@ class _BlockParser(HTMLParser):
             self.handle_endtag(tag)
 
     def handle_endtag(self, tag):  # noqa: C901 — flat tag dispatch
+        if self._drop:
+            self._drop -= 1
+            return
         if tag in _IGNORED_CONTENT:
             self._skip = max(0, self._skip - 1)
             return
@@ -245,7 +282,7 @@ class _BlockParser(HTMLParser):
             self._flush()
 
     def handle_data(self, data):
-        if self._skip:
+        if self._drop or self._skip:
             return
         if self._pre:
             self._pre_text.append(data)

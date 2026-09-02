@@ -5,6 +5,41 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.511] - 2026-09-02
+
+### Fix: stray code-block language badges in every export (issue #144 follow-up)
+
+Testing v3.17.510's export against real Knowledge Base articles turned up a defect the unit tests
+couldn't see, because it only shows up against content the AI documentation generator produces.
+
+Those articles wrap every code block in Bootstrap chrome that pins a language label to the block's
+top-right corner:
+
+```html
+<div class="position-relative">
+  <span class="position-absolute top-0 end-0 badge bg-secondary">CODE</span>
+  <pre class="bg-dark text-light"><code>...</code></pre>
+</div>
+```
+
+In the browser that badge floats *over* the corner of the code block. An export is linear, so it
+flattened into a stray one-word paragraph — a bare `CODE` or `POWERSHELL` line hanging above every
+single code block. One Global KB article carried **29** of them, and they cost it a whole extra
+page of PDF.
+
+The block parser now drops elements that are chrome rather than content, wholesale including their
+subtree: `position-absolute` (an overlay is by definition not in the document flow), plus
+`d-print-none`, `no-print`, `visually-hidden`, `visually-hidden-focusable`, `sr-only` and
+`sr-only-focusable` — classes that state outright the element isn't meant for a printed page, which
+is exactly what an export is.
+
+Care was taken with the drop scope: it tracks nesting depth so it closes at its *own* end tag
+rather than swallowing everything after it, and a void tag (`<img class="position-absolute">`) never
+opens a scope at all, since it has no end tag to close one.
+
+Measured on the real article: paragraph blocks 67 → 38 (exactly the 29 badges), all 29 code blocks
+preserved, PDF 10 pages → 9.
+
 ## [3.17.510] - 2026-09-01
 
 ### Feature: document export — Markdown, print-ready HTML, DOCX and PDF (issue #144)

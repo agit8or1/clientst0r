@@ -869,6 +869,53 @@ class DocumentExportParserTests(TestCase):
         self.assertTrue(table['has_header'])
         self.assertEqual(table['rows'], [['Host', 'IP'], ['sw-core', '10.0.0.1']])
 
+    def test_decorative_chrome_is_dropped(self):
+        """v3.17.511 — the editor pins a floating language badge to each code
+        block via `position-absolute`. It reads fine in the browser but used to
+        flatten into a stray one-word "CODE" paragraph in every export."""
+        from docs.services.document_export import parse_blocks
+        html = (
+            '<div class="position-relative mt-2 mb-3">'
+            '<span class="position-absolute top-0 end-0 badge bg-secondary">CODE</span>'
+            '<pre class="bg-dark text-light"><code>systemctl status nginx</code></pre>'
+            '</div>'
+        )
+        blocks = parse_blocks(html)
+        self.assertEqual([b['type'] for b in blocks], ['code'])
+        self.assertEqual(blocks[0]['text'], 'systemctl status nginx')
+
+    def test_print_hidden_and_screen_reader_chrome_is_dropped(self):
+        from docs.services.document_export import parse_blocks
+        blocks = parse_blocks(
+            '<p>keep me</p>'
+            '<div class="d-print-none"><p>toolbar</p></div>'
+            '<span class="visually-hidden">opens in new window</span>'
+            '<p class="sr-only">skip to content</p>'
+        )
+        self.assertEqual(len(blocks), 1)
+        self.assertEqual(blocks[0]['runs'][0]['text'].strip(), 'keep me')
+
+    def test_dropping_chrome_does_not_swallow_following_content(self):
+        """The drop scope must close exactly at its own end tag."""
+        from docs.services.document_export import parse_blocks
+        blocks = parse_blocks(
+            '<div class="position-absolute"><span><b>badge</b></span></div>'
+            '<h2>Real heading</h2><p>Real body</p>'
+        )
+        self.assertEqual([b['type'] for b in blocks], ['heading', 'paragraph'])
+        self.assertEqual(blocks[0]['runs'][0]['text'], 'Real heading')
+
+    def test_void_tag_with_decorative_class_does_not_open_a_drop_scope(self):
+        """An <img class="position-absolute"> has no end tag — if it opened a
+        scope, every following block would vanish."""
+        from docs.services.document_export import parse_blocks
+        blocks = parse_blocks(
+            '<img class="position-absolute" src="x.png" alt="overlay">'
+            '<p>still here</p>'
+        )
+        self.assertEqual([b['type'] for b in blocks], ['paragraph'])
+        self.assertEqual(blocks[0]['runs'][0]['text'].strip(), 'still here')
+
     def test_script_content_is_dropped(self):
         from docs.services.document_export import parse_blocks
         blocks = parse_blocks('<p>keep</p><script>alert("x")</script>')
