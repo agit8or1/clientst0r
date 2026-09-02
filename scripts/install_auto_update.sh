@@ -82,6 +82,27 @@ $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-schedule
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-psa-sync.service
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-rmm-sync.service
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-monitor.service
+
+# v3.17.518 — the remaining commands the RUNNING APP issues unattended. Audited
+# call site by call site before being added; a gunicorn worker has no tty, so
+# anything not listed here fails rather than prompting.
+
+# Force-restart path in core/views.py: stop, kill stragglers, clear bytecode,
+# start. The SIGKILL sweep is deliberate — it exists precisely for when a worker
+# is wedged and a graceful stop has not cleared it.
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/pkill -9 -f gunicorn
+
+# Patch management (core/security_views.py -> update_system_packages). Being
+# able to apply system updates is the whole feature, so this necessarily allows
+# installing from the configured repositories; the option prefix is pinned to
+# what the command actually builds.
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get -q update
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get -y -o Dpkg\:\:Options\:\:=--force-confdef -o Dpkg\:\:Options\:\:=--force-confold *
+
+# NOT granted, deliberately: setup_package_scanner_sudo.py (writes into
+# /etc/sudoers.d) and scripts/fix_gunicorn_env.sh (tee's the unit file). Both are
+# admin-run bootstrap/repair steps, not things the app does on its own, so they
+# should prompt for a password like any other privileged manual action.
 EOF
 
 sudo cp /tmp/clientst0r-auto-update-sudoers "$SUDOERS_FILE"

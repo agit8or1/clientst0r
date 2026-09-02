@@ -77,9 +77,9 @@ class Command(BaseCommand):
             systemctl = shutil.which('systemctl') or 'systemctl'
 
             if systemd_run:
-                self.stdout.write('Scheduling restart via systemd-run --system (2-second delay)...')
+                self.stdout.write('Scheduling restart via systemd-run --system (3-second delay)...')
                 result = subprocess.run(
-                    ['sudo', systemd_run, '--on-active=2', '--system',
+                    ['sudo', systemd_run, '--on-active=3', '--system',
                      systemctl, 'restart', gunicorn_service],
                     capture_output=True, text=True
                 )

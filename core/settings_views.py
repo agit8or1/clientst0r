@@ -1117,7 +1117,10 @@ def settings_ai(request):
             # If we don't have permission to send signal, try systemctl restart with sudo
             try:
                 result = subprocess.run(
-                    ['sudo', 'systemctl', 'restart', 'clientst0r-gunicorn'],
+                    # v3.17.518: needs the .service suffix — sudoers matches
+                    # arguments literally, so the bare unit name could never
+                    # match a scoped NOPASSWD rule.
+                    ['sudo', 'systemctl', 'restart', 'clientst0r-gunicorn.service'],
                     capture_output=True,
                     text=True,
                     timeout=10

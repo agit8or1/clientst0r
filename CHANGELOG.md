@@ -5,6 +5,49 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.518] - 2026-09-02
+
+### Security: least-privilege sudo that actually covers the app — prerequisite for dropping blanket NOPASSWD
+
+`/etc/sudoers.d/99-administrator-nopasswd` grants `ALL=(ALL) NOPASSWD:ALL`, which is why every
+sudoers mismatch found over the last few releases went unnoticed: nothing could fail. Removing it
+turns out to need work first, because the scoped rules did **not** cover everything the running
+application issues. Six call sites would have broken silently.
+
+Audited every `sudo` invocation across `core/`, `deploy/` and `scripts/`, and split them by who
+initiates the command. **The running app** gets an explicit NOPASSWD grant — a gunicorn worker has
+no tty, so anything ungranted fails rather than prompting. **Admin-run bootstrap and repair
+scripts** are left to prompt like any other privileged manual action.
+
+Two mismatches were better fixed in the code than by loosening a rule:
+
+- `core/settings_views.py` restarted `clientst0r-gunicorn` **without the `.service` suffix**.
+  sudoers matches arguments literally, so that could never have matched a scoped rule. Now names the
+  unit in full.
+- `core/management/commands/auto_heal_version.py` used `systemd-run --on-active=2` where the granted
+  rule pins `=3`. Normalised to `=3` so one rule covers both callers.
+
+Newly granted, each traced to its call site:
+
+- `pkill -9 -f gunicorn` — the force-restart path in `core/views.py` (stop → kill stragglers → clear
+  bytecode → start). The SIGKILL sweep is the point of that path: it exists for a wedged worker a
+  graceful stop has not cleared.
+- `apt-get -q update` and `apt-get -y -o Dpkg::Options::=--force-confdef -o
+  Dpkg::Options::=--force-confold *` — patch management, reached from the UI via
+  `core/security_views.py`. Applying system updates is the feature, so this necessarily permits
+  installing from configured repositories; the option prefix is pinned to what the command builds.
+
+Deliberately **not** granted: `setup_package_scanner_sudo.py` (writes into `/etc/sudoers.d`) and
+`scripts/fix_gunicorn_env.sh` (`tee`s the unit file). Both are admin-run steps, not things the app
+does unattended.
+
+Verified: the generated file passes `visudo -c`, and a static coverage check of 15 app-initiated
+commands against the installed rules is **15/15**.
+
+Note for anyone planning the same cleanup: there are **two** blanket rules, not one —
+`99-administrator-nopasswd` and cloud-init's `90-cloud-init-users`, which carries an identical
+`NOPASSWD:ALL` and may be regenerated on boot. Removing one alone changes nothing.
+
 ## [3.17.517] - 2026-09-02
 
 ### Security: clear all three Dependabot alerts (1 high, 2 moderate)
