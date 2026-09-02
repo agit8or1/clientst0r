@@ -5,6 +5,40 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.517] - 2026-09-02
+
+### Security: clear all three Dependabot alerts (1 high, 2 moderate)
+
+| Severity | Package | CVE | Fixed in |
+|---|---|---|---|
+| **High** | cryptography | CVE-2026-69247 — Bleichenbacher oracle via distinguishable errors and timing in PKCS#7 `EnvelopedData` decryption | 50.0.0 |
+| Moderate | djangorestframework | CVE-2026-73228 — `request.data` could bypass Django's `DATA_UPLOAD_MAX_MEMORY_SIZE` on oversized JSON and urlencoded bodies | 3.17.2 |
+| Moderate | djangorestframework | CVE-2026-73229 — `AdminRenderer` may disclose GET-protected data when rendering invalid write requests | 3.17.2 |
+
+Pins moved to `cryptography>=50.0.0,<51.0.0` and `djangorestframework>=3.17.2,<4.0`, installing
+50.0.1 and 3.18.0.
+
+**Exposure, since the three are not equal here.** CVE-2026-73228 is the one that actually reaches
+this codebase: `request.data` is used throughout `api/` and `api_mobile/`, so the upload-size cap
+was bypassable. CVE-2026-73229 is not reachable — `DEFAULT_RENDERER_CLASSES` is `JSONRenderer` only
+in production (`BrowsableAPIRenderer` is added only under `DEBUG`), and `AdminRenderer` is never
+configured. The high-severity cryptography issue is in PKCS#7 `EnvelopedData` decryption, which
+nothing in this codebase calls directly; it arrives transitively through Authlib, google-auth,
+joserfc and msal. Patched regardless — none of that is a reason to sit on a high.
+
+**msal had to move too.** `msal==1.34.*` requires `cryptography<49`, which would have pinned
+cryptography to the vulnerable range no matter what the direct requirement said — the upgrade failed
+`pip check` until this was resolved. msal 1.37 relaxes the constraint to `<51` (1.36 still caps at
+`<49`), so the pin is now `msal>=1.37,<2.0`, installing 1.38.0. This is a live dependency of the
+M365 Graph mail integration (issue #142), not an incidental one.
+
+**Verified:** `pip check` clean, and the full `api`, `api_mobile`, `psa`, `core` and `docs` suites —
+**833 tests** — pass against the upgraded set, covering both the DRF request paths and the M365 code
+that uses msal.
+
+Also removed a `~est_framework` directory pip left in `site-packages` when it could not finish
+replacing the old DRF — the same orphaned-backup artifact cleaned out of this venv earlier today.
+
 ## [3.17.516] - 2026-09-02
 
 ### Fix: "[WARN] Mobile build setup failed" on every update — a template git refused to track
