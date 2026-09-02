@@ -269,7 +269,7 @@ repadmin /syncall /AdeP
 gpresult /R
 
 # Generate detailed HTML report
-gpresult /H C:\gpreport.html /F
+gpresult /H C:\\gpreport.html /F
 
 # Force GP update
 gpupdate /force
@@ -318,8 +318,8 @@ Restart-Service Netlogon
 net share
 
 # Should see:
-# NETLOGON  C:\Windows\SYSVOL\sysvol\domain.com\SCRIPTS
-# SYSVOL    C:\Windows\SYSVOL\sysvol
+# NETLOGON  C:\\Windows\\SYSVOL\\sysvol\\domain.com\\SCRIPTS
+# SYSVOL    C:\\Windows\\SYSVOL\\sysvol
 ```
 
 **Fix SYSVOL replication**:

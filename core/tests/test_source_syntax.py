@@ -58,6 +58,44 @@ class SourceSyntaxTests(SimpleTestCase):
         for expected in ('core', 'docs', 'psa', 'vault', 'accounts'):
             self.assertIn(expected, names)
 
+    def test_no_invalid_escape_sequences(self):
+        """v3.17.514: a backslash Python doesn't recognise as an escape is a
+        `SyntaxWarning` today and a `SyntaxError` in a future release — but the
+        dangerous case is the one that raises nothing at all. A Windows path
+        written `"root\\cimv2\\terminalservices"` in a non-raw literal makes
+        `\\t` a TAB, so the seeded article silently shipped
+        `root\\cimv2<TAB>erminalservices` and the `t` was simply gone. Same for
+        `C:\\Data\\file.txt` (`\\f` formfeed) and `C:\\Tasks\\backup.xml`
+        (`\\b` backspace).
+
+        Warnings are the tractable signal for the whole class, so the suite
+        holds the codebase at zero.
+        """
+        import warnings
+
+        offenders = []
+        for package in self.packages:
+            for path in package.rglob('*.py'):
+                if '__pycache__' in path.parts:
+                    continue
+                source = path.read_text(encoding='utf-8')
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter('always')
+                    try:
+                        compile(source, str(path), 'exec')
+                    except SyntaxError:
+                        continue        # reported by the parse test instead
+                    for item in caught:
+                        if issubclass(item.category, SyntaxWarning):
+                            rel = path.relative_to(self.base)
+                            offenders.append(f'{rel}:{item.lineno}: {item.message}')
+
+        self.assertEqual(
+            offenders, [],
+            'SyntaxWarnings (use a raw string, or double the backslash):\n  '
+            + '\n  '.join(offenders),
+        )
+
     def test_every_shipped_python_file_parses(self):
         failures = []
         checked = 0

@@ -5,6 +5,44 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.514] - 2026-09-02
+
+### Fix: backslash escapes in seeded KB articles — including six that were silently corrupting content
+
+Following up the `SyntaxWarning`s noted in v3.17.513. Two things turned up that the warning count
+had hidden.
+
+**There were 170 bad escapes, not 15.** Python reports an invalid escape sequence once per source
+line, so the 15 warnings were 15 *lines*, not 15 occurrences. The real count across the two KB
+seeding commands was 170.
+
+**Six of them were already corrupting shipped article content, with no warning at all.** An invalid
+escape like `\P` is left as a literal `\P` and merely warns. But when a Windows path happens to put
+a *valid* escape letter after the backslash, Python converts it silently:
+
+| Article text intended | What actually shipped |
+|---|---|
+| `root\cimv2\terminalservices` | `root\cimv2` + **TAB** + `erminalservices` |
+| `C:\Data\file.txt` | `C:\Data` + **FORMFEED** + `ile.txt` |
+| `C:\Tasks\backup.xml` (×2) | `C:\Tasks` + **BACKSPACE** + `ackup.xml` |
+| `C:\Scripts\backup.ps1` (×2) | `C:\Scripts` + **BACKSPACE** + `ackup.ps1` |
+
+A technician copying that WMI namespace or path out of a seeded article got a broken command, and
+nothing anywhere reported a problem. These are the ones worth having found.
+
+**The fix and how it was verified.** Every backslash in a non-raw literal is doubled unless Python
+was already treating it as an intended escape. A survey first confirmed the only escapes to preserve
+were 17 deliberate `\\` and one line continuation — no `\x`, `\u`, `\U` or octal anywhere — so the
+transform is total and unambiguous. It then compared **every string constant's value** before and
+after via `ast`: 15 literals were rewritten and exactly **4 values changed**, those four being the
+article bodies holding the six corrupted paths. Everything else is byte-identical. `SyntaxWarning`
+count is now zero.
+
+### Added
+
+- `core/tests/test_source_syntax.py::test_no_invalid_escape_sequences` — holds the codebase at zero
+  `SyntaxWarning`s, so this class of bug (the silent variety included) can't creep back.
+
 ## [3.17.513] - 2026-09-02
 
 ### Fix: close the last downtime window in updates — scoped bytecode purge + pre-compile

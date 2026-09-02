@@ -487,17 +487,17 @@ resmon.exe
 
 ### CPU Usage
 ```powershell
-Get-Counter '\Processor(_Total)\% Processor Time'
+Get-Counter '\\Processor(_Total)\\% Processor Time'
 ```
 
 ### Memory Usage
 ```powershell
-Get-Counter '\Memory\Available MBytes'
+Get-Counter '\\Memory\\Available MBytes'
 ```
 
 ### Disk Performance
 ```powershell
-Get-Counter '\PhysicalDisk(_Total)\% Disk Time'
+Get-Counter '\\PhysicalDisk(_Total)\\% Disk Time'
 ```
 
 ## Common Performance Issues
@@ -573,7 +573,7 @@ sc config Spooler start= auto
 
 ## Creating Custom Services
 ```powershell
-New-Service -Name "MyService" -BinaryPathName "C:\Path\To\Service.exe" `
+New-Service -Name "MyService" -BinaryPathName "C:\\Path\\To\\Service.exe" `
     -DisplayName "My Custom Service" -StartupType Automatic
 ```
 
@@ -622,7 +622,7 @@ $SecureString = ConvertTo-SecureString "P@ssw0rd!" -AsPlainText -Force
 Enable-BitLocker -MountPoint "C:" -PasswordProtector -Password $SecureString
 
 # Save recovery key
-(Get-BitLockerVolume -MountPoint "C:").KeyProtector | Out-File "C:\BitLocker-Recovery.txt"
+(Get-BitLockerVolume -MountPoint "C:").KeyProtector | Out-File "C:\\BitLocker-Recovery.txt"
 ```
 
 ## Managing BitLocker
@@ -728,7 +728,7 @@ Get-WinEvent -FilterHashtable @{
 
 ## Export Events
 ```powershell
-Get-EventLog -LogName System | Export-Csv "C:\SystemLog.csv"
+Get-EventLog -LogName System | Export-Csv "C:\\SystemLog.csv"
 ```
 
 ## Clear Event Logs
@@ -836,7 +836,7 @@ Get-PSDrive -PSProvider FileSystem
 
 ### Via PowerShell
 ```powershell
-Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server' -Name "fDenyTSConnections" -Value 0
 Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 ```
 
@@ -857,13 +857,13 @@ mstsc /v:192.168.1.100 /f  # Full screen
 
 ### Change RDP Port
 ```powershell
-Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "PortNumber" -Value 3390
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name "PortNumber" -Value 3390
 Restart-Service TermService -Force
 ```
 
 ### Network Level Authentication
 ```powershell
-(Get-WmiObject -Class "Win32_TSGeneralSetting" -Namespace root\cimv2\terminalservices -Filter "TerminalName='RDP-tcp'").SetUserAuthenticationRequired(1)
+(Get-WmiObject -Class "Win32_TSGeneralSetting" -Namespace root\\cimv2\\terminalservices -Filter "TerminalName='RDP-tcp'").SetUserAuthenticationRequired(1)
 ```
 
 ## Security Best Practices
@@ -1017,7 +1017,7 @@ Set-WBPolicy -Policy $Policy
 ### Backup Specific Folders
 ```powershell
 $Policy = New-WBPolicy
-$FileSpec = New-WBFileSpec -FileSpec "C:\ImportantData"
+$FileSpec = New-WBFileSpec -FileSpec "C:\\ImportantData"
 Add-WBFileSpec -Policy $Policy -FileSpec $FileSpec
 Start-WBBackup -Policy $Policy
 ```
@@ -1040,7 +1040,7 @@ Start-WBBackup -Policy $Policy
 ### File Restore
 ```powershell
 $Backup = Get-WBBackupSet
-Start-WBFileRecovery -BackupSet $Backup -FilePathToRecover "C:\Data\file.txt" -RecoveryTarget "C:\Restore"
+Start-WBFileRecovery -BackupSet $Backup -FilePathToRecover "C:\\Data\\file.txt" -RecoveryTarget "C:\\Restore"
 ```
 
 ## Best Practices
@@ -1072,52 +1072,52 @@ regedit.exe
 
 ### Read Registry Value
 ```powershell
-Get-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion"
+Get-ItemProperty -Path "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion"
 ```
 
 ### Create Registry Key
 ```powershell
-New-Item -Path "HKLM:\Software\MyApp"
+New-Item -Path "HKLM:\\Software\\MyApp"
 ```
 
 ### Set Registry Value
 ```powershell
-Set-ItemProperty -Path "HKLM:\Software\MyApp" -Name "Setting1" -Value "Value1"
-New-ItemProperty -Path "HKLM:\Software\MyApp" -Name "Setting2" -Value 1 -PropertyType DWord
+Set-ItemProperty -Path "HKLM:\\Software\\MyApp" -Name "Setting1" -Value "Value1"
+New-ItemProperty -Path "HKLM:\\Software\\MyApp" -Name "Setting2" -Value 1 -PropertyType DWord
 ```
 
 ### Delete Registry Key/Value
 ```powershell
-Remove-Item -Path "HKLM:\Software\MyApp"
-Remove-ItemProperty -Path "HKLM:\Software\MyApp" -Name "Setting1"
+Remove-Item -Path "HKLM:\\Software\\MyApp"
+Remove-ItemProperty -Path "HKLM:\\Software\\MyApp" -Name "Setting1"
 ```
 
 ## Command Line (reg.exe)
 ```batch
 rem Query registry
-reg query "HKLM\Software\Microsoft\Windows\CurrentVersion"
+reg query "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion"
 
 rem Add value
-reg add "HKLM\Software\MyApp" /v Setting1 /t REG_SZ /d "Value1"
+reg add "HKLM\\Software\\MyApp" /v Setting1 /t REG_SZ /d "Value1"
 
 rem Delete value
-reg delete "HKLM\Software\MyApp" /v Setting1 /f
+reg delete "HKLM\\Software\\MyApp" /v Setting1 /f
 ```
 
 ## Backup Registry
 
 ### Export Registry Key
 ```batch
-reg export "HKLM\Software\MyApp" "C:\Backup\MyApp.reg"
+reg export "HKLM\\Software\\MyApp" "C:\\Backup\\MyApp.reg"
 ```
 
 ```powershell
-reg export "HKLM\Software" "C:\Backup\Software.reg" /y
+reg export "HKLM\\Software" "C:\\Backup\\Software.reg" /y
 ```
 
 ### Import Registry
 ```batch
-reg import "C:\Backup\MyApp.reg"
+reg import "C:\\Backup\\MyApp.reg"
 ```
 
 ## Create System Restore Point
@@ -1134,9 +1134,9 @@ Checkpoint-Computer -Description "Before Registry Changes" -RestorePointType "MO
 - Keep backup of critical keys
 
 ## Common Useful Keys
-- Startup programs: `HKLM\Software\Microsoft\Windows\CurrentVersion\Run`
-- Environment variables: `HKLM\System\CurrentControlSet\Control\Session Manager\Environment`
-- Windows version: `HKLM\Software\Microsoft\Windows NT\CurrentVersion`
+- Startup programs: `HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run`
+- Environment variables: `HKLM\\System\\CurrentControlSet\\Control\\Session Manager\\Environment`
+- Windows version: `HKLM\\Software\\Microsoft\\Windows NT\\CurrentVersion`
 '''
             },
             {
@@ -1160,7 +1160,7 @@ Set-Service WinRM -StartupType Automatic
 Enable-PSRemoting -SkipNetworkProfileCheck -Force
 
 # Add trusted hosts (workgroup)
-Set-Item WSMan:\localhost\Client\TrustedHosts -Value "*" -Force
+Set-Item WSMan:\\localhost\\Client\\TrustedHosts -Value "*" -Force
 ```
 
 ## Connecting to Remote Systems
@@ -1192,7 +1192,7 @@ Remove-PSSession $Session
 
 ## Copy Files to Remote Systems
 ```powershell
-Copy-Item -Path "C:\Scripts\script.ps1" -Destination "C:\Scripts" -ToSession $Session
+Copy-Item -Path "C:\\Scripts\\script.ps1" -Destination "C:\\Scripts" -ToSession $Session
 ```
 
 ## Security Configuration
@@ -1200,10 +1200,10 @@ Copy-Item -Path "C:\Scripts\script.ps1" -Destination "C:\Scripts" -ToSession $Se
 ### Configure HTTPS Listener
 ```powershell
 # Create self-signed certificate
-New-SelfSignedCertificate -DnsName "server01.domain.com" -CertStoreLocation Cert:\LocalMachine\My
+New-SelfSignedCertificate -DnsName "server01.domain.com" -CertStoreLocation Cert:\\LocalMachine\\My
 
 # Create HTTPS listener
-New-Item -Path WSMan:\localhost\Listener -Transport HTTPS -Address * -CertificateThumbPrint "THUMBPRINT"
+New-Item -Path WSMan:\\localhost\\Listener -Transport HTTPS -Address * -CertificateThumbPrint "THUMBPRINT"
 ```
 
 ### Restrict Access
@@ -1226,7 +1226,7 @@ Test-WSMan -ComputerName Server01
 
 ### View WinRM Configuration
 ```powershell
-Get-Item WSMan:\localhost\
+Get-Item WSMan:\\localhost\
 winrm get winrm/config
 ```
 
@@ -1272,7 +1272,7 @@ winrm get winrm/config
 ## Analyzing BSOD
 
 ### View Minidump Files
-Location: `C:\Windows\Minidump\`
+Location: `C:\\Windows\\Minidump\\`
 
 ### Using WinDbg
 ```batch
@@ -1342,7 +1342,7 @@ Install-WindowsUpdate -AcceptAll -AutoReboot
 ```batch
 # Enable crash dump
 wmic recoveros set DebugInfoType = 3
-wmic recoveros set DebugFilePath = C:\Windows\MEMORY.DMP
+wmic recoveros set DebugFilePath = C:\\Windows\\MEMORY.DMP
 ```
 
 ## Safe Mode Boot
@@ -1371,7 +1371,7 @@ net start spooler
 ### Clear Print Queue
 ```powershell
 Stop-Service -Name Spooler
-Remove-Item -Path C:\Windows\System32\spool\PRINTERS\* -Force
+Remove-Item -Path C:\\Windows\\System32\\spool\\PRINTERS\\* -Force
 Start-Service -Name Spooler
 ```
 
@@ -1401,7 +1401,7 @@ Get-Printer
 
 ### Add Network Printer
 ```powershell
-Add-Printer -ConnectionName "\\PrintServer\HP-LaserJet"
+Add-Printer -ConnectionName "\\PrintServer\\HP-LaserJet"
 ```
 
 ### Add TCP/IP Printer
@@ -1430,7 +1430,7 @@ Add-Printer -Name "Office Printer" -DriverName "HP Universal Printing PCL 6" -Po
 Stop-Service -Name Spooler
 
 # Clear spooler folder
-Remove-Item C:\Windows\System32\spool\PRINTERS\* -Force
+Remove-Item C:\\Windows\\System32\\spool\\PRINTERS\\* -Force
 
 # Restart spooler
 Start-Service -Name Spooler
@@ -1472,7 +1472,7 @@ taskschd.msc
 
 ### Create Basic Task
 ```powershell
-$Action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-File C:\Scripts\backup.ps1"
+$Action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-File C:\\Scripts\\backup.ps1"
 $Trigger = New-ScheduledTaskTrigger -Daily -At 2am
 $Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable
 Register-ScheduledTask -TaskName "Daily Backup" -Action $Action -Trigger $Trigger -Settings $Settings -User "SYSTEM"
@@ -1488,9 +1488,9 @@ Register-ScheduledTask -TaskName "Multi Trigger Task" -Action $Action -Trigger $
 
 ### Run Task as Different User
 ```powershell
-$Action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-File C:\Scripts\script.ps1"
+$Action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-File C:\\Scripts\\script.ps1"
 $Trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(5)
-$Principal = New-ScheduledTaskPrincipal -UserId "DOMAIN\ServiceAccount" -RunLevel Highest
+$Principal = New-ScheduledTaskPrincipal -UserId "DOMAIN\\ServiceAccount" -RunLevel Highest
 Register-ScheduledTask -TaskName "Elevated Task" -Action $Action -Trigger $Trigger -Principal $Principal
 ```
 
@@ -1547,16 +1547,16 @@ Unregister-ScheduledTask -TaskName "Daily Backup" -Confirm:$false
 ### Export/Import Task
 ```powershell
 # Export to XML
-Export-ScheduledTask -TaskName "Daily Backup" | Out-File "C:\Tasks\backup.xml"
+Export-ScheduledTask -TaskName "Daily Backup" | Out-File "C:\\Tasks\\backup.xml"
 
 # Import from XML
-Register-ScheduledTask -Xml (Get-Content "C:\Tasks\backup.xml" | Out-String) -TaskName "Daily Backup"
+Register-ScheduledTask -Xml (Get-Content "C:\\Tasks\\backup.xml" | Out-String) -TaskName "Daily Backup"
 ```
 
 ## Using schtasks.exe
 ```batch
 rem Create task
-schtasks /create /tn "My Task" /tr "C:\Scripts\script.bat" /sc daily /st 02:00
+schtasks /create /tn "My Task" /tr "C:\\Scripts\\script.bat" /sc daily /st 02:00
 
 rem Run task
 schtasks /run /tn "My Task"
@@ -1758,7 +1758,7 @@ Get-NetAdapter | Restart-NetAdapter
 
 ### Using netsh
 ```batch
-netsh trace start capture=yes tracefile=C:\capture.etl
+netsh trace start capture=yes tracefile=C:\\capture.etl
 rem Reproduce issue
 netsh trace stop
 ```
@@ -1810,7 +1810,7 @@ Disable-LocalUser -Name "Guest"
 
 ### Enable Automatic Updates
 ```powershell
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "NoAutoUpdate" -Value 0
+Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU" -Name "NoAutoUpdate" -Value 0
 ```
 
 ### Install Updates
@@ -1892,13 +1892,13 @@ Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
 
 ```powershell
 # Set UAC to highest level
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ConsentPromptBehaviorAdmin" -Value 2
+Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" -Name "ConsentPromptBehaviorAdmin" -Value 2
 ```
 
 ## Disable Autorun/Autoplay
 
 ```powershell
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "NoDriveTypeAutoRun" -Value 255
+Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" -Name "NoDriveTypeAutoRun" -Value 255
 ```
 
 ## Windows Defender
@@ -1936,20 +1936,20 @@ Get-WmiObject Win32_NetworkAdapterConfiguration -Filter "IPEnabled=TRUE" | ForEa
 
 ### Disable LLMNR
 ```powershell
-New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient" -Force
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient" -Name "EnableMulticast" -Value 0
+New-Item -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient" -Force
+Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient" -Name "EnableMulticast" -Value 0
 ```
 
 ## Remote Desktop Security
 
 ### Enable NLA
 ```powershell
-(Get-WmiObject -Class "Win32_TSGeneralSetting" -Namespace root\cimv2\terminalservices -Filter "TerminalName='RDP-tcp'").SetUserAuthenticationRequired(1)
+(Get-WmiObject -Class "Win32_TSGeneralSetting" -Namespace root\\cimv2\\terminalservices -Filter "TerminalName='RDP-tcp'").SetUserAuthenticationRequired(1)
 ```
 
 ### Change RDP Port
 ```powershell
-Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "PortNumber" -Value 3390
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name "PortNumber" -Value 3390
 ```
 
 ## Logging
@@ -1987,18 +1987,18 @@ Install-WindowsFeature -Name FS-FileServer,FS-Resource-Manager -IncludeManagemen
 ### Via PowerShell
 ```powershell
 # Create folder
-New-Item -Path "D:\Shares\Documents" -ItemType Directory
+New-Item -Path "D:\\Shares\\Documents" -ItemType Directory
 
 # Create share
-New-SmbShare -Name "Documents" -Path "D:\Shares\Documents" -FullAccess "Domain Admins" -ChangeAccess "Domain Users"
+New-SmbShare -Name "Documents" -Path "D:\\Shares\\Documents" -FullAccess "Domain Admins" -ChangeAccess "Domain Users"
 ```
 
 ### Set NTFS Permissions
 ```powershell
-$Acl = Get-Acl "D:\Shares\Documents"
+$Acl = Get-Acl "D:\\Shares\\Documents"
 $Ar = New-Object System.Security.AccessControl.FileSystemAccessRule("Domain Users","Modify","ContainerInherit,ObjectInherit","None","Allow")
 $Acl.SetAccessRule($Ar)
-Set-Acl "D:\Shares\Documents" $Acl
+Set-Acl "D:\\Shares\\Documents" $Acl
 ```
 
 ## Share Management
@@ -2015,8 +2015,8 @@ Get-SmbShareAccess -Name "Documents"
 
 ### Modify Share Permissions
 ```powershell
-Grant-SmbShareAccess -Name "Documents" -AccountName "DOMAIN\IT" -AccessRight Full -Force
-Revoke-SmbShareAccess -Name "Documents" -AccountName "DOMAIN\Guest" -Force
+Grant-SmbShareAccess -Name "Documents" -AccountName "DOMAIN\\IT" -AccessRight Full -Force
+Revoke-SmbShareAccess -Name "Documents" -AccountName "DOMAIN\\Guest" -Force
 ```
 
 ### Remove Share
@@ -2033,18 +2033,18 @@ Install-WindowsFeature -Name FS-Resource-Manager -IncludeManagementTools
 
 ### Create Quota
 ```powershell
-New-FsrmQuota -Path "D:\Shares\Documents" -Size 10GB -Threshold 90
+New-FsrmQuota -Path "D:\\Shares\\Documents" -Size 10GB -Threshold 90
 ```
 
 ### File Screen (Block File Types)
 ```powershell
 # Block executable files
-New-FsrmFileScreen -Path "D:\Shares\Documents" -Template "Block Executable Files"
+New-FsrmFileScreen -Path "D:\\Shares\\Documents" -Template "Block Executable Files"
 ```
 
 ### Storage Reports
 ```powershell
-New-FsrmStorageReport -Name "Disk Usage" -Namespace "D:\Shares" -ReportType LargeFiles,FileScreenAudit -Interactive
+New-FsrmStorageReport -Name "Disk Usage" -Namespace "D:\\Shares" -ReportType LargeFiles,FileScreenAudit -Interactive
 ```
 
 ## Access-Based Enumeration
@@ -2081,12 +2081,12 @@ Install-WindowsFeature -Name FS-DFS-Namespace,FS-DFS-Replication -IncludeManagem
 
 ### Create DFS Namespace
 ```powershell
-New-DfsnRoot -Path "\\domain.com\Files" -TargetPath "\\fileserver1\Files" -Type DomainV2
+New-DfsnRoot -Path "\\domain.com\\Files" -TargetPath "\\fileserver1\\Files" -Type DomainV2
 ```
 
 ### Add DFS Folder
 ```powershell
-New-DfsnFolder -Path "\\domain.com\Files\Documents" -TargetPath "\\fileserver1\Documents"
+New-DfsnFolder -Path "\\domain.com\\Files\\Documents" -TargetPath "\\fileserver1\\Documents"
 ```
 
 ## Monitoring
