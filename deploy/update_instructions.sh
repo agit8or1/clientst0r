@@ -263,10 +263,57 @@ fi
 log ""
 log "Step 5/5: Scheduling service restart..."
 
-# Purge __pycache__ and .pyc files so no stale bytecode survives the update.
-find "$BASE_DIR" -type f -name "*.pyc" -delete 2>/dev/null || true
-find "$BASE_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-log "Bytecode cache cleared"
+# Refresh bytecode for the project's own packages, then pre-compile it.
+#
+# v3.17.513: this used to `find "$BASE_DIR"` unscoped, which cost twice over.
+# BASE_DIR is a home directory, not just the app — on a working host it can
+# also hold an android-sdk, an Expo checkout, a snap dir and assorted archives,
+# so the walk covered gigabytes to delete a few hundred files. Worse, it wiped
+# the venv's bytecode as well, which pip manages perfectly well itself: every
+# worker the reload forked then had to recompile the whole of Django before it
+# could serve a request, while the old workers were already being retired.
+# That window is what cost 2 requests out of 423 in the v3.17.512 measurement.
+#
+# Now: discover the project's own Python packages (top-level dirs holding an
+# __init__.py — ~0.02s, no deep walk), purge only those, then compile them
+# ahead of the reload so new workers boot warm. Roughly 2s in total, and it
+# happens while the old workers are still serving, so it costs update duration
+# rather than downtime.
+# Match on the top-level directory NAME (grep -vx = whole line), not on the
+# absolute path: a install rooted at, say, /srv/mobile/app must not exclude
+# itself just because "mobile" appears somewhere in its path.
+PKG_DIRS=$(find "$BASE_DIR" -maxdepth 2 -mindepth 2 -name '__init__.py' -printf '%h\n' 2>/dev/null \
+    | sed "s|^$BASE_DIR/||" \
+    | grep -vxE "(venv|\.venv|env|node_modules|mobile|mobile-app|android-sdk|snap|local_apps|\.dev-worktree)" \
+    | sed "s|^|$BASE_DIR/|" \
+    | sort -u || true)
+
+if [ -n "$PKG_DIRS" ]; then
+    while IFS= read -r pkg; do
+        [ -n "$pkg" ] || continue
+        find "$pkg" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+    done <<< "$PKG_DIRS"
+    log "Bytecode cache cleared for $(echo "$PKG_DIRS" | wc -l) project package(s)"
+
+    # Anything left behind is a __pycache__ this user cannot delete — almost
+    # always root-owned, from a manage.py run under sudo. The purge above hides
+    # that (2>/dev/null), and it stayed invisible for a long time; say it out
+    # loud instead, because those directories also block the pre-compile below.
+    STUCK=$(echo "$PKG_DIRS" | while IFS= read -r pkg; do
+        [ -n "$pkg" ] && find "$pkg" -type d -name "__pycache__" 2>/dev/null
+    done | wc -l)
+    if [ "$STUCK" -gt 0 ]; then
+        log "[WARN] $STUCK __pycache__ dir(s) could not be removed (likely root-owned)."
+        log "[WARN] Fix with: sudo chown -R \$(whoami) \$(find $BASE_DIR -maxdepth 3 -type d -name __pycache__ | tr '\\n' ' ')"
+    fi
+
+    # Unquoted on purpose: compileall takes the package dirs as separate args.
+    ( "$VENV_DIR/bin/python" -m compileall -q -j 0 $PKG_DIRS >/dev/null 2>&1 \
+        && log "Bytecode pre-compiled — reloaded workers boot warm" ) \
+        || log "[WARN] Bytecode pre-compile failed (non-critical — workers compile on demand)"
+else
+    log "[WARN] No project packages discovered — skipping bytecode refresh"
+fi
 
 # v3.17.421 — write the "completed" status to the progress JSON file
 # DIRECTLY from bash, BEFORE the reload signal is sent. The Python

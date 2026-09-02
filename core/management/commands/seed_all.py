@@ -79,6 +79,6 @@ class Command(BaseCommand):
         self.stdout.write('Next steps:')
         self.stdout.write('  • Navigate to Knowledge Base to see articles')
         self.stdout.write('  • Equipment catalog is available when creating assets')
-        self.stdout.write('  • Users can delete items they don\\'t need')
+        self.stdout.write("  • Users can delete items they don't need")
         self.stdout.write('  • Asset filtering is available on Assets page')
         self.stdout.write('')

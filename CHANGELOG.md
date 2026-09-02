@@ -5,6 +5,60 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.513] - 2026-09-02
+
+### Fix: close the last downtime window in updates — scoped bytecode purge + pre-compile
+
+v3.17.512 made updates use a graceful reload instead of a restart, but measuring one showed it
+wasn't quite zero: **2 requests out of 423** exceeded a 5-second budget at the moment of handover.
+The gunicorn log explained why — new workers boot, and old ones are SIGTERMed one second later:
+
+```
+14:16:58  Handling signal: hup
+14:16:58  Booting worker with pid: 930087 / 930089 / 930090 / 930092
+14:16:59  Worker (pid:926458) was sent SIGTERM!
+```
+
+One second is not enough, because step 5 deleted **every** `.pyc` under `BASE_DIR` immediately
+beforehand — including the virtualenv's. Each fresh worker therefore had to recompile the whole of
+Django from source before it could serve anything, while the old workers were already retiring.
+
+Two problems with that purge, both fixed:
+
+- **It was unscoped.** `BASE_DIR` is a home directory, not just the app. On this host it also holds
+  a 4.6 GB `android-sdk`, a 1.8 GB Expo checkout, and `snap`, `mobile-app` and `local_apps` dirs —
+  so the walk covered gigabytes to delete a few hundred files.
+- **It wiped the venv.** `site-packages` bytecode is pip's to manage; destroying it bought nothing
+  and caused the entire cold-start cost.
+
+Step 5 now discovers the project's own Python packages (top-level dirs holding an `__init__.py` —
+**0.015s**, no deep walk), purges only those, and pre-compiles them before signalling the reload, so
+new workers boot warm. Measured at **~2s**, and it runs while the old workers are still serving, so
+it costs update duration rather than downtime. The naive whole-tree alternative measured **162s**.
+
+Two things fell out of building it:
+
+- **The purge has been silently failing for a long time.** 22 `__pycache__` directories were
+  root-owned (from a `manage.py` run under sudo), so `rm -rf` as the service user could never remove
+  them — and `2>/dev/null || true` hid it every time. The step now counts what it could not delete
+  and logs a `[WARN]` with the exact `chown` to fix it, instead of pretending it worked.
+- **`core/management/commands/seed_all.py` did not parse at all.** Line 82 had
+  `'... they don\\'t need'` — an escaped backslash followed by a quote, which ends the string
+  early. `manage.py seed_all` would have died with a `SyntaxError` on invocation. Django imports a
+  management command only when it is run, so nothing had ever touched the module. The new
+  pre-compile step parses every file, and found it in seconds.
+
+### Added
+
+- `core/tests/test_source_syntax.py` — parses every Python file the project ships, so a file that
+  cannot be imported can never reach a release again. Covers `SyntaxError` and `UnicodeDecodeError`,
+  and guards its own discovery so it cannot pass vacuously.
+
+Known and deliberately left alone: 15 `SyntaxWarning: invalid escape sequence` across two KB seeding
+commands (Windows paths like `C:\gpreport.html` inside article bodies). Harmless today, a
+`SyntaxError` in some future Python. Fixing them means editing seeded article content, so it wants
+its own change with its own before/after comparison.
+
 ## [3.17.512] - 2026-09-02
 
 ### Fix: updates are now zero-downtime — the gunicorn unit had no `ExecReload`
