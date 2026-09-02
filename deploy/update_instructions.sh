@@ -353,6 +353,26 @@ fi
 SYSTEMCTL=$(command -v systemctl 2>/dev/null || true)
 SYSTEMD_RUN=$(command -v systemd-run 2>/dev/null || true)
 
+# v3.17.515: warn when the installed unit has drifted from the one in the repo.
+# `git pull` updates deploy/clientst0r-gunicorn.service but nothing re-installs
+# it, so a change to ExecStart ships and then never reaches the running service.
+# That is not hypothetical: v3.17.500 raised --timeout 180 -> 300 to stop AI
+# generation being SIGKILLed mid-request (issue #138), and this host was still
+# running 180 fourteen releases later, with nothing anywhere reporting it.
+# Warn only — never overwrite, since an operator may have tuned the unit on
+# purpose (worker count, bind address, resource limits).
+UNIT_SRC="$BASE_DIR/deploy/${SERVICE:-clientst0r-gunicorn.service}"
+UNIT_DEST="/etc/systemd/system/${SERVICE:-clientst0r-gunicorn.service}"
+if [ -n "$SERVICE" ] && [ -f "$UNIT_SRC" ] && [ -f "$UNIT_DEST" ]; then
+    if ! diff -q <(grep -vE '^\s*(#|$)' "$UNIT_SRC") <(grep -vE '^\s*(#|$)' "$UNIT_DEST") >/dev/null 2>&1; then
+        log "[WARN] Installed unit differs from $UNIT_SRC — the running service"
+        log "[WARN] is NOT what this release ships. Review with:"
+        log "[WARN]   diff $UNIT_SRC $UNIT_DEST"
+        log "[WARN] To adopt it: sudo cp $UNIT_SRC $UNIT_DEST && sudo systemctl daemon-reload"
+        log "[WARN] (ExecStart changes need a restart, not a reload, to take effect.)"
+    fi
+fi
+
 if [ -n "$SERVICE" ] && [ -n "$SYSTEMCTL" ]; then
     # Graceful reload: sends SIGHUP to the gunicorn master (ExecReload=kill -HUP $MAINPID).
     # Workers are replaced one-by-one while the master stays alive — zero downtime.

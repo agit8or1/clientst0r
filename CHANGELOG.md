@@ -5,6 +5,43 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.515] - 2026-09-02
+
+### Fix: stale sudoers service names, unit drift, and the silent gap that caused both
+
+Two loose ends from the v3.17.492 rename, plus the reason neither was ever noticed.
+
+**Sudoers still named the pre-rename services.** `/etc/sudoers.d/clientst0r-auto-update` granted
+`systemctl restart huduglue-gunicorn.service` and four siblings — none of which exist any more. The
+rename updated `scripts/install_auto_update.sh`, but nothing re-runs that script on update, so the
+installed file kept the old names. Three further files (`huduglue-auto-update`, `huduglue-fail2ban`,
+`huduglue-install`) were left behind as exact duplicates of their `clientst0r-*` replacements,
+differing only in a comment header.
+
+The generator now also grants **`systemctl reload`**, which the zero-downtime path added in
+v3.17.512 actually depends on — without that rule an update silently falls back to a restart on any
+host that doesn't have blanket sudo. And `systemd-run` and `pkill`, previously granted bare, are
+pinned to the exact invocations the updater issues; unrestricted, either one is a root shell in all
+but name.
+
+**The unit file had drifted, and it mattered.** v3.17.500 raised the gunicorn worker timeout from
+180s to 300s so AI documentation generation would stop being SIGKILLed mid-request and returning an
+HTML 500 instead of JSON (issue #138). That change landed in `deploy/clientst0r-gunicorn.service` —
+and stopped there. `update_instructions.sh` does a `git pull`; **nothing re-installs the unit**. The
+host had been running the old 180s for fourteen releases, so the fix for #138 shipped but never took
+effect, and nothing anywhere said so.
+
+Step 5 now diffs the installed unit against the one in the repo (comments and blank lines ignored)
+and warns when they differ, with the exact commands to review and adopt. It **warns only, never
+overwrites** — an operator may have tuned worker count, bind address or resource limits on purpose.
+The warning also notes that `ExecStart` changes need a restart rather than a reload, since a reload
+re-execs workers under the master's existing command line.
+
+Applied to this host: sudoers regenerated (validated with `visudo -c` before install), three stale
+files removed, unit brought to `--timeout 300`. That last one required a genuine restart — measured
+at 8 failed requests out of 55, ~2s — which is precisely the contrast with the reload path's 0/394,
+and the reason unit drift is worth catching at update time rather than discovering later.
+
 ## [3.17.514] - 2026-09-02
 
 ### Fix: backslash escapes in seeded KB articles — including six that were silently corrupting content

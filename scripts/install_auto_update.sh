@@ -59,13 +59,29 @@ echo "Adding sudo permissions for auto-update..."
 SUDOERS_FILE="/etc/sudoers.d/clientst0r-auto-update"
 cat > /tmp/clientst0r-auto-update-sudoers << EOF
 # Allow $CURRENT_USER to restart client st0r services without password
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-gunicorn.service
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-scheduler.service
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-psa-sync.service
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-rmm-sync.service
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-monitor.service
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl is-active clientst0r-*.service
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl status clientst0r-*.service
+# Zero-downtime reload — the path deploy/update_instructions.sh prefers
+# (v3.17.512). Without this rule an update silently falls back to a restart.
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload clientst0r-gunicorn.service
+
+# Restart fallbacks, used only when a reload is unavailable. systemd-run and
+# pkill are pinned to the exact invocations the updater issues — granted bare,
+# either one is a root shell in all but name.
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-gunicorn.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemd-run --on-active=3 --system /usr/bin/systemctl restart clientst0r-gunicorn.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/pkill -HUP -f gunicorn.*wsgi\:application
+
+# Lifecycle + status.
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl start clientst0r-gunicorn.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop clientst0r-gunicorn.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active clientst0r-*.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl status clientst0r-*.service
+
+# Sibling units the updater and the settings UI restart.
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-scheduler.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-psa-sync.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-rmm-sync.service
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-monitor.service
 EOF
 
 sudo cp /tmp/clientst0r-auto-update-sudoers "$SUDOERS_FILE"
