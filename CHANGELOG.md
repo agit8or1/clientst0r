@@ -5,6 +5,38 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.519] - 2026-09-02
+
+### Fix: mobile build setup no longer needs sudo on every update
+
+Direct fallout from v3.17.518. With blanket `NOPASSWD:ALL` removed, `deploy/setup_mobile_build.sh`
+started failing again — it does `sudo cp` into `/etc/sudoers.d/`, which is deliberately **not** in
+the least-privilege ruleset. The `[WARN] Mobile build setup failed` line came back, for an entirely
+different reason than the one fixed in v3.17.516:
+
+```
+sudo: a terminal is required to read the password...
+sudo: a password is required
+[WARN] Mobile build setup failed (non-critical)
+```
+
+The step ran unconditionally on every update, re-copying a file whose content changes only when the
+template does. It now:
+
+- **Skips when nothing changed.** `/etc/sudoers.d` is root-only, so the installed file cannot be
+  read — or even stat'ed — to compare against. The script therefore records the hash of what it last
+  installed in `~/.cache/clientst0r/mobile-build-sudoers.sha256` and skips when the template still
+  hashes the same.
+- **Exits 0 with guidance when the copy genuinely cannot be done**, instead of failing. The grant is
+  optional — it covers only the first-run Node.js bootstrap, and mobile builds work anywhere Node
+  and npm are already installed. Failing every update adds noise, not information; the message says
+  exactly which one-time command to run to enable it.
+
+Worth recording, because it cost a debugging cycle: the stamp compares
+`printf '%s' "$(sed ... file)"`, and command substitution strips trailing newlines — so a hash
+computed by piping the file directly into `sha256sum` will never match one computed the script's
+way. Both sides must use the same method.
+
 ## [3.17.518] - 2026-09-02
 
 ### Security: least-privilege sudo that actually covers the app — prerequisite for dropping blanket NOPASSWD
