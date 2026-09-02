@@ -1,0 +1,32 @@
+# Sudoers rules for Client St0r mobile app building.
+# Installed by deploy/setup_mobile_build.sh (and install.sh) to:
+#   /etc/sudoers.d/clientst0r-mobile-build
+#
+# Scope: these grants exist ONLY for the first-run Node.js bootstrap in
+# core/management/commands/build_mobile_app.py, which fires when `curl` or
+# `npm` is absent. Every rule below corresponds to a literal invocation in
+# that file — nothing more.
+#
+# v3.17.516: restored after the v3.17.492 rename deleted the huduglue-named
+# file and the replacement was silently swallowed by the `deploy/*-sudoers`
+# .gitignore rule, so every update since logged
+# "[WARN] Mobile build setup failed". Two deliberate changes on restore:
+#
+#   * Dropped `npm install *` and `npm *`. Nothing in the codebase ever ran
+#     npm under sudo, and `NOPASSWD: /usr/bin/npm *` is root in all but name —
+#     npm executes arbitrary lifecycle scripts from any package it installs.
+#   * `/bin/bash` -> `/usr/bin/bash` and added `curl`, to match what
+#     build_mobile_app.py actually invokes. The old /bin/bash rule could never
+#     match the command it was written for.
+
+# Node.js bootstrap — apt metadata + the two packages the builder installs.
+administrator ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
+administrator ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y curl
+administrator ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y nodejs
+
+# NodeSource repository setup script, downloaded to a fixed path by the builder
+# immediately before this runs.
+administrator ALL=(ALL) NOPASSWD: /usr/bin/bash /tmp/nodesource_setup.sh
+
+# For a different service user, replace 'administrator' above —
+# setup_mobile_build.sh does this substitution automatically on install.

@@ -5,6 +5,47 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.516] - 2026-09-02
+
+### Fix: "[WARN] Mobile build setup failed" on every update — a template git refused to track
+
+Every update since v3.17.492 logged `[WARN] Mobile build setup failed (non-critical)`. The cause
+was three layers deep.
+
+`deploy/setup_mobile_build.sh` copies `deploy/clientst0r-mobile-build-sudoers` into
+`/etc/sudoers.d/`. **That template did not exist.** The v3.17.492 rename deleted the
+`huduglue-`named original, and the replacement was never committed — `.gitignore` carried a blanket
+`deploy/*-sudoers` rule, meant for generated output, so **git silently ignored the new template**.
+The script's only symptom was a bare `cp: cannot stat`, swallowed behind a generic warning. Nothing
+failed loudly, so nothing got looked at, for 23 releases.
+
+Fixed at all three layers:
+
+- **The template is restored**, and `.gitignore` now carries explicit `!` negations for the three
+  shipped sudoers templates, so a real template can never again be un-addable while genuinely
+  generated ones stay ignored.
+- **The script now says what is wrong** — naming the missing file and noting that mobile builds
+  still work anywhere Node.js and npm are already installed — rather than emitting a bare `cp`
+  error behind a generic warning.
+- **`core/tests/test_deploy_assets.py`** asserts that every `*-sudoers` a deploy script copies
+  exists in the repo, and that no shipped template sits under a blanket ignore without a negation.
+  Verified to fail when the template is removed.
+
+### Security: the restored grants are narrower than the ones they replace
+
+The deleted file granted `NOPASSWD: /usr/bin/npm install *` and `NOPASSWD: /usr/bin/npm *`. Both are
+dropped. Nothing in the codebase has ever run npm under sudo, and `npm *` as root is root in all but
+name — npm executes arbitrary lifecycle scripts from any package it installs.
+
+What remains is exactly the four commands `core/management/commands/build_mobile_app.py` invokes for
+its first-run Node bootstrap (and only when `curl` or `npm` is absent): `apt-get update`,
+`apt-get install -y curl`, `apt-get install -y nodejs`, and `bash /tmp/nodesource_setup.sh`. The
+path was also corrected from `/bin/bash` to `/usr/bin/bash` — the old rule could never have matched
+the command it was written for.
+
+On this host the correctly-scoped `/etc/sudoers.d/clientst0r-mobile-build` is installed and the
+stale `huduglue-mobile-build` removed, so `/etc/sudoers.d/` is now free of pre-rename names.
+
 ## [3.17.515] - 2026-09-02
 
 ### Fix: stale sudoers service names, unit drift, and the silent gap that caused both
