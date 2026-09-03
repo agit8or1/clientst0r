@@ -89,8 +89,8 @@
     <hr>
     <h5><i class="fas fa-globe"></i> GeoIP restrictions</h5>
 
-    {# v3.17.522 — pick countries on the map; it writes into the two inputs below,
-       which remain the form's actual fields (and the fallback without JS). #}
+    {% comment %} v3.17.522 — pick countries on the map; it writes into the two inputs below,
+       which remain the form's actual fields (and the fallback without JS). {% endcomment %}
     <div class="col-12">
         {% include "core/_geoip_map.html" with map_id="vault-geoip-map" height="420px" %}
     </div>

@@ -117,3 +117,43 @@ class SourceSyntaxTests(SimpleTestCase):
             failures, [],
             'Python files that will not parse:\n  ' + '\n  '.join(failures),
         )
+
+
+class TemplateCommentTests(SimpleTestCase):
+    """Django's `{# #}` comment is single-line only.
+
+    Spread one over two lines and it stops being a comment: Django renders the
+    text verbatim into the page. There is no error and no warning — the note you
+    wrote for the next developer is simply displayed to every user.
+
+    v3.17.525: ten templates were doing this. One of them printed a rationale
+    about which sudo commands the updater is granted onto the Settings > Updates
+    page. `{% comment %}...{% endcomment %}` is the multi-line form.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.base = Path(__file__).resolve().parent.parent.parent
+        cls.templates = sorted((cls.base / 'templates').rglob('*.html'))
+
+    def test_templates_are_discovered(self):
+        self.assertGreater(len(self.templates), 50,
+                           'template sweep found suspiciously few files')
+
+    def test_no_multi_line_hash_comments(self):
+        offenders = []
+        for path in self.templates:
+            text = path.read_text(encoding='utf-8', errors='replace')
+            for lineno, line in enumerate(text.splitlines(), 1):
+                head, sep, tail = line.partition('{#')
+                if sep and '#}' not in tail:
+                    rel = path.relative_to(self.base)
+                    offenders.append(f'{rel}:{lineno}: {tail.strip()[:60]}')
+
+        self.assertEqual(
+            offenders, [],
+            'Unterminated `{#` — Django renders these to the user verbatim. '
+            'Use {% comment %}...{% endcomment %} for multi-line comments:\n  '
+            + '\n  '.join(offenders),
+        )

@@ -32,8 +32,8 @@
             <span class="text-muted">— created <span data-utc="{{ ticket.created_at|date:'c' }}">{{ ticket.created_at|date:'Y-m-d H:i' }}</span></span>
         </p>
 
-        {# v3.17.236 — Phase 12: portal-side escalation. Gated on
-           psa_portal_escalation_enabled (v3.17.243). #}
+        {% comment %} v3.17.236 — Phase 12: portal-side escalation. Gated on
+           psa_portal_escalation_enabled (v3.17.243). {% endcomment %}
         {% if escalation_enabled and not ticket.status.is_terminal %}
         <details class="mb-2">
             <summary class="text-danger small" style="cursor: pointer;">

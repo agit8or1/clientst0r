@@ -5,6 +5,39 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.525] - 2026-09-03
+
+### Fix: developer comments were being displayed to users on ten pages
+
+A comment on the dashboard was showing up as literal text on the page. The cause
+is a Django rule that is easy to miss: **`{# ... #}` is a single-line comment
+only**. Spread one across two lines and it stops being a comment — Django renders
+it verbatim into the page, with no error and no warning. The note you wrote for
+the next developer is simply shown to every user.
+
+The dashboard one arrived in v3.17.524 and was reported immediately, but a sweep
+of `templates/` found it was not new: **ten templates** were doing this, some for
+many releases. All are converted to `{% comment %}...{% endcomment %}`, which is
+the multi-line form:
+
+- `core/dashboard.html` — the v3.17.524 panel note (reported)
+- `core/system_updates.html` — printed a rationale about exactly which sudo
+  commands the updater is granted, onto the Settings > Updates page
+- `core/mobile_apps_admin.html`, `portal/ticket_detail.html`,
+  `psa/client_settings.html`, `psa/ticket_create.html`,
+  `psa/_link_to_problem_form.html`, `psa/_scope_banner.html`,
+  `reports/crm_sales_funnel.html`, `vault/access_rule_form.html`
+
+None of the ten contained template tags inside the comment text, so nothing was
+executing that now stops executing — the change removes the leaked prose and
+nothing else.
+
+**Guarded two ways.** `TemplateCommentTests` in `core/tests/test_source_syntax.py`
+sweeps every shipped template and fails on any unterminated `{#`, so this cannot
+come back anywhere in the codebase. The dashboard render test additionally
+asserts no raw template syntax survives into the response for the page it
+happened on.
+
 ## [3.17.524] - 2026-09-03
 
 ### Feature: the dashboard now shows what needs doing, not what already happened

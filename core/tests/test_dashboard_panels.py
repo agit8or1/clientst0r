@@ -332,6 +332,18 @@ class DashboardRenderTests(TestCase):
             self.assertNotIn(gone_key, response.context,
                              f'{gone_key} is dead context — nothing reads it')
 
+    def test_no_template_syntax_leaks_into_the_page(self):
+        """v3.17.525: a `{# #}` comment spread over two lines is not a comment.
+
+        Django rendered it to the page verbatim and said nothing. The repo-wide
+        guard lives in test_source_syntax.TemplateCommentTests; this asserts the
+        rendered result for the page it actually happened on.
+        """
+        body = self.client.get(reverse('core:dashboard')).content.decode()
+        for marker in ('{#', '#}', '{%', '%}'):
+            self.assertNotIn(marker, body,
+                             f'unrendered template syntax {marker!r} in the page')
+
     def test_empty_state_renders(self):
         response = self.client.get(reverse('core:dashboard'))
         self.assertEqual(response.status_code, 200)

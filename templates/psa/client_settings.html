@@ -51,11 +51,11 @@
 </div>
 {% endif %}
 
-{# OVERRIDE form — only needed when admin wants to change the auto-decision.
+{% comment %} OVERRIDE form — only needed when admin wants to change the auto-decision.
    With an external PSA active the master "enabled" toggle is forced off
    and disabled (the auto-opt-out is a hard rule). Per-surface flags are
    still adjustable for record-keeping but have no effect when the master
-   is off. #}
+   is off. {% endcomment %}
 <div class="card mt-3">
     <div class="card-header">
         <strong>Override</strong>

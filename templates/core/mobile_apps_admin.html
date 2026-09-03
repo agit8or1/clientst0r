@@ -57,13 +57,13 @@
                     </span>
                 </div>
 
-                {# v3.17.429 — single-button UX. The previous design had
+                {% comment %} v3.17.429 — single-button UX. The previous design had
                    two separate flows (Rebuild + Build & download) which
                    confused the workflow. Now there's one primary action
                    per state: Download (when ready) or Build (when not).
                    Rebuild is folded into the build flow — clicking Build
                    while an APK exists triggers wipe-then-rebuild via the
-                   `?rebuild=1` query parameter handled by `download_mobile_app`. #}
+                   `?rebuild=1` query parameter handled by `download_mobile_app`. {% endcomment %}
                 {% if android.available %}
                     <p class="build-meta mb-2">
                         {{ android.size_mb }} MB · {% trans "Built" %} {{ android.mtime|timesince }} {% trans "ago" %}

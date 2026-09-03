@@ -140,9 +140,9 @@
         </div>
         {% endif %}
 
-        {# Optional workflow attachment — pick a Process template and the
+        {% comment %} Optional workflow attachment — pick a Process template and the
            ticket will be created with that workflow's checklist already
-           embedded (you can also attach one later via Launch Workflow). #}
+           embedded (you can also attach one later via Launch Workflow). {% endcomment %}
         <div class="mb-0 mt-3">
             <label class="form-label"><i class="fas fa-diagram-project me-1 text-muted"></i>Attach a workflow <span class="text-muted small">(optional)</span></label>
             <select name="workflow_id" class="form-select">

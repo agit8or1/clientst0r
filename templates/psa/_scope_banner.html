@@ -1,9 +1,9 @@
-{# Scope banner for the PSA section.
+{% comment %} Scope banner for the PSA section.
    - When a current_organization is set: shows a green client-context chip.
    - When in global view (superuser/staff, no current_organization): shows
      a sticky yellow banner with a one-click client picker.
    Reuses accounts:switch_organization and user_organizations from the
-   org-switcher context_processor — no extra context required. #}
+   org-switcher context_processor — no extra context required. {% endcomment %}
 
 {% if current_organization %}
 <div class="alert alert-light border d-flex align-items-center gap-2 py-2 mb-3"

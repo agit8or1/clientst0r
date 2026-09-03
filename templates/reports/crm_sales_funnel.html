@@ -62,8 +62,8 @@
             {% with stages=funnel.stages %}
             {% for stage in stages %}
                 {% with sf=forloop.counter0 %}
-                {# Bar width shrinks with each stage. Use the first non-zero count
-                   as the divisor so the chart is meaningful even with empty stages. #}
+                {% comment %} Bar width shrinks with each stage. Use the first non-zero count
+                   as the divisor so the chart is meaningful even with empty stages. {% endcomment %}
                 {% if forloop.first %}
                     {% with first_count=stage.count %}
                     <div class="d-flex align-items-center mb-2">
@@ -81,8 +81,8 @@
                     </div>
                     {% endwith %}
                 {% else %}
-                    {# Compute width as percentage of stage[0].count
-                       Fall-through approach: use raw stage.count and let div size show shrinkage. #}
+                    {% comment %} Compute width as percentage of stage[0].count
+                       Fall-through approach: use raw stage.count and let div size show shrinkage. {% endcomment %}
                     <div class="d-flex align-items-center mb-2">
                         <div style="width: 130px;"><strong>{{ stage.name }}</strong></div>
                         <div class="flex-grow-1">

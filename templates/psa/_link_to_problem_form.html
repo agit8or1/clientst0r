@@ -1,6 +1,6 @@
-{# Reusable widget: link the current ticket to a problem.
+{% comment %} Reusable widget: link the current ticket to a problem.
    Caller should pass `form_id` (unique per page) and `pk_input_id`.
-   Requires `ticket` in context (ticket.ticket_number). #}
+   Requires `ticket` in context (ticket.ticket_number). {% endcomment %}
 <form method="post" action="" id="{{ form_id }}">
     {% csrf_token %}
     <input type="hidden" name="ticket_number" value="{{ ticket.ticket_number }}">

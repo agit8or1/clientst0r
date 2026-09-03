@@ -123,11 +123,11 @@
                 <p class="mb-2"><strong>Run this command once on your server:</strong></p>
                 <div class="bg-dark text-light p-3 rounded" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
                     <div class="mb-2 text-white">sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<'SUDOERS'</div>
-                    {# v3.17.520: was a single line granting /usr/bin/systemd-run and
+                    {% comment %} v3.17.520: was a single line granting /usr/bin/systemd-run and
                        /usr/bin/tee bare — either of which is root in all but name, since
                        systemd-run runs any command as root and tee writes any file it is
                        pointed at. Narrowed to exactly what the updater issues; keep this in
-                       step with scripts/install_auto_update.sh. #}
+                       step with scripts/install_auto_update.sh. {% endcomment %}
                     <div class="mb-2 text-white">administrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload clientst0r-gunicorn.service</div>
                     <div class="mb-2 text-white">administrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-gunicorn.service</div>
                     <div class="mb-2 text-white">administrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl status clientst0r-gunicorn.service</div>
