@@ -3,6 +3,7 @@ Auto-split fragment of the legacy `psa/tests.py` (v3.17.192).
 See `psa/tests/__init__.py` for the rationale.
 """
 from datetime import timedelta
+from unittest import mock
 
 from django.conf import settings as django_settings
 from django.contrib.auth.models import User
@@ -873,6 +874,84 @@ class InvoiceApprovalGateTests(TestCase):
         self.assertEqual(r.status_code, 302)
         inv.refresh_from_db()
         self.assertEqual(inv.accounting_external_id, '')
+
+    # --- v3.17.526: double-push guard -------------------------------------
+    # The provider creates a NEW invoice on every push_invoice() call, so the
+    # button was one stray double-click away from putting two invoices in front
+    # of a client's accounts payable. Deduplication existed only as a report
+    # that found them after the fact.
+
+    def _push_client(self):
+        from django.test import Client
+        c = Client()
+        c.force_login(self.admin)
+        s = c.session
+        s['2fa_prompted'] = True
+        s['current_organization_id'] = self.org.id
+        s.save()
+        return c
+
+    def _pushed_invoice(self, **kwargs):
+        from psa.models import Invoice
+        from datetime import date
+        from decimal import Decimal as _D
+        from django.utils import timezone as _tz
+        defaults = dict(
+            organization=self.org, client_org=self.client_org,
+            title='Already pushed', invoice_date=date.today(), total=_D('500'),
+            accounting_provider='quickbooks_online',
+            accounting_external_id='QBO-1001',
+            pushed_to_accounting_at=_tz.now(),
+        )
+        defaults.update(kwargs)
+        return Invoice.objects.create(**defaults)
+
+    def test_second_push_is_refused(self):
+        inv = self._pushed_invoice()
+        with mock.patch(
+            'integrations.providers.accounting.get_accounting_provider'
+        ) as get_provider:
+            r = self._push_client().post(f'/psa/invoices/{inv.pk}/push/')
+        self.assertEqual(r.status_code, 302)
+        get_provider.assert_not_called()
+        inv.refresh_from_db()
+        self.assertEqual(inv.accounting_external_id, 'QBO-1001')
+
+    def test_refusal_names_the_existing_provider_id(self):
+        """The operator has to be able to go look the invoice up."""
+        inv = self._pushed_invoice()
+        with mock.patch('integrations.providers.accounting.get_accounting_provider'):
+            r = self._push_client().post(
+                f'/psa/invoices/{inv.pk}/push/', follow=True)
+        text = ' '.join(str(m) for m in r.context['messages'])
+        self.assertIn('QBO-1001', text)
+        self.assertIn('Quickbooks Online', text)
+
+    def test_force_allows_a_deliberate_re_push(self):
+        inv = self._pushed_invoice()
+        with mock.patch(
+            'integrations.providers.accounting.get_accounting_provider'
+        ) as get_provider:
+            get_provider.return_value = None      # stop before a real API call
+            r = self._push_client().post(
+                f'/psa/invoices/{inv.pk}/push/', {'force': '1'})
+        self.assertEqual(r.status_code, 302)
+        # Got past the guard: connection resolution ran and asked for a provider.
+        self.assertTrue(
+            get_provider.called,
+            'force=1 must get past the double-push guard')
+
+    def test_never_pushed_invoice_is_unaffected(self):
+        """The guard must not block a genuine first push."""
+        inv = self._pushed_invoice(
+            title='Fresh', accounting_provider='', accounting_external_id='',
+            pushed_to_accounting_at=None)
+        with mock.patch(
+            'integrations.providers.accounting.get_accounting_provider'
+        ) as get_provider:
+            get_provider.return_value = None
+            self._push_client().post(f'/psa/invoices/{inv.pk}/push/')
+        self.assertTrue(get_provider.called)
 
     def test_request_approval_view_sets_flag(self):
         from psa.models import Invoice

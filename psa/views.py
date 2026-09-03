@@ -4188,6 +4188,32 @@ def invoice_push_to_accounting(request, pk):
         )
         return redirect('psa:invoice_detail', pk=invoice.pk)
 
+    # v3.17.526: refuse to push an invoice that already carries a provider id.
+    # The push is not idempotent — the provider creates a new invoice on every
+    # call — so a double-click, a browser resend or an impatient second click
+    # put duplicate invoices in front of the client's accounts payable. The
+    # reconciliation report at /reports/accounting-reconciliation/ has only ever
+    # caught these *after* they existed in the accounting system.
+    #
+    # A re-push is still possible (the invoice was deleted provider-side, say)
+    # but it now has to be asked for explicitly rather than being one stray
+    # click away.
+    if invoice.accounting_external_id and not request.POST.get('force'):
+        pushed = invoice.pushed_to_accounting_at
+        # `accounting_provider` is a plain CharField with no choices, so there
+        # is no get_..._display() to call — format the stored slug instead.
+        where = (invoice.accounting_provider or '').replace('_', ' ').title() \
+            or 'an accounting provider'
+        messages.warning(
+            request,
+            f'Invoice {invoice.invoice_number} was already pushed to {where} '
+            f'as id {invoice.accounting_external_id}'
+            + (f' on {pushed:%Y-%m-%d %H:%M}' if pushed else '')
+            + '. Pushing again would create a second invoice there. Use '
+              '"Re-push" if that is genuinely what you want.',
+        )
+        return redirect('psa:invoice_detail', pk=invoice.pk)
+
     # Phase 27 v7 (v3.17.279): when the invoice is pinned to a specific
     # connection (multi-entity / multi-book), use that. Otherwise fall
     # back to the first sync-enabled connection on the org.

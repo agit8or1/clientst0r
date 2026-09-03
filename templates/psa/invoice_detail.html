@@ -23,12 +23,28 @@
         <a href="{% url 'psa:invoice_pdf' item.pk %}" class="btn btn-outline-primary" target="_blank"><i class="fas fa-file-pdf"></i> View PDF</a>
         <a href="{% url 'psa:invoice_pdf' item.pk %}?download=1" class="btn btn-outline-primary"><i class="fas fa-download"></i> Download</a>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#emailInvoiceModal"><i class="fas fa-envelope"></i> Email</button>
+        {% comment %}
+            v3.17.526 — once an invoice carries a provider id, the plain push is
+            replaced by an explicit Re-push. The provider creates a new invoice
+            on every call, so an ordinary-looking button here is a duplicate in
+            the client's accounts payable. The view enforces this too; the
+            `force` flag below is what gets past it.
+        {% endcomment %}
         <form method="post" action="{% url 'psa:invoice_push_to_accounting' item.pk %}" class="d-inline">
             {% csrf_token %}
+            {% if item.accounting_external_id %}
+            <input type="hidden" name="force" value="1">
+            <button class="btn btn-outline-warning"
+                    title="Already pushed as id {{ item.accounting_external_id }}"
+                    onclick="return confirm('This invoice is already in the accounting system as id {{ item.accounting_external_id }}.\n\nRe-pushing creates a SECOND invoice there. Only do this if the original was deleted provider-side.\n\nRe-push anyway?')">
+                <i class="fas fa-rotate"></i> Re-push
+            </button>
+            {% else %}
             <button class="btn btn-warning"
                     onclick="return confirm('Push this invoice to the configured accounting provider?')">
                 <i class="fas fa-cloud-upload-alt"></i> Push to accounting
             </button>
+            {% endif %}
         </form>
         {% if not item.is_credit_memo %}
         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#creditMemoModal">

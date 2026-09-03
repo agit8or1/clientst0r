@@ -5,6 +5,64 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.526] - 2026-09-03
+
+### Fix: a double-click could put two invoices in front of a client
+
+`push_invoice()` creates a **new** invoice in QuickBooks Online or Xero on every
+call. Nothing stopped a second call. A double-click, a browser resend, or an
+impatient second click on a slow push therefore raised a duplicate invoice against
+the client's accounts payable. Deduplication existed, but only as detection — the
+reconciliation report found duplicates *after* they were already in the accounting
+system, where correcting them is somebody's phone call.
+
+The push view now refuses an invoice that already carries an
+`accounting_external_id`, and says which provider and id it already has so the
+operator can go look. Re-push is still possible, because an invoice genuinely
+deleted provider-side needs it — but it is now an explicit "Re-push" button with
+its own confirmation, rather than the same button as the first push.
+
+The check runs before connection resolution: already-pushed is true regardless of
+which connection would be chosen.
+
+### Fix: the roadmap claimed an accounting sync that has never run
+
+`docs/ROADMAP.md` marked Phase 27's bidirectional payment sync as shipped "with a
+daily cron". There is no cron. There is no systemd timer, no crontab entry, and no
+`run_scheduler` task type for `accounting_sync_payments` — a repo-wide search finds
+it referenced only by the changelog, the roadmap, its own tests, and itself. The
+command has only ever run when a human typed it.
+
+The claim traces to the command's own module docstring, which ended with "Wire to a
+daily systemd timer alongside the existing accounting jobs" — a to-do that was read
+as a description. Nobody wired it, and the roadmap wrote it up as done.
+
+Corrected in three places, because the roadmap is published on four surfaces
+including a JSON feed that external dashboards poll:
+
+- The roadmap bullet now reads *partial*, states plainly that nothing schedules the
+  command, and notes the second overstatement: it polls the invoice **balance**
+  rather than reading provider payment records, so a partial payment is invisible
+  (a non-zero balance is skipped) and the `Payment` row it writes carries an
+  inferred date and `method='other'` rather than the real ones.
+- The command's docstring now leads with **NOT SCHEDULED** and explains what it does
+  and does not do. The note it writes into `Payment.notes` — which is user-visible —
+  no longer calls itself a cron and now says the amount and date are inferred.
+- `BaseAccountingProvider.poll_invoice_balance()`'s docstring likewise.
+
+### Added: Phase 44 — Full Two-Way Accounting Sync (planned)
+
+GitHub #145 asks for full two-way QuickBooks Online sync. An audit of what exists
+found the push half is solid — OAuth with encrypted tokens and automatic refresh,
+invoice push with GL-account and tax capture, multi-book routing, and an audit log
+of every provider call — and that essentially none of the pull half exists. Rather
+than leave the gap implicit, it is now a roadmap phase enumerating each missing
+piece: customer mapping as a real model rather than a dict inside the encrypted
+credentials blob, customer pull, invoice pull beyond `Balance`, real payment pull
+with partial-payment and reversal support, scheduling, a manual "Sync Now", retry
+with backoff, and three logging gaps (`AccountingConnection.last_sync_at` and
+friends are declared but never written, so the UI always shows "Never").
+
 ## [3.17.525] - 2026-09-03
 
 ### Fix: developer comments were being displayed to users on ten pages

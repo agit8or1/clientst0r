@@ -7,7 +7,17 @@ says paid (balance=0) and we still show outstanding, create a Payment row
 to close the local invoice. Idempotent — already-paid invoices are
 skipped.
 
-Wire to a daily systemd timer alongside the existing accounting jobs.
+NOT SCHEDULED. v3.17.280 left this line reading "wire to a daily systemd
+timer alongside the existing accounting jobs" as a to-do, nobody wired it, and
+docs/ROADMAP.md then described the timer as shipped. There is no unit in
+deploy/, no crontab entry and no `run_scheduler` task type for this command —
+it only ever runs when a human types it. Corrected in v3.17.526; scheduling is
+tracked as Phase 44 (GitHub #145) along with the rest of two-way sync.
+
+Also note what this does and does not do: it polls Balance and infers payment.
+It does not read provider Payment objects, so a partial payment is invisible
+(non-zero balance is skipped) and the Payment row it writes carries today's
+date and method 'other' rather than the real ones.
 """
 from __future__ import annotations
 
@@ -99,9 +109,10 @@ class Command(BaseCommand):
                         paid_on=date.today(),
                         method='other',
                         reference=f'auto-sync from {conn.provider_type}',
-                        notes='Synced via accounting_sync_payments cron — '
-                              'provider showed Balance=0 while local copy '
-                              'still had a balance.',
+                        notes='Synced by accounting_sync_payments — provider '
+                              'showed Balance=0 while local copy still had a '
+                              'balance. Amount and date are inferred, not read '
+                              'from the provider payment record.',
                     )
                     log_accounting_call(
                         connection=conn, action='poll_balance',

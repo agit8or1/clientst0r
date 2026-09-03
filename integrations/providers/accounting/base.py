@@ -125,8 +125,9 @@ class BaseAccountingProvider:
     def poll_invoice_balance(self, invoice) -> Dict[str, Any]:
         """Phase 27 v8 (v3.17.280): query the provider for the current
         balance on a previously-pushed invoice. Used by the
-        `accounting_sync_payments` cron to detect "paid in QBO but our
-        copy still says unpaid" cases.
+        `accounting_sync_payments` command to detect "paid in QBO but our
+        copy still says unpaid" cases. That command is run by hand — nothing
+        schedules it (see its module docstring).
 
         Returns a dict:
           {success: bool, balance: Decimal | None, status: str | None,
