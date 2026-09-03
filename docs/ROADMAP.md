@@ -131,6 +131,8 @@ Not a single phase — runs alongside 1-6.
 
   Wave 2 totals: ~280 new tests across 11 modules in 14 commits. Combined with the v3.17.192 psa-tests shard split, the project's test runtime now fits comfortably under any reasonable CI ceiling: each shard ≤ 147s, smaller apps ≤ 7s.
 
+  - Installer never installed the background timers — a fresh install had no scheduler, no monitoring and no breach scan, while looking perfectly healthy; `install.sh` now installs all seven with user/path rewriting, enables the operational ones, and leaves `auto-update` and `accounting-sync` off as operator decisions *(shipped v3.17.534)*
+
   ✅ **Phase 7 marked complete at v3.17.207.** All three pillars have shipped: outsourcing (v3.17.166), Integration SDK skeleton (v3.17.166) + first reference adapter (v3.17.168), and the polish-backlog test-coverage push (Waves 1 + 2). Ongoing polish continues as routine maintenance — bug fixes, deprecation sweeps, new vendor adapters in the SDK — but it's no longer tracked as an active phase. Future polish lands as standalone releases under whatever phase the change applies to (e.g. a vault-side improvement = Phase 31 polish).
 
 ## Phase 9 — Security alert ingestion: EDR / AV / Firewall on the dashboard **(M)** [shipped — v3.17.168]

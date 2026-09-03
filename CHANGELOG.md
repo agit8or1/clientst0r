@@ -5,6 +5,44 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.534] - 2026-09-03
+
+### Fix: a fresh install had no background jobs at all
+
+`install.sh` only ever wrote the gunicorn unit. Nothing in it referenced
+`deploy/*.timer` — so a new install came up with **no scheduler, no website
+monitoring, no breach scan, no PSA or RMM sync**. The app looked completely
+healthy and simply never did anything on a schedule. The seven timers existed in
+`deploy/` and were installed by hand on the reference box, which is why it went
+unnoticed.
+
+The installer now installs them, rewriting as it copies: `/home/administrator`
+becomes the real install directory, `User=administrator` the real user, and
+`Group=` the user's actual primary group. The files in `deploy/` stay written for
+the reference install so they can still be copied by hand there; only the
+installed copies are rewritten. Verified against a simulated `/opt/clientst0r`
+install under a different user, with `systemd-analyze verify` on the results.
+
+**Enabled on install** — the jobs the app needs to function: `scheduler`,
+`monitor`, `breach-scan`, `psa-sync`, `rmm-sync`.
+
+**Installed but left off**, with the enable command printed: `auto-update` and
+`accounting-sync`. Applying releases to a live system unattended, and writing to
+a live accounting system, are decisions for whoever runs the box rather than
+installer defaults.
+
+Uninstall now removes the timers too. It only ever removed the gunicorn unit, so
+a removal left timers firing against a deleted directory, filling the journal
+with failures with no obvious cause.
+
+`core/tests/test_deploy_timers.py` pins both halves: the units are well-formed
+(every timer has a service, every service an `ExecStart`, every timer a
+schedule), and the installer references them, rewrites the reference paths, and
+keeps the two self-acting units out of the default enable list.
+
+Existing installs are unaffected — their units are already in place. This is for
+fresh installs and reinstalls.
+
 ## [3.17.533] - 2026-09-03
 
 ### Fix: v3.17.531 could reopen invoices that were paid in cash

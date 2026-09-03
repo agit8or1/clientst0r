@@ -396,6 +396,19 @@ SVCEOF
             sudo systemctl stop clientst0r-gunicorn.service 2>/dev/null || true
             sudo systemctl disable clientst0r-gunicorn.service 2>/dev/null || true
             sudo rm -f /etc/systemd/system/clientst0r-gunicorn.service
+
+            # v3.17.534: take the timers with it. Left behind, they keep firing
+            # against a directory that no longer exists and fill the journal
+            # with failures nobody can explain.
+            for leftover in /etc/systemd/system/clientst0r-*.timer \
+                            /etc/systemd/system/clientst0r-*.service; do
+                [ -e "$leftover" ] || continue
+                unit_name="$(basename "$leftover")"
+                sudo systemctl stop "$unit_name" 2>/dev/null || true
+                sudo systemctl disable "$unit_name" 2>/dev/null || true
+                sudo rm -f "$leftover"
+            done
+
             sudo systemctl daemon-reload
 
             # Drop database
@@ -909,6 +922,91 @@ else
     sudo ss -tlnp | grep :8000 || echo "Port 8000 is not in use"
     exit 1
 fi
+
+# ---------------------------------------------------------------------------
+# Background timers (v3.17.534)
+#
+# Until now install.sh only ever installed the gunicorn unit, so a fresh
+# install had no scheduler, no monitoring, no breach scan — the app looked
+# fine and simply never did anything on a schedule. Nothing referenced
+# deploy/*.timer at all.
+#
+# The unit files in deploy/ are written for the reference install
+# (user `administrator`, /home/administrator) so they can be copied by hand
+# there. Anywhere else, user and paths are rewritten on the way in.
+# ---------------------------------------------------------------------------
+install_timer_units() {
+    local src="$INSTALL_DIR/deploy"
+    local run_group
+    run_group="$(id -gn "$USER")"
+
+    if [ ! -d "$src" ]; then
+        print_warning "No deploy/ directory — skipping background timers."
+        return 0
+    fi
+
+    # Enabled on install: the jobs the app needs to function. Everything else
+    # is installed but left off, because turning it on is a decision:
+    #   auto-update      applies releases to a live system unattended
+    #   accounting-sync  writes to a live accounting system, and can be run
+    #                    from Settings > Scheduler instead
+    local enable_by_default="scheduler monitor breach-scan psa-sync rmm-sync"
+    local installed=""
+    local enabled=""
+    local skipped=""
+
+    print_info "Installing background timers..."
+
+    local unit base name
+    for unit in "$src"/clientst0r-*.service "$src"/clientst0r-*.timer; do
+        [ -e "$unit" ] || continue
+        base="$(basename "$unit")"
+        # gunicorn is written separately above, with its own placeholders.
+        [ "$base" = "clientst0r-gunicorn.service" ] && continue
+
+        sudo cp "$unit" "/etc/systemd/system/$base"
+        # Order matters: rewrite the paths first, then the bare User=/Group=
+        # directives, or the second pass would corrupt the first.
+        sudo sed -i "s|/home/administrator|$INSTALL_DIR|g" "/etc/systemd/system/$base"
+        sudo sed -i "s|^User=administrator$|User=$USER|" "/etc/systemd/system/$base"
+        sudo sed -i "s|^Group=administrator$|Group=$run_group|" "/etc/systemd/system/$base"
+        installed="$installed $base"
+    done
+
+    if [ -z "$installed" ]; then
+        print_warning "No timer units found in deploy/."
+        return 0
+    fi
+
+    sudo systemctl daemon-reload
+
+    local timer
+    for timer in "$src"/clientst0r-*.timer; do
+        [ -e "$timer" ] || continue
+        base="$(basename "$timer")"
+        name="${base#clientst0r-}"
+        name="${name%.timer}"
+        if echo "$enable_by_default" | grep -qw "$name"; then
+            if sudo systemctl enable --now "$base" >/dev/null 2>&1; then
+                enabled="$enabled $name"
+            else
+                print_warning "Could not enable $base — enable it by hand later."
+            fi
+        else
+            skipped="$skipped $name"
+        fi
+    done
+
+    print_status "Timers enabled:$enabled"
+    if [ -n "$skipped" ]; then
+        print_info "Installed but left off (enable when you want them):$skipped"
+        for name in $skipped; do
+            echo "    sudo systemctl enable --now clientst0r-$name.timer"
+        done
+    fi
+}
+
+install_timer_units
 
 # Get server IP address
 SERVER_IP=$(hostname -I | awk '{print $1}')
