@@ -18,7 +18,19 @@ import shutil
 import psutil
 import django
 import logging
+import re
 from datetime import timedelta
+
+
+_HEX_COLOR_RE = re.compile(r'^#[0-9a-fA-F]{6}$')
+
+
+def _is_hex_color(value: str) -> bool:
+    """Validate before storing — the value is interpolated into a style
+    attribute, and `<input type=color>` is trivially bypassed by a hand-rolled
+    POST."""
+    return bool(value and _HEX_COLOR_RE.match(value))
+
 
 logger = logging.getLogger('core')
 
@@ -155,6 +167,31 @@ def settings_general(request):
             settings.custom_logo = request.FILES['custom_logo']
         elif request.POST.get('clear_logo') == 'on':
             settings.custom_logo = None
+
+        # App background policy (v3.17.527). Only the fields belonging to the
+        # chosen policy are read: switching to 'colour' and back should not
+        # quietly discard the uploaded image, so each mode's settings persist
+        # while another mode is active.
+        policy = request.POST.get('background_policy', settings.background_policy)
+        if policy in dict(SystemSetting.BACKGROUND_POLICIES):
+            settings.background_policy = policy
+
+        if 'background_image' in request.FILES:
+            settings.background_image = request.FILES['background_image']
+        elif request.POST.get('clear_background_image') == 'on':
+            settings.background_image = None
+
+        style = request.POST.get('background_color_style')
+        if style in dict(SystemSetting.BACKGROUND_COLOR_STYLES):
+            settings.background_color_style = style
+
+        color = (request.POST.get('background_color') or '').strip()
+        if _is_hex_color(color):
+            settings.background_color = color
+
+        preset = request.POST.get('background_preset')
+        if preset in dict(SystemSetting.BACKGROUND_PRESET_CHOICES):
+            settings.background_preset = preset
 
         # UI/UX Settings
         settings.stay_on_page_after_org_switch = request.POST.get('stay_on_page_after_org_switch') == 'on'

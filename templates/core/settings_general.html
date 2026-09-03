@@ -96,6 +96,74 @@
                     </div>
 
                     <hr>
+                    <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-image"></i> App Background</h6>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="background_policy">Background policy</label>
+                        <select class="form-select" id="background_policy" name="background_policy">
+                            {% for value, label in settings.BACKGROUND_POLICIES %}
+                            <option value="{{ value }}" {% if settings.background_policy == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            Anything other than <strong>user controlled</strong> applies to everyone and
+                            disables each user&rsquo;s own background settings on their profile page.
+                        </div>
+                    </div>
+
+                    <div class="mb-3 bg-policy-field" data-policy="image">
+                        <label class="form-label" for="background_image">Background image</label>
+                        {% if settings.background_image %}
+                        <div class="mb-2">
+                            <img src="{{ settings.background_image.url }}" alt="Current background"
+                                 class="rounded border" style="max-width: 260px; max-height: 120px; object-fit: cover;">
+                        </div>
+                        {% endif %}
+                        <input type="file" class="form-control" id="background_image" name="background_image" accept="image/*">
+                        <div class="form-text">
+                            Used when the policy is <strong>static image</strong>. Wide images work best
+                            &mdash; 1920&times;1080 or larger.
+                            {% if settings.background_image %}
+                            <br><label class="mt-1"><input type="checkbox" name="clear_background_image"> Remove the current image</label>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3 bg-policy-field" data-policy="color">
+                        <label class="form-label" for="background_color_style">Style</label>
+                        <select class="form-select mb-2" id="background_color_style" name="background_color_style">
+                            {% for value, label in settings.BACKGROUND_COLOR_STYLES %}
+                            <option value="{{ value }}" {% if settings.background_color_style == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <div class="row g-2">
+                            <div class="col-md-4 bg-color-field" data-style="solid">
+                                <label class="form-label" for="background_color">Solid colour</label>
+                                <input type="color" class="form-control form-control-color" id="background_color"
+                                       name="background_color" value="{{ settings.background_color|default:'#1a1a2e' }}">
+                            </div>
+                            <div class="col-md-8 bg-color-field" data-style="preset">
+                                <label class="form-label" for="background_preset">Preset pattern</label>
+                                <select class="form-select" id="background_preset" name="background_preset">
+                                    {% for value, label in settings.BACKGROUND_PRESET_CHOICES %}
+                                    <option value="{{ value }}" {% if settings.background_preset == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 bg-policy-field" data-policy="random">
+                        <div class="alert alert-info py-2 mb-0 small">
+                            <i class="fas fa-circle-info"></i>
+                            Each page load pulls a different image from an external service
+                            (picsum.photos). Every user&rsquo;s browser fetches it directly, so this
+                            needs outbound internet access from the browser, not the server.
+                        </div>
+                    </div>
+
+                    <hr>
                     <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-desktop"></i> UI/UX Settings</h6>
 
                     <div class="mb-3">
@@ -145,4 +213,26 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var policy = document.getElementById('background_policy');
+    var style = document.getElementById('background_color_style');
+    if (!policy) { return; }
+
+    function sync() {
+        document.querySelectorAll('.bg-policy-field').forEach(function (el) {
+            el.hidden = el.dataset.policy !== policy.value;
+        });
+        document.querySelectorAll('.bg-color-field').forEach(function (el) {
+            el.hidden = !style || el.dataset.style !== style.value;
+        });
+    }
+    policy.addEventListener('change', sync);
+    if (style) { style.addEventListener('change', sync); }
+    sync();
+})();
+</script>
 {% endblock %}

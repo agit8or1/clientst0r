@@ -128,6 +128,22 @@
                         <small class="form-text text-muted">{% trans "Choose your preferred color palette for the interface" %}</small>
                     </div>
 
+                    {% if background_locked %}
+                    {% comment %}
+                        v3.17.527 — an administrator has set a system-wide background
+                        policy. The controls below stay visible but disabled: hiding
+                        them entirely just relocates the confusion, whereas a greyed
+                        control with a reason attached explains itself.
+                    {% endcomment %}
+                    <div class="alert alert-info py-2" role="status">
+                        <i class="fas fa-circle-info"></i>
+                        <strong>{% trans "Background is set by your administrator." %}</strong>
+                        <span class="text-muted">{{ background_locked_label }}</span>
+                        <div class="small mt-1">{% trans "Your own settings are kept and will apply again if the administrator returns this to user-controlled." %}</div>
+                    </div>
+                    <fieldset disabled>
+                    {% endif %}
+
                     <div class="mb-3">
                         <label for="{{ form.background_mode.id_for_label }}" class="form-label">
                             <i class="fas fa-image"></i> {% trans "Background Mode" %}
@@ -187,6 +203,8 @@
                         {% endif %}
                         <small class="form-text text-muted">Upload an image to use as your background (only used when "Custom Upload" is selected above)</small>
                     </div>
+
+                    {% if background_locked %}</fieldset>{% endif %}
 
                     <hr class="my-4">
                     <h6><i class="fas fa-bell"></i> {% trans "Notification Settings" %}</h6>

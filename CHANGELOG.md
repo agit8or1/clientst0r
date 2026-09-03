@@ -5,6 +5,60 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.527] - 2026-09-03
+
+### Feature: a system-wide background setting in General Settings
+
+The page background was entirely per-user — each person picked a mode on their
+profile and that was that. An MSP wanting one consistent look across a team, or
+simply wanting its own image behind the app, had no way to set one.
+
+**General Settings → App Background** now carries a master policy with four modes:
+
+- **User controlled** — each person picks their own. This is the previous behaviour
+  and remains the default, so upgrading changes nothing for anybody.
+- **Static image** — one uploaded image for everyone.
+- **Colour or pattern** — either a solid hex colour or one of the twelve preset
+  gradients.
+- **Random images** — a different image each page load.
+
+**Enforcement is honest about itself.** When a policy is active, the profile page
+keeps its background controls visible but disabled, under a banner naming the
+policy. Hiding the section outright would only relocate the confusion — a greyed
+control with a reason attached explains itself.
+
+Three things that needed care:
+
+- **A disabled `<fieldset>` submits nothing.** Left alone, any unrelated profile
+  save while a policy was active would have silently blanked the user's stored
+  background — and they would only have discovered it when the policy was lifted.
+  The view preserves those fields while a policy is in force, with tests for both
+  directions so the preservation cannot become a permanent lock.
+- **The colour is validated server-side.** It is interpolated into a style
+  attribute, and `<input type="color">` is trivially bypassed by a hand-rolled
+  POST, so anything that is not `#rrggbb` is rejected. The policy and preset values
+  are likewise checked against their choice lists.
+- **Image mode with nothing uploaded yet** falls back to no background rather than
+  a broken one. The admin has picked the mode but not finished.
+
+**Cleanup along the way.** The twelve preset backgrounds were defined twice — the
+labels as inline choices on the profile model, the URLs as a dict inside a context
+processor — with nothing tying them together. A key present in one and missing from
+the other would have shown up only as a silently absent background. They are now
+one table in `core/backgrounds.py` feeding all three consumers.
+
+Note this is unrelated to the GeoIP map backdrop from v3.17.522, which styles the
+world map on the firewall and vault access-rule screens. This one is the app page
+background.
+
+### Fix: two tests from v3.17.526 were wrong
+
+The double-push guard shipped correct and its two behavioural tests passed, but two
+supporting tests never created an `AccountingConnection`. The view therefore exited
+at "No active accounting connection" before reaching the provider, so asserting the
+provider had been called proved nothing and failed. Both now build a connection
+first. The guard itself was not changed.
+
 ## [3.17.526] - 2026-09-03
 
 ### Fix: a double-click could put two invoices in front of a client

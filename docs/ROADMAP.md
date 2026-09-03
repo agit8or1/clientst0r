@@ -892,6 +892,20 @@ Suggested MVP, matching the request: customers, invoices and payments, with the 
 
 Dependencies: Phase 27 (reconciliation reporting + audit log) and the existing `AccountingConnection` OAuth pattern. The PSA and RMM sync jobs are the closest in-repo model for scheduled bidirectional pulls — there is no existing two-way accounting sync to copy from; Xero is push-only in exactly the same shape as QBO.
 
+## Phase 45 — System-wide Appearance Controls **(S)** [shipped — v3.17.527]
+
+**Roadmap item:** give administrators a say in how the app looks, without taking the choice away from users by default.
+
+The page background was entirely per-user: each person picked a mode on their profile and that was that. An MSP wanting a consistent look across a team — or simply wanting to put their own image behind the app — had no way to set one.
+
+- **Background policy in General Settings** *(shipped v3.17.527)* — four modes: **user controlled** (the previous behaviour, and still the default so upgrades change nothing), **static image** (one uploaded image for everyone), **colour or pattern** (a solid hex colour or one of the twelve preset gradients), and **random images** (a different image each page load).
+- **Enforcement is honest about itself** *(shipped v3.17.527)* — when a policy is active the profile page keeps its background controls visible but disabled, under a banner naming the policy. Hiding them relocates the confusion rather than removing it. A user's own settings are preserved while a policy is in force and apply again if it is lifted.
+- **Preset table consolidated** *(shipped v3.17.527)* — the twelve abstract backgrounds had been defined twice, labels on the profile model and URLs in a context processor, with nothing keeping the two in step; a key present in one and missing from the other would have shown up only as a silently absent background. Now one table in `core/backgrounds.py` feeds all three consumers.
+
+Note the two background settings are unrelated: this one is the app page backdrop, while the GeoIP map backdrop (v3.17.522) styles the world map on the firewall and vault access-rule screens.
+
+Dependencies: `SystemSetting` singleton + the existing per-user profile background fields.
+
 ## Phase 8 — Native mobile apps (iOS + Android) with GPS auto-time + Timeclock **(L · keystone)** [shipped — v3.17.417]
 
 Reverses the earlier "PWA only" deferral. The combination of GPS auto-documentation + employee timeclock makes this a force-multiplier for billable-hours capture, not just a UX improvement.
@@ -991,6 +1005,7 @@ Positioned last in the roadmap (v3.17.169) because it's the largest single under
 | 42 — Docker / Containerized deployment | S | shipped v3.17.490 | none — packaging only; classic `bash install.sh` path unchanged |
 | 43 — Multi-Organization REST API Access | S | shipped v3.17.496 | extends Phase 18 hierarchy; backward-compatible (default key scope unchanged) |
 | 44 — Full Two-Way Accounting Sync | L | 4-6 weeks | extends Phase 27 + the AccountingConnection OAuth pattern; requested in GitHub #145 |
+| 45 — System-wide Appearance Controls | S | shipped v3.17.527 | `SystemSetting` + existing per-user background fields |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.

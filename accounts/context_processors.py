@@ -2,6 +2,11 @@
 Context processors for accounts app
 """
 
+from django.db.utils import OperationalError, ProgrammingError
+
+from core.backgrounds import DEFAULT_COLOR, DEFAULT_PRESET, preset_url, random_url
+from core.models import SystemSetting
+
 LOCALE_LABELS = {
     'en-us': 'English (US)',
     'es':    'Spanish',
@@ -14,60 +19,47 @@ LOCALE_LABELS = {
 def user_theme(request):
     """
     Add user theme, background, and UI preferences to template context.
+
+    v3.17.527: the background is a two-step decision. The system-wide policy in
+    SystemSetting decides *who* chooses; only when it is 'user' do we look at
+    the profile at all. Everything else is enforced for every user, which is the
+    point of a master setting.
     """
     theme = 'default'
     background_mode = 'none'
     background_url = None
+    background_color = None
+    background_locked = False
+    background_locked_label = ''
     tooltips_enabled = True  # Default to enabled for non-authenticated users
     time_format = '24'
 
-    # Preset background mappings - High quality abstract images
-    PRESET_BACKGROUNDS = {
-        'abstract-1': 'https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=1920&q=80',  # Purple gradient
-        'abstract-2': 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1920&q=80',  # Blue gradient
-        'abstract-3': 'https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?w=1920&q=80',  # Orange/coral gradient
-        'abstract-4': 'https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1920&q=80',  # Teal/green wave
-        'abstract-5': 'https://images.unsplash.com/photo-1550859492-d5da9d8e45f3?w=1920&q=80',  # Pink/purple nebula
-        'abstract-6': 'https://images.unsplash.com/photo-1620121692029-d088224ddc74?w=1920&q=80',  # Cyan fluid
-        'abstract-7': 'https://images.unsplash.com/photo-1557682224-5b8590cd9ec5?w=1920&q=80',  # Red/orange geometric
-        'abstract-8': 'https://images.unsplash.com/photo-1542281286-9e0a16bb7366?w=1920&q=80',  # Blue/teal gradient
-        'abstract-9': 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=1920&q=80',  # Yellow/gold gradient
-        'abstract-10': 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=1920&q=80',  # Dark blue/indigo
-        'abstract-11': 'https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=1920&q=80',  # Magenta/purple flow
-        'abstract-12': 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920&q=80',  # Navy/dark space
-    }
-
-    background_color = None
+    policy, policy_settings = _background_policy()
 
     if request.user.is_authenticated and hasattr(request.user, 'profile'):
         profile = request.user.profile
         theme = profile.theme
-        background_mode = profile.background_mode
         tooltips_enabled = getattr(profile, 'tooltips_enabled', True)
         time_format = getattr(profile, 'time_format', '24')
 
-        # Handle background image based on mode
-        if background_mode == 'custom' and profile.background_image:
-            background_url = profile.background_image.url
-        elif background_mode == 'preset':
-            # Use preset abstract background
-            preset_key = getattr(profile, 'preset_background', 'abstract-1')
-            background_url = PRESET_BACKGROUNDS.get(preset_key, PRESET_BACKGROUNDS['abstract-1'])
-        elif background_mode == 'solid_color':
-            # Use solid color background
-            background_color = getattr(profile, 'background_color', '#1a1a2e')
-        elif background_mode == 'random':
-            # Get a random background from the internet
-            # Using Lorem Picsum for high-quality random images
-            import time
+        if policy == 'user':
+            background_mode = profile.background_mode
+            if background_mode == 'custom' and profile.background_image:
+                background_url = profile.background_image.url
+            elif background_mode == 'preset':
+                background_url = preset_url(
+                    getattr(profile, 'preset_background', DEFAULT_PRESET))
+            elif background_mode == 'solid_color':
+                background_color = getattr(profile, 'background_color', DEFAULT_COLOR)
+            elif background_mode == 'random':
+                background_url = random_url()
 
-            # Use timestamp-based seed for randomization (changes every page load)
-            seed = int(time.time() * 1000)
-
-            # Lorem Picsum provides random placeholder images
-            # Grayscale option for subtle backgrounds: &grayscale
-            # Blur option for softer backgrounds: &blur=2
-            background_url = f'https://picsum.photos/1920/1080?random={seed}'
+    if policy != 'user':
+        background_mode, background_url, background_color = _enforced_background(
+            policy, policy_settings)
+        background_locked = True
+        background_locked_label = dict(
+            SystemSetting.BACKGROUND_POLICIES).get(policy, policy)
 
     # Language / locale
     user_locale_code = getattr(request, 'LANGUAGE_CODE', 'en-us') or 'en-us'
@@ -78,8 +70,57 @@ def user_theme(request):
         'user_background_mode': background_mode,
         'user_background_url': background_url,
         'user_background_color': background_color,
+        # Set when an admin policy is in force; the profile page uses these to
+        # grey out its own controls and say why.
+        'background_locked': background_locked,
+        'background_locked_label': background_locked_label,
         'tooltips_enabled': tooltips_enabled,
         'user_time_format': time_format,
         'user_locale_code': user_locale_code,
         'user_locale_label': user_locale_label,
     }
+
+
+def background_is_locked() -> bool:
+    """True when an administrator policy overrides per-user backgrounds.
+
+    Public because the profile view needs it too: the controls render inside a
+    disabled <fieldset>, which submits nothing, so the view has to preserve the
+    stored values rather than let a save blank them.
+    """
+    policy, _ = _background_policy()
+    return policy != 'user'
+
+
+def _background_policy():
+    """Return (policy, settings). Falls back to 'user' if settings are absent.
+
+    Deliberately narrow except: a missing settings row (fresh install, or a
+    migration that has not run yet) must not take down every page render, but a
+    real error should still surface.
+    """
+    try:
+        settings_obj = SystemSetting.get_settings()
+    except (OperationalError, ProgrammingError, SystemSetting.DoesNotExist):
+        return 'user', None
+    return getattr(settings_obj, 'background_policy', 'user') or 'user', settings_obj
+
+
+def _enforced_background(policy, settings_obj):
+    """(mode, url, color) for an admin-enforced policy.
+
+    An 'image' policy with no image uploaded yet falls back to no background
+    rather than a broken one — the admin has chosen the mode but not finished.
+    """
+    if settings_obj is None:
+        return 'none', None, None
+    if policy == 'image':
+        image = getattr(settings_obj, 'background_image', None)
+        return ('custom', image.url, None) if image else ('none', None, None)
+    if policy == 'random':
+        return 'random', random_url(), None
+    if policy == 'color':
+        if getattr(settings_obj, 'background_color_style', 'solid') == 'preset':
+            return 'preset', preset_url(settings_obj.background_preset), None
+        return 'solid_color', None, settings_obj.background_color or DEFAULT_COLOR
+    return 'none', None, None

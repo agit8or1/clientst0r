@@ -891,6 +891,18 @@ class InvoiceApprovalGateTests(TestCase):
         s.save()
         return c
 
+    def _connection(self):
+        """An active, sync-enabled connection.
+
+        Without one the view redirects at "No active accounting connection"
+        long before it reaches the provider, so a test asserting on provider
+        calls proves nothing.
+        """
+        from integrations.models import AccountingConnection
+        return AccountingConnection.objects.create(
+            organization=self.org, provider_type='quickbooks_online',
+            name='Books', sync_enabled=True, is_active=True)
+
     def _pushed_invoice(self, **kwargs):
         from psa.models import Invoice
         from datetime import date
@@ -929,6 +941,7 @@ class InvoiceApprovalGateTests(TestCase):
 
     def test_force_allows_a_deliberate_re_push(self):
         inv = self._pushed_invoice()
+        self._connection()
         with mock.patch(
             'integrations.providers.accounting.get_accounting_provider'
         ) as get_provider:
@@ -946,6 +959,7 @@ class InvoiceApprovalGateTests(TestCase):
         inv = self._pushed_invoice(
             title='Fresh', accounting_provider='', accounting_external_id='',
             pushed_to_accounting_at=None)
+        self._connection()
         with mock.patch(
             'integrations.providers.accounting.get_accounting_provider'
         ) as get_provider:

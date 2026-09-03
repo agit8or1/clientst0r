@@ -14,6 +14,7 @@ from core.models import Organization, SupportRating
 from core.decorators import require_owner
 from audit.models import AuditLog
 from .models import Membership, UserProfile
+from .context_processors import background_is_locked
 from .forms import OrganizationForm, MembershipForm, UserProfileForm, PasswordChangeForm, UserCreateForm, UserEditForm, UserPasswordResetForm
 
 logger = logging.getLogger('accounts')
@@ -171,9 +172,26 @@ def profile_edit(request):
     """
     profile, created = UserProfile.objects.get_or_create(user=request.user)
 
+    # v3.17.527: when an administrator has set a system-wide background policy,
+    # the profile's background controls render inside a disabled <fieldset>, and
+    # a disabled fieldset submits nothing at all. `background_mode` is a required
+    # form field, so left alone that means the user cannot save their profile —
+    # not merely that their background gets blanked. Substituting the stored
+    # values into the POST fixes both: the form validates, and it writes back
+    # exactly what was already there.
+    locked = background_is_locked()
+    post_data = request.POST
+    if locked and request.method == 'POST':
+        post_data = request.POST.copy()
+        post_data['background_mode'] = profile.background_mode
+        post_data['background_color'] = profile.background_color
+        post_data['preset_background'] = profile.preset_background
+
     if request.method == 'POST':
-        form = UserProfileForm(request.POST, request.FILES, instance=profile, user=request.user)
+        form = UserProfileForm(post_data, request.FILES, instance=profile, user=request.user)
         if form.is_valid():
+            # Save normally: this form's save() also writes first_name/last_name/
+            # email onto the User, which commit=False would skip.
             form.save()
             messages.success(request, 'Profile updated successfully.')
             return redirect('accounts:profile')

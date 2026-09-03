@@ -2,6 +2,12 @@
 Core models - Organization and Tags
 """
 from django.db import models
+
+from core.backgrounds import (
+    DEFAULT_COLOR as DEFAULT_BACKGROUND_COLOR,
+    DEFAULT_PRESET as DEFAULT_BACKGROUND_PRESET,
+    PRESET_CHOICES as BACKGROUND_PRESET_CHOICES,
+)
 from django.utils.text import slugify
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -674,6 +680,46 @@ class SystemSetting(models.Model):
         upload_to='branding/geoip/', blank=True, null=True,
         help_text="Backdrop image used when the mode is 'image'.")
     custom_logo_height = models.PositiveIntegerField(default=30, help_text='Logo height in pixels (default: 30px)')
+
+    # App background policy (v3.17.527) — system-wide control over the page
+    # backdrop. Shaped like the GeoIP backdrop above, but with one extra mode:
+    # 'user' hands the decision back to each person's own profile settings,
+    # which is what happened unconditionally before this existed and stays the
+    # default so upgrades change nothing.
+    #
+    # Any other value is enforced: the profile controls are disabled and the
+    # policy wins for everyone. Users still see their controls, greyed out with
+    # an explanation — hiding them entirely just moves the confusion.
+    BACKGROUND_POLICIES = [
+        ('user', 'User controlled — each person picks their own'),
+        ('image', 'Static image — one uploaded image for everyone'),
+        ('color', 'Colour or pattern — one look for everyone'),
+        ('random', 'Random images — a different image each page load'),
+    ]
+    BACKGROUND_COLOR_STYLES = [
+        ('solid', 'Solid colour'),
+        ('preset', 'Preset pattern'),
+    ]
+    # A class attribute, not just the module-level import, so the settings
+    # template can iterate it the same way as the two lists above.
+    BACKGROUND_PRESET_CHOICES = BACKGROUND_PRESET_CHOICES
+    background_policy = models.CharField(
+        max_length=20, default='user', choices=BACKGROUND_POLICIES,
+        help_text='Who decides the app background. Anything other than '
+                  "'user controlled' overrides every user's own setting.")
+    background_image = models.ImageField(
+        upload_to='branding/backgrounds/', blank=True, null=True,
+        help_text="Background image used when the policy is 'static image'.")
+    background_color_style = models.CharField(
+        max_length=20, default='solid', choices=BACKGROUND_COLOR_STYLES,
+        help_text="Solid colour or preset pattern, when the policy is 'colour'.")
+    background_color = models.CharField(
+        max_length=7, default=DEFAULT_BACKGROUND_COLOR, blank=True,
+        help_text='Hex colour used when the colour style is solid.')
+    background_preset = models.CharField(
+        max_length=40, default=DEFAULT_BACKGROUND_PRESET, blank=True,
+        choices=BACKGROUND_PRESET_CHOICES,
+        help_text='Which preset pattern to use when the colour style is preset.')
 
     # Security Settings
     session_timeout_minutes = models.PositiveIntegerField(default=480, help_text='Session timeout in minutes (default: 8 hours)')

@@ -5,6 +5,8 @@ import contextlib
 import threading
 
 from django.db import models
+
+from core.backgrounds import DEFAULT_PRESET, PRESET_CHOICES
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -410,22 +412,11 @@ class UserProfile(BaseModel):
     )
     preset_background = models.CharField(
         max_length=50,
-        default='abstract-1',
+        default=DEFAULT_PRESET,
         blank=True,
-        choices=[
-            ('abstract-1', 'Purple Gradient'),
-            ('abstract-2', 'Blue Gradient'),
-            ('abstract-3', 'Orange Coral'),
-            ('abstract-4', 'Teal Wave'),
-            ('abstract-5', 'Pink Nebula'),
-            ('abstract-6', 'Cyan Fluid'),
-            ('abstract-7', 'Red Geometric'),
-            ('abstract-8', 'Blue Teal'),
-            ('abstract-9', 'Yellow Gold'),
-            ('abstract-10', 'Indigo Dark'),
-            ('abstract-11', 'Magenta Flow'),
-            ('abstract-12', 'Navy Space'),
-        ],
+        # Was a hand-maintained copy of this list; the URLs lived separately in
+        # the context processor and nothing kept the two in step.
+        choices=PRESET_CHOICES,
         help_text='Select a preset abstract background'
     )
 
