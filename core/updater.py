@@ -380,9 +380,12 @@ class UpdateService:
                         f"/usr/bin/systemctl restart {service_name}, "
                         f"/usr/bin/systemctl stop {service_name}, /usr/bin/systemctl start {service_name}, "
                         f"/usr/bin/systemctl status {service_name}, /usr/bin/systemctl daemon-reload, "
-                        "/usr/bin/systemd-run, /usr/bin/pkill, "
-                        f"/usr/bin/tee /etc/systemd/system/{service_name}, "
-                        "/usr/bin/cp, /usr/bin/chmod\n"
+                        # v3.17.520: `systemd-run`, `pkill`, `tee`, `cp` and `chmod`
+                        # were all listed bare. Any one of them granted without
+                        # arguments is root in all but name — systemd-run runs any
+                        # command as root, tee/cp write any file. Pinned to the exact
+                        # invocations the updater issues.
+                        f"/usr/bin/systemd-run --on-active=3 --system /usr/bin/systemctl restart {service_name}\n"
                         "SUDOERS\n\n"
                         "sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update\n\n"
                         "After configuring, refresh this page and try again. "
@@ -624,10 +627,19 @@ class UpdateService:
         """
         Check if passwordless sudo is configured for service restart.
 
-        Tests against systemd-run (always present in the sudoers config) rather
-        than 'systemctl status <service>' — avoids false negatives when the
-        sudoers file was created with a different service name than the one
-        currently detected.
+        v3.17.520: probe `systemctl status <service>` FIRST, and never conclude
+        from a single refusal.
+
+        This used to lead with `systemd-run --version` on the assumption that
+        systemd-run was "always present in the sudoers config" — true only while
+        it was granted bare. Under the least-privilege ruleset (v3.17.518)
+        systemd-run is pinned to the one restart invocation the updater issues,
+        so `--version` is refused, and an early `return False` meant the working
+        fallback probe was never reached. The web UI then showed a "One-Time
+        Setup Required" banner on a host where updates worked perfectly well.
+
+        `systemctl status <service>` is the better probe anyway: read-only,
+        harmless to run, and much closer to what the updater actually needs.
 
         Returns:
             bool: True if passwordless sudo works, False otherwise
@@ -651,31 +663,38 @@ class UpdateService:
 
             systemd_run = _canonical('systemd-run', '/usr/bin/systemd-run')
 
-            # Test with systemd-run --version — this is always in the sudoers
-            # config and doesn't depend on a specific service name being correct.
-            result = subprocess.run(
-                ['/usr/bin/sudo', '-n', systemd_run, '--version'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if result.returncode == 0:
-                return True
-            if 'password is required' in result.stderr or 'a terminal is required' in result.stderr:
-                return False
-
-            # Fallback: try systemctl status with detected service name
             service_name = self.service_name or 'clientst0r-gunicorn.service'
             systemctl = _canonical('systemctl', '/usr/bin/systemctl')
-            result2 = subprocess.run(
-                ['/usr/bin/sudo', '-n', systemctl, 'status', service_name],
-                capture_output=True,
-                text=True,
-                timeout=5
+
+            # Probes in order of how closely they model what the updater needs.
+            # `systemctl status` is read-only and is what a scoped ruleset will
+            # realistically grant; systemd-run is kept only for older sudoers
+            # files that granted it bare.
+            probes = (
+                [systemctl, 'status', service_name],
+                [systemd_run, '--version'],
             )
-            if 'password is required' in result2.stderr or 'a terminal is required' in result2.stderr:
-                return False
-            return True
+
+            for probe in probes:
+                try:
+                    result = subprocess.run(
+                        ['/usr/bin/sudo', '-n'] + probe,
+                        capture_output=True, text=True, timeout=5,
+                    )
+                except Exception:
+                    continue
+                denied = ('password is required' in result.stderr
+                          or 'a terminal is required' in result.stderr
+                          or 'not allowed to execute' in result.stderr)
+                if denied:
+                    # This probe is not granted — that says nothing about the
+                    # others, so keep going rather than concluding here.
+                    continue
+                # `systemctl status` exits non-zero for an inactive unit, which
+                # still proves sudo let the command run.
+                return True
+
+            return False
         except Exception as e:
             logger.warning(f"Failed to check passwordless sudo: {e}")
             return False

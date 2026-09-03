@@ -5,6 +5,50 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.520] - 2026-09-03
+
+### Fix: spurious "One-Time Setup Required" banner on Settings → Updates
+
+Regression from v3.17.518. `Settings → Updates` began showing a *"One-Time Setup Required for
+Web-Based Updates"* banner on a host where one-click updates worked perfectly well.
+
+`UpdateService._check_passwordless_sudo()` led with `sudo -n systemd-run --version` — on the stated
+assumption that systemd-run is *"always present in the sudoers config"*. That held only while
+systemd-run was granted **bare**. The least-privilege ruleset pins it to the single restart
+invocation the updater issues, so `--version` is refused. And the check did:
+
+```python
+if 'password is required' in result.stderr:
+    return False          # <- never reached the fallback probe
+```
+
+The `systemctl status` probe immediately below it would have succeeded. One denied probe was being
+treated as a verdict on all of them.
+
+Now it probes `systemctl status <service>` **first** — read-only, harmless, and much closer to what
+the updater actually needs — keeps systemd-run only as a fallback for older sudoers files that
+granted it bare, and continues past a denial instead of concluding from it. A non-zero exit from
+`systemctl status` (an inactive unit) still counts as configured, because it proves sudo permitted
+the command.
+
+### Security: the banner was also telling people to grant far too much
+
+The command it asked operators to paste granted `/usr/bin/systemd-run`, `/usr/bin/tee`,
+`/usr/bin/pkill`, `/usr/bin/cp` and `/usr/bin/chmod` **bare** — with no arguments pinned. Any one of
+those is root in all but name: systemd-run runs an arbitrary command as root, and tee or cp will
+write any file they are pointed at, `/etc/sudoers` included. Anyone following that banner was
+handing the web app full root.
+
+Both the banner (`templates/core/system_updates.html`) and the equivalent hint in `core/updater.py`
+now show the same narrow set `scripts/install_auto_update.sh` installs — one line per command the
+updater actually runs — with a note that this deliberately does not grant general root access.
+
+### Added
+
+- `core/tests/test_updater.py::PasswordlessSudoCheckTests` — four cases covering the exact
+  regression (systemd-run denied, systemctl allowed), an inactive unit still counting as configured,
+  all probes denied, and `not allowed to execute` treated as a denial.
+
 ## [3.17.519] - 2026-09-02
 
 ### Fix: mobile build setup no longer needs sudo on every update
