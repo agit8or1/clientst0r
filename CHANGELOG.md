@@ -5,6 +5,57 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.523] - 2026-09-03
+
+### Feature: spreadsheet import for Shop and VAN inventory
+
+Stock levels had to be entered by hand. The import pipeline that already backed assets, passwords,
+contacts and documents — with column mapping, preview, job history and rollback — now covers
+inventory too, and reads spreadsheets as well as CSV.
+
+**Two new targets** on the existing importer:
+
+- **Shop Inventory** → `vehicles.ShopInventoryItem`
+- **VAN Inventory** → `vehicles.VehicleInventoryItem`
+
+They are near-identical sibling models, so they share one field-mapping path; the vehicle one
+additionally resolves which van each row belongs to.
+
+**Spreadsheet support.** A new `imports/services/tabular.py` reads `.xlsx`/`.xlsm` via openpyxl and
+CSV via the stdlib, returning the same `(headers, rows)` shape either way — so a spreadsheet is
+indistinguishable from a CSV to everything downstream, and the existing CSV path now goes through
+the same reader rather than a second inline `DictReader`. There is a test asserting the two formats
+produce byte-identical results.
+
+Excel's typing needed care: it stores every number as a float, so a quantity of `12` arrives as
+`12.0`, and `"12.0"` fails an `IntegerField` parse. Integral floats are normalised back to `12`.
+Blank rows and trailing empty header columns — both normal in hand-edited sheets — are dropped.
+
+**Legacy `.xls` is refused**, with an instruction to re-save as `.xlsx`. openpyxl does not read the
+1997 binary format and xlrd dropped it in 2.0; pulling in an unmaintained pin to half-parse it would
+be worse than a clear error.
+
+**Vehicle matching** accepts the name, licence plate or VIN — whatever is actually printed on the
+van — because requiring a database id in a spreadsheet is how an import feature goes unused. An
+unmatched vehicle skips that row and logs the value that failed to match, so the operator can fix
+the sheet and re-run, rather than losing the whole batch.
+
+Junk in a numeric cell falls back to the field default instead of aborting the import.
+
+### Fixed while building it
+
+Three wrong assumptions, each caught by running the code rather than reading it: `ServiceVehicle`
+has no `unit_number` field, and neither the fleet nor either inventory model is org-scoped — so the
+`organization=` kwarg I first wrote would have raised on every row.
+
+### Added
+
+- `imports/tests_inventory_import.py` — 15 tests covering the reader (CSV/xlsx equivalence, float
+  normalisation, blank rows, trailing headers, `.xls` refusal, preview limits) and the importers
+  (item creation, name required, junk quantities, vehicle matching by all three identifiers,
+  unmatched-vehicle logging, target registration).
+- `openpyxl>=3.1,<4.0` in requirements.txt.
+
 ## [3.17.522] - 2026-09-03
 
 ### Feature: click-to-select world map for GeoIP country selection

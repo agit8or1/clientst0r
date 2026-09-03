@@ -22,7 +22,7 @@ class ImportJobForm(forms.ModelForm):
             'source_type': forms.Select(attrs={'class': 'form-control'}),
             'source_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://api.itglue.com or https://your-hudu.com'}),
             'source_api_key': forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Your API key'}),
-            'source_file': forms.FileInput(attrs={'class': 'form-control', 'accept': '.json,.csv,.tsv'}),
+            'source_file': forms.FileInput(attrs={'class': 'form-control', 'accept': '.json,.csv,.tsv,.xlsx,.xlsm'}),
             'target_organization': forms.Select(attrs={'class': 'form-control', 'id': 'id_target_organization'}),
             'target_location': forms.Select(attrs={'class': 'form-control', 'id': 'id_target_location'}),
             'use_fuzzy_matching': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -40,7 +40,7 @@ class ImportJobForm(forms.ModelForm):
         help_texts = {
             'source_url': 'Full API URL (not needed for MagicPlan)',
             'source_api_key': 'API key for authentication (not needed for MagicPlan)',
-            'source_file': 'Upload MagicPlan JSON export file',
+            'source_file': 'Upload a MagicPlan JSON export, a CSV, or an .xlsx spreadsheet',
             'target_organization': 'Required for MagicPlan. Optional for IT Glue/Hudu (leave blank to import all organizations).',
             'target_location': 'Optional: Link floor plans to existing location. Leave blank to create new location from MagicPlan data.',
             'use_fuzzy_matching': 'Match existing organizations with similar names (e.g., "ABC LLC" matches "ABC Corporation")',

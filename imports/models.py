@@ -17,7 +17,7 @@ class ImportJob(BaseModel):
         ('itglue', 'IT Glue'),
         ('hudu', 'Hudu'),
         ('magicplan', 'MagicPlan Floor Plans'),
-        ('csv', 'CSV / Spreadsheet'),
+        ('csv', 'CSV / Spreadsheet (.csv, .xlsx)'),
     ]
 
     CSV_TARGET_CHOICES = [
@@ -25,6 +25,9 @@ class ImportJob(BaseModel):
         ('password', 'Passwords (Vault)'),
         ('contact', 'Contacts'),
         ('document', 'Documents'),
+        # v3.17.523 — spreadsheet import for stock levels.
+        ('shop_inventory', 'Shop Inventory'),
+        ('vehicle_inventory', 'Vehicle / VAN Inventory'),
     ]
 
     STATUS_CHOICES = [
@@ -53,7 +56,7 @@ class ImportJob(BaseModel):
         upload_to='imports/files/%Y/%m/',
         blank=True,
         null=True,
-        help_text="Upload file: MagicPlan JSON export or CSV/spreadsheet"
+        help_text="Upload file: MagicPlan JSON export, CSV, or .xlsx spreadsheet"
     )
 
     # CSV field mapper

@@ -40,6 +40,9 @@
                                     {% elif key == 'password' %}<i class="fas fa-lock d-block fs-4 mb-1"></i> Passwords
                                     {% elif key == 'contact' %}<i class="fas fa-address-card d-block fs-4 mb-1"></i> Contacts
                                     {% elif key == 'document' %}<i class="fas fa-file-alt d-block fs-4 mb-1"></i> Documents
+                                    {% elif key == 'shop_inventory' %}<i class="fas fa-warehouse d-block fs-4 mb-1"></i> Shop Inventory
+                                    {% elif key == 'vehicle_inventory' %}<i class="fas fa-truck d-block fs-4 mb-1"></i> VAN Inventory
+                                    {% else %}<i class="fas fa-table d-block fs-4 mb-1"></i> {{ key|title }}
                                     {% endif %}
                                 </label>
                             </div>

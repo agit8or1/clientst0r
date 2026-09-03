@@ -49,32 +49,61 @@ DOCUMENT_TARGET_FIELDS = {
     '__skip__': '— Skip this column —',
 }
 
+# v3.17.523 — Shop + VAN inventory. The two models are near-identical siblings
+# (vehicles.ShopInventoryItem / vehicles.VehicleInventoryItem); the vehicle one
+# additionally needs to resolve which van a row belongs to.
+SHOP_INVENTORY_TARGET_FIELDS = {
+    'name': 'Name (required)',
+    'category': 'Category',
+    'quantity': 'Quantity',
+    'unit': 'Unit (ea, ft, box)',
+    'min_quantity': 'Minimum Quantity',
+    'reorder_quantity': 'Reorder Quantity',
+    'unit_cost': 'Unit Cost',
+    'location_in_shop': 'Location in Shop',
+    'qr_code': 'QR Code',
+    'reorder_link': 'Reorder Link',
+    'description': 'Description',
+    '__skip__': '— Skip this column —',
+}
+
+VEHICLE_INVENTORY_TARGET_FIELDS = {
+    'vehicle': 'Vehicle (name, licence plate or VIN — required)',
+    'name': 'Name (required)',
+    'category': 'Category',
+    'quantity': 'Quantity',
+    'unit': 'Unit (ea, ft, box)',
+    'min_quantity': 'Minimum Quantity',
+    'reorder_quantity': 'Reorder Quantity',
+    'unit_cost': 'Unit Cost',
+    'location_in_vehicle': 'Location in Vehicle',
+    'qr_code': 'QR Code',
+    'reorder_link': 'Reorder Link',
+    'description': 'Description',
+    '__skip__': '— Skip this column —',
+}
+
 TARGET_FIELDS = {
     'asset': ASSET_TARGET_FIELDS,
     'password': PASSWORD_TARGET_FIELDS,
     'contact': CONTACT_TARGET_FIELDS,
     'document': DOCUMENT_TARGET_FIELDS,
+    'shop_inventory': SHOP_INVENTORY_TARGET_FIELDS,
+    'vehicle_inventory': VEHICLE_INVENTORY_TARGET_FIELDS,
 }
 
 
-def read_csv_preview(file_obj, max_rows=5):
+def read_csv_preview(file_obj, max_rows=5, filename=''):
     """
-    Read CSV headers and up to max_rows of sample data.
+    Read headers and up to max_rows of sample data from a CSV or .xlsx upload.
     Returns (headers, rows) where rows is a list of dicts.
-    """
-    file_obj.seek(0)
-    content = file_obj.read()
-    if isinstance(content, bytes):
-        content = content.decode('utf-8-sig', errors='replace')
 
-    reader = csv.DictReader(io.StringIO(content))
-    headers = reader.fieldnames or []
-    rows = []
-    for i, row in enumerate(reader):
-        if i >= max_rows:
-            break
-        rows.append(dict(row))
-    return headers, rows
+    v3.17.523: delegates to `read_tabular` so spreadsheets and CSVs are
+    indistinguishable to every caller downstream.
+    """
+    from .tabular import read_tabular
+    return read_tabular(file_obj, filename=filename or getattr(file_obj, 'name', ''),
+                        max_rows=max_rows)
 
 
 class CSVImportService:
@@ -100,12 +129,13 @@ class CSVImportService:
         job.mark_running()
 
         job.source_file.seek(0)
-        content = job.source_file.read()
-        if isinstance(content, bytes):
-            content = content.decode('utf-8-sig', errors='replace')
-
-        reader = csv.DictReader(io.StringIO(content))
-        rows = list(reader)
+        from .tabular import read_tabular, TabularError
+        try:
+            _headers, rows = read_tabular(
+                job.source_file, filename=getattr(job.source_file, 'name', ''))
+        except TabularError as exc:
+            job.add_log(f'Import aborted: {exc}')
+            raise
         job.total_items = len(rows)
         job.save(update_fields=['total_items'])
 
@@ -159,6 +189,10 @@ class CSVImportService:
             return self._create_password(fields, row_num)
         elif target_model == 'contact':
             return self._create_contact(fields, row_num)
+        elif target_model == 'shop_inventory':
+            return self._create_shop_inventory(fields, row_num)
+        elif target_model == 'vehicle_inventory':
+            return self._create_vehicle_inventory(fields, row_num)
         elif target_model == 'document':
             return self._create_document(fields, row_num)
         return False
@@ -289,6 +323,121 @@ class CSVImportService:
             source_id=str(row_num),
             target_model='Document',
             target_id=doc.id,
+            target_organization=self.org,
+        )
+        return True
+
+    # ------------------------------------------------------------------
+    # Inventory (v3.17.523) — Shop + VAN stock from a spreadsheet
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _to_int(value, default=0):
+        """Spreadsheets hand us '12', '12.0', '' or junk. None of that should
+        abort a whole import — fall back to the field default."""
+        text = str(value or '').strip()
+        if not text:
+            return default
+        try:
+            return int(float(text))
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _to_decimal(value, default=None):
+        from decimal import Decimal, InvalidOperation
+        text = str(value or '').strip().replace('$', '').replace(',', '')
+        if not text:
+            return default
+        try:
+            return Decimal(text)
+        except (InvalidOperation, TypeError, ValueError):
+            return default
+
+    def _inventory_common(self, fields):
+        """Fields shared by both inventory models."""
+        data = {
+            'name': fields.get('name', '').strip(),
+            'category': fields.get('category', '').strip(),
+            'quantity': self._to_int(fields.get('quantity'), 0),
+            'unit': fields.get('unit', '').strip(),
+            'min_quantity': self._to_int(fields.get('min_quantity'), 0),
+            'reorder_quantity': self._to_int(fields.get('reorder_quantity'), 0),
+            'description': fields.get('description', '').strip(),
+            'qr_code': fields.get('qr_code', '').strip(),
+            'reorder_link': fields.get('reorder_link', '').strip(),
+        }
+        cost = self._to_decimal(fields.get('unit_cost'))
+        if cost is not None:
+            data['unit_cost'] = cost
+        return data
+
+    def _create_shop_inventory(self, fields, row_num):
+        from vehicles.models import ShopInventoryItem
+        from imports.models import ImportMapping
+
+        data = self._inventory_common(fields)
+        if not data['name']:
+            return False
+        data['location_in_shop'] = fields.get('location_in_shop', '').strip()
+
+        # Note: shop/vehicle inventory and the fleet are deliberately NOT
+        # org-scoped in this codebase — there is no `organization` field to set.
+        item = ShopInventoryItem.objects.create(**data)
+        ImportMapping.objects.create(
+            import_job=self.job,
+            source_type='csv_shop_inventory',
+            source_id=str(row_num),
+            target_model='ShopInventoryItem',
+            target_id=item.id,
+            target_organization=self.org,
+        )
+        return True
+
+    def _resolve_vehicle(self, value):
+        """Match a spreadsheet cell to a ServiceVehicle.
+
+        Accepts whatever a dispatcher is likely to type — unit number, name, or
+        licence plate — because requiring a database id in a spreadsheet is how
+        an import feature goes unused.
+        """
+        from django.db.models import Q
+        from vehicles.models import ServiceVehicle
+
+        text = str(value or '').strip()
+        if not text:
+            return None
+        # The fleet is not org-scoped, so there is no organization filter here.
+        # Matched on the three things actually printed on a van.
+        lookup = (Q(name__iexact=text) | Q(license_plate__iexact=text)
+                  | Q(vin__iexact=text))
+        return ServiceVehicle.objects.filter(lookup).first()
+
+    def _create_vehicle_inventory(self, fields, row_num):
+        from vehicles.models import VehicleInventoryItem
+        from imports.models import ImportMapping
+
+        data = self._inventory_common(fields)
+        if not data['name']:
+            return False
+
+        vehicle = self._resolve_vehicle(fields.get('vehicle'))
+        if vehicle is None:
+            # Named explicitly rather than silently skipped: an unmatched van is
+            # a data problem the operator can fix and re-run.
+            self.job.add_log(
+                f"Row {row_num}: no vehicle matches "
+                f"{str(fields.get('vehicle') or '').strip()!r} — row skipped")
+            return False
+
+        data['location_in_vehicle'] = fields.get('location_in_vehicle', '').strip()
+        item = VehicleInventoryItem.objects.create(vehicle=vehicle, **data)
+        ImportMapping.objects.create(
+            import_job=self.job,
+            source_type='csv_vehicle_inventory',
+            source_id=str(row_num),
+            target_model='VehicleInventoryItem',
+            target_id=item.id,
             target_organization=self.org,
         )
         return True

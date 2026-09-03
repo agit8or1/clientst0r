@@ -309,6 +309,7 @@ Planned capabilities:
 - Procurement reporting *(shipped v3.17.258 — `/reports/procurement-summary/` per-vendor + per-month spend over last 365 days; CSV export; staff-only)*
 
 **Goal:** Improve operational procurement visibility and hardware lifecycle management.
+- Spreadsheet import for Shop + VAN inventory *(shipped v3.17.523 — the CSV import pipeline now reads .xlsx as well as .csv, and gains `shop_inventory` / `vehicle_inventory` targets so stock levels can be loaded from a spreadsheet with the existing column-mapping, preview and rollback machinery. Vehicles match on name, licence plate or VIN; an unmatched van skips the row with a log line naming the value, rather than failing the batch. Legacy .xls is refused with a re-save instruction instead of a silent half-parse)*
 
 ## Phase 14 — Visual Workflow Automation Engine **(L)** [shipped — v3.17.290]
 
