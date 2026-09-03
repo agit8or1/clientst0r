@@ -128,8 +128,12 @@ def sync_payments(connection, provider, *, since=None, limit=500,
                 inv = existing.invoice
                 existing.delete()
                 # Deleting bypasses Payment.save(), so the invoice has to be
-                # told to recompute — otherwise it keeps reading Paid.
+                # told to recompute — otherwise it keeps reading Paid. The
+                # reopen is a separate, explicit call: recompute_totals() alone
+                # cannot tell a voided payment from an invoice marked paid by
+                # hand, and must not reopen the latter.
                 inv.recompute_totals()
+                inv.reopen_if_unpaid()
                 result.payments_voided += 1
                 result.invoices_touched += 1
             elif existing:

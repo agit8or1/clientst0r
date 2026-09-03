@@ -929,6 +929,31 @@ Note the two background settings are unrelated: this one is the app page backdro
 
 Dependencies: `SystemSetting` singleton + the existing per-user profile background fields.
 
+## Phase 46 — Job Kit: tools and materials on a ticket **(M)** [shipped — v3.17.532]
+
+**Roadmap item:** a tech should know what to load before leaving, without phoning the office.
+
+A scheduled job already links a ticket to a calendar entry (`Ticket.related_calendar_event` ↔ `ScheduledTask.psa_ticket`). What was missing was any record of *what the job needs*.
+
+- **Tool catalogue** *(shipped v3.17.532)* — new `inventory.Tool`, deliberately separate from `InventoryItem`. A consumable is spent and its quantity drops; a tool goes out and comes back, and the question its record answers is "where is it", not "how many are left". Modelling both as stock would mean either lying about quantities or explaining why the cable tester's count never moves. Tracks code, category, home shelf or assigned van, condition, and a retire flag that keeps a tool off pick-lists without breaking history.
+- **Kit list on the ticket** *(shipped v3.17.532)* — one flat list covering tools, inventory items and free-text "other" lines, because that is how it is read: a tech looks at one list before leaving, not three. Attached to the ticket rather than the visit so it survives rescheduling and appears wherever the ticket does.
+- **Stock shortfall warning** *(shipped v3.17.532)* — a line asking for eight of something with three in stock is flagged. Sending a tech out for parts that are not there is the failure this list exists to prevent.
+- **Pack-off** *(shipped v3.17.532)* — each line ticks off while loading, recording who and when.
+- Lines keep their own copy of the item name: the foreign keys are `SET_NULL`, and a packing list that empties itself because somebody retired a tool is worse than a stale label.
+
+Dependencies: `inventory` app, `psa.Ticket`.
+
+## Phase 47 — Public scheduler wallboard **(S)** [shipped — v3.17.533]
+
+**Roadmap item:** a schedule on the workshop wall. Extends the wallboard idea from Phase 3.6 (v3.17.146 / v3.17.211), which is authenticated and reporting-oriented.
+
+- **System-wide, not per-client** *(shipped v3.17.533)* — in this platform an Organization *is* a client, so a per-org board would show one client's jobs. A workshop screen needs the whole day across every client.
+- **Public URL, off by default** *(shipped v3.17.533)* — a wall-mounted screen has no keyboard and nobody wants to sign a display in each morning. That makes the URL the only control, so: the board ships disabled; a disabled or unknown token returns **404 rather than 403**, since a 403 would confirm a board exists at that address; the address carries a 43-character `secrets` token rather than an id, so boards cannot be enumerated; and the token can be rotated to kill a leaked link instantly.
+- **Disclosure is opt-in per field** *(shipped v3.17.533)* — client names, technician names and ticket numbers toggle separately. Client names are usually the most sensitive thing on a schedule, and the board stays useful without them.
+- Served `no-store` and `noindex`, and rendered standalone rather than through the authenticated base template.
+
+Dependencies: `scheduling.ScheduledTask`.
+
 ## Phase 8 — Native mobile apps (iOS + Android) with GPS auto-time + Timeclock **(L · keystone)** [shipped — v3.17.417]
 
 Reverses the earlier "PWA only" deferral. The combination of GPS auto-documentation + employee timeclock makes this a force-multiplier for billable-hours capture, not just a UX improvement.
@@ -1029,6 +1054,8 @@ Positioned last in the roadmap (v3.17.169) because it's the largest single under
 | 43 — Multi-Organization REST API Access | S | shipped v3.17.496 | extends Phase 18 hierarchy; backward-compatible (default key scope unchanged) |
 | 44 — Full Two-Way Accounting Sync | L | shipped v3.17.528–531 | extends Phase 27 + the AccountingConnection OAuth pattern; requested in GitHub #145 |
 | 45 — System-wide Appearance Controls | S | shipped v3.17.527 | `SystemSetting` + existing per-user background fields |
+| 46 — Job Kit (tools + materials on a ticket) | M | shipped v3.17.532 | `inventory` + `psa.Ticket` |
+| 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.

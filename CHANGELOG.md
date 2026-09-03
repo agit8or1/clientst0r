@@ -5,6 +5,95 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.533] - 2026-09-03
+
+### Fix: v3.17.531 could reopen invoices that were paid in cash
+
+Shipped in v3.17.531 and fixed here, so it is worth stating plainly. Making
+`Invoice.recompute_totals()` two-way — so a payment voided in QuickBooks reopens
+the invoice — also reopened **any** invoice showing Paid with no `Payment` rows
+behind it. That is exactly how a cash payment, a cheque, or an invoice settled
+directly in the accounting system is recorded. Those invoices would have quietly
+gone back to Outstanding and **started accruing late fees**.
+
+The fix is structural rather than a tighter condition. `recompute_totals()` runs
+from everywhere and genuinely cannot tell a voided payment from a hand-marked
+one, so it is back to its original one-way behaviour. A new
+`Invoice.reopen_if_unpaid()` performs the reverse transition and is called only
+by the accounting sync, which is the one caller that *knows* it just removed a
+payment. The knowledge lives with the code that has it.
+
+Caught by the existing `LateFeeTests`. A first attempt guarded on "was
+`amount_paid` previously non-zero", which does not work — a hand-marked invoice
+carries `amount_paid` with no payments behind it, which is precisely the case it
+was meant to exclude.
+
+### Feature: job kit — what the tech has to take
+
+A scheduled job already linked a ticket to a calendar entry. What was missing was
+any record of what the job *needs*, so kit lists lived in someone's head or a
+phone call from the van.
+
+**Tools are now a catalogue of their own** (`inventory.Tool`), deliberately not
+inventory rows. A consumable is spent and its quantity drops; a tool goes out and
+comes back, and the question its record has to answer is "where is it", not "how
+many are left". Modelling both as stock would mean either lying about quantities
+or explaining why the cable tester's count never moves. Tools carry a code,
+category, home shelf or assigned van, condition, and a retire flag that removes
+them from pick-lists without breaking history.
+
+**Each ticket gets one kit list** covering tools, inventory items and free-text
+lines, because that is how it is read — a tech looks at one list before leaving,
+not three. It hangs off the ticket rather than the visit, so it survives
+rescheduling and shows wherever the ticket does.
+
+Details that matter in the field:
+
+- **Shortfall warning.** A line asking for eight of something with three in stock
+  is flagged. Sending someone out for parts that are not there is the whole
+  failure this list exists to prevent.
+- **Tick-off while loading**, recording who packed each line and when.
+- **Lines keep their own copy of the name.** The foreign keys are `SET_NULL`, and
+  a packing list that empties itself because somebody retired a tool is worse
+  than a stale label.
+- The same tool or part cannot be listed twice on one ticket — that is a
+  data-entry slip, and quantity is how you ask for two.
+
+### Feature: public scheduler wallboard
+
+A schedule for a screen on the workshop wall.
+
+**It spans every client, not one.** In this platform an Organization *is* a
+client, so a per-client board would show a single customer's jobs — not what a
+workshop screen is for.
+
+**It is public, and that shapes the whole design.** A wall-mounted screen has no
+keyboard and nobody wants to sign a display in every morning, so the URL is the
+only thing standing between the schedule and the internet:
+
+- The board ships **disabled**.
+- A disabled or unknown link returns **404, not 403** — a 403 would confirm a
+  board exists at that address. There is a test asserting the two are
+  indistinguishable.
+- The address carries a 43-character `secrets` token rather than an id, so boards
+  cannot be found by walking integers.
+- The token rotates on demand, which kills a leaked link immediately.
+- **What it shows is opt-in per field.** Client names, technician names and ticket
+  numbers toggle separately; client names are usually the most sensitive thing on
+  a schedule and the board stays useful without them.
+
+Served `no-store` and `noindex`, and rendered standalone rather than through the
+authenticated base template, which has no meaning without a user.
+
+### Also fixed
+
+- `ticket_kit_add` caught `IntegrityError` on a duplicate line to show a friendly
+  message, but Django leaves the transaction unusable after an integrity
+  violation — so the redirect that followed would have 500'd instead. Wrapped in a
+  savepoint, since a duplicate is an expected outcome here, not an exceptional one.
+- A missing migration for the `accounting_sync` scheduler task-type choice added
+  in v3.17.531.
+
 ## [3.17.531] - 2026-09-03
 
 ### Feature: two-way QuickBooks Online sync (GitHub #145) — Phase 44 complete

@@ -10,7 +10,7 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import models
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -20,6 +20,7 @@ from audit.models import AuditLog
 from core.decorators import require_admin, require_write
 from core.middleware import get_request_organization
 from vault.models import Password
+from inventory.models import InventoryItem, Tool
 
 from .feature_flags import (
     is_psa_enabled,
@@ -293,6 +294,9 @@ def ticket_detail(request, ticket_number):
     from accounts.permission_utils import user_has_perm as _uhp
     problem_can_create = _uhp(request.user, 'problem_create')
 
+    kit_items = list(ticket.kit_items.select_related(
+        'tool', 'inventory_item', 'packed_by').all())
+
     return render(request, 'psa/ticket_detail.html', {
         'ticket': ticket,
         'workflow_executions': workflow_executions,
@@ -327,6 +331,13 @@ def ticket_detail(request, ticket_number):
         # Phase 6.2 — Problem records linked to this ticket
         'problems': problems,
         'problem_can_create': problem_can_create,
+        # Phase 46 (v3.17.532): what the tech has to take to this job.
+        'kit_items': kit_items,
+        'kit_packed_count': sum(1 for k in kit_items if k.packed),
+        'kit_tools': Tool.objects.for_organization(
+            ticket.organization).filter(is_active=True),
+        'kit_inventory': InventoryItem.objects.for_organization(
+            ticket.organization),
     })
 
 
@@ -7862,3 +7873,112 @@ def timesheet_payroll_export(request):
             sub.decided_by.username if sub.decided_by_id else '',
         ])
     return resp
+
+
+# ---------------------------------------------------------------------------
+# Phase 46 (v3.17.532) — job kit: what the tech has to take to the job
+# ---------------------------------------------------------------------------
+
+def _kit_ticket(request, ticket_number):
+    """Fetch a ticket for kit editing, scoped exactly as ticket_detail is.
+
+    Reuses `_scoped_ticket_qs` plus the same cross-org refusal, so the kit
+    endpoints cannot become a way to reach a ticket the detail page would hide.
+    """
+    org = get_request_organization(request)
+    ticket = get_object_or_404(_scoped_ticket_qs(request),
+                               ticket_number=ticket_number)
+    if not (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
+        if ticket.organization_id != getattr(org, 'id', None):
+            raise Http404('Ticket not found')
+    return ticket
+
+
+@login_required
+@require_psa_enabled
+@require_http_methods(['POST'])
+def ticket_kit_add(request, ticket_number):
+    """Add one line to the kit list."""
+    from django.core.exceptions import ValidationError
+    from django.db import IntegrityError, transaction
+    from psa.models import TicketKitItem
+
+    ticket = _kit_ticket(request, ticket_number)
+    kind = request.POST.get('kind') or ''
+    if kind not in dict(TicketKitItem.KIND_CHOICES):
+        messages.error(request, 'Pick what kind of item this is.')
+        return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)
+
+    try:
+        quantity = max(1, int(request.POST.get('quantity') or 1))
+    except (TypeError, ValueError):
+        quantity = 1
+
+    item = TicketKitItem(
+        organization=ticket.organization, ticket=ticket, kind=kind,
+        quantity=quantity,
+        description=(request.POST.get('description') or '').strip()[:255],
+        notes=(request.POST.get('notes') or '').strip()[:255],
+    )
+
+    # Resolve the referenced row within the ticket's own organization — a tool
+    # id from another tenant must not attach here.
+    if kind == TicketKitItem.KIND_TOOL:
+        item.tool = Tool.objects.for_organization(
+            ticket.organization).filter(pk=request.POST.get('tool') or 0).first()
+    elif kind == TicketKitItem.KIND_INVENTORY:
+        item.inventory_item = InventoryItem.objects.for_organization(
+            ticket.organization).filter(
+                pk=request.POST.get('inventory_item') or 0).first()
+
+    try:
+        item.full_clean(exclude=['organization', 'ticket'])
+        # The save needs its own savepoint. Catching IntegrityError without one
+        # leaves the surrounding transaction broken, so every later query in the
+        # request — including rendering the redirect target — fails too. The
+        # duplicate is an expected outcome here, not an exceptional one.
+        with transaction.atomic():
+            item.save()
+    except ValidationError as exc:
+        for error in exc.messages:
+            messages.error(request, error)
+    except IntegrityError:
+        messages.warning(
+            request,
+            'That is already on the list — change its quantity instead of '
+            'adding a second line.')
+    else:
+        messages.success(request, f'Added {item.label} to the kit list.')
+    return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)
+
+
+@login_required
+@require_psa_enabled
+@require_http_methods(['POST'])
+def ticket_kit_remove(request, ticket_number, pk):
+    ticket = _kit_ticket(request, ticket_number)
+    removed = ticket.kit_items.filter(pk=pk).first()
+    if removed:
+        label = removed.label
+        removed.delete()
+        messages.success(request, f'Removed {label}.')
+    return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)
+
+
+@login_required
+@require_psa_enabled
+@require_http_methods(['POST'])
+def ticket_kit_toggle_packed(request, ticket_number, pk):
+    """Tick a line off while loading the van, or untick it."""
+    from django.utils import timezone as _tz
+
+    ticket = _kit_ticket(request, ticket_number)
+    item = get_object_or_404(ticket.kit_items, pk=pk)
+    item.packed = not item.packed
+    item.packed_at = _tz.now() if item.packed else None
+    item.packed_by = request.user if item.packed else None
+    item.save(update_fields=['packed', 'packed_at', 'packed_by', 'updated_at'])
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'packed': item.packed})
+    return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)

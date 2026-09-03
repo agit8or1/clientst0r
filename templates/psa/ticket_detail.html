@@ -437,6 +437,116 @@
             </div>
         </div>
 
+        {% comment %}
+            Phase 46 (v3.17.532) — what the tech has to take. Attached to the
+            ticket rather than the scheduled visit so it survives rescheduling
+            and shows wherever the ticket does.
+        {% endcomment %}
+        <div class="card mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong><i class="fas fa-toolbox"></i> Kit to take</strong>
+                {% if kit_items %}
+                <span class="small text-muted">
+                    {{ kit_packed_count }} of {{ kit_items|length }} packed
+                </span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if kit_items %}
+                <ul class="list-group list-group-flush">
+                    {% for item in kit_items %}
+                    <li class="list-group-item d-flex justify-content-between align-items-start py-2">
+                        <div class="d-flex align-items-start gap-2">
+                            <form method="post" action="{% url 'psa:ticket_kit_toggle_packed' ticket.ticket_number item.pk %}">
+                                {% csrf_token %}
+                                <button class="btn btn-sm p-0 border-0 bg-transparent"
+                                        title="{% if item.packed %}Mark not packed{% else %}Mark packed{% endif %}">
+                                    <i class="{% if item.packed %}fas fa-square-check text-success{% else %}far fa-square text-muted{% endif %}"></i>
+                                </button>
+                            </form>
+                            <div>
+                                <span class="{% if item.packed %}text-decoration-line-through text-muted{% endif %}">
+                                    {{ item.quantity }}&times; {{ item.label }}
+                                </span>
+                                <span class="badge text-bg-light ms-1">{{ item.get_kind_display }}</span>
+                                {% if item.stock_shortfall %}
+                                {% comment %}Telling a tech to take eight of something there are
+                                three of is the failure this list exists to prevent.{% endcomment %}
+                                <span class="badge text-bg-danger ms-1"
+                                      title="Not enough in stock">Short {{ item.stock_shortfall }}</span>
+                                {% endif %}
+                                <div class="small text-muted">
+                                    {% if item.where %}<i class="fas fa-location-dot"></i> {{ item.where }}{% endif %}
+                                    {% if item.notes %} &middot; {{ item.notes }}{% endif %}
+                                    {% if item.packed and item.packed_by %}
+                                    &middot; packed by {{ item.packed_by.username }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <form method="post" action="{% url 'psa:ticket_kit_remove' ticket.ticket_number item.pk %}">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-link text-danger p-0"
+                                    onclick="return confirm('Remove {{ item.label|escapejs }} from the kit list?')">Remove</button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted small mb-0 p-3">
+                    Nothing listed yet. Add the tools and parts this job needs so
+                    whoever attends knows what to load.
+                </p>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <form method="post" action="{% url 'psa:ticket_kit_add' ticket.ticket_number %}" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small mb-0" for="kit_kind">Type</label>
+                        <select class="form-select form-select-sm" id="kit_kind" name="kind">
+                            <option value="tool">Tool</option>
+                            <option value="inventory">Inventory item</option>
+                            <option value="other">Other / not stocked</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-5 kit-field" data-kind="tool">
+                        <label class="form-label small mb-0" for="kit_tool">Tool</label>
+                        <select class="form-select form-select-sm" id="kit_tool" name="tool">
+                            {% for t in kit_tools %}
+                            <option value="{{ t.pk }}">{{ t }}{% if t.home %} — {{ t.home }}{% endif %}</option>
+                            {% empty %}
+                            <option value="">No tools in the catalogue yet</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-5 kit-field" data-kind="inventory" hidden>
+                        <label class="form-label small mb-0" for="kit_item">Inventory item</label>
+                        <select class="form-select form-select-sm" id="kit_item" name="inventory_item">
+                            {% for i in kit_inventory %}
+                            <option value="{{ i.pk }}">{{ i.name }} ({{ i.quantity }} in stock)</option>
+                            {% empty %}
+                            <option value="">No inventory items yet</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-5 kit-field" data-kind="other" hidden>
+                        <label class="form-label small mb-0" for="kit_desc">Item</label>
+                        <input type="text" class="form-control form-control-sm" id="kit_desc"
+                               name="description" maxlength="255" placeholder="e.g. loaner laptop">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small mb-0" for="kit_qty">Qty</label>
+                        <input type="number" class="form-control form-control-sm" id="kit_qty"
+                               name="quantity" value="1" min="1">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <button class="btn btn-sm btn-primary w-100">Add</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="card mt-3">
             <div class="card-header"><strong>Vault Context</strong></div>
             <div class="card-body">
@@ -1092,6 +1202,22 @@
             }
         });
     });
+})();
+</script>
+{% endblock %}
+
+{% block extra_js %}{{ block.super }}
+<script>
+(function () {
+    var kind = document.getElementById('kit_kind');
+    if (!kind) { return; }
+    function sync() {
+        document.querySelectorAll('.kit-field').forEach(function (el) {
+            el.hidden = el.dataset.kind !== kind.value;
+        });
+    }
+    kind.addEventListener('change', sync);
+    sync();
 })();
 </script>
 {% endblock %}

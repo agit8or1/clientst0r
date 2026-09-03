@@ -164,3 +164,82 @@ class InventoryTransaction(models.Model):
 
     def __str__(self):
         return f"{self.item.name} {self.transaction_type} {self.quantity_change:+d}"
+
+
+class Tool(BaseModel):
+    """Phase 46 (v3.17.532): durable equipment a tech takes to a job.
+
+    Deliberately separate from InventoryItem. A consumable is spent — you take
+    eight patch cables and come back with none, and stock decrements. A tool
+    goes out and comes back, and the question its record has to answer is
+    "where is it and who has it", not "how many are left". Modelling both as
+    stock rows would mean either lying about quantities or explaining why the
+    cable tester's count never drops.
+    """
+    CONDITIONS = [
+        ('good', 'Good'),
+        ('needs_service', 'Needs service'),
+        ('out_of_service', 'Out of service'),
+        ('lost', 'Lost'),
+    ]
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name='tools')
+    name = models.CharField(max_length=255)
+    code = models.CharField(
+        max_length=50, blank=True,
+        help_text='Asset tag or internal identifier, e.g. TL-014.')
+    category = models.ForeignKey(
+        InventoryCategory, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='tools')
+    description = models.TextField(blank=True)
+
+    # Where it lives when nobody has it out. Either a shelf or a van; both are
+    # optional because plenty of shops track neither.
+    home_location = models.ForeignKey(
+        InventoryLocation, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='tools')
+    assigned_vehicle = models.ForeignKey(
+        'vehicles.ServiceVehicle', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='tools',
+        help_text='Van this tool normally rides in, if any.')
+
+    condition = models.CharField(max_length=20, choices=CONDITIONS, default='good')
+    is_active = models.BooleanField(
+        default=True,
+        help_text='Uncheck to retire a tool without deleting its history.')
+    notes = models.TextField(blank=True)
+
+    objects = OrganizationManager()
+
+    class Meta:
+        db_table = 'inventory_tools'
+        ordering = ['name']
+        constraints = [
+            # A code is optional, but a used one must be unique per tenant —
+            # two tools answering to TL-014 makes the tag useless.
+            models.UniqueConstraint(
+                fields=['organization', 'code'],
+                condition=models.Q(code__gt=''),
+                name='uniq_tool_code_per_org'),
+        ]
+        indexes = [models.Index(fields=['organization', 'is_active'])]
+
+    def __str__(self):
+        return f'{self.code} {self.name}'.strip() if self.code else self.name
+
+    @property
+    def is_available(self) -> bool:
+        """Usable right now — retired and broken tools are not."""
+        return self.is_active and self.condition in ('good', 'needs_service')
+
+    @property
+    def home(self) -> str:
+        """Where to go looking for it, in one string."""
+        if self.assigned_vehicle_id:
+            # `display_name` is the van's nickname ("Van 3"); __str__ is the
+            # year/make/model/plate, which is not how anyone refers to a van.
+            return self.assigned_vehicle.display_name
+        if self.home_location_id:
+            return self.home_location.name
+        return ''

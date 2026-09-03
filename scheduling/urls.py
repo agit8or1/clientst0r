@@ -17,4 +17,9 @@ urlpatterns = [
     path('my-tasks/', views.my_tasks, name='my_tasks'),
     path('overdue/', views.overdue_tasks, name='overdue_tasks'),
     path('calendar/', views.task_calendar, name='task_calendar'),
+    # Phase 47 (v3.17.533) — wall-mounted schedule board.
+    # The public route carries a random token instead of an org id, so boards
+    # cannot be enumerated; it is unauthenticated by design.
+    path('wallboard/', views.wallboard_settings, name='wallboard_settings'),
+    path('wallboard/<str:token>/', views.wallboard_public, name='wallboard_public'),
 ]

@@ -1160,6 +1160,17 @@ class ScheduledTask(models.Model):
                 'enabled': False,
             },
             {
+                # v3.17.533: appears on Settings > Scheduler with an enable
+                # toggle, so an operator can turn the accounting sync on without
+                # touching systemd. The shipped timer unit is the alternative,
+                # not a prerequisite — both run the same command.
+                'task_type': 'accounting_sync',
+                'description': 'Two-way sync with QuickBooks Online / Xero '
+                               '(customers, payments, invoice state)',
+                'interval_minutes': 60,
+                'enabled': False,
+            },
+            {
                 'task_type': 'password_breach_scan',
                 'description': 'Check all passwords against HaveIBeenPwned breach database',
                 'interval_minutes': 1440,  # Once per day (24 hours)

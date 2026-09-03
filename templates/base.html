@@ -165,11 +165,13 @@
                             <li><a class="dropdown-item" href="{% url 'inventory:inventory_dashboard' %}"><i class="fas fa-tachometer-alt"></i> {% trans "Dashboard" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'inventory:item_list' %}"><i class="fas fa-boxes"></i> {% trans "All Items" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'inventory:low_stock_report' %}"><i class="fas fa-exclamation-triangle"></i> {% trans "Low Stock" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'inventory:tool_list' %}"><i class="fas fa-screwdriver-wrench"></i> {% trans "Tools" %}</a></li>
                             {% endif %}
                             {% if scheduling_enabled %}
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">{% trans "Scheduling" %}</h6></li>
                             <li><a class="dropdown-item" href="{% url 'scheduling:task_list' %}"><i class="fas fa-tasks"></i> {% trans "All Tasks" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'scheduling:wallboard_settings' %}"><i class="fas fa-tv"></i> {% trans "Wallboard" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'scheduling:my_tasks' %}"><i class="fas fa-user-check"></i> {% trans "My Tasks" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'scheduling:task_calendar' %}"><i class="fas fa-calendar-alt"></i> {% trans "Calendar" %}</a></li>
                             {% endif %}

@@ -233,3 +233,100 @@ class TaskComment(models.Model):
 
     def __str__(self):
         return f"Comment on {self.task.title} by {self.author}"
+
+
+class SchedulerWallboard(BaseModel):
+    """Phase 47 (v3.17.533): a read-only schedule board for a wall-mounted TV.
+
+    Public by design — a shop TV has no keyboard and nobody wants to log a
+    display in every morning. That makes the URL itself the only thing standing
+    between the schedule and the internet, so:
+
+      * it is off by default (`is_enabled=False`), and a disabled board 404s
+        rather than 403s — a 403 confirms the board exists;
+      * the address carries a 43-character random token, not the org id, so it
+        cannot be guessed or enumerated by walking integers;
+      * the token can be rotated, which instantly invalidates any link that has
+        leaked;
+      * what it shows is opt-in per field. Client names are the most sensitive
+        thing on a schedule and can be withheld while keeping the board useful.
+
+    One board per organization. Multiple named boards would be a bigger surface
+    and nobody has asked for two.
+    """
+    # System-wide, not per-organization. In this app an Organization *is* a
+    # client, so a per-org board would show one client's jobs — which is not
+    # what a screen on the workshop wall is for. One board, every client's work,
+    # with `show_client_names` deciding whether the names go up with it.
+    is_enabled = models.BooleanField(
+        default=False,
+        help_text='Off by default. While off, the public URL returns 404.')
+    token = models.CharField(
+        max_length=64, unique=True, db_index=True,
+        help_text='Random component of the public URL. Rotating it breaks '
+                  'every existing link immediately.')
+
+    title = models.CharField(max_length=120, blank=True,
+                             help_text='Heading on the board. Defaults to "Schedule".')
+    days_ahead = models.PositiveSmallIntegerField(
+        default=1,
+        help_text='How many days to show, starting today. 1 = today only.')
+    refresh_seconds = models.PositiveIntegerField(
+        default=60,
+        help_text='How often the board reloads itself. Minimum 15.')
+
+    # Each of these adds something to an unauthenticated page, so each is a
+    # separate decision rather than one blanket "show details" switch.
+    show_client_names = models.BooleanField(
+        default=True,
+        help_text='Show which client each job is for. Turn off if the screen '
+                  'is visible to visitors.')
+    show_technician_names = models.BooleanField(default=True)
+    show_ticket_numbers = models.BooleanField(default=True)
+
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='scheduler_wallboards_created')
+
+    class Meta:
+        db_table = 'scheduling_wallboards'
+
+    def __str__(self):
+        return f'Scheduler wallboard ({"on" if self.is_enabled else "off"})'
+
+    @classmethod
+    def get_board(cls, user=None):
+        """The single board, created disabled on first access."""
+        board, _created = cls.objects.get_or_create(
+            pk=1, defaults={'created_by': user})
+        return board
+
+    @staticmethod
+    def new_token() -> str:
+        """43 URL-safe characters from `secrets` — not `random`, which is
+        seeded predictably and has no business generating anything that acts
+        as a credential."""
+        import secrets
+        return secrets.token_urlsafe(32)
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # singleton
+        if not self.token:
+            self.token = self.new_token()
+        # A board that reloads every second would hammer the server for no
+        # human benefit; a wall display is read at walking pace.
+        self.refresh_seconds = max(15, int(self.refresh_seconds or 60))
+        super().save(*args, **kwargs)
+
+    def rotate_token(self):
+        self.token = self.new_token()
+        self.save(update_fields=['token', 'updated_at'])
+        return self.token
+
+    @property
+    def display_title(self) -> str:
+        return self.title or 'Schedule'
+
+    def get_public_url(self) -> str:
+        from django.urls import reverse
+        return reverse('scheduling:wallboard_public', args=[self.token])

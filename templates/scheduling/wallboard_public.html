@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta http-equiv="refresh" content="{{ board.refresh_seconds }}">
+    <title>{{ board.display_title }} — Schedule</title>
+    {% comment %}
+        Deliberately standalone rather than extending base.html: this renders on
+        a wall-mounted screen with no user, so the nav, the org switcher and the
+        session-dependent chrome are all meaningless here. Meta-refresh rather
+        than JS so it survives a browser with scripting locked down, matching the
+        existing wallboards (v3.17.211).
+    {% endcomment %}
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 2vh 2vw;
+            background: #10131a; color: #f2f5fa;
+            font: 500 1.6vw/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+        }
+        header { display: flex; justify-content: space-between; align-items: baseline;
+                 border-bottom: 2px solid #2a3242; padding-bottom: 1vh; margin-bottom: 2vh; }
+        h1 { font-size: 2.6vw; margin: 0; letter-spacing: -0.02em; }
+        .clock { font-size: 1.4vw; color: #8b97ad; }
+        h2 { font-size: 1.7vw; margin: 3vh 0 1vh; color: #7fb2ff; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 1.1vh 0.8vw; border-bottom: 1px solid #222a38; vertical-align: top; }
+        .time { width: 9vw; color: #9fd0ff; font-variant-numeric: tabular-nums; }
+        .who  { width: 16vw; color: #b9c4d6; }
+        .client { color: #8b97ad; font-size: 1.25vw; }
+        .pri-urgent, .pri-high { border-left: 0.4vw solid #ff6b6b; padding-left: 0.6vw; }
+        .empty { color: #6c7688; padding: 6vh 0; text-align: center; font-size: 1.8vw; }
+        footer { margin-top: 3vh; color: #55607a; font-size: 1vw; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>{{ board.display_title }}</h1>
+        <div class="clock">{{ generated_at|date:"D j M · H:i" }}</div>
+    </header>
+
+    {% for day, tasks in days %}
+    <h2>{{ day|date:"l j F" }}</h2>
+    <table>
+        {% for task in tasks %}
+        <tr class="pri-{{ task.priority }}">
+            <td class="time">{{ task.due_date|date:"H:i" }}</td>
+            <td>
+                {{ task.title }}
+                {% if board.show_ticket_numbers and task.psa_ticket %}
+                <span class="client">#{{ task.psa_ticket.ticket_number }}</span>
+                {% endif %}
+                {% if board.show_client_names %}
+                <div class="client">{{ task.organization.name }}</div>
+                {% endif %}
+            </td>
+            <td class="who">
+                {% if board.show_technician_names %}
+                    {% for person in task.assigned_to.all %}{{ person.get_full_name|default:person.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% empty %}
+    <p class="empty">Nothing scheduled.</p>
+    {% endfor %}
+
+    <footer>Refreshes every {{ board.refresh_seconds }}s.</footer>
+</body>
+</html>

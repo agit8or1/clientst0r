@@ -10,7 +10,9 @@ from datetime import timedelta
 from collections import defaultdict
 from core.middleware import get_request_organization
 from core.decorators import require_admin, require_write
-from .models import ScheduledTask, TaskAssignment, TaskComment
+from .models import (
+    ScheduledTask, SchedulerWallboard, TaskAssignment, TaskComment,
+)
 from .forms import ScheduledTaskForm, TaskSignOffForm, TaskCommentForm, TaskAssignUsersForm
 
 
@@ -358,4 +360,111 @@ def task_calendar(request):
     return render(request, 'scheduling/calendar.html', {
         'calendar_data': calendar_data,
         'now': now,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Phase 47 (v3.17.533) — public scheduler wallboard
+# ---------------------------------------------------------------------------
+
+def _wallboard_days(days_ahead):
+    """Scheduled tasks grouped by day, oldest first.
+
+    Shares the shape of the dashboard Schedule panel (v3.17.524) so the wall
+    display and the dashboard cannot disagree about what is happening today.
+    """
+    from datetime import datetime, time, timedelta
+
+    today = timezone.now().date()
+    end = today + timedelta(days=max(1, min(int(days_ahead or 1), 14)))
+    start_dt = timezone.make_aware(datetime.combine(today, time.min))
+    end_dt = timezone.make_aware(datetime.combine(end, time.min))
+
+    # Every client's work: this is a workshop board, and an MSP's day spans
+    # clients. `show_client_names` controls whether the names are displayed.
+    tasks = (ScheduledTask.objects
+             .filter(due_date__gte=start_dt, due_date__lt=end_dt)
+             .exclude(status__in=['completed', 'cancelled'])
+             .select_related('organization', 'psa_ticket')
+             .prefetch_related('assigned_to')
+             .order_by('due_date'))
+
+    buckets = {}
+    for task in tasks:
+        buckets.setdefault(task.due_date.date(), []).append(task)
+    return [(day, buckets[day]) for day in sorted(buckets)]
+
+
+def wallboard_public(request, token):
+    """The board itself. No authentication — that is the point.
+
+    A disabled or unknown token 404s identically. Distinguishing them would
+    confirm to anyone probing that a board exists at that address.
+    """
+    from django.http import Http404
+    from django.shortcuts import render
+
+    board = SchedulerWallboard.objects.filter(
+        token=token, is_enabled=True).first()
+    if board is None:
+        raise Http404('No wallboard here')
+
+    response = render(request, 'scheduling/wallboard_public.html', {
+        'board': board,
+        'days': _wallboard_days(board.days_ahead),
+        'generated_at': timezone.now(),
+    })
+    # An unauthenticated page listing customer work has no business in a shared
+    # cache or a search index.
+    response['Cache-Control'] = 'no-store, private'
+    response['X-Robots-Tag'] = 'noindex, nofollow'
+    return response
+
+
+@login_required
+@require_admin
+def wallboard_settings(request):
+    """Enable, disable, configure and rotate the board's link."""
+    from django.shortcuts import render
+
+    board = SchedulerWallboard.get_board(user=request.user)
+
+    if request.method == 'POST':
+        action = request.POST.get('action') or 'save'
+
+        if action == 'rotate':
+            board.rotate_token()
+            messages.warning(
+                request,
+                'Link rotated. Any screen still pointed at the old address will '
+                'stop working until you re-open the new one on it.')
+            return redirect('scheduling:wallboard_settings')
+
+        board.is_enabled = request.POST.get('is_enabled') == 'on'
+        board.title = (request.POST.get('title') or '').strip()[:120]
+        board.show_client_names = request.POST.get('show_client_names') == 'on'
+        board.show_technician_names = request.POST.get('show_technician_names') == 'on'
+        board.show_ticket_numbers = request.POST.get('show_ticket_numbers') == 'on'
+        try:
+            board.days_ahead = max(1, min(int(request.POST.get('days_ahead') or 1), 14))
+        except (TypeError, ValueError):
+            board.days_ahead = 1
+        try:
+            board.refresh_seconds = int(request.POST.get('refresh_seconds') or 60)
+        except (TypeError, ValueError):
+            board.refresh_seconds = 60
+        board.save()
+
+        if board.is_enabled:
+            messages.success(
+                request,
+                'Wallboard is live. Anyone with the link can read this '
+                'schedule without signing in.')
+        else:
+            messages.success(request, 'Wallboard disabled. The link now 404s.')
+        return redirect('scheduling:wallboard_settings')
+
+    return render(request, 'scheduling/wallboard_settings.html', {
+        'board': board,
+        'public_url': request.build_absolute_uri(board.get_public_url()),
     })

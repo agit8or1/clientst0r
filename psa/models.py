@@ -2975,27 +2975,45 @@ class Invoice(models.Model):
         # Recompute amount_paid from related Payment rows
         paid = sum((Decimal(str(p.amount or '0')) for p in self.payments.all()), Decimal('0'))
         self.amount_paid = paid
-        # Auto status update.
-        # v3.17.529: this used to be one-way — an invoice could reach 'paid' but
-        # never leave it. A payment voided in the accounting system, or deleted
-        # here, left the invoice reading Paid with nothing against it. Now the
-        # status follows the money in both directions. 'void' and 'draft' remain
-        # untouched because those are deliberate human states, not consequences
-        # of a balance.
+        # Auto status update. Deliberately one-way: this method cannot tell a
+        # voided payment from an invoice somebody marked paid by hand with no
+        # Payment rows behind it — cash, a cheque, or settled straight in the
+        # accounting system. Reopening those would restart late fees on invoices
+        # that are genuinely settled. `reopen_if_unpaid()` below does the
+        # reverse transition, called only where a payment is known to have been
+        # removed.
         if self.status not in ('void', 'draft'):
             if paid >= self.total > 0:
                 self.status = 'paid'
             elif paid > 0:
                 self.status = 'partial'
-            elif self.status in ('paid', 'partial'):
-                # Payment went away. Overdue if it is past due, else just sent.
-                from django.utils import timezone as _tz
-                due = self.due_date
-                self.status = ('overdue'
-                               if due and due < _tz.now().date()
-                               else 'sent')
         self.save(update_fields=['subtotal', 'tax_amount', 'total',
                                  'amount_paid', 'status', 'updated_at'])
+
+    def reopen_if_unpaid(self):
+        """Move a Paid/Partial invoice back to open after its payments go away.
+
+        Separate from `recompute_totals()` on purpose. That method runs from
+        everywhere and has no idea *why* the total is zero; an invoice marked
+        paid by hand never had Payment rows in the first place, and reopening it
+        would restart late fees on something genuinely settled. Only a caller
+        that just removed a payment knows the difference, so only that caller
+        performs this transition.
+
+        Added v3.17.532 after the two-way version of recompute_totals reopened
+        hand-marked invoices and tripped the late-fee tests.
+        """
+        from decimal import Decimal
+        from django.utils import timezone as _tz
+
+        if self.status not in ('paid', 'partial'):
+            return
+        if Decimal(str(self.amount_paid or '0')) > 0:
+            return
+        self.status = ('overdue'
+                       if self.due_date and self.due_date < _tz.now().date()
+                       else 'sent')
+        self.save(update_fields=['status', 'updated_at'])
 
     def create_credit_memo(self, *, user=None, reason='', amount=None):
         """Phase 27 v3 (v3.17.264): issue a credit memo against this
@@ -4697,6 +4715,156 @@ class RecurringPurchaseTemplate(models.Model):
 # ---------------------------------------------------------------------------
 # Phase 21 v13 (v3.17.311) — Site check-in / check-out (Field Mode).
 # ---------------------------------------------------------------------------
+
+class TicketKitItem(models.Model):
+    """Phase 46 (v3.17.532): something the tech has to take to this job.
+
+    One flat list covering three different things, because that is how it is
+    read — a tech looks at one list before leaving, not three. `kind` says which
+    of the two foreign keys is meaningful, or neither for a free-text line.
+
+    Attached to the ticket rather than to the scheduled visit so the list
+    survives rescheduling and shows wherever the ticket does. A ticket needing
+    genuinely different kit on different days is better modelled as two tickets.
+    """
+    KIND_TOOL = 'tool'
+    KIND_INVENTORY = 'inventory'
+    KIND_OTHER = 'other'
+    KIND_CHOICES = [
+        (KIND_TOOL, 'Tool'),
+        (KIND_INVENTORY, 'Inventory item'),
+        (KIND_OTHER, 'Other / not stocked'),
+    ]
+
+    organization = models.ForeignKey(
+        'core.Organization', on_delete=models.CASCADE,
+        related_name='psa_ticket_kit_items',
+    )
+    ticket = models.ForeignKey(
+        Ticket, on_delete=models.CASCADE, related_name='kit_items',
+    )
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+
+    tool = models.ForeignKey(
+        'inventory.Tool', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='ticket_kit_items',
+    )
+    inventory_item = models.ForeignKey(
+        'inventory.InventoryItem', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='ticket_kit_items',
+    )
+    # Free text for an 'other' line, and a copy of the name for the other two.
+    # Denormalised on purpose: the FKs are SET_NULL, and a packing list that
+    # goes blank because somebody retired a tool is worse than a stale label.
+    description = models.CharField(max_length=255, blank=True)
+
+    quantity = models.PositiveIntegerField(default=1)
+    notes = models.CharField(max_length=255, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    # The point of the feature: a tech ticks things off while loading the van.
+    packed = models.BooleanField(default=False)
+    packed_at = models.DateTimeField(null=True, blank=True)
+    packed_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='psa_kit_items_packed',
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_ticket_kit_items'
+        ordering = ['sort_order', 'kind', 'pk']
+        indexes = [
+            models.Index(fields=['ticket', 'kind']),
+            models.Index(fields=['organization', 'packed']),
+        ]
+        constraints = [
+            # The same tool or part listed twice on one ticket is a data-entry
+            # slip, not a request for two lines. Quantity is the way to ask for
+            # more than one.
+            models.UniqueConstraint(
+                fields=['ticket', 'tool'],
+                condition=models.Q(tool__isnull=False),
+                name='uniq_kit_tool_per_ticket'),
+            models.UniqueConstraint(
+                fields=['ticket', 'inventory_item'],
+                condition=models.Q(inventory_item__isnull=False),
+                name='uniq_kit_item_per_ticket'),
+        ]
+
+    def __str__(self):
+        return f'{self.quantity}x {self.label}'
+
+    @property
+    def label(self) -> str:
+        """What to show. Falls back to the stored copy if the row is gone."""
+        if self.kind == self.KIND_TOOL and self.tool_id:
+            return str(self.tool)
+        if self.kind == self.KIND_INVENTORY and self.inventory_item_id:
+            return self.inventory_item.name
+        return self.description or '(unnamed)'
+
+    @property
+    def where(self) -> str:
+        """Where to find it — the other half of "what to take"."""
+        if self.kind == self.KIND_TOOL and self.tool_id:
+            return self.tool.home
+        if self.kind == self.KIND_INVENTORY and self.inventory_item_id:
+            location = getattr(self.inventory_item, 'location', None)
+            return location.name if location else ''
+        return ''
+
+    @property
+    def stock_shortfall(self) -> int:
+        """How many short stock is for this line, or 0.
+
+        Only meaningful for inventory: telling a tech to take eight of
+        something there are three of is the failure this list exists to avoid.
+        """
+        if self.kind != self.KIND_INVENTORY or not self.inventory_item_id:
+            return 0
+        available = self.inventory_item.quantity or 0
+        return max(0, self.quantity - available)
+
+    def clean(self):
+        """Keep `kind` and the foreign keys honest.
+
+        Without this a row can claim to be a tool while carrying an inventory
+        item, and every reader downstream has to second-guess it.
+        """
+        from django.core.exceptions import ValidationError
+
+        if self.kind == self.KIND_TOOL:
+            if not self.tool_id:
+                raise ValidationError({'tool': 'A tool line needs a tool.'})
+            if self.inventory_item_id:
+                raise ValidationError(
+                    {'inventory_item': 'A tool line cannot also carry an inventory item.'})
+        elif self.kind == self.KIND_INVENTORY:
+            if not self.inventory_item_id:
+                raise ValidationError(
+                    {'inventory_item': 'An inventory line needs an item.'})
+            if self.tool_id:
+                raise ValidationError(
+                    {'tool': 'An inventory line cannot also carry a tool.'})
+        else:
+            if self.tool_id or self.inventory_item_id:
+                raise ValidationError(
+                    'An "other" line must not reference a tool or inventory item.')
+            if not (self.description or '').strip():
+                raise ValidationError(
+                    {'description': 'Describe the item so the tech knows what to bring.'})
+
+    def save(self, *args, **kwargs):
+        # Keep the display copy in step so `label` survives the FK being nulled.
+        if self.kind == self.KIND_TOOL and self.tool_id:
+            self.description = str(self.tool)[:255]
+        elif self.kind == self.KIND_INVENTORY and self.inventory_item_id:
+            self.description = self.inventory_item.name[:255]
+        super().save(*args, **kwargs)
+
 
 class SiteVisit(models.Model):
     """A tech's "I have arrived / I have left" record against an active

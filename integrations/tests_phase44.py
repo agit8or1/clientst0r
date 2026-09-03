@@ -427,6 +427,39 @@ class PaymentPullTests(_InvoiceCase):
         self.assertEqual(self.invoice.amount_paid, D('0'))
         self.assertNotEqual(self.invoice.status, 'paid')
 
+    def test_an_invoice_marked_paid_by_hand_is_not_reopened(self):
+        """Regression guard (v3.17.532).
+
+        Making recompute_totals two-way initially reopened *any* invoice showing
+        Paid with no Payment rows behind it — which is how cash, cheques and
+        invoices settled straight in the accounting system are recorded. They
+        would have quietly gone back to overdue and started accruing late fees.
+        Only an invoice whose payments actually went away may be reopened.
+        """
+        from decimal import Decimal as D
+        from psa.models import Invoice, InvoiceLineItem
+
+        from datetime import date
+        manual = Invoice.objects.create(
+            organization=self.tenant, client_org=self.client_org,
+            title='Paid in cash', invoice_date=date(2026, 1, 1),
+            status='paid', amount_paid=D('200'))
+        InvoiceLineItem.objects.create(
+            invoice=manual, description='Callout', quantity=D('1'),
+            unit_price=D('200'))
+
+        manual.recompute_totals()
+        manual.refresh_from_db()
+        self.assertEqual(manual.status, 'paid',
+                         'recompute_totals must never reopen an invoice')
+
+        # The explicit call does reopen it — that is the caller saying "I just
+        # removed a payment", which recompute_totals cannot know on its own.
+        manual.amount_paid = D('0')
+        manual.reopen_if_unpaid()
+        manual.refresh_from_db()
+        self.assertIn(manual.status, ('sent', 'overdue'))
+
     def test_a_payment_for_an_unknown_invoice_is_reported_not_invented(self):
         from integrations.services.accounting_sync import sync_payments
         from psa.models import Payment

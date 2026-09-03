@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Delete {{ tool }}{% endblock %}
+
+{% block content %}
+<h4 class="mb-3">Delete {{ tool }}?</h4>
+<div class="alert alert-warning">
+    Retiring the tool instead keeps it off pick-lists without touching the kit
+    lists that already reference it. Deleting is permanent.
+</div>
+<form method="post">
+    {% csrf_token %}
+    <button class="btn btn-danger">Delete permanently</button>
+    <a href="{% url 'inventory:tool_list' %}" class="btn btn-outline-secondary">Cancel</a>
+</form>
+{% endblock %}

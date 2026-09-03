@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Scheduler wallboard{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="fas fa-tv"></i> Scheduler wallboard</h4>
+
+<div class="alert {% if board.is_enabled %}alert-warning{% else %}alert-secondary{% endif %}">
+    {% if board.is_enabled %}
+    <strong>This board is live and public.</strong>
+    Anyone with the link can read <em>every client's</em> schedule without signing in. Treat the
+    link like a password: it is the only thing protecting it.
+    {% else %}
+    <strong>This board is off.</strong> The public link returns 404 until you enable it.
+    {% endif %}
+</div>
+
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>Public link</strong></div>
+    <div class="card-body">
+        <div class="input-group mb-2">
+            <input type="text" class="form-control font-monospace" id="public_url"
+                   value="{{ public_url }}" readonly>
+            <button class="btn btn-outline-secondary" type="button"
+                    onclick="navigator.clipboard.writeText(document.getElementById('public_url').value)">
+                Copy
+            </button>
+            <a class="btn btn-outline-primary" href="{{ board.get_public_url }}" target="_blank" rel="noopener">Open</a>
+        </div>
+        <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="rotate">
+            <button class="btn btn-sm btn-outline-danger"
+                    onclick="return confirm('Rotate the link?\n\nEvery screen currently showing this board will stop working until you open the new address on it.')">
+                Rotate link
+            </button>
+        </form>
+        <span class="form-text ms-2">Rotate if the link has been shared somewhere it shouldn't have been.</span>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header py-2"><strong>Settings</strong></div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" id="is_enabled" name="is_enabled"
+                       {% if board.is_enabled %}checked{% endif %}>
+                <label class="form-check-label" for="is_enabled"><strong>Enable the public board</strong></label>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="title">Heading</label>
+                    <input type="text" class="form-control" id="title" name="title"
+                           value="{{ board.title }}" maxlength="120"
+                           placeholder="Schedule">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="days_ahead">Days shown</label>
+                    <input type="number" class="form-control" id="days_ahead" name="days_ahead"
+                           value="{{ board.days_ahead }}" min="1" max="14">
+                    <div class="form-text">1 = today only.</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="refresh_seconds">Refresh (seconds)</label>
+                    <input type="number" class="form-control" id="refresh_seconds" name="refresh_seconds"
+                           value="{{ board.refresh_seconds }}" min="15">
+                </div>
+            </div>
+
+            <hr>
+            <p class="mb-2"><strong>What the board shows</strong></p>
+            <p class="form-text mt-0">
+                Each of these puts more on an unauthenticated page. Client names are
+                usually the most sensitive; turn them off if the screen is visible
+                to visitors.
+            </p>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="show_client_names"
+                       name="show_client_names" {% if board.show_client_names %}checked{% endif %}>
+                <label class="form-check-label" for="show_client_names">Client names</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="show_technician_names"
+                       name="show_technician_names" {% if board.show_technician_names %}checked{% endif %}>
+                <label class="form-check-label" for="show_technician_names">Technician names</label>
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="show_ticket_numbers"
+                       name="show_ticket_numbers" {% if board.show_ticket_numbers %}checked{% endif %}>
+                <label class="form-check-label" for="show_ticket_numbers">Ticket numbers</label>
+            </div>
+
+            <button class="btn btn-primary">Save</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

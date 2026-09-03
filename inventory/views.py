@@ -8,8 +8,13 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from core.middleware import get_request_organization
 from core.decorators import require_admin, require_write
-from .models import InventoryItem, InventoryCategory, InventoryLocation, InventoryTransaction
-from .forms import InventoryItemForm, InventoryAdjustForm, InventoryCategoryForm, InventoryLocationForm
+from .models import (
+    InventoryCategory, InventoryItem, InventoryLocation, InventoryTransaction, Tool,
+)
+from .forms import (
+    InventoryAdjustForm, InventoryCategoryForm, InventoryItemForm,
+    InventoryLocationForm, ToolForm,
+)
 
 
 @login_required
@@ -373,3 +378,89 @@ def low_stock_report(request):
     return render(request, 'inventory/low_stock.html', {
         'items': low_stock_items,
     })
+
+
+# ---------------------------------------------------------------------------
+# Phase 46 (v3.17.532) — tool catalogue
+# ---------------------------------------------------------------------------
+
+@login_required
+def tool_list(request):
+    """Durable equipment, separate from consumable stock."""
+    org = get_request_organization(request)
+    tools = (Tool.objects.for_organization(org)
+             .select_related('category', 'home_location', 'assigned_vehicle')
+             if org else Tool.objects.none())
+
+    query = (request.GET.get('q') or '').strip()
+    if query:
+        tools = tools.filter(Q(name__icontains=query) | Q(code__icontains=query))
+    if request.GET.get('show') != 'all':
+        tools = tools.filter(is_active=True)
+
+    return render(request, 'inventory/tool_list.html', {
+        'tools': tools,
+        'query': query,
+        'showing_all': request.GET.get('show') == 'all',
+    })
+
+
+@login_required
+@require_write
+def tool_create(request):
+    org = get_request_organization(request)
+    if not org:
+        messages.error(request, 'Select an organization first.')
+        return redirect('inventory:tool_list')
+
+    if request.method == 'POST':
+        form = ToolForm(request.POST, organization=org)
+        if form.is_valid():
+            tool = form.save(commit=False)
+            tool.organization = org
+            tool.save()
+            messages.success(request, f'Added {tool}.')
+            return redirect('inventory:tool_list')
+    else:
+        form = ToolForm(organization=org)
+
+    return render(request, 'inventory/tool_form.html',
+                  {'form': form, 'title': 'Add tool'})
+
+
+@login_required
+@require_write
+def tool_edit(request, pk):
+    org = get_request_organization(request)
+    tool = get_object_or_404(Tool.objects.for_organization(org), pk=pk)
+
+    if request.method == 'POST':
+        form = ToolForm(request.POST, instance=tool, organization=org)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Updated {tool}.')
+            return redirect('inventory:tool_list')
+    else:
+        form = ToolForm(instance=tool, organization=org)
+
+    return render(request, 'inventory/tool_form.html',
+                  {'form': form, 'title': f'Edit {tool}', 'tool': tool})
+
+
+@login_required
+@require_admin
+def tool_delete(request, pk):
+    """Delete a tool outright.
+
+    Retiring (is_active=False) is usually what is wanted — it keeps the tool off
+    pick-lists without breaking the kit lines that reference it, which are
+    SET_NULL and carry their own copy of the label.
+    """
+    org = get_request_organization(request)
+    tool = get_object_or_404(Tool.objects.for_organization(org), pk=pk)
+    if request.method == 'POST':
+        name = str(tool)
+        tool.delete()
+        messages.success(request, f'Deleted {name}.')
+        return redirect('inventory:tool_list')
+    return render(request, 'inventory/tool_confirm_delete.html', {'tool': tool})
