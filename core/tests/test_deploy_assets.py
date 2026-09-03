@@ -34,7 +34,12 @@ class DeployAssetReferenceTests(SimpleTestCase):
         referenced = set()
         for script in sorted(self.deploy.glob('*.sh')):
             text = script.read_text(encoding='utf-8')
-            for name in re.findall(r'[\w./$(){}"-]*?([A-Za-z0-9_-]+-sudoers)\b', text):
+            # The trailing lookahead matters: without it, `\b` is satisfied by a
+            # following '.', so a path like `mobile-build-sudoers.sha256` (the
+            # install stamp, v3.17.519) matched as if it were a sudoers template
+            # and the test demanded a `deploy/mobile-build-sudoers` that nothing
+            # ever referenced. Only match when the name ENDS at '-sudoers'.
+            for name in re.findall(r'([A-Za-z0-9_-]+-sudoers)(?![\w.])', text):
                 referenced.add((script.name, name))
                 if not (self.deploy / name).is_file():
                     missing.append(f'{script.name} copies deploy/{name}, which does not exist')

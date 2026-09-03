@@ -5,6 +5,32 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.521] - 2026-09-03
+
+### Fix: false positive in the deploy-asset test
+
+A full run of `core docs api api_mobile psa` came back **836/837**, with one failure — in a test
+added in v3.17.516, not in shipped code:
+
+```
+setup_mobile_build.sh copies deploy/mobile-build-sudoers, which does not exist
+```
+
+No such file exists and nothing copies one. `test_sudoers_templates_referenced_by_scripts_exist`
+scans deploy scripts for `*-sudoers` references with `([A-Za-z0-9_-]+-sudoers)\b`, and `\b` is
+satisfied by a following `.` — so when v3.17.519 introduced the install stamp
+`mobile-build-sudoers.sha256`, the regex matched `mobile-build-sudoers` inside that filename and
+demanded a template nothing had ever referenced.
+
+The pattern now ends with a `(?![\w.])` lookahead, so it only matches a name that genuinely *ends*
+at `-sudoers`. It resolves the two real references (`clientst0r-mobile-build-sudoers` and
+`clientst0r-fail2ban-sudoers`), and still fails when a referenced template is actually removed —
+verified both ways.
+
+Worth noting for its own sake: two changes of mine, four releases apart, combined into a failure
+neither would have caused alone. The test only earns its keep if it fails for real reasons, so a
+false positive in it is worth the same care as a bug in the product.
+
 ## [3.17.520] - 2026-09-03
 
 ### Fix: spurious "One-Time Setup Required" banner on Settings → Updates
