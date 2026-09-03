@@ -1,0 +1,10 @@
+{% comment %}
+Assets for the GeoIP map (v3.17.522). Kept separate from the component so a page
+can put the CSS in {% block extra_css %} and the JS in {% block extra_js %}.
+
+jsVectorMap is MIT-licensed and loaded from jsDelivr, matching how this app
+already loads Bootstrap, Font Awesome and DataTables. Versions are pinned.
+{% endcomment %}
+{% load static %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsvectormap@1.6.0/dist/css/jsvectormap.min.css">
+<link rel="stylesheet" href="{% static 'css/geoip-map.css' %}">

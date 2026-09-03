@@ -2,6 +2,8 @@
 
 {% block title %}{% if rule %}Edit{% else %}New{% endif %} Vault Access Rule - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
+{% block extra_css %}{% include "core/_geoip_map_assets.html" %}{% endblock %}
+
 {% block content %}
 <h2>
     <i class="fas fa-shield-halved text-primary"></i>
@@ -87,16 +89,22 @@
     <hr>
     <h5><i class="fas fa-globe"></i> GeoIP restrictions</h5>
 
+    {# v3.17.522 — pick countries on the map; it writes into the two inputs below,
+       which remain the form's actual fields (and the fallback without JS). #}
+    <div class="col-12">
+        {% include "core/_geoip_map.html" with map_id="vault-geoip-map" height="420px" %}
+    </div>
+
     <div class="col-md-6">
-        <label class="form-label">Allowed countries (ISO codes, comma-separated)</label>
-        <input type="text" class="form-control" name="allowed_countries"
+        <label class="form-label" for="id_allowed_countries">Allowed countries (ISO codes, comma-separated)</label>
+        <input type="text" class="form-control" name="allowed_countries" id="id_allowed_countries"
                placeholder="US, CA, GB"
                value="{% if rule %}{{ rule.allowed_countries|join:', ' }}{% endif %}">
         <div class="form-text small">Empty = no country restriction.</div>
     </div>
     <div class="col-md-6">
         <label class="form-label">Blocked countries</label>
-        <input type="text" class="form-control" name="blocked_countries"
+        <input type="text" class="form-control" name="blocked_countries" id="id_blocked_countries"
                placeholder="CN, RU, KP"
                value="{% if rule %}{{ rule.blocked_countries|join:', ' }}{% endif %}">
         <div class="form-text small">Overrides allowed_countries.</div>
@@ -178,3 +186,5 @@
 })();
 </script>
 {% endblock %}
+
+{% block extra_js %}{% include "core/_geoip_map_scripts.html" %}{% endblock %}

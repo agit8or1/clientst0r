@@ -1464,6 +1464,21 @@ def access_rule_form(request, pk=None):
             except Exception as exc:
                 error = str(exc)
 
+    # v3.17.522 — click-to-select world map over the country fields. The map
+    # writes back into the same inputs, so the POST handling above is unchanged.
+    from core.geoip_map import (
+        COLOR_ALLOW, COLOR_BLOCK, build_lists, map_background_context,
+    )
+    from core.models import SystemSetting
+
+    geoip_ctx = map_background_context(SystemSetting.get_settings())
+    lists_json = build_lists(
+        ('allowed', 'Allowed', COLOR_ALLOW, 'id_allowed_countries',
+         rule.allowed_countries if rule else []),
+        ('blocked', 'Blocked', COLOR_BLOCK, 'id_blocked_countries',
+         rule.blocked_countries if rule else []),
+    )
+
     return render(request, 'vault/access_rule_form.html', {
         'rule': rule,
         'passwords': passwords_qs,
@@ -1472,6 +1487,8 @@ def access_rule_form(request, pk=None):
         'common_timezones': COMMON_TIMEZONES,
         'error': error,
         'in_global_view': in_global_view,
+        'lists_json': lists_json,
+        **geoip_ctx,
     })
 
 

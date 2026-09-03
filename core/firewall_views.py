@@ -128,6 +128,37 @@ def firewall_ip_rule_toggle(request, pk):
 @user_passes_test(is_superuser)
 def firewall_country_rules(request):
     """Manage country firewall rules."""
+    if request.method == 'POST' and 'map_codes' in request.POST:
+        # v3.17.522 — the world map posts the whole selection; reconcile against
+        # it. Names come from our own ISO table, never from the browser: these
+        # rows drive a firewall and are shown back to admins.
+        from core.geoip_map import name_for, normalise_codes
+
+        selected = normalise_codes(request.POST.get('map_codes', ''))
+        existing = {r.country_code.upper(): r for r in FirewallCountryRule.objects.all()}
+
+        added, removed = 0, 0
+        for code in selected:
+            if code not in existing:
+                FirewallCountryRule.objects.create(
+                    country_code=code,
+                    country_name=name_for(code) or code,
+                    created_by=request.user,
+                )
+                added += 1
+        for code, rule in existing.items():
+            if code not in selected:
+                rule.delete()
+                removed += 1
+
+        if added or removed:
+            messages.success(
+                request,
+                f'Country rules updated from map: {added} added, {removed} removed.')
+        else:
+            messages.info(request, 'No country rule changes to apply.')
+        return redirect('core:firewall_country_rules')
+
     if request.method == 'POST':
         # Add new country rule
         country_code = request.POST.get('country_code', '').strip().upper()
@@ -164,12 +195,76 @@ def firewall_country_rules(request):
         ('BR', 'Brazil'),
     ]
 
+    # v3.17.522 — map context. A single list here: a country either has a rule
+    # or it does not; whether that means "blocked" or "allowed" is decided by
+    # the firewall's own mode setting, not per country.
+    from core.geoip_map import COLOR_SINGLE, build_lists, map_background_context
+    from core.models import SystemSetting
+
+    # Two different settings models: the backdrop is cosmetic branding
+    # (SystemSetting), the allowlist/blocklist mode is firewall behaviour
+    # (FirewallSettings). Reading the mode off the wrong one is how this first
+    # went wrong — the page 500'd because SystemSetting has no such field.
+    settings_obj = SystemSetting.get_settings()
+    firewall_settings = FirewallSettings.get_settings()
+    active_codes = [r.country_code.upper() for r in rules if r.is_active]
+
     context = {
         'rules': rules,
         'common_countries': common_countries,
+        'lists_json': build_lists(
+            ('rules', 'Countries with a rule', COLOR_SINGLE,
+             'id_map_codes', active_codes),
+        ),
+        'firewall_mode': firewall_settings.geoip_firewall_mode,
+        'background_modes': SystemSetting.GEOIP_MAP_BACKGROUND_MODES,
+        'background_patterns': SystemSetting.GEOIP_MAP_PATTERNS,
+        **map_background_context(settings_obj),
     }
 
     return render(request, 'core/firewall_country_rules.html', context)
+
+
+@login_required
+@user_passes_test(is_superuser)
+@require_POST
+def geoip_map_background(request):
+    """Save the GeoIP map backdrop (v3.17.522).
+
+    Cosmetic only — it never affects which countries are blocked. Kept as its
+    own endpoint so saving a backdrop can't accidentally rewrite firewall rules.
+    """
+    from core.models import SystemSetting
+
+    settings_obj = SystemSetting.get_settings()
+    modes = {k for k, _ in SystemSetting.GEOIP_MAP_BACKGROUND_MODES}
+    patterns = {k for k, _ in SystemSetting.GEOIP_MAP_PATTERNS}
+
+    mode = (request.POST.get('geoip_map_background_mode') or '').strip()
+    pattern = (request.POST.get('geoip_map_background_pattern') or '').strip()
+
+    if mode in modes:
+        settings_obj.geoip_map_background_mode = mode
+    if pattern in patterns:
+        settings_obj.geoip_map_background_pattern = pattern
+
+    upload = request.FILES.get('geoip_map_background_image')
+    if upload:
+        content_type = getattr(upload, 'content_type', '') or ''
+        if not content_type.startswith('image/'):
+            messages.error(request, 'Map backdrop must be an image file.')
+            return redirect('core:firewall_country_rules')
+        if upload.size > 5 * 1024 * 1024:
+            messages.error(request, 'Map backdrop image must be 5 MB or smaller.')
+            return redirect('core:firewall_country_rules')
+        settings_obj.geoip_map_background_image = upload
+
+    if request.POST.get('clear_image') == '1':
+        settings_obj.geoip_map_background_image = None
+
+    settings_obj.save()
+    messages.success(request, 'Map backdrop updated.')
+    return redirect('core:firewall_country_rules')
 
 
 @login_required

@@ -103,6 +103,8 @@ urlpatterns = [
     path('settings/firewall/ip-rules/<int:pk>/delete/', firewall_views.firewall_ip_rule_delete, name='firewall_ip_rule_delete'),
     path('settings/firewall/ip-rules/<int:pk>/toggle/', firewall_views.firewall_ip_rule_toggle, name='firewall_ip_rule_toggle'),
     path('settings/firewall/country-rules/', firewall_views.firewall_country_rules, name='firewall_country_rules'),
+    # v3.17.522 — GeoIP map backdrop (cosmetic; separate endpoint so it can never touch rules).
+    path('settings/firewall/geoip-map-background/', firewall_views.geoip_map_background, name='geoip_map_background'),
     path('settings/firewall/country-rules/<int:pk>/delete/', firewall_views.firewall_country_rule_delete, name='firewall_country_rule_delete'),
     path('settings/firewall/country-rules/<int:pk>/toggle/', firewall_views.firewall_country_rule_toggle, name='firewall_country_rule_toggle'),
     path('settings/firewall/logs/', firewall_views.firewall_logs, name='firewall_logs'),

@@ -606,6 +606,7 @@ Per-rule GeoIP / IP / time-of-day gates on top of the vault. New `VaultAccessRul
 - 7 unit tests in `vault.tests.VaultAccessRuleEngineTests` *(shipped v3.17.163)*
 
 ---
+- Click-to-select world map for country selection *(shipped v3.17.522 — replaces comma-separated ISO-code text boxes on both the vault access-rule form and the global firewall country rules with a clickable world map; a country belongs to one list, so "allowed AND blocked" is not expressible. Country names resolve server-side from a bundled ISO 3166-1 table, never from the browser. Map backdrop is configurable — colour pattern, random, or an uploaded image — and is cosmetic only, saved through its own endpoint so it can never rewrite firewall rules)*
 
 ## Phase 32 — Remote Network Discovery Import **(M · future / late-stage)** [planned]
 

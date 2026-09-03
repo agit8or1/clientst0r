@@ -5,6 +5,55 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.522] - 2026-09-03
+
+### Feature: click-to-select world map for GeoIP country selection
+
+Picking countries meant typing ISO codes into a text box — `US, CA, GB` on the vault access-rule
+form, and a code-plus-name form on the global firewall rules page. A world map replaces both.
+
+**Where it appears.** The same component (`core/_geoip_map.html`) is used on:
+
+- **Settings → Firewall → Country Rules** — one list; a country either has a rule or it does not.
+  Whether that means blocked or allowed is the firewall's own mode, shown in the card header so the
+  map is never ambiguous about what selecting a country will do. Saving reconciles the rule list
+  against the selection.
+- **Vault → Access Rules** — two lists, Allowed and Blocked, with a mode switcher. A country can
+  only be in one, so an "allowed AND blocked" contradiction is not expressible on the map.
+
+**It is an input method, not a new storage format.** The map writes comma-separated codes back into
+the same inputs the form already posted, so the server contract is unchanged, the manual add form
+still works, and the page degrades to the original text fields with JavaScript off.
+
+**Country names are resolved server-side.** These rows drive a firewall and are displayed back to
+admins, so the name is never taken from the browser. `core/iso3166.py` holds a 249-entry ISO 3166-1
+table generated from the Debian `iso-codes` package by `scripts/gen_iso3166.py` (verified to
+reproduce the committed file byte for byte). Unknown codes are dropped rather than stored — a typo
+becoming a rule that silently matches nothing is worse than losing it at the door.
+
+**Backdrop** is configurable per the request: a colour pattern (six presets), random (a different
+pattern each visit, chosen server-side so it is stable for the life of the page), or an uploaded
+image. Purely cosmetic, and saved through its own endpoint so a backdrop change can never touch
+firewall rules — there is a test asserting exactly that. Image mode falls back to the chosen pattern
+when the file is missing rather than rendering an empty box; uploads are type- and size-checked.
+
+jsVectorMap (MIT) is loaded from jsDelivr with a pinned version, consistent with how this app already
+loads Bootstrap, Font Awesome and DataTables.
+
+### Fixed while building it
+
+The firewall page 500'd on first render: the GeoIP allowlist/blocklist mode lives on
+`FirewallSettings`, not `SystemSetting`, and I read it off the wrong model. The tests written up to
+that point only POSTed to the endpoint and never fetched the page, so they all passed while the page
+was broken. Two render tests now cover it.
+
+### Added
+
+- `core/tests/test_geoip_map.py` — 23 tests: the ISO table, code normalisation (case, dedupe,
+  invalid-code rejection), backdrop resolution including the missing-image fallback, rule
+  reconciliation from the map, the manual add form still working, superuser enforcement, and the
+  backdrop endpoint leaving rules untouched.
+
 ## [3.17.521] - 2026-09-03
 
 ### Fix: false positive in the deploy-asset test

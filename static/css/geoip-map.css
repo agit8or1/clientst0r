@@ -1,0 +1,32 @@
+/* GeoIP click-to-select world map (v3.17.522).
+   The backdrop patterns are the "colour pattern" option; `image` mode sets
+   background-image inline and these classes just supply the sizing. */
+.geoip-map {
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: .5rem;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+.geoip-map-bg-slate    { background: linear-gradient(160deg, #eef2f6 0%, #dbe3ec 100%); }
+.geoip-map-bg-ocean    { background: linear-gradient(160deg, #dff1fb 0%, #b9dff2 100%); }
+.geoip-map-bg-midnight { background: linear-gradient(160deg, #1f2933 0%, #111820 100%); }
+.geoip-map-bg-terrain  { background: linear-gradient(160deg, #f2efe6 0%, #ddd7c4 100%); }
+.geoip-map-bg-sunset   { background: linear-gradient(160deg, #ffe9d6 0%, #ffc9b0 100%); }
+.geoip-map-bg-mono     { background: linear-gradient(160deg, #f5f5f5 0%, #e2e2e2 100%); }
+
+/* Midnight is the only dark backdrop — keep the country outlines readable on it. */
+.geoip-map-bg-midnight .jvm-region { stroke: #46525f; }
+
+.geoip-map-legend .geoip-swatch {
+  display: inline-block; width: .75rem; height: .75rem;
+  border-radius: .15rem; margin-right: .3rem; vertical-align: -1px;
+}
+.geoip-map-modes .btn.active { font-weight: 600; }
+.geoip-map-wrap .jvm-tooltip { z-index: 1080; }
+
+@media print {
+  /* Consistent with the export work: no decorative fills on paper. */
+  .geoip-map { background: none !important; }
+  .geoip-map-toolbar { display: none !important; }
+}

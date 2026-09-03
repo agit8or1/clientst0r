@@ -1,0 +1,48 @@
+{% comment %}
+Click-to-select world map for GeoIP country selection (v3.17.522).
+
+Used by the global firewall country rules and the vault access-rule form, so it
+takes everything it needs as parameters rather than reaching into a specific view's
+context:
+
+    lists_json   JSON: [{"key","label","color","input_id","codes":[...]}]
+                 One entry per selectable list. With two or more, a mode switcher
+                 appears and a click assigns the country to the ACTIVE list
+                 (clicking again clears it). A country can only be in one list,
+                 which is what stops "allowed AND blocked" from being expressible.
+    map_id       unique DOM id when more than one map is on a page
+    height       CSS height, default 460px
+
+Each list writes its selection back into the hidden input named by `input_id` as
+a comma-separated list of ISO alpha-2 codes, so the surrounding <form> posts
+exactly what the old text inputs posted. The map is an input method, not a new
+storage format — with JS off, the text inputs still work.
+{% endcomment %}
+{% with map_id=map_id|default:"geoip-map" %}
+<div class="geoip-map-wrap" data-geoip-map
+     data-map-id="{{ map_id }}"
+     data-lists="{{ lists_json }}">
+
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-2 geoip-map-toolbar">
+    <div class="btn-group btn-group-sm geoip-map-modes" role="group" aria-label="Selection list"></div>
+    <span class="text-muted small geoip-map-hint">
+      <i class="fas fa-mouse-pointer"></i> Click a country to select or deselect it
+    </span>
+    <div class="ms-auto d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-outline-secondary geoip-map-clear">
+        <i class="fas fa-eraser"></i> Clear list
+      </button>
+    </div>
+  </div>
+
+  <div id="{{ map_id }}" class="geoip-map geoip-map-bg-{{ geoip_map_pattern }}"
+       style="height: {{ height|default:'460px' }};{% if geoip_map_image_url %} background-image: url('{{ geoip_map_image_url }}');{% endif %}"></div>
+
+  <div class="geoip-map-legend small text-muted mt-2"></div>
+  <noscript>
+    <div class="alert alert-secondary small mt-2 mb-0">
+      The map needs JavaScript. The country fields below still work on their own.
+    </div>
+  </noscript>
+</div>
+{% endwith %}

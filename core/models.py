@@ -647,6 +647,32 @@ class SystemSetting(models.Model):
     # Whitelabeling Settings
     custom_company_name = models.CharField(max_length=255, blank=True, help_text='Custom company name (replaces Client St0r branding)')
     custom_logo = models.ImageField(upload_to='branding/', blank=True, null=True, help_text='Custom logo (recommended: 200x40px PNG with transparent background)')
+
+    # GeoIP map backdrop (v3.17.522) — styling for the click-to-select world
+    # map on the firewall + vault access-rule screens. Purely cosmetic; it never
+    # affects which countries are blocked.
+    GEOIP_MAP_BACKGROUND_MODES = [
+        ('pattern', 'Colour pattern'),
+        ('random', 'Random (a different pattern each visit)'),
+        ('image', 'Uploaded image'),
+    ]
+    GEOIP_MAP_PATTERNS = [
+        ('slate', 'Slate'),
+        ('ocean', 'Ocean'),
+        ('midnight', 'Midnight'),
+        ('terrain', 'Terrain'),
+        ('sunset', 'Sunset'),
+        ('mono', 'Mono'),
+    ]
+    geoip_map_background_mode = models.CharField(
+        max_length=20, default='pattern', choices=GEOIP_MAP_BACKGROUND_MODES,
+        help_text='Backdrop behind the GeoIP world map.')
+    geoip_map_background_pattern = models.CharField(
+        max_length=40, default='slate', choices=GEOIP_MAP_PATTERNS,
+        help_text="Which colour pattern to use when the mode is 'pattern'.")
+    geoip_map_background_image = models.ImageField(
+        upload_to='branding/geoip/', blank=True, null=True,
+        help_text="Backdrop image used when the mode is 'image'.")
     custom_logo_height = models.PositiveIntegerField(default=30, help_text='Logo height in pixels (default: 30px)')
 
     # Security Settings
