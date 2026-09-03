@@ -246,6 +246,7 @@ Planned capabilities:
 - Geo-aware technician routing *(deferred — needs GPS data on User + Ticket which Phase 8 mobile timeclock will provide; revisit then)*
 - Travel time estimation *(deferred — pending Phase 8 GPS data)*
 - Dispatch heatmaps *(11.3 — shipped v3.17.209)*
+- **Home-dashboard Schedule + Tasks panels** — the main dashboard now leads with a 7-day agenda (scheduled tasks + ticket resolution deadlines, grouped by day, empty days omitted) and an open-work Tasks list ordered most-urgent-first with undated items last. Expiring passwords, tracked expirations and SSL certificates are folded into Tasks rather than sitting in their own panel — an expiry is something somebody has to act on. Replaces the "My Recent", "Recent Activity" and "Expiring Soon" panels, which showed what had already happened. Same shapes as the mobile agenda (v3.17.478), so both surfaces agree on what "upcoming" means *(shipped v3.17.524)*
 
 ### Sub-phase 11.1 — Dispatch prioritization + SLA-burn panel *(shipped v3.17.194)*
 

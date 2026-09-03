@@ -13,7 +13,8 @@ from core.models import SystemSetting
 from vault.models import Password
 from assets.models import Asset
 from docs.models import Document
-from monitoring.models import WebsiteMonitor, Expiration
+from monitoring.models import WebsiteMonitor
+from core.dashboard_panels import get_schedule, get_tasks
 from audit.models import AuditLog
 
 # PSA integration imports (may not be available)
@@ -74,47 +75,6 @@ def dashboard(request):
         except Exception:
             pass  # Integrations app might not be available
 
-    # Recent items (last 10 unique items accessed/modified)
-    # Get all recent read logs, then deduplicate by object
-    all_recent = AuditLog.objects.filter(
-        organization=org,
-        user=request.user,
-        action='read'
-    ).exclude(
-        object_type=''
-    ).order_by('-timestamp')[:50]  # Get more to ensure we have 10 unique
-
-    # Deduplicate by object_type + object_id
-    seen = set()
-    recent_logs = []
-    for log in all_recent:
-        key = (log.object_type, log.object_id)
-        if key not in seen and len(recent_logs) < 10:
-            seen.add(key)
-            recent_logs.append(log)
-
-    # Expiring soon (next 30 days)
-    now = timezone.now()
-    thirty_days = now + timedelta(days=30)
-
-    expiring_passwords = Password.objects.for_organization(org).filter(
-        expires_at__gte=now,
-        expires_at__lte=thirty_days
-    ).order_by('expires_at')[:5]
-
-    expiring_items = Expiration.objects.filter(
-        organization=org,
-        expires_at__gte=now,
-        expires_at__lte=thirty_days
-    ).order_by('expires_at')[:5]
-
-    expiring_ssl = WebsiteMonitor.objects.filter(
-        organization=org,
-        ssl_enabled=True,
-        ssl_expires_at__gte=now,
-        ssl_expires_at__lte=thirty_days
-    ).order_by('ssl_expires_at')[:5]
-
     # Website monitor status summary (single aggregated query)
     monitor_counts = WebsiteMonitor.objects.filter(organization=org).aggregate(
         monitors_down=Count('id', filter=Q(status='down')),
@@ -124,14 +84,6 @@ def dashboard(request):
     monitors_down = monitor_counts['monitors_down']
     monitors_warning = monitor_counts['monitors_warning']
     monitors_active = monitor_counts['monitors_active']
-
-    # Recent activity feed (last 15 actions)
-    activity_feed = AuditLog.objects.filter(
-        organization=org
-    ).select_related('user').only(
-        'id', 'user_id', 'action', 'description', 'timestamp',
-        'object_type', 'object_id', 'organization_id'
-    ).order_by('-timestamp')[:15]
 
     # Check if user has 2FA enabled or authenticated via Azure AD SSO
     has_2fa = False
@@ -144,14 +96,15 @@ def dashboard(request):
     return render(request, 'core/dashboard.html', {
         'current_organization': org,
         'stats': stats,
-        'recent_logs': recent_logs,
-        'expiring_passwords': expiring_passwords,
-        'expiring_items': expiring_items,
-        'expiring_ssl': expiring_ssl,
+        # v3.17.524 — Schedule + Tasks replace My Recent, Recent Activity and
+        # Expiring Soon. The audit-log tails and the three expiring_* querysets
+        # that fed those panels are gone: get_tasks() covers the expiring items,
+        # and nothing else in the codebase read any of those context keys.
+        'schedule_days': get_schedule(request.user, org),
+        'task_rows': get_tasks(request.user, org),
         'monitors_down': monitors_down,
         'monitors_warning': monitors_warning,
         'monitors_active': monitors_active,
-        'activity_feed': activity_feed,
         'has_2fa': has_2fa,
         'map_default_zoom': system_settings.map_default_zoom,
         'map_dragging_enabled': system_settings.map_dragging_enabled,

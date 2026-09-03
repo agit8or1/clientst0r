@@ -5,6 +5,62 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.524] - 2026-09-03
+
+### Feature: the dashboard now shows what needs doing, not what already happened
+
+Three of the home dashboard's panels looked backwards. **My Recent** and **Recent Activity** were both
+audit-log tails, and **Expiring Soon** sat in a corner on its own. Between them they filled two thirds
+of the page with history. They are replaced by two panels about the near future.
+
+**Schedule (next 7 days)** — scheduled tasks and ticket resolution deadlines on one timeline, grouped
+by day. Days with nothing on them are omitted rather than rendered as empty rows; an agenda of seven
+blanks tells the reader nothing. Each row links straight to the task or ticket.
+
+**Tasks** — open work ordered by due date, most urgent first, with undated items last so the top of
+the list is always the thing that matters rather than the thing created most recently. Overdue rows
+carry a red badge; anything due inside a week is amber.
+
+**Expiring items are now tasks.** An expiring password, a tracked expiration or an SSL certificate
+about to lapse is something a person has to act on — which is what a task is. All three are folded
+into the Tasks panel with their own icons instead of occupying a separate card. The 30-day look-ahead
+is unchanged, but the window now extends 30 days *backwards* too, so something that lapsed last week
+shows up with an Overdue badge instead of vanishing the moment it matters most. It is bounded rather
+than open-ended on purpose: these rows sort earliest-first and an expiry has no lifecycle a human
+closes, so a single record that lapsed years ago would otherwise sit at the top of the panel forever.
+
+The panel shapes mirror the mobile agenda added in v3.17.478, so the two surfaces agree about what
+"upcoming" means.
+
+**Under the hood.** New `core/dashboard_panels.py` holds the query logic — `get_schedule()` and
+`get_tasks()` — rather than growing `dashboard_views.py` further. The view is net smaller: the two
+audit-log queries behind the deleted panels and the three `expiring_*` querysets are gone, because
+`get_tasks()` covers the expiring items and a repo-wide search confirmed nothing else read any of
+those five context keys. Five fewer queries per dashboard load.
+
+The dashboard view had no test at all, so a template still referencing a dropped context key would
+only have surfaced in production. `DashboardRenderTests` now renders the page end-to-end and asserts
+both the new panels and the absence of the old ones.
+
+Three things the tests pin, all learned the hard way while building it:
+
+- **Every link is built with `reverse()`, never a hand-written path.** The first cut wrote five paths
+  by hand and three were wrong — tickets live at `/psa/t/<pk>/` not `/psa/tickets/<pk>/`, expirations
+  are under `monitoring/` not `core/`, and bare `/monitoring/` has no route at all. A dead href renders
+  exactly like a live one, so nothing looked broken. `PanelUrlTests` now resolves every URL each panel
+  can emit, across all four row kinds.
+- **Only `ImportError` / `LookupError` may be caught.** PSA and monitoring are optional in some
+  deployments, so their imports are guarded — but a broad `except Exception` there once swallowed an
+  `AttributeError` (`Password.name`; the field is `title`) and the panel simply rendered empty. A test
+  walks the module's AST and fails on any broader handler. It checks the AST rather than grepping,
+  because a string search matches this module's own prose explaining the rule.
+- **Order before slicing.** Every panel queryset takes a `[:N]` slice, and three of them relied on the
+  model's default ordering — which is `title` for `Password` and `name` for `WebsiteMonitor`. The
+  slice was therefore taking the alphabetically-first ten rows rather than the ten expiring soonest,
+  quietly hiding the urgent ones. Open tasks had the mirror-image problem: SQLite sorts NULLs first
+  ascending, so undated tasks filled the slice ahead of dated ones. All four querysets now order
+  explicitly (`nulls_last=True` for due dates), with a test for each direction.
+
 ## [3.17.523] - 2026-09-03
 
 ### Feature: spreadsheet import for Shop and VAN inventory

@@ -147,100 +147,89 @@
 </div>
 
 <div class="row g-2">
-    <!-- Recent Items -->
+    {# v3.17.524 — Schedule + Tasks replace the two audit-log panels and absorb
+       the expiring-items panel. Rationale in core/dashboard_panels.py. #}
+
+    <!-- Schedule -->
     <div class="col-md-4">
-        <div class="card h-100">
-            <div class="card-header py-1 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 small"><i class="fas fa-history"></i> My Recent</h6>
-                <a href="{% url 'audit:audit_log_list' %}" class="btn btn-sm btn-link py-0">View All</a>
+        <div class="card mb-3">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 small"><i class="fas fa-calendar-days"></i> Schedule (next 7 days)</h6>
+                <a href="{% url 'scheduling:scheduling_dashboard' %}" class="small text-decoration-none">View all</a>
             </div>
-            <div class="list-group list-group-flush" style="max-height: 280px; overflow-y: auto;">
-                {% for log in recent_logs %}
-                {% with object_url=log.get_object_url %}
-                {% if object_url %}
-                <a href="{{ object_url }}" class="list-group-item list-group-item-action py-2">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-fill">
-                            <small><strong>{{ log.object_repr|truncatewords:5 }}</strong></small><br>
-                            <small class="text-muted">{{ log.object_type|title }} • {{ log.timestamp|timesince }} ago</small>
-                        </div>
-                        <i class="fas fa-arrow-right text-muted"></i>
+            <div class="card-body p-0">
+                {% if schedule_days %}
+                <div class="list-group list-group-flush">
+                    {% for day in schedule_days %}
+                    <div class="list-group-item py-1 bg-light">
+                        <small class="fw-semibold">
+                            {% if day.is_today %}Today{% else %}{{ day.day|date:"D j M" }}{% endif %}
+                        </small>
                     </div>
-                </a>
+                        {% for item in day.items %}
+                        {% if item.url %}<a href="{{ item.url }}" class="list-group-item list-group-item-action py-2">{% else %}<div class="list-group-item py-2">{% endif %}
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="me-2">
+                                    <i class="fas {{ item.icon }} text-muted me-1"></i>
+                                    <span class="small">{{ item.title }}</span>
+                                    {% if item.context %}<div class="text-muted" style="font-size:.75rem;">{{ item.context }}</div>{% endif %}
+                                </div>
+                                <small class="text-muted text-nowrap">{{ item.when|date:"H:i" }}</small>
+                            </div>
+                        {% if item.url %}</a>{% else %}</div>{% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                </div>
                 {% else %}
-                <div class="list-group-item py-2">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-fill">
-                            <small><strong>{{ log.object_repr|truncatewords:5 }}</strong></small><br>
-                            <small class="text-muted">{{ log.object_type|title }} • {{ log.timestamp|timesince }} ago</small>
-                        </div>
-                        <i class="fas fa-eye text-muted"></i>
-                    </div>
+                <div class="text-center text-muted py-4 small">
+                    <i class="fas fa-calendar-check"></i> Nothing scheduled in the next 7 days
                 </div>
                 {% endif %}
-                {% endwith %}
-                {% empty %}
-                <div class="list-group-item text-center py-3 text-muted">
-                    <i class="fas fa-inbox"></i> No recent activity
-                </div>
-                {% endfor %}
             </div>
         </div>
     </div>
 
-    <!-- Expiring Soon -->
+    <!-- Tasks (includes items expiring within 30 days) -->
     <div class="col-md-4">
-        <div class="card h-100">
-            <div class="card-header py-1">
-                <h6 class="mb-0 small"><i class="fas fa-clock"></i> Expiring Soon (30 days)</h6>
+        <div class="card mb-3">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 small"><i class="fas fa-list-check"></i> Tasks</h6>
+                <a href="{% url 'scheduling:scheduling_dashboard' %}" class="small text-decoration-none">View all</a>
             </div>
-            <div class="list-group list-group-flush" style="max-height: 280px; overflow-y: auto;">
-                {% for pw in expiring_passwords %}
-                <div class="list-group-item py-2">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <i class="fas fa-key text-primary"></i>
-                            <a href="{% url 'vault:password_detail' pw.pk %}">{{ pw.title|truncatewords:4 }}</a>
+            <div class="card-body p-0">
+                {% if task_rows %}
+                <div class="list-group list-group-flush">
+                    {% for row in task_rows %}
+                    {% if row.url %}<a href="{{ row.url }}" class="list-group-item list-group-item-action py-2">{% else %}<div class="list-group-item py-2">{% endif %}
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="me-2">
+                                <i class="fas {{ row.icon }} text-muted me-1"></i>
+                                <span class="small">{{ row.title }}</span>
+                                {% if row.context %}<div class="text-muted" style="font-size:.75rem;">{{ row.context }}</div>{% endif %}
+                            </div>
+                            <div class="text-nowrap">
+                                {% if row.is_overdue %}
+                                    <span class="badge bg-danger">Overdue</span>
+                                {% elif row.days_until != None %}
+                                    <span class="badge {% if row.days_until <= 7 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                        {{ row.days_until }}d
+                                    </span>
+                                {% endif %}
+                            </div>
                         </div>
-                        <small class="text-danger">{{ pw.days_until_expiration }}d</small>
-                    </div>
+                    {% if row.url %}</a>{% else %}</div>{% endif %}
+                    {% endfor %}
                 </div>
-                {% endfor %}
-
-                {% for item in expiring_items %}
-                <div class="list-group-item py-2">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <i class="fas fa-calendar-times text-warning"></i>
-                            {{ item.name|truncatewords:4 }}
-                        </div>
-                        <small class="text-danger">{{ item.expires_at|date:"M d" }}</small>
-                    </div>
-                </div>
-                {% endfor %}
-
-                {% for ssl in expiring_ssl %}
-                <div class="list-group-item py-2">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <i class="fas fa-lock text-success"></i>
-                            <a href="{% url 'monitoring:website_monitor_detail' ssl.pk %}">{{ ssl.name|truncatewords:3 }} SSL</a>
-                        </div>
-                        <small class="text-danger">{{ ssl.ssl_expires_at|date:"M d" }}</small>
-                    </div>
-                </div>
-                {% endfor %}
-
-                {% if not expiring_passwords and not expiring_items and not expiring_ssl %}
-                <div class="list-group-item text-center py-3 text-muted">
-                    <i class="fas fa-check-circle"></i> Nothing expiring soon
+                {% else %}
+                <div class="text-center text-muted py-4 small">
+                    <i class="fas fa-check-circle"></i> Nothing outstanding
                 </div>
                 {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Activity Feed & Monitors -->
+    <!-- Monitors -->
     <div class="col-md-4">
         <!-- Monitor Status -->
         <div class="card mb-2">
@@ -265,28 +254,6 @@
                     View Down Monitors
                 </a>
                 {% endif %}
-            </div>
-        </div>
-
-        <!-- Activity Feed -->
-        <div class="card">
-            <div class="card-header py-1">
-                <h6 class="mb-0 small"><i class="fas fa-stream"></i> Recent Activity</h6>
-            </div>
-            <div class="list-group list-group-flush" style="max-height: 180px; overflow-y: auto;">
-                {% for log in activity_feed %}
-                <div class="list-group-item py-2">
-                    <small>
-                        <strong>{{ log.username }}</strong> {{ log.action }}
-                        {% if log.object_repr %}<span class="text-primary">{{ log.object_repr|truncatewords:3 }}</span>{% endif %}
-                    </small><br>
-                    <small class="text-muted">{{ log.timestamp|timesince }} ago</small>
-                </div>
-                {% empty %}
-                <div class="list-group-item text-center py-3 text-muted">
-                    <i class="fas fa-inbox"></i> No activity
-                </div>
-                {% endfor %}
             </div>
         </div>
     </div>
