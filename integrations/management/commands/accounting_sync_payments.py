@@ -7,6 +7,11 @@ says paid (balance=0) and we still show outstanding, create a Payment row
 to close the local invoice. Idempotent — already-paid invoices are
 skipped.
 
+SUPERSEDED (v3.17.530) by `accounting_sync`, which reads real provider payment
+records instead of inferring payment from a zero balance, and which IS wired to a
+timer. This command is kept working for anyone who scripted it, but it cannot see
+partial payments and never could.
+
 NOT SCHEDULED. v3.17.280 left this line reading "wire to a daily systemd
 timer alongside the existing accounting jobs" as a to-do, nobody wired it, and
 docs/ROADMAP.md then described the timer as shipped. There is no unit in

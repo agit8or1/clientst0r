@@ -135,52 +135,94 @@ class XeroProvider(BaseAccountingProvider):
     # ---- API surface ------------------------------------------------------
 
     def _api(self, method: str, path: str, **kwargs) -> requests.Response:
-        token = self.refresh_access_token()
+        """One Xero API call, with the same retry treatment as QBO
+        (Phase 44.4, v3.17.531)."""
         creds = self.credentials
         tenant_id = creds.get('tenant_id') or ''
         if not tenant_id:
             raise AccountingAuthError('tenant_id missing — re-run OAuth connect')
         url = f'{self.base_url}/api.xro/2.0{path}'
-        headers = kwargs.pop('headers', {})
-        headers.setdefault('Authorization', f'Bearer {token}')
-        headers.setdefault('Accept', 'application/json')
-        headers['Xero-tenant-id'] = tenant_id
-        if 'json' in kwargs:
-            headers.setdefault('Content-Type', 'application/json')
-        return requests.request(method, url, headers=headers, timeout=30, **kwargs)
+
+        def send():
+            token = self.refresh_access_token()
+            headers = dict(kwargs.get('headers') or {})
+            headers.setdefault('Authorization', f'Bearer {token}')
+            headers.setdefault('Accept', 'application/json')
+            headers['Xero-tenant-id'] = tenant_id
+            if 'json' in kwargs:
+                headers.setdefault('Content-Type', 'application/json')
+            call_kwargs = {k: v for k, v in kwargs.items() if k != 'headers'}
+            return requests.request(method, url, headers=headers, timeout=30,
+                                    **call_kwargs)
+
+        def force_refresh():
+            self.connection.update_credentials(expires_at=0)
+            self.connection.save(update_fields=['encrypted_credentials',
+                                                'updated_at'])
+
+        return self._request_with_retry(send, method=method,
+                                        on_auth_failure=force_refresh)
+
+    def customer_payload(self, client_org) -> Dict[str, Any]:
+        """Xero Contact body. Same intent as the QBO one: send what we know."""
+        body: Dict[str, Any] = {'Name': client_org.name[:255]}
+        if client_org.email:
+            body['EmailAddress'] = client_org.email
+        if client_org.primary_contact_name:
+            parts = client_org.primary_contact_name.split(None, 1)
+            body['FirstName'] = parts[0][:50]
+            if len(parts) > 1:
+                body['LastName'] = parts[1][:50]
+        if client_org.phone:
+            body['Phones'] = [{'PhoneType': 'DEFAULT',
+                               'PhoneNumber': client_org.phone[:50]}]
+        addr = {
+            'AddressType': 'STREET',
+            'AddressLine1': client_org.street_address,
+            'AddressLine2': client_org.street_address_2,
+            'City': client_org.city,
+            'Region': client_org.state,
+            'PostalCode': client_org.postal_code,
+            'Country': client_org.country,
+        }
+        if any(v for k, v in addr.items() if k != 'AddressType'):
+            body['Addresses'] = [{k: v for k, v in addr.items() if v}]
+        return body
 
     def _ensure_contact(self, client_org) -> str:
-        creds = self.credentials
-        contact_map = creds.get('contact_map') or {}
-        existing = contact_map.get(str(client_org.id))
-        if existing:
-            return existing
+        """Find, match or create the Xero contact for `client_org`.
 
-        # Search by name
+        v3.17.528: shares AccountingCustomerLink with QBO instead of keeping a
+        `contact_map` dict inside the encrypted credentials blob.
+        """
+        link = self._link_for(client_org)
+        if link:
+            return link.provider_customer_id
+
         from urllib.parse import quote
-        where = quote(f'Name=="{client_org.name}"')
+        # Escape embedded quotes; the name goes into Xero's where-clause.
+        safe = client_org.name.replace('"', '\\"')
+        where = quote(f'Name=="{safe}"')
         resp = self._api('GET', f'/Contacts?where={where}')
         if resp.status_code == 200:
             results = (resp.json() or {}).get('Contacts') or []
             if results:
                 contact_id = results[0]['ContactID']
-                contact_map[str(client_org.id)] = contact_id
-                self.connection.update_credentials(contact_map=contact_map)
-                self.connection.save(update_fields=['encrypted_credentials', 'updated_at'])
+                self._save_link(client_org, contact_id, source='matched',
+                                display_name=results[0].get('Name', ''))
                 return contact_id
 
-        # Create a new contact
-        resp = self._api('POST', '/Contacts', json={'Contacts': [{'Name': client_org.name[:255]}]})
+        resp = self._api('POST', '/Contacts',
+                         json={'Contacts': [self.customer_payload(client_org)]})
         if resp.status_code not in (200, 201):
-            raise AccountingProviderError(f'Xero create-contact failed: {resp.status_code} {resp.text[:200]}')
-        body = resp.json() or {}
-        contacts = body.get('Contacts') or []
+            raise AccountingProviderError(
+                f'Xero create-contact failed: {resp.status_code} {resp.text[:200]}')
+        contacts = (resp.json() or {}).get('Contacts') or []
         if not contacts:
             raise AccountingProviderError('Xero create-contact returned no rows')
         contact_id = contacts[0]['ContactID']
-        contact_map[str(client_org.id)] = contact_id
-        self.connection.update_credentials(contact_map=contact_map)
-        self.connection.save(update_fields=['encrypted_credentials', 'updated_at'])
+        self._save_link(client_org, contact_id, source='push',
+                        display_name=contacts[0].get('Name', ''))
         return contact_id
 
     def push_invoice(self, invoice) -> Dict[str, Any]:

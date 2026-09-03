@@ -5,6 +5,83 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.531] - 2026-09-03
+
+### Feature: two-way QuickBooks Online sync (GitHub #145) — Phase 44 complete
+
+Invoice push has worked for a long time. The pull half essentially did not exist,
+and one part of it was documented as working when it never had. This closes the
+gap across four sub-phases, shipped together.
+
+**44.1 — the customer mapping becomes a real table.** The organization →
+provider-customer map lived as a dict inside the connection's encrypted
+credentials blob: not queryable, not in the admin, not reportable, and destroyed
+by a credentials reset — which would silently orphan every mapping and cause the
+next push to create duplicate customers. It is now `AccountingCustomerLink`, with
+two unique constraints that hold the invariants: one client maps to at most one
+customer per connection, and one provider customer is claimed by at most one
+client. A data migration lifts existing mappings across for both QuickBooks
+(`customer_map`) and Xero (`contact_map`), leaving the blob copy in place so a
+rollback still works.
+
+Customer push now sends the whole record — company name, billing address, email,
+phone, website, contact — rather than the bare `DisplayName` that was all it ever
+sent, which left somebody retyping the rest in QuickBooks. Updates carry the
+`SyncToken`, so an edit made provider-side since the last read surfaces as a
+conflict instead of being silently overwritten. Customer pull links by name and
+deliberately does **not** create organizations; unmatched names are listed
+individually, because a count gives an operator nothing to act on.
+
+**44.2 — payments are read, not guessed.** The old sync polled an invoice's
+balance and, when it hit zero, invented a local payment for the whole outstanding
+amount, dated today, with method `other`. Now provider `Payment` records are read
+directly, with the invoices each settles taken from `LinkedTxn`. That fixes four
+things at once:
+
+- **Partial payments work.** Previously invisible — a non-zero balance was skipped
+  outright — so `Invoice.status = 'partial'` was unreachable from the provider
+  side despite being a documented status.
+- **Re-runs are idempotent**, keyed on the provider's payment id through a new
+  unique constraint on `psa.Payment`.
+- **The real date and reference** are stored instead of fabricated ones.
+- **Voids reopen the invoice.** This needed a fix to `recompute_totals()`, which
+  was one-way: an invoice could reach Paid but never leave it, so a payment voided
+  in the accounting system left it reading Paid with nothing against it.
+
+Invoice reconciliation additionally catches an invoice voided provider-side. One
+that has been *deleted* there is flagged, not voided locally — deleting revenue
+records on the strength of a single 404 is not a call a sync job gets to make.
+
+**44.3 — it actually runs on a schedule.** New `accounting_sync` command covering
+all three stages, with one stage's failure not abandoning the others. Ships
+`deploy/clientst0r-accounting-sync.{service,timer}` — the timer the roadmap had
+claimed since v3.17.280 without one ever existing — plus a scheduler task type for
+installs that use the in-app scheduler, and a **Sync Now** button on the
+connections page, which had no sync action at all while the RMM and PSA pages had
+one for releases. `AccountingConnection.last_sync_at`, `last_sync_status` and
+`last_error` are finally written; they had existed since the model was created and
+were never set, which is why that column always read "Never".
+
+**44.4 — retry, and one deliberate asymmetry.** Exponential backoff with jitter,
+`Retry-After` honoured on 429, one forced token refresh on a 401. But **writes and
+reads are treated differently on purpose**: a 5xx or a timeout on `POST /invoice`
+does not tell you whether the invoice was created, and QuickBooks offers no
+idempotency key — so replaying one risks putting a second invoice in front of a
+client, which is the exact failure the v3.17.526 push guard exists to prevent.
+Writes therefore retry only on 429, where the request was provably rejected before
+processing; reads retry everything transient.
+
+`poll_balance`, `push_customer`, `pull_customers`, `pull_payments` and
+`pull_invoices` are now registered audit actions. `poll_balance` had been written
+since v3.17.280 without being registered, so those rows rendered with a blank
+label.
+
+`accounting_sync_payments` is superseded but still works for anyone who scripted
+it, now carrying a docstring that says plainly what it can and cannot see.
+
+Still out of scope, as the request itself suggested: products/services, tax codes
+and payment terms.
+
 ## [3.17.527] - 2026-09-03
 
 ### Feature: a system-wide background setting in General Settings

@@ -3381,6 +3381,140 @@ def accounting_delete(request, pk):
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser or u.is_staff)
+@require_POST
+def accounting_sync_now(request, pk):
+    """Phase 44.3 (v3.17.530): run the sync on demand.
+
+    The RMM and PSA connection pages have had a sync action for releases; the
+    accounting page never did, so the only way to pull anything was a shell.
+    """
+    from django.core.management import call_command
+    from io import StringIO
+
+    item = get_object_or_404(AccountingConnection, pk=pk)
+    if not (item.is_active and item.sync_enabled):
+        messages.error(
+            request,
+            f'"{item.name}" is inactive or has sync disabled — enable it first.')
+        return redirect('integrations:accounting_list')
+
+    out, err = StringIO(), StringIO()
+    try:
+        call_command('accounting_sync', connection=item.pk,
+                     stdout=out, stderr=err, verbosity=1)
+    except Exception as exc:
+        messages.error(request, f'Sync failed: {exc}')
+        return redirect('integrations:accounting_list')
+
+    item.refresh_from_db()
+    if item.last_sync_status == 'ok':
+        messages.success(request, f'Sync finished. {out.getvalue().strip()[:400]}')
+    else:
+        messages.warning(
+            request,
+            f'Sync finished with errors: {item.last_error[:400] or err.getvalue()[:400]}')
+    return redirect('integrations:accounting_list')
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+def accounting_customers(request, pk):
+    """Phase 44.1 (v3.17.528): the customer mapping, now that it is queryable.
+
+    Before this the organization -> provider-customer map was a dict inside the
+    connection's encrypted credentials, so there was nothing to show. It is now
+    a table, and an operator can see which clients are linked, which are not,
+    and pull in customers that already exist provider-side.
+    """
+    from .models import AccountingCustomerLink
+    from core.models import Organization
+
+    item = get_object_or_404(AccountingConnection, pk=pk)
+    links = AccountingCustomerLink.objects.filter(
+        connection=item).select_related('client_org').order_by('display_name')
+    linked_ids = set(links.values_list('client_org_id', flat=True))
+
+    return render(request, 'integrations/accounting_customers.html', {
+        'item': item,
+        'links': links,
+        # Clients with no mapping yet — the gap an operator actually wants to see.
+        'unlinked': Organization.objects.filter(
+            is_active=True).exclude(pk__in=linked_ids).order_by('name')[:200],
+    })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+@require_POST
+def accounting_pull_customers(request, pk):
+    """Import provider customers and link them to organizations by name."""
+    from integrations.providers.accounting import get_accounting_provider
+
+    item = get_object_or_404(AccountingConnection, pk=pk)
+    provider = get_accounting_provider(item)
+    if provider is None:
+        messages.error(request, 'Provider class not registered.')
+        return redirect('integrations:accounting_customers', pk=pk)
+
+    try:
+        result = provider.pull_customers()
+    except Exception as exc:
+        messages.error(request, f'Pull failed: {exc}')
+        return redirect('integrations:accounting_customers', pk=pk)
+
+    if not result.get('success'):
+        messages.error(request, f"Pull failed: {result.get('error', 'unknown')}")
+        return redirect('integrations:accounting_customers', pk=pk)
+
+    unmatched = result.get('unmatched') or []
+    messages.success(
+        request,
+        f"Linked {result.get('linked', 0)} customer(s); "
+        f"{result.get('already_linked', 0)} already linked.")
+    if unmatched:
+        # Named rather than counted: the operator has to decide what each one is,
+        # and a bare number gives them nothing to act on.
+        shown = ', '.join(unmatched[:10])
+        more = f' (+{len(unmatched) - 10} more)' if len(unmatched) > 10 else ''
+        messages.warning(
+            request,
+            f'No matching client for: {shown}{more}. '
+            f'Rename the client here to match, or ignore.')
+    return redirect('integrations:accounting_customers', pk=pk)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+@require_POST
+def accounting_push_customer(request, pk, org_pk):
+    """Create or update one client in the accounting system."""
+    from integrations.providers.accounting import get_accounting_provider
+    from core.models import Organization
+
+    item = get_object_or_404(AccountingConnection, pk=pk)
+    client_org = get_object_or_404(Organization, pk=org_pk)
+    provider = get_accounting_provider(item)
+    if provider is None:
+        messages.error(request, 'Provider class not registered.')
+        return redirect('integrations:accounting_customers', pk=pk)
+
+    try:
+        result = provider.push_customer(client_org)
+    except Exception as exc:
+        messages.error(request, f'Push failed: {exc}')
+        return redirect('integrations:accounting_customers', pk=pk)
+
+    if result.get('success'):
+        verb = 'Created' if result.get('created') else 'Updated'
+        messages.success(request, f'{verb} {client_org.name} '
+                                  f"(id {result.get('customer_id')}).")
+    else:
+        messages.error(request, f"Push failed: {result.get('error', 'unknown')}")
+    return redirect('integrations:accounting_customers', pk=pk)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
 def accounting_audit_log(request, pk):
     """Phase 27 v2 (v3.17.260): show every recorded interaction with a
     given accounting connection. Supports a simple `?ok=fail|ok` filter

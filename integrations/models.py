@@ -1032,6 +1032,13 @@ class AccountingAuditLog(BaseModel):
         ('record_payment', 'Record Payment'),
         ('test_connection', 'Test Connection'),
         ('refresh_token', 'Refresh Token'),
+        # v3.17.528: `poll_balance` had been written since v3.17.280 without
+        # being registered here, so those rows rendered with a blank label.
+        ('poll_balance', 'Poll Invoice Balance'),
+        ('push_customer', 'Push Customer'),
+        ('pull_customers', 'Pull Customers'),
+        ('pull_payments', 'Pull Payments'),
+        ('pull_invoices', 'Pull Invoice State'),
     ]
 
     organization = models.ForeignKey(
@@ -1070,6 +1077,71 @@ class AccountingAuditLog(BaseModel):
     def __str__(self):
         ok = 'ok' if self.success else 'fail'
         return f'{self.provider_type}:{self.action} ({ok}) #{self.pk}'
+
+
+class AccountingCustomerLink(BaseModel):
+    """Phase 44.1 (v3.17.528): which provider customer an organization maps to.
+
+    This mapping used to live as a `customer_map` dict inside the connection's
+    encrypted credentials blob. That made it invisible to queries, absent from
+    the admin, impossible to report on, and — worst — collateral damage of a
+    credentials reset, which would silently orphan every mapping and cause the
+    next push to create duplicate customers provider-side.
+
+    The unique constraints are the point of the model. One organization maps to
+    at most one customer per connection, and one provider customer is claimed by
+    at most one organization, so a mapping cannot silently fork.
+    """
+    SOURCES = [
+        ('push', 'Created here, pushed to the provider'),
+        ('matched', 'Matched an existing provider customer by name'),
+        ('pull', 'Imported from the provider'),
+    ]
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE,
+        related_name='accounting_customer_links',
+        help_text='The tenant that owns the connection.',
+    )
+    connection = models.ForeignKey(
+        AccountingConnection, on_delete=models.CASCADE,
+        related_name='customer_links',
+    )
+    client_org = models.ForeignKey(
+        Organization, on_delete=models.CASCADE,
+        related_name='accounting_customer_mappings',
+        help_text='The client this provider customer represents.',
+    )
+    provider_customer_id = models.CharField(
+        max_length=120,
+        help_text='Customer Id in the accounting system.')
+    display_name = models.CharField(
+        max_length=255, blank=True,
+        help_text='Provider-side DisplayName, kept for reporting and matching.')
+    source = models.CharField(max_length=20, choices=SOURCES, default='push')
+    last_pushed_at = models.DateTimeField(null=True, blank=True)
+    last_pulled_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True)
+
+    objects = OrganizationManager()
+
+    class Meta:
+        db_table = 'accounting_customer_links'
+        ordering = ['display_name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['connection', 'client_org'],
+                name='uniq_accounting_link_per_client'),
+            models.UniqueConstraint(
+                fields=['connection', 'provider_customer_id'],
+                name='uniq_accounting_link_per_customer'),
+        ]
+        indexes = [
+            models.Index(fields=['organization', 'connection']),
+        ]
+
+    def __str__(self):
+        return f'{self.client_org_id} -> {self.provider_customer_id}'
 
 
 # ---------------------------------------------------------------------------

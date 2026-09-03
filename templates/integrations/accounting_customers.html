@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Customer mapping - {{ item.name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'integrations:accounting_list' %}">Accounting</a></li>
+        <li class="breadcrumb-item active">Customer mapping</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-address-book"></i> Customer mapping &mdash; {{ item.name }}</h4>
+    <form method="post" action="{% url 'integrations:accounting_pull_customers' item.pk %}">
+        {% csrf_token %}
+        <button class="btn btn-outline-primary"
+                onclick="return confirm('Read customers from {{ item.get_provider_type_display }} and link them to clients with a matching name?\n\nNo clients are created here, and nothing is written to the accounting system.')">
+            <i class="fas fa-download"></i> Pull from provider
+        </button>
+    </form>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header py-2">
+        <strong>Linked</strong>
+        <span class="badge text-bg-secondary">{{ links|length }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    <th>Provider customer</th>
+                    <th>ID</th>
+                    <th>Origin</th>
+                    <th>Last pushed</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for link in links %}
+                <tr>
+                    <td>{{ link.client_org.name }}</td>
+                    <td>{{ link.display_name|default:"—" }}</td>
+                    <td><code>{{ link.provider_customer_id }}</code></td>
+                    <td><span class="badge text-bg-light">{{ link.get_source_display }}</span></td>
+                    <td>
+                        {% if link.last_pushed_at %}{{ link.last_pushed_at|date:"Y-m-d H:i" }}{% else %}<span class="text-muted">Never</span>{% endif %}
+                        {% if link.last_error %}
+                        <div class="small text-danger">{{ link.last_error|truncatechars:120 }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <form method="post" action="{% url 'integrations:accounting_push_customer' item.pk link.client_org.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-outline-secondary">Push update</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-3">
+                    Nothing linked yet. Pull from the provider, or push a client below.
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header py-2">
+        <strong>Not linked</strong>
+        <span class="badge text-bg-secondary">{{ unlinked|length }}</span>
+        <span class="text-muted small ms-2">
+            Pushing an invoice links these automatically; push here to create the
+            customer ahead of time.
+        </span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <tbody>
+                {% for org in unlinked %}
+                <tr>
+                    <td>{{ org.name }}</td>
+                    <td class="text-end">
+                        <form method="post" action="{% url 'integrations:accounting_push_customer' item.pk org.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-outline-primary">Create in {{ item.get_provider_type_display }}</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td class="text-center text-muted py-3">Every active client is linked.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -102,6 +102,16 @@ urlpatterns = [
     path('accounting/<int:pk>/test/', views.accounting_test, name='accounting_test'),
     path('accounting/<int:pk>/audit-log/', views.accounting_audit_log,
          name='accounting_audit_log'),
+    # Phase 44.3 (v3.17.530) — run the sync on demand.
+    path('accounting/<int:pk>/sync/', views.accounting_sync_now,
+         name='accounting_sync_now'),
+    # Phase 44.1 (v3.17.528) — the customer mapping, now a real table.
+    path('accounting/<int:pk>/customers/', views.accounting_customers,
+         name='accounting_customers'),
+    path('accounting/<int:pk>/customers/pull/', views.accounting_pull_customers,
+         name='accounting_pull_customers'),
+    path('accounting/<int:pk>/customers/<int:org_pk>/push/',
+         views.accounting_push_customer, name='accounting_push_customer'),
     path('accounting/<int:pk>/connect/', views.accounting_connect, name='accounting_connect'),
     path('accounting/oauth/callback/', views.accounting_oauth_callback,
          name='accounting_oauth_callback'),

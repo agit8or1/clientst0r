@@ -1,0 +1,11 @@
+[Unit]
+Description=Client St0r Accounting Sync Timer
+Requires=clientst0r-accounting-sync.service
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

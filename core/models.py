@@ -1039,6 +1039,9 @@ class ScheduledTask(models.Model):
         ('system_warnings_digest', 'System Warnings Digest Email'),
         ('vault_password_expiry', 'Vault Password Expiry Notifications'),
         ('psa_sync', 'PSA Synchronization'),
+        # Phase 44.3 (v3.17.530). A systemd timer is also shipped; this
+        # entry is for installs that run the in-app scheduler instead.
+        ('accounting_sync', 'Accounting Sync (QuickBooks Online / Xero)'),
         ('rmm_sync', 'RMM Synchronization'),
         ('scheduling_alerts', 'Scheduled Task Alerts'),
         ('security_scan', 'Automated Security Scan'),

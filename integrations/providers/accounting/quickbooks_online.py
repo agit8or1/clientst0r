@@ -121,50 +121,250 @@ class QuickBooksOnlineProvider(BaseAccountingProvider):
     # ---- API surface ------------------------------------------------------
 
     def _api(self, method: str, path: str, **kwargs) -> requests.Response:
-        token = self.refresh_access_token()
+        """One QBO API call, with retry (Phase 44.4, v3.17.531).
+
+        Previously a single attempt: a rate-limit response or a momentary 503
+        surfaced as a hard failure, and for an invoice push that meant somebody
+        had to notice and click the button again.
+        """
         creds = self.credentials
         realm_id = creds.get('realm_id') or ''
         if not realm_id:
             raise AccountingAuthError('realm_id missing — re-run OAuth connect')
         url = f'{self.base_url}/v3/company/{realm_id}{path}'
-        headers = kwargs.pop('headers', {})
-        headers.setdefault('Authorization', f'Bearer {token}')
-        headers.setdefault('Accept', 'application/json')
-        if 'json' in kwargs:
-            headers.setdefault('Content-Type', 'application/json')
-        return requests.request(method, url, headers=headers, timeout=30, **kwargs)
+
+        def send():
+            token = self.refresh_access_token()
+            headers = dict(kwargs.get('headers') or {})
+            headers.setdefault('Authorization', f'Bearer {token}')
+            headers.setdefault('Accept', 'application/json')
+            if 'json' in kwargs:
+                headers.setdefault('Content-Type', 'application/json')
+            call_kwargs = {k: v for k, v in kwargs.items() if k != 'headers'}
+            return requests.request(method, url, headers=headers, timeout=30,
+                                    **call_kwargs)
+
+        def force_refresh():
+            # Expire the cached token so the replay fetches a new one. A 401
+            # after a successful refresh means the grant itself is gone, and
+            # that needs a human — the second attempt will surface it.
+            self.connection.update_credentials(expires_at=0)
+            self.connection.save(update_fields=['encrypted_credentials',
+                                                'updated_at'])
+
+        return self._request_with_retry(send, method=method,
+                                        on_auth_failure=force_refresh)
+
+    # ---- Customers (Phase 44.1, v3.17.528) ---------------------------------
+
+    def customer_payload(self, client_org) -> Dict[str, Any]:
+        """Everything QBO will accept, not just the name.
+
+        Fields are omitted when blank rather than sent empty: QBO rejects some
+        empty structures, and an absent key leaves any value already set on the
+        provider side alone.
+        """
+        body: Dict[str, Any] = {'DisplayName': client_org.name[:100]}
+        if client_org.legal_name:
+            body['CompanyName'] = client_org.legal_name[:100]
+        if client_org.email:
+            body['PrimaryEmailAddr'] = {'Address': client_org.email}
+        if client_org.phone:
+            body['PrimaryPhone'] = {'FreeFormNumber': client_org.phone[:30]}
+        if client_org.website:
+            body['WebAddr'] = {'URI': client_org.website}
+
+        addr = {
+            'Line1': client_org.street_address,
+            'Line2': client_org.street_address_2,
+            'City': client_org.city,
+            'CountrySubDivisionCode': client_org.state,
+            'PostalCode': client_org.postal_code,
+            'Country': client_org.country,
+        }
+        addr = {k: v for k, v in addr.items() if v}
+        if addr:
+            body['BillAddr'] = addr
+
+        if client_org.primary_contact_name:
+            parts = client_org.primary_contact_name.split(None, 1)
+            body['GivenName'] = parts[0][:25]
+            if len(parts) > 1:
+                body['FamilyName'] = parts[1][:25]
+        return body
+
+    def _find_customer_by_name(self, name: str):
+        """Return (id, display_name) for an exact DisplayName match, else None."""
+        from urllib.parse import quote
+        # Escape single quotes — an apostrophe in a client name would otherwise
+        # break the query, and this string is interpolated into QBO's SQL-ish
+        # query language.
+        safe = name.replace("'", "\\'")
+        q = quote(f"select * from Customer where DisplayName = '{safe}'")
+        resp = self._api('GET', f'/query?query={q}')
+        if resp.status_code != 200:
+            return None
+        results = (resp.json().get('QueryResponse') or {}).get('Customer') or []
+        if not results:
+            return None
+        return str(results[0]['Id']), results[0].get('DisplayName', '')
 
     def _ensure_customer(self, client_org) -> str:
-        """Find or create a QBO Customer matching client_org.name. Returns
-        the QBO Customer Id (string)."""
-        creds = self.credentials
-        cust_map = creds.get('customer_map') or {}
-        existing = cust_map.get(str(client_org.id))
-        if existing:
-            return existing
+        """Find, match or create the QBO customer for `client_org`.
 
-        # Search by display name
-        from urllib.parse import quote
-        q = quote(f"select * from Customer where DisplayName = '{client_org.name}'")
-        resp = self._api('GET', f'/query?query={q}')
-        if resp.status_code == 200:
-            results = (resp.json().get('QueryResponse') or {}).get('Customer') or []
-            if results:
-                cust_id = str(results[0]['Id'])
-                cust_map[str(client_org.id)] = cust_id
-                self.connection.update_credentials(customer_map=cust_map)
-                self.connection.save(update_fields=['encrypted_credentials', 'updated_at'])
-                return cust_id
+        v3.17.528: reads and writes AccountingCustomerLink rather than a dict
+        inside the encrypted credentials blob, and sends the full customer
+        payload on create instead of a bare DisplayName.
+        """
+        link = self._link_for(client_org)
+        if link:
+            return link.provider_customer_id
 
-        # Create a new customer
-        resp = self._api('POST', '/customer', json={'DisplayName': client_org.name[:100]})
+        found = self._find_customer_by_name(client_org.name)
+        if found:
+            customer_id, display_name = found
+            self._save_link(client_org, customer_id, source='matched',
+                            display_name=display_name)
+            return customer_id
+
+        resp = self._api('POST', '/customer', json=self.customer_payload(client_org))
         if resp.status_code not in (200, 201):
-            raise AccountingProviderError(f'QBO create-customer failed: {resp.status_code} {resp.text[:200]}')
-        cust_id = str(resp.json()['Customer']['Id'])
-        cust_map[str(client_org.id)] = cust_id
-        self.connection.update_credentials(customer_map=cust_map)
-        self.connection.save(update_fields=['encrypted_credentials', 'updated_at'])
-        return cust_id
+            raise AccountingProviderError(
+                f'QBO create-customer failed: {resp.status_code} {resp.text[:200]}')
+        data = resp.json()['Customer']
+        customer_id = str(data['Id'])
+        self._save_link(client_org, customer_id, source='push',
+                        display_name=data.get('DisplayName', ''))
+        log_accounting_call(
+            connection=self.connection, action='push_customer',
+            resource_type='customer', resource_id=client_org.pk,
+            external_id=customer_id, success=True,
+            http_status=resp.status_code,
+            request_summary=f'create {client_org.name}',
+            response_summary=f'qbo_customer_id={customer_id}',
+        )
+        return customer_id
+
+    def push_customer(self, client_org) -> Dict[str, Any]:
+        """Create the customer, or update an already-linked one.
+
+        QBO updates are full-replace and require the current SyncToken, so an
+        update reads the record first. A stale token means somebody edited the
+        customer in QBO since; that surfaces as an error rather than silently
+        overwriting their edit.
+        """
+        link = self._link_for(client_org)
+        if link is None:
+            try:
+                customer_id = self._ensure_customer(client_org)
+                return {'success': True, 'customer_id': customer_id, 'created': True}
+            except Exception as exc:
+                return {'success': False, 'error': str(exc)}
+
+        read = self._api('GET', f'/customer/{link.provider_customer_id}')
+        if read.status_code != 200:
+            err = f'HTTP {read.status_code}: {read.text[:200]}'
+            log_accounting_call(
+                connection=self.connection, action='push_customer',
+                resource_type='customer', resource_id=client_org.pk,
+                external_id=link.provider_customer_id, success=False,
+                http_status=read.status_code, error_message=err)
+            return {'success': False, 'error': err}
+
+        current = (read.json() or {}).get('Customer') or {}
+        body = self.customer_payload(client_org)
+        body['Id'] = link.provider_customer_id
+        body['SyncToken'] = current.get('SyncToken', '0')
+        body['sparse'] = True
+
+        resp = self._api('POST', '/customer', json=body)
+        if resp.status_code not in (200, 201):
+            err = f'HTTP {resp.status_code}: {resp.text[:200]}'
+            link.last_error = err[:500]
+            link.save(update_fields=['last_error', 'updated_at'])
+            log_accounting_call(
+                connection=self.connection, action='push_customer',
+                resource_type='customer', resource_id=client_org.pk,
+                external_id=link.provider_customer_id, success=False,
+                http_status=resp.status_code, error_message=err,
+                response_summary=resp.text[:500])
+            return {'success': False, 'error': err}
+
+        from django.utils import timezone
+        link.last_pushed_at = timezone.now()
+        link.last_error = ''
+        link.display_name = (resp.json().get('Customer') or {}).get(
+            'DisplayName', link.display_name)[:255]
+        link.save(update_fields=['last_pushed_at', 'last_error',
+                                 'display_name', 'updated_at'])
+        log_accounting_call(
+            connection=self.connection, action='push_customer',
+            resource_type='customer', resource_id=client_org.pk,
+            external_id=link.provider_customer_id, success=True,
+            http_status=resp.status_code,
+            request_summary=f'update {client_org.name}')
+        return {'success': True, 'customer_id': link.provider_customer_id,
+                'created': False}
+
+    def pull_customers(self, limit: int = 500) -> Dict[str, Any]:
+        """Import QBO customers and link them to organizations by exact name.
+
+        Deliberately does NOT create organizations. A QBO customer with no
+        matching org is reported as unmatched and left alone: inventing tenants
+        from an accounting system is not a decision a sync job should make on
+        its own.
+        """
+        from urllib.parse import quote
+        from core.models import Organization
+
+        linked, unmatched, already = 0, [], 0
+        start_position, page = 1, 100
+        while start_position <= limit:
+            q = quote(f'select * from Customer startposition {start_position} '
+                      f'maxresults {page}')
+            resp = self._api('GET', f'/query?query={q}')
+            if resp.status_code != 200:
+                return {'success': False,
+                        'error': f'HTTP {resp.status_code}: {resp.text[:200]}',
+                        'linked': linked, 'unmatched': unmatched}
+            rows = (resp.json().get('QueryResponse') or {}).get('Customer') or []
+            if not rows:
+                break
+
+            for row in rows:
+                name = (row.get('DisplayName') or '').strip()
+                customer_id = str(row.get('Id') or '')
+                if not name or not customer_id:
+                    continue
+                from integrations.models import AccountingCustomerLink
+                if AccountingCustomerLink.objects.filter(
+                        connection=self.connection,
+                        provider_customer_id=customer_id).exists():
+                    already += 1
+                    continue
+                org = Organization.objects.filter(name__iexact=name).first()
+                if org is None:
+                    unmatched.append(name)
+                    continue
+                try:
+                    self._save_link(org, customer_id, source='pull',
+                                    display_name=name)
+                    linked += 1
+                except AccountingProviderError:
+                    unmatched.append(name)
+
+            if len(rows) < page:
+                break
+            start_position += page
+
+        log_accounting_call(
+            connection=self.connection, action='pull_customers',
+            resource_type='customer', success=True,
+            request_summary=f'limit={limit}',
+            response_summary=f'linked={linked} already={already} '
+                             f'unmatched={len(unmatched)}')
+        return {'success': True, 'linked': linked, 'already_linked': already,
+                'unmatched': unmatched, 'error': None}
 
     def push_invoice(self, invoice) -> Dict[str, Any]:
         from django.utils import timezone
@@ -253,10 +453,11 @@ class QuickBooksOnlineProvider(BaseAccountingProvider):
         invoice = payment.invoice
         if not invoice.accounting_external_id:
             return {'skipped': True, 'reason': 'invoice not yet pushed'}
-        creds = self.credentials
-        customer_id = (creds.get('customer_map') or {}).get(str(invoice.client_org_id))
-        if not customer_id:
+        # v3.17.528: reads the link row, not the credentials blob.
+        link = self._link_for(invoice.client_org)
+        if link is None:
             return {'skipped': True, 'reason': 'customer not mapped'}
+        customer_id = link.provider_customer_id
         body = {
             'CustomerRef': {'value': customer_id},
             'TotalAmt': float(payment.amount),
@@ -291,6 +492,94 @@ class QuickBooksOnlineProvider(BaseAccountingProvider):
             response_summary=f'qbo_payment_id={ext_id}',
         )
         return {'success': True, 'payment_id': ext_id}
+
+    # ---- Real pull (Phase 44.2, v3.17.529) ---------------------------------
+
+    def fetch_payments(self, since=None, limit: int = 500) -> Dict[str, Any]:
+        """Read QBO Payment records, with the invoices each one settles.
+
+        This is what "bidirectional payment sync" was supposed to mean. The
+        v3.17.280 implementation never looked at a Payment at all — it polled an
+        invoice's Balance and, when that hit zero, wrote a local payment for the
+        whole outstanding amount dated today with method 'other'. That could not
+        see a partial payment (a non-zero balance was skipped entirely), could
+        not report the real payment date, method or reference, and had no id to
+        make a re-run idempotent.
+
+        Each returned payment carries `invoice_external_ids`, taken from
+        LinkedTxn, so a payment spanning several invoices is allocated rather
+        than dropped.
+        """
+        from decimal import Decimal as _D
+        from urllib.parse import quote
+
+        clauses = []
+        if since is not None:
+            # QBO wants an ISO timestamp; MetaData.LastUpdatedTime is the field
+            # that moves when a payment is edited or voided, not just created.
+            clauses.append(f"MetaData.LastUpdatedTime > '{since.isoformat()}'")
+        where = (' where ' + ' and '.join(clauses)) if clauses else ''
+
+        payments, start_position, page = [], 1, 100
+        while len(payments) < limit:
+            q = quote(f'select * from Payment{where} '
+                      f'startposition {start_position} maxresults {page}')
+            resp = self._api('GET', f'/query?query={q}')
+            if resp.status_code != 200:
+                return {'success': False,
+                        'error': f'HTTP {resp.status_code}: {resp.text[:200]}',
+                        'payments': payments}
+            rows = (resp.json().get('QueryResponse') or {}).get('Payment') or []
+            if not rows:
+                break
+
+            for row in rows:
+                linked = []
+                for line in row.get('Line') or []:
+                    for txn in line.get('LinkedTxn') or []:
+                        if txn.get('TxnType') == 'Invoice' and txn.get('TxnId'):
+                            linked.append(str(txn['TxnId']))
+                payments.append({
+                    'external_id': str(row.get('Id') or ''),
+                    'amount': _D(str(row.get('TotalAmt') or '0')),
+                    'txn_date': row.get('TxnDate'),
+                    'reference': (row.get('PaymentRefNum') or '')[:120],
+                    'invoice_external_ids': linked,
+                    # QBO marks a voided payment by zeroing it and stamping the
+                    # memo; there is no dedicated status field to read.
+                    'voided': str(row.get('PrivateNote') or '').upper().startswith('VOIDED'),
+                })
+
+            if len(rows) < page:
+                break
+            start_position += page
+
+        return {'success': True, 'payments': payments[:limit], 'error': None}
+
+    def fetch_invoice(self, external_id: str) -> Dict[str, Any]:
+        """The whole invoice, not just its balance."""
+        from decimal import Decimal as _D
+        resp = self._api('GET', f'/invoice/{external_id}')
+        if resp.status_code != 200:
+            return {'success': False,
+                    'error': f'HTTP {resp.status_code}: {resp.text[:200]}',
+                    'invoice': None}
+        data = (resp.json() or {}).get('Invoice') or {}
+        return {
+            'success': True,
+            'error': None,
+            'invoice': {
+                'external_id': str(data.get('Id') or ''),
+                'balance': _D(str(data.get('Balance', '0'))),
+                'total': _D(str(data.get('TotalAmt', '0'))),
+                'txn_date': data.get('TxnDate'),
+                'due_date': data.get('DueDate'),
+                'doc_number': data.get('DocNumber') or '',
+                # A deleted QBO invoice 404s; a voided one survives with zero
+                # total and a VOIDED memo.
+                'voided': str(data.get('PrivateNote') or '').upper().startswith('VOIDED'),
+            },
+        }
 
     def poll_invoice_balance(self, invoice):
         """Phase 27 v8 (v3.17.280): GET /invoice/<id> and pull `Balance`."""

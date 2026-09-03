@@ -55,6 +55,8 @@ class Command(BaseCommand):
             self.run_website_monitoring()
         elif task.task_type == 'psa_sync':
             self.run_psa_sync()
+        elif task.task_type == 'accounting_sync':
+            self.run_accounting_sync()
         elif task.task_type == 'password_breach_scan':
             self.run_password_breach_scan()
         elif task.task_type == 'equipment_catalog_update':
@@ -99,6 +101,15 @@ class Command(BaseCommand):
         except Exception as e:
             # PSA sync might not be configured, that's okay
             self.stdout.write(f"    PSA sync not available: {e}")
+
+    def run_accounting_sync(self):
+        """Phase 44.3 (v3.17.530): two-way accounting sync.
+
+        Delegates to the management command so the systemd timer and the in-app
+        scheduler run exactly the same code path.
+        """
+        from django.core.management import call_command
+        call_command('accounting_sync', verbosity=0)
 
     def run_password_breach_scan(self):
         """Check all passwords against HaveIBeenPwned breach database."""

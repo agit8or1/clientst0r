@@ -36,6 +36,13 @@
                         <a href="{% url 'integrations:accounting_connect' conn.pk %}" class="btn btn-sm btn-success">
                             <i class="fas fa-link"></i> Connect
                         </a>
+                        {% if conn.is_active and conn.sync_enabled %}
+                        <form method="post" action="{% url 'integrations:accounting_sync_now' conn.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-primary"><i class="fas fa-rotate"></i> Sync Now</button>
+                        </form>
+                        {% endif %}
+                        <a href="{% url 'integrations:accounting_customers' conn.pk %}" class="btn btn-sm btn-outline-secondary">Customers</a>
                         <a href="{% url 'integrations:accounting_audit_log' conn.pk %}" class="btn btn-sm btn-outline-info">Audit Log</a>
                         <a href="{% url 'integrations:accounting_delete' conn.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
                     </td>

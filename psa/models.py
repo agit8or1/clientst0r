@@ -2811,6 +2811,33 @@ class Invoice(models.Model):
                   'local calculation) to detect drift.',
     )
 
+    # Phase 44.2 (v3.17.529): what the provider currently says this invoice is,
+    # read back by the sync rather than captured at push time.
+    #
+    # The total is recorded, not applied. Our `total` is derived from line items,
+    # so overwriting it would desync the invoice from the lines that justify it —
+    # and an invoice whose total disagrees with its own lines is worse than one
+    # that disagrees with QuickBooks. Recording the provider figure lets the
+    # reconciliation report show the difference and a human decide which is right.
+    provider_total_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text='Invoice total as the accounting provider currently reports '
+                  'it. Differs from `total` when the invoice was edited '
+                  'provider-side.')
+    provider_synced_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text='When the provider copy of this invoice was last read back.')
+
+    @property
+    def provider_total_drift(self):
+        """Signed difference between the provider's total and ours, or None.
+
+        Non-zero means the invoice was edited on one side after the push.
+        """
+        if self.provider_total_amount is None:
+            return None
+        return self.provider_total_amount - (self.total or 0)
+
     # Phase 27 v7 (v3.17.279): multi-entity / multi-book routing. When
     # set, the invoice push targets this specific AccountingConnection.
     # When None, push falls back to the first sync-enabled connection
@@ -2948,12 +2975,25 @@ class Invoice(models.Model):
         # Recompute amount_paid from related Payment rows
         paid = sum((Decimal(str(p.amount or '0')) for p in self.payments.all()), Decimal('0'))
         self.amount_paid = paid
-        # Auto status update
+        # Auto status update.
+        # v3.17.529: this used to be one-way — an invoice could reach 'paid' but
+        # never leave it. A payment voided in the accounting system, or deleted
+        # here, left the invoice reading Paid with nothing against it. Now the
+        # status follows the money in both directions. 'void' and 'draft' remain
+        # untouched because those are deliberate human states, not consequences
+        # of a balance.
         if self.status not in ('void', 'draft'):
             if paid >= self.total > 0:
                 self.status = 'paid'
             elif paid > 0:
                 self.status = 'partial'
+            elif self.status in ('paid', 'partial'):
+                # Payment went away. Overdue if it is past due, else just sent.
+                from django.utils import timezone as _tz
+                due = self.due_date
+                self.status = ('overdue'
+                               if due and due < _tz.now().date()
+                               else 'sent')
         self.save(update_fields=['subtotal', 'tax_amount', 'total',
                                  'amount_paid', 'status', 'updated_at'])
 
@@ -3113,6 +3153,18 @@ class Payment(models.Model):
                   'bank statement.',
     )
 
+    # Phase 44.2 (v3.17.529): which provider payment this row came from.
+    # Before this, inbound payments were *inferred* from an invoice balance of
+    # zero and written with today's date and method 'other', with nothing tying
+    # the row to the real payment. Storing the id makes the sync idempotent and
+    # lets a voided provider payment find and remove its local counterpart.
+    accounting_provider = models.CharField(
+        max_length=50, blank=True,
+        help_text='quickbooks_online | xero | etc. Blank for manual entries.')
+    accounting_external_id = models.CharField(
+        max_length=120, blank=True, db_index=True,
+        help_text='Payment ID in the external accounting system.')
+
     created_by = models.ForeignKey(
         django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='psa_payments_recorded',
@@ -3122,6 +3174,14 @@ class Payment(models.Model):
     class Meta:
         db_table = 'psa_payments'
         ordering = ['-paid_on', '-created_at']
+        constraints = [
+            # One local row per provider payment. Without this, re-running the
+            # sync would double-count every payment it had already imported.
+            models.UniqueConstraint(
+                fields=['accounting_provider', 'accounting_external_id'],
+                condition=models.Q(accounting_external_id__gt=''),
+                name='uniq_payment_per_provider_txn'),
+        ]
 
     def __str__(self):
         return f'{self.amount} on {self.paid_on} ({self.get_method_display()})'
