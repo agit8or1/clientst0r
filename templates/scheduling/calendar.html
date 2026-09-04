@@ -29,9 +29,20 @@
         <table class="table table-hover mb-0">
             <tbody>
                 {% for task in tasks %}
-                <tr {% if task.is_overdue %}class="table-danger"{% endif %}>
+                <tr {% if task.is_overdue %}class="table-danger"{% elif task.is_alerting %}class="table-warning"{% endif %}>
                     <td width="30%">
                         <a href="{% url 'scheduling:task_detail' task.pk %}">{{ task.title }}</a>
+                        {% if task.is_alerting %}
+                        {% comment %}
+                            v3.17.535 — the task has entered its warning window.
+                            Overdue wins where both apply: two badges saying
+                            different things about the same row helps nobody.
+                        {% endcomment %}
+                        <span class="badge bg-warning text-dark ms-1"
+                              title="Due in less than {{ task.alert_lead_display }}">
+                            <i class="fas fa-bell"></i> Due soon
+                        </span>
+                        {% endif %}
                     </td>
                     <td width="15%">
                         {% if task.priority == 'urgent' %}<span class="badge bg-danger">Urgent</span>

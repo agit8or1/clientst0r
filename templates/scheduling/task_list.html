@@ -80,9 +80,13 @@
                     </td>
                     <td>
                         {% if task.due_date %}
-                        <span {% if task.is_overdue %}class="text-danger fw-bold"{% endif %}>
+                        <span {% if task.is_overdue %}class="text-danger fw-bold"{% elif task.is_alerting %}class="text-warning fw-semibold"{% endif %}>
                             {{ task.due_date|date:"M j, Y" }}
                         </span>
+                        {% if task.is_alerting %}
+                        <i class="fas fa-bell text-warning ms-1"
+                           title="Warning window: {{ task.alert_lead_display }} before due"></i>
+                        {% endif %}
                         {% else %}—{% endif %}
                     </td>
                     <td>

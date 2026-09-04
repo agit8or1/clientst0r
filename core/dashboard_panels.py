@@ -128,6 +128,8 @@ def get_schedule(user, organization, days: int = SCHEDULE_DAYS) -> list[Schedule
             'title': task.title,
             'when': task.due_date,
             'priority': task.priority,
+            # v3.17.535: inside its own configured warning window.
+            'alerting': task.is_alerting,
             'context': task.organization.name if task.organization_id else '',
             'icon': 'fa-list-check',
             'url': panel_url('scheduling:task_detail', task.pk),

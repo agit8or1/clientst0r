@@ -945,6 +945,18 @@ A scheduled job already links a ticket to a calendar entry (`Ticket.related_cale
 
 Dependencies: `inventory` app, `psa.Ticket`.
 
+## Phase 48 — Task warning windows **(S)** [shipped — v3.17.535]
+
+**Roadmap item:** a task should warn you before it is due, in a unit that suits it, on the screens you already watch.
+
+`ScheduledTask.alert_before_hours` and `check_scheduled_task_alerts` already existed and are unchanged. This closes the two gaps around them.
+
+- **Lead time in hours or days** *(shipped v3.17.535)* — the form takes a number plus a unit. Hours stay canonical so alerting is unaffected; the unit records how it was entered, so a 7-day lead reads back as "7 days" rather than "168 hours", including on the next occurrence of a recurring task.
+- **The warning is visible** *(shipped v3.17.535)* — a task inside its window is flagged on the calendar, the task list, the dashboard Schedule panel, the public wallboard and its own detail page. Alerting had been email/SMS only, so a task creeping up was invisible on the screens people actually watch.
+- Overdue suppresses the warning rather than stacking with it, and a lead of 0 means "do not warn" rather than "warn always".
+
+Dependencies: `scheduling.ScheduledTask`; surfaces through the Phase 47 wallboard and the v3.17.524 dashboard panel.
+
 ## Phase 47 — Public scheduler wallboard **(S)** [shipped — v3.17.533]
 
 **Roadmap item:** a schedule on the workshop wall. Extends the wallboard idea from Phase 3.6 (v3.17.146 / v3.17.211), which is authenticated and reporting-oriented.
@@ -1058,6 +1070,7 @@ Positioned last in the roadmap (v3.17.169) because it's the largest single under
 | 45 — System-wide Appearance Controls | S | shipped v3.17.527 | `SystemSetting` + existing per-user background fields |
 | 46 — Job Kit (tools + materials on a ticket) | M | shipped v3.17.532 | `inventory` + `psa.Ticket` |
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
+| 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.

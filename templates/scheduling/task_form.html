@@ -96,9 +96,20 @@
                 <div class="card-header"><h5 class="mb-0"><i class="fas fa-bell"></i> Alerts</h5></div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label for="{{ form.alert_before_hours.id_for_label }}" class="form-label">Alert before due (hours)</label>
-                        {{ form.alert_before_hours }}
-                        <div class="form-text">Send an alert this many hours before the due date.</div>
+                        <label for="{{ form.alert_before_value.id_for_label }}" class="form-label">Warn before due</label>
+                        <div class="row g-2">
+                            <div class="col-6 col-md-4">{{ form.alert_before_value }}</div>
+                            <div class="col-6 col-md-4">{{ form.alert_before_unit }}</div>
+                        </div>
+                        <div class="form-text">
+                            How far ahead to start warning. The task is flagged on the
+                            calendar, task list and dashboard once it enters this window,
+                            as well as alerted by the channels below. Set 0 to turn the
+                            warning off.
+                        </div>
+                        {% if form.alert_before_value.errors %}
+                        <div class="invalid-feedback d-block">{{ form.alert_before_value.errors }}</div>
+                        {% endif %}
                     </div>
                     <div class="mb-2">
                         <div class="form-check">

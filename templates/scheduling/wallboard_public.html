@@ -32,6 +32,10 @@
         .who  { width: 16vw; color: #b9c4d6; }
         .client { color: #8b97ad; font-size: 1.25vw; }
         .pri-urgent, .pri-high { border-left: 0.4vw solid #ff6b6b; padding-left: 0.6vw; }
+        /* v3.17.535 — a task inside its warning window. Readable across a
+           room, which rules out anything subtle. */
+        .alerting .time { color: #ffc857; font-weight: 700; }
+        .bell { color: #ffc857; }
         .empty { color: #6c7688; padding: 6vh 0; text-align: center; font-size: 1.8vw; }
         footer { margin-top: 3vh; color: #55607a; font-size: 1vw; }
     </style>
@@ -46,8 +50,11 @@
     <h2>{{ day|date:"l j F" }}</h2>
     <table>
         {% for task in tasks %}
-        <tr class="pri-{{ task.priority }}">
-            <td class="time">{{ task.due_date|date:"H:i" }}</td>
+        <tr class="pri-{{ task.priority }}{% if task.is_alerting %} alerting{% endif %}">
+            <td class="time">
+                {{ task.due_date|date:"H:i" }}
+                {% if task.is_alerting %}<span class="bell" title="Due soon">&#9679;</span>{% endif %}
+            </td>
             <td>
                 {{ task.title }}
                 {% if board.show_ticket_numbers and task.psa_ticket %}

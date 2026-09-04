@@ -89,9 +89,66 @@ class ScheduledTask(BaseModel):
         default=24,
         help_text='Send an alert this many hours before the due date',
     )
+    # v3.17.535: lead time is entered in whichever unit suits the task — a
+    # week's notice meant typing 168 before this. Hours stay the canonical
+    # stored value so `check_scheduled_task_alerts` is unaffected; the unit
+    # only records how it was expressed, so the UI can say "7 days" back.
+    ALERT_UNITS = [
+        ('hours', 'hours'),
+        ('days', 'days'),
+    ]
+    alert_before_unit = models.CharField(
+        max_length=10, choices=ALERT_UNITS, default='hours',
+        help_text='How the lead time was entered. Display only — '
+                  '`alert_before_hours` is what alerting uses.')
     last_alert_sent_at = models.DateTimeField(null=True, blank=True)
 
     objects = OrganizationManager()
+
+    def set_alert_lead(self, value, unit):
+        """Store a lead time given in hours or days.
+
+        One place does the conversion so a form, an import and the API cannot
+        each get it subtly different.
+        """
+        try:
+            value = max(0, int(value))
+        except (TypeError, ValueError):
+            value = 0
+        unit = unit if unit in dict(self.ALERT_UNITS) else 'hours'
+        self.alert_before_unit = unit
+        self.alert_before_hours = value * 24 if unit == 'days' else value
+
+    @property
+    def alert_lead_display(self) -> str:
+        """The lead time as a person would say it."""
+        hours = self.alert_before_hours or 0
+        if self.alert_before_unit == 'days' and hours % 24 == 0:
+            days = hours // 24
+            return f"{days} day{'s' if days != 1 else ''}"
+        return f"{hours} hour{'s' if hours != 1 else ''}"
+
+    @property
+    def alert_at(self):
+        """When this task starts warning, or None if it has no due date."""
+        if not self.due_date:
+            return None
+        return self.due_date - timedelta(hours=self.alert_before_hours or 0)
+
+    @property
+    def is_alerting(self) -> bool:
+        """Inside the warning window but not yet overdue.
+
+        Overdue is a separate, louder state — a task that is both would
+        otherwise show two competing badges saying different things.
+        """
+        if self.status in ('completed', 'cancelled') or not self.due_date:
+            return False
+        now = timezone.now()
+        if self.due_date <= now:
+            return False
+        alert_at = self.alert_at
+        return bool(alert_at and now >= alert_at)
 
     class Meta:
         db_table = 'scheduling_tasks'
@@ -169,6 +226,9 @@ class ScheduledTask(BaseModel):
             alert_email=self.alert_email,
             alert_sms=self.alert_sms,
             alert_before_hours=self.alert_before_hours,
+            # Carry the unit too, or a recurring task's lead time would come
+            # back as "168 hours" having been set as "7 days".
+            alert_before_unit=self.alert_before_unit,
         )
 
         # Copy tag M2M

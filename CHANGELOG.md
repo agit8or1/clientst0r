@@ -5,6 +5,39 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.535] - 2026-09-04
+
+### Feature: task warnings you can set in days, and actually see
+
+Scheduled tasks have carried `alert_before_hours` and an alert-sending command
+for some time. Two things were missing.
+
+**The lead time could only be expressed in hours.** A week's notice meant
+knowing to type 168. The form now takes a number and a unit. Hours remain the
+canonical stored value, so `check_scheduled_task_alerts` is untouched and
+existing tasks keep working exactly as before; the unit only records how the
+figure was entered, so editing a task shows "7 days" back rather than
+"168 hours". A recurring task carries its unit to the next occurrence, which
+would otherwise reappear as 168 hours.
+
+**Nothing showed the warning.** Alerting was email and SMS only, so a task
+creeping up on you was invisible on the screens you actually look at. A task
+inside its warning window is now flagged on:
+
+- the **calendar** — amber row and a "Due soon" badge
+- the **task list** — amber due date and a bell
+- the **dashboard Schedule panel**
+- the **public wallboard** — amber time, sized to read across a room
+- the task's own detail page
+
+Two decisions in the logic worth stating:
+
+- **Overdue suppresses the warning.** A task that is both would otherwise carry
+  two badges saying different things about the same row. Overdue is the louder
+  state and wins.
+- **A lead of 0 means "do not warn me"**, not "warn me always" — which is what a
+  naive `now >= due - 0` would give you.
+
 ## [3.17.534] - 2026-09-03
 
 ### Fix: a fresh install had no background jobs at all
