@@ -170,6 +170,19 @@
                                     {% endfor %}
                                 </select>
                             </form>
+                            {# Phase 35.4 (v3.17.550) — a task becomes a ticket once it is real work. #}
+                            {% if t.related_ticket %}
+                            <a href="{% url 'psa:ticket_detail' t.related_ticket.ticket_number %}"
+                               class="btn btn-outline-secondary btn-sm">{{ t.related_ticket.ticket_number }}</a>
+                            {% else %}
+                            <form method="post" action="{% url 'psa:project_task_to_ticket' t.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-primary btn-sm"
+                                        title="Create a ticket for this task so time can be logged against it">
+                                    → Ticket
+                                </button>
+                            </form>
+                            {% endif %}
                             <form method="post" action="{% url 'psa:project_task_delete' t.pk %}" class="d-inline">
                                 {% csrf_token %}
                                 <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete task?')"><i class="fas fa-times"></i></button>

@@ -8144,3 +8144,87 @@ def project_apply_template(request, pk):
         f'Added {len(created)} task(s) from "{template.name}". They are copies — '
         f'editing the template later will not change this project.')
     return redirect('psa:project_detail', pk=project.pk)
+
+
+# ---------------------------------------------------------------------------
+# Phase 35.4 (v3.17.550) — spawn a ticket from a project task
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_psa_enabled
+def project_task_to_ticket(request, task_pk):
+    """Create a ticket for a project task, and link the two.
+
+    A task and a ticket are not the same thing and this does not try to merge
+    them: the task stays the unit of project planning, the ticket becomes the
+    unit of work with time, SLA and comments hanging off it. The link is the
+    task's existing `related_ticket`.
+    """
+    from .models import Project, ProjectTask, Queue, Ticket, TicketPriority, TicketStatus, TicketType
+
+    org = get_request_organization(request)
+    qs = ProjectTask.objects.select_related('project', 'assigned_to')
+    if org is not None:
+        qs = qs.filter(project__organization=org)
+    task = get_object_or_404(qs, pk=task_pk)
+
+    if request.method != 'POST':
+        return redirect('psa:project_detail', pk=task.project_id)
+
+    # One ticket per task. A second would split the time entries across two
+    # records and quietly break the project's actual-hours figure.
+    if task.related_ticket_id:
+        messages.info(
+            request,
+            f'This task already has ticket {task.related_ticket.ticket_number}.')
+        return redirect('psa:project_detail', pk=task.project_id)
+
+    project = task.project
+    status = (TicketStatus.objects.filter(slug='new').first()
+              or TicketStatus.objects.first())
+    queue = Queue.objects.first()
+    priority = TicketPriority.objects.first()
+    ticket_type = TicketType.objects.first()
+    if not all([status, queue, priority, ticket_type]):
+        messages.error(
+            request,
+            'Ticket defaults are missing — seed the PSA reference data first.')
+        return redirect('psa:project_detail', pk=project.pk)
+
+    ticket = Ticket.objects.create(
+        organization=project.organization,
+        subject=task.title[:300],
+        description=task.description,
+        project=project,
+        status=status,
+        queue=queue,
+        priority=priority,
+        ticket_type=ticket_type,
+        assigned_to=task.assigned_to,
+        source='manual',
+    )
+    # The ticket inherits the task's due date as its resolution target: a task
+    # due Friday whose ticket has no date would drop off every SLA view.
+    if task.due_date:
+        from datetime import datetime, time as _time
+        ticket.resolution_due_at = timezone.make_aware(
+            datetime.combine(task.due_date, _time(17, 0)))
+        ticket.save(update_fields=['resolution_due_at'])
+
+    task.related_ticket = ticket
+    task.save(update_fields=['related_ticket', 'updated_at'])
+
+    AuditLog.log(
+        user=request.user, action='create',
+        organization=project.organization,
+        object_type='psa.Ticket', object_id=ticket.pk,
+        object_repr=ticket.ticket_number,
+        description=f'Created from project task "{task.title}"',
+        ip_address=_client_ip(request), path=request.path,
+    )
+
+    messages.success(
+        request,
+        f'Created {ticket.ticket_number} from "{task.title}". Time logged on it '
+        f'counts towards this project\'s actuals.')
+    return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)

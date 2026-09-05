@@ -5,6 +5,40 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.550] - 2026-09-05
+
+### Phase 35.4 — project tasks become tickets
+
+Any project task can now spawn a ticket, linked through the task's existing
+`related_ticket` field.
+
+**The two are deliberately not merged.** It would be tempting to make a project
+task *be* a ticket and delete one of the models. They answer different questions:
+a task is a line in a plan, sized and ordered and often not yet real work; a
+ticket is the thing time, SLA clocks, comments and billing hang off. Collapsing
+them would force every plan line to carry queue, priority and type from the
+moment somebody sketched the project.
+
+**The ticket is attached to the project**, which is the entire point of spawning
+it there rather than filing one by hand: time logged against it counts towards
+the project's actual hours from v3.17.549. A test asserts exactly that path —
+spawn, log 90 minutes, see 1.5 hours on the project.
+
+**A task's due date becomes the ticket's resolution target.** A task due Friday
+whose ticket carries no date drops off every SLA view in the product, which is
+the failure mode of every "we tracked it in the project plan" story.
+
+**One ticket per task.** Spawning twice returns the existing ticket rather than
+making another — two would split the time entries across two records and quietly
+break the project's actual-hours figure, which is the number the budget feature
+depends on.
+
+The assignee carries over when the task has one. Everything else takes the
+system's default queue, priority and type; when those are missing the view says
+to seed the PSA reference data rather than failing with an integrity error.
+
+11 new tests; full `psa` suite green. No migration.
+
 ## [3.17.549] - 2026-09-05
 
 ### Phase 35.2 — project budgets
