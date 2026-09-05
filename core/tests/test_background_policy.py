@@ -72,9 +72,25 @@ class BackgroundPolicyTests(TestCase):
         s.save()
         return s
 
-    def test_default_is_user_controlled(self):
-        """An upgrade must not change anybody's background."""
-        self.assertEqual(SystemSetting.get_settings().background_policy, 'user')
+    def test_a_fresh_install_starts_on_the_navy_space_preset(self):
+        """v3.17.551 — an install with no settings row yet gets the Navy Space
+        preset rather than deferring to each user's own choice."""
+        s = SystemSetting.get_settings()
+        self.assertEqual(s.background_policy, 'color')
+        self.assertEqual(s.background_color_style, 'preset')
+        self.assertEqual(s.background_preset, 'abstract-12')
+
+    def test_an_upgrade_does_not_change_an_existing_install(self):
+        """The reason the original default was 'user'. A field default applies
+        only to a row that does not exist yet, so an install already carrying a
+        policy keeps it — changing the default must not repaint a running
+        system."""
+        s = SystemSetting.get_settings()
+        s.background_policy = 'user'
+        s.save(update_fields=['background_policy'])
+
+        refetched = SystemSetting.get_settings()
+        self.assertEqual(refetched.background_policy, 'user')
         ctx = self._context()
         self.assertFalse(ctx['background_locked'])
         self.assertEqual(ctx['user_background_color'], '#abcdef')
@@ -110,6 +126,9 @@ class BackgroundPolicyTests(TestCase):
         self.assertIsNone(ctx['user_background_url'])
 
     def test_locked_flag_tracks_the_policy(self):
+        # Set the policy explicitly rather than leaning on the install
+        # default, which since v3.17.551 is an enforced one.
+        self._policy(background_policy='user')
         self.assertFalse(background_is_locked())
         self._policy(background_policy='random')
         self.assertTrue(background_is_locked())
@@ -164,13 +183,17 @@ class BackgroundPolicyViewTests(TestCase):
         self.assertEqual(SystemSetting.get_settings().background_color, DEFAULT_COLOR)
 
     def test_an_unknown_policy_is_ignored(self):
+        """A bogus value leaves the stored policy alone. Asserted against the
+        value actually in place beforehand rather than a hardcoded 'user',
+        which was only ever the install default."""
+        before = SystemSetting.get_settings().background_policy
         self.client.force_login(self.admin)
         self.client.post(reverse('core:settings_general'), {
             'site_name': 'Client St0r',
             'background_policy': 'whatever-i-like',
             'map_default_zoom': '4',
         })
-        self.assertEqual(SystemSetting.get_settings().background_policy, 'user')
+        self.assertEqual(SystemSetting.get_settings().background_policy, before)
 
     def test_profile_save_under_a_policy_keeps_the_users_settings(self):
         """A disabled <fieldset> submits nothing.

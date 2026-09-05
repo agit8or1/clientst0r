@@ -987,6 +987,8 @@ Dependencies: Phase 27 (reconciliation reporting + audit log) and the existing `
 
 ## Phase 45 — System-wide Appearance Controls **(S)** [shipped — v3.17.527]
 
+**Install default (v3.17.551):** a fresh install now starts on the **Navy Space** preset pattern (`background_policy='color'`, `background_color_style='preset'`, `background_preset='abstract-12'`) instead of deferring to each user's own setting. A Django field default applies only to a row that does not exist yet, so an install that already has its settings row keeps whatever policy it was on — the upgrade-safety the original `'user'` default existed for is unchanged. Note that `'color'` is an *enforced* policy: on a new install users see their own background controls greyed out until an admin switches the policy back to user-controlled.
+
 **Roadmap item:** give administrators a say in how the app looks, without taking the choice away from users by default.
 
 The page background was entirely per-user: each person picked a mode on their profile and that was that. An MSP wanting a consistent look across a team — or simply wanting to put their own image behind the app — had no way to set one.

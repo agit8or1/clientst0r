@@ -5,6 +5,47 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.551] - 2026-09-05
+
+### New installs start on the Navy Space preset
+
+A fresh install now comes up on the **Navy Space** preset pattern rather than
+deferring to whatever each user has set: `background_policy='color'`,
+`background_color_style='preset'`, `background_preset='abstract-12'`.
+
+**Existing installs are untouched.** A Django field default applies only to a row
+that does not exist yet, and any running install already has its `SystemSetting`
+row, so it keeps the policy it was on. The upgrade-safety that the original
+`'user'` default existed for still holds — it just no longer has to be the
+*install* default to hold it.
+
+**Worth knowing before you deploy this:** `'color'` is an *enforced* policy. On a
+new install, users see their own background controls greyed out with an
+explanation until an admin switches the policy back to user-controlled. That is
+the existing behaviour of that policy, not something added here, but it is the
+practical consequence of shipping it as the default.
+
+`DEFAULT_INSTALL_PRESET` is a new constant kept separate from the existing
+`DEFAULT_PRESET`. The latter is the fallback for an unknown preset key and the
+per-user default; repointing it would have silently changed the picture behind
+every stale profile row, which is a different change from the one asked for.
+
+**A bug from v3.17.549 fixed here too.** The repo's own
+`test_no_multi_line_hash_comments` caught a multi-line `{# … #}` comment added to
+`templates/psa/project_form.html` in that release. Django renders those to the
+user verbatim — the exact defect v3.17.525 swept out of ten pages. Converted to
+`{% comment %}`, and every template touched this session swept for the same
+mistake (none others).
+
+Two tests updated to state their intent rather than lean on the install default:
+one now sets `background_policy='user'` explicitly before asserting the lock flag
+is off, and the bogus-policy test asserts the stored value is *unchanged* rather
+than hardcoding `'user'`. A third was rewritten into two — one asserting the new
+install default, one asserting an existing install is not repainted.
+
+127 `core` tests green. Migration:
+`core.0068_alter_systemsetting_background_color_style_and_more`.
+
 ## [3.17.550] - 2026-09-05
 
 ### Phase 35.4 — project tasks become tickets
