@@ -3000,7 +3000,7 @@ class Invoice(models.Model):
         that just removed a payment knows the difference, so only that caller
         performs this transition.
 
-        Added v3.17.532 after the two-way version of recompute_totals reopened
+        Added v3.17.533 after the two-way version of recompute_totals reopened
         hand-marked invoices and tripped the late-fee tests.
         """
         from decimal import Decimal
@@ -4717,7 +4717,7 @@ class RecurringPurchaseTemplate(models.Model):
 # ---------------------------------------------------------------------------
 
 class TicketKitItem(models.Model):
-    """Phase 46 (v3.17.532): something the tech has to take to this job.
+    """Phase 46 (v3.17.533): something the tech has to take to this job.
 
     One flat list covering three different things, because that is how it is
     read — a tech looks at one list before leaving, not three. `kind` says which

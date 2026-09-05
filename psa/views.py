@@ -331,7 +331,7 @@ def ticket_detail(request, ticket_number):
         # Phase 6.2 — Problem records linked to this ticket
         'problems': problems,
         'problem_can_create': problem_can_create,
-        # Phase 46 (v3.17.532): what the tech has to take to this job.
+        # Phase 46 (v3.17.533): what the tech has to take to this job.
         'kit_items': kit_items,
         'kit_packed_count': sum(1 for k in kit_items if k.packed),
         'kit_tools': Tool.objects.for_organization(
@@ -7876,7 +7876,7 @@ def timesheet_payroll_export(request):
 
 
 # ---------------------------------------------------------------------------
-# Phase 46 (v3.17.532) — job kit: what the tech has to take to the job
+# Phase 46 (v3.17.533) — job kit: what the tech has to take to the job
 # ---------------------------------------------------------------------------
 
 def _kit_ticket(request, ticket_number):

@@ -428,7 +428,7 @@ class PaymentPullTests(_InvoiceCase):
         self.assertNotEqual(self.invoice.status, 'paid')
 
     def test_an_invoice_marked_paid_by_hand_is_not_reopened(self):
-        """Regression guard (v3.17.532).
+        """Regression guard (v3.17.533).
 
         Making recompute_totals two-way initially reopened *any* invoice showing
         Paid with no Payment rows behind it — which is how cash, cheques and

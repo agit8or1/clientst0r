@@ -115,7 +115,7 @@ urlpatterns = [
     path('invoices/<int:pk>/edit/', views.invoice_form, name='invoice_edit'),
     path('invoices/<int:pk>/payment/', views.payment_add, name='payment_add'),
     path('invoices/<int:pk>/push/', views.invoice_push_to_accounting, name='invoice_push_to_accounting'),
-    # Phase 46 (v3.17.532) — job kit list on a ticket.
+    # Phase 46 (v3.17.533) — job kit list on a ticket.
     path('t/<str:ticket_number>/kit/add/', views.ticket_kit_add,
          name='ticket_kit_add'),
     path('t/<str:ticket_number>/kit/<int:pk>/remove/', views.ticket_kit_remove,

@@ -167,7 +167,7 @@ class InventoryTransaction(models.Model):
 
 
 class Tool(BaseModel):
-    """Phase 46 (v3.17.532): durable equipment a tech takes to a job.
+    """Phase 46 (v3.17.533): durable equipment a tech takes to a job.
 
     Deliberately separate from InventoryItem. A consumable is spent — you take
     eight patch cables and come back with none, and stock decrements. A tool

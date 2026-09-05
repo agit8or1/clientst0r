@@ -5,6 +5,29 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.537] - 2026-09-05
+
+### Fix: Phase 46 was recorded against a version that was never released
+
+`docs/ROADMAP.md` marked Phase 46 (Job Kit) `[shipped — v3.17.532]`, in its
+header, its four sub-bullets and the sizing table. There is no v3.17.532 — no
+CHANGELOG entry, no tag. The job kit shipped in **v3.17.533**, alongside the
+public scheduler wallboard and the late-fee regression fix. 528, 529, 530 and
+532 were all skipped during that stretch, and the roadmap kept the number the
+work had been developed against rather than the one it went out as.
+
+This matters more than a typo because the phase header is parsed: `/core/roadmap.json`
+reads `[shipped — vN.N.N]` to populate each phase's `version`, so anything polling
+that feed has been reporting a release that doesn't exist.
+
+Corrected in all ten places — six in `docs/ROADMAP.md` (header, four sub-bullets,
+sizing table) and four Phase 46 code comments across `inventory/` and `psa/`,
+plus two unrelated v3.17.532 references in `psa/models.py` and
+`integrations/tests_phase44.py` that named the same non-existent version for the
+late-fee fix, which also shipped in v3.17.533.
+
+Comments and documentation only — no logic, no migrations, no mobile rebuild.
+
 ## [3.17.536] - 2026-09-05
 
 ### Mobile asset screen: two dead filters, and the edit UI that never shipped

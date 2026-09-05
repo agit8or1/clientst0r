@@ -79,7 +79,7 @@ class InventoryLocationForm(forms.ModelForm):
 
 
 class ToolForm(forms.ModelForm):
-    """Phase 46 (v3.17.532): durable equipment catalogue."""
+    """Phase 46 (v3.17.533): durable equipment catalogue."""
 
     class Meta:
         model = Tool

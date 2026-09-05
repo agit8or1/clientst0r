@@ -1,5 +1,5 @@
 """
-Phase 46 (v3.17.532) — job kit: what the tech has to take.
+Phase 46 (v3.17.533) — job kit: what the tech has to take.
 
 Tools, inventory items and free-text items attach to a ticket so whoever
 attends knows what to load before leaving.
