@@ -6,6 +6,18 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0"><i class="fas fa-file-code"></i> {{ asset.name }}</h4>
     <div>
+        {% if target %}
+        <form method="post" action="{% url 'netconfig:collect_now' asset.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success btn-sm"
+                    {% if blocking_reason %}disabled title="{{ blocking_reason }}"{% endif %}>
+                Collect now
+            </button>
+        </form>
+        {% endif %}
+        <a href="{% url 'netconfig:target_edit' asset.pk %}" class="btn btn-outline-secondary btn-sm">
+            {% if target %}Connection{% else %}Set up SSH{% endif %}
+        </a>
         <a href="{% url 'netconfig:capture' asset.pk %}" class="btn btn-primary btn-sm">Capture config</a>
         {% if backups|length > 1 %}
         <a href="{% url 'netconfig:compare' asset.pk %}" class="btn btn-outline-secondary btn-sm">Compare…</a>
@@ -13,6 +25,21 @@
         <a href="{% url 'netconfig:device_list' %}" class="btn btn-link btn-sm">All devices</a>
     </div>
 </div>
+
+{% if target %}
+<div class="card mb-3">
+    <div class="card-body py-2 small">
+        <strong>SSH:</strong> {{ target.username }}@{{ target.host }}:{{ target.port }}
+        · every {{ target.cadence_hours }}h
+        {% if target.last_success_at %}· last success {{ target.last_success_at|date:"j M Y, H:i" }}{% endif %}
+        {% if blocking_reason %}
+            <div class="text-danger mt-1">{{ blocking_reason }}</div>
+        {% elif target.last_error %}
+            <div class="text-danger mt-1">Last error: {{ target.last_error }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 
 {% if backups|length > 1 %}
 <div class="card mb-3">

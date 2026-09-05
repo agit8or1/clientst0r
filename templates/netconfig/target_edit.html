@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Connection — {{ asset.name }}{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="fas fa-plug"></i> Connection settings — {{ asset.name }}</h4>
+
+<div class="alert alert-secondary">
+    Passwords are not stored here. Link a <strong>vault entry</strong> and the collector
+    reads the secret from it at collection time, so there is one place that holds
+    credentials and one audit trail over them.
+</div>
+
+<form method="post" class="card" style="max-width: 760px;">
+    {% csrf_token %}
+    <div class="card-body">
+        <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="is_enabled" name="is_enabled"
+                   {% if not target or target.is_enabled %}checked{% endif %}>
+            <label class="form-check-label" for="is_enabled">Include in scheduled collections</label>
+        </div>
+
+        <div class="row g-2 mb-3">
+            <div class="col-md-7">
+                <label class="form-label" for="host">Host</label>
+                <input type="text" class="form-control" id="host" name="host" required
+                       value="{{ target.host|default:'' }}" placeholder="10.0.0.2">
+                <div class="form-text">
+                    The management address. Not assumed from the asset record — it is
+                    often not the address on there.
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label" for="port">Port</label>
+                <input type="number" class="form-control" id="port" name="port"
+                       value="{{ target.port|default:22 }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="cadence_hours">Every (hours)</label>
+                <input type="number" class="form-control" id="cadence_hours" name="cadence_hours"
+                       min="1" value="{{ target.cadence_hours|default:24 }}">
+            </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+            <div class="col-md-6">
+                <label class="form-label" for="username">Username</label>
+                <input type="text" class="form-control" id="username" name="username"
+                       value="{{ target.username|default:'' }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="credential">Vault credential</label>
+                <select class="form-select" id="credential" name="credential">
+                    <option value="">— none —</option>
+                    {% for c in credentials %}
+                        <option value="{{ c.pk }}"
+                                {% if target and target.credential_id == c.pk %}selected{% endif %}>
+                            {{ c.title }}{% if c.requires_reveal_approval %} (needs approval per reveal){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">
+                    An entry that requires approval for each reveal cannot be used by the
+                    scheduled job — a nightly run cannot ask a human, and reading it anyway
+                    would defeat the control.
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="adapter">Platform</label>
+            <select class="form-select" id="adapter" name="adapter">
+                {% for value, label in adapter_choices %}
+                    <option value="{{ value }}"
+                            {% if target and target.adapter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <div class="form-text">Decides which command prints the running config.</div>
+        </div>
+
+        <div class="row g-2">
+            <div class="col-md-6">
+                <label class="form-label" for="config_command">Config command override</label>
+                <input type="text" class="form-control font-monospace" id="config_command"
+                       name="config_command" value="{{ target.config_command|default:'' }}"
+                       placeholder="Leave blank to use the platform default">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="version_command">Version command override</label>
+                <input type="text" class="form-control font-monospace" id="version_command"
+                       name="version_command" value="{{ target.version_command|default:'' }}"
+                       placeholder="Optional">
+            </div>
+        </div>
+    </div>
+    <div class="card-footer d-flex justify-content-between">
+        <div>
+            <button type="submit" class="btn btn-primary">Save</button>
+            <a href="{% url 'netconfig:device_detail' asset.pk %}" class="btn btn-link">Cancel</a>
+        </div>
+        {% if target %}
+        <button type="submit" name="action" value="delete" class="btn btn-outline-danger"
+                onclick="return confirm('Remove connection settings? Stored snapshots are kept.')">
+            Remove
+        </button>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}

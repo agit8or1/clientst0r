@@ -175,3 +175,103 @@ class ConfigBackup(models.Model):
     def changed_from_previous(self) -> bool:
         prev = self.previous()
         return prev is not None and prev.content_hash != self.content_hash
+
+
+class BackupTarget(BaseModel):
+    """Phase 34.2 (v3.17.545): how to reach a device to collect its config.
+
+    One per asset. Credentials are **not** stored here — the field is a link to
+    a `vault.Password`, because the vault already encrypts, audits and
+    access-controls secrets, and a second half-built secrets store next to it
+    would be strictly worse.
+    """
+    asset = models.OneToOneField(
+        Asset, on_delete=models.CASCADE, related_name='config_backup_target')
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name='config_backup_targets')
+
+    is_enabled = models.BooleanField(
+        default=True, help_text='Uncheck to skip this device on scheduled runs.')
+
+    host = models.CharField(
+        max_length=255,
+        help_text='Hostname or IP to connect to. Falls back to nothing — the '
+                  'asset\'s own IP is not assumed, because the management '
+                  'address is often not the one on the asset record.')
+    port = models.PositiveIntegerField(default=22)
+    username = models.CharField(max_length=150)
+
+    credential = models.ForeignKey(
+        'vault.Password', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='config_backup_targets',
+        help_text='Vault entry holding the password. Deleting it disables '
+                  'collection rather than silently falling back to anything.')
+
+    adapter = models.CharField(
+        max_length=40, default='generic',
+        help_text='Platform. Decides which command prints the running config.')
+    config_command = models.CharField(
+        max_length=255, blank=True,
+        help_text='Overrides the adapter default. For an appliance nobody '
+                  'wrote an adapter for.')
+    version_command = models.CharField(max_length=255, blank=True)
+
+    cadence_hours = models.PositiveIntegerField(
+        default=24,
+        help_text='Minimum hours between scheduled collections. Default daily.')
+
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'netconfig_targets'
+        ordering = ['asset__name']
+
+    def __str__(self):
+        return f'{self.host} ({self.asset_id})'
+
+    def save(self, *args, **kwargs):
+        if self.asset_id and not self.organization_id:
+            self.organization_id = self.asset.organization_id
+        # An hourly floor: a device polled every minute is being hammered for
+        # a config that changes a few times a year. Written out rather than
+        # `self.cadence_hours or 24` because that reads 0 as "unset" and
+        # silently returns a day, when 0 means the operator asked for the
+        # shortest interval available.
+        cadence = self.cadence_hours if self.cadence_hours is not None else 24
+        self.cadence_hours = max(1, int(cadence))
+        super().save(*args, **kwargs)
+
+    @property
+    def is_due(self) -> bool:
+        from django.utils import timezone as tz
+        from datetime import timedelta
+        if not self.is_enabled:
+            return False
+        if self.last_attempt_at is None:
+            return True
+        return tz.now() - self.last_attempt_at >= timedelta(hours=self.cadence_hours)
+
+    def blocking_reason(self):
+        """Why an unattended collection cannot run, or None if it can.
+
+        The approval check is the important one. A vault entry marked
+        `requires_reveal_approval` exists because somebody decided a human
+        should sign off on each use of that credential. A nightly job cannot
+        satisfy that, and quietly reading the secret anyway would defeat the
+        control while leaving the setting switched on and looking effective.
+        """
+        if not self.is_enabled:
+            return 'Collection is disabled for this device.'
+        if not self.host:
+            return 'No host configured.'
+        if not self.username:
+            return 'No username configured.'
+        if self.credential_id is None:
+            return 'No vault credential linked.'
+        if getattr(self.credential, 'requires_reveal_approval', False):
+            return ('That vault entry requires approval for each reveal, so it '
+                    'cannot be used by an unattended job. Link a credential '
+                    'without the approval gate, or collect this device by hand.')
+        return None

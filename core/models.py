@@ -1041,6 +1041,10 @@ class ScheduledTask(models.Model):
         # Phase 40.1 (v3.17.538). Trims the website check history that uptime
         # percentages are computed from — the highest-volume table in the app.
         ('prune_monitor_checks', 'Prune Website Check History'),
+        # Phase 34.2 (v3.17.545). Collects device configs over SSH; the
+        # per-device cadence lives on the target, so running this hourly is
+        # fine and each device is still only polled as often as configured.
+        ('network_config_backup', 'Network Device Config Backup'),
         ('psa_sync', 'PSA Synchronization'),
         # Phase 44.3 (v3.17.531). A systemd timer is also shipped; this
         # entry is for installs that run the in-app scheduler instead.

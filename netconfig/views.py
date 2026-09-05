@@ -9,7 +9,9 @@ from django.utils import timezone
 from assets.models import Asset
 from core.middleware import get_request_organization
 
-from .models import ConfigBackup
+from .adapters import ADAPTER_CHOICES
+from .collector import collect_target
+from .models import BackupTarget, ConfigBackup
 
 # Asset types this feature is offered for. A config backup of a laptop is not a
 # thing, and offering it everywhere would bury the devices it matters for.
@@ -72,11 +74,14 @@ def device_detail(request, asset_id):
         head_diff = backups[0].diff_against(backups[1])
         head_stats = backups[0].diff_stats(backups[1])
 
+    target = BackupTarget.objects.filter(asset=asset).select_related('credential').first()
     return render(request, 'netconfig/device_detail.html', {
         'asset': asset,
         'backups': backups,
         'head_diff': head_diff,
         'head_stats': head_stats,
+        'target': target,
+        'blocking_reason': target.blocking_reason() if target else None,
     })
 
 
@@ -163,3 +168,90 @@ def view_backup(request, backup_id):
         'backup': backup,
         'previous': backup.previous(),
     })
+
+
+# ---------------------------------------------------------------------------
+# Phase 34.2 (v3.17.545) — SSH collection
+# ---------------------------------------------------------------------------
+
+@login_required
+def target_edit(request, asset_id):
+    """Configure how to reach a device."""
+    from vault.models import Password
+
+    asset = get_object_or_404(_accessible_assets(request), pk=asset_id)
+    target = BackupTarget.objects.filter(asset=asset).first()
+
+    if request.method == 'POST':
+        if request.POST.get('action') == 'delete' and target:
+            target.delete()
+            messages.success(request, 'Connection settings removed.')
+            return redirect('netconfig:device_detail', asset_id=asset.pk)
+
+        if target is None:
+            target = BackupTarget(asset=asset, organization=asset.organization)
+
+        target.host = (request.POST.get('host') or '').strip()[:255]
+        target.username = (request.POST.get('username') or '').strip()[:150]
+        target.adapter = request.POST.get('adapter') or 'generic'
+        target.config_command = (request.POST.get('config_command') or '').strip()[:255]
+        target.version_command = (request.POST.get('version_command') or '').strip()[:255]
+        target.is_enabled = request.POST.get('is_enabled') == 'on'
+        try:
+            target.port = int(request.POST.get('port') or 22)
+        except (TypeError, ValueError):
+            target.port = 22
+        try:
+            target.cadence_hours = int(request.POST.get('cadence_hours') or 24)
+        except (TypeError, ValueError):
+            target.cadence_hours = 24
+
+        credential_id = request.POST.get('credential')
+        if credential_id:
+            # Scoped to the asset's own organization: a switch in one client's
+            # rack must not be reachable with another client's credential.
+            cred = Password.objects.filter(
+                pk=credential_id, organization_id=asset.organization_id).first()
+            if cred is None:
+                messages.error(
+                    request,
+                    'That vault entry is not available for this client.')
+                return redirect('netconfig:target_edit', asset_id=asset.pk)
+            target.credential = cred
+        else:
+            target.credential = None
+
+        if not target.host:
+            messages.error(request, 'A host is required.')
+            return redirect('netconfig:target_edit', asset_id=asset.pk)
+
+        target.save()
+        messages.success(request, 'Connection settings saved.')
+        return redirect('netconfig:device_detail', asset_id=asset.pk)
+
+    credentials = Password.objects.filter(
+        organization_id=asset.organization_id).order_by('title')
+
+    return render(request, 'netconfig/target_edit.html', {
+        'asset': asset,
+        'target': target,
+        'credentials': credentials,
+        'adapter_choices': ADAPTER_CHOICES,
+    })
+
+
+@login_required
+def collect_now(request, asset_id):
+    """Run a collection against one device on demand."""
+    asset = get_object_or_404(_accessible_assets(request), pk=asset_id)
+    target = get_object_or_404(BackupTarget, asset=asset)
+
+    if request.method != 'POST':
+        return redirect('netconfig:device_detail', asset_id=asset.pk)
+
+    result = collect_target(target, user=request.user)
+    if result['ok']:
+        messages.success(request, result['message'])
+    else:
+        messages.error(request, result['message'])
+    return redirect('netconfig:device_detail', asset_id=asset.pk)

@@ -5,6 +5,64 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.545] - 2026-09-05
+
+### Phase 34.2 — collecting device configs over SSH
+
+`BackupTarget` holds host, port, username, platform and a per-device cadence for
+each device. **It does not hold a password.** The credential field links to a
+`vault.Password`, because the vault already encrypts, audits and access-controls
+secrets, and standing a second half-built secrets store next to it would be
+strictly worse. Deleting the vault entry disables collection rather than falling
+back to anything.
+
+**A credential that requires approval for each reveal cannot be used by the
+scheduled job.** That setting exists because somebody decided a human should sign
+off on every use of that password. A nightly run cannot ask anyone, and quietly
+reading the secret anyway would defeat the control while leaving it switched on
+and looking effective. The device says so on its page and the collector refuses,
+rather than the operator discovering months later that the gate was decorative.
+
+Related: the SSH client accepts unknown host keys. Rejecting them would mean every
+new switch failed its first backup until someone SSHed in by hand, and these are
+devices on a network the operator administers, reached at an address they
+configured. That trade-off is precisely why the credential rules above are strict.
+
+**Seven adapters** — Cisco IOS/IOS-XE, Cisco ASA, Arista EOS, Juniper Junos,
+MikroTik RouterOS, FortiOS, HP/Aruba ProCurve — plus a generic single-command
+fallback and per-device command overrides for an appliance nobody wrote an
+adapter for. Each knows its config command, its pager fix (`terminal length 0`
+and friends, or the config arrives with `--More--` every 24 lines) and how to
+find a version string. The SSH transport is shared, so a timeout bug gets fixed
+once rather than seven times.
+
+**One unreachable device never stops a run.** `collect_target()` returns a result
+dict and does not raise for a device problem; the failure is written to the
+target's `last_error` and the run moves on. A nightly job over two hundred
+switches must not stop at the first one that is powered off.
+
+**Every collection is audit-logged**, success or failure. Reading a stored
+credential and opening an administrative session to a firewall is not something
+that should happen without a trace.
+
+`backup_network_configs` runs everything due (`--force` ignores cadence,
+`--target N` does one device), and a `network_config_backup` scheduler task type
+calls it. Per-device cadence means scheduling it hourly costs nothing extra.
+
+`paramiko` is added to `requirements.txt` and imported lazily. An install that
+has not re-run pip keeps working everywhere except this feature, which reports
+the missing dependency rather than failing at import time and taking the whole
+app down with it.
+
+**One bug fixed in this release's own code before it shipped:** the cadence floor
+was written `max(1, int(self.cadence_hours or 24))`, which reads a submitted 0 as
+"unset" and silently returns 24 hours. An operator asking for the shortest
+interval would have got a daily one. Written out longhand now.
+
+35 new tests (67 in the app). Migrations: `netconfig.0002_backuptarget`,
+`core.0067_alter_scheduledtask_task_type`. **New dependency — `pip install -r
+requirements.txt` is needed for SSH collection.**
+
 ## [3.17.544] - 2026-09-05
 
 ### Phase 34.1 — versioned network config backups

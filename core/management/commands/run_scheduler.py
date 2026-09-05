@@ -87,6 +87,8 @@ class Command(BaseCommand):
             self.run_system_warnings_digest()
         elif task.task_type == 'prune_monitor_checks':
             self.run_prune_monitor_checks()
+        elif task.task_type == 'network_config_backup':
+            self.run_network_config_backup()
         else:
             raise ValueError(f"Unknown task type: {task.task_type}")
 
@@ -101,6 +103,18 @@ class Command(BaseCommand):
         a hand-run prune take exactly the same path."""
         from django.core.management import call_command
         call_command('prune_monitor_checks', verbosity=0)
+
+    def run_network_config_backup(self):
+        """Phase 34.2 (v3.17.545): collect device configs that are due.
+
+        Only targets past their own cadence are touched, so scheduling this
+        more often than daily costs nothing extra per device.
+        """
+        from django.core.management import call_command
+        try:
+            call_command('backup_network_configs', verbosity=0)
+        except Exception as e:
+            self.stdout.write(f"    Network config backup failed: {e}")
 
     def run_psa_sync(self):
         """Run PSA synchronization."""

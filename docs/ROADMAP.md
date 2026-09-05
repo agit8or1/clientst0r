@@ -724,8 +724,12 @@ Planned capabilities:
 - **Line-level diff** between any two snapshots, with latest-vs-prior rendered on the device page without being asked for. Diffing against nothing returns an empty diff rather than raising — the first capture of a device has nothing to compare against, and that is a normal state. *(shipped v3.17.544)*
 - **Manual capture — paste or upload.** Collection over SSH is 34.2, but this works with nothing but a paste box on purpose: a config pasted by hand is worth versioning, and waiting for device credentials before storing anything would be the wrong order. *(shipped v3.17.544)*
 
-### Sub-phase 34.2 — Collection over SSH *(planned)*
-- Per-device connection settings and credentials, a per-vendor adapter following the Phase 7 integration pattern, and a scheduled backup job with a per-device cadence.
+### Sub-phase 34.2 — Collection over SSH *(shipped v3.17.545)*
+- **`netconfig.BackupTarget`** — host, port, username, platform, per-device cadence. Credentials are **not** stored on it: the field links to a `vault.Password`, because the vault already encrypts, audits and access-controls secrets and a second half-built secrets store beside it would be strictly worse. Deleting the vault entry disables collection rather than falling back to anything. *(shipped v3.17.545)*
+- **An approval-gated credential cannot be used by the scheduled job.** A vault entry marked `requires_reveal_approval` exists because somebody decided a human should sign off on each use; a nightly run cannot ask anyone, and reading the secret anyway would defeat the control while leaving the setting switched on and looking effective. The device reports why instead. *(shipped v3.17.545)*
+- **Seven platform adapters** — Cisco IOS/IOS-XE, Cisco ASA, Arista EOS, Juniper Junos, MikroTik RouterOS, FortiOS, HP/Aruba ProCurve — plus a generic single-command fallback and a per-device command override for an appliance nobody wrote an adapter for. Adapters know vendor commands and output tidying; the SSH transport is shared, so a timeout bug is fixed in one place. *(shipped v3.17.545)*
+- **`backup_network_configs`** management command and a `network_config_backup` scheduler task. One unreachable device never stops a run: every device failure is recorded on the target and the run continues. Every collection writes an audit row, success or failure — opening an administrative session to a firewall with a stored credential should not happen without a trace. *(shipped v3.17.545)*
+- `paramiko` added to `requirements.txt` and imported lazily, so an install that has not re-run pip keeps working everywhere except this one feature, which reports the missing dependency rather than failing at import and taking the app with it.
 
 ### Sub-phase 34.3 — Drift alerts *(planned)*
 - Diff against the snapshot marked approved (`is_approved` already exists on the model) and raise a security alert when a config changes outside an approved change window.
