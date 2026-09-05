@@ -35,7 +35,36 @@ _EDITABLE_FIELDS = _CREATABLE_FIELDS + (
 )
 
 
+def _user_label(user):
+    """Display name for a User FK — full name when set, username otherwise."""
+    full = (user.get_full_name() or '').strip()
+    return full or user.username
+
+
+def _custom_fields(asset):
+    """`Asset.custom_fields` is a JSONField that should hold a dict, but a
+    bad CSV import can leave a list or a bare string in there. Anything
+    that isn't a dict is treated as empty rather than blowing up the
+    serializer for every asset in the org."""
+    cf = getattr(asset, 'custom_fields', None)
+    return cf if isinstance(cf, dict) else {}
+
+
+def _cf_str(cf, key):
+    """Read one custom field as a display string. JSON values can be
+    numbers or booleans; the mobile client renders these as text."""
+    val = cf.get(key)
+    if val is None or val == '':
+        return ''
+    return val if isinstance(val, str) else str(val)
+
+
 def _serialize_asset(asset, *, detail=False):
+    # v3.17.536 — `status` and `location` are not columns on Asset. The web
+    # asset list reads them out of `custom_fields` (see assets/views.py),
+    # so mobile reads them from the same place instead of reporting them
+    # as absent.
+    cf = _custom_fields(asset)
     out = {
         'id': asset.id,
         'name': asset.name,
@@ -44,6 +73,8 @@ def _serialize_asset(asset, *, detail=False):
         'serial_number': asset.serial_number,
         'hostname': asset.hostname,
         'ip_address': asset.ip_address,
+        'status': _cf_str(cf, 'status'),
+        'location': _cf_str(cf, 'location'),
         'organization_id': asset.organization_id,
         'organization_name': asset.organization.name if asset.organization_id else None,
     }
@@ -67,6 +98,13 @@ def _serialize_asset(asset, *, detail=False):
             'primary_contact_name': asset.primary_contact.full_name if asset.primary_contact_id else None,
             'created_at': asset.created_at.isoformat() if asset.created_at else None,
             'updated_at': asset.updated_at.isoformat() if asset.updated_at else None,
+            # Everything else the org put on the record. `status` and
+            # `location` are promoted above but stay in here too so the
+            # client can render the remainder generically.
+            'custom_fields': cf,
+            'tags': [t.name for t in asset.tags.all()],
+            'created_by_name': _user_label(asset.created_by)
+                if asset.created_by_id else None,
         })
     return out
 
@@ -110,6 +148,8 @@ def _vault_entries_for_asset(asset, request_user):
 def asset_list_view(request):
     """
     GET  /api/mobile/v1/assets/?search=&organization_id=&type=&status=&page=
+         `asset_type` is accepted as an alias for `type`; `status`
+         matches `custom_fields.status` (Asset has no status column).
     POST /api/mobile/v1/assets/   — create a new asset (v3.17.454)
 
     Paginated list scoped to the user's accessible organizations. POST
@@ -147,9 +187,25 @@ def asset_list_view(request):
         except ValueError:
             pass
 
-    asset_type = request.query_params.get('type')
+    # v3.17.536 — the shipped mobile client sends `asset_type`, this view
+    # only ever read `type`, so the Assets list "Type" box was accepted
+    # and silently ignored. Accept both spellings; `type` stays first so
+    # existing callers are unaffected.
+    asset_type = (
+        request.query_params.get('type')
+        or request.query_params.get('asset_type')
+    )
     if asset_type:
         qs = qs.filter(asset_type=asset_type)
+
+    # v3.17.536 — same story for "Status", which was never implemented at
+    # all. Asset has no status column; the web list filters
+    # `custom_fields__status`, so match that. iexact rather than the web's
+    # exact match because mobile types the value by hand instead of
+    # picking it from a dropdown of known values.
+    status_filter = (request.query_params.get('status') or '').strip()
+    if status_filter:
+        qs = qs.filter(custom_fields__status__iexact=status_filter)
 
     qs = qs.order_by('name')
 
@@ -188,8 +244,8 @@ def asset_detail_view(request, pk: int):
     org_ids = accessible_org_ids(request.user)
     try:
         asset = Asset.objects.select_related(
-            'organization', 'primary_contact',
-        ).get(pk=pk, organization_id__in=org_ids)
+            'organization', 'primary_contact', 'created_by',
+        ).prefetch_related('tags').get(pk=pk, organization_id__in=org_ids)
     except Asset.DoesNotExist:
         return Response({'detail': 'Not found'}, status=404)
 

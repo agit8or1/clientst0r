@@ -5,6 +5,66 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.536] - 2026-09-05
+
+### Mobile asset screen: two dead filters, and the edit UI that never shipped
+
+Three follow-ups were logged against the mobile asset screens back in May.
+All three had already shipped in v3.17.476 and were verified still working
+(see "Not changed" below). Checking them turned up a set of adjacent
+defects instead, which is what this release is.
+
+**The Assets list "Type" box did nothing** (`mobile/src/api/assets.ts`,
+`api_mobile/views_assets.py`):
+
+The client sent `?asset_type=`; `asset_list_view` only ever read `?type=`.
+Typing "server" narrowed nothing. The existing test passed because it
+called the endpoint with `?type=` directly — the spelling the app doesn't
+use. The client now sends `type`, and the server accepts both spellings so
+the bundle already on people's phones starts working as soon as the server
+updates, without waiting on a Play rollout.
+
+**The Assets list "Status" box did nothing either.** `?status=` was never
+implemented on the mobile asset list at all. `Asset` has no status column —
+the web list filters `custom_fields__status` (`assets/views.py`) — so
+mobile now matches that, case-insensitively, since the value is typed by
+hand rather than picked from a dropdown of known values.
+
+**`status` and `location` were never serialized.** Both the list rows and
+the detail screen already referenced `asset.status`, so the pill was dead
+markup. `_serialize_asset` now reads both out of `custom_fields`, and the
+detail payload additionally carries the whole `custom_fields` map, `tags`,
+and `created_by_name` — the "full info" the May follow-up asked for, minus
+the fields that turned out not to exist on the model. A non-dict
+`custom_fields` (a bad CSV import can leave a list in there) degrades to
+empty rather than 500-ing the whole list endpoint.
+
+**Asset editing and vault linking existed only on the server.** v3.17.480
+shipped `PATCH /assets/<id>/` and `POST`/`DELETE /assets/<id>/vault-links/`
+with tests, and the CHANGELOG, ROADMAP and Play Store listing all described
+the matching app screens. Those screens were never written —
+`mobile/app/assets/[id].tsx` hadn't been touched since v3.17.476. Now
+written:
+
+- **Edit** on the identity card, gated on `assets_edit` from `/auth/me/`
+  (the server already sent the asset flags; the client's permission type
+  just never listed them). Covers identity / hardware / OS / notes. RAM is
+  validated as a whole number client-side rather than bounced back as a 400.
+- **+ Link vault entry** opens a searchable picker scoped to the asset's own
+  organization — the server rejects cross-org links, so offering them would
+  only produce errors — with already-linked entries filtered out.
+- **Unlink** per linked secret, behind a confirm that spells out that the
+  secret stays in the vault and only the link is removed.
+
+**Not changed** — the three original follow-ups, all verified against the
+current code: asset detail has rendered the full record since v3.17.476,
+vault entries have been listed on it since the same release, and the
+tickets list has defaulted to `open` (`status__is_terminal=False`) since
+then, with the Mine and Critical chips constrained the same way.
+
+6 new API tests in `api_mobile/tests.py`. versionCode 3170483 → 3170536.
+**AAB rebuild required** — the asset screen changes ship in the bundle.
+
 ## [3.17.535] - 2026-09-04
 
 ### Feature: task warnings you can set in days, and actually see

@@ -448,6 +448,89 @@ class MobileAssetsTests(TestCase):
         types = {a['asset_type'] for a in resp.json()['results']}
         self.assertEqual(types, {'server'})
 
+    def test_asset_list_filter_by_asset_type_alias(self):
+        """v3.17.536 — the shipped mobile client sends `asset_type`, not
+        `type`. Both spellings must narrow the list."""
+        from assets.models import Asset
+        Asset.objects.create(
+            organization=self.org_a, name='LaptopB', asset_type='laptop',
+        )
+        url = '/api/mobile/v1/assets/?asset_type=server'
+        resp = _auth_get(self.client, url, self.token)
+        self.assertEqual(resp.status_code, 200)
+        types = {a['asset_type'] for a in resp.json()['results']}
+        self.assertEqual(types, {'server'})
+
+    def test_asset_list_filter_by_status(self):
+        """v3.17.536 — status lives in custom_fields, same as the web list.
+        Before this the param was accepted and ignored."""
+        from assets.models import Asset
+        Asset.objects.create(
+            organization=self.org_a, name='RetiredBox',
+            custom_fields={'status': 'retired'},
+        )
+        self.asset_a.custom_fields = {'status': 'active'}
+        self.asset_a.save(update_fields=['custom_fields'])
+
+        resp = _auth_get(
+            self.client, '/api/mobile/v1/assets/?status=retired', self.token,
+        )
+        self.assertEqual(resp.status_code, 200)
+        names = [a['name'] for a in resp.json()['results']]
+        self.assertEqual(names, ['RetiredBox'])
+
+    def test_asset_list_status_filter_is_case_insensitive(self):
+        from assets.models import Asset
+        Asset.objects.create(
+            organization=self.org_a, name='RetiredBox',
+            custom_fields={'status': 'Retired'},
+        )
+        resp = _auth_get(
+            self.client, '/api/mobile/v1/assets/?status=retired', self.token,
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            [a['name'] for a in resp.json()['results']], ['RetiredBox'],
+        )
+
+    def test_asset_rows_carry_status_and_location(self):
+        """List rows render a status pill, so status must be on the list
+        serializer and not only on detail."""
+        self.asset_a.custom_fields = {'status': 'active', 'location': 'Rack 3'}
+        self.asset_a.save(update_fields=['custom_fields'])
+        resp = _auth_get(self.client, '/api/mobile/v1/assets/', self.token)
+        row = next(a for a in resp.json()['results'] if a['name'] == 'ServerA')
+        self.assertEqual(row['status'], 'active')
+        self.assertEqual(row['location'], 'Rack 3')
+
+    def test_asset_detail_returns_custom_fields_tags_and_creator(self):
+        from core.models import Tag
+        self.asset_a.custom_fields = {
+            'status': 'active', 'location': 'Rack 3', 'owner': 'Finance',
+        }
+        self.asset_a.created_by = self.user_a
+        self.asset_a.save(update_fields=['custom_fields', 'created_by'])
+        tag = Tag.objects.create(organization=self.org_a, name='critical')
+        self.asset_a.tags.add(tag)
+
+        url = f'/api/mobile/v1/assets/{self.asset_a.id}/'
+        body = _auth_get(self.client, url, self.token).json()
+        self.assertEqual(body['status'], 'active')
+        self.assertEqual(body['location'], 'Rack 3')
+        self.assertEqual(body['custom_fields']['owner'], 'Finance')
+        self.assertEqual(body['tags'], ['critical'])
+        self.assertEqual(body['created_by_name'], 'assetuser')
+
+    def test_asset_serializer_survives_non_dict_custom_fields(self):
+        """A bad import can leave a list in the JSONField — that must not
+        500 the whole list endpoint."""
+        self.asset_a.custom_fields = ['junk']
+        self.asset_a.save(update_fields=['custom_fields'])
+        resp = _auth_get(self.client, '/api/mobile/v1/assets/', self.token)
+        self.assertEqual(resp.status_code, 200)
+        row = next(a for a in resp.json()['results'] if a['name'] == 'ServerA')
+        self.assertEqual(row['status'], '')
+
     def test_asset_list_requires_auth(self):
         c = Client()
         self.assertIn(c.get('/api/mobile/v1/assets/').status_code, (401, 403))
