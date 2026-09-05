@@ -5,6 +5,50 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.548] - 2026-09-05
+
+### Phase 35.1 — project templates
+
+A server migration is the same twenty tasks every time, and retyping them is
+where steps get forgotten. `ProjectTemplate` and `ProjectTemplateTask` hold a
+reusable work breakdown; applying one populates a project's task list.
+
+**Applying a template copies.** The resulting rows are ordinary `ProjectTask`s
+with no link back to the template. This is the whole design decision: a live link
+would be tidier on paper and much worse in practice, because a project that
+silently changed shape when somebody edited the template six months later would
+be a project nobody could trust. Deleting a template leaves every project built
+from it exactly as it was, and tests assert both.
+
+**Template tasks carry an offset, not a date.** A template is used in March and
+again in November; a stored date would be wrong both times. `due_offset_days` is
+counted from the project's start date — its own if it has one, today otherwise,
+or an explicit date passed to `apply_to()`.
+
+**0 and blank mean different things.** Offset `0` is "due on the start date";
+blank is "no date at all". The form parses it as `int(offset) if offset.strip()
+else None` rather than the usual `or None`, which would read a submitted 0 as
+unset — the same class of bug fixed in v3.17.545's cadence floor, avoided here
+because it was fresh.
+
+**Applying appends rather than replaces.** A template dropped onto a project that
+already has work must not delete it; an operator who wants a clean slate can
+delete the tasks themselves. Nested tasks keep their parent through the copy.
+
+**One off-by-one caught before shipping:** appended tasks started at
+`max(sort_order)` rather than one past it, so the first copied task tied with the
+last existing one. Fixed, and the fix checks `is None` rather than falsiness,
+because an only task at `sort_order` 0 is still a task and `or 0` would have put
+the copy on top of it.
+
+Templates are per-organization, uniquely named within one, and retire without
+deleting. UI under **PSA → Project Templates**, with an "Apply template" picker on
+the project page that offers only active templates belonging to that project's
+organization.
+
+27 new tests; 568 green across `psa`. Migration:
+`psa.0063_projecttemplate_projecttemplatetask`.
+
 ## [3.17.547] - 2026-09-05
 
 ### Phase 34.4 — firmware history and lifecycle dates (Phase 34 complete)

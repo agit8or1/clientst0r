@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}{{ template.name }} — template{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-diagram-project"></i> {{ template.name }}</h4>
+    <a href="{% url 'psa:project_template_list' %}" class="btn btn-link btn-sm">All templates</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>Tasks</strong></div>
+    <div class="card-body">
+        <p class="text-muted small">
+            Dates are offsets from the project's start, not fixed dates — a template used
+            in March and again in November cannot carry either month's calendar.
+            <strong>0</strong> means the start date itself; leave blank for no date.
+        </p>
+
+        {% if tasks %}
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr><th>Task</th><th>Estimated</th><th>Due offset</th><th></th></tr>
+            </thead>
+            <tbody>
+            {% for t in tasks %}
+                <tr>
+                    <td>
+                        {{ t.title }}
+                        {% if t.is_milestone %}<span class="badge bg-info text-dark ms-1">Milestone</span>{% endif %}
+                        {% if t.description %}<div class="small text-muted">{{ t.description }}</div>{% endif %}
+                    </td>
+                    <td class="text-muted">{{ t.estimated_hours|default:"—" }}</td>
+                    <td class="text-muted">
+                        {% if t.due_offset_days is not None %}day {{ t.due_offset_days }}{% else %}—{% endif %}
+                    </td>
+                    <td class="text-end">
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_task">
+                            <input type="hidden" name="task_id" value="{{ t.pk }}">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="alert alert-secondary">No tasks yet — an empty template adds nothing.</div>
+        {% endif %}
+
+        <form method="post" class="row g-2 align-items-end border-top pt-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_task">
+            <div class="col-md-4">
+                <label class="form-label small" for="title">Task</label>
+                <input type="text" class="form-control form-control-sm" id="title"
+                       name="title" maxlength="300" required placeholder="Provision tenant">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small" for="description">Description</label>
+                <input type="text" class="form-control form-control-sm" id="description" name="description">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small" for="estimated_hours">Hours</label>
+                <input type="number" step="0.25" min="0" class="form-control form-control-sm"
+                       id="estimated_hours" name="estimated_hours">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small" for="due_offset_days">Due day</label>
+                <input type="number" class="form-control form-control-sm"
+                       id="due_offset_days" name="due_offset_days" placeholder="e.g. 3">
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary btn-sm w-100">Add</button>
+            </div>
+            <div class="col-12">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="is_milestone" name="is_milestone">
+                    <label class="form-check-label small" for="is_milestone">This task is a milestone</label>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<form method="post" class="card">
+    {% csrf_token %}
+    <div class="card-header py-2"><strong>Settings</strong></div>
+    <div class="card-body">
+        <div class="mb-3">
+            <label class="form-label" for="tname">Name</label>
+            <input type="text" class="form-control" id="tname" name="name"
+                   maxlength="200" value="{{ template.name }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="tdesc">Description</label>
+            <textarea class="form-control" id="tdesc" name="description" rows="2">{{ template.description }}</textarea>
+        </div>
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                   {% if template.is_active %}checked{% endif %}>
+            <label class="form-check-label" for="is_active">
+                Active — offered when applying a template to a project
+            </label>
+        </div>
+    </div>
+    <div class="card-footer d-flex justify-content-between">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="submit" name="action" value="delete" class="btn btn-outline-danger"
+                onclick="return confirm('Delete this template? Projects built from it keep their tasks.')">
+            Delete template
+        </button>
+    </div>
+</form>
+{% endblock %}

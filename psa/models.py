@@ -5295,3 +5295,143 @@ class EmailOutboundJob(models.Model):
     @property
     def is_terminal(self):
         return self.status in (self.STATUS_SENT, self.STATUS_FAILED, self.STATUS_UNCERTAIN)
+
+
+# ---------------------------------------------------------------------------
+# Phase 35.1 (v3.17.548) — project templates
+# ---------------------------------------------------------------------------
+
+class ProjectTemplate(models.Model):
+    """A reusable work breakdown for a kind of project.
+
+    Server migrations, M365 cutovers and network refreshes are the same twenty
+    tasks every time, and retyping them is where steps get forgotten. A
+    template is applied *by copying*: the resulting tasks are ordinary
+    `ProjectTask` rows with no link back, because a project that silently
+    changed shape when somebody edited the template months later would be
+    worse than no template at all.
+    """
+    organization = models.ForeignKey(
+        'core.Organization', on_delete=models.CASCADE,
+        related_name='project_templates',
+        help_text='The MSP that owns this template.')
+
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(
+        default=True,
+        help_text='Retire a template without deleting it — projects built '
+                  'from it keep their tasks either way.')
+
+    default_is_billable = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='project_templates_created')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_project_templates'
+        ordering = ['name']
+        unique_together = [['organization', 'name']]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def task_count(self):
+        return self.template_tasks.count()
+
+    @property
+    def total_estimated_hours(self):
+        total = self.template_tasks.aggregate(
+            total=models.Sum('estimated_hours'))['total']
+        return total or 0
+
+    def apply_to(self, project, *, created_by=None, start_date=None):
+        """Copy this template's tasks onto `project`.
+
+        Returns the created tasks. Appends rather than replaces: applying a
+        template to a project that already has work must not delete it, and an
+        operator who wanted a clean slate can delete the tasks themselves.
+
+        `due_offset_days` is measured from `start_date` — the project's start
+        if it has one, otherwise today. A template cannot carry real dates
+        because it is used in March and again in November.
+        """
+        from datetime import date, timedelta
+
+        anchor = start_date or project.start_date or date.today()
+        # Start one past the highest existing order so appended tasks sort
+        # after the work already there rather than tying with it. Checked
+        # against None rather than falsiness: an only task at sort_order 0 is
+        # still a task, and `or 0` would put the first copied task on top of it.
+        highest = project.tasks.aggregate(m=models.Max('sort_order'))['m']
+        base_order = 0 if highest is None else highest + 1
+
+        created = []
+        # Parents first so a child can find the parent it was copied from.
+        copied_by_template_id = {}
+        for tpl_task in self.template_tasks.filter(parent__isnull=True).order_by('sort_order'):
+            created.extend(self._copy_task(
+                tpl_task, project, anchor, base_order, created_by,
+                copied_by_template_id, parent=None))
+        return created
+
+    def _copy_task(self, tpl_task, project, anchor, base_order, created_by,
+                   copied, parent):
+        from datetime import timedelta
+
+        due = None
+        if tpl_task.due_offset_days is not None:
+            due = anchor + timedelta(days=tpl_task.due_offset_days)
+
+        task = ProjectTask.objects.create(
+            project=project,
+            parent=parent,
+            title=tpl_task.title,
+            description=tpl_task.description,
+            is_milestone=tpl_task.is_milestone,
+            estimated_hours=tpl_task.estimated_hours,
+            due_date=due,
+            sort_order=base_order + tpl_task.sort_order,
+            created_by=created_by,
+        )
+        copied[tpl_task.pk] = task
+        out = [task]
+        for child in tpl_task.children.order_by('sort_order'):
+            out.extend(self._copy_task(
+                child, project, anchor, base_order, created_by, copied,
+                parent=task))
+        return out
+
+
+class ProjectTemplateTask(models.Model):
+    """One line of a template's work breakdown.
+
+    Carries an *offset* rather than a date. A template is used in March and
+    again in November, and a stored date would be wrong both times.
+    """
+    template = models.ForeignKey(
+        ProjectTemplate, on_delete=models.CASCADE, related_name='template_tasks')
+    parent = models.ForeignKey(
+        'self', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='children')
+
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    is_milestone = models.BooleanField(default=False)
+    estimated_hours = models.DecimalField(
+        max_digits=6, decimal_places=2, null=True, blank=True)
+    due_offset_days = models.IntegerField(
+        null=True, blank=True,
+        help_text='Days from the project start. 0 is the start date itself; '
+                  'leave empty for a task with no date.')
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'psa_project_template_tasks'
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return self.title

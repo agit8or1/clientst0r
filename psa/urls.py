@@ -48,6 +48,11 @@ urlpatterns = [
     path('projects/<int:pk>/', views.project_detail, name='project_detail'),
     path('projects/<int:pk>/edit/', views.project_form, name='project_edit'),
     path('projects/<int:pk>/task/add/', views.project_task_add, name='project_task_add'),
+    # Phase 35.1 (v3.17.548) — project templates.
+    path('project-templates/', views.project_template_list, name='project_template_list'),
+    path('project-templates/new/', views.project_template_create, name='project_template_create'),
+    path('project-templates/<int:pk>/', views.project_template_detail, name='project_template_detail'),
+    path('projects/<int:pk>/apply-template/', views.project_apply_template, name='project_apply_template'),
     path('project-task/<int:task_pk>/update/', views.project_task_update, name='project_task_update'),
     path('project-task/<int:task_pk>/delete/', views.project_task_delete, name='project_task_delete'),
     # Recurring tickets (preventive maintenance)

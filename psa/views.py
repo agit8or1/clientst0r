@@ -1982,6 +1982,10 @@ def project_detail(request, pk):
     # project's org.
     can_assign = _can_assign(request, item.organization)
     eligible_assignees = _eligible_assignees(item.organization) if can_assign else []
+    # Phase 35.1 (v3.17.548) — templates available to apply to this project.
+    from .models import ProjectTemplate
+    templates = ProjectTemplate.objects.filter(
+        organization=item.organization, is_active=True).order_by('name')
     return render(request, 'psa/project_detail.html', {
         'item': item,
         'tickets': tickets,
@@ -1989,6 +1993,7 @@ def project_detail(request, pk):
         'task_status_choices': ProjectTask.STATUS_CHOICES,
         'can_assign': can_assign,
         'eligible_assignees': eligible_assignees,
+        'project_templates': templates,
     })
 
 
@@ -7982,3 +7987,144 @@ def ticket_kit_toggle_packed(request, ticket_number, pk):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({'packed': item.packed})
     return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)
+
+
+# ---------------------------------------------------------------------------
+# Phase 35.1 (v3.17.548) — project templates
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_psa_enabled
+def project_template_list(request):
+    from .models import ProjectTemplate
+    org = get_request_organization(request)
+    qs = ProjectTemplate.objects.all()
+    if org is not None:
+        qs = qs.filter(organization=org)
+    return render(request, 'psa/project_template_list.html', {
+        'templates': qs.prefetch_related('template_tasks').order_by('name'),
+    })
+
+
+@login_required
+@require_psa_enabled
+def project_template_detail(request, pk):
+    from .models import ProjectTemplate, ProjectTemplateTask
+
+    org = get_request_organization(request)
+    qs = ProjectTemplate.objects.all()
+    if org is not None:
+        qs = qs.filter(organization=org)
+    template = get_object_or_404(qs, pk=pk)
+
+    if request.method == 'POST':
+        action = request.POST.get('action') or 'save'
+
+        if action == 'add_task':
+            title = (request.POST.get('title') or '').strip()[:300]
+            if not title:
+                messages.error(request, 'A task needs a title.')
+                return redirect('psa:project_template_detail', pk=template.pk)
+            hours = request.POST.get('estimated_hours') or None
+            offset = request.POST.get('due_offset_days')
+            ProjectTemplateTask.objects.create(
+                template=template,
+                title=title,
+                description=(request.POST.get('description') or '').strip(),
+                is_milestone=request.POST.get('is_milestone') == 'on',
+                estimated_hours=hours or None,
+                # Written out rather than `or None`, which would read a
+                # submitted 0 — "due on the start date" — as "no date".
+                due_offset_days=(int(offset) if (offset or '').strip() else None),
+                sort_order=template.template_tasks.count(),
+            )
+            messages.success(request, 'Task added to the template.')
+            return redirect('psa:project_template_detail', pk=template.pk)
+
+        if action == 'delete_task':
+            task = template.template_tasks.filter(
+                pk=request.POST.get('task_id')).first()
+            if task:
+                task.delete()
+                messages.success(request, 'Task removed from the template.')
+            return redirect('psa:project_template_detail', pk=template.pk)
+
+        if action == 'delete':
+            template.delete()
+            messages.success(
+                request,
+                'Template deleted. Projects already built from it keep their '
+                'tasks — they were copied, not linked.')
+            return redirect('psa:project_template_list')
+
+        template.name = (request.POST.get('name') or template.name).strip()[:200]
+        template.description = (request.POST.get('description') or '').strip()
+        template.is_active = request.POST.get('is_active') == 'on'
+        template.save()
+        messages.success(request, 'Template saved.')
+        return redirect('psa:project_template_detail', pk=template.pk)
+
+    return render(request, 'psa/project_template_detail.html', {
+        'template': template,
+        'tasks': template.template_tasks.order_by('sort_order', 'id'),
+    })
+
+
+@login_required
+@require_psa_enabled
+def project_template_create(request):
+    from .models import ProjectTemplate
+
+    org = get_request_organization(request)
+    if request.method == 'POST':
+        name = (request.POST.get('name') or '').strip()[:200]
+        if not name:
+            messages.error(request, 'A template needs a name.')
+            return redirect('psa:project_template_list')
+        if org is None:
+            messages.error(
+                request,
+                'Pick an organization before creating a template — a template '
+                'belongs to the MSP that owns it.')
+            return redirect('psa:project_template_list')
+        if ProjectTemplate.objects.filter(organization=org, name=name).exists():
+            messages.error(request, 'A template with that name already exists.')
+            return redirect('psa:project_template_list')
+        template = ProjectTemplate.objects.create(
+            organization=org, name=name,
+            description=(request.POST.get('description') or '').strip(),
+            created_by=request.user,
+        )
+        messages.success(request, 'Template created. Add its tasks below.')
+        return redirect('psa:project_template_detail', pk=template.pk)
+    return redirect('psa:project_template_list')
+
+
+@login_required
+@require_psa_enabled
+def project_apply_template(request, pk):
+    """Copy a template's tasks onto an existing project."""
+    from .models import Project, ProjectTemplate
+
+    org = get_request_organization(request)
+    qs = Project.objects.all()
+    if org is not None:
+        qs = qs.filter(organization=org)
+    project = get_object_or_404(qs, pk=pk)
+
+    if request.method != 'POST':
+        return redirect('psa:project_detail', pk=project.pk)
+
+    template = ProjectTemplate.objects.filter(
+        pk=request.POST.get('template'),
+        organization=project.organization).first()
+    if template is None:
+        messages.error(request, 'That template is not available for this project.')
+        return redirect('psa:project_detail', pk=project.pk)
+
+    created = template.apply_to(project, created_by=request.user)
+    messages.success(
+        request,
+        f'Added {len(created)} task(s) from "{template.name}". They are copies — '
+        f'editing the template later will not change this project.')
+    return redirect('psa:project_detail', pk=project.pk)

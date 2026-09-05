@@ -748,12 +748,19 @@ Dependencies: Phase 33 (device inventory provides the target list) — **not blo
 
 **Goal:** Eliminate the manual config-export-and-store-in-a-folder routine. Make unauthorized changes loud.
 
-## Phase 35 — Advanced Project Management **(L)** [planned]
+## Phase 35 — Advanced Project Management **(L)** [in progress]
 
 Mature the existing `psa.Project` and `psa.ProjectTask` models *(quote-to-project automation shipped v3.17.213)* into a full delivery management feature.
 
 Planned capabilities:
-- **Project templates** — predefined task lists for common project types (server migration, M365 cutover, network refresh). Drop a template onto a new project to populate the work breakdown in one click.
+### Sub-phase 35.1 — Project templates *(shipped v3.17.548)*
+- **`psa.ProjectTemplate` / `ProjectTemplateTask`** — predefined work breakdowns for common project types. A server migration is the same twenty tasks every time, and retyping them is where steps get forgotten. *(shipped v3.17.548)*
+- **Applying a template copies.** The resulting rows are ordinary `ProjectTask`s with no link back to the template: a project that silently changed shape because somebody edited the template months later would be worse than having no templates. Deleting a template leaves every project built from it untouched. *(shipped v3.17.548)*
+- **Template tasks carry an offset, not a date** — a template is used in March and again in November, and a stored date would be wrong both times. `0` means the project's start date and is deliberately distinct from "no date". *(shipped v3.17.548)*
+- **Applying appends rather than replaces**, so a template dropped onto a project that already has work does not delete it. Nested tasks keep their parent through the copy.  *(shipped v3.17.548)*
+
+Remaining planned capabilities:
+- **Project templates** *(shipped v3.17.548 — see 35.1)*
 - Project phases and milestones *(milestones partial — `ProjectTask.is_milestone` flag exists)*
 - Project budget tracking — hours budget + dollar budget vs. actuals
 - Project profitability *(extends Phase 3.2 contract profitability with project-scoped breakdown)*

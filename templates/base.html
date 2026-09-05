@@ -109,6 +109,8 @@
                             <li><a class="dropdown-item" href="{% url 'psa:service_catalog' %}"><i class="fas fa-th"></i> {% trans "Service Catalog" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'psa:catalog_change_list' %}"><i class="fas fa-clipboard-check"></i> {% trans "Catalog Changes" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'psa:project_list' %}"><i class="fas fa-diagram-project"></i> {% trans "Projects" %}</a></li>
+                            {# Phase 35.1 (v3.17.548) #}
+                            <li><a class="dropdown-item" href="{% url 'psa:project_template_list' %}"><i class="fas fa-clipboard-list"></i> {% trans "Project Templates" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'psa:recurring_list' %}"><i class="fas fa-repeat"></i> {% trans "Recurring Tickets" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'psa:kb_browse' %}"><i class="fas fa-book"></i> {% trans "Knowledge Base" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'psa:approval_list' %}"><i class="fas fa-circle-check"></i> {% trans "Approvals" %}</a></li>

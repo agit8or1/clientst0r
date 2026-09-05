@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Project templates{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="fas fa-diagram-project"></i> Project templates</h4>
+
+<p class="text-muted">
+    A server migration is the same twenty tasks every time, and retyping them is where
+    steps get forgotten. Applying a template <strong>copies</strong> its tasks onto a
+    project — editing the template later never changes a project already built from it.
+</p>
+
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>New template</strong></div>
+    <form method="post" action="{% url 'psa:project_template_create' %}">
+        {% csrf_token %}
+        <div class="card-body row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small" for="name">Name</label>
+                <input type="text" class="form-control form-control-sm" id="name"
+                       name="name" maxlength="200" required placeholder="M365 cutover">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small" for="description">Description</label>
+                <input type="text" class="form-control form-control-sm" id="description"
+                       name="description" placeholder="Optional">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100">Create</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% if templates %}
+<div class="card">
+    <table class="table table-hover mb-0 align-middle">
+        <thead>
+            <tr><th>Template</th><th>Tasks</th><th>Estimated</th><th>State</th></tr>
+        </thead>
+        <tbody>
+        {% for t in templates %}
+            <tr>
+                <td>
+                    <a href="{% url 'psa:project_template_detail' t.pk %}">{{ t.name }}</a>
+                    {% if t.description %}<div class="small text-muted">{{ t.description }}</div>{% endif %}
+                </td>
+                <td>{{ t.task_count }}</td>
+                <td>{{ t.total_estimated_hours }} h</td>
+                <td>
+                    {% if t.is_active %}<span class="badge bg-success">Active</span>
+                    {% else %}<span class="badge bg-secondary">Retired</span>{% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-secondary">No templates yet.</div>
+{% endif %}
+{% endblock %}
