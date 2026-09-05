@@ -67,6 +67,8 @@ urlpatterns = [
 
     # Phase 8 — Field Ops + Timeclock + privacy
     path('field-ops/', include('field_ops.urls')),
+    # Phase 40.2 (v3.17.540) — status pages. `/status/p/<token>/` is public.
+    path('status/', include('statuspage.urls')),
 
     # API
     path('api/', include('api.urls')),

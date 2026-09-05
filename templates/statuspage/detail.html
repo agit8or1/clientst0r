@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}{{ page.display_title }} — status page{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-heart-pulse"></i> {{ page.display_title }}</h4>
+    <a href="{% url 'statuspage:list' %}" class="btn btn-outline-secondary btn-sm">All status pages</a>
+</div>
+
+<div class="alert {% if page.is_enabled %}alert-warning{% else %}alert-secondary{% endif %}">
+    {% if page.is_enabled %}
+        <strong>This page is live and public.</strong>
+        Anyone with the link can read it without signing in. Treat the link like a
+        password: it is the only thing protecting it.
+    {% else %}
+        <strong>This page is off.</strong> The public link returns 404 until you enable it.
+    {% endif %}
+</div>
+
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>Public link</strong></div>
+    <div class="card-body">
+        <div class="input-group mb-2">
+            <input type="text" class="form-control font-monospace" id="public_url"
+                   value="{{ public_url }}" readonly>
+            <button class="btn btn-outline-secondary" type="button"
+                    onclick="navigator.clipboard.writeText(document.getElementById('public_url').value)">
+                Copy
+            </button>
+        </div>
+        <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="rotate">
+            <button type="submit" class="btn btn-outline-danger btn-sm"
+                    onclick="return confirm('Rotate the link? Anyone holding the current address will get a 404.')">
+                Rotate link
+            </button>
+        </form>
+        <span class="text-muted small ms-2">
+            Rotating invalidates the current address immediately.
+        </span>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>Published services</strong></div>
+    <div class="card-body">
+        <p class="text-muted small">
+            Nothing appears on the page unless it is listed here, and each entry carries a
+            public name of your choosing. The monitor's own name and the URL it polls are
+            internal and are never shown.
+        </p>
+
+        {% if services %}
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>Public name</th>
+                    <th>Description</th>
+                    <th>Current</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for svc in services %}
+                <tr>
+                    <td>{{ svc.display_name }}</td>
+                    <td class="text-muted">{{ svc.description|default:"—" }}</td>
+                    <td>
+                        {% with st=svc.current_status %}
+                        {% if st == 'operational' %}<span class="badge bg-success">Operational</span>
+                        {% elif st == 'degraded' %}<span class="badge bg-warning text-dark">Degraded</span>
+                        {% elif st == 'outage' %}<span class="badge bg-danger">Outage</span>
+                        {% else %}<span class="badge bg-secondary">Unknown</span>{% endif %}
+                        {% endwith %}
+                    </td>
+                    <td class="text-end">
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="remove_service">
+                            <input type="hidden" name="service_id" value="{{ svc.pk }}">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="alert alert-secondary mb-3">
+            No services published yet. An enabled page with nothing on it tells whoever
+            opens it nothing useful.
+        </div>
+        {% endif %}
+
+        {% if available_monitors %}
+        <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_service">
+            <div class="col-md-4">
+                <label class="form-label small" for="monitor">Monitor</label>
+                <select class="form-select form-select-sm" id="monitor" name="monitor" required>
+                    {% for m in available_monitors %}
+                        <option value="{{ m.pk }}">{{ m.name }}{% if not page.organization %} — {{ m.organization.name }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small" for="display_name">Public name</label>
+                <input type="text" class="form-control form-control-sm" id="display_name"
+                       name="display_name" maxlength="120" required placeholder="Webmail">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small" for="description">Description</label>
+                <input type="text" class="form-control form-control-sm" id="description"
+                       name="description" maxlength="255" placeholder="Mail and calendar">
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary btn-sm w-100">Add</button>
+            </div>
+        </form>
+        {% else %}
+        <p class="text-muted small mb-0">
+            {% if page.organization %}
+                No further monitors exist for {{ page.organization.name }}.
+            {% else %}
+                Every monitor is already on this page.
+            {% endif %}
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<form method="post" class="card">
+    {% csrf_token %}
+    <div class="card-header py-2"><strong>Settings</strong></div>
+    <div class="card-body">
+        <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="is_enabled" name="is_enabled"
+                   {% if page.is_enabled %}checked{% endif %}>
+            <label class="form-check-label" for="is_enabled">
+                Publish this page
+            </label>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="title">Title</label>
+            <input type="text" class="form-control" id="title" name="title"
+                   maxlength="120" value="{{ page.title }}" placeholder="Service status">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="intro">Intro</label>
+            <textarea class="form-control" id="intro" name="intro" rows="2"
+                      placeholder="Optional paragraph under the heading.">{{ page.intro }}</textarea>
+        </div>
+
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="show_uptime" name="show_uptime"
+                   {% if page.show_uptime %}checked{% endif %}>
+            <label class="form-check-label" for="show_uptime">
+                Show 30 / 90 / 365-day uptime
+                <span class="text-muted small d-block">
+                    Windows with no recorded checks read "no data" rather than a number.
+                    Check history began in v3.17.538, so a full-year figure is not
+                    available until a year after that deploy.
+                </span>
+            </label>
+        </div>
+
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="show_response_time" name="show_response_time"
+                   {% if page.show_response_time %}checked{% endif %}>
+            <label class="form-check-label" for="show_response_time">Show last response time</label>
+        </div>
+
+        <div class="mb-3" style="max-width: 220px;">
+            <label class="form-label" for="refresh_seconds">Auto-refresh (seconds)</label>
+            <input type="number" class="form-control" id="refresh_seconds" name="refresh_seconds"
+                   min="30" value="{{ page.refresh_seconds }}">
+        </div>
+    </div>
+    <div class="card-footer d-flex justify-content-between">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="submit" name="action" value="delete" class="btn btn-outline-danger"
+                onclick="return confirm('Delete this status page? The link stops working immediately.')">
+            Delete page
+        </button>
+    </div>
+</form>
+{% endblock %}

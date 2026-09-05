@@ -181,6 +181,8 @@
                             <li><a class="dropdown-item" href="{% url 'monitoring:website_monitor_list' %}"><i class="fas fa-globe"></i> {% trans "Website Monitors" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'monitoring:wan_monitor_list' %}"><i class="fas fa-network-wired"></i> {% trans "WAN Connections" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'monitoring:expiration_list' %}"><i class="fas fa-calendar-times"></i> {% trans "Expirations" %}</a></li>
+                            {# Phase 40.2 (v3.17.540) — status pages publish monitor state, so they live with Monitoring. #}
+                            <li><a class="dropdown-item" href="{% url 'statuspage:list' %}"><i class="fas fa-heart-pulse"></i> {% trans "Status Pages" %}</a></li>
                             {% endif %}
                             {% if vehicles_enabled %}
                             <li><hr class="dropdown-divider"></li>

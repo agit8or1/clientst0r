@@ -816,10 +816,11 @@ Public or per-client-private status page surfacing current service status, sched
 - **`WebsiteMonitor.uptime(days)`** — computed from those rows rather than stored, so changing retention or backfilling a gap cannot leave a counter disagreeing with the data behind it. Returns `percent=None` for a window with no checks, because 0% reads as a total outage and 100% as a clean record and both would be lies. `warning` counts as up — a redirect or an expiring certificate means the site answered. *(shipped v3.17.538)*
 - **`prune_monitor_checks`** — retention command, default 400 days. This is the highest-volume table in the app (~105,000 rows/year for a monitor on a five-minute interval). 400 rather than 365 so a full-year figure stays computable right up to the moment the prune runs. Deletes in batches so a big backlog doesn't hold one long transaction against the table the checker is appending to. *(shipped v3.17.538)*
 
-### Sub-phase 40.2 — The page itself *(planned)*
-- `StatusPage` model — off by default, reached by a random token in the URL rather than a guessable id, rotatable, following the Phase 47 wallboard's disclosure rules.
-- `StatusPageService` — which monitors appear, under what public-facing name. Publishing a monitor's internal name and URL to an anonymous page is not acceptable, so display names are explicit rather than inherited.
-- Public view rendering per-service status and 30 / 90 / 365-day uptime.
+### Sub-phase 40.2 — The page itself *(shipped v3.17.540)*
+- **`statuspage.StatusPage`** — off by default, reached by a 43-character random token rather than a guessable id, rotatable, and 404-ing rather than 403-ing when disabled so a probe cannot confirm a page exists. Not a singleton, unlike the Phase 47 wallboard: `organization` null means a broadcast page covering shared infrastructure, and a page scoped to a client can only carry that client's services. *(shipped v3.17.540)*
+- **`statuspage.StatusPageService`** — the indirection that makes the page publishable. A `WebsiteMonitor` carries an internal name and the URL being polled, and neither belongs on an anonymous page; `display_name` is required and is all the public sees. Adding a service without one is refused rather than defaulted, because defaulting would leak exactly what the field exists to avoid. *(shipped v3.17.540)*
+- **Public view** at `/status/p/<token>/` — per-service status plus 30 / 90 / 365-day uptime, `no-store` and `noindex`, standalone template (no nav, no session chrome, meta-refresh so it works with scripting off). Worst status wins overall: one service down makes the page say outage. A window with no recorded checks reads "no data" rather than a percentage. *(shipped v3.17.540)*
+- **Management UI** under Operations → Monitoring → Status Pages — create, publish, rotate the link, add and remove services. *(shipped v3.17.540)*
 
 ### Sub-phase 40.3 — Maintenance windows *(planned)*
 - Scheduled-maintenance posts with start/end + affected services, shown as upcoming before they begin.

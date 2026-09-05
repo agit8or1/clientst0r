@@ -5,6 +5,63 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.540] - 2026-09-05
+
+### Phase 40.2 — the status page
+
+New `statuspage` app. A status page answers "is anything broken?" without the
+client phoning the queue.
+
+**Disclosure is the whole design.** This is the only view in the app that serves
+real customer data to an unauthenticated caller, so it follows the Phase 47
+wallboard's rules for the same reason — the URL is the only thing between it and
+the internet:
+
+- off by default, and a disabled page returns **404, not 403**, because a 403
+  confirms to anyone probing that a page exists at that address;
+- the address carries a 43-character token from `secrets` (not `random`, which
+  is seeded predictably and has no business generating something that acts as a
+  credential), so pages cannot be found by walking integers;
+- the token rotates, which kills a leaked link immediately;
+- `no-store, private` and `noindex, nofollow` — a page naming a client's services
+  belongs in neither a shared cache nor a search index.
+
+**`StatusPageService` is an indirection, not a join table.** A `WebsiteMonitor`
+carries an internal name and the URL being polled, and neither belongs on a
+public page: "PROD mail relay (10.4.0.7)" tells a stranger more about the estate
+than the client needs to read. Every published service carries a `display_name`
+chosen by an admin, and adding one without a name is **refused rather than
+defaulted to the monitor's name** — defaulting would leak precisely what the
+field exists to prevent. A test asserts the monitor name, its host and its URL
+appear nowhere in the rendered page.
+
+**Not a singleton**, unlike the wallboard. `organization` null means a broadcast
+page covering shared infrastructure; a page scoped to a client can only publish
+that client's monitors, enforced on the add path rather than left to the operator
+to get right.
+
+Three judgement calls in the status logic:
+
+- **Worst wins.** One service down makes the whole page say outage. A client
+  whose mail is down does not care that the website is fine.
+- **`warning` is degraded, not an outage.** A redirect or an expiring
+  certificate means the service answered. A page that showed a 301 as an outage
+  would cry wolf until nobody read it.
+- **An empty page reads "status not yet known", not "all operational".** A page
+  with nothing published must not claim everything is fine.
+
+Uptime rows show 30 / 90 / 365 days, and a window with no recorded checks reads
+**"no data"** rather than a number — check history only began in v3.17.538
+(Phase 40.1), so a full-year figure is genuinely unknown until a year after that
+deploy and printing 100% would be an invention.
+
+Management UI under **Operations → Monitoring → Status Pages**: create, publish,
+rotate the link, add and remove services.
+
+29 tests. Migration: `statuspage.0001_initial`. New app registered in
+`INSTALLED_APPS`; public route is `/status/p/<token>/`, management is
+`/status/`.
+
 ## [3.17.539] - 2026-09-05
 
 ### Fix: three more releases recorded against versions that were never released

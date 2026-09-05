@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}New status page{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="fas fa-heart-pulse"></i> New status page</h4>
+
+<form method="post" class="card" style="max-width: 640px;">
+    {% csrf_token %}
+    <div class="card-body">
+        <div class="mb-3">
+            <label class="form-label" for="title">Title</label>
+            <input type="text" class="form-control" id="title" name="title"
+                   maxlength="120" placeholder="Service status">
+            <div class="form-text">Shown as the heading. Defaults to "Service status".</div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="organization">Client</label>
+            <select class="form-select" id="organization" name="organization">
+                <option value="">— Not tied to one client —</option>
+                {% for org in organizations %}
+                    <option value="{{ org.pk }}">{{ org.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="form-text">
+                Choosing a client restricts this page to that client's services. Leave it
+                unset for a broadcast page covering shared infrastructure.
+            </div>
+        </div>
+    </div>
+    <div class="card-footer">
+        <button type="submit" class="btn btn-primary">Create</button>
+        <a href="{% url 'statuspage:list' %}" class="btn btn-link">Cancel</a>
+    </div>
+</form>
+{% endblock %}

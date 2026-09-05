@@ -1,0 +1,140 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta http-equiv="refresh" content="{{ page.refresh_seconds }}">
+    <title>{{ page.display_title }}</title>
+    {% comment %}
+        Standalone rather than extending base.html: this is read by people who
+        are not logged in and often are not customers of the nav, the org
+        switcher or any of the session chrome. Meta-refresh rather than JS so it
+        works with scripting locked down, matching the Phase 47 wallboard.
+
+        Everything on this page was put here deliberately by an admin. There is
+        no monitor name and no monitored URL anywhere in this template — see
+        StatusPageService.display_name for why.
+    {% endcomment %}
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #f6f7f9; --card: #ffffff; --ink: #1a1f2b; --muted: #667085;
+            --line: #e3e7ee;
+            --ok: #1a7f4b; --ok-bg: #e6f5ec;
+            --degraded: #96690a; --degraded-bg: #fdf3e0;
+            --outage: #b3261e; --outage-bg: #fdecea;
+            --unknown: #667085; --unknown-bg: #eef0f4;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #10131a; --card: #171b24; --ink: #f2f5fa; --muted: #8b97ad;
+                --line: #262c39;
+                --ok: #6ee7a8; --ok-bg: #13271d;
+                --degraded: #ffc857; --degraded-bg: #2a2313;
+                --outage: #ff8f8a; --outage-bg: #2b1614;
+                --unknown: #8b97ad; --unknown-bg: #1d222c;
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 24px 16px 48px;
+            background: var(--bg); color: var(--ink);
+            font: 400 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+        }
+        .wrap { max-width: 760px; margin: 0 auto; }
+        h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.02em; }
+        .intro { color: var(--muted); margin: 0 0 24px; }
+        .banner {
+            border-radius: 10px; padding: 16px 18px; margin-bottom: 24px;
+            font-weight: 600; font-size: 17px; border: 1px solid transparent;
+        }
+        .banner.operational { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+        .banner.degraded { background: var(--degraded-bg); color: var(--degraded); border-color: var(--degraded); }
+        .banner.outage { background: var(--outage-bg); color: var(--outage); border-color: var(--outage); }
+        .banner.unknown { background: var(--unknown-bg); color: var(--unknown); border-color: var(--line); }
+        .svc {
+            background: var(--card); border: 1px solid var(--line);
+            border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+        }
+        .svc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+        .svc-name { font-weight: 600; }
+        .svc-desc { color: var(--muted); font-size: 13px; margin-top: 2px; }
+        .pill {
+            font-size: 12px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.04em; padding: 3px 9px; border-radius: 999px;
+            white-space: nowrap;
+        }
+        .pill.operational { background: var(--ok-bg); color: var(--ok); }
+        .pill.degraded { background: var(--degraded-bg); color: var(--degraded); }
+        .pill.outage { background: var(--outage-bg); color: var(--outage); }
+        .pill.unknown { background: var(--unknown-bg); color: var(--unknown); }
+        .uptime {
+            display: flex; gap: 22px; margin-top: 12px; padding-top: 10px;
+            border-top: 1px solid var(--line); flex-wrap: wrap;
+        }
+        .uptime div { font-size: 13px; }
+        .uptime .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+        .uptime .lbl { color: var(--muted); }
+        .uptime .na { color: var(--muted); font-style: italic; font-weight: 400; }
+        .empty { color: var(--muted); text-align: center; padding: 48px 0; }
+        footer { color: var(--muted); font-size: 12px; margin-top: 28px; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>{{ page.display_title }}</h1>
+    {% if page.intro %}<p class="intro">{{ page.intro }}</p>{% endif %}
+
+    <div class="banner {{ overall }}">
+        {% if overall == 'operational' %}All services operational
+        {% elif overall == 'degraded' %}Some services degraded
+        {% elif overall == 'outage' %}Service outage
+        {% else %}Status not yet known{% endif %}
+    </div>
+
+    {% for row in rows %}
+        <div class="svc">
+            <div class="svc-head">
+                <div>
+                    <div class="svc-name">{{ row.service.display_name }}</div>
+                    {% if row.service.description %}
+                        <div class="svc-desc">{{ row.service.description }}</div>
+                    {% endif %}
+                </div>
+                <span class="pill {{ row.status }}">
+                    {% if row.status == 'operational' %}Operational
+                    {% elif row.status == 'degraded' %}Degraded
+                    {% elif row.status == 'outage' %}Outage
+                    {% else %}Unknown{% endif %}
+                </span>
+            </div>
+
+            {% if row.uptime %}
+                <div class="uptime">
+                    {% for w in row.uptime %}
+                        <div>
+                            {% comment %}
+                                percent is None when no check fell in the window.
+                                Printing 100% there would be an invention: check
+                                history only began in v3.17.538.
+                            {% endcomment %}
+                            {% if w.percent is None %}
+                                <span class="na">no data</span>
+                            {% else %}
+                                <span class="val">{{ w.percent }}%</span>
+                            {% endif %}
+                            <span class="lbl">{{ w.days }}d</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    {% empty %}
+        <p class="empty">No services are published on this page yet.</p>
+    {% endfor %}
+
+    <footer>Updated {{ generated_at|date:"j M Y, H:i T" }}</footer>
+</div>
+</body>
+</html>

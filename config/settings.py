@@ -97,6 +97,7 @@ INSTALLED_APPS = [
     'security_alerts.apps.SecurityAlertsConfig',
     'compliance.apps.ComplianceConfig',
     'field_ops.apps.FieldOpsConfig',
+    'statuspage.apps.StatusPageConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies)
