@@ -1,7 +1,7 @@
 """
 Phase 44 — two-way accounting sync (GitHub #145).
 
-44.1 (v3.17.528): the organization -> provider-customer mapping becomes a real
+44.1 (v3.17.531): the organization -> provider-customer mapping becomes a real
 table instead of a dict inside the connection's encrypted credentials blob, and
 customers carry their full details rather than a bare display name.
 
@@ -289,7 +289,7 @@ class CustomerMappingViewTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 44.2 — real payment + invoice pull (v3.17.529)
+# 44.2 — real payment + invoice pull (v3.17.531)
 # ---------------------------------------------------------------------------
 
 class _InvoiceCase(TestCase):
@@ -581,7 +581,7 @@ class RetryTests(_ProviderCase):
 
 
 # ---------------------------------------------------------------------------
-# 44.3 — scheduling and on-demand sync (v3.17.530)
+# 44.3 — scheduling and on-demand sync (v3.17.531)
 # ---------------------------------------------------------------------------
 
 class SyncCommandTests(_InvoiceCase):

@@ -563,7 +563,7 @@ Dependencies: Phase 3.5 (dashboards), Phase 3.6 (scheduled reports).
 **Roadmap item:** Deeper accounting integration than the basic invoice push that ships today (QBO + Xero — Phase shipped earlier). Adds true reconciliation between Client St0r's books and the accounting system.
 
 Planned capabilities:
-- Bidirectional payment sync — when a payment lands in QBO/Xero, mark the source Invoice as paid *(partial — `BaseAccountingProvider.poll_invoice_balance()` + QBO/Xero implementations + the `accounting_sync_payments` command shipped v3.17.280; idempotent + audit-logged. **Corrected v3.17.526:** this entry previously claimed a "daily cron". No timer, crontab entry or scheduler task was ever wired, so the command has only ever run when typed by hand. It also polls the invoice balance rather than reading provider payment records, so a partial payment is invisible and the Payment row it writes carries an inferred date and method. Real bidirectional sync — scheduling included — shipped as Phase 44, v3.17.528–531)*
+- Bidirectional payment sync — when a payment lands in QBO/Xero, mark the source Invoice as paid *(partial — `BaseAccountingProvider.poll_invoice_balance()` + QBO/Xero implementations + the `accounting_sync_payments` command shipped v3.17.280; idempotent + audit-logged. **Corrected v3.17.526:** this entry previously claimed a "daily cron". No timer, crontab entry or scheduler task was ever wired, so the command has only ever run when typed by hand. It also polls the invoice balance rather than reading provider payment records, so a partial payment is invisible and the Payment row it writes carries an inferred date and method. Real bidirectional sync — scheduling included — shipped as Phase 44, v3.17.531–531)*
 - Invoice deduplication detection (catch double-pushes) *(shipped v3.17.255 — duplicate `(provider, accounting_external_id)` groups surfaced on `/reports/accounting-reconciliation/`. Extended v3.17.526 from detection to prevention: the push view refuses an invoice that already carries a provider id, so a double-click can no longer put a second invoice in front of the client. Re-push remains available as an explicit action for the deleted-provider-side case)*
 - Unpaid-vs-pushed reconciliation report (what's invoiced here but missing in QBO?) *(shipped v3.17.255 — outstanding-pushed section + push-error section + CSV export)*
 - Per-invoice line-item mapping to GL accounts (revenue vs. cost-of-services-sold splits) *(shipped v3.17.278 — `InvoiceLineItem.gl_account_code` propagates to QBO `ItemRef.value` and Xero `AccountCode` on push; blank falls through to provider default; back-compat)*
@@ -892,9 +892,9 @@ The public REST API (`/api/`) was single-tenant per request: an API key was boun
 
 **Roadmap item:** requested in GitHub #145. Extends Phase 27, which delivered reconciliation *reporting* plus a one-directional invoice push. What ships today is the push half: OAuth with encrypted tokens and automatic refresh, invoice push with GL-account and tax capture, multi-book routing, and a full audit log of every provider call. What does not exist is a genuine pull.
 
-Delivered across four sub-phases (v3.17.528–531):
+Delivered as four sub-phases, all released together in v3.17.531:
 
-### Sub-phase 44.1 — Customer mapping as a first-class record *(shipped v3.17.528)*
+### Sub-phase 44.1 — Customer mapping as a first-class record *(shipped v3.17.531)*
 
 - New `integrations.AccountingCustomerLink`. The organization → provider-customer map had been a dict inside the connection's encrypted credentials blob: invisible to queries, absent from the admin, and destroyed by a credentials reset — which would silently orphan every mapping and make the next push create duplicate customers. Two unique constraints now hold the invariants: one client maps to at most one customer per connection, and one provider customer is claimed by at most one client, so a mapping cannot fork and two clients cannot quietly share a customer.
 - Data migration lifts existing mappings across, covering both QuickBooks Online's `customer_map` and Xero's `contact_map`. The blob copy is deliberately left in place so a rollback still works.
@@ -902,7 +902,7 @@ Delivered across four sub-phases (v3.17.528–531):
 - **Customer pull** links provider customers to organizations by name. It deliberately does *not* create organizations: inventing tenants from an accounting system is not a decision a sync job should make. Unmatched names are reported individually, since a count gives an operator nothing to act on.
 - Customer-mapping page per connection, showing what is linked, what is not, and a pull action.
 
-### Sub-phase 44.2 — Real invoice and payment pull *(shipped v3.17.529)*
+### Sub-phase 44.2 — Real invoice and payment pull *(shipped v3.17.531)*
 
 - **Provider payment records are read directly**, with the invoices each settles taken from `LinkedTxn`. The previous implementation never looked at a payment: it polled an invoice's balance and, on zero, synthesised a local payment for the whole outstanding amount dated today with method `other`.
 - **Partial payments work.** They were previously invisible — a non-zero balance was skipped outright — so `Invoice.status = 'partial'` was unreachable from the provider side despite being a documented status.
@@ -910,7 +910,7 @@ Delivered across four sub-phases (v3.17.528–531):
 - **Voids reopen the invoice.** This needed a fix to `Invoice.recompute_totals()`, which was one-way: an invoice could reach Paid but never leave it, so a payment voided in the accounting system left it reading Paid with nothing against it.
 - **Invoice state reconciliation** catches an invoice voided provider-side. One deleted provider-side is flagged rather than voided locally — deleting revenue records on the strength of a single 404 is not a call a sync job gets to make.
 
-### Sub-phase 44.3 — Scheduling and on-demand sync *(shipped v3.17.530)*
+### Sub-phase 44.3 — Scheduling and on-demand sync *(shipped v3.17.531)*
 
 - New `accounting_sync` management command running customers, payments and invoice state in one pass. One stage failing does not abandon the others — a customer-pull outage should not also stop payments importing.
 - **`deploy/clientst0r-accounting-sync.{service,timer}`** — the timer the roadmap had claimed since v3.17.280 without one existing.
@@ -1080,7 +1080,7 @@ Positioned last in the roadmap (v3.17.169) because it's the largest single under
 | 41 — Compliance Frameworks & Recertification | M | shipped v3.17.435–444 | extends accounts + audit + reports.pdf_export (Phase 19); built atop Phase 39 evidence-pack infra |
 | 42 — Docker / Containerized deployment | S | shipped v3.17.490 | none — packaging only; classic `bash install.sh` path unchanged |
 | 43 — Multi-Organization REST API Access | S | shipped v3.17.496 | extends Phase 18 hierarchy; backward-compatible (default key scope unchanged) |
-| 44 — Full Two-Way Accounting Sync | L | shipped v3.17.528–531 | extends Phase 27 + the AccountingConnection OAuth pattern; requested in GitHub #145 |
+| 44 — Full Two-Way Accounting Sync | L | shipped v3.17.531 | extends Phase 27 + the AccountingConnection OAuth pattern; requested in GitHub #145 |
 | 45 — System-wide Appearance Controls | S | shipped v3.17.527 | `SystemSetting` + existing per-user background fields |
 | 46 — Job Kit (tools + materials on a ticket) | M | shipped v3.17.533 | `inventory` + `psa.Ticket` |
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |

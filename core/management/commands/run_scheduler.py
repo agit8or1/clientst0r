@@ -112,7 +112,7 @@ class Command(BaseCommand):
             self.stdout.write(f"    PSA sync not available: {e}")
 
     def run_accounting_sync(self):
-        """Phase 44.3 (v3.17.530): two-way accounting sync.
+        """Phase 44.3 (v3.17.531): two-way accounting sync.
 
         Delegates to the management command so the systemd timer and the in-app
         scheduler run exactly the same code path.

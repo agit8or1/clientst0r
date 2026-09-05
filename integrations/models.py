@@ -1032,7 +1032,7 @@ class AccountingAuditLog(BaseModel):
         ('record_payment', 'Record Payment'),
         ('test_connection', 'Test Connection'),
         ('refresh_token', 'Refresh Token'),
-        # v3.17.528: `poll_balance` had been written since v3.17.280 without
+        # v3.17.531: `poll_balance` had been written since v3.17.280 without
         # being registered here, so those rows rendered with a blank label.
         ('poll_balance', 'Poll Invoice Balance'),
         ('push_customer', 'Push Customer'),
@@ -1080,7 +1080,7 @@ class AccountingAuditLog(BaseModel):
 
 
 class AccountingCustomerLink(BaseModel):
-    """Phase 44.1 (v3.17.528): which provider customer an organization maps to.
+    """Phase 44.1 (v3.17.531): which provider customer an organization maps to.
 
     This mapping used to live as a `customer_map` dict inside the connection's
     encrypted credentials blob. That made it invisible to queries, absent from

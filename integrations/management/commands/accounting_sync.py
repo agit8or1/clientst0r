@@ -1,5 +1,5 @@
 """
-Phase 44.3 (v3.17.530): the accounting sync job that actually gets scheduled.
+Phase 44.3 (v3.17.531): the accounting sync job that actually gets scheduled.
 
 Supersedes `accounting_sync_payments`, which inferred payment from an invoice
 balance and — despite calling itself a cron in its own docstring — was never
@@ -84,7 +84,7 @@ class Command(BaseCommand):
                     lambda: sync_invoice_state(connection, provider,
                                                dry_run=dry_run), dry_run)
 
-            # v3.17.530: these three fields have existed since the model was
+            # v3.17.531: these three fields have existed since the model was
             # created and were never written, so the connections page rendered
             # "Never" no matter how often the sync ran.
             connection.last_sync_at = timezone.now()

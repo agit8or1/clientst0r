@@ -3383,7 +3383,7 @@ def accounting_delete(request, pk):
 @user_passes_test(lambda u: u.is_superuser or u.is_staff)
 @require_POST
 def accounting_sync_now(request, pk):
-    """Phase 44.3 (v3.17.530): run the sync on demand.
+    """Phase 44.3 (v3.17.531): run the sync on demand.
 
     The RMM and PSA connection pages have had a sync action for releases; the
     accounting page never did, so the only way to pull anything was a shell.
@@ -3419,7 +3419,7 @@ def accounting_sync_now(request, pk):
 @login_required
 @user_passes_test(lambda u: u.is_superuser or u.is_staff)
 def accounting_customers(request, pk):
-    """Phase 44.1 (v3.17.528): the customer mapping, now that it is queryable.
+    """Phase 44.1 (v3.17.531): the customer mapping, now that it is queryable.
 
     Before this the organization -> provider-customer map was a dict inside the
     connection's encrypted credentials, so there was nothing to show. It is now

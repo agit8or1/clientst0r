@@ -5,6 +5,44 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.539] - 2026-09-05
+
+### Fix: three more releases recorded against versions that were never released
+
+v3.17.537 corrected Phase 46, which had been recorded against a non-existent
+v3.17.532. That fix was too narrow. The same thing had happened to Phase 44, and
+worse: sub-phases 44.1, 44.2 and 44.3 were annotated `(shipped v3.17.528)`,
+`(v3.17.529)` and `(v3.17.530)`, and none of those three versions exists either —
+no CHANGELOG entry, no tag.
+
+All four accounting sub-phases went out together in **v3.17.531**, whose entry
+covers 44.1 through 44.4 in one release. The sub-phases had been developed
+against sequential numbers and the numbers were never reconciled when the work
+shipped as a single version. `docs/ROADMAP.md` compounded it by describing the
+phase as "delivered across four sub-phases (v3.17.528–531)", a range three
+quarters of which never existed.
+
+Corrected in 30 places across 15 files:
+
+- **`docs/ROADMAP.md`** — three sub-phase annotations, the "delivered across"
+  sentence (now "delivered as four sub-phases, all released together in
+  v3.17.531"), the sizing-table row, and a Phase 27 cross-reference.
+- **Code comments and docstrings** in `integrations/` (providers, services,
+  models, views, urls, both management commands, the customer-map migration and
+  the Phase 44 tests), plus `core/models.py`, `core/management/commands/run_scheduler.py`
+  and `psa/models.py`.
+- **`templates/psa/ticket_detail.html`** — one v3.17.532 reference the previous
+  sweep missed because it only covered `.py` and `.md`.
+
+The Phase 44 header itself was already correct at `[shipped — v3.17.531]`, so
+`/core/roadmap.json` was reporting the right version for this phase; the damage
+was confined to the sub-phase bullets and comments, which the JSON feed does not
+publish. Phase 46's header was the one the feed had wrong, and that was fixed in
+v3.17.537.
+
+Comments, documentation and one template comment only — the diff touches no
+executable line. No migrations, no mobile rebuild.
+
 ## [3.17.538] - 2026-09-05
 
 ### Phase 40.1 — the uptime history the status page was going to be built on

@@ -1,5 +1,5 @@
 """
-Phase 44.1 (v3.17.528): lift the customer map out of the credentials blob.
+Phase 44.1 (v3.17.531): lift the customer map out of the credentials blob.
 
 Existing mappings live inside `AccountingConnection.encrypted_credentials` —
 as `customer_map` for QuickBooks Online and `contact_map` for Xero. Copy each

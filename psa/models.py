@@ -2811,7 +2811,7 @@ class Invoice(models.Model):
                   'local calculation) to detect drift.',
     )
 
-    # Phase 44.2 (v3.17.529): what the provider currently says this invoice is,
+    # Phase 44.2 (v3.17.531): what the provider currently says this invoice is,
     # read back by the sync rather than captured at push time.
     #
     # The total is recorded, not applied. Our `total` is derived from line items,
@@ -3171,7 +3171,7 @@ class Payment(models.Model):
                   'bank statement.',
     )
 
-    # Phase 44.2 (v3.17.529): which provider payment this row came from.
+    # Phase 44.2 (v3.17.531): which provider payment this row came from.
     # Before this, inbound payments were *inferred* from an invoice balance of
     # zero and written with today's date and method 'other', with nothing tying
     # the row to the real payment. Storing the id makes the sync idempotent and

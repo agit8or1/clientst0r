@@ -1042,7 +1042,7 @@ class ScheduledTask(models.Model):
         # percentages are computed from — the highest-volume table in the app.
         ('prune_monitor_checks', 'Prune Website Check History'),
         ('psa_sync', 'PSA Synchronization'),
-        # Phase 44.3 (v3.17.530). A systemd timer is also shipped; this
+        # Phase 44.3 (v3.17.531). A systemd timer is also shipped; this
         # entry is for installs that run the in-app scheduler instead.
         ('accounting_sync', 'Accounting Sync (QuickBooks Online / Xero)'),
         ('rmm_sync', 'RMM Synchronization'),

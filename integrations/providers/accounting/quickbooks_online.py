@@ -155,7 +155,7 @@ class QuickBooksOnlineProvider(BaseAccountingProvider):
         return self._request_with_retry(send, method=method,
                                         on_auth_failure=force_refresh)
 
-    # ---- Customers (Phase 44.1, v3.17.528) ---------------------------------
+    # ---- Customers (Phase 44.1, v3.17.531) ---------------------------------
 
     def customer_payload(self, client_org) -> Dict[str, Any]:
         """Everything QBO will accept, not just the name.
@@ -212,7 +212,7 @@ class QuickBooksOnlineProvider(BaseAccountingProvider):
     def _ensure_customer(self, client_org) -> str:
         """Find, match or create the QBO customer for `client_org`.
 
-        v3.17.528: reads and writes AccountingCustomerLink rather than a dict
+        v3.17.531: reads and writes AccountingCustomerLink rather than a dict
         inside the encrypted credentials blob, and sends the full customer
         payload on create instead of a bare DisplayName.
         """
@@ -453,7 +453,7 @@ class QuickBooksOnlineProvider(BaseAccountingProvider):
         invoice = payment.invoice
         if not invoice.accounting_external_id:
             return {'skipped': True, 'reason': 'invoice not yet pushed'}
-        # v3.17.528: reads the link row, not the credentials blob.
+        # v3.17.531: reads the link row, not the credentials blob.
         link = self._link_for(invoice.client_org)
         if link is None:
             return {'skipped': True, 'reason': 'customer not mapped'}
@@ -493,7 +493,7 @@ class QuickBooksOnlineProvider(BaseAccountingProvider):
         )
         return {'success': True, 'payment_id': ext_id}
 
-    # ---- Real pull (Phase 44.2, v3.17.529) ---------------------------------
+    # ---- Real pull (Phase 44.2, v3.17.531) ---------------------------------
 
     def fetch_payments(self, since=None, limit: int = 500) -> Dict[str, Any]:
         """Read QBO Payment records, with the invoices each one settles.

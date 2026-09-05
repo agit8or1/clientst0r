@@ -192,7 +192,7 @@ class XeroProvider(BaseAccountingProvider):
     def _ensure_contact(self, client_org) -> str:
         """Find, match or create the Xero contact for `client_org`.
 
-        v3.17.528: shares AccountingCustomerLink with QBO instead of keeping a
+        v3.17.531: shares AccountingCustomerLink with QBO instead of keeping a
         `contact_map` dict inside the encrypted credentials blob.
         """
         link = self._link_for(client_org)

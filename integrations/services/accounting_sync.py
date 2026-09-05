@@ -1,5 +1,5 @@
 """
-Phase 44.2 (v3.17.529): pull payments and invoice state from the accounting
+Phase 44.2 (v3.17.531): pull payments and invoice state from the accounting
 system, for real.
 
 What this replaces
