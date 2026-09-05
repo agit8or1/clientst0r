@@ -856,6 +856,22 @@ class Project(models.Model):
     is_billable = models.BooleanField(default=True)
     estimated_hours = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
 
+    # Phase 35.2 (v3.17.549) — budget. Separate from `estimated_hours`, which
+    # is what the work was thought to take; a budget is what it is allowed to
+    # take, and the two are routinely different numbers agreed by different
+    # people.
+    budget_hours = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        help_text='Hours this project is allowed to consume. Leave empty for '
+                  'no hours budget.')
+    budget_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text='Money this project is allowed to consume. Leave empty for '
+                  'no monetary budget.')
+    budget_warn_at_percent = models.PositiveIntegerField(
+        default=80,
+        help_text='Percentage of budget at which the project reads as at risk.')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -888,6 +904,97 @@ class Project(models.Model):
 # ---------------------------------------------------------------------------
 # Recurring tickets (preventive maintenance) — Workstream 1 queued item
 # ---------------------------------------------------------------------------
+
+    # ----- Phase 35.2 (v3.17.549): budget vs actuals -----------------------
+
+    def actual_minutes(self, *, billable_only=False):
+        """Minutes logged against this project's tickets.
+
+        Time is recorded on tickets, not on project tasks, so this is the only
+        place actuals can come from.
+        """
+        entries = TicketTimeEntry.objects.filter(ticket__project=self)
+        if billable_only:
+            entries = entries.filter(is_billable=True)
+        total = entries.aggregate(
+            total=models.Sum('duration_minutes'))['total']
+        return total or 0
+
+    def actual_hours(self, *, billable_only=False):
+        from decimal import Decimal
+        minutes = self.actual_minutes(billable_only=billable_only)
+        return (Decimal(minutes) / Decimal(60)).quantize(Decimal('0.01'))
+
+    def billing_rate(self):
+        """Hourly rate from the client's active contract, or None.
+
+        None means "not known", and callers must not substitute zero. A
+        project reporting £0 spent because nobody recorded a rate reads as
+        under budget when the truth is that it has not been measured.
+        """
+        contract = Contract.objects.filter(
+            client_org=self.client_org or self.organization,
+            status='active',
+        ).order_by('-start_date').first()
+        if contract and contract.hourly_rate:
+            return contract.hourly_rate
+        return None
+
+    def actual_amount(self):
+        """Billable hours times the contract rate, or None when no rate is
+        known."""
+        rate = self.billing_rate()
+        if rate is None:
+            return None
+        from decimal import Decimal
+        return (self.actual_hours(billable_only=True)
+                * Decimal(str(rate))).quantize(Decimal('0.01'))
+
+    def _percent_of(self, actual, budget):
+        if not budget or actual is None:
+            return None
+        from decimal import Decimal
+        return float(
+            (Decimal(str(actual)) / Decimal(str(budget)) * 100).quantize(
+                Decimal('0.1')))
+
+    def hours_budget_percent(self):
+        return self._percent_of(self.actual_hours(), self.budget_hours)
+
+    def amount_budget_percent(self):
+        return self._percent_of(self.actual_amount(), self.budget_amount)
+
+    def budget_state(self):
+        """`no_budget` / `ok` / `warning` / `over`.
+
+        Worst of the two budgets wins: a project inside its hours but over its
+        money is over, and saying otherwise would be the more comfortable
+        answer rather than the true one.
+        """
+        percents = [p for p in (self.hours_budget_percent(),
+                                self.amount_budget_percent()) if p is not None]
+        if not percents:
+            return 'no_budget'
+        worst = max(percents)
+        if worst >= 100:
+            return 'over'
+        if worst >= (self.budget_warn_at_percent or 80):
+            return 'warning'
+        return 'ok'
+
+    def budget_summary(self):
+        """Everything the project page needs, in one call."""
+        return {
+            'state': self.budget_state(),
+            'hours_actual': self.actual_hours(),
+            'hours_billable': self.actual_hours(billable_only=True),
+            'hours_budget': self.budget_hours,
+            'hours_percent': self.hours_budget_percent(),
+            'amount_actual': self.actual_amount(),
+            'amount_budget': self.budget_amount,
+            'amount_percent': self.amount_budget_percent(),
+            'rate': self.billing_rate(),
+        }
 
 class RecurringTicketSchedule(models.Model):
     """

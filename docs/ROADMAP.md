@@ -759,10 +759,16 @@ Planned capabilities:
 - **Template tasks carry an offset, not a date** — a template is used in March and again in November, and a stored date would be wrong both times. `0` means the project's start date and is deliberately distinct from "no date". *(shipped v3.17.548)*
 - **Applying appends rather than replaces**, so a template dropped onto a project that already has work does not delete it. Nested tasks keep their parent through the copy.  *(shipped v3.17.548)*
 
+### Sub-phase 35.2 — Budget tracking *(shipped v3.17.549)*
+- **`Project.budget_hours` / `budget_amount` / `budget_warn_at_percent`** — a budget is what the work is *allowed* to take, deliberately separate from `estimated_hours`, which is what it was *thought* to take. They are routinely different numbers agreed by different people. *(shipped v3.17.549)*
+- **Actuals come from time logged on the project's tickets**, since that is the only place time is recorded. Billable and total are tracked separately. *(shipped v3.17.549)*
+- **An unknown amount is reported as unknown, never as zero.** Spend needs an hourly rate from the client's active contract; without one `actual_amount()` returns `None` and the page says so. A project showing no spend because nobody recorded a rate reads as comfortably under budget when the truth is that it has not been measured. *(shipped v3.17.549)*
+- **Worst of the two budgets wins.** A project inside its hours but over its money is over — saying otherwise would be the comfortable answer rather than the true one. An unmeasurable money budget does not mask a breached hours budget. *(shipped v3.17.549)*
+
 Remaining planned capabilities:
 - **Project templates** *(shipped v3.17.548 — see 35.1)*
 - Project phases and milestones *(milestones partial — `ProjectTask.is_milestone` flag exists)*
-- Project budget tracking — hours budget + dollar budget vs. actuals
+- **Project budget tracking** *(shipped v3.17.549 — see 35.2)*
 - Project profitability *(extends Phase 3.2 contract profitability with project-scoped breakdown)*
 - Project-to-ticket task generation *(partial — quote line items already become ProjectTasks per v3.17.213; this phase makes any ProjectTask spawnable as a Ticket on demand)*
 - Project billing support — project-bundled invoice generation, fixed-fee vs. T&M handling, milestone billing triggers

@@ -41,6 +41,63 @@
         {% endif %}
     </div>
     <div class="col-md-8">
+        {# Phase 35.2 (v3.17.549) — budget vs actuals. #}
+        {% if budget.state != 'no_budget' %}
+        <div class="card mb-3">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <strong>Budget</strong>
+                {% if budget.state == 'over' %}
+                    <span class="badge bg-danger">Over budget</span>
+                {% elif budget.state == 'warning' %}
+                    <span class="badge bg-warning text-dark">Approaching budget</span>
+                {% else %}
+                    <span class="badge bg-success">Within budget</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="row small">
+                    {% if budget.hours_budget %}
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Hours</span>
+                            <span>
+                                {{ budget.hours_actual }} / {{ budget.hours_budget }}
+                                {% if budget.hours_percent %}<span class="text-muted">({{ budget.hours_percent }}%)</span>{% endif %}
+                            </span>
+                        </div>
+                        <div class="progress mt-1" style="height: 6px;">
+                            <div class="progress-bar {% if budget.state == 'over' %}bg-danger{% elif budget.state == 'warning' %}bg-warning{% endif %}"
+                                 style="width: {% if budget.hours_percent %}{% if budget.hours_percent > 100 %}100{% else %}{{ budget.hours_percent }}{% endif %}{% else %}0{% endif %}%"></div>
+                        </div>
+                        <div class="text-muted mt-1">{{ budget.hours_billable }} h billable</div>
+                    </div>
+                    {% endif %}
+
+                    {% if budget.amount_budget %}
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Amount</span>
+                            <span>
+                                {% if budget.amount_actual is not None %}
+                                    {{ budget.amount_actual }} / {{ budget.amount_budget }}
+                                    {% if budget.amount_percent %}<span class="text-muted">({{ budget.amount_percent }}%)</span>{% endif %}
+                                {% else %}
+                                    <span class="text-muted">— / {{ budget.amount_budget }}</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% if budget.amount_actual is None %}
+                        <div class="text-muted mt-1">
+                            No hourly rate on this client's active contract, so spend cannot
+                            be calculated. Showing nothing rather than zero.
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>Tasks &amp; milestones</strong>

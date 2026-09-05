@@ -1933,6 +1933,20 @@ def project_form(request, pk=None):
             item.estimated_hours = request.POST.get('estimated_hours') or None
         except (TypeError, ValueError):
             item.estimated_hours = None
+        # Phase 35.2 (v3.17.549) — budget. Blank clears the budget; 0 is a
+        # real (if unusual) budget and is kept, so `.strip()` decides rather
+        # than falsiness.
+        for field in ('budget_hours', 'budget_amount'):
+            raw = (request.POST.get(field) or '').strip()
+            try:
+                setattr(item, field, raw if raw else None)
+            except (TypeError, ValueError):
+                setattr(item, field, None)
+        warn_raw = (request.POST.get('budget_warn_at_percent') or '').strip()
+        try:
+            item.budget_warn_at_percent = max(1, min(int(warn_raw), 100)) if warn_raw else 80
+        except (TypeError, ValueError):
+            item.budget_warn_at_percent = 80
         client_org_id = request.POST.get('client_org') or ''
         if client_org_id:
             item.client_org = Organization.objects.filter(pk=client_org_id).first()
@@ -1994,6 +2008,8 @@ def project_detail(request, pk):
         'can_assign': can_assign,
         'eligible_assignees': eligible_assignees,
         'project_templates': templates,
+        # Phase 35.2 (v3.17.549) — budget vs actuals.
+        'budget': item.budget_summary(),
     })
 
 

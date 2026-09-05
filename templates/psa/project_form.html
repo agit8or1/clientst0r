@@ -57,6 +57,26 @@
                 <label class="form-label">Estimated hours</label>
                 <input type="number" step="0.25" name="estimated_hours" class="form-control"
                        value="{{ item.estimated_hours|default:'' }}">
+                <div class="form-text">What the work is thought to take.</div>
+            </div>
+            {# Phase 35.2 (v3.17.549) — budget is what it is allowed to take,
+               which is a different number agreed by different people. #}
+            <div class="col-md-4">
+                <label class="form-label">Budget — hours</label>
+                <input type="number" step="0.25" min="0" name="budget_hours" class="form-control"
+                       value="{{ item.budget_hours|default:'' }}">
+                <div class="form-text">Blank for no hours budget.</div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Budget — amount</label>
+                <input type="number" step="0.01" min="0" name="budget_amount" class="form-control"
+                       value="{{ item.budget_amount|default:'' }}">
+                <div class="form-text">Blank for no monetary budget.</div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Warn at (% of budget)</label>
+                <input type="number" min="1" max="100" name="budget_warn_at_percent"
+                       class="form-control" value="{{ item.budget_warn_at_percent|default:80 }}">
             </div>
             <div class="col-md-4">
                 <label class="form-label">Start date</label>

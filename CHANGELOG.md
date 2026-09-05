@@ -5,6 +5,50 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.549] - 2026-09-05
+
+### Phase 35.2 — project budgets
+
+`Project` gains `budget_hours`, `budget_amount` and `budget_warn_at_percent`.
+
+**A budget is not an estimate**, which is why these are separate fields from the
+existing `estimated_hours`. An estimate is what the work was thought to take; a
+budget is what it is allowed to take. They are routinely different numbers,
+agreed by different people, and collapsing them would lose whichever one was
+entered second.
+
+**Actuals come from time logged against the project's tickets** — the only place
+time is recorded in this system. Billable and total hours are tracked separately,
+because the two answer different questions.
+
+**An unknown amount is reported as unknown, never as zero.** Spend needs an hourly
+rate, which comes from the client's active contract. Without one,
+`actual_amount()` returns `None` and the project page says why instead of
+printing a number. This matters more than it sounds: a project showing no spend
+because nobody recorded a rate reads as comfortably under budget, when the truth
+is that it has not been measured at all. Same principle as the status page's "no
+data" uptime in v3.17.538.
+
+**Worst of the two budgets wins.** A project inside its hours but over its money
+is over budget. Reporting the kinder of the two would be choosing the comfortable
+answer over the true one. An amount that cannot be measured is excluded from that
+comparison rather than treated as fine, so an unmeasurable money budget never
+masks a breached hours budget.
+
+The form parses blank as "no budget" via `.strip()` rather than falsiness, so a
+submitted `0` — an unusual but real budget — is kept rather than read as unset.
+Third instance of that class of bug this session; the first two had to be found
+by tests.
+
+**One bug in the tests themselves, worth recording:** the ticket fixture took
+`project=None` as its default and then did `project if project is not None else
+self.project`, so a test asking for a ticket with *no* project silently got one
+with the project attached. It now uses a sentinel. The test was written to catch
+exactly this conflation in the code under test and fell into it itself.
+
+19 new tests; full `psa` suite green. Migration:
+`psa.0064_project_budget_amount_project_budget_hours_and_more`.
+
 ## [3.17.548] - 2026-09-05
 
 ### Phase 35.1 — project templates
