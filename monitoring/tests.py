@@ -29,6 +29,7 @@ from core.models import Organization
 from monitoring.models import (
     Expiration,
     IPAddress,
+    MonitorCheck,
     Subnet,
     VLAN,
     WebsiteMonitor,
@@ -416,3 +417,140 @@ class RackConnectionCreateViewTests(TestCase):
         self.assertTrue(
             RackConnection.objects.filter(from_device=self.switch).exists()
         )
+
+
+# ---------------------------------------------------------------------------
+# Phase 40.1 (v3.17.538) — check history + uptime
+# ---------------------------------------------------------------------------
+
+class MonitorCheckUptimeTests(TestCase):
+    """Uptime is derived from MonitorCheck rows, not stored."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.org = Organization.objects.create(name='UptimeCo', slug='uptime-co')
+        cls.monitor = WebsiteMonitor.objects.create(
+            organization=cls.org, name='Public site', url='https://example.com',
+        )
+
+    def _check(self, status, days_ago=0, hours_ago=0):
+        return MonitorCheck.objects.create(
+            monitor=self.monitor,
+            checked_at=timezone.now() - timedelta(days=days_ago, hours=hours_ago),
+            status=status,
+        )
+
+    def test_no_checks_gives_none_not_zero(self):
+        """A monitor with no history has unknown uptime. Reporting 0% would
+        read as a total outage and 100% as a clean record; both are wrong."""
+        result = self.monitor.uptime(30)
+        self.assertIsNone(result['percent'])
+        self.assertEqual(result['checks'], 0)
+
+    def test_all_up_is_100(self):
+        for h in range(4):
+            self._check('active', hours_ago=h)
+        self.assertEqual(self.monitor.uptime(30)['percent'], 100.0)
+
+    def test_down_checks_reduce_percentage(self):
+        for h in range(9):
+            self._check('active', hours_ago=h)
+        self._check('down', hours_ago=9)
+        result = self.monitor.uptime(30)
+        self.assertEqual(result['checks'], 10)
+        self.assertEqual(result['up'], 9)
+        self.assertEqual(result['down'], 1)
+        self.assertEqual(result['percent'], 90.0)
+
+    def test_warning_counts_as_up(self):
+        """A redirect or an expiring certificate means the site answered.
+        Counting it as an outage would make the status page cry wolf."""
+        self._check('active', hours_ago=1)
+        self._check('warning', hours_ago=2)
+        self.assertEqual(self.monitor.uptime(30)['percent'], 100.0)
+
+    def test_window_excludes_older_checks(self):
+        self._check('down', days_ago=40)
+        self._check('active', hours_ago=1)
+        thirty = self.monitor.uptime(30)
+        self.assertEqual(thirty['checks'], 1)
+        self.assertEqual(thirty['percent'], 100.0)
+        ninety = self.monitor.uptime(90)
+        self.assertEqual(ninety['checks'], 2)
+        self.assertEqual(ninety['percent'], 50.0)
+
+    def test_uptime_is_per_monitor(self):
+        other = WebsiteMonitor.objects.create(
+            organization=self.org, name='Other', url='https://other.example.com',
+        )
+        MonitorCheck.objects.create(
+            monitor=other, checked_at=timezone.now(), status='down',
+        )
+        self._check('active', hours_ago=1)
+        self.assertEqual(self.monitor.uptime(30)['percent'], 100.0)
+        self.assertEqual(other.uptime(30)['percent'], 0.0)
+
+    def test_is_up_property(self):
+        self.assertTrue(self._check('active').is_up)
+        self.assertTrue(self._check('warning').is_up)
+        self.assertFalse(self._check('down').is_up)
+
+    def test_checks_cascade_with_monitor(self):
+        self._check('active')
+        doomed = WebsiteMonitor.objects.create(
+            organization=self.org, name='Doomed', url='https://doomed.example.com',
+        )
+        MonitorCheck.objects.create(
+            monitor=doomed, checked_at=timezone.now(), status='active',
+        )
+        doomed.delete()
+        self.assertEqual(MonitorCheck.objects.count(), 1)
+
+
+class PruneMonitorChecksTests(TestCase):
+    """The retention command keeps the window and drops the rest."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.org = Organization.objects.create(name='PruneCo', slug='prune-co')
+        cls.monitor = WebsiteMonitor.objects.create(
+            organization=cls.org, name='Site', url='https://example.com',
+        )
+
+    def _seed(self):
+        for days in (500, 450, 300, 10, 0):
+            MonitorCheck.objects.create(
+                monitor=self.monitor,
+                checked_at=timezone.now() - timedelta(days=days),
+                status='active',
+            )
+
+    def test_prune_removes_only_rows_past_retention(self):
+        from django.core.management import call_command
+        from io import StringIO
+        self._seed()
+        call_command('prune_monitor_checks', '--days', '400', stdout=StringIO())
+        remaining = MonitorCheck.objects.count()
+        self.assertEqual(remaining, 3)  # 300, 10, 0 days old survive
+
+    def test_dry_run_deletes_nothing(self):
+        from django.core.management import call_command
+        from io import StringIO
+        self._seed()
+        out = StringIO()
+        call_command('prune_monitor_checks', '--days', '400', '--dry-run', stdout=out)
+        self.assertEqual(MonitorCheck.objects.count(), 5)
+        self.assertIn('dry-run', out.getvalue())
+
+    def test_default_retention_keeps_a_full_year(self):
+        """400 days by default, so a 365-day uptime figure stays computable
+        right up to the moment the prune runs."""
+        from django.core.management import call_command
+        from io import StringIO
+        MonitorCheck.objects.create(
+            monitor=self.monitor,
+            checked_at=timezone.now() - timedelta(days=364),
+            status='active',
+        )
+        call_command('prune_monitor_checks', stdout=StringIO())
+        self.assertEqual(MonitorCheck.objects.count(), 1)

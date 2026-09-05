@@ -1,12 +1,17 @@
 """
 Monitoring Models - Website/SSL monitoring, Expiration tracking, Rack Management, IPAM
 """
+import logging
+from datetime import timedelta
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
 from core.models import Organization, BaseModel
 from core.utils import OrganizationManager
 from assets.models import Asset
+
+logger = logging.getLogger(__name__)
 
 
 class WebsiteMonitor(BaseModel):
@@ -246,6 +251,95 @@ class WebsiteMonitor(BaseModel):
 
         # Save the updated monitor
         self.save()
+
+        # Phase 40.1 (v3.17.538) — append the result to the check history that
+        # uptime percentages are computed from. Wrapped because a failure to
+        # record history must never turn a successful check into a failed one:
+        # the live status on the monitor is the thing that matters, and it has
+        # already been saved above.
+        try:
+            MonitorCheck.objects.create(
+                monitor=self,
+                checked_at=self.last_checked_at or timezone.now(),
+                status=self.status,
+                status_code=self.last_status_code,
+                response_time_ms=self.last_response_time_ms,
+                error=(self.last_error or '')[:1000],
+            )
+        except Exception:
+            logger.exception('Could not record MonitorCheck for monitor %s', self.pk)
+
+    # --- Phase 40.1 (v3.17.538): uptime, computed from MonitorCheck ---
+
+    def uptime(self, days: int = 30):
+        """Uptime over the trailing `days`, as a dict.
+
+        Returns `{checks, up, down, percent, since}`. `percent` is None when
+        there are no checks in the window — a monitor added yesterday has no
+        90-day uptime, and rendering that as 0% or 100% would both be lies.
+
+        A check counts as up unless its status is `down`. `warning` (a
+        redirect, an expiring certificate) means the site answered, and a
+        status page that showed a redirect as an outage would cry wolf.
+        """
+        from django.utils import timezone as tz
+        since = tz.now() - timedelta(days=days)
+        rows = self.checks.filter(checked_at__gte=since)
+        total = rows.count()
+        if not total:
+            return {'checks': 0, 'up': 0, 'down': 0, 'percent': None, 'since': since}
+        down = rows.filter(status='down').count()
+        up = total - down
+        return {
+            'checks': total,
+            'up': up,
+            'down': down,
+            'percent': round(up * 100.0 / total, 3),
+            'since': since,
+        }
+
+
+class MonitorCheck(models.Model):
+    """Phase 40.1 (v3.17.538): one recorded result of a website check.
+
+    `WebsiteMonitor` carries only the *current* state — status, last code, last
+    response time. That is all the dashboard needed, but a status page has to
+    answer "what was uptime over the last 90 days", and nothing was keeping the
+    history to answer it from. This model is that history.
+
+    Deliberately not a `BaseModel`: a check row is written once and never
+    updated, so `updated_at` would be dead weight on the highest-volume table
+    in the app. A monitor on the default hourly interval writes ~8,760 rows a
+    year; one on a five-minute interval writes ~105,000. `prune_monitor_checks`
+    exists for that reason.
+
+    Uptime is computed from these rows rather than stored as a running figure,
+    so changing the retention window or backfilling a gap cannot leave a
+    counter that disagrees with the data behind it.
+    """
+    monitor = models.ForeignKey(
+        WebsiteMonitor, on_delete=models.CASCADE, related_name='checks')
+    checked_at = models.DateTimeField(db_index=True)
+    status = models.CharField(max_length=20, choices=WebsiteMonitor.STATUS_CHOICES)
+    status_code = models.PositiveIntegerField(null=True, blank=True)
+    response_time_ms = models.PositiveIntegerField(null=True, blank=True)
+    error = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'monitoring_monitor_checks'
+        ordering = ['-checked_at']
+        indexes = [
+            # Every read is "this monitor, this window", newest first.
+            models.Index(fields=['monitor', '-checked_at'],
+                         name='monchk_monitor_time_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.monitor_id} {self.status} @ {self.checked_at:%Y-%m-%d %H:%M}'
+
+    @property
+    def is_up(self):
+        return self.status != 'down'
 
 
 class Expiration(BaseModel):

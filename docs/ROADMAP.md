@@ -805,18 +805,32 @@ Dependencies: Phase 9 (security data), vault, monitoring/, psa (SLA history), as
 
 **Goal:** Reduce the "audit prep" interrupt to a button-press. The data is already in the system; this phase wraps it in the standardized export shape auditors expect.
 
-## Phase 40 — Public / Client-Facing Status Page **(M)** [planned]
+## Phase 40 — Public / Client-Facing Status Page **(M)** [in progress]
 
 Public or per-client-private status page surfacing current service status, scheduled maintenance, incident history, and uptime. Sourced from the WebsiteMonitor + ticket-incident infrastructure already in place.
 
-Planned capabilities:
-- **Client-visible service status** — green / degraded / outage indicator per service the MSP runs for the client; sourced from the existing monitoring app + recent incident tickets
-- **Maintenance windows** — scheduled-maintenance posts with start/end + affected services; scheduled in advance so the page shows them as upcoming
-- **Incident history** — each incident is a ticket with `is_status_page = True`; rendered as a timeline with updates, root cause, and resolution
-- **Uptime history** — 30 / 90 / 365 day uptime percentage per monitored service, sourced from `WebsiteMonitor` history
-- **Optional per-client private status pages** — each client gets their own URL gated by client-portal auth; alternative: a single fully-public page for MSPs that want to broadcast status to all customers + prospects
+**Correction (v3.17.538):** this phase was written assuming uptime could be read from "`WebsiteMonitor` history". There was no such history — `WebsiteMonitor` stored only the *current* status, last response code and last check time, and nothing recorded what any earlier check returned. Uptime percentages were therefore not computable from existing data at all, and Sub-phase 40.1 exists to build the missing history. A consequence worth stating plainly: **uptime figures start accumulating from the v3.17.538 deploy**, not retroactively, so a 365-day figure is not available until a year after that.
 
-Dependencies: `monitoring/` app (uptime data), `psa.Ticket` (incident history with new `is_status_page` flag).
+### Sub-phase 40.1 — Check history + uptime *(shipped v3.17.538)*
+- **`monitoring.MonitorCheck`** — append-only row per website check: monitor, `checked_at`, status, HTTP code, response time, error. Written by `WebsiteMonitor.check_status()` inside a guard, so a failure to record history can never turn a successful check into a failed one. *(shipped v3.17.538)*
+- **`WebsiteMonitor.uptime(days)`** — computed from those rows rather than stored, so changing retention or backfilling a gap cannot leave a counter disagreeing with the data behind it. Returns `percent=None` for a window with no checks, because 0% reads as a total outage and 100% as a clean record and both would be lies. `warning` counts as up — a redirect or an expiring certificate means the site answered. *(shipped v3.17.538)*
+- **`prune_monitor_checks`** — retention command, default 400 days. This is the highest-volume table in the app (~105,000 rows/year for a monitor on a five-minute interval). 400 rather than 365 so a full-year figure stays computable right up to the moment the prune runs. Deletes in batches so a big backlog doesn't hold one long transaction against the table the checker is appending to. *(shipped v3.17.538)*
+
+### Sub-phase 40.2 — The page itself *(planned)*
+- `StatusPage` model — off by default, reached by a random token in the URL rather than a guessable id, rotatable, following the Phase 47 wallboard's disclosure rules.
+- `StatusPageService` — which monitors appear, under what public-facing name. Publishing a monitor's internal name and URL to an anonymous page is not acceptable, so display names are explicit rather than inherited.
+- Public view rendering per-service status and 30 / 90 / 365-day uptime.
+
+### Sub-phase 40.3 — Maintenance windows *(planned)*
+- Scheduled-maintenance posts with start/end + affected services, shown as upcoming before they begin.
+
+### Sub-phase 40.4 — Incident history *(planned)*
+- Each incident is a ticket with `is_status_page = True`; rendered as a timeline with updates, root cause and resolution.
+
+### Sub-phase 40.5 — Per-client private pages *(planned)*
+- Each client gets their own URL gated by client-portal auth; the alternative single fully-public page stays available for MSPs broadcasting to customers and prospects.
+
+Dependencies: `monitoring/` app (uptime data — built in 40.1), `psa.Ticket` (incident history with new `is_status_page` flag).
 
 **Goal:** Take the "is anything broken?" call volume out of the queue by giving clients somewhere to look first.
 

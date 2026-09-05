@@ -5,6 +5,59 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.538] - 2026-09-05
+
+### Phase 40.1 — the uptime history the status page was going to be built on
+
+Phase 40 (public status page) lists "uptime history — 30 / 90 / 365 day uptime
+percentage per monitored service, sourced from `WebsiteMonitor` history". There
+is no `WebsiteMonitor` history. The model stores the *current* status, the last
+HTTP code, the last response time and the last check time; every check
+overwrites the one before it. Nothing has ever recorded what an earlier check
+returned, so uptime was not computable from existing data at all — not
+approximately, not at any window.
+
+This ships the missing half before the page that needs it.
+
+**`monitoring.MonitorCheck`** — one append-only row per check: monitor,
+`checked_at`, status, HTTP code, response time, error. Written at the end of
+`WebsiteMonitor.check_status()`, inside a `try` that logs and moves on. Recording
+history must never turn a successful check into a failed one; the live status is
+what matters and has already been saved by that point.
+
+Deliberately not a `BaseModel` — a check row is written once and never updated,
+so `updated_at` would be dead weight on what is now the highest-volume table in
+the app. A monitor on the default hourly interval writes ~8,760 rows a year; one
+on a five-minute interval writes ~105,000.
+
+**`WebsiteMonitor.uptime(days)`** returns `{checks, up, down, percent, since}`,
+computed from those rows rather than stored, so changing the retention window or
+backfilling a gap cannot leave a counter that disagrees with the data behind it.
+Two decisions worth stating:
+
+- **An empty window returns `percent=None`, not a number.** A monitor added
+  yesterday has no 90-day uptime. Rendering that as 0% reads as a total outage
+  and 100% as a clean record; both are lies, and a status page is the wrong
+  place to guess.
+- **`warning` counts as up.** A redirect or an expiring certificate means the
+  site answered. Only `down` is down. A status page that showed a 301 as an
+  outage would cry wolf until nobody read it.
+
+**`prune_monitor_checks`** — retention command, default 400 days rather than 365
+so a full-year figure stays computable right up to the moment the prune runs,
+instead of losing its oldest day the day before someone looks. Deletes in
+id-batches: a bare `.delete()` on a table this size holds one long transaction
+against the table the checker is trying to append to. Registered as a
+`prune_monitor_checks` scheduler task type alongside the existing jobs.
+
+**Consequence worth being explicit about:** uptime starts accumulating from this
+deploy. It is not retroactive, and a 365-day figure is not available until a year
+from now. The roadmap entry for Phase 40 has been corrected to say so, and the
+phase is now `[in progress]` with sub-phases 40.1–40.5 broken out.
+
+11 new tests. Migrations: `monitoring.0012_monitorcheck`,
+`core.0066_alter_scheduledtask_task_type`.
+
 ## [3.17.537] - 2026-09-05
 
 ### Fix: Phase 46 was recorded against a version that was never released

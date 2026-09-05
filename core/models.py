@@ -1038,6 +1038,9 @@ class ScheduledTask(models.Model):
         ('python_dep_scan', 'Python Dependency Vulnerability Scan'),
         ('system_warnings_digest', 'System Warnings Digest Email'),
         ('vault_password_expiry', 'Vault Password Expiry Notifications'),
+        # Phase 40.1 (v3.17.538). Trims the website check history that uptime
+        # percentages are computed from — the highest-volume table in the app.
+        ('prune_monitor_checks', 'Prune Website Check History'),
         ('psa_sync', 'PSA Synchronization'),
         # Phase 44.3 (v3.17.530). A systemd timer is also shipped; this
         # entry is for installs that run the in-app scheduler instead.

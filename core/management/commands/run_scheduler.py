@@ -85,6 +85,8 @@ class Command(BaseCommand):
             self.run_python_dep_scan()
         elif task.task_type == 'system_warnings_digest':
             self.run_system_warnings_digest()
+        elif task.task_type == 'prune_monitor_checks':
+            self.run_prune_monitor_checks()
         else:
             raise ValueError(f"Unknown task type: {task.task_type}")
 
@@ -92,6 +94,13 @@ class Command(BaseCommand):
         """Run website monitoring checks."""
         from django.core.management import call_command
         call_command('check_websites', verbosity=0)
+
+    def run_prune_monitor_checks(self):
+        """Phase 40.1 (v3.17.538): trim website check history to the retention
+        window. Delegates to the management command so the in-app scheduler and
+        a hand-run prune take exactly the same path."""
+        from django.core.management import call_command
+        call_command('prune_monitor_checks', verbosity=0)
 
     def run_psa_sync(self):
         """Run PSA synchronization."""
