@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Device lifecycle{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-hourglass-half"></i> Device lifecycle</h4>
+    <a href="{% url 'netconfig:device_list' %}" class="btn btn-link btn-sm">Config backups</a>
+</div>
+
+<p class="text-muted">
+    Network gear that is out of vendor support, or reaching end of life before
+    {{ horizon|date:"j M Y" }}. Out-of-support devices are listed first: a switch that
+    has stopped receiving security fixes is a different kind of problem from one due
+    for replacement next year.
+</p>
+
+{% if rows %}
+<div class="card">
+    <table class="table table-hover mb-0 align-middle">
+        <thead>
+            <tr>
+                <th>Device</th>
+                <th>Type</th>
+                <th>Firmware</th>
+                <th>End of life</th>
+                <th>End of support</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in rows %}
+            <tr>
+                <td><a href="{% url 'netconfig:device_detail' row.asset.pk %}">{{ row.asset.name }}</a></td>
+                <td class="text-muted">{{ row.asset.get_asset_type_display }}</td>
+                <td class="text-muted">{{ row.firmware|default:"—" }}</td>
+                <td>{{ row.eol|date:"j M Y"|default:"—" }}</td>
+                <td>{{ row.eos|date:"j M Y"|default:"—" }}</td>
+                <td>
+                    {% if row.out_of_support %}
+                        <span class="badge bg-danger">Out of support</span>
+                    {% elif row.eol_soon %}
+                        <span class="badge bg-warning text-dark">EOL within a year</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Dated</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-success">
+    No network device in scope is out of support or reaching end of life within a year.
+</div>
+{% endif %}
+{% endblock %}

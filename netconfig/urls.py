@@ -7,6 +7,8 @@ app_name = 'netconfig'
 
 urlpatterns = [
     path('', views.device_list, name='device_list'),
+    # Phase 34.4 (v3.17.547)
+    path('lifecycle/', views.lifecycle, name='lifecycle'),
     path('device/<int:asset_id>/', views.device_detail, name='device_detail'),
     path('device/<int:asset_id>/capture/', views.capture, name='capture'),
     path('device/<int:asset_id>/compare/', views.compare, name='compare'),

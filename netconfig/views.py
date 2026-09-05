@@ -82,6 +82,9 @@ def device_detail(request, asset_id):
         'head_stats': head_stats,
         'target': target,
         'blocking_reason': target.blocking_reason() if target else None,
+        # Phase 34.4 — firmware trail and lifecycle, newest first for reading.
+        'firmware_history': list(reversed(ConfigBackup.firmware_history(asset))),
+        'current_firmware': ConfigBackup.current_firmware(asset),
     })
 
 
@@ -282,3 +285,48 @@ def approve_baseline(request, backup_id):
         'this one, and a difference outside an approved change window raises '
         'an alert.')
     return redirect('netconfig:device_detail', asset_id=backup.asset_id)
+
+
+@login_required
+def lifecycle(request):
+    """Phase 34.4 (v3.17.547): network gear approaching or past its dates.
+
+    Sorted by urgency rather than name: out-of-support first, because a switch
+    that stopped receiving security fixes is a different kind of problem from
+    one due for replacement next year.
+    """
+    from datetime import date, timedelta as _td
+
+    horizon = date.today() + _td(days=365)
+    devices = list(_accessible_assets(request))
+
+    rows = []
+    for asset in devices:
+        eol = asset.get_end_of_life_date()
+        eos = asset.vendor_end_of_support
+        out_of_support = asset.is_out_of_support()
+        eol_soon = bool(eol and eol <= horizon)
+        eos_soon = bool(eos and eos <= horizon)
+        # Consistent on both dates: a device whose end-of-support is five
+        # years out is no more in need of attention than one whose
+        # end-of-life is, and listing it would dilute the page into an
+        # inventory of everything that happens to have a date on it.
+        if not (out_of_support or eol_soon or eos_soon):
+            continue
+        rows.append({
+            'asset': asset,
+            'eol': eol,
+            'eos': eos,
+            'out_of_support': out_of_support,
+            'eol_soon': eol_soon,
+            'eos_soon': eos_soon,
+            'firmware': ConfigBackup.current_firmware(asset),
+            # 0 sorts first.
+            'rank': 0 if out_of_support else (1 if eol_soon else 2),  # 0 sorts first
+        })
+    rows.sort(key=lambda r: (r['rank'], r['eos'] or r['eol'] or date.max))
+
+    return render(request, 'netconfig/lifecycle.html', {
+        'rows': rows,
+        'horizon': horizon,
+    })

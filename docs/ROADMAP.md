@@ -706,7 +706,7 @@ Dependencies: Phase 32 (token + import models — extend rather than replace), P
 
 **Goal:** Reduce manual network documentation work — keep the topology, switch port assignments, and device inventory in sync with reality without a tech having to redraw or re-export anything.
 
-## Phase 34 — Network Configuration Backup **(M)** [in progress]
+## Phase 34 — Network Configuration Backup **(M)** [complete]
 
 Versioned configuration backup for firewalls, switches, routers, and other manageable network gear. Treats device configs the same way the existing `Document` versioning treats KB articles — every change snapshotted, diffable, alertable.
 
@@ -737,8 +737,12 @@ Planned capabilities:
 - **No baseline means no drift.** Alerting before anybody has declared a known-good config would mean every device screams from its first capture, which trains people to ignore the alerts. *(shipped v3.17.546)*
 - **Unauthorized changes raise a `SecurityAlert`** at high severity on the Phase 9 dashboard, carrying the diff size and links back to the snapshot and baseline. A failure in the alert path is logged and swallowed — it must not lose the snapshot or fail the backup run that produced it. *(shipped v3.17.546)*
 
-### Sub-phase 34.4 — Firmware and lifecycle *(planned)*
-- Firmware version captured per snapshot is already stored; this sub-phase surfaces EOL transitions from it and extends the device record's lifecycle metadata.
+### Sub-phase 34.4 — Firmware and lifecycle *(shipped v3.17.547)*
+- **Firmware history derived from the snapshots** rather than stored separately, so it cannot disagree with them. Consecutive captures reporting the same version collapse into one entry — a device on one firmware for a year is one row, not 365 — and a snapshot with no firmware reported is skipped rather than shown as a transition to "nothing". *(shipped v3.17.547)*
+- **`Asset.vendor_end_of_life` / `vendor_end_of_support`** — the vendor's announced dates, which have nothing to do with when you bought the thing. A model's last day of support is the same date whether it was racked in 2019 or bought refurbished last month, so it cannot be derived from purchase date plus lifespan the way the existing estimate is. `get_end_of_life_date()` now prefers a published date over the arithmetic. *(shipped v3.17.547)*
+- **Lifecycle view** listing network gear that is out of vendor support or reaching either date within a year, out-of-support first: a switch no longer receiving security fixes is a different kind of problem from one due for replacement next year. *(shipped v3.17.547)*
+
+✅ **Phase 34 complete at v3.17.547.** Shipped across four sub-phases (v3.17.544–547). The stated Phase 33 dependency turned out not to block it — `assets.Asset` already carries the network-gear types, so the device list had a source without waiting for discovery.
 
 Dependencies: Phase 33 (device inventory provides the target list) — **not blocking**: 34.1 targets `assets.Asset` rows already typed as switch / router / firewall / load balancer / wireless AP or controller / modem / gateway / bridge / console server, so the feature is usable before Phase 33 exists. Phase 9 (alert framework for drift notifications) and Phase 6.1 (CAB / change-window awareness) are needed for 34.3.
 
@@ -1102,7 +1106,7 @@ Positioned last in the roadmap (v3.17.169) because it's the largest single under
 | 31 — Vault GeoIP / IP / Time Access Rules | S | shipped v3.17.163 | extends FirewallMiddleware GeoIP infra |
 | 32 — Remote Network Discovery Import | M | 2-3 weeks | future / late-stage — non-RMM, scoped, single-use tokens |
 | 33 — Network Discovery & Auto Documentation | L | 4-6 weeks | extends Phase 32 + Phase 16 |
-| 34 — Network Configuration Backup | M | 2-3 weeks | extends Phase 33 + Phase 9 alerts |
+| 34 — Network Configuration Backup | M | shipped v3.17.544–547 | extends Phase 33 + Phase 9 alerts |
 | 35 — Advanced Project Management | L | 4-5 weeks | extends `psa.Project` (v3.17.213 quote→project shipped) |
 | 36 — Agreement Reconciliation & Pre-Invoice Approval | M | 2-3 weeks | extends Phase 1 + 15 + 20 |
 | 37 — Vault Approval & Break-Glass Workflow | M | 2-3 weeks | extends Phase 31 (VaultAccessRule) + Phase 20 |

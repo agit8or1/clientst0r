@@ -5,6 +5,54 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.547] - 2026-09-05
+
+### Phase 34.4 — firmware history and lifecycle dates (Phase 34 complete)
+
+**Firmware history is derived from the snapshots**, not stored alongside them,
+so the two cannot disagree. Consecutive captures reporting the same version
+collapse into one entry with a first-seen and last-seen — a device on one
+firmware for a year is one row, not 365. A snapshot with no firmware reported is
+skipped rather than rendered as a transition to "nothing": a device that does not
+tell you its version has not downgraded to blank.
+
+**`Asset.vendor_end_of_life` and `vendor_end_of_support`.** The asset record
+already estimated end-of-life as purchase date plus expected lifespan. That is a
+reasonable guess in the absence of anything better, but it is a guess, and it
+cannot represent what vendors actually publish: a switch model's last day of
+support is the same calendar date whether the unit was racked in 2019 or bought
+refurbished last month.
+
+`get_end_of_life_date()` now prefers a published date over the arithmetic when
+one has been entered. **This changes what existing callers see** — the asset
+detail page and the health check in `assets/health.py` — but only for assets
+where somebody has typed in a vendor date, and preferring a known date over an
+estimate is the point of entering it.
+
+`is_out_of_support()` is deliberately separate from end-of-life. A device can be
+years past end-of-sale and still supported; the date that matters for risk is the
+one after which security fixes stop arriving. Absence of a date is not evidence
+of being unsupported, so an asset with no end-of-support date reads as fine
+rather than as a problem.
+
+**Lifecycle view** lists network gear that is out of support or reaching either
+date within a year, out-of-support first — a switch no longer receiving security
+fixes is a different kind of problem from one due for replacement next year.
+
+**One inconsistency fixed in this release's own code before it shipped:** the
+first cut excluded a device whose end-of-life was years away but included one
+whose end-of-support was, which would have diluted the page into an inventory of
+everything that happens to carry a date. Both dates are now held to the same
+one-year horizon.
+
+30 new tests (114 in the app; 185 with `assets`). Migration:
+`assets.0026_asset_vendor_end_of_life_asset_vendor_end_of_support`.
+
+**Phase 34 is complete** at v3.17.547, across four sub-phases from v3.17.544. The
+stated dependency on Phase 33 turned out not to block it: `assets.Asset` already
+carries the network-gear types, so the device list had a source without waiting
+for discovery to be built.
+
 ## [3.17.546] - 2026-09-05
 
 ### Phase 34.3 — drift alerts

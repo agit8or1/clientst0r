@@ -201,6 +201,20 @@ class Asset(BaseModel):
 
     # Firmware tracking (for network devices, APs, phones, etc.)
     firmware_version = models.CharField(max_length=100, blank=True, help_text='Currently installed firmware version')
+    # Phase 34.4 (v3.17.547) — the vendor's announced dates, which have
+    # nothing to do with when you bought the thing. Cisco's "last day of
+    # support" for a switch model is the same date whether you racked it in
+    # 2019 or bought it refurbished last month, so it cannot be derived from
+    # purchase_date + lifespan_years the way the existing estimate is.
+    vendor_end_of_life = models.DateField(
+        null=True, blank=True,
+        help_text="Vendor's announced end-of-life / end-of-sale date for this "
+                  "model. Overrides the estimate derived from purchase date.")
+    vendor_end_of_support = models.DateField(
+        null=True, blank=True,
+        help_text="Last day the vendor will support it. After this, security "
+                  "fixes stop arriving.")
+
     firmware_latest = models.CharField(max_length=100, blank=True, help_text='Latest available firmware version (populated by scheduler)')
     firmware_checked_at = models.DateTimeField(null=True, blank=True, help_text='When firmware was last checked')
 
@@ -319,11 +333,29 @@ class Asset(BaseModel):
         return None
 
     def get_end_of_life_date(self):
-        """Calculate end-of-life date based on purchase date and lifespan."""
+        """End-of-life date for this asset.
+
+        v3.17.547: a vendor-announced date wins over the estimate. The
+        estimate is purchase date plus expected lifespan — a reasonable guess
+        in the absence of anything better, but it is a guess, and when
+        somebody has typed in what the vendor actually published there is no
+        reason to keep preferring arithmetic over it.
+        """
+        if self.vendor_end_of_life:
+            return self.vendor_end_of_life
         if self.purchase_date and self.lifespan_years:
             from dateutil.relativedelta import relativedelta
             return self.purchase_date + relativedelta(years=self.lifespan_years)
         return None
+
+    def is_out_of_support(self):
+        """Past the vendor's last day of support — security fixes have
+        stopped arriving. Distinct from end-of-life, which is when it stopped
+        being sold."""
+        if not self.vendor_end_of_support:
+            return False
+        from datetime import date
+        return date.today() > self.vendor_end_of_support
 
     def get_replacement_due_date(self):
         """Get the date when replacement reminder should be shown."""

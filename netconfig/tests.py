@@ -836,3 +836,181 @@ class DriftAlertTests(TestCase):
         with patch('netconfig.collector.collect_over_ssh', return_value=(CONFIG_B, '')):
             collect_target(target)
         self.assertEqual(SecurityAlert.objects.count(), 1)
+
+
+# ---------------------------------------------------------------------------
+# Phase 34.4 (v3.17.547) — firmware history and lifecycle
+# ---------------------------------------------------------------------------
+
+class FirmwareHistoryTests(TestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(name='FwCo', slug='fw-co')
+        self.asset = Asset.objects.create(
+            organization=self.org, name='sw-01', asset_type='switch')
+
+    def _snap(self, body, firmware, days_ago):
+        when = timezone.now() - timedelta(days=days_ago)
+        return ConfigBackup.objects.create(
+            asset=self.asset, organization=self.org, body=body,
+            content_hash=ConfigBackup.hash_body(body + firmware),
+            captured_at=when, last_seen_at=when,
+            firmware_version=firmware)
+
+    def test_no_snapshots_is_empty(self):
+        self.assertEqual(ConfigBackup.firmware_history(self.asset), [])
+        self.assertEqual(ConfigBackup.current_firmware(self.asset), '')
+
+    def test_consecutive_same_version_collapses(self):
+        """A device on one firmware for a year is one entry, not 365."""
+        for d in (30, 20, 10):
+            self._snap(CONFIG_A, '15.2(4)E7', d)
+        history = ConfigBackup.firmware_history(self.asset)
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]['version'], '15.2(4)E7')
+
+    def test_a_transition_is_two_entries(self):
+        self._snap(CONFIG_A, '15.2(4)E7', 30)
+        self._snap(CONFIG_B, '15.2(7)E3', 10)
+        history = ConfigBackup.firmware_history(self.asset)
+        self.assertEqual([h['version'] for h in history],
+                         ['15.2(4)E7', '15.2(7)E3'])
+
+    def test_history_is_oldest_first(self):
+        self._snap(CONFIG_A, 'old', 30)
+        self._snap(CONFIG_B, 'new', 10)
+        self.assertEqual(
+            ConfigBackup.firmware_history(self.asset)[0]['version'], 'old')
+
+    def test_snapshots_without_firmware_are_skipped(self):
+        """A device that does not report its firmware has not transitioned to
+        "nothing"."""
+        self._snap(CONFIG_A, '15.2(4)E7', 30)
+        self._snap(CONFIG_B, '', 20)
+        history = ConfigBackup.firmware_history(self.asset)
+        self.assertEqual([h['version'] for h in history], ['15.2(4)E7'])
+
+    def test_current_firmware_is_the_newest_reported(self):
+        self._snap(CONFIG_A, 'old', 30)
+        self._snap(CONFIG_B, 'new', 10)
+        self.assertEqual(ConfigBackup.current_firmware(self.asset), 'new')
+
+    def test_current_firmware_ignores_a_later_blank(self):
+        self._snap(CONFIG_A, '15.2(4)E7', 30)
+        self._snap(CONFIG_B, '', 1)
+        self.assertEqual(ConfigBackup.current_firmware(self.asset), '15.2(4)E7')
+
+    def test_history_is_per_device(self):
+        other = Asset.objects.create(
+            organization=self.org, name='sw-02', asset_type='switch')
+        self._snap(CONFIG_A, 'mine', 10)
+        ConfigBackup.objects.create(
+            asset=other, organization=self.org, body=CONFIG_A,
+            content_hash='x', captured_at=timezone.now(),
+            last_seen_at=timezone.now(), firmware_version='theirs')
+        self.assertEqual(
+            [h['version'] for h in ConfigBackup.firmware_history(self.asset)],
+            ['mine'])
+
+
+class AssetLifecycleFieldTests(TestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(name='EolCo', slug='eol-co')
+
+    def _asset(self, **kw):
+        return Asset.objects.create(
+            organization=self.org, name='sw-01', asset_type='switch', **kw)
+
+    def test_vendor_date_beats_the_derived_estimate(self):
+        """The estimate is a guess; a published date is not."""
+        from datetime import date
+        asset = self._asset(
+            purchase_date=date(2020, 1, 1), lifespan_years=5,
+            vendor_end_of_life=date(2027, 6, 30))
+        self.assertEqual(asset.get_end_of_life_date(), date(2027, 6, 30))
+
+    def test_estimate_still_used_when_no_vendor_date(self):
+        from datetime import date
+        asset = self._asset(purchase_date=date(2020, 1, 1), lifespan_years=5)
+        self.assertEqual(asset.get_end_of_life_date(), date(2025, 1, 1))
+
+    def test_no_dates_at_all_is_none(self):
+        self.assertIsNone(self._asset().get_end_of_life_date())
+
+    def test_out_of_support_when_past_the_date(self):
+        from datetime import date, timedelta as td
+        asset = self._asset(vendor_end_of_support=date.today() - td(days=1))
+        self.assertTrue(asset.is_out_of_support())
+
+    def test_not_out_of_support_before_the_date(self):
+        from datetime import date, timedelta as td
+        asset = self._asset(vendor_end_of_support=date.today() + td(days=30))
+        self.assertFalse(asset.is_out_of_support())
+
+    def test_unknown_support_date_is_not_out_of_support(self):
+        """Absence of a date is not evidence of being unsupported."""
+        self.assertFalse(self._asset().is_out_of_support())
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class LifecycleViewTests(TestCase):
+    def setUp(self):
+        from datetime import date, timedelta as td
+        self.org = Organization.objects.create(name='LcCo', slug='lc-co')
+        self.today = date.today()
+        self.expired = Asset.objects.create(
+            organization=self.org, name='old-fw', asset_type='firewall',
+            vendor_end_of_support=self.today - td(days=10))
+        self.soon = Asset.objects.create(
+            organization=self.org, name='soon-sw', asset_type='switch',
+            vendor_end_of_life=self.today + td(days=60))
+        self.fine = Asset.objects.create(
+            organization=self.org, name='fine-sw', asset_type='switch',
+            vendor_end_of_life=self.today + td(days=900))
+        self.undated = Asset.objects.create(
+            organization=self.org, name='undated-sw', asset_type='switch')
+        self.user = User.objects.create_superuser(
+            'lcadmin', 'lc@example.com', 'hunter2xyz')
+        self.client = Client()
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['current_organization_id'] = self.org.id
+        session.save()
+
+    def test_lists_out_of_support_and_soon(self):
+        resp = self.client.get('/netconfig/lifecycle/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'old-fw')
+        self.assertContains(resp, 'soon-sw')
+
+    def test_excludes_devices_with_no_dates(self):
+        self.assertNotContains(
+            self.client.get('/netconfig/lifecycle/'), 'undated-sw')
+
+    def test_out_of_support_sorts_first(self):
+        """A switch that stopped receiving security fixes is a different kind
+        of problem from one due for replacement next year."""
+        body = self.client.get('/netconfig/lifecycle/').content.decode()
+        self.assertLess(body.index('old-fw'), body.index('soon-sw'))
+
+    def test_a_device_dated_far_out_is_excluded(self):
+        """The page is things needing attention, not an inventory of
+        everything that happens to have a date on it."""
+        self.assertNotContains(
+            self.client.get('/netconfig/lifecycle/'), 'fine-sw')
+
+    def test_end_of_support_within_the_horizon_is_listed(self):
+        from datetime import timedelta as td
+        Asset.objects.create(
+            organization=self.org, name='eos-soon-sw', asset_type='switch',
+            vendor_end_of_support=self.today + td(days=90))
+        self.assertContains(
+            self.client.get('/netconfig/lifecycle/'), 'eos-soon-sw')
+
+    def test_end_of_support_far_out_is_excluded(self):
+        """Consistent with how a far-off end-of-life is treated."""
+        from datetime import timedelta as td
+        Asset.objects.create(
+            organization=self.org, name='eos-far-sw', asset_type='switch',
+            vendor_end_of_support=self.today + td(days=1500))
+        self.assertNotContains(
+            self.client.get('/netconfig/lifecycle/'), 'eos-far-sw')

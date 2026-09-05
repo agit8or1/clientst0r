@@ -196,6 +196,46 @@ class ConfigBackup(models.Model):
     # --- Phase 34.3: baseline ---
 
     @classmethod
+    def firmware_history(cls, asset):
+        """Phase 34.4 (v3.17.547): firmware transitions for a device.
+
+        Derived from the snapshots rather than stored separately, so it cannot
+        disagree with them. Returns oldest-first
+        `[{version, first_seen, last_seen}]`, collapsing consecutive captures
+        that reported the same version — a device on one firmware for a year
+        is one entry, not 365.
+
+        Snapshots with no firmware recorded are skipped rather than shown as a
+        blank version: a device that does not report its firmware has not
+        transitioned to "nothing".
+        """
+        rows = (cls.objects.filter(asset=asset)
+                .exclude(firmware_version='')
+                .order_by('captured_at')
+                .values_list('firmware_version', 'captured_at', 'last_seen_at'))
+
+        history = []
+        for version, captured_at, last_seen_at in rows:
+            if history and history[-1]['version'] == version:
+                history[-1]['last_seen'] = max(history[-1]['last_seen'], last_seen_at)
+                continue
+            history.append({
+                'version': version,
+                'first_seen': captured_at,
+                'last_seen': last_seen_at,
+            })
+        return history
+
+    @classmethod
+    def current_firmware(cls, asset):
+        """The most recently reported firmware, or '' if none ever was."""
+        latest = (cls.objects.filter(asset=asset)
+                  .exclude(firmware_version='')
+                  .order_by('-captured_at')
+                  .first())
+        return latest.firmware_version if latest else ''
+
+    @classmethod
     def approved_baseline(cls, asset):
         """The snapshot marked as known-good for this device, if any."""
         return (cls.objects.filter(asset=asset, is_approved=True)

@@ -41,6 +41,50 @@
 </div>
 {% endif %}
 
+{# Phase 34.4 (v3.17.547) — firmware trail and vendor dates. #}
+{% if current_firmware or asset.vendor_end_of_life or asset.vendor_end_of_support %}
+<div class="card mb-3">
+    <div class="card-header py-2">
+        <strong>Firmware &amp; lifecycle</strong>
+        {% if asset.is_out_of_support %}
+            <span class="badge bg-danger ms-2">Out of vendor support</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="row small">
+            <div class="col-md-4">
+                <div class="text-muted">Current firmware</div>
+                <div>{{ current_firmware|default:"not reported" }}</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted">End of life</div>
+                <div>{{ asset.get_end_of_life_date|date:"j M Y"|default:"—" }}</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted">End of support</div>
+                <div>{{ asset.vendor_end_of_support|date:"j M Y"|default:"—" }}</div>
+            </div>
+        </div>
+
+        {% if firmware_history|length > 1 %}
+        <div class="mt-3">
+            <div class="text-muted small mb-1">Firmware history</div>
+            <ul class="list-unstyled small mb-0">
+                {% for f in firmware_history %}
+                <li>
+                    <strong>{{ f.version }}</strong>
+                    <span class="text-muted">
+                        {{ f.first_seen|date:"j M Y" }} – {{ f.last_seen|date:"j M Y" }}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {% if backups|length > 1 %}
 <div class="card mb-3">
     <div class="card-header py-2">
