@@ -5,6 +5,48 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.543] - 2026-09-05
+
+### Phase 40.5 — per-client private status pages (Phase 40 complete)
+
+`StatusPage.visibility` is either `public` — anyone holding the token link — or
+`portal`, meaning signed-in users of the client the page belongs to and nobody
+else. It **defaults to `public`**, so every page created before this field keeps
+behaving exactly as it did.
+
+**A portal page's token stops working anonymously**, and the anonymous view
+returns the same 404 it gives for a wrong or disabled token. The response never
+distinguishes "wrong token" from "switched off" from "needs a login" — telling a
+prober which of the three they hit is telling them something.
+
+**`/portal/status/`** is wrapped in the portal's own `portal_required` rather
+than reimplementing the rules: PSA must be on, the user needs an active
+membership in a portal-enabled org, and superusers get nothing special because
+the portal is for clients. The view lives in `statuspage` with the models it
+reads; the decorator is applied at the URL layer so `statuspage` does not import
+portal internals at module scope.
+
+A page scoped to the user's own client wins over a broadcast one, and a
+broadcast portal page acts as the fallback for clients without their own.
+
+**A public page is not silently reused in the portal.** It would have been easy
+to show the anonymous page to logged-in users too, and wrong: the two have
+different audiences, and an operator may deliberately publish less on the one
+strangers can read. A portal page must be marked as such.
+
+Public and portal render through one shared context builder, so the two cannot
+drift apart in what they show, and both send `no-store` and `noindex` — the
+portal one is if anything more sensitive for being scoped to a single client.
+
+11 new tests (90 in the app). Migration:
+`statuspage.0004_statuspage_visibility_alter_statuspage_is_enabled`.
+
+**Phase 40 is complete** at v3.17.543, across five sub-phases from v3.17.538. The
+correction worth carrying forward: the phase was written assuming uptime could be
+read from existing `WebsiteMonitor` history. No such history existed — 40.1 built
+it, and uptime accrues from the v3.17.538 deploy rather than retroactively, so a
+365-day figure is not available until a year after that.
+
 ## [3.17.542] - 2026-09-05
 
 ### Phase 40.4 — incident history

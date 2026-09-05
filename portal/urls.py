@@ -5,8 +5,14 @@ from . import views
 
 app_name = 'portal'
 
+# Phase 40.5 (v3.17.543) — the client-facing status page. The view lives in
+# `statuspage` with the models it reads; `portal_required` is applied here so
+# it inherits the portal's rules rather than reimplementing them.
+from statuspage.views import portal_status as _status_view  # noqa: E402
+
 urlpatterns = [
     path('', views.ticket_list, name='ticket_list'),
+    path('status/', views.portal_required(_status_view), name='status'),
     # v3.17.232 — Phase 12 portal announcements (per-session dismissal).
     path('announcement/<int:pk>/dismiss/',
          views.announcement_dismiss, name='announcement_dismiss'),

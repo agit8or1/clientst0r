@@ -805,7 +805,7 @@ Dependencies: Phase 9 (security data), vault, monitoring/, psa (SLA history), as
 
 **Goal:** Reduce the "audit prep" interrupt to a button-press. The data is already in the system; this phase wraps it in the standardized export shape auditors expect.
 
-## Phase 40 — Public / Client-Facing Status Page **(M)** [in progress]
+## Phase 40 — Public / Client-Facing Status Page **(M)** [complete]
 
 Public or per-client-private status page surfacing current service status, scheduled maintenance, incident history, and uptime. Sourced from the WebsiteMonitor + ticket-incident infrastructure already in place.
 
@@ -833,8 +833,12 @@ Public or per-client-private status page surfacing current service status, sched
 - **`statuspage.IncidentUpdate`** — the timeline, with an `investigating` / `identified` / `monitoring` / `resolved` stage. Deliberately **not** sourced from ticket comments: a non-internal comment is visible to the client in the portal, which is a different and much smaller audience than an anonymous status page, and treating the two as interchangeable would republish ticket chatter to the internet. Posting a `resolved` update resolves the incident, because doing it as a separate step is what everyone forgets. *(shipped v3.17.542)*
 - Ongoing incidents render above planned maintenance — something broken now outranks something planned. Resolved history is capped at ten. *(shipped v3.17.542)*
 
-### Sub-phase 40.5 — Per-client private pages *(planned)*
-- Each client gets their own URL gated by client-portal auth; the alternative single fully-public page stays available for MSPs broadcasting to customers and prospects.
+### Sub-phase 40.5 — Per-client private pages *(shipped v3.17.543)*
+- **`StatusPage.visibility`** — `public` (anyone with the token link) or `portal` (signed-in client users only). Defaults to `public`, so every page created before this field keeps behaving exactly as it did. A portal page's token stops working anonymously, and the anonymous view returns the same 404 it gives for a wrong or disabled token — the response never distinguishes "wrong token" from "needs a login". *(shipped v3.17.543)*
+- **`/portal/status/`** — wrapped in the portal's own `portal_required`, so it inherits the portal's rules exactly: PSA on, an active membership in a portal-enabled org, and no special treatment for superusers. A page scoped to the user's own client wins over a broadcast one. *(shipped v3.17.543)*
+- **A public page is not silently reused in the portal.** The two have different audiences and an operator may deliberately publish less on the anonymous one, so a portal page must be marked as such rather than inferred. *(shipped v3.17.543)*
+
+✅ **Phase 40 complete at v3.17.543.** Shipped across five sub-phases (v3.17.538–543). The one correction worth carrying forward: the phase was written assuming uptime could be read from existing `WebsiteMonitor` history, and no such history existed — 40.1 built it, and uptime accrues from the v3.17.538 deploy rather than retroactively.
 
 Dependencies: `monitoring/` app (uptime data — built in 40.1), `psa.Ticket` (incident history with new `is_status_page` flag).
 
@@ -1082,7 +1086,7 @@ Positioned last in the roadmap (v3.17.169) because it's the largest single under
 | 37 — Vault Approval & Break-Glass Workflow | M | 2-3 weeks | extends Phase 31 (VaultAccessRule) + Phase 20 |
 | 38 — Client Onboarding / Offboarding Runbooks | M | 2-3 weeks | extends `processes/` + Phase 14 |
 | 39 — Compliance Evidence Packs | M | 2-3 weeks | extends Phase 9 + vault + monitoring + psa |
-| 40 — Public / Client-Facing Status Page | M | 2-3 weeks | extends monitoring + psa Tickets |
+| 40 — Public / Client-Facing Status Page | M | shipped v3.17.538–543 | extends monitoring + psa Tickets |
 | 41 — Compliance Frameworks & Recertification | M | shipped v3.17.435–444 | extends accounts + audit + reports.pdf_export (Phase 19); built atop Phase 39 evidence-pack infra |
 | 42 — Docker / Containerized deployment | S | shipped v3.17.490 | none — packaging only; classic `bash install.sh` path unchanged |
 | 43 — Multi-Organization REST API Access | S | shipped v3.17.496 | extends Phase 18 hierarchy; backward-compatible (default key scope unchanged) |

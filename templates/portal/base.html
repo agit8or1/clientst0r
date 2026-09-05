@@ -45,6 +45,8 @@
                 <a href="{% url 'portal:ticket_list' %}" class="btn btn-link">My Tickets</a>
                 <a href="{% url 'portal:kb_list' %}" class="btn btn-link"><i class="fas fa-book"></i> Knowledge Base</a>
                 <a href="{% url 'portal:vault_list' %}" class="btn btn-link"><i class="fas fa-key"></i> Credentials</a>
+                {# Phase 40.5 (v3.17.543). Always linked: the view 404s when nothing is published, which is the same answer as hiding it but without a template query. #}
+                <a href="{% url 'portal:status' %}" class="btn btn-link"><i class="fas fa-heart-pulse"></i> Service Status</a>
                 {% if psa_portal_customer_approvals_enabled %}
                 <a href="{% url 'portal:approvals_list' %}" class="btn btn-link" title="Approvals waiting on you"><i class="fas fa-circle-check"></i> Approvals</a>
                 {% endif %}

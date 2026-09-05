@@ -37,9 +37,23 @@ class StatusPage(BaseModel):
         related_name='status_pages',
         help_text='Leave empty for a page not tied to one client.')
 
+    # Phase 40.5 (v3.17.543). Default is `public` so every page that existed
+    # before this field keeps behaving exactly as it did.
+    VISIBILITY_PUBLIC = 'public'
+    VISIBILITY_PORTAL = 'portal'
+    VISIBILITY_CHOICES = [
+        (VISIBILITY_PUBLIC, 'Public — anyone with the link'),
+        (VISIBILITY_PORTAL, 'Portal — signed-in client users only'),
+    ]
+    visibility = models.CharField(
+        max_length=10, choices=VISIBILITY_CHOICES, default=VISIBILITY_PUBLIC,
+        help_text='Public pages are read by anyone holding the link. Portal '
+                  'pages are read only by signed-in users of the client they '
+                  'belong to, and their link does not work anonymously.')
+
     is_enabled = models.BooleanField(
         default=False,
-        help_text='Off by default. While off, the public URL returns 404.')
+        help_text='Off by default. While off, the URL returns 404.')
     token = models.CharField(
         max_length=64, unique=True, db_index=True,
         help_text='Random component of the public URL. Rotating it breaks '
@@ -100,9 +114,33 @@ class StatusPage(BaseModel):
     def display_title(self) -> str:
         return self.title or 'Service status'
 
+    @property
+    def is_public(self) -> bool:
+        return self.visibility == self.VISIBILITY_PUBLIC
+
     def get_public_url(self) -> str:
         from django.urls import reverse
         return reverse('statuspage:public', args=[self.token])
+
+    def get_portal_url(self) -> str:
+        from django.urls import reverse
+        return reverse('portal:status')
+
+    @classmethod
+    def for_portal_user(cls, organization):
+        """Phase 40.5: the portal page a signed-in client user should see.
+
+        A page scoped to their own organization wins over a broadcast one. Both
+        must be explicitly set to portal visibility — a public page is not
+        silently reused here, because the two have different audiences and an
+        operator may deliberately publish less on the anonymous one.
+        """
+        qs = cls.objects.filter(
+            is_enabled=True, visibility=cls.VISIBILITY_PORTAL)
+        own = qs.filter(organization=organization).first()
+        if own is not None:
+            return own
+        return qs.filter(organization__isnull=True).first()
 
     # --- What the page says overall ---
 

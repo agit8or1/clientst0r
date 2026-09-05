@@ -753,3 +753,123 @@ class IncidentManagementTests(TestCase):
         offered = list(resp.context['flagged_tickets'])
         self.assertIn(flagged, offered)
         self.assertNotIn(plain, offered)
+
+
+# ---------------------------------------------------------------------------
+# Phase 40.5 (v3.17.543) — portal-gated pages
+# ---------------------------------------------------------------------------
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class PortalStatusPageTests(TestCase):
+    """A page set to portal visibility is readable by that client's signed-in
+    users and by nobody else."""
+
+    def setUp(self):
+        from psa.tests._base import _enable_psa_for, _setup_seed
+        from core.models import SystemSetting
+        from accounts.models import Membership, Role
+
+        _setup_seed()
+        settings_obj = SystemSetting.get_settings()
+        settings_obj.psa_enabled = True
+        settings_obj.save()
+
+        self.org = Organization.objects.create(name='PortalCo', slug='portal-co')
+        self.other_org = Organization.objects.create(name='OtherPortal', slug='other-portal')
+        # `_enable_psa_for` flips PSA on but leaves `portal_enabled` at its
+        # default of False, and portal_required checks that flag specifically.
+        for org in (self.org, self.other_org):
+            cps = _enable_psa_for(org)
+            cps.portal_enabled = True
+            cps.save(update_fields=['portal_enabled'])
+
+        self.user = User.objects.create_user('portaluser', 'p@example.com', 'hunter2xyz')
+        Membership.objects.create(
+            user=self.user, organization=self.org, role=Role.OWNER, is_active=True)
+
+        self.monitor = WebsiteMonitor.objects.create(
+            organization=self.org, name='Mail', url='https://a.example.com',
+            status='active')
+        self.page = StatusPage.objects.create(
+            title='PortalCo status', organization=self.org, is_enabled=True,
+            visibility=StatusPage.VISIBILITY_PORTAL)
+        StatusPageService.objects.create(
+            page=self.page, monitor=self.monitor, display_name='Webmail')
+        self.client = Client()
+
+    def test_default_visibility_is_public(self):
+        """Every page that existed before this field keeps behaving as it did."""
+        self.assertTrue(StatusPage.objects.create(title='New').is_public)
+
+    def test_portal_page_token_does_not_work_anonymously(self):
+        self.assertEqual(
+            Client().get(self.page.get_public_url()).status_code, 404)
+
+    def test_signed_in_client_user_sees_it(self):
+        self.client.force_login(self.user)
+        resp = self.client.get('/portal/status/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Webmail')
+
+    def test_anonymous_is_sent_to_login(self):
+        resp = Client().get('/portal/status/')
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/account/login/', resp['Location'])
+
+    def test_user_of_another_client_does_not_see_this_page(self):
+        from accounts.models import Membership, Role
+        outsider = User.objects.create_user('outsider', 'o@example.com', 'hunter2xyz')
+        Membership.objects.create(
+            user=outsider, organization=self.other_org, role=Role.OWNER, is_active=True)
+        c = Client()
+        c.force_login(outsider)
+        self.assertEqual(c.get('/portal/status/').status_code, 404)
+
+    def test_broadcast_portal_page_is_the_fallback(self):
+        from accounts.models import Membership, Role
+        StatusPage.objects.create(
+            title='Everyone', organization=None, is_enabled=True,
+            visibility=StatusPage.VISIBILITY_PORTAL)
+        outsider = User.objects.create_user('outsider2', 'o2@example.com', 'hunter2xyz')
+        Membership.objects.create(
+            user=outsider, organization=self.other_org, role=Role.OWNER, is_active=True)
+        c = Client()
+        c.force_login(outsider)
+        resp = c.get('/portal/status/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Everyone')
+
+    def test_own_page_beats_the_broadcast_one(self):
+        StatusPage.objects.create(
+            title='Everyone', organization=None, is_enabled=True,
+            visibility=StatusPage.VISIBILITY_PORTAL)
+        self.client.force_login(self.user)
+        resp = self.client.get('/portal/status/')
+        self.assertContains(resp, 'PortalCo status')
+        self.assertNotContains(resp, 'Everyone')
+
+    def test_a_public_page_is_not_silently_reused_in_the_portal(self):
+        """The two have different audiences; an operator may deliberately
+        publish less on the anonymous one."""
+        self.page.visibility = StatusPage.VISIBILITY_PUBLIC
+        self.page.save(update_fields=['visibility'])
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get('/portal/status/').status_code, 404)
+
+    def test_disabled_portal_page_404s(self):
+        self.page.is_enabled = False
+        self.page.save(update_fields=['is_enabled'])
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get('/portal/status/').status_code, 404)
+
+    def test_portal_page_is_not_cacheable_or_indexable(self):
+        self.client.force_login(self.user)
+        resp = self.client.get('/portal/status/')
+        self.assertIn('no-store', resp['Cache-Control'])
+        self.assertIn('noindex', resp['X-Robots-Tag'])
+
+    def test_switching_to_public_restores_the_token_link(self):
+        self.page.visibility = StatusPage.VISIBILITY_PUBLIC
+        self.page.save(update_fields=['visibility'])
+        self.assertEqual(
+            Client().get(self.page.get_public_url()).status_code, 200)

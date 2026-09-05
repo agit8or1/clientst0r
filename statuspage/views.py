@@ -30,10 +30,21 @@ def public(request, token):
     A disabled or unknown token 404s identically. Distinguishing them would
     confirm to anyone probing that a page exists at that address.
     """
-    page = StatusPage.objects.filter(token=token, is_enabled=True).first()
+    # Phase 40.5 — a portal page's token must not work anonymously. Same 404
+    # as a disabled or unknown one: the response never distinguishes between
+    # "wrong token", "switched off" and "needs a login".
+    page = StatusPage.objects.filter(
+        token=token, is_enabled=True,
+        visibility=StatusPage.VISIBILITY_PUBLIC).first()
     if page is None:
         raise Http404('No status page here')
 
+    return _render_page(request, page)
+
+
+def _page_context(page):
+    """Everything the status page template needs. Shared by the public view
+    and the portal one so the two cannot drift apart in what they show."""
     services = page.visible_services()
     rows = [{
         'service': svc,
@@ -64,7 +75,7 @@ def public(request, token):
     ongoing = [i for i in incidents if not i.is_resolved]
     resolved = [i for i in incidents if i.is_resolved][:10]
 
-    response = render(request, 'statuspage/public.html', {
+    return {
         'page': page,
         'rows': rows,
         'overall': page.overall_status(),
@@ -74,12 +85,31 @@ def public(request, token):
         'upcoming_maintenance': upcoming,
         'recent_maintenance': recent,
         'generated_at': timezone.now(),
-    })
-    # An unauthenticated page naming a client's services has no business in a
-    # shared cache or a search index.
+    }
+
+
+def _render_page(request, page):
+    response = render(request, 'statuspage/public.html', _page_context(page))
+    # A page naming a client's services has no business in a shared cache or a
+    # search index — true of the portal one as well, which is if anything more
+    # sensitive for being scoped to one client.
     response['Cache-Control'] = 'no-store, private'
     response['X-Robots-Tag'] = 'noindex, nofollow'
     return response
+
+
+def portal_status(request):
+    """Phase 40.5 (v3.17.543): the status page for a signed-in client user.
+
+    Wrapped in the portal's own `portal_required`, so it inherits the portal's
+    rules exactly: PSA must be on, the user must hold an active membership in a
+    portal-enabled org, and superusers get nothing special — the portal is for
+    clients.
+    """
+    page = StatusPage.for_portal_user(request.portal_membership.organization)
+    if page is None:
+        raise Http404('No status page is published for your organization')
+    return _render_page(request, page)
 
 
 # ---------------------------------------------------------------------------
@@ -206,6 +236,9 @@ def page_detail(request, pk):
         page.is_enabled = request.POST.get('is_enabled') == 'on'
         page.title = (request.POST.get('title') or '').strip()[:120]
         page.intro = (request.POST.get('intro') or '').strip()
+        visibility = request.POST.get('visibility')
+        if visibility in dict(StatusPage.VISIBILITY_CHOICES):
+            page.visibility = visibility
         page.show_uptime = request.POST.get('show_uptime') == 'on'
         page.show_response_time = request.POST.get('show_response_time') == 'on'
         try:
@@ -214,11 +247,16 @@ def page_detail(request, pk):
             page.refresh_seconds = 120
         page.save()
 
-        if page.is_enabled:
+        if page.is_enabled and page.is_public:
             messages.success(
                 request,
                 'Status page is live. Anyone with the link can read it without '
                 'signing in.')
+        elif page.is_enabled:
+            messages.success(
+                request,
+                'Status page is live in the client portal. The public link does '
+                'not work while it is portal-only.')
         else:
             messages.success(request, 'Status page disabled. The link now 404s.')
         return redirect('statuspage:detail', pk=page.pk)

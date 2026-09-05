@@ -18,8 +18,16 @@
 </div>
 
 <div class="card mb-3">
-    <div class="card-header py-2"><strong>Public link</strong></div>
+    <div class="card-header py-2"><strong>Link</strong></div>
     <div class="card-body">
+        {% if not page.is_public %}
+        <div class="alert alert-info py-2 small">
+            This page is portal-only. The link below does <strong>not</strong> work
+            without signing in — client users reach it at
+            <code>{% url 'portal:status' %}</code> in the portal. Switch it to public
+            below if you want an anonymous link.
+        </div>
+        {% endif %}
         <div class="input-group mb-2">
             <input type="text" class="form-control font-monospace" id="public_url"
                    value="{{ public_url }}" readonly>
@@ -363,6 +371,21 @@
             <label class="form-check-label" for="is_enabled">
                 Publish this page
             </label>
+        </div>
+
+        {# Phase 40.5 (v3.17.543) — who can read it. #}
+        <div class="mb-3" style="max-width: 420px;">
+            <label class="form-label" for="visibility">Who can read it</label>
+            <select class="form-select" id="visibility" name="visibility">
+                {% for value, label in page.VISIBILITY_CHOICES %}
+                    <option value="{{ value }}" {% if page.visibility == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <div class="form-text">
+                Portal pages are shown only to signed-in users of the client they belong
+                to, and their token link stops working anonymously. A page with no client
+                set is offered to every portal user as a fallback.
+            </div>
         </div>
 
         <div class="mb-3">
