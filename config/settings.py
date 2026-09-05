@@ -98,6 +98,7 @@ INSTALLED_APPS = [
     'compliance.apps.ComplianceConfig',
     'field_ops.apps.FieldOpsConfig',
     'statuspage.apps.StatusPageConfig',
+    'netconfig.apps.NetConfigConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies)

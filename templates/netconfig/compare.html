@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Compare configs — {{ asset.name }}{% endblock %}
+{% block extra_css %}{% include "netconfig/_diffcss.html" %}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-code-compare"></i> Compare — {{ asset.name }}</h4>
+    <a href="{% url 'netconfig:device_detail' asset.pk %}" class="btn btn-link btn-sm">Back to device</a>
+</div>
+
+<form method="get" class="card mb-3">
+    <div class="card-body row g-2 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label small" for="left">Older</label>
+            <select class="form-select form-select-sm" id="left" name="left">
+                {% for b in backups %}
+                    <option value="{{ b.pk }}" {% if left and left.pk == b.pk %}selected{% endif %}>
+                        {{ b.captured_at|date:"j M Y, H:i" }} ({{ b.get_source_display }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-5">
+            <label class="form-label small" for="right">Newer</label>
+            <select class="form-select form-select-sm" id="right" name="right">
+                {% for b in backups %}
+                    <option value="{{ b.pk }}" {% if right and right.pk == b.pk %}selected{% endif %}>
+                        {{ b.captured_at|date:"j M Y, H:i" }} ({{ b.get_source_display }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary btn-sm w-100">Compare</button>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="card-header py-2">
+        <strong>Diff</strong>
+        <span class="text-muted small ms-2">+{{ stats.added }} / −{{ stats.removed }} lines</span>
+    </div>
+    <div class="card-body">
+        {% include "netconfig/_diff.html" with diff=diff %}
+    </div>
+</div>
+{% endblock %}

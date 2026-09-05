@@ -1,0 +1,15 @@
+{% comment %}
+    Phase 34.1 (v3.17.544) — a unified diff, coloured by line prefix.
+    Shared by the device page and the compare page so the two render a diff
+    identically.
+{% endcomment %}
+{% if diff %}
+<pre class="netcfg-diff">{% for line in diff %}{% if line|slice:":3" == "+++" or line|slice:":3" == "---" %}<span class="d-file">{{ line }}</span>
+{% elif line|slice:":2" == "@@" %}<span class="d-hunk">{{ line }}</span>
+{% elif line|slice:":1" == "+" %}<span class="d-add">{{ line }}</span>
+{% elif line|slice:":1" == "-" %}<span class="d-del">{{ line }}</span>
+{% else %}<span class="d-ctx">{{ line }}</span>
+{% endif %}{% endfor %}</pre>
+{% else %}
+<p class="text-muted mb-0">No differences.</p>
+{% endif %}

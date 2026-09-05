@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Config — {{ backup.asset.name }}{% endblock %}
+{% block extra_css %}{% include "netconfig/_diffcss.html" %}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">
+        <i class="fas fa-file-code"></i> {{ backup.asset.name }}
+        <span class="text-muted fs-6">{{ backup.captured_at|date:"j M Y, H:i" }}</span>
+    </h4>
+    <a href="{% url 'netconfig:device_detail' backup.asset.pk %}" class="btn btn-link btn-sm">Back to device</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body py-2 small text-muted">
+        {{ backup.get_source_display }}
+        {% if backup.firmware_version %} · firmware {{ backup.firmware_version }}{% endif %}
+        · {{ backup.line_count }} lines
+        {% if backup.captured_by %} · captured by {{ backup.captured_by.get_username }}{% endif %}
+        {% if backup.note %} · {{ backup.note }}{% endif %}
+    </div>
+</div>
+
+<pre class="netcfg-config">{{ backup.body }}</pre>
+{% endblock %}

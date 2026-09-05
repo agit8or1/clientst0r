@@ -706,7 +706,7 @@ Dependencies: Phase 32 (token + import models — extend rather than replace), P
 
 **Goal:** Reduce manual network documentation work — keep the topology, switch port assignments, and device inventory in sync with reality without a tech having to redraw or re-export anything.
 
-## Phase 34 — Network Configuration Backup **(M)** [planned]
+## Phase 34 — Network Configuration Backup **(M)** [in progress]
 
 Versioned configuration backup for firewalls, switches, routers, and other manageable network gear. Treats device configs the same way the existing `Document` versioning treats KB articles — every change snapshotted, diffable, alertable.
 
@@ -718,7 +718,22 @@ Planned capabilities:
 - Firmware / version tracking — captures running firmware version on each backup so EOL transitions are visible
 - End-of-life and warranty metadata fields on the device record (extends Phase 13 lifecycle tracking)
 
-Dependencies: Phase 33 (device inventory provides the target list), Phase 9 (alert framework for drift notifications), Phase 6.1 (CAB / change-window awareness for "unauthorized" classification).
+### Sub-phase 34.1 — The snapshot store and diff viewer *(shipped v3.17.544)*
+- **`netconfig.ConfigBackup`** — a captured configuration, immutable once written. Not a `BaseModel`: a snapshot states what a device's config *was* at a moment, and an `updated_at` would imply editing one is normal when editing one destroys the only thing it is for. The admin renders the body read-only for the same reason. *(shipped v3.17.544)*
+- **Identical captures do not duplicate.** `record_for_asset()` hashes the body and, when it matches the newest snapshot, moves `last_seen_at` instead of writing another row — a device nobody touches for a year is one row plus a moving timestamp, not 365 copies. The hash normalises trailing whitespace and line endings, so a device that starts padding lines or switches CRLF to LF does not read as "everything changed". *(shipped v3.17.544)*
+- **Line-level diff** between any two snapshots, with latest-vs-prior rendered on the device page without being asked for. Diffing against nothing returns an empty diff rather than raising — the first capture of a device has nothing to compare against, and that is a normal state. *(shipped v3.17.544)*
+- **Manual capture — paste or upload.** Collection over SSH is 34.2, but this works with nothing but a paste box on purpose: a config pasted by hand is worth versioning, and waiting for device credentials before storing anything would be the wrong order. *(shipped v3.17.544)*
+
+### Sub-phase 34.2 — Collection over SSH *(planned)*
+- Per-device connection settings and credentials, a per-vendor adapter following the Phase 7 integration pattern, and a scheduled backup job with a per-device cadence.
+
+### Sub-phase 34.3 — Drift alerts *(planned)*
+- Diff against the snapshot marked approved (`is_approved` already exists on the model) and raise a security alert when a config changes outside an approved change window.
+
+### Sub-phase 34.4 — Firmware and lifecycle *(planned)*
+- Firmware version captured per snapshot is already stored; this sub-phase surfaces EOL transitions from it and extends the device record's lifecycle metadata.
+
+Dependencies: Phase 33 (device inventory provides the target list) — **not blocking**: 34.1 targets `assets.Asset` rows already typed as switch / router / firewall / load balancer / wireless AP or controller / modem / gateway / bridge / console server, so the feature is usable before Phase 33 exists. Phase 9 (alert framework for drift notifications) and Phase 6.1 (CAB / change-window awareness) are needed for 34.3.
 
 **Goal:** Eliminate the manual config-export-and-store-in-a-folder routine. Make unauthorized changes loud.
 

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.name }} — config backups{% endblock %}
+{% block extra_css %}{% include "netconfig/_diffcss.html" %}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-file-code"></i> {{ asset.name }}</h4>
+    <div>
+        <a href="{% url 'netconfig:capture' asset.pk %}" class="btn btn-primary btn-sm">Capture config</a>
+        {% if backups|length > 1 %}
+        <a href="{% url 'netconfig:compare' asset.pk %}" class="btn btn-outline-secondary btn-sm">Compare…</a>
+        {% endif %}
+        <a href="{% url 'netconfig:device_list' %}" class="btn btn-link btn-sm">All devices</a>
+    </div>
+</div>
+
+{% if backups|length > 1 %}
+<div class="card mb-3">
+    <div class="card-header py-2">
+        <strong>Latest change</strong>
+        <span class="text-muted small ms-2">
+            +{{ head_stats.added }} / −{{ head_stats.removed }} lines
+        </span>
+    </div>
+    <div class="card-body">
+        {% include "netconfig/_diff.html" with diff=head_diff %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header py-2"><strong>Snapshots</strong></div>
+    {% if backups %}
+    <table class="table table-sm table-hover mb-0 align-middle">
+        <thead>
+            <tr>
+                <th>Captured</th>
+                <th>Last seen</th>
+                <th>Source</th>
+                <th>Firmware</th>
+                <th>Lines</th>
+                <th>Note</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for b in backups %}
+            <tr>
+                <td>{{ b.captured_at|date:"j M Y, H:i" }}</td>
+                <td class="text-muted">
+                    {% if b.last_seen_at != b.captured_at %}{{ b.last_seen_at|date:"j M Y, H:i" }}{% else %}—{% endif %}
+                </td>
+                <td class="text-muted">{{ b.get_source_display }}</td>
+                <td class="text-muted">{{ b.firmware_version|default:"—" }}</td>
+                <td>{{ b.line_count }}</td>
+                <td class="text-muted">{{ b.note|default:"—" }}</td>
+                <td class="text-end">
+                    {% if b.is_approved %}<span class="badge bg-success me-1">Approved</span>{% endif %}
+                    <a href="{% url 'netconfig:view_backup' b.pk %}" class="btn btn-outline-secondary btn-sm">View</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="card-body text-muted">
+        Nothing captured yet for this device.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

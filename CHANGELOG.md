@@ -5,6 +5,58 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.544] - 2026-09-05
+
+### Phase 34.1 — versioned network config backups
+
+New `netconfig` app. The routine this replaces is exporting a firewall config to
+a file, dropping it in a folder, and never diffing it against anything. So the
+two things that matter are that a snapshot is stored immutably and that any two
+snapshots can be compared.
+
+**`ConfigBackup` is immutable.** Deliberately not a `BaseModel` — a snapshot is a
+statement about what a device's config *was* at a moment in time, and an
+`updated_at` would imply editing one is normal when editing one destroys the only
+thing it is for. The admin renders the body read-only for the same reason.
+
+**Identical captures do not duplicate.** `record_for_asset()` hashes the body,
+and when it matches the newest existing snapshot it moves `last_seen_at` rather
+than writing another row. A device nobody touches for a year is one row plus a
+moving timestamp, not 365 copies of the same text — and "reachable, unchanged" is
+still recorded, which is information worth keeping.
+
+The hash **normalises trailing whitespace and line endings** before digesting.
+A device that starts padding lines, or that switches from CRLF to LF after a
+firmware update, has not changed its configuration, and a diff viewer that
+claimed every line changed would be useless the one time it mattered.
+
+**Diffing.** Line-level unified diff between any two snapshots, with
+latest-vs-prior rendered on the device page without being asked for, because that
+is the comparison anyone opening the page wants. `diff_against(None)` returns an
+empty diff rather than raising: the first capture of a device has nothing to
+compare against, and that is a normal state rather than an error. Diff stats skip
+`+++`/`---` headers, which are diff furniture and not changed lines.
+
+**Capture is manual in this sub-phase — paste or upload.** Collection over SSH is
+34.2. Shipping the store first is deliberate: a config pasted by hand is worth
+versioning, and waiting on device credentials before storing anything would be
+the wrong order. The paste box stays after 34.2 lands, for the device nobody has
+credentials for yet.
+
+**Scope.** The device list covers assets typed switch, router, firewall, load
+balancer, wireless AP or controller, modem, gateway, bridge and console server. A
+config backup of a laptop is not a thing, and offering it everywhere would bury
+the devices it matters for — capture on a non-network asset 404s.
+
+Phase 34's stated dependency on Phase 33 (device inventory) turned out not to
+block it: `assets.Asset` already carries the network-gear types, so the feature
+is usable before Phase 33 exists. The roadmap now says so, and Phase 34 is
+`[in progress]` with 34.1–34.4 broken out. `is_approved` already exists on the
+model so that 34.3's drift comparison is not a migration away.
+
+32 tests. Migration: `netconfig.0001_initial`. New app registered; UI under
+**Operations → Monitoring → Config Backups**.
+
 ## [3.17.543] - 2026-09-05
 
 ### Phase 40.5 — per-client private status pages (Phase 40 complete)

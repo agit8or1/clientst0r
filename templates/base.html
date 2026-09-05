@@ -183,6 +183,8 @@
                             <li><a class="dropdown-item" href="{% url 'monitoring:expiration_list' %}"><i class="fas fa-calendar-times"></i> {% trans "Expirations" %}</a></li>
                             {# Phase 40.2 (v3.17.540) — status pages publish monitor state, so they live with Monitoring. #}
                             <li><a class="dropdown-item" href="{% url 'statuspage:list' %}"><i class="fas fa-heart-pulse"></i> {% trans "Status Pages" %}</a></li>
+                            {# Phase 34.1 (v3.17.544) — device config snapshots sit with the other network-facing tools. #}
+                            <li><a class="dropdown-item" href="{% url 'netconfig:device_list' %}"><i class="fas fa-file-code"></i> {% trans "Config Backups" %}</a></li>
                             {% endif %}
                             {% if vehicles_enabled %}
                             <li><hr class="dropdown-divider"></li>
