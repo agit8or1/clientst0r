@@ -609,3 +609,230 @@ class TargetViewTests(TestCase):
                    return_value=(CONFIG_A, '')):
             self.client.post(f'/netconfig/device/{self.asset.pk}/collect/')
         self.assertEqual(ConfigBackup.objects.count(), 1)
+
+
+# ---------------------------------------------------------------------------
+# Phase 34.3 (v3.17.546) — drift classification and alerting
+# ---------------------------------------------------------------------------
+
+class DriftClassificationTests(TestCase):
+    """Deciding which config changes are worth waking somebody for."""
+
+    def setUp(self):
+        from psa.tests._base import _setup_seed
+        _setup_seed()
+        self.org = Organization.objects.create(name='DriftCo', slug='drift-co')
+        self.asset = Asset.objects.create(
+            organization=self.org, name='fw-01', asset_type='firewall')
+
+    def _capture(self, body, hours_ago=0):
+        backup, _ = ConfigBackup.record_for_asset(
+            self.asset, body,
+            captured_at=timezone.now() - timedelta(hours=hours_ago))
+        return backup
+
+    def _change_window(self, start_offset=-1, end_offset=1, status='approved'):
+        """An approved change request covering now, by default."""
+        from psa.models import (
+            ChangeRequest, Queue, Ticket, TicketPriority, TicketStatus, TicketType,
+        )
+        ticket = Ticket.objects.create(
+            organization=self.org, subject='Planned firewall work',
+            queue=Queue.objects.first(),
+            priority=TicketPriority.objects.first(),
+            ticket_type=TicketType.objects.first(),
+            status=TicketStatus.objects.filter(slug='new').first(),
+        )
+        return ChangeRequest.objects.create(
+            ticket=ticket, organization=self.org,
+            implementation_status=status,
+            scheduled_start=timezone.now() + timedelta(hours=start_offset),
+            scheduled_end=timezone.now() + timedelta(hours=end_offset),
+        )
+
+    def test_no_baseline_is_not_drift(self):
+        """Alerting before anyone has declared a known-good config would mean
+        every device screams from its first capture, which trains people to
+        ignore the alerts."""
+        from netconfig.drift import classify
+        backup = self._capture(CONFIG_A)
+        state, window = classify(backup)
+        self.assertEqual(state, 'no_baseline')
+        self.assertIsNone(window)
+
+    def test_matching_the_baseline_is_not_drift(self):
+        from netconfig.drift import classify
+        base = self._capture(CONFIG_A, hours_ago=5)
+        base.approve_as_baseline()
+        same = ConfigBackup.objects.create(
+            asset=self.asset, organization=self.org, body=CONFIG_A,
+            content_hash=ConfigBackup.hash_body(CONFIG_A),
+            captured_at=timezone.now(), last_seen_at=timezone.now())
+        self.assertEqual(classify(same)[0], 'baseline')
+
+    def test_change_outside_a_window_is_unauthorized(self):
+        from netconfig.drift import classify
+        base = self._capture(CONFIG_A, hours_ago=5)
+        base.approve_as_baseline()
+        changed = self._capture(CONFIG_B)
+        self.assertEqual(classify(changed)[0], 'unauthorized')
+
+    def test_change_inside_an_approved_window_is_expected(self):
+        """A firewall rule edited during approved Tuesday-night maintenance is
+        not an incident."""
+        from netconfig.drift import classify
+        base = self._capture(CONFIG_A, hours_ago=5)
+        base.approve_as_baseline()
+        window = self._change_window()
+        changed = self._capture(CONFIG_B)
+        state, matched = classify(changed)
+        self.assertEqual(state, 'expected')
+        self.assertEqual(matched, window)
+
+    def test_a_draft_change_does_not_excuse_a_change(self):
+        """A change nobody has approved yet is exactly the case that should
+        still raise."""
+        from netconfig.drift import classify
+        base = self._capture(CONFIG_A, hours_ago=5)
+        base.approve_as_baseline()
+        self._change_window(status='draft')
+        self.assertEqual(classify(self._capture(CONFIG_B))[0], 'unauthorized')
+
+    def test_a_pending_cab_change_does_not_excuse_a_change(self):
+        from netconfig.drift import classify
+        base = self._capture(CONFIG_A, hours_ago=5)
+        base.approve_as_baseline()
+        self._change_window(status='pending_cab')
+        self.assertEqual(classify(self._capture(CONFIG_B))[0], 'unauthorized')
+
+    def test_a_window_that_has_ended_does_not_excuse_a_change(self):
+        from netconfig.drift import classify
+        base = self._capture(CONFIG_A, hours_ago=5)
+        base.approve_as_baseline()
+        self._change_window(start_offset=-10, end_offset=-8)
+        self.assertEqual(classify(self._capture(CONFIG_B))[0], 'unauthorized')
+
+    def test_an_unscheduled_approved_change_is_not_a_window(self):
+        """"Approved, sometime" is not a window, and treating it as an
+        open-ended licence would silence every alert for that client."""
+        from netconfig.drift import find_change_window
+        window = self._change_window()
+        window.scheduled_start = None
+        window.scheduled_end = None
+        window.save(update_fields=['scheduled_start', 'scheduled_end'])
+        self.assertIsNone(find_change_window(self.org))
+
+    def test_a_window_for_another_client_does_not_apply(self):
+        from netconfig.drift import find_change_window
+        other = Organization.objects.create(name='NotUs', slug='not-us')
+        self._change_window()
+        self.assertIsNone(find_change_window(other))
+
+    def test_approving_a_baseline_demotes_the_previous_one(self):
+        """Two baselines would make "drift from the approved config"
+        ambiguous, and an ambiguous alert is one nobody trusts."""
+        first = self._capture(CONFIG_A, hours_ago=5)
+        first.approve_as_baseline()
+        second = self._capture(CONFIG_B)
+        second.approve_as_baseline()
+        first.refresh_from_db()
+        self.assertFalse(first.is_approved)
+        self.assertTrue(second.is_approved)
+        self.assertEqual(
+            ConfigBackup.objects.filter(asset=self.asset, is_approved=True).count(), 1)
+
+
+class DriftAlertTests(TestCase):
+    def setUp(self):
+        from psa.tests._base import _setup_seed
+        _setup_seed()
+        self.org = Organization.objects.create(name='AlertCo', slug='alert-co')
+        self.asset = Asset.objects.create(
+            organization=self.org, name='fw-01', asset_type='firewall')
+
+    def _baseline_then_change(self):
+        base, _ = ConfigBackup.record_for_asset(
+            self.asset, CONFIG_A,
+            captured_at=timezone.now() - timedelta(hours=5))
+        base.approve_as_baseline()
+        changed, _ = ConfigBackup.record_for_asset(self.asset, CONFIG_B)
+        return changed
+
+    def test_unauthorized_change_raises_a_security_alert(self):
+        from security_alerts.models import SecurityAlert
+        from netconfig.drift import classify_and_alert
+        changed = self._baseline_then_change()
+        classify_and_alert(changed)
+        alert = SecurityAlert.objects.get()
+        self.assertEqual(alert.severity, 'high')
+        self.assertIn('fw-01', alert.title)
+        self.assertEqual(alert.organization, self.org)
+        self.assertEqual(alert.raw_payload['backup_id'], changed.pk)
+
+    def test_alert_carries_the_diff_size(self):
+        from security_alerts.models import SecurityAlert
+        from netconfig.drift import classify_and_alert
+        classify_and_alert(self._baseline_then_change())
+        alert = SecurityAlert.objects.get()
+        self.assertEqual(alert.raw_payload['added'], 4)
+        self.assertEqual(alert.raw_payload['removed'], 1)
+
+    def test_no_alert_without_a_baseline(self):
+        from security_alerts.models import SecurityAlert
+        from netconfig.drift import classify_and_alert
+        backup, _ = ConfigBackup.record_for_asset(self.asset, CONFIG_A)
+        classify_and_alert(backup)
+        self.assertEqual(SecurityAlert.objects.count(), 0)
+
+    def test_no_alert_for_a_matching_config(self):
+        from security_alerts.models import SecurityAlert
+        from netconfig.drift import classify_and_alert
+        base, _ = ConfigBackup.record_for_asset(
+            self.asset, CONFIG_A, captured_at=timezone.now() - timedelta(hours=5))
+        base.approve_as_baseline()
+        same = ConfigBackup.objects.create(
+            asset=self.asset, organization=self.org, body=CONFIG_A,
+            content_hash=ConfigBackup.hash_body(CONFIG_A),
+            captured_at=timezone.now(), last_seen_at=timezone.now())
+        classify_and_alert(same)
+        self.assertEqual(SecurityAlert.objects.count(), 0)
+
+    def test_the_verdict_is_stored_on_the_snapshot(self):
+        from netconfig.drift import classify_and_alert
+        changed = self._baseline_then_change()
+        classify_and_alert(changed)
+        changed.refresh_from_db()
+        self.assertEqual(changed.drift_state, 'unauthorized')
+
+    def test_a_broken_alert_path_does_not_lose_the_snapshot(self):
+        """A failure raising an alert must not fail the backup run that
+        produced the config."""
+        from unittest.mock import patch
+        from netconfig.drift import classify_and_alert
+        changed = self._baseline_then_change()
+        with patch('netconfig.drift._raise_alert', side_effect=RuntimeError('boom')):
+            state = classify_and_alert(changed)
+        self.assertEqual(state, 'unauthorized')
+        changed.refresh_from_db()
+        self.assertEqual(changed.drift_state, 'unauthorized')
+
+    def test_collection_classifies_automatically(self):
+        from unittest.mock import patch
+        from vault.models import Password
+        from netconfig.collector import collect_target
+        from security_alerts.models import SecurityAlert
+
+        cred = Password.objects.create(
+            organization=self.org, title='fw admin', username='admin')
+        cred.set_password('pw')
+        cred.save()
+        target = BackupTarget.objects.create(
+            asset=self.asset, host='10.0.0.1', username='admin', credential=cred)
+
+        with patch('netconfig.collector.collect_over_ssh', return_value=(CONFIG_A, '')):
+            collect_target(target)
+        ConfigBackup.objects.get(asset=self.asset).approve_as_baseline()
+
+        with patch('netconfig.collector.collect_over_ssh', return_value=(CONFIG_B, '')):
+            collect_target(target)
+        self.assertEqual(SecurityAlert.objects.count(), 1)

@@ -731,8 +731,11 @@ Planned capabilities:
 - **`backup_network_configs`** management command and a `network_config_backup` scheduler task. One unreachable device never stops a run: every device failure is recorded on the target and the run continues. Every collection writes an audit row, success or failure — opening an administrative session to a firewall with a stored credential should not happen without a trace. *(shipped v3.17.545)*
 - `paramiko` added to `requirements.txt` and imported lazily, so an install that has not re-run pip keeps working everywhere except this one feature, which reports the missing dependency rather than failing at import and taking the app with it.
 
-### Sub-phase 34.3 — Drift alerts *(planned)*
-- Diff against the snapshot marked approved (`is_approved` already exists on the model) and raise a security alert when a config changes outside an approved change window.
+### Sub-phase 34.3 — Drift alerts *(shipped v3.17.546)*
+- **Baseline per device** — mark a snapshot approved and later configs are compared against it. Approving one demotes the previous: two baselines would make "drift from the approved config" ambiguous, and an ambiguous alert is one nobody trusts. *(shipped v3.17.546)*
+- **Change-window awareness** — a change is `expected` when an approved `psa.ChangeRequest` for that client covers the capture time, and `unauthorized` otherwise. Only `approved` and `implementing` count; a `draft` or `pending_cab` change is exactly the case that should still raise. A request with no schedule is not a window — "approved, sometime" is not a licence, and treating it as one would silence every alert for that client. *(shipped v3.17.546)*
+- **No baseline means no drift.** Alerting before anybody has declared a known-good config would mean every device screams from its first capture, which trains people to ignore the alerts. *(shipped v3.17.546)*
+- **Unauthorized changes raise a `SecurityAlert`** at high severity on the Phase 9 dashboard, carrying the diff size and links back to the snapshot and baseline. A failure in the alert path is logged and swallowed — it must not lose the snapshot or fail the backup run that produced it. *(shipped v3.17.546)*
 
 ### Sub-phase 34.4 — Firmware and lifecycle *(planned)*
 - Firmware version captured per snapshot is already stored; this sub-phase surfaces EOL transitions from it and extends the device record's lifecycle metadata.

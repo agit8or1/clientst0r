@@ -56,7 +56,13 @@
 {% endif %}
 
 <div class="card">
-    <div class="card-header py-2"><strong>Snapshots</strong></div>
+    <div class="card-header py-2">
+        <strong>Snapshots</strong>
+        <span class="text-muted small ms-2">
+            Mark one as the baseline and later configs are compared against it. A
+            difference outside an approved change window raises a security alert.
+        </span>
+    </div>
     {% if backups %}
     <table class="table table-sm table-hover mb-0 align-middle">
         <thead>
@@ -82,7 +88,24 @@
                 <td>{{ b.line_count }}</td>
                 <td class="text-muted">{{ b.note|default:"—" }}</td>
                 <td class="text-end">
-                    {% if b.is_approved %}<span class="badge bg-success me-1">Approved</span>{% endif %}
+                    {# Phase 34.3 (v3.17.546) — baseline + drift verdict. #}
+                    {% if b.is_approved %}
+                        <span class="badge bg-success me-1">Baseline</span>
+                    {% elif b.drift_state == 'unauthorized' %}
+                        <span class="badge bg-danger me-1" title="Changed outside any approved change window">Unauthorized</span>
+                    {% elif b.drift_state == 'expected' %}
+                        <span class="badge bg-info text-dark me-1"
+                              title="Inside approved change {{ b.change_request_id }}">In change window</span>
+                    {% elif b.drift_state == 'no_baseline' %}
+                        <span class="badge bg-secondary me-1" title="No approved baseline to compare against">No baseline</span>
+                    {% endif %}
+                    {% if not b.is_approved %}
+                    <form method="post" action="{% url 'netconfig:approve_baseline' b.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-success btn-sm"
+                                title="Make this the known-good config">Baseline</button>
+                    </form>
+                    {% endif %}
                     <a href="{% url 'netconfig:view_backup' b.pk %}" class="btn btn-outline-secondary btn-sm">View</a>
                 </td>
             </tr>

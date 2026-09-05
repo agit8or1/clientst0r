@@ -5,6 +5,55 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.546] - 2026-09-05
+
+### Phase 34.3 — drift alerts
+
+Phase 34's goal is "make unauthorized changes loud". The hard part is not
+detecting a change — that is a hash comparison, and 34.1 already did it — but
+deciding which changes are worth waking somebody for. A firewall rule edited
+during approved Tuesday-night maintenance is not an incident. The same edit at
+3pm on a Wednesday with no change request open is the thing this exists to catch.
+
+**Baseline per device.** Mark a snapshot approved and later configs compare
+against it. Approving one demotes any previous baseline: two would make "drift
+from the approved config" ambiguous, and an ambiguous alert is one nobody trusts.
+
+**Change-window awareness.** A change is `expected` when an approved
+`psa.ChangeRequest` for that client covers the capture time, `unauthorized`
+otherwise. Three deliberate narrowings:
+
+- Only `approved` and `implementing` count. A `draft` or `pending_cab` change is
+  precisely the case that should still raise — somebody editing a firewall while
+  their own change is still waiting for CAB is the scenario, not the exception.
+- A request with **no schedule is not a window**. "Approved, sometime" is not a
+  licence, and treating it as open-ended would silence every alert for that
+  client for as long as the request sat open.
+- A window that has already ended does not retroactively excuse anything.
+
+**No baseline means no drift.** Alerting before anyone has declared a known-good
+config would mean every device screams from its first capture until somebody
+approves one — which is how people learn to ignore alerts. The snapshot records
+`no_baseline` instead, visible on the device page, so the gap is obvious without
+being noisy.
+
+**An unauthorized change raises a `SecurityAlert`** at high severity on the Phase
+9 dashboard, carrying the added/removed line counts and ids for the snapshot and
+the baseline. It is generated rather than ingested, so both the vendor-connection
+and SIEM-endpoint links are null — the model already allows that for exactly this
+kind of source.
+
+A failure in the alert path is logged and swallowed. A broken alert must not lose
+the snapshot or fail the nightly run that produced it; the config is the thing
+that matters and it is already stored by that point.
+
+Classification runs automatically on every new snapshot from both capture paths —
+SSH collection and hand-pasted. An unchanged capture is not classified, because
+it cannot have drifted since the one before it.
+
+17 new tests (84 in the app). Migration:
+`netconfig.0003_configbackup_change_request_configbackup_drift_state`.
+
 ## [3.17.545] - 2026-09-05
 
 ### Phase 34.2 — collecting device configs over SSH

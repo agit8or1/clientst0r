@@ -118,7 +118,16 @@ def capture(request, asset_id):
             note=(request.POST.get('note') or '').strip()[:255],
         )
         if created:
-            messages.success(request, 'Configuration stored.')
+            from .drift import classify_and_alert
+            state = classify_and_alert(backup)
+            if state == 'unauthorized':
+                messages.warning(
+                    request,
+                    'Configuration stored — and it differs from the approved '
+                    'baseline with no approved change request covering now. '
+                    'An alert has been raised.')
+            else:
+                messages.success(request, 'Configuration stored.')
         else:
             messages.info(
                 request,
@@ -255,3 +264,21 @@ def collect_now(request, asset_id):
     else:
         messages.error(request, result['message'])
     return redirect('netconfig:device_detail', asset_id=asset.pk)
+
+
+@login_required
+def approve_baseline(request, backup_id):
+    """Phase 34.3 (v3.17.546): mark a snapshot as the known-good config."""
+    backup = get_object_or_404(ConfigBackup, pk=backup_id)
+    get_object_or_404(_accessible_assets(request), pk=backup.asset_id)
+
+    if request.method != 'POST':
+        return redirect('netconfig:device_detail', asset_id=backup.asset_id)
+
+    backup.approve_as_baseline()
+    messages.success(
+        request,
+        'Marked as the approved baseline. Later configs are compared against '
+        'this one, and a difference outside an approved change window raises '
+        'an alert.')
+    return redirect('netconfig:device_detail', asset_id=backup.asset_id)

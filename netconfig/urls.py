@@ -14,4 +14,6 @@ urlpatterns = [
     path('device/<int:asset_id>/connection/', views.target_edit, name='target_edit'),
     path('device/<int:asset_id>/collect/', views.collect_now, name='collect_now'),
     path('backup/<int:backup_id>/', views.view_backup, name='view_backup'),
+    # Phase 34.3 (v3.17.546)
+    path('backup/<int:backup_id>/approve/', views.approve_baseline, name='approve_baseline'),
 ]

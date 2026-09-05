@@ -69,6 +69,23 @@ class ConfigBackup(models.Model):
         default=False,
         help_text='Marks this as the known-good configuration to compare against.')
 
+    # Phase 34.3 (v3.17.546) — drift against the approved baseline.
+    DRIFT_CHOICES = [
+        ('', 'Not classified'),
+        ('baseline', 'Matches the approved baseline'),
+        ('expected', 'Changed inside an approved change window'),
+        ('unauthorized', 'Changed outside any approved change window'),
+        ('no_baseline', 'No approved baseline to compare against'),
+    ]
+    drift_state = models.CharField(
+        max_length=20, choices=DRIFT_CHOICES, blank=True, default='',
+        help_text='How this snapshot compared to the approved baseline when '
+                  'it was taken.')
+    change_request = models.ForeignKey(
+        'psa.ChangeRequest', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='config_backups',
+        help_text='The approved change this snapshot fell inside, when it did.')
+
     captured_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='config_backups_captured')
@@ -175,6 +192,29 @@ class ConfigBackup(models.Model):
     def changed_from_previous(self) -> bool:
         prev = self.previous()
         return prev is not None and prev.content_hash != self.content_hash
+
+    # --- Phase 34.3: baseline ---
+
+    @classmethod
+    def approved_baseline(cls, asset):
+        """The snapshot marked as known-good for this device, if any."""
+        return (cls.objects.filter(asset=asset, is_approved=True)
+                .order_by('-captured_at').first())
+
+    def approve_as_baseline(self):
+        """Make this the known-good config, demoting any previous one.
+
+        Exactly one baseline per device: two would make "drift from the
+        approved config" ambiguous, and an ambiguous alert is one nobody
+        trusts.
+        """
+        ConfigBackup.objects.filter(
+            asset_id=self.asset_id, is_approved=True
+        ).exclude(pk=self.pk).update(is_approved=False)
+        self.is_approved = True
+        self.drift_state = 'baseline'
+        self.save(update_fields=['is_approved', 'drift_state'])
+        return self
 
 
 class BackupTarget(BaseModel):

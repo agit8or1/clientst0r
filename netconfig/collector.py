@@ -74,6 +74,13 @@ def collect_target(target, *, user=None, timeout=30):
         captured_by=user,
     )
 
+    # Phase 34.3 — classify against the approved baseline. Only a genuinely
+    # new snapshot is worth classifying; an unchanged capture cannot have
+    # drifted since the one before it.
+    if created:
+        from .drift import classify_and_alert
+        classify_and_alert(backup)
+
     target.last_success_at = timezone.now()
     target.last_error = ''
     target.save(update_fields=['last_success_at', 'last_error', 'updated_at'])
