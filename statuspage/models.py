@@ -271,3 +271,116 @@ class MaintenanceWindow(BaseModel):
         if self.affects_everything:
             return None
         return [s.display_name for s in self.services.all()]
+
+
+class StatusPageIncident(BaseModel):
+    """Phase 40.4 (v3.17.542): an incident, as published.
+
+    The roadmap called for "each incident is a ticket with is_status_page =
+    True". The flag exists on `psa.Ticket` and marks a ticket as publishable,
+    but the published record is this one, for the same reason
+    `StatusPageService` exists rather than pointing straight at a monitor: a
+    ticket subject is written for the queue. "Exchange transport stuck, DAG
+    node 2 down again" is a fine subject and a terrible thing to show a
+    client's customers.
+
+    So `title` is required and written for the audience. The ticket link is
+    optional — an incident can be posted without one, and often should be
+    before anyone has opened a ticket.
+    """
+    page = models.ForeignKey(
+        StatusPage, on_delete=models.CASCADE, related_name='incidents')
+    ticket = models.ForeignKey(
+        'psa.Ticket', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='status_page_incidents',
+        help_text='Optional. Links the published incident back to the work.')
+
+    title = models.CharField(
+        max_length=200,
+        help_text='What the public sees. Not the ticket subject.')
+    started_at = models.DateTimeField()
+    resolved_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text='Set when the incident is over. Until then it reads as ongoing.')
+
+    root_cause = models.TextField(
+        blank=True,
+        help_text='Optional, published once known. Plain text.')
+
+    services = models.ManyToManyField(
+        StatusPageService, blank=True, related_name='incidents',
+        help_text='Leave empty if the incident affected everything on the page.')
+
+    is_published = models.BooleanField(
+        default=True,
+        help_text='Unpublish to pull it from the page without deleting the '
+                  'record and its updates.')
+
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='status_page_incidents_created')
+
+    class Meta:
+        db_table = 'statuspage_incidents'
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return f'{self.title} ({self.started_at:%Y-%m-%d})'
+
+    @property
+    def is_resolved(self) -> bool:
+        return self.resolved_at is not None
+
+    @property
+    def state(self) -> str:
+        return 'resolved' if self.is_resolved else 'ongoing'
+
+    @property
+    def affects_everything(self) -> bool:
+        return not self.services.exists()
+
+    def affected_names(self):
+        if self.affects_everything:
+            return None
+        return [s.display_name for s in self.services.all()]
+
+    def timeline(self):
+        """Updates oldest-first — an incident is read as a story."""
+        return self.updates.order_by('posted_at')
+
+
+class IncidentUpdate(models.Model):
+    """Phase 40.4 (v3.17.542): one entry on an incident's timeline.
+
+    Deliberately **not** sourced from ticket comments. A comment marked
+    non-internal is visible to the client in the portal, which is a different
+    and much smaller audience than an anonymous status page — the two are not
+    interchangeable, and quietly treating them as the same would republish
+    ticket chatter to the internet. Updates here are written for the page.
+
+    Not a `BaseModel`: an update is a dated statement of what was true at a
+    point in time. Editing one silently would rewrite history, so there is no
+    `updated_at` to suggest that is normal.
+    """
+    STAGES = [
+        ('investigating', 'Investigating'),
+        ('identified', 'Identified'),
+        ('monitoring', 'Monitoring'),
+        ('resolved', 'Resolved'),
+    ]
+
+    incident = models.ForeignKey(
+        StatusPageIncident, on_delete=models.CASCADE, related_name='updates')
+    stage = models.CharField(max_length=20, choices=STAGES, default='investigating')
+    body = models.TextField()
+    posted_at = models.DateTimeField(auto_now_add=True)
+    posted_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='incident_updates_posted')
+
+    class Meta:
+        db_table = 'statuspage_incident_updates'
+        ordering = ['posted_at']
+
+    def __str__(self):
+        return f'{self.get_stage_display()} @ {self.posted_at:%Y-%m-%d %H:%M}'

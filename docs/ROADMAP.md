@@ -827,8 +827,11 @@ Public or per-client-private status page surfacing current service status, sched
 - **State is derived from the clock**, not stored — a stored status would need a job to advance it and would be wrong in the gap between a window opening and that job running. `is_cancelled` is the one stored flag, because no amount of looking at the clock tells you a window was called off. A cancelled window stays on the page marked cancelled rather than vanishing, so anyone who read the original notice can see it is off. *(shipped v3.17.541)*
 - **Empty service selection means "everything"** and is stored as no rows rather than every row, so the set stays correct when a service is added later. Finished windows are capped at five on the public page — listing every maintenance since inception buries the one happening tonight. *(shipped v3.17.541)*
 
-### Sub-phase 40.4 — Incident history *(planned)*
-- Each incident is a ticket with `is_status_page = True`; rendered as a timeline with updates, root cause and resolution.
+### Sub-phase 40.4 — Incident history *(shipped v3.17.542)*
+- **`psa.Ticket.is_status_page`** — flags a ticket as one an operator intends to publish. The flag alone publishes nothing; it only makes the ticket appear in the incident picker. *(shipped v3.17.542)*
+- **`statuspage.StatusPageIncident`** — the published record, with a `title` written for the audience rather than the queue. The same indirection as `StatusPageService`, for the same reason: "Exchange transport stuck, DAG node 2 down again" is a fine ticket subject and a terrible thing to show a client's customers. The ticket link is optional and `SET_NULL`, so an incident can be posted before anyone opens a ticket and survives the ticket being deleted. *(shipped v3.17.542)*
+- **`statuspage.IncidentUpdate`** — the timeline, with an `investigating` / `identified` / `monitoring` / `resolved` stage. Deliberately **not** sourced from ticket comments: a non-internal comment is visible to the client in the portal, which is a different and much smaller audience than an anonymous status page, and treating the two as interchangeable would republish ticket chatter to the internet. Posting a `resolved` update resolves the incident, because doing it as a separate step is what everyone forgets. *(shipped v3.17.542)*
+- Ongoing incidents render above planned maintenance — something broken now outranks something planned. Resolved history is capped at ten. *(shipped v3.17.542)*
 
 ### Sub-phase 40.5 — Per-client private pages *(planned)*
 - Each client gets their own URL gated by client-portal auth; the alternative single fully-public page stays available for MSPs broadcasting to customers and prospects.

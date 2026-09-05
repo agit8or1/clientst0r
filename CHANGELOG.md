@@ -5,6 +5,52 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.542] - 2026-09-05
+
+### Phase 40.4 — incident history
+
+The roadmap called for "each incident is a ticket with `is_status_page = True`".
+The flag now exists on `psa.Ticket`, but on its own it publishes nothing — it
+marks a ticket as one an operator intends to publish, and makes it appear in the
+incident picker. The published record is a separate model.
+
+**Why the indirection.** Same reason `StatusPageService` exists rather than
+pointing straight at a monitor. A ticket subject is written for the queue:
+"Exchange transport stuck, DAG node 2 down again" is a perfectly good subject and
+a terrible thing to show a client's customers. `StatusPageIncident.title` is
+required and written for the audience, and publishing without one is refused
+rather than defaulted to the subject. A test asserts the ticket subject and
+number appear nowhere on the rendered page.
+
+The ticket link is **optional and `SET_NULL`**. An incident often needs posting
+before anyone has opened a ticket, and a published record must outlive the ticket
+that prompted it — a deleted ticket must not silently erase what customers were
+told.
+
+**`IncidentUpdate` is not sourced from ticket comments**, which is the obvious
+shortcut and the wrong one. A comment marked non-internal is visible to the
+client in the portal — a different and much smaller audience than an anonymous
+status page. Treating the two as interchangeable would republish ticket chatter
+to the internet the moment someone forgets which box they are typing in. Updates
+here are written for the page, carrying an `investigating` / `identified` /
+`monitoring` / `resolved` stage.
+
+Two conveniences that exist because of what people forget:
+
+- **Posting a `resolved` update resolves the incident.** Doing it as a separate
+  second step is the one everybody misses, leaving a fixed problem showing as
+  ongoing.
+- **Root cause is a field on the incident**, editable after the fact, because it
+  is rarely known while the incident is live.
+
+On the page, ongoing incidents render **above** planned maintenance and the
+service list — something broken now outranks something planned. Resolved history
+is capped at ten. An unpublished incident is hidden without being deleted, so
+pulling something from the page does not destroy the record or its updates.
+
+28 new tests (79 in the app). Migrations: `psa.0062_ticket_is_status_page`,
+`statuspage.0003_statuspageincident_incidentupdate`.
+
 ## [3.17.541] - 2026-09-05
 
 ### Phase 40.3 — maintenance windows

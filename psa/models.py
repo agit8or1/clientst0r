@@ -272,6 +272,16 @@ class Ticket(models.Model):
     )
 
     # Severity scoring
+    # Phase 40.4 (v3.17.542) — status-page incidents. The flag marks a ticket
+    # as one an operator intends to publish; it does not publish anything on
+    # its own. Nothing reaches a public page until a StatusPageIncident is
+    # created against it with a public title, because a ticket subject is
+    # written for the queue, not for the customer's customers.
+    is_status_page = models.BooleanField(
+        default=False, db_index=True,
+        help_text='Flag this ticket as a publishable incident. Publishing it '
+                  'is a separate, deliberate step on a status page.')
+
     impact = models.CharField(max_length=20, choices=IMPACT_CHOICES, default='medium')
     urgency = models.CharField(max_length=20, choices=URGENCY_CHOICES, default='medium')
     tags = models.JSONField(default=list, blank=True, help_text='List of free-form string tags')

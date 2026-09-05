@@ -1,0 +1,41 @@
+{% comment %}
+    Phase 40.4 (v3.17.542) — one incident on the public page.
+    Nothing here comes from the ticket: `title` is written for this audience
+    and updates are posted deliberately. See StatusPageIncident for why.
+{% endcomment %}
+<div class="maint incident {{ i.state }}">
+    <div class="maint-title">
+        {{ i.title }}
+        {% if i.is_resolved %}— resolved{% else %}— ongoing{% endif %}
+    </div>
+    <div class="maint-when">
+        Started {{ i.started_at|date:"j M Y, H:i" }}
+        {% if i.resolved_at %} · Resolved {{ i.resolved_at|date:"j M Y, H:i T" }}{% endif %}
+    </div>
+    <div class="maint-svcs">
+        {% with names=i.affected_names %}
+            {% if names %}Affects: {{ names|join:", " }}
+            {% else %}Affects all services{% endif %}
+        {% endwith %}
+    </div>
+
+    {% with updates=i.timeline %}
+    {% if updates %}
+        <ol class="timeline">
+        {% for u in updates %}
+            <li>
+                <span class="stage stage-{{ u.stage }}">{{ u.get_stage_display }}</span>
+                <span class="ts">{{ u.posted_at|date:"j M, H:i" }}</span>
+                <div class="upd-body">{{ u.body }}</div>
+            </li>
+        {% endfor %}
+        </ol>
+    {% endif %}
+    {% endwith %}
+
+    {% if i.root_cause %}
+        <div class="rootcause">
+            <strong>Root cause.</strong> {{ i.root_cause }}
+        </div>
+    {% endif %}
+</div>

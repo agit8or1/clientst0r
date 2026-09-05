@@ -91,6 +91,21 @@
         .maint-svcs { color: var(--muted); font-size: 13px; margin-top: 6px; }
         h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em;
              color: var(--muted); margin: 28px 0 10px; }
+        .incident { border-left-color: var(--outage); }
+        .incident.resolved { border-left-color: var(--ok); }
+        .timeline { list-style: none; margin: 12px 0 0; padding: 0;
+                    border-top: 1px solid var(--line); }
+        .timeline li { padding: 10px 0 0; }
+        .stage { font-size: 11px; font-weight: 700; text-transform: uppercase;
+                 letter-spacing: 0.04em; padding: 2px 7px; border-radius: 999px;
+                 background: var(--unknown-bg); color: var(--unknown); }
+        .stage-resolved { background: var(--ok-bg); color: var(--ok); }
+        .stage-investigating { background: var(--outage-bg); color: var(--outage); }
+        .stage-identified, .stage-monitoring { background: var(--degraded-bg); color: var(--degraded); }
+        .ts { color: var(--muted); font-size: 12px; margin-left: 8px; }
+        .upd-body { margin-top: 4px; white-space: pre-wrap; }
+        .rootcause { margin-top: 12px; padding-top: 10px;
+                     border-top: 1px solid var(--line); font-size: 14px; }
         footer { color: var(--muted); font-size: 12px; margin-top: 28px; text-align: center; }
     </style>
 </head>
@@ -106,6 +121,11 @@
         {% else %}Status not yet known{% endif %}
     </div>
 
+    {% if ongoing_incidents %}
+        <h2>Ongoing incidents</h2>
+        {% for i in ongoing_incidents %}{% include "statuspage/_incident.html" with i=i %}{% endfor %}
+    {% endif %}
+
     {% if active_maintenance %}
         <h2>Maintenance in progress</h2>
         {% for w in active_maintenance %}{% include "statuspage/_maintenance.html" with w=w %}{% endfor %}
@@ -116,7 +136,7 @@
         {% for w in upcoming_maintenance %}{% include "statuspage/_maintenance.html" with w=w %}{% endfor %}
     {% endif %}
 
-    {% if active_maintenance or upcoming_maintenance %}<h2>Services</h2>{% endif %}
+    {% if ongoing_incidents or active_maintenance or upcoming_maintenance %}<h2>Services</h2>{% endif %}
 
     {% for row in rows %}
         <div class="svc">
@@ -159,6 +179,11 @@
     {% empty %}
         <p class="empty">No services are published on this page yet.</p>
     {% endfor %}
+
+    {% if resolved_incidents %}
+        <h2>Past incidents</h2>
+        {% for i in resolved_incidents %}{% include "statuspage/_incident.html" with i=i %}{% endfor %}
+    {% endif %}
 
     {% if recent_maintenance %}
         <h2>Recent maintenance</h2>

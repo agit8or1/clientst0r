@@ -14,7 +14,10 @@ from core.decorators import require_admin
 from core.models import Organization
 from monitoring.models import WebsiteMonitor
 
-from .models import MaintenanceWindow, StatusPage, StatusPageService
+from .models import (
+    IncidentUpdate, MaintenanceWindow, StatusPage, StatusPageIncident,
+    StatusPageService,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -54,10 +57,19 @@ def public(request, token):
             recent.append(w)
     upcoming.reverse()  # soonest first; the queryset is newest-first
 
+    # Phase 40.4 — incidents. Ongoing ones show unconditionally; resolved
+    # history is capped for the same reason maintenance history is.
+    incidents = (page.incidents.filter(is_published=True)
+                 .prefetch_related('services', 'updates'))
+    ongoing = [i for i in incidents if not i.is_resolved]
+    resolved = [i for i in incidents if i.is_resolved][:10]
+
     response = render(request, 'statuspage/public.html', {
         'page': page,
         'rows': rows,
         'overall': page.overall_status(),
+        'ongoing_incidents': ongoing,
+        'resolved_incidents': resolved,
         'active_maintenance': active,
         'upcoming_maintenance': upcoming,
         'recent_maintenance': recent,
@@ -138,6 +150,27 @@ def page_detail(request, pk):
         if action == 'add_service':
             return _add_service(request, page)
 
+        if action == 'add_incident':
+            return _add_incident(request, page)
+
+        if action == 'add_incident_update':
+            return _add_incident_update(request, page)
+
+        if action == 'resolve_incident':
+            inc = page.incidents.filter(pk=request.POST.get('incident_id')).first()
+            if inc and not inc.is_resolved:
+                inc.resolved_at = timezone.now()
+                inc.save(update_fields=['resolved_at', 'updated_at'])
+                messages.success(request, 'Incident marked resolved.')
+            return redirect('statuspage:detail', pk=page.pk)
+
+        if action == 'delete_incident':
+            inc = page.incidents.filter(pk=request.POST.get('incident_id')).first()
+            if inc:
+                inc.delete()
+                messages.success(request, 'Incident deleted, updates and all.')
+            return redirect('statuspage:detail', pk=page.pk)
+
         if action == 'add_maintenance':
             return _add_maintenance(request, page)
 
@@ -202,6 +235,8 @@ def page_detail(request, pk):
         'page': page,
         'services': page.services.select_related('monitor').all(),
         'maintenance_windows': page.maintenance_windows.prefetch_related('services').all(),
+        'incidents': page.incidents.prefetch_related('services', 'updates').all(),
+        'flagged_tickets': _publishable_tickets(page),
         'available_monitors': available.select_related('organization').order_by('name'),
         'public_url': request.build_absolute_uri(page.get_public_url()),
     })
@@ -292,4 +327,110 @@ def _add_maintenance(request, page):
         request,
         'Maintenance posted. It is visible on the page now, not just when it '
         'starts — which is the point of announcing it.')
+    return redirect('statuspage:detail', pk=page.pk)
+
+
+# ---------------------------------------------------------------------------
+# Phase 40.4 — incidents
+# ---------------------------------------------------------------------------
+
+def _publishable_tickets(page):
+    """Tickets flagged `is_status_page` that this page could publish.
+
+    Scoped to the page's client when it has one — the same rule the service
+    picker follows, for the same reason.
+    """
+    from psa.models import Ticket
+
+    qs = Ticket.objects.filter(is_status_page=True)
+    if page.organization_id:
+        qs = qs.filter(organization_id=page.organization_id)
+    already = page.incidents.exclude(ticket=None).values_list('ticket_id', flat=True)
+    return qs.exclude(id__in=already).order_by('-created_at')[:50]
+
+
+def _add_incident(request, page):
+    from django.utils.dateparse import parse_datetime
+    from psa.models import Ticket
+
+    title = (request.POST.get('title') or '').strip()[:200]
+    if not title:
+        # Falling back to the ticket subject is exactly the leak this model
+        # exists to prevent, so refuse instead.
+        messages.error(
+            request,
+            'Give the incident a public title. A ticket subject is written for '
+            'the queue and is never published as-is.')
+        return redirect('statuspage:detail', pk=page.pk)
+
+    started_at = parse_datetime(request.POST.get('started_at') or '')
+    if started_at is None:
+        started_at = timezone.now()
+    elif timezone.is_naive(started_at):
+        started_at = timezone.make_aware(started_at)
+
+    ticket = None
+    ticket_id = request.POST.get('ticket')
+    if ticket_id:
+        ticket = Ticket.objects.filter(pk=ticket_id).first()
+        if ticket is None:
+            messages.error(request, 'That ticket no longer exists.')
+            return redirect('statuspage:detail', pk=page.pk)
+        if page.organization_id and ticket.organization_id != page.organization_id:
+            messages.error(
+                request,
+                "That ticket belongs to a different client. A client status "
+                "page can only publish that client's incidents.")
+            return redirect('statuspage:detail', pk=page.pk)
+
+    incident = StatusPageIncident.objects.create(
+        page=page, ticket=ticket, title=title,
+        started_at=started_at,
+        created_by=request.user,
+    )
+    service_ids = request.POST.getlist('services')
+    if service_ids:
+        incident.services.set(page.services.filter(pk__in=service_ids))
+
+    body = (request.POST.get('first_update') or '').strip()
+    if body:
+        IncidentUpdate.objects.create(
+            incident=incident, stage='investigating',
+            body=body, posted_by=request.user)
+
+    messages.success(request, 'Incident published.')
+    return redirect('statuspage:detail', pk=page.pk)
+
+
+def _add_incident_update(request, page):
+    incident = page.incidents.filter(pk=request.POST.get('incident_id')).first()
+    if incident is None:
+        messages.error(request, 'That incident is not on this page.')
+        return redirect('statuspage:detail', pk=page.pk)
+
+    body = (request.POST.get('body') or '').strip()
+    if not body:
+        messages.error(request, 'An update needs something to say.')
+        return redirect('statuspage:detail', pk=page.pk)
+
+    stage = request.POST.get('stage') or 'investigating'
+    valid = dict(IncidentUpdate.STAGES)
+    if stage not in valid:
+        stage = 'investigating'
+
+    IncidentUpdate.objects.create(
+        incident=incident, stage=stage, body=body, posted_by=request.user)
+
+    # Posting a "resolved" update and then having to separately mark the
+    # incident resolved is a step everyone forgets, so do it here.
+    if stage == 'resolved' and not incident.is_resolved:
+        incident.resolved_at = timezone.now()
+        incident.save(update_fields=['resolved_at', 'updated_at'])
+
+    root_cause = (request.POST.get('root_cause') or '').strip()
+    if root_cause:
+        incident.root_cause = root_cause
+        incident.save(update_fields=['root_cause', 'updated_at'])
+
+    messages.success(request, 'Update posted.')
     return redirect('statuspage:detail', pk=page.pk)

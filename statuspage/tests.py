@@ -14,7 +14,10 @@ from django.utils import timezone
 
 from core.models import Organization
 from monitoring.models import MonitorCheck, WebsiteMonitor
-from statuspage.models import MaintenanceWindow, StatusPage, StatusPageService
+from statuspage.models import (
+    IncidentUpdate, MaintenanceWindow, StatusPage, StatusPageIncident,
+    StatusPageService,
+)
 
 # Same shape as the other app suites: drop the 2FA gate and Axes so a view
 # test exercises the view rather than the login flow.
@@ -486,3 +489,267 @@ class MaintenanceManagementTests(TestCase):
         self.client.post(f'/status/{self.page.pk}/', {
             'action': 'delete_maintenance', 'window_id': w.pk})
         self.assertTrue(MaintenanceWindow.objects.filter(pk=w.pk).exists())
+
+
+# ---------------------------------------------------------------------------
+# Phase 40.4 (v3.17.542) — incidents
+# ---------------------------------------------------------------------------
+
+def _make_ticket(org, subject='Exchange transport stuck, DAG node 2 down again'):
+    """A Ticket needs queue / priority / type / status, all PROTECT FKs the
+    seed command provides."""
+    from psa.models import Queue, Ticket, TicketPriority, TicketStatus, TicketType
+    return Ticket.objects.create(
+        organization=org, subject=subject,
+        queue=Queue.objects.first(),
+        priority=TicketPriority.objects.first(),
+        ticket_type=TicketType.objects.first(),
+        status=TicketStatus.objects.filter(slug='new').first(),
+    )
+
+
+class IncidentModelTests(TestCase):
+    def setUp(self):
+        from psa.tests._base import _setup_seed
+        _setup_seed()
+        self.org = Organization.objects.create(name='IncCo', slug='inc-co')
+        self.page = StatusPage.objects.create(title='Inc')
+        self.monitor = WebsiteMonitor.objects.create(
+            organization=self.org, name='Mail', url='https://a.example.com')
+        self.svc = StatusPageService.objects.create(
+            page=self.page, monitor=self.monitor, display_name='Webmail')
+
+    def _incident(self, **kw):
+        kw.setdefault('title', 'Email delivery delays')
+        kw.setdefault('started_at', timezone.now() - timedelta(hours=2))
+        return StatusPageIncident.objects.create(page=self.page, **kw)
+
+    def test_unresolved_reads_ongoing(self):
+        self.assertEqual(self._incident().state, 'ongoing')
+
+    def test_resolved_reads_resolved(self):
+        inc = self._incident(resolved_at=timezone.now())
+        self.assertEqual(inc.state, 'resolved')
+        self.assertTrue(inc.is_resolved)
+
+    def test_ticket_is_optional(self):
+        """An incident often needs posting before anyone opens a ticket."""
+        self.assertIsNone(self._incident().ticket)
+
+    def test_ticket_can_be_linked_without_its_subject_being_used(self):
+        ticket = _make_ticket(self.org)
+        inc = self._incident(ticket=ticket)
+        self.assertEqual(inc.ticket, ticket)
+        self.assertNotEqual(inc.title, ticket.subject)
+
+    def test_deleting_the_ticket_keeps_the_incident(self):
+        """SET_NULL: the published record must outlive the ticket."""
+        ticket = _make_ticket(self.org)
+        inc = self._incident(ticket=ticket)
+        ticket.delete()
+        inc.refresh_from_db()
+        self.assertIsNone(inc.ticket)
+        self.assertEqual(inc.title, 'Email delivery delays')
+
+    def test_timeline_is_oldest_first(self):
+        inc = self._incident()
+        first = IncidentUpdate.objects.create(
+            incident=inc, stage='investigating', body='Looking into it')
+        second = IncidentUpdate.objects.create(
+            incident=inc, stage='resolved', body='Fixed')
+        self.assertEqual(list(inc.timeline()), [first, second])
+
+    def test_no_services_means_everything(self):
+        inc = self._incident()
+        self.assertTrue(inc.affects_everything)
+        self.assertIsNone(inc.affected_names())
+
+    def test_updates_cascade_with_the_incident(self):
+        inc = self._incident()
+        IncidentUpdate.objects.create(incident=inc, body='x')
+        inc.delete()
+        self.assertEqual(IncidentUpdate.objects.count(), 0)
+
+    def test_ticket_flag_defaults_off(self):
+        """A ticket is not publishable until somebody says so."""
+        self.assertFalse(_make_ticket(self.org).is_status_page)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class IncidentPublicPageTests(TestCase):
+    def setUp(self):
+        from psa.tests._base import _setup_seed
+        _setup_seed()
+        self.org = Organization.objects.create(name='IncPub', slug='inc-pub')
+        self.monitor = WebsiteMonitor.objects.create(
+            organization=self.org, name='Mail', url='https://a.example.com',
+            status='active')
+        self.page = StatusPage.objects.create(title='Status', is_enabled=True)
+        self.svc = StatusPageService.objects.create(
+            page=self.page, monitor=self.monitor, display_name='Webmail')
+        self.client = Client()
+
+    def _incident(self, **kw):
+        kw.setdefault('title', 'Email delivery delays')
+        kw.setdefault('started_at', timezone.now() - timedelta(hours=2))
+        return StatusPageIncident.objects.create(page=self.page, **kw)
+
+    def test_ongoing_incident_appears(self):
+        self._incident()
+        resp = self.client.get(self.page.get_public_url())
+        self.assertContains(resp, 'Ongoing incidents')
+        self.assertContains(resp, 'Email delivery delays')
+
+    def test_resolved_incident_moves_to_history(self):
+        self._incident(resolved_at=timezone.now())
+        resp = self.client.get(self.page.get_public_url())
+        self.assertContains(resp, 'Past incidents')
+        self.assertNotContains(resp, 'Ongoing incidents')
+
+    def test_ticket_subject_is_never_published(self):
+        """The reason StatusPageIncident.title exists."""
+        ticket = _make_ticket(self.org)
+        self._incident(ticket=ticket)
+        body = self.client.get(self.page.get_public_url()).content.decode()
+        self.assertNotIn('DAG node 2', body)
+        self.assertNotIn(ticket.ticket_number, body)
+
+    def test_updates_render_as_a_timeline(self):
+        inc = self._incident()
+        IncidentUpdate.objects.create(
+            incident=inc, stage='identified', body='Upstream provider issue')
+        resp = self.client.get(self.page.get_public_url())
+        self.assertContains(resp, 'Identified')
+        self.assertContains(resp, 'Upstream provider issue')
+
+    def test_root_cause_is_published_when_set(self):
+        self._incident(resolved_at=timezone.now(),
+                       root_cause='A failed switch in the primary rack.')
+        self.assertContains(
+            self.client.get(self.page.get_public_url()),
+            'A failed switch in the primary rack.')
+
+    def test_unpublished_incident_is_hidden(self):
+        self._incident(is_published=False)
+        self.assertNotContains(
+            self.client.get(self.page.get_public_url()), 'Email delivery delays')
+
+    def test_incidents_of_other_pages_do_not_leak(self):
+        other = StatusPage.objects.create(title='Other', is_enabled=True)
+        StatusPageIncident.objects.create(
+            page=other, title='Not yours', started_at=timezone.now())
+        self.assertNotContains(
+            self.client.get(self.page.get_public_url()), 'Not yours')
+
+    def test_resolved_history_is_capped(self):
+        for i in range(13):
+            self._incident(title=f'Old incident {i}',
+                           started_at=timezone.now() - timedelta(days=i + 1),
+                           resolved_at=timezone.now() - timedelta(days=i))
+        body = self.client.get(self.page.get_public_url()).content.decode()
+        shown = sum(1 for i in range(13) if f'Old incident {i}' in body)
+        self.assertEqual(shown, 10)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class IncidentManagementTests(TestCase):
+    def setUp(self):
+        from psa.tests._base import _setup_seed
+        _setup_seed()
+        self.org = Organization.objects.create(name='IncMgmt', slug='inc-mgmt')
+        self.other_org = Organization.objects.create(name='IncOther', slug='inc-other')
+        self.page = StatusPage.objects.create(title='P')
+        self.admin = User.objects.create_superuser(
+            'incadmin', 'i@example.com', 'hunter2xyz')
+        self.client = Client()
+        self.client.force_login(self.admin)
+
+    def test_publish_an_incident(self):
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'add_incident', 'title': 'Email delays'})
+        self.assertEqual(self.page.incidents.count(), 1)
+
+    def test_public_title_is_required(self):
+        """Defaulting to the ticket subject is the leak this prevents."""
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'add_incident', 'title': '   '})
+        self.assertEqual(self.page.incidents.count(), 0)
+
+    def test_started_at_defaults_to_now(self):
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'add_incident', 'title': 'Email delays'})
+        self.assertIsNotNone(self.page.incidents.first().started_at)
+
+    def test_first_update_is_posted_with_the_incident(self):
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'add_incident', 'title': 'Email delays',
+            'first_update': 'We are investigating.'})
+        inc = self.page.incidents.first()
+        self.assertEqual(inc.updates.count(), 1)
+
+    def test_client_page_cannot_publish_another_clients_ticket(self):
+        page = StatusPage.objects.create(title='Scoped', organization=self.org)
+        ticket = _make_ticket(self.other_org)
+        self.client.post(f'/status/{page.pk}/', {
+            'action': 'add_incident', 'title': 'Sneaky', 'ticket': ticket.pk})
+        self.assertEqual(page.incidents.count(), 0)
+
+    def test_posting_a_resolved_update_resolves_the_incident(self):
+        """Marking it resolved separately is a step everyone forgets."""
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'add_incident', 'title': 'Email delays'})
+        inc = self.page.incidents.first()
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'add_incident_update', 'incident_id': inc.pk,
+            'stage': 'resolved', 'body': 'All clear.'})
+        inc.refresh_from_db()
+        self.assertTrue(inc.is_resolved)
+
+    def test_update_needs_a_body(self):
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'add_incident', 'title': 'Email delays'})
+        inc = self.page.incidents.first()
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'add_incident_update', 'incident_id': inc.pk,
+            'stage': 'monitoring', 'body': '  '})
+        self.assertEqual(inc.updates.count(), 0)
+
+    def test_bogus_stage_falls_back_rather_than_500s(self):
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'add_incident', 'title': 'Email delays'})
+        inc = self.page.incidents.first()
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'add_incident_update', 'incident_id': inc.pk,
+            'stage': 'nonsense', 'body': 'Something'})
+        self.assertEqual(inc.updates.first().stage, 'investigating')
+
+    def test_cannot_update_another_pages_incident(self):
+        other = StatusPage.objects.create(title='Other')
+        inc = StatusPageIncident.objects.create(
+            page=other, title='Theirs', started_at=timezone.now())
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'add_incident_update', 'incident_id': inc.pk,
+            'stage': 'monitoring', 'body': 'Injected'})
+        self.assertEqual(inc.updates.count(), 0)
+
+    def test_resolve_and_delete(self):
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'add_incident', 'title': 'Email delays'})
+        inc = self.page.incidents.first()
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'resolve_incident', 'incident_id': inc.pk})
+        inc.refresh_from_db()
+        self.assertTrue(inc.is_resolved)
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'delete_incident', 'incident_id': inc.pk})
+        self.assertEqual(self.page.incidents.count(), 0)
+
+    def test_only_flagged_tickets_are_offered(self):
+        plain = _make_ticket(self.org)
+        flagged = _make_ticket(self.org, subject='Publishable')
+        flagged.is_status_page = True
+        flagged.save(update_fields=['is_status_page'])
+        resp = self.client.get(f'/status/{self.page.pk}/')
+        offered = list(resp.context['flagged_tickets'])
+        self.assertIn(flagged, offered)
+        self.assertNotIn(plain, offered)

@@ -131,6 +131,128 @@
     </div>
 </div>
 
+{# Phase 40.4 (v3.17.542) — incidents. Nothing here is pulled from a ticket. #}
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>Incidents</strong></div>
+    <div class="card-body">
+        <p class="text-muted small">
+            The title and every update are written for the public page. Nothing is
+            copied from the ticket — a ticket subject and its comments are written for
+            the queue and for the client portal, which are not this audience.
+        </p>
+
+        {% for i in incidents %}
+        <div class="border rounded p-2 mb-2">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <strong>{{ i.title }}</strong>
+                    {% if i.is_resolved %}
+                        <span class="badge bg-success ms-1">Resolved</span>
+                    {% else %}
+                        <span class="badge bg-danger ms-1">Ongoing</span>
+                    {% endif %}
+                    <div class="small text-muted">
+                        Started {{ i.started_at|date:"j M Y, H:i" }}
+                        {% if i.ticket %} · ticket {{ i.ticket.ticket_number }}{% endif %}
+                        · {{ i.updates.count }} update{{ i.updates.count|pluralize }}
+                    </div>
+                </div>
+                <div>
+                    {% if not i.is_resolved %}
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="resolve_incident">
+                        <input type="hidden" name="incident_id" value="{{ i.pk }}">
+                        <button type="submit" class="btn btn-outline-success btn-sm">Resolve</button>
+                    </form>
+                    {% endif %}
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_incident">
+                        <input type="hidden" name="incident_id" value="{{ i.pk }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                                onclick="return confirm('Delete this incident and every update on it?')">
+                            Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <form method="post" class="row g-2 mt-1">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_incident_update">
+                <input type="hidden" name="incident_id" value="{{ i.pk }}">
+                <div class="col-md-2">
+                    <select class="form-select form-select-sm" name="stage">
+                        <option value="investigating">Investigating</option>
+                        <option value="identified">Identified</option>
+                        <option value="monitoring">Monitoring</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                </div>
+                <div class="col-md-7">
+                    <input type="text" class="form-control form-control-sm" name="body"
+                           placeholder="What you can tell people right now" required>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-outline-primary btn-sm">Post update</button>
+                </div>
+                <div class="col-12">
+                    <input type="text" class="form-control form-control-sm" name="root_cause"
+                           placeholder="Root cause (optional, published once known)"
+                           value="{{ i.root_cause }}">
+                </div>
+            </form>
+        </div>
+        {% endfor %}
+
+        <form method="post" class="row g-2 mt-2 pt-2 border-top">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_incident">
+            <div class="col-md-6">
+                <label class="form-label small" for="inc_title">Public title</label>
+                <input type="text" class="form-control form-control-sm" id="inc_title"
+                       name="title" maxlength="200" required
+                       placeholder="Email delivery delays">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small" for="started_at">Started</label>
+                <input type="datetime-local" class="form-control form-control-sm"
+                       id="started_at" name="started_at">
+                <div class="form-text">Defaults to now.</div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small" for="ticket">Ticket (optional)</label>
+                <select class="form-select form-select-sm" id="ticket" name="ticket">
+                    <option value="">— none —</option>
+                    {% for t in flagged_tickets %}
+                        <option value="{{ t.pk }}">{{ t.ticket_number }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Tickets flagged as publishable.</div>
+            </div>
+            <div class="col-12">
+                <input type="text" class="form-control form-control-sm" name="first_update"
+                       placeholder="First update (optional) — what you can say right now">
+            </div>
+            {% if services %}
+            <div class="col-md-8">
+                <label class="form-label small" for="inc_services">Affected services</label>
+                <select class="form-select form-select-sm" id="inc_services" name="services" multiple size="3">
+                    {% for svc in services %}
+                        <option value="{{ svc.pk }}">{{ svc.display_name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Select none if everything is affected.</div>
+            </div>
+            {% endif %}
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary btn-sm">Publish incident</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {# Phase 40.3 (v3.17.541) — planned work, announced before it happens. #}
 <div class="card mb-3">
     <div class="card-header py-2"><strong>Maintenance windows</strong></div>
