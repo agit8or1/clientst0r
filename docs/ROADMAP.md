@@ -822,8 +822,10 @@ Public or per-client-private status page surfacing current service status, sched
 - **Public view** at `/status/p/<token>/` — per-service status plus 30 / 90 / 365-day uptime, `no-store` and `noindex`, standalone template (no nav, no session chrome, meta-refresh so it works with scripting off). Worst status wins overall: one service down makes the page say outage. A window with no recorded checks reads "no data" rather than a percentage. *(shipped v3.17.540)*
 - **Management UI** under Operations → Monitoring → Status Pages — create, publish, rotate the link, add and remove services. *(shipped v3.17.540)*
 
-### Sub-phase 40.3 — Maintenance windows *(planned)*
-- Scheduled-maintenance posts with start/end + affected services, shown as upcoming before they begin.
+### Sub-phase 40.3 — Maintenance windows *(shipped v3.17.541)*
+- **`statuspage.MaintenanceWindow`** — title, body, start, end, and optionally the services affected. Visible on the public page **from the moment it is posted**, not from the moment it starts: announcing planned work in advance is the thing that stops the call it would otherwise generate. *(shipped v3.17.541)*
+- **State is derived from the clock**, not stored — a stored status would need a job to advance it and would be wrong in the gap between a window opening and that job running. `is_cancelled` is the one stored flag, because no amount of looking at the clock tells you a window was called off. A cancelled window stays on the page marked cancelled rather than vanishing, so anyone who read the original notice can see it is off. *(shipped v3.17.541)*
+- **Empty service selection means "everything"** and is stored as no rows rather than every row, so the set stays correct when a service is added later. Finished windows are capped at five on the public page — listing every maintenance since inception buries the one happening tonight. *(shipped v3.17.541)*
 
 ### Sub-phase 40.4 — Incident history *(planned)*
 - Each incident is a ticket with `is_status_page = True`; rendered as a timeline with updates, root cause and resolution.

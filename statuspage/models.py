@@ -194,3 +194,80 @@ class StatusPageService(models.Model):
             {'days': days, **self.monitor.uptime(days)}
             for days in (30, 90, 365)
         ]
+
+
+class MaintenanceWindow(BaseModel):
+    """Phase 40.3 (v3.17.541): planned work, announced before it happens.
+
+    The point of a status page is to stop the "is anything broken?" call. Planned
+    work generates exactly that call unless it is posted in advance, so a window
+    is visible from the moment it is created — not from the moment it starts.
+
+    State is derived from the clock rather than stored, with one exception.
+    A stored status would need a job to advance it and would be wrong in the gap
+    between the window opening and that job running; `cancelled` is the
+    exception because no amount of looking at the clock can tell you a window
+    was called off.
+    """
+    page = models.ForeignKey(
+        StatusPage, on_delete=models.CASCADE, related_name='maintenance_windows')
+
+    title = models.CharField(max_length=160)
+    body = models.TextField(
+        blank=True,
+        help_text='What is happening and what the client should expect. '
+                  'Plain text — this is read by people outside the business.')
+
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+
+    # Optional. A window affecting everything leaves this empty rather than
+    # listing every service, which would need updating whenever one is added.
+    services = models.ManyToManyField(
+        StatusPageService, blank=True, related_name='maintenance_windows',
+        help_text='Leave empty if the work affects everything on the page.')
+
+    is_cancelled = models.BooleanField(
+        default=False,
+        help_text='Called off. Stays on the page as cancelled rather than '
+                  'vanishing, so anyone who read the original notice can see '
+                  'it is no longer happening.')
+
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='maintenance_windows_created')
+
+    class Meta:
+        db_table = 'statuspage_maintenance_windows'
+        ordering = ['-starts_at']
+
+    def __str__(self):
+        return f'{self.title} ({self.starts_at:%Y-%m-%d %H:%M})'
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.ends_at and self.starts_at and self.ends_at <= self.starts_at:
+            raise ValidationError({'ends_at': 'Maintenance must end after it starts.'})
+
+    @property
+    def state(self):
+        """`cancelled` / `upcoming` / `in_progress` / `completed`."""
+        from django.utils import timezone as tz
+        if self.is_cancelled:
+            return 'cancelled'
+        now = tz.now()
+        if now < self.starts_at:
+            return 'upcoming'
+        if now >= self.ends_at:
+            return 'completed'
+        return 'in_progress'
+
+    @property
+    def affects_everything(self) -> bool:
+        return not self.services.exists()
+
+    def affected_names(self):
+        """Service names for display, or None when it affects everything."""
+        if self.affects_everything:
+            return None
+        return [s.display_name for s in self.services.all()]

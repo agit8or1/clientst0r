@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from core.models import Organization
 from monitoring.models import MonitorCheck, WebsiteMonitor
-from statuspage.models import StatusPage, StatusPageService
+from statuspage.models import MaintenanceWindow, StatusPage, StatusPageService
 
 # Same shape as the other app suites: drop the 2FA gate and Axes so a view
 # test exercises the view rather than the login flow.
@@ -279,3 +279,210 @@ class StatusPageManagementTests(TestCase):
         page = StatusPage.objects.create(title='P')
         self.client.post(f'/status/{page.pk}/', {'action': 'delete'})
         self.assertFalse(StatusPage.objects.filter(pk=page.pk).exists())
+
+
+# ---------------------------------------------------------------------------
+# Phase 40.3 (v3.17.541) — maintenance windows
+# ---------------------------------------------------------------------------
+
+class MaintenanceWindowModelTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.org = Organization.objects.create(name='MaintCo', slug='maint-co')
+        cls.page = StatusPage.objects.create(title='Maint')
+        cls.monitor = WebsiteMonitor.objects.create(
+            organization=cls.org, name='Mail', url='https://a.example.com')
+        cls.svc = StatusPageService.objects.create(
+            page=cls.page, monitor=cls.monitor, display_name='Webmail')
+
+    def _window(self, start_offset, end_offset, **kw):
+        now = timezone.now()
+        return MaintenanceWindow.objects.create(
+            page=self.page, title='Upgrade',
+            starts_at=now + timedelta(hours=start_offset),
+            ends_at=now + timedelta(hours=end_offset),
+            **kw)
+
+    def test_state_is_derived_from_the_clock(self):
+        self.assertEqual(self._window(2, 4).state, 'upcoming')
+        self.assertEqual(self._window(-1, 1).state, 'in_progress')
+        self.assertEqual(self._window(-4, -2).state, 'completed')
+
+    def test_cancelled_beats_the_clock(self):
+        """No amount of looking at the clock tells you a window was called
+        off, which is why this one flag is stored."""
+        w = self._window(-1, 1, is_cancelled=True)
+        self.assertEqual(w.state, 'cancelled')
+
+    def test_no_services_means_everything(self):
+        w = self._window(1, 2)
+        self.assertTrue(w.affects_everything)
+        self.assertIsNone(w.affected_names())
+
+    def test_named_services_are_listed(self):
+        w = self._window(1, 2)
+        w.services.add(self.svc)
+        self.assertFalse(w.affects_everything)
+        self.assertEqual(w.affected_names(), ['Webmail'])
+
+    def test_end_must_follow_start(self):
+        from django.core.exceptions import ValidationError
+        now = timezone.now()
+        w = MaintenanceWindow(
+            page=self.page, title='Backwards',
+            starts_at=now + timedelta(hours=3), ends_at=now)
+        with self.assertRaises(ValidationError):
+            w.clean()
+
+    def test_windows_cascade_with_the_page(self):
+        self._window(1, 2)
+        self.page.delete()
+        self.assertEqual(MaintenanceWindow.objects.count(), 0)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class MaintenanceOnPublicPageTests(TestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(name='PubMaint', slug='pub-maint')
+        self.monitor = WebsiteMonitor.objects.create(
+            organization=self.org, name='Mail', url='https://a.example.com',
+            status='active')
+        self.page = StatusPage.objects.create(title='Status', is_enabled=True)
+        StatusPageService.objects.create(
+            page=self.page, monitor=self.monitor, display_name='Webmail')
+        self.client = Client()
+
+    def _window(self, title, start_offset, end_offset, **kw):
+        now = timezone.now()
+        return MaintenanceWindow.objects.create(
+            page=self.page, title=title,
+            starts_at=now + timedelta(hours=start_offset),
+            ends_at=now + timedelta(hours=end_offset), **kw)
+
+    def test_upcoming_window_is_visible_before_it_starts(self):
+        """The entire reason to post one in advance."""
+        self._window('Mail server upgrade', 48, 50)
+        resp = self.client.get(self.page.get_public_url())
+        self.assertContains(resp, 'Mail server upgrade')
+        self.assertContains(resp, 'Scheduled maintenance')
+
+    def test_in_progress_window_says_so(self):
+        self._window('Happening', -1, 1)
+        resp = self.client.get(self.page.get_public_url())
+        self.assertContains(resp, 'Maintenance in progress')
+        self.assertContains(resp, 'happening now')
+
+    def test_cancelled_window_stays_but_is_marked(self):
+        """Vanishing would leave anyone who read the notice thinking it is
+        still on."""
+        self._window('Called off', 5, 6, is_cancelled=True)
+        resp = self.client.get(self.page.get_public_url())
+        self.assertContains(resp, 'Called off')
+        self.assertContains(resp, 'cancelled')
+
+    def test_recent_history_is_capped(self):
+        for i in range(8):
+            self._window(f'Old {i}', -(i + 2) * 24, -(i + 2) * 24 + 1)
+        resp = self.client.get(self.page.get_public_url())
+        shown = sum(1 for i in range(8)
+                    if f'Old {i}' in resp.content.decode())
+        self.assertEqual(shown, 5)
+
+    def test_upcoming_are_ordered_soonest_first(self):
+        self._window('Later one', 72, 73)
+        self._window('Sooner one', 24, 25)
+        body = self.client.get(self.page.get_public_url()).content.decode()
+        self.assertLess(body.index('Sooner one'), body.index('Later one'))
+
+    def test_affected_services_named_on_the_page(self):
+        w = self._window('Partial', 5, 6)
+        w.services.add(self.page.services.first())
+        self.assertContains(
+            self.client.get(self.page.get_public_url()), 'Affects: Webmail')
+
+    def test_window_affecting_everything_says_so(self):
+        self._window('Total', 5, 6)
+        self.assertContains(
+            self.client.get(self.page.get_public_url()), 'Affects all services')
+
+    def test_windows_of_other_pages_do_not_leak(self):
+        other = StatusPage.objects.create(title='Other', is_enabled=True)
+        MaintenanceWindow.objects.create(
+            page=other, title='Not yours',
+            starts_at=timezone.now() + timedelta(hours=1),
+            ends_at=timezone.now() + timedelta(hours=2))
+        self.assertNotContains(
+            self.client.get(self.page.get_public_url()), 'Not yours')
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class MaintenanceManagementTests(TestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(name='MgmtMaint', slug='mgmt-maint')
+        self.page = StatusPage.objects.create(title='P')
+        self.admin = User.objects.create_superuser(
+            'maintadmin', 'ma@example.com', 'hunter2xyz')
+        self.client = Client()
+        self.client.force_login(self.admin)
+
+    def _post(self, **kw):
+        now = timezone.now()
+        data = {
+            'action': 'add_maintenance',
+            'title': 'Upgrade',
+            'starts_at': (now + timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M'),
+            'ends_at': (now + timedelta(hours=4)).strftime('%Y-%m-%dT%H:%M'),
+        }
+        data.update(kw)
+        return self.client.post(f'/status/{self.page.pk}/', data)
+
+    def test_post_a_window(self):
+        self._post()
+        self.assertEqual(self.page.maintenance_windows.count(), 1)
+
+    def test_title_is_required(self):
+        self._post(title='   ')
+        self.assertEqual(self.page.maintenance_windows.count(), 0)
+
+    def test_end_before_start_is_refused(self):
+        now = timezone.now()
+        self._post(
+            starts_at=(now + timedelta(hours=5)).strftime('%Y-%m-%dT%H:%M'),
+            ends_at=(now + timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M'))
+        self.assertEqual(self.page.maintenance_windows.count(), 0)
+
+    def test_missing_times_are_refused(self):
+        self._post(starts_at='', ends_at='')
+        self.assertEqual(self.page.maintenance_windows.count(), 0)
+
+    def test_stored_times_are_timezone_aware(self):
+        """datetime-local posts naive values; storing them unconverted would
+        be ambiguous."""
+        self._post()
+        w = self.page.maintenance_windows.first()
+        self.assertIsNotNone(w.starts_at.tzinfo)
+
+    def test_cancel_keeps_the_row(self):
+        self._post()
+        w = self.page.maintenance_windows.first()
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'cancel_maintenance', 'window_id': w.pk})
+        w.refresh_from_db()
+        self.assertTrue(w.is_cancelled)
+        self.assertEqual(self.page.maintenance_windows.count(), 1)
+
+    def test_delete_removes_the_row(self):
+        self._post()
+        w = self.page.maintenance_windows.first()
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'delete_maintenance', 'window_id': w.pk})
+        self.assertEqual(self.page.maintenance_windows.count(), 0)
+
+    def test_cannot_touch_another_pages_window(self):
+        other = StatusPage.objects.create(title='Other')
+        w = MaintenanceWindow.objects.create(
+            page=other, title='Theirs',
+            starts_at=timezone.now(), ends_at=timezone.now() + timedelta(hours=1))
+        self.client.post(f'/status/{self.page.pk}/', {
+            'action': 'delete_maintenance', 'window_id': w.pk})
+        self.assertTrue(MaintenanceWindow.objects.filter(pk=w.pk).exists())

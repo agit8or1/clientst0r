@@ -14,7 +14,7 @@ from core.decorators import require_admin
 from core.models import Organization
 from monitoring.models import WebsiteMonitor
 
-from .models import StatusPage, StatusPageService
+from .models import MaintenanceWindow, StatusPage, StatusPageService
 
 
 # ---------------------------------------------------------------------------
@@ -38,10 +38,29 @@ def public(request, token):
         'uptime': svc.uptime_windows() if page.show_uptime else [],
     } for svc in services]
 
+    # Phase 40.3 — planned work. Upcoming and in-progress windows are the
+    # whole point (they exist to pre-empt the "is it broken?" call), so they
+    # show unconditionally. Finished ones are capped: a page that lists every
+    # maintenance since inception buries the one happening tonight.
+    windows = page.maintenance_windows.prefetch_related('services').all()
+    active, upcoming, recent = [], [], []
+    for w in windows:
+        state = w.state
+        if state == 'in_progress':
+            active.append(w)
+        elif state == 'upcoming':
+            upcoming.append(w)
+        elif state in ('completed', 'cancelled') and len(recent) < 5:
+            recent.append(w)
+    upcoming.reverse()  # soonest first; the queryset is newest-first
+
     response = render(request, 'statuspage/public.html', {
         'page': page,
         'rows': rows,
         'overall': page.overall_status(),
+        'active_maintenance': active,
+        'upcoming_maintenance': upcoming,
+        'recent_maintenance': recent,
         'generated_at': timezone.now(),
     })
     # An unauthenticated page naming a client's services has no business in a
@@ -119,6 +138,29 @@ def page_detail(request, pk):
         if action == 'add_service':
             return _add_service(request, page)
 
+        if action == 'add_maintenance':
+            return _add_maintenance(request, page)
+
+        if action == 'cancel_maintenance':
+            win = page.maintenance_windows.filter(
+                pk=request.POST.get('window_id')).first()
+            if win:
+                win.is_cancelled = True
+                win.save(update_fields=['is_cancelled', 'updated_at'])
+                messages.success(
+                    request,
+                    'Marked as cancelled. It stays on the page so anyone who '
+                    'read the original notice can see it is off.')
+            return redirect('statuspage:detail', pk=page.pk)
+
+        if action == 'delete_maintenance':
+            win = page.maintenance_windows.filter(
+                pk=request.POST.get('window_id')).first()
+            if win:
+                win.delete()
+                messages.success(request, 'Maintenance window deleted.')
+            return redirect('statuspage:detail', pk=page.pk)
+
         if action == 'remove_service':
             svc = page.services.filter(pk=request.POST.get('service_id')).first()
             if svc:
@@ -159,6 +201,7 @@ def page_detail(request, pk):
     return render(request, 'statuspage/detail.html', {
         'page': page,
         'services': page.services.select_related('monitor').all(),
+        'maintenance_windows': page.maintenance_windows.prefetch_related('services').all(),
         'available_monitors': available.select_related('organization').order_by('name'),
         'public_url': request.build_absolute_uri(page.get_public_url()),
     })
@@ -201,4 +244,52 @@ def _add_service(request, page):
         sort_order=page.services.count(),
     )
     messages.success(request, f'Added "{display_name}".')
+    return redirect('statuspage:detail', pk=page.pk)
+
+
+def _add_maintenance(request, page):
+    """Phase 40.3 — post a maintenance window."""
+    from django.utils.dateparse import parse_datetime
+
+    title = (request.POST.get('title') or '').strip()[:160]
+    if not title:
+        messages.error(request, 'Give the maintenance a title.')
+        return redirect('statuspage:detail', pk=page.pk)
+
+    starts_at = parse_datetime(request.POST.get('starts_at') or '')
+    ends_at = parse_datetime(request.POST.get('ends_at') or '')
+    if not starts_at or not ends_at:
+        messages.error(request, 'Both a start and an end time are required.')
+        return redirect('statuspage:detail', pk=page.pk)
+
+    # datetime-local posts naive values; interpret them in the server's zone
+    # rather than storing something ambiguous.
+    if timezone.is_naive(starts_at):
+        starts_at = timezone.make_aware(starts_at)
+    if timezone.is_naive(ends_at):
+        ends_at = timezone.make_aware(ends_at)
+
+    if ends_at <= starts_at:
+        messages.error(request, 'Maintenance must end after it starts.')
+        return redirect('statuspage:detail', pk=page.pk)
+
+    window = MaintenanceWindow.objects.create(
+        page=page,
+        title=title,
+        body=(request.POST.get('body') or '').strip(),
+        starts_at=starts_at,
+        ends_at=ends_at,
+        created_by=request.user,
+    )
+
+    # Empty selection means "everything", which is left as no rows rather than
+    # every row — otherwise the set goes stale the moment a service is added.
+    service_ids = request.POST.getlist('services')
+    if service_ids:
+        window.services.set(page.services.filter(pk__in=service_ids))
+
+    messages.success(
+        request,
+        'Maintenance posted. It is visible on the page now, not just when it '
+        'starts — which is the point of announcing it.')
     return redirect('statuspage:detail', pk=page.pk)

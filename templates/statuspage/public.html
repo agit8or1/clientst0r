@@ -78,6 +78,19 @@
         .uptime .lbl { color: var(--muted); }
         .uptime .na { color: var(--muted); font-style: italic; font-weight: 400; }
         .empty { color: var(--muted); text-align: center; padding: 48px 0; }
+        .maint {
+            background: var(--card); border: 1px solid var(--line);
+            border-left: 4px solid var(--degraded);
+            border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+        }
+        .maint.cancelled { border-left-color: var(--unknown); opacity: 0.72; }
+        .maint.completed { border-left-color: var(--unknown); }
+        .maint-title { font-weight: 600; }
+        .maint-when { color: var(--muted); font-size: 13px; margin-top: 2px; }
+        .maint-body { margin: 8px 0 0; white-space: pre-wrap; }
+        .maint-svcs { color: var(--muted); font-size: 13px; margin-top: 6px; }
+        h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em;
+             color: var(--muted); margin: 28px 0 10px; }
         footer { color: var(--muted); font-size: 12px; margin-top: 28px; text-align: center; }
     </style>
 </head>
@@ -92,6 +105,18 @@
         {% elif overall == 'outage' %}Service outage
         {% else %}Status not yet known{% endif %}
     </div>
+
+    {% if active_maintenance %}
+        <h2>Maintenance in progress</h2>
+        {% for w in active_maintenance %}{% include "statuspage/_maintenance.html" with w=w %}{% endfor %}
+    {% endif %}
+
+    {% if upcoming_maintenance %}
+        <h2>Scheduled maintenance</h2>
+        {% for w in upcoming_maintenance %}{% include "statuspage/_maintenance.html" with w=w %}{% endfor %}
+    {% endif %}
+
+    {% if active_maintenance or upcoming_maintenance %}<h2>Services</h2>{% endif %}
 
     {% for row in rows %}
         <div class="svc">
@@ -112,19 +137,20 @@
 
             {% if row.uptime %}
                 <div class="uptime">
-                    {% for w in row.uptime %}
+                    {# `u`, not `w` — `w` is a maintenance window elsewhere on this page. #}
+                    {% for u in row.uptime %}
                         <div>
                             {% comment %}
                                 percent is None when no check fell in the window.
                                 Printing 100% there would be an invention: check
                                 history only began in v3.17.538.
                             {% endcomment %}
-                            {% if w.percent is None %}
+                            {% if u.percent is None %}
                                 <span class="na">no data</span>
                             {% else %}
-                                <span class="val">{{ w.percent }}%</span>
+                                <span class="val">{{ u.percent }}%</span>
                             {% endif %}
-                            <span class="lbl">{{ w.days }}d</span>
+                            <span class="lbl">{{ u.days }}d</span>
                         </div>
                     {% endfor %}
                 </div>
@@ -133,6 +159,11 @@
     {% empty %}
         <p class="empty">No services are published on this page yet.</p>
     {% endfor %}
+
+    {% if recent_maintenance %}
+        <h2>Recent maintenance</h2>
+        {% for w in recent_maintenance %}{% include "statuspage/_maintenance.html" with w=w %}{% endfor %}
+    {% endif %}
 
     <footer>Updated {{ generated_at|date:"j M Y, H:i T" }}</footer>
 </div>

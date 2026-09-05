@@ -131,6 +131,106 @@
     </div>
 </div>
 
+{# Phase 40.3 (v3.17.541) — planned work, announced before it happens. #}
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>Maintenance windows</strong></div>
+    <div class="card-body">
+        <p class="text-muted small">
+            A window appears on the public page as soon as you post it, not when it
+            starts — announcing it in advance is what stops the "is it broken?" call.
+        </p>
+
+        {% if maintenance_windows %}
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr><th>Title</th><th>When</th><th>Affects</th><th>State</th><th></th></tr>
+            </thead>
+            <tbody>
+            {% for w in maintenance_windows %}
+                <tr>
+                    <td>{{ w.title }}</td>
+                    <td class="small">{{ w.starts_at|date:"j M H:i" }} – {{ w.ends_at|date:"j M H:i" }}</td>
+                    <td class="small text-muted">
+                        {% with names=w.affected_names %}
+                            {% if names %}{{ names|join:", " }}{% else %}Everything{% endif %}
+                        {% endwith %}
+                    </td>
+                    <td>
+                        {% if w.state == 'cancelled' %}<span class="badge bg-secondary">Cancelled</span>
+                        {% elif w.state == 'in_progress' %}<span class="badge bg-warning text-dark">In progress</span>
+                        {% elif w.state == 'upcoming' %}<span class="badge bg-info text-dark">Upcoming</span>
+                        {% else %}<span class="badge bg-secondary">Completed</span>{% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if not w.is_cancelled and w.state != 'completed' %}
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="cancel_maintenance">
+                            <input type="hidden" name="window_id" value="{{ w.pk }}">
+                            <button type="submit" class="btn btn-outline-secondary btn-sm">Cancel</button>
+                        </form>
+                        {% endif %}
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_maintenance">
+                            <input type="hidden" name="window_id" value="{{ w.pk }}">
+                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                    onclick="return confirm('Delete this window? Cancelling instead keeps the notice visible.')">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <form method="post" class="row g-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_maintenance">
+            <div class="col-md-6">
+                <label class="form-label small" for="maint_title">Title</label>
+                <input type="text" class="form-control form-control-sm" id="maint_title"
+                       name="title" maxlength="160" required
+                       placeholder="Mail server upgrade">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small" for="starts_at">Starts</label>
+                <input type="datetime-local" class="form-control form-control-sm"
+                       id="starts_at" name="starts_at" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small" for="ends_at">Ends</label>
+                <input type="datetime-local" class="form-control form-control-sm"
+                       id="ends_at" name="ends_at" required>
+            </div>
+            <div class="col-12">
+                <label class="form-label small" for="body">Details</label>
+                <textarea class="form-control form-control-sm" id="body" name="body" rows="2"
+                          placeholder="What is happening and what to expect."></textarea>
+            </div>
+            {% if services %}
+            <div class="col-md-8">
+                <label class="form-label small" for="services">Affected services</label>
+                <select class="form-select form-select-sm" id="services" name="services" multiple size="3">
+                    {% for svc in services %}
+                        <option value="{{ svc.pk }}">{{ svc.display_name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">
+                    Select none if the work affects everything — that stays correct as you
+                    add services later, where naming them all would not.
+                </div>
+            </div>
+            {% endif %}
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary btn-sm">Post maintenance</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <form method="post" class="card">
     {% csrf_token %}
     <div class="card-header py-2"><strong>Settings</strong></div>

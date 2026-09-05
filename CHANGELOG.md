@@ -5,6 +5,45 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.541] - 2026-09-05
+
+### Phase 40.3 — maintenance windows
+
+Planned work generates exactly the call a status page exists to prevent, unless
+it is announced first. `statuspage.MaintenanceWindow` posts it: title, body,
+start, end, and optionally which services are affected.
+
+**A window is visible from the moment it is posted**, not from the moment it
+starts. Showing it only once it begins would defeat the point.
+
+**State is derived from the clock rather than stored** — `upcoming`,
+`in_progress`, `completed` all fall out of comparing now to the start and end. A
+stored status would need a job to advance it and would be wrong in the gap
+between a window opening and that job next running. `is_cancelled` is the single
+exception, because no amount of looking at the clock can tell you a window was
+called off.
+
+**A cancelled window stays on the page, marked cancelled, rather than
+vanishing.** Deleting it would leave anyone who read the original notice
+believing the work is still going ahead. Delete is available too, for a window
+posted in error, and the confirm says which is which.
+
+**An empty service selection means "everything"**, stored as no rows rather than
+every row. Naming every service would go stale the moment a new one is added,
+and a maintenance notice that quietly stops covering half the estate is worse
+than one that says "all services".
+
+Finished windows are capped at five on the public page. A page listing every
+maintenance since inception buries the one happening tonight.
+
+On the page, in-progress and upcoming work renders **above** the service list —
+someone opening the page during planned work should see why before they read a
+red pill — with recent history below the services. All three sections share one
+partial so their wording cannot drift apart. Times posted from `datetime-local`
+are naive and are made aware on the way in rather than stored ambiguously.
+
+22 new tests (51 in the app). Migration: `statuspage.0002_maintenancewindow`.
+
 ## [3.17.540] - 2026-09-05
 
 ### Phase 40.2 — the status page

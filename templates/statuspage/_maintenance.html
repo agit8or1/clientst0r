@@ -1,0 +1,23 @@
+{% comment %}
+    Phase 40.3 (v3.17.541) — one maintenance window on the public page.
+    Shared by the in-progress / scheduled / recent sections so the three
+    cannot drift apart in wording or layout.
+{% endcomment %}
+<div class="maint {{ w.state }}">
+    <div class="maint-title">
+        {{ w.title }}
+        {% if w.state == 'cancelled' %}— cancelled
+        {% elif w.state == 'in_progress' %}— happening now
+        {% elif w.state == 'completed' %}— completed{% endif %}
+    </div>
+    <div class="maint-when">
+        {{ w.starts_at|date:"j M Y, H:i" }} – {{ w.ends_at|date:"j M Y, H:i T" }}
+    </div>
+    {% if w.body %}<p class="maint-body">{{ w.body }}</p>{% endif %}
+    <div class="maint-svcs">
+        {% with names=w.affected_names %}
+            {% if names %}Affects: {{ names|join:", " }}
+            {% else %}Affects all services{% endif %}
+        {% endwith %}
+    </div>
+</div>
