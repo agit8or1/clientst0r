@@ -6,7 +6,9 @@ import threading
 
 from django.db import models
 
-from core.backgrounds import DEFAULT_PRESET, PRESET_CHOICES
+from core.backgrounds import (
+    DEFAULT_STARTING_PRESET, PRESET_CHOICES,
+)
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -391,7 +393,12 @@ class UserProfile(BaseModel):
     ])
 
     # Background Settings
-    background_mode = models.CharField(max_length=20, default='none', choices=[
+    # v3.17.552 — a new profile starts on a preset (Navy Space) rather than no
+    # background at all. It is a starting point, not a policy: every control
+    # below stays the user's to change, and an existing profile keeps whatever
+    # it already holds because a field default only applies to a row that does
+    # not exist yet.
+    background_mode = models.CharField(max_length=20, default='preset', choices=[
         ('custom', 'Custom Upload'),
         ('none', 'No Background Image'),
         ('preset', 'Preset Abstract Backgrounds'),
@@ -412,7 +419,7 @@ class UserProfile(BaseModel):
     )
     preset_background = models.CharField(
         max_length=50,
-        default=DEFAULT_PRESET,
+        default=DEFAULT_STARTING_PRESET,
         blank=True,
         # Was a hand-maintained copy of this list; the URLs lived separately in
         # the context processor and nothing kept the two in step.

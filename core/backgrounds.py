@@ -33,11 +33,14 @@ PRESET_BACKGROUNDS: dict[str, tuple[str, str]] = {
 DEFAULT_PRESET = 'abstract-1'
 DEFAULT_COLOR = '#1a1a2e'
 
-# v3.17.551 — what a *fresh install* starts on, as distinct from DEFAULT_PRESET
-# above, which is the fallback for an unknown key and the per-user default.
-# Kept separate deliberately: changing the install default should not silently
-# repoint every stale profile row to a different picture.
-DEFAULT_INSTALL_PRESET = 'abstract-12'  # Navy Space
+# v3.17.552 — the preset a *new* profile or install starts on, as distinct from
+# DEFAULT_PRESET above, which is the fallback used when a stored key is unknown.
+# Kept separate deliberately: changing what new profiles start on should not
+# silently repoint every stale row that already holds a bad key.
+#
+# Renamed from DEFAULT_INSTALL_PRESET (v3.17.551), which stopped being accurate
+# when this became the per-user starting point rather than a system-wide one.
+DEFAULT_STARTING_PRESET = 'abstract-12'  # Navy Space
 
 # Django `choices` for any field selecting a preset.
 PRESET_CHOICES = [(key, label) for key, (label, _url) in PRESET_BACKGROUNDS.items()]

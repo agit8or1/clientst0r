@@ -987,7 +987,7 @@ Dependencies: Phase 27 (reconciliation reporting + audit log) and the existing `
 
 ## Phase 45 — System-wide Appearance Controls **(S)** [shipped — v3.17.527]
 
-**Install default (v3.17.551):** a fresh install now starts on the **Navy Space** preset pattern (`background_policy='color'`, `background_color_style='preset'`, `background_preset='abstract-12'`) instead of deferring to each user's own setting. A Django field default applies only to a row that does not exist yet, so an install that already has its settings row keeps whatever policy it was on — the upgrade-safety the original `'user'` default existed for is unchanged. Note that `'color'` is an *enforced* policy: on a new install users see their own background controls greyed out until an admin switches the policy back to user-controlled.
+**Starting background (v3.17.551, softened in v3.17.552):** a new profile starts on the **Navy Space** preset (`UserProfile.background_mode='preset'`, `preset_background='abstract-12'`) and every control stays the user's to change. The system-wide `background_policy` remains `'user'`: enforcing a house style would grey out everybody's own background controls, which is a decision an admin should make deliberately rather than inherit from an install default. Should an admin switch the policy to colour, the preset it lands on is the same Navy Space, so the two layers agree. Existing profiles and installs are untouched — a Django field default applies only to a row that does not exist yet.
 
 **Roadmap item:** give administrators a say in how the app looks, without taking the choice away from users by default.
 

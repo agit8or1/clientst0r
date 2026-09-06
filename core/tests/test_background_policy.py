@@ -72,28 +72,23 @@ class BackgroundPolicyTests(TestCase):
         s.save()
         return s
 
-    def test_a_fresh_install_starts_on_the_navy_space_preset(self):
-        """v3.17.551 — an install with no settings row yet gets the Navy Space
-        preset rather than deferring to each user's own choice."""
+    def test_the_policy_stays_user_controlled_by_default(self):
+        """v3.17.552 — Navy Space is a starting point, not a house style.
+        Enforcing it system-wide would grey out everybody's own background
+        controls, which is a decision an admin should make deliberately."""
         s = SystemSetting.get_settings()
-        self.assertEqual(s.background_policy, 'color')
-        self.assertEqual(s.background_color_style, 'preset')
-        self.assertEqual(s.background_preset, 'abstract-12')
-
-    def test_an_upgrade_does_not_change_an_existing_install(self):
-        """The reason the original default was 'user'. A field default applies
-        only to a row that does not exist yet, so an install already carrying a
-        policy keeps it — changing the default must not repaint a running
-        system."""
-        s = SystemSetting.get_settings()
-        s.background_policy = 'user'
-        s.save(update_fields=['background_policy'])
-
-        refetched = SystemSetting.get_settings()
-        self.assertEqual(refetched.background_policy, 'user')
+        self.assertEqual(s.background_policy, 'user')
         ctx = self._context()
         self.assertFalse(ctx['background_locked'])
         self.assertEqual(ctx['user_background_color'], '#abcdef')
+
+    def test_the_enforced_preset_defaults_to_navy_space(self):
+        """If an admin does switch the policy to colour, the preset it lands on
+        is the same one new profiles start from rather than an unrelated
+        picture."""
+        s = SystemSetting.get_settings()
+        self.assertEqual(s.background_color_style, 'preset')
+        self.assertEqual(s.background_preset, 'abstract-12')
 
     def test_colour_policy_overrides_the_users_own_choice(self):
         self._policy(background_policy='color',
@@ -250,3 +245,56 @@ class BackgroundPolicyViewTests(TestCase):
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.background_mode, 'solid_color')
         self.assertEqual(self.profile.background_color, '#010203')
+
+
+# ---------------------------------------------------------------------------
+# v3.17.552 — Navy Space as a soft per-user default
+# ---------------------------------------------------------------------------
+
+class StartingBackgroundTests(TestCase):
+    """Navy Space is where a new profile starts, not where it is held."""
+
+    def test_a_new_profile_starts_on_the_navy_space_preset(self):
+        from django.contrib.auth.models import User
+        user = User.objects.create_user('freshuser', 'f@example.com', 'pw')
+        profile = user.profile
+        self.assertEqual(profile.background_mode, 'preset')
+        self.assertEqual(profile.preset_background, 'abstract-12')
+
+    def test_the_user_can_change_it(self):
+        """The whole point of a soft default."""
+        from django.contrib.auth.models import User
+        user = User.objects.create_user('picky', 'p@example.com', 'pw')
+        profile = user.profile
+        profile.background_mode = 'solid_color'
+        profile.background_color = '#123456'
+        profile.save()
+
+        profile.refresh_from_db()
+        self.assertEqual(profile.background_mode, 'solid_color')
+        self.assertEqual(profile.background_color, '#123456')
+
+    def test_an_existing_profile_is_not_repainted(self):
+        """A field default applies only to a row that does not exist yet, so
+        somebody who had deliberately chosen 'no background' keeps it."""
+        from django.contrib.auth.models import User
+        user = User.objects.create_user('settled', 's@example.com', 'pw')
+        profile = user.profile
+        profile.background_mode = 'none'
+        profile.save(update_fields=['background_mode'])
+
+        profile.refresh_from_db()
+        self.assertEqual(profile.background_mode, 'none')
+
+    def test_the_starting_preset_is_a_real_key(self):
+        """A default pointing at a preset that does not exist would render as
+        a missing background, which reads as a bug."""
+        from core.backgrounds import DEFAULT_STARTING_PRESET, PRESET_BACKGROUNDS
+        self.assertIn(DEFAULT_STARTING_PRESET, PRESET_BACKGROUNDS)
+
+    def test_the_unknown_key_fallback_is_unchanged(self):
+        """DEFAULT_PRESET still answers "what do we show for a bad key", which
+        is a different question from "what does a new profile start on"."""
+        from core.backgrounds import DEFAULT_PRESET, DEFAULT_STARTING_PRESET
+        self.assertEqual(DEFAULT_PRESET, 'abstract-1')
+        self.assertNotEqual(DEFAULT_PRESET, DEFAULT_STARTING_PRESET)

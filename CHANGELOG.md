@@ -5,6 +5,48 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.552] - 2026-09-06
+
+### Navy Space becomes a soft default users can change
+
+v3.17.551 made a fresh install start on Navy Space by setting the *system-wide*
+`background_policy` to `'color'`. That works, but `'color'` is an **enforced**
+policy: it greys out every user's own background controls. A starting picture and
+a house style are different things, and shipping one as the other took the
+choice away from users by accident.
+
+The default now lives on the profile instead:
+
+- `UserProfile.background_mode` defaults to `'preset'` (was `'none'`)
+- `UserProfile.preset_background` defaults to Navy Space (was `abstract-1`)
+- `SystemSetting.background_policy` goes back to `'user'`
+
+A new profile therefore comes up on Navy Space and **every control stays the
+user's to change**. An admin who does want a single enforced look still has the
+colour policy; it just is not the default any more, and if they switch to it the
+preset it lands on is the same Navy Space, so the two layers agree rather than
+fighting.
+
+**Existing profiles and installs are untouched.** A field default applies only to
+a row that does not exist yet, so somebody who deliberately chose "no background"
+keeps it. Tested explicitly, along with the fact that a new profile can change
+away from the default.
+
+`DEFAULT_INSTALL_PRESET` is renamed `DEFAULT_STARTING_PRESET`. The old name
+stopped being accurate the moment this became a per-user starting point rather
+than a system-wide one, and a constant whose name says the wrong thing is a small
+lie that outlives the release that introduced it. It stays separate from
+`DEFAULT_PRESET`, which answers the different question of what to render when a
+stored key is unknown — a test now pins that distinction so a later cleanup does
+not quietly merge them.
+
+Also drops the `DEFAULT_BACKGROUND_PRESET` import from `core/models.py`, unused
+once the field default changed.
+
+154 tests green across `core` and `accounts`. Migrations:
+`core.0069_alter_systemsetting_background_policy`,
+`accounts.0034_alter_userprofile_background_mode_and_more`.
+
 ## [3.17.551] - 2026-09-05
 
 ### New installs start on the Navy Space preset

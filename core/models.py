@@ -5,8 +5,7 @@ from django.db import models
 
 from core.backgrounds import (
     DEFAULT_COLOR as DEFAULT_BACKGROUND_COLOR,
-    DEFAULT_INSTALL_PRESET as DEFAULT_BACKGROUND_INSTALL_PRESET,
-    DEFAULT_PRESET as DEFAULT_BACKGROUND_PRESET,
+    DEFAULT_STARTING_PRESET as DEFAULT_BACKGROUND_STARTING_PRESET,
     PRESET_CHOICES as BACKGROUND_PRESET_CHOICES,
 )
 from django.utils.text import slugify
@@ -704,13 +703,13 @@ class SystemSetting(models.Model):
     # A class attribute, not just the module-level import, so the settings
     # template can iterate it the same way as the two lists above.
     BACKGROUND_PRESET_CHOICES = BACKGROUND_PRESET_CHOICES
-    # v3.17.551 — a fresh install starts on the Navy Space preset rather than
-    # deferring to each user's own setting. A field default only applies to a
-    # row that does not exist yet, so an install that already has its settings
-    # row keeps whatever policy it was on: upgrades still change nothing, which
-    # was the point of the original 'user' default.
+    # Stays 'user': the Navy Space default (v3.17.551) is a starting point
+    # people can change, not a house style enforced on them. Enforcing it here
+    # would grey out everybody's own background controls, which is a different
+    # decision an admin should make deliberately. The starting picture is set
+    # on the profile instead — see `accounts.UserProfile.background_mode`.
     background_policy = models.CharField(
-        max_length=20, default='color', choices=BACKGROUND_POLICIES,
+        max_length=20, default='user', choices=BACKGROUND_POLICIES,
         help_text='Who decides the app background. Anything other than '
                   "'user controlled' overrides every user's own setting.")
     background_image = models.ImageField(
@@ -723,7 +722,7 @@ class SystemSetting(models.Model):
         max_length=7, default=DEFAULT_BACKGROUND_COLOR, blank=True,
         help_text='Hex colour used when the colour style is solid.')
     background_preset = models.CharField(
-        max_length=40, default=DEFAULT_BACKGROUND_INSTALL_PRESET, blank=True,
+        max_length=40, default=DEFAULT_BACKGROUND_STARTING_PRESET, blank=True,
         choices=BACKGROUND_PRESET_CHOICES,
         help_text='Which preset pattern to use when the colour style is preset.')
 
