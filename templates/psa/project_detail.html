@@ -41,6 +41,49 @@
         {% endif %}
     </div>
     <div class="col-md-8">
+        {# Phase 35.6 (v3.17.555) — what is waiting to be billed. #}
+        <div class="card mb-3">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <strong>Ready to bill</strong>
+                <span class="text-muted small">{{ item.get_billing_type_display }}</span>
+            </div>
+            <div class="card-body">
+                {% if billable.already_billed %}
+                    <p class="mb-2 text-muted">
+                        The fixed fee for this project has already been invoiced.
+                    </p>
+                {% elif billable.lines %}
+                    <p class="mb-2">
+                        <strong>{{ billable.lines }}</strong> line{{ billable.lines|pluralize }}
+                        {% if billable.kind == 'time_materials' %}
+                            · {{ billable.hours }} unbilled hour{{ billable.hours|pluralize }}
+                        {% endif %}
+                        {% if billable.amount is not None %}
+                            · {{ billable.amount }}
+                        {% endif %}
+                    </p>
+                    {% if not billable.rate_known %}
+                        <p class="text-muted small mb-2">
+                            No hourly rate on this client's active contract, so this time
+                            cannot be priced. Set a contract rate before invoicing.
+                        </p>
+                    {% else %}
+                        <form method="post" action="{% url 'psa:project_generate_invoice' item.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                Create draft invoice
+                            </button>
+                            <span class="text-muted small ms-2">
+                                Creates a draft. Nothing is sent to the client.
+                            </span>
+                        </form>
+                    {% endif %}
+                {% else %}
+                    <p class="mb-0 text-muted">Nothing is waiting to be billed.</p>
+                {% endif %}
+            </div>
+        </div>
+
         {# Phase 35.3 (v3.17.553) — revenue, cost, margin. #}
         <div class="card mb-3">
             <div class="card-header py-2 d-flex justify-content-between align-items-center">

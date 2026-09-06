@@ -1942,6 +1942,15 @@ def project_form(request, pk=None):
                 setattr(item, field, raw if raw else None)
             except (TypeError, ValueError):
                 setattr(item, field, None)
+        # Phase 35.6 (v3.17.555) — billing type and fixed fee.
+        billing_type = request.POST.get('billing_type')
+        if billing_type in dict(Project.BILLING_TYPES):
+            item.billing_type = billing_type
+        fee_raw = (request.POST.get('fixed_fee_amount') or '').strip()
+        try:
+            item.fixed_fee_amount = fee_raw if fee_raw else None
+        except (TypeError, ValueError):
+            item.fixed_fee_amount = None
         warn_raw = (request.POST.get('budget_warn_at_percent') or '').strip()
         try:
             item.budget_warn_at_percent = max(1, min(int(warn_raw), 100)) if warn_raw else 80
@@ -2012,6 +2021,9 @@ def project_detail(request, pk):
         'budget': item.budget_summary(),
         # Phase 35.3 (v3.17.553) — revenue, cost and margin.
         'profit': item.profitability(),
+        # Phase 35.6 (v3.17.555) — what is waiting to be billed.
+        'billable': item.billable_summary(),
+        'billing_types': Project.BILLING_TYPES,
     })
 
 
@@ -8410,3 +8422,33 @@ def project_task_dependency(request, task_pk):
             'That would create a circular dependency — the two tasks would '
             'each be waiting for the other.')
     return redirect('psa:project_timeline', pk=task.project_id)
+
+
+@login_required
+@require_psa_enabled
+def project_generate_invoice(request, pk):
+    """Phase 35.6 (v3.17.555): raise a draft invoice from a project."""
+    org = get_request_organization(request)
+    qs = Project.objects.all()
+    if org is not None:
+        qs = qs.filter(organization=org)
+    project = get_object_or_404(qs, pk=pk)
+
+    if request.method != 'POST':
+        return redirect('psa:project_detail', pk=project.pk)
+
+    invoice, message = project.generate_invoice(created_by=request.user)
+    if invoice is None:
+        messages.error(request, message)
+        return redirect('psa:project_detail', pk=project.pk)
+
+    AuditLog.log(
+        user=request.user, action='create',
+        organization=project.organization,
+        object_type='psa.Invoice', object_id=invoice.pk,
+        object_repr=invoice.invoice_number,
+        description=f'Generated from project "{project.name}"',
+        ip_address=_client_ip(request), path=request.path,
+    )
+    messages.success(request, f'{message} It is a draft — nothing has been sent.')
+    return redirect('psa:invoice_detail', pk=invoice.pk)

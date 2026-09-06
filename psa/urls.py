@@ -55,6 +55,8 @@ urlpatterns = [
     path('projects/<int:pk>/apply-template/', views.project_apply_template, name='project_apply_template'),
     path('project-task/<int:task_pk>/update/', views.project_task_update, name='project_task_update'),
     path('project-task/<int:task_pk>/delete/', views.project_task_delete, name='project_task_delete'),
+    # Phase 35.6 (v3.17.555) — raise a draft invoice from a project.
+    path('projects/<int:pk>/invoice/', views.project_generate_invoice, name='project_generate_invoice'),
     # Phase 35.5 (v3.17.554) — timeline / Gantt.
     path('projects/<int:pk>/timeline/', views.project_timeline, name='project_timeline'),
     path('project-task/<int:task_pk>/reschedule/', views.project_task_reschedule, name='project_task_reschedule'),

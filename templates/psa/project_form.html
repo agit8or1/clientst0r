@@ -77,6 +77,22 @@
                 <div class="form-text">Blank for no monetary budget.</div>
             </div>
             <div class="col-md-4">
+                <label class="form-label">Billing type</label>
+                <select name="billing_type" class="form-select">
+                    {% for value, label in item.BILLING_TYPES %}
+                        <option value="{{ value }}"
+                                {% if item.billing_type == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Decides what an invoice from this project contains.</div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Fixed fee amount</label>
+                <input type="number" step="0.01" min="0" name="fixed_fee_amount"
+                       class="form-control" value="{{ item.fixed_fee_amount|default:'' }}">
+                <div class="form-text">Only used when the billing type is fixed fee.</div>
+            </div>
+            <div class="col-md-4">
                 <label class="form-label">Warn at (% of budget)</label>
                 <input type="number" min="1" max="100" name="budget_warn_at_percent"
                        class="form-control" value="{{ item.budget_warn_at_percent|default:80 }}">

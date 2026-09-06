@@ -5,6 +5,53 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.555] - 2026-09-06
+
+### Phase 35.6 — project billing (Phase 35 complete)
+
+`Project.billing_type` is time and materials, fixed fee, or milestone, and the
+three produce genuinely different invoices: logged hours, one agreed number, or a
+number per delivered milestone. `generate_invoice()` builds whichever applies.
+
+**Nothing bills twice.** This is the point of the sub-phase — an invoice is the
+one artefact in the system a client actually sees, and issuing the same hours on
+two of them is the failure that matters.
+
+- **Time** already billed is found through `InvoiceLineItem.source_id`, the
+  pointer the existing time-to-invoice path already writes. Deliberately *not* a
+  new `invoiced` flag on the time entry: two records of the same fact can
+  disagree, and then neither can be trusted.
+- **A fixed fee** is stamped with a sentinel source id and refuses a second
+  invoice by name rather than quietly issuing the same amount again.
+- **A milestone** carries a `billed_on_invoice` foreign key rather than a
+  boolean, so "which invoice was that on" survives the question being asked
+  later.
+
+**An unpriceable invoice is refused, not raised at zero.** Without an hourly rate
+on the client's active contract, T&M work cannot be priced, so generation stops
+with a message saying so. Same principle as the budget and profitability work:
+the system says it does not know rather than printing a number that looks like an
+answer.
+
+**Milestones are stamped only after the invoice exists.** Ordering matters here —
+marking them first and then failing to create the invoice would leave work
+recorded as billed that never reached a bill, and nothing would ever bill it
+again.
+
+**Everything generated is a draft.** Nothing in this sub-phase decides to send a
+client a bill.
+
+`Invoice` gains a `project` foreign key, which is both how an invoice records
+what it bills for and how the double-billing checks find what a project has
+already invoiced.
+
+29 new tests; full `psa` suite green. Migration:
+`psa.0066_invoice_project_project_billing_type_and_more`.
+
+**Phase 35 is complete** at v3.17.555, across six sub-phases from v3.17.548:
+templates, budgets, profitability, task-to-ticket, timeline with dependencies,
+and billing.
+
 ## [3.17.554] - 2026-09-06
 
 ### Phase 35.5 — project timeline, with dependencies

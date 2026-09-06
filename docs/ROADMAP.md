@@ -748,7 +748,7 @@ Dependencies: Phase 33 (device inventory provides the target list) — **not blo
 
 **Goal:** Eliminate the manual config-export-and-store-in-a-folder routine. Make unauthorized changes loud.
 
-## Phase 35 — Advanced Project Management **(L)** [in progress]
+## Phase 35 — Advanced Project Management **(L)** [complete]
 
 Mature the existing `psa.Project` and `psa.ProjectTask` models *(quote-to-project automation shipped v3.17.213)* into a full delivery management feature.
 
@@ -764,6 +764,14 @@ Planned capabilities:
 - **Actuals come from time logged on the project's tickets**, since that is the only place time is recorded. Billable and total are tracked separately. *(shipped v3.17.549)*
 - **An unknown amount is reported as unknown, never as zero.** Spend needs an hourly rate from the client's active contract; without one `actual_amount()` returns `None` and the page says so. A project showing no spend because nobody recorded a rate reads as comfortably under budget when the truth is that it has not been measured. *(shipped v3.17.549)*
 - **Worst of the two budgets wins.** A project inside its hours but over its money is over — saying otherwise would be the comfortable answer rather than the true one. An unmeasurable money budget does not mask a breached hours budget. *(shipped v3.17.549)*
+
+### Sub-phase 35.6 — Billing *(shipped v3.17.555)*
+- **`Project.billing_type`** — time and materials, fixed fee, or milestone. The three produce genuinely different invoices: logged hours, one agreed number, or a number per delivered milestone. *(shipped v3.17.555)*
+- **Nothing bills twice.** Billed time is found through `InvoiceLineItem.source_id`, the pointer the existing time-to-invoice path already writes, rather than a second flag that could disagree with it. A fixed fee is stamped with a sentinel source id; a milestone carries a `billed_on_invoice` foreign key so "which invoice was that on" survives. *(shipped v3.17.555)*
+- **An unpriceable invoice is refused, not raised at zero.** Without a contract rate, T&M work cannot be priced and generation stops with a message. Milestones are stamped only after the invoice exists, so a failure part-way cannot mark work billed that never reached a bill. *(shipped v3.17.555)*
+- **Everything generated is a draft.** Nothing in this sub-phase decides to send a client a bill. *(shipped v3.17.555)*
+
+✅ **Phase 35 complete at v3.17.555.** Shipped across six sub-phases (v3.17.548–555): templates, budgets, profitability, task-to-ticket, timeline with dependencies, and billing.
 
 ### Sub-phase 35.5 — Timeline and dependencies *(shipped v3.17.554)*
 - **`ProjectTask.start_date`** — a timeline bar needs both ends. `due_date` alone described a deadline; a schedule needs to know when work is meant to begin. A task carrying only one date draws as a single-day marker rather than vanishing from the plan. *(shipped v3.17.554)*
@@ -786,7 +794,7 @@ Remaining planned capabilities:
 - **Project budget tracking** *(shipped v3.17.549 — see 35.2)*
 - **Project profitability** *(shipped v3.17.553 — see 35.3)*
 - **Project-to-ticket task generation** *(shipped v3.17.550 — see 35.4)*
-- Project billing support — project-bundled invoice generation, fixed-fee vs. T&M handling, milestone billing triggers
+- **Project billing support** *(shipped v3.17.555 — see 35.6)*
 - **Gantt / calendar-style planning view** *(shipped v3.17.554 — see 35.5)*
 
 Dependencies: existing `psa.Project` + `psa.ProjectTask` models, Phase 3 (profitability infra), Phase 1 (contract / billing engine).
@@ -1137,7 +1145,7 @@ Positioned last in the roadmap (v3.17.169) because it's the largest single under
 | 32 — Remote Network Discovery Import | M | 2-3 weeks | future / late-stage — non-RMM, scoped, single-use tokens |
 | 33 — Network Discovery & Auto Documentation | L | 4-6 weeks | extends Phase 32 + Phase 16 |
 | 34 — Network Configuration Backup | M | shipped v3.17.544–547 | extends Phase 33 + Phase 9 alerts |
-| 35 — Advanced Project Management | L | 4-5 weeks | extends `psa.Project` (v3.17.213 quote→project shipped) |
+| 35 — Advanced Project Management | L | shipped v3.17.548–555 | extends `psa.Project` (v3.17.213 quote→project shipped) |
 | 36 — Agreement Reconciliation & Pre-Invoice Approval | M | 2-3 weeks | extends Phase 1 + 15 + 20 |
 | 37 — Vault Approval & Break-Glass Workflow | M | 2-3 weeks | extends Phase 31 (VaultAccessRule) + Phase 20 |
 | 38 — Client Onboarding / Offboarding Runbooks | M | 2-3 weeks | extends `processes/` + Phase 14 |

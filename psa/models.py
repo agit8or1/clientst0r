@@ -872,6 +872,25 @@ class Project(models.Model):
         default=80,
         help_text='Percentage of budget at which the project reads as at risk.')
 
+    # Phase 35.6 (v3.17.555) — how the project is billed. This decides what
+    # `generate_invoice()` puts on an invoice, and the three answers are
+    # genuinely different: hours, one agreed number, or a number per delivered
+    # milestone.
+    BILLING_TIME_MATERIALS = 'time_materials'
+    BILLING_FIXED_FEE = 'fixed_fee'
+    BILLING_MILESTONE = 'milestone'
+    BILLING_TYPES = [
+        (BILLING_TIME_MATERIALS, 'Time and materials — bill logged hours'),
+        (BILLING_FIXED_FEE, 'Fixed fee — one agreed amount'),
+        (BILLING_MILESTONE, 'Milestone — bill each milestone as it lands'),
+    ]
+    billing_type = models.CharField(
+        max_length=20, choices=BILLING_TYPES, default=BILLING_TIME_MATERIALS,
+        help_text='What an invoice generated from this project contains.')
+    fixed_fee_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text='The agreed amount, when the billing type is fixed fee.')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1062,6 +1081,179 @@ class Project(models.Model):
             'billable_hours': self.actual_hours(billable_only=True),
             'total_hours': self.actual_hours(),
         }
+
+    # ----- Phase 35.6 (v3.17.555): billing -------------------------------
+
+    def invoiced_time_entry_ids(self):
+        """Time entry ids already sitting on an invoice for this project.
+
+        Read from `InvoiceLineItem.source_id` — the loose pointer the existing
+        time-to-invoice path already writes — rather than a new flag on the
+        entry. One record of what has been billed is better than two that can
+        disagree.
+        """
+        ids = (InvoiceLineItem.objects
+               .filter(invoice__project=self, source='time')
+               .exclude(source_id='')
+               .values_list('source_id', flat=True))
+        out = set()
+        for raw in ids:
+            try:
+                out.add(int(raw))
+            except (TypeError, ValueError):
+                continue
+        return out
+
+    def uninvoiced_time_entries(self):
+        """Billable time on this project that has not been billed yet."""
+        already = self.invoiced_time_entry_ids()
+        return [
+            e for e in TicketTimeEntry.objects
+            .filter(ticket__project=self, is_billable=True)
+            .select_related('user', 'ticket')
+            .order_by('started_at')
+            if e.pk not in already and (e.duration_minutes or 0) > 0
+        ]
+
+    def billable_milestones(self):
+        """Completed, priced milestones that have not been billed."""
+        return list(
+            self.tasks.filter(
+                is_milestone=True, status='done',
+                billed_on_invoice__isnull=True,
+                billing_amount__isnull=False,
+            ).order_by('sort_order', 'id')
+        )
+
+    def already_fixed_fee_invoiced(self) -> bool:
+        """A fixed fee bills once. Asked before generating so the second
+        attempt says so rather than quietly issuing the same amount again."""
+        return InvoiceLineItem.objects.filter(
+            invoice__project=self, source='manual',
+            source_id=f'fixed_fee:{self.pk}',
+        ).exists()
+
+    def billable_summary(self):
+        """What `generate_invoice()` would put on an invoice right now."""
+        from decimal import Decimal
+
+        if self.billing_type == self.BILLING_FIXED_FEE:
+            done = self.already_fixed_fee_invoiced()
+            amount = Decimal('0.00') if done else Decimal(
+                str(self.fixed_fee_amount or 0))
+            return {'kind': 'fixed_fee', 'lines': 0 if done else 1,
+                    'amount': amount, 'already_billed': done,
+                    'rate_known': True}
+
+        if self.billing_type == self.BILLING_MILESTONE:
+            milestones = self.billable_milestones()
+            amount = sum((Decimal(str(m.billing_amount)) for m in milestones),
+                         Decimal('0.00'))
+            return {'kind': 'milestone', 'lines': len(milestones),
+                    'amount': amount, 'already_billed': False,
+                    'rate_known': True}
+
+        entries = self.uninvoiced_time_entries()
+        rate = self.billing_rate()
+        minutes = sum((e.duration_minutes or 0) for e in entries)
+        hours = Decimal(minutes) / Decimal(60)
+        return {
+            'kind': 'time_materials',
+            'lines': len(entries),
+            'hours': hours.quantize(Decimal('0.01')),
+            # None, not zero: without a rate the value of this work is unknown,
+            # and an invoice cannot be raised for an unknown number.
+            'amount': (hours * Decimal(str(rate))).quantize(Decimal('0.01'))
+                      if rate is not None else None,
+            'already_billed': False,
+            'rate_known': rate is not None,
+        }
+
+    def generate_invoice(self, *, created_by=None, invoice_date=None):
+        """Build a draft invoice from whatever this project has to bill.
+
+        Returns `(invoice, message)`. `invoice` is None when there is nothing
+        to bill or the information needed is missing — the caller shows the
+        message rather than an empty invoice, because an invoice with no lines
+        is worse than none at all.
+
+        Always a draft. Nothing here decides to send a client a bill.
+        """
+        from decimal import Decimal
+
+        from django.utils import timezone as tz
+
+        invoice_date = invoice_date or tz.now().date()
+        client = self.client_org or self.organization
+
+        if self.billing_type == self.BILLING_FIXED_FEE:
+            if not self.fixed_fee_amount:
+                return None, 'This project has no fixed fee amount set.'
+            if self.already_fixed_fee_invoiced():
+                return None, 'The fixed fee for this project has already been invoiced.'
+            lines = [{
+                'description': f'{self.name} — fixed fee',
+                'quantity': Decimal('1'),
+                'unit_price': Decimal(str(self.fixed_fee_amount)),
+                'source': 'manual',
+                'source_id': f'fixed_fee:{self.pk}',
+            }]
+            milestones = []
+
+        elif self.billing_type == self.BILLING_MILESTONE:
+            milestones = self.billable_milestones()
+            if not milestones:
+                return None, 'No completed, priced milestones are waiting to be billed.'
+            lines = [{
+                'description': f'{self.name} — {m.title}',
+                'quantity': Decimal('1'),
+                'unit_price': Decimal(str(m.billing_amount)),
+                'source': 'manual',
+                'source_id': f'milestone:{m.pk}',
+            } for m in milestones]
+
+        else:
+            entries = self.uninvoiced_time_entries()
+            if not entries:
+                return None, 'No unbilled billable time on this project.'
+            rate = self.billing_rate()
+            if rate is None:
+                return None, (
+                    "No hourly rate on this client's active contract, so this "
+                    'time cannot be priced. Set a contract rate first.')
+            lines = [{
+                'description': (
+                    f'{e.started_at:%Y-%m-%d} — {e.ticket.ticket_number}: '
+                    f'{(e.notes or e.ticket.subject)[:200]}'),
+                'quantity': (Decimal(e.duration_minutes) / Decimal(60)
+                             ).quantize(Decimal('0.01')),
+                'unit_price': Decimal(str(rate)),
+                'source': 'time',
+                'source_id': str(e.pk),
+            } for e in entries]
+            milestones = []
+
+        invoice = Invoice.objects.create(
+            organization=self.organization,
+            client_org=client,
+            project=self,
+            title=f'{self.name}',
+            status='draft',
+            invoice_date=invoice_date,
+        )
+        for position, line in enumerate(lines):
+            InvoiceLineItem.objects.create(
+                invoice=invoice, sort_order=position, **line)
+        invoice.recompute_totals()
+        invoice.save()
+
+        # Stamp the milestones only after the invoice exists, so a failure
+        # above cannot mark work billed that was never put on a bill.
+        for milestone in milestones:
+            milestone.billed_on_invoice = invoice
+            milestone.save(update_fields=['billed_on_invoice', 'updated_at'])
+
+        return invoice, f'Draft invoice created with {len(lines)} line(s).'
 
     def budget_summary(self):
         """Everything the project page needs, in one call."""
@@ -2627,6 +2819,19 @@ class ProjectTask(models.Model):
         'self', symmetrical=False, blank=True, related_name='dependents',
         help_text='Tasks that must finish before this one can start.')
 
+    # Phase 35.6 (v3.17.555) — milestone billing. The amount is what this
+    # milestone is worth; `billed_on_invoice` is what stops it being billed
+    # twice, and is a foreign key rather than a boolean so the answer to "which
+    # invoice was that on" survives.
+    billing_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text='What this milestone bills for, on a milestone-billed '
+                  'project. Ignored elsewhere.')
+    billed_on_invoice = models.ForeignKey(
+        'psa.Invoice', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='billed_milestones',
+        help_text='The invoice this milestone was billed on, if any.')
+
     sort_order = models.PositiveIntegerField(default=0)
     related_ticket = models.ForeignKey(
         Ticket, on_delete=models.SET_NULL,
@@ -3061,6 +3266,14 @@ class Invoice(models.Model):
     currency = models.CharField(max_length=8, default='USD')
 
     # Sources
+    # Phase 35.6 (v3.17.555) — which project this invoice bills for, when it
+    # was generated from one. Also how the double-billing checks find what has
+    # already been invoiced for a project.
+    project = models.ForeignKey(
+        'psa.Project', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='invoices',
+        help_text='The project this invoice was generated from, if any.')
+
     source_quote = models.ForeignKey('Quote', on_delete=models.SET_NULL,
                                      null=True, blank=True, related_name='invoices')
     source_ticket = models.ForeignKey(Ticket, on_delete=models.SET_NULL,
