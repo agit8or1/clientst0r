@@ -8230,3 +8230,183 @@ def project_task_to_ticket(request, task_pk):
         f'Created {ticket.ticket_number} from "{task.title}". Time logged on it '
         f'counts towards this project\'s actuals.')
     return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)
+
+
+# ---------------------------------------------------------------------------
+# Phase 35.5 (v3.17.554) — timeline / Gantt view
+# ---------------------------------------------------------------------------
+
+def _timeline_rows(project):
+    """Task bars positioned as percentages across the project's date span.
+
+    Percentages rather than pixels so the chart is responsive without
+    JavaScript having to lay it out — the browser already knows how wide the
+    container is and CSS can do the rest.
+    """
+    from datetime import timedelta
+
+    tasks = list(
+        project.tasks.select_related('assigned_to')
+        .prefetch_related('depends_on')
+        .order_by('sort_order', 'id')
+    )
+    scheduled = [t for t in tasks if t.is_scheduled]
+    if not scheduled:
+        return {'rows': [], 'unscheduled': tasks, 'start': None, 'end': None,
+                'days': 0, 'months': []}
+
+    start = min(t.bar_start for t in scheduled)
+    end = max(t.bar_end for t in scheduled)
+    # A project whose tasks all fall on one day would divide by zero; give it
+    # a day of width so the bar has somewhere to sit.
+    span_days = max((end - start).days + 1, 1)
+
+    rows = []
+    index_by_id = {}
+    for position, task in enumerate(scheduled):
+        offset = (task.bar_start - start).days
+        width = max((task.bar_end - task.bar_start).days + 1, 1)
+        index_by_id[task.pk] = position
+        rows.append({
+            'task': task,
+            'left_percent': round(offset * 100.0 / span_days, 4),
+            'width_percent': round(width * 100.0 / span_days, 4),
+            'position': position,
+            'is_blocked': task.is_blocked,
+            'depends_on_ids': [d.pk for d in task.depends_on.all()],
+        })
+
+    # Dependency arrows, as (from_row, to_row) pairs the template can draw
+    # between. Edges pointing at an unscheduled task are dropped rather than
+    # drawn to nowhere.
+    edges = []
+    for row in rows:
+        for dep_id in row['depends_on_ids']:
+            if dep_id in index_by_id:
+                edges.append({'from': index_by_id[dep_id], 'to': row['position']})
+
+    # Month labels across the top.
+    months = []
+    cursor = start.replace(day=1)
+    while cursor <= end:
+        offset = max((cursor - start).days, 0)
+        months.append({
+            'label': cursor.strftime('%b %Y'),
+            'left_percent': round(offset * 100.0 / span_days, 4),
+        })
+        cursor = (cursor + timedelta(days=32)).replace(day=1)
+
+    return {
+        'rows': rows,
+        'edges': edges,
+        'unscheduled': [t for t in tasks if not t.is_scheduled],
+        'start': start,
+        'end': end,
+        'days': span_days,
+        'months': months,
+    }
+
+
+@login_required
+@require_psa_enabled
+def project_timeline(request, pk):
+    """Gantt-style plan for one project."""
+    org = get_request_organization(request)
+    qs = Project.objects.all()
+    if org is not None:
+        qs = qs.filter(organization=org)
+    project = get_object_or_404(qs, pk=pk)
+
+    context = _timeline_rows(project)
+    context['item'] = project
+    return render(request, 'psa/project_timeline.html', context)
+
+
+@login_required
+@require_psa_enabled
+def project_task_reschedule(request, task_pk):
+    """Move a task's bar. Backs the drag handler and the date inputs alike."""
+    from datetime import date as _date
+
+    from .models import ProjectTask
+
+    org = get_request_organization(request)
+    qs = ProjectTask.objects.select_related('project')
+    if org is not None:
+        qs = qs.filter(project__organization=org)
+    task = get_object_or_404(qs, pk=task_pk)
+
+    if request.method != 'POST':
+        return redirect('psa:project_timeline', pk=task.project_id)
+
+    def _parse(name):
+        raw = (request.POST.get(name) or '').strip()
+        if not raw:
+            return None, False
+        try:
+            return _date.fromisoformat(raw), True
+        except ValueError:
+            return None, False
+
+    start, start_ok = _parse('start_date')
+    due, due_ok = _parse('due_date')
+
+    if not start_ok and not due_ok:
+        messages.error(request, 'Give the task a start date, a due date, or both.')
+        return redirect('psa:project_timeline', pk=task.project_id)
+
+    if start and due and due < start:
+        messages.error(request, 'A task cannot be due before it starts.')
+        return redirect('psa:project_timeline', pk=task.project_id)
+
+    task.start_date = start
+    task.due_date = due
+    task.save(update_fields=['start_date', 'due_date', 'updated_at'])
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.http import JsonResponse
+        return JsonResponse({
+            'ok': True,
+            'start_date': start.isoformat() if start else None,
+            'due_date': due.isoformat() if due else None,
+        })
+
+    messages.success(request, f'Rescheduled "{task.title}".')
+    return redirect('psa:project_timeline', pk=task.project_id)
+
+
+@login_required
+@require_psa_enabled
+def project_task_dependency(request, task_pk):
+    """Add or remove a "must finish first" edge between two tasks."""
+    from .models import ProjectTask
+
+    org = get_request_organization(request)
+    qs = ProjectTask.objects.select_related('project')
+    if org is not None:
+        qs = qs.filter(project__organization=org)
+    task = get_object_or_404(qs, pk=task_pk)
+
+    if request.method != 'POST':
+        return redirect('psa:project_timeline', pk=task.project_id)
+
+    other = ProjectTask.objects.filter(
+        pk=request.POST.get('depends_on'), project=task.project).first()
+    if other is None:
+        messages.error(request, 'That task is not part of this project.')
+        return redirect('psa:project_timeline', pk=task.project_id)
+
+    if request.POST.get('action') == 'remove':
+        task.depends_on.remove(other)
+        messages.success(request, 'Dependency removed.')
+        return redirect('psa:project_timeline', pk=task.project_id)
+
+    if task.add_dependency(other):
+        messages.success(
+            request, f'"{task.title}" now waits for "{other.title}".')
+    else:
+        messages.error(
+            request,
+            'That would create a circular dependency — the two tasks would '
+            'each be waiting for the other.')
+    return redirect('psa:project_timeline', pk=task.project_id)

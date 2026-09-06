@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}{{ item.name }} — timeline{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Phase 35.5 (v3.17.554). Bars are positioned as percentages by the view,
+       so the browser handles responsiveness and no JavaScript is needed to lay
+       the chart out — only to drag it. */
+    .gantt { position: relative; overflow-x: auto; }
+    .gantt-months {
+        position: relative; height: 22px; border-bottom: 1px solid var(--bs-border-color);
+        margin-bottom: 6px; min-width: 640px;
+    }
+    .gantt-month {
+        position: absolute; top: 0; font-size: 11px; color: var(--bs-secondary-color);
+        white-space: nowrap; padding-left: 2px; border-left: 1px solid var(--bs-border-color);
+    }
+    .gantt-row {
+        position: relative; height: 34px; min-width: 640px;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+    .gantt-bar {
+        position: absolute; top: 6px; height: 22px; border-radius: 4px;
+        background: #3b82f6; color: #fff; font-size: 11px; line-height: 22px;
+        padding: 0 8px; white-space: nowrap; overflow: hidden;
+        cursor: grab; user-select: none; min-width: 8px;
+    }
+    .gantt-bar.milestone { background: #8b5cf6; }
+    .gantt-bar.done { background: #16a34a; }
+    .gantt-bar.blocked { background: #b45309; }
+    .gantt-bar:active { cursor: grabbing; }
+    .gantt-label {
+        width: 220px; font-size: 13px; padding-right: 10px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .gantt-grid { display: grid; grid-template-columns: 220px 1fr; align-items: center; }
+    .gantt-edges { position: absolute; inset: 0; pointer-events: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-chart-gantt"></i> {{ item.name }} — timeline</h4>
+    <a href="{% url 'psa:project_detail' item.pk %}" class="btn btn-link btn-sm">Back to project</a>
+</div>
+
+{% if rows %}
+<div class="card mb-3">
+    <div class="card-body">
+        <p class="text-muted small">
+            {{ start|date:"j M Y" }} – {{ end|date:"j M Y" }} · {{ days }} day{{ days|pluralize }}.
+            Drag a bar sideways to reschedule it; the dates below each task are editable too.
+        </p>
+
+        <div class="gantt">
+            <div class="gantt-grid">
+                <div></div>
+                <div class="gantt-months">
+                    {% for m in months %}
+                        <div class="gantt-month" style="left: {{ m.left_percent }}%">{{ m.label }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% for row in rows %}
+            <div class="gantt-grid">
+                <div class="gantt-label" title="{{ row.task.title }}">
+                    {% if row.task.is_milestone %}◆ {% endif %}{{ row.task.title }}
+                </div>
+                <div class="gantt-row" data-row="{{ row.position }}">
+                    <div class="gantt-bar
+                                {% if row.task.is_milestone %}milestone{% endif %}
+                                {% if row.task.status == 'done' %}done{% endif %}
+                                {% if row.is_blocked %}blocked{% endif %}"
+                         style="left: {{ row.left_percent }}%; width: {{ row.width_percent }}%;"
+                         data-task-id="{{ row.task.pk }}"
+                         data-start="{{ row.task.bar_start|date:'Y-m-d' }}"
+                         data-end="{{ row.task.bar_end|date:'Y-m-d' }}"
+                         data-span-days="{{ days }}"
+                         title="{{ row.task.title }} · {{ row.task.bar_start|date:'j M' }} – {{ row.task.bar_end|date:'j M' }}{% if row.is_blocked %} · blocked{% endif %}">
+                        {{ row.task.title }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>Schedule &amp; dependencies</strong></div>
+    <div class="card-body">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr><th>Task</th><th>Start</th><th>Due</th><th>Waits for</th><th></th></tr>
+            </thead>
+            <tbody>
+            {% for row in rows %}
+                <tr>
+                    <td>
+                        {{ row.task.title }}
+                        {% if row.is_blocked %}
+                            <span class="badge bg-warning text-dark ms-1">Blocked</span>
+                        {% endif %}
+                    </td>
+                    <td colspan="2">
+                        <form method="post" action="{% url 'psa:project_task_reschedule' row.task.pk %}"
+                              class="d-flex gap-1 align-items-center">
+                            {% csrf_token %}
+                            <input type="date" name="start_date" class="form-control form-control-sm"
+                                   style="width: auto;" value="{{ row.task.start_date|date:'Y-m-d' }}">
+                            <input type="date" name="due_date" class="form-control form-control-sm"
+                                   style="width: auto;" value="{{ row.task.due_date|date:'Y-m-d' }}">
+                            <button type="submit" class="btn btn-outline-secondary btn-sm">Set</button>
+                        </form>
+                    </td>
+                    <td class="small text-muted">
+                        {% for d in row.task.depends_on.all %}
+                            <form method="post" action="{% url 'psa:project_task_dependency' row.task.pk %}"
+                                  class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="remove">
+                                <input type="hidden" name="depends_on" value="{{ d.pk }}">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm py-0"
+                                        title="Remove this dependency">{{ d.title }} ×</button>
+                            </form>
+                        {% empty %}—{% endfor %}
+                    </td>
+                    <td>
+                        <form method="post" action="{% url 'psa:project_task_dependency' row.task.pk %}"
+                              class="d-flex gap-1">
+                            {% csrf_token %}
+                            <select name="depends_on" class="form-select form-select-sm" style="width: auto;">
+                                {% for other in rows %}
+                                    {% if other.task.pk != row.task.pk %}
+                                        <option value="{{ other.task.pk }}">{{ other.task.title }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-outline-primary btn-sm">Waits for</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-secondary">
+    No task on this project has a start or due date yet, so there is nothing to plot.
+    Give a task dates on the project page and it will appear here.
+</div>
+{% endif %}
+
+{% if unscheduled %}
+<div class="card">
+    <div class="card-header py-2"><strong>Not scheduled</strong></div>
+    <div class="card-body">
+        <p class="text-muted small">
+            These have no dates, so they are not on the chart. They are listed rather than
+            hidden — a task missing from a plan is easy to forget entirely.
+        </p>
+        <ul class="mb-0">
+            {% for t in unscheduled %}<li>{{ t.title }}</li>{% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Phase 35.5 (v3.17.554) — drag a bar sideways to reschedule.
+// Deliberately small: the layout is already done in CSS from server-computed
+// percentages, so this only has to translate a pixel drag into a number of
+// days and post it. If the script never runs, the date inputs below the chart
+// do the same job.
+(function () {
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (!csrf) return;
+
+    function addDays(iso, days) {
+        const d = new Date(iso + 'T00:00:00');
+        d.setDate(d.getDate() + days);
+        return d.toISOString().slice(0, 10);
+    }
+
+    document.querySelectorAll('.gantt-bar').forEach(function (bar) {
+        let startX = 0, startLeft = 0, track = null, dragging = false;
+
+        bar.addEventListener('mousedown', function (e) {
+            dragging = true;
+            startX = e.clientX;
+            startLeft = parseFloat(bar.style.left) || 0;
+            track = bar.parentElement;
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!dragging || !track) return;
+            const deltaPercent = ((e.clientX - startX) / track.offsetWidth) * 100;
+            bar.style.left = Math.max(0, startLeft + deltaPercent) + '%';
+        });
+
+        document.addEventListener('mouseup', function (e) {
+            if (!dragging || !track) return;
+            dragging = false;
+
+            const spanDays = parseInt(bar.dataset.spanDays, 10) || 1;
+            const movedPercent = (parseFloat(bar.style.left) || 0) - startLeft;
+            const shiftDays = Math.round((movedPercent / 100) * spanDays);
+            if (shiftDays === 0) return;
+
+            const body = new URLSearchParams();
+            body.append('csrfmiddlewaretoken', csrf.value);
+            body.append('start_date', addDays(bar.dataset.start, shiftDays));
+            body.append('due_date', addDays(bar.dataset.end, shiftDays));
+
+            fetch('/psa/project-task/' + bar.dataset.taskId + '/reschedule/', {
+                method: 'POST',
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+                body: body,
+            }).then(function (r) { return r.json(); })
+              .then(function (data) {
+                  if (data && data.ok) {
+                      // Re-read from the server's answer rather than trusting
+                      // the drag, so a rejected move snaps back.
+                      bar.dataset.start = data.start_date;
+                      bar.dataset.end = data.due_date;
+                      window.location.reload();
+                  }
+              })
+              .catch(function () { window.location.reload(); });
+        });
+    });
+})();
+</script>
+{% endblock %}

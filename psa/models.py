@@ -2610,9 +2610,22 @@ class ProjectTask(models.Model):
         django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='psa_project_tasks',
     )
+    # Phase 35.5 (v3.17.554) — a timeline bar needs both ends. `due_date`
+    # alone described a deadline; a schedule needs to know when the work is
+    # meant to start as well.
+    start_date = models.DateField(
+        null=True, blank=True,
+        help_text='When the work is planned to begin. A task with only a due '
+                  'date is drawn as a single-day marker.')
     due_date = models.DateField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     estimated_hours = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+
+    # Phase 35.5 — what must finish before this can start. Self-referential and
+    # explicitly not symmetrical: "A depends on B" says nothing about B.
+    depends_on = models.ManyToManyField(
+        'self', symmetrical=False, blank=True, related_name='dependents',
+        help_text='Tasks that must finish before this one can start.')
 
     sort_order = models.PositiveIntegerField(default=0)
     related_ticket = models.ForeignKey(
@@ -2653,6 +2666,72 @@ class ProjectTask(models.Model):
 # Distinct from `processes/` (which orchestrates multi-step procedures).
 # A WorkflowRule is a simple "when X event happens AND conditions match,
 # run these actions" trigger fired from PSA signal handlers.
+
+    # ----- Phase 35.5 (v3.17.554): scheduling -----------------------------
+
+    @property
+    def bar_start(self):
+        """Left edge of this task's timeline bar.
+
+        Falls back to the due date so a task with only a deadline still draws
+        as a single-day marker rather than vanishing from the plan.
+        """
+        return self.start_date or self.due_date
+
+    @property
+    def bar_end(self):
+        return self.due_date or self.start_date
+
+    @property
+    def is_scheduled(self) -> bool:
+        return bool(self.start_date or self.due_date)
+
+    def would_create_dependency_cycle(self, other) -> bool:
+        """True if depending on `other` would close a loop.
+
+        A cycle makes "what can start now" unanswerable and sends any
+        scheduling walk into an infinite loop, so it is refused at the point of
+        creation rather than defended against everywhere afterwards.
+        """
+        if other is None or other.pk == self.pk:
+            return True
+        # Walk what `other` already depends on. If this task is anywhere in
+        # there, the new edge closes a circle.
+        seen = set()
+        stack = [other]
+        while stack:
+            node = stack.pop()
+            if node.pk in seen:
+                continue
+            seen.add(node.pk)
+            if node.pk == self.pk:
+                return True
+            stack.extend(node.depends_on.all())
+        return False
+
+    def add_dependency(self, other):
+        """Add a dependency, refusing anything that would create a cycle.
+
+        Returns True when the edge was added. Raises nothing — the caller is a
+        view that wants to show a message, not handle an exception.
+        """
+        if self.would_create_dependency_cycle(other):
+            return False
+        if other.project_id != self.project_id:
+            # A cross-project dependency would make one project's timeline
+            # depend on another's, which nothing else in the model supports.
+            return False
+        self.depends_on.add(other)
+        return True
+
+    @property
+    def blocking_dependencies(self):
+        """Dependencies that are not finished yet."""
+        return [d for d in self.depends_on.all() if d.status != 'done']
+
+    @property
+    def is_blocked(self) -> bool:
+        return bool(self.blocking_dependencies)
 
 class WorkflowRule(models.Model):
     """

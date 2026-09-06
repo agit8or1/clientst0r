@@ -765,6 +765,11 @@ Planned capabilities:
 - **An unknown amount is reported as unknown, never as zero.** Spend needs an hourly rate from the client's active contract; without one `actual_amount()` returns `None` and the page says so. A project showing no spend because nobody recorded a rate reads as comfortably under budget when the truth is that it has not been measured. *(shipped v3.17.549)*
 - **Worst of the two budgets wins.** A project inside its hours but over its money is over — saying otherwise would be the comfortable answer rather than the true one. An unmeasurable money budget does not mask a breached hours budget. *(shipped v3.17.549)*
 
+### Sub-phase 35.5 — Timeline and dependencies *(shipped v3.17.554)*
+- **`ProjectTask.start_date`** — a timeline bar needs both ends. `due_date` alone described a deadline; a schedule needs to know when work is meant to begin. A task carrying only one date draws as a single-day marker rather than vanishing from the plan. *(shipped v3.17.554)*
+- **`ProjectTask.depends_on`** — self-referential, explicitly not symmetrical, with cycles refused at the point of creation. A cycle makes "what can start now" unanswerable and sends any scheduling walk into an infinite loop, so it is rejected when the edge is drawn rather than defended against everywhere afterwards. Chains and diamonds are allowed; depth is not a cycle. *(shipped v3.17.554)*
+- **Timeline view** with bars positioned as server-computed percentages, so CSS handles responsiveness and JavaScript is needed only for dragging. Drag posts to the same endpoint the date inputs use, so the feature works with scripting off. Unscheduled tasks are listed rather than hidden — a task missing from a plan is easy to forget entirely — and a dependency arrow pointing at an unscheduled task is dropped rather than drawn to nowhere. *(shipped v3.17.554)*
+
 ### Sub-phase 35.3 — Profitability *(shipped v3.17.553)*
 - **Cost from effective-dated `resourcing.TechCostRate`** — each time entry is costed at the rate that applied to that technician on the day the work happened, so a raise in June does not retroactively make March's work more expensive. *(shipped v3.17.553)*
 - **Revenue is billable hours at the client contract's rate; margin is the difference.** Both are `None` when no rate is known, because a margin computed against unknown revenue is a subtraction from nothing dressed up as a business figure. *(shipped v3.17.553)*
@@ -782,7 +787,7 @@ Remaining planned capabilities:
 - **Project profitability** *(shipped v3.17.553 — see 35.3)*
 - **Project-to-ticket task generation** *(shipped v3.17.550 — see 35.4)*
 - Project billing support — project-bundled invoice generation, fixed-fee vs. T&M handling, milestone billing triggers
-- Gantt / calendar-style planning view — drag-to-reschedule task bars on a timeline, dependency arrows between tasks
+- **Gantt / calendar-style planning view** *(shipped v3.17.554 — see 35.5)*
 
 Dependencies: existing `psa.Project` + `psa.ProjectTask` models, Phase 3 (profitability infra), Phase 1 (contract / billing engine).
 

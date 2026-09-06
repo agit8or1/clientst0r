@@ -55,6 +55,10 @@ urlpatterns = [
     path('projects/<int:pk>/apply-template/', views.project_apply_template, name='project_apply_template'),
     path('project-task/<int:task_pk>/update/', views.project_task_update, name='project_task_update'),
     path('project-task/<int:task_pk>/delete/', views.project_task_delete, name='project_task_delete'),
+    # Phase 35.5 (v3.17.554) — timeline / Gantt.
+    path('projects/<int:pk>/timeline/', views.project_timeline, name='project_timeline'),
+    path('project-task/<int:task_pk>/reschedule/', views.project_task_reschedule, name='project_task_reschedule'),
+    path('project-task/<int:task_pk>/dependency/', views.project_task_dependency, name='project_task_dependency'),
     # Phase 35.4 (v3.17.550) — spawn a ticket from a task.
     path('project-task/<int:task_pk>/to-ticket/', views.project_task_to_ticket, name='project_task_to_ticket'),
     # Recurring tickets (preventive maintenance)

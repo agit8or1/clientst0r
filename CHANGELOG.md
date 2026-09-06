@@ -5,6 +5,51 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.554] - 2026-09-06
+
+### Phase 35.5 — project timeline, with dependencies
+
+A Gantt-style plan per project, plus the two model fields it needed and neither
+of which existed.
+
+**`ProjectTask.start_date`.** A bar needs both ends. `due_date` alone described a
+deadline, not a schedule. A task carrying only one of the two dates draws as a
+single-day marker rather than vanishing — a deadline-only task is exactly the
+kind you want on the chart.
+
+**`ProjectTask.depends_on`** — self-referential, explicitly `symmetrical=False`
+because "B depends on A" says nothing about A.
+
+**Cycles are refused when the edge is drawn**, not defended against afterwards. A
+cycle makes "what can start now" unanswerable and sends any scheduling walk into
+an infinite loop; catching it at creation means every later reader can assume a
+DAG. `would_create_dependency_cycle()` walks what the proposed parent already
+waits for and refuses if this task is anywhere in there. Chains and diamonds pass
+— depth is not a cycle, and tests pin both so a future tightening does not
+over-reject. Cross-project edges are refused too: nothing else in the model
+supports one project's timeline depending on another's.
+
+**Bars are positioned as percentages computed server-side**, so CSS handles
+responsiveness and JavaScript is needed only to drag. The drag handler posts to
+the same endpoint the date inputs beneath the chart use, which means the feature
+degrades to a working form with scripting off rather than to nothing. The
+endpoint rejects a due date before its start, and garbage input leaves the task
+alone.
+
+Two rendering decisions worth stating:
+
+- **Unscheduled tasks are listed below the chart, not hidden.** A task missing
+  from a plan is easy to forget entirely, which is the failure the chart exists
+  to prevent.
+- **A dependency arrow pointing at an unscheduled task is dropped.** Drawing an
+  arrow to nowhere is worse than drawing no arrow.
+
+A single-day project does not divide by zero — the span floors at one day so the
+bar has somewhere to sit.
+
+30 new tests; full `psa` suite green. Migration:
+`psa.0065_projecttask_depends_on_projecttask_start_date`.
+
 ## [3.17.553] - 2026-09-06
 
 ### Phase 35.3 — project profitability

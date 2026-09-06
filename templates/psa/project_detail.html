@@ -158,6 +158,8 @@
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>Tasks &amp; milestones</strong>
+                <a href="{% url 'psa:project_timeline' item.pk %}"
+                   class="btn btn-outline-secondary btn-sm ms-2">Timeline</a>
                 {# Phase 35.1 (v3.17.548) — apply a template's work breakdown. #}
                 {% if project_templates %}
                 <form method="post" action="{% url 'psa:project_apply_template' item.pk %}"
