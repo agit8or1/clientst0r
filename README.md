@@ -955,7 +955,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 💝 Supporting This Project
 
-If you find Client St0r useful for your MSP or IT department, please consider supporting the developer's business: **[MSP Reboot](https://www.mspreboot.com)** - Professional MSP services and consulting.
+If you find Client St0r useful for your MSP or IT department, please consider starring the repository and sharing it with your team.
 
 Your support allows me to continue developing open-source tools like Client St0r and contribute to the MSP community. Thank you!
 
