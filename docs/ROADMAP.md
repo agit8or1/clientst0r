@@ -695,7 +695,7 @@ Phase 33 layers the deeper, persistent / scheduled, multi-protocol discovery on 
 
 ---
 
-## Phase 33 — Network Discovery & Auto Documentation **(L)** [planned]
+## Phase 33 — Network Discovery & Auto Documentation **(L)** [complete]
 
 Multi-protocol persistent network discovery and topology inference. Phase 32 ships a one-shot, scoped, single-use ping / ARP script — useful for the first walk-through of a new client. Phase 33 is the always-on companion: a lightweight per-site collector that polls SNMP / LLDP / CDP / ARP on a schedule, keeps the asset inventory current, and generates topology diagrams without manual draw-time.
 
@@ -712,6 +712,16 @@ Planned capabilities:
 Dependencies: Phase 32 (token + import models — extend rather than replace), Phase 16 (relationship graph rendering), Asset model.
 
 **Goal:** Reduce manual network documentation work — keep the topology, switch port assignments, and device inventory in sync with reality without a tech having to redraw or re-export anything.
+
+✅ **Phase 33 complete at v3.17.557.** Built on Phase 32's models rather than replacing them, as the dependency note asked.
+
+- **`DiscoverySite`** — a per-site collector with a rotating, revocable key. It is a standing credential, which Phase 32's token deliberately is not, and the boundary that makes that acceptable is enforced and tested: it reads **only its own scan settings** (no assets, no credentials, no other site) and writes **only** discovery results into one organization and one location.
+- **`NetworkLink`** — LLDP/CDP adjacencies, idempotent on re-report. A neighbour we do not manage is kept as an unresolved node rather than dropped, because "there is something on port 12 we don't manage" is exactly what a topology map should show. A link not seen for a month is flagged stale rather than deleted.
+- **`SwitchPortEntry`** — the port / VLAN / MAC / IP correlation table that answers "which port is this device on". One row per (port, VLAN, MAC), so an uplink carrying many MACs is a fact to display rather than a conflict to resolve.
+- **Topology map** — force-directed SVG rendered from a seeded layout, so the same network draws the same way twice.
+- **Scheduled and on-demand scans** — cadence lives on the site; "scan now" is a flag the collector picks up on its next check-in, because it polls and we never connect inbound to a client network.
+
+**Scope note, stated plainly:** the server side is complete and tested (112 tests). `deploy/network-collector/collector.py` is a reference implementation whose ping/ARP paths work with only the standard library; its **SNMP paths are documented extension points returning empty lists**, because LLDP/CDP walks need `pysnmp` and real switch hardware to validate, and an untested walk that silently returns nothing would look identical to a working feature finding no neighbours. The server accepts and stores that data today.
 
 ## Phase 34 — Network Configuration Backup **(M)** [complete]
 
@@ -1150,7 +1160,7 @@ Positioned last in the roadmap (v3.17.169) because it's the largest single under
 | 28 — Browser Extension + Offline Vault Access | L | 4-5 weeks | separate codebase |
 | 31 — Vault GeoIP / IP / Time Access Rules | S | shipped v3.17.163 | extends FirewallMiddleware GeoIP infra |
 | 32 — Remote Network Discovery Import | M | shipped v3.17.556 | future / late-stage — non-RMM, scoped, single-use tokens |
-| 33 — Network Discovery & Auto Documentation | L | 4-6 weeks | extends Phase 32 + Phase 16 |
+| 33 — Network Discovery \& Auto Documentation | L | shipped v3.17.557 | extends Phase 32 + Phase 16 |
 | 34 — Network Configuration Backup | M | shipped v3.17.544–547 | extends Phase 33 + Phase 9 alerts |
 | 35 — Advanced Project Management | L | shipped v3.17.548–555 | extends `psa.Project` (v3.17.213 quote→project shipped) |
 | 36 — Agreement Reconciliation & Pre-Invoice Approval | M | 2-3 weeks | extends Phase 1 + 15 + 20 |

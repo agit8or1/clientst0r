@@ -1,0 +1,32 @@
+# Phase 33 (v3.17.558) — site collector unit.
+#
+# Install on a small box inside the client network:
+#   1. copy collector.py to /opt/clientst0r/collector.py
+#   2. put the site key in /etc/clientst0r-collector.env as
+#        COLLECTOR_KEY=...
+#        COLLECTOR_SERVER=https://your-server
+#   3. systemctl enable --now clientst0r-collector
+#
+# The key is a credential. Keep the env file root-owned and mode 600.
+[Unit]
+Description=Client St0r network discovery collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/clientst0r-collector.env
+ExecStart=/usr/bin/python3 /opt/clientst0r/collector.py \
+    --server ${COLLECTOR_SERVER} --key ${COLLECTOR_KEY}
+Restart=on-failure
+RestartSec=60
+
+# It needs to ping and read its own ARP table. Nothing more.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/tmp
+
+[Install]
+WantedBy=multi-user.target

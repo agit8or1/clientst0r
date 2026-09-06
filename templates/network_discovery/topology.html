@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Topology — {{ location.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Phase 33.3 (v3.17.558). A force-directed layout in ~60 lines of vanilla
+       JS rather than pulling in a graph library: the CDN allowlist does not
+       cover one, and a site's topology is tens of nodes, not thousands. */
+    #topo { width: 100%; height: 640px; border: 1px solid var(--bs-border-color);
+            border-radius: 8px; background: var(--bs-body-bg); }
+    #topo .edge { stroke: #8b97ad; stroke-width: 1.5; }
+    #topo .edge.stale { stroke-dasharray: 4 3; opacity: 0.5; }
+    #topo .node circle { fill: #3b82f6; stroke: #fff; stroke-width: 1.5; cursor: grab; }
+    #topo .node.unresolved circle { fill: #94a3b8; stroke-dasharray: 3 2; }
+    #topo .node text { font-size: 11px; fill: var(--bs-body-color); pointer-events: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-project-diagram"></i> Network topology</h4>
+    <div>
+        <a href="{% url 'network_discovery:port_map' organization.pk location.pk %}"
+           class="btn btn-outline-secondary btn-sm">Port map</a>
+        <a href="{% url 'network_discovery:sites' organization.pk location.pk %}"
+           class="btn btn-link btn-sm">Collectors</a>
+    </div>
+</div>
+<p class="text-muted">{{ organization.name }} · {{ location.name }}</p>
+
+{% if edges %}
+<div class="card mb-3">
+    <div class="card-body">
+        <p class="text-muted small mb-2">
+            Built from LLDP and CDP neighbour data. A <strong>grey dashed</strong> node is a
+            device that reported itself as a neighbour but that we do not manage — worth
+            seeing rather than hiding. A <strong>dashed edge</strong> has not been reported
+            for over a month; it is kept rather than deleted, because a cable that stopped
+            being seen is information too.
+        </p>
+        <svg id="topo"></svg>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header py-2"><strong>Links</strong></div>
+    <table class="table table-sm mb-0 align-middle">
+        <thead>
+            <tr><th>Device</th><th>Port</th><th>Neighbour</th><th>Its port</th><th>Via</th><th>Last seen</th></tr>
+        </thead>
+        <tbody>
+        {% for e in edges %}
+            <tr>
+                <td class="small">{{ e.source_label }}</td>
+                <td class="small font-monospace">{{ e.local_port|default:"—" }}</td>
+                <td class="small">{{ e.target_label }}</td>
+                <td class="small font-monospace">{{ e.remote_port|default:"—" }}</td>
+                <td class="small text-muted">{{ e.source_protocol|upper }}</td>
+                <td class="small text-muted">
+                    {{ e.last_seen_at|date:"j M, H:i" }}
+                    {% if e.is_stale %}<span class="badge bg-secondary ms-1">stale</span>{% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-secondary">
+    No neighbour data yet. A collector with SNMP enabled reads LLDP and CDP and
+    populates this map; until then there is nothing to draw, which is a truer
+    picture than an invented one.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ graph_json|json_script:"topo-data" }}
+<script>
+// Phase 33.3 (v3.17.558) — small force-directed layout.
+(function () {
+    const el = document.getElementById('topo');
+    const dataEl = document.getElementById('topo-data');
+    if (!el || !dataEl) return;
+
+    const graph = JSON.parse(dataEl.textContent);
+    if (!graph.nodes.length) return;
+
+    const W = el.clientWidth || 900, H = 640;
+    el.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    // Seeded from the index rather than Math.random, so the same network draws
+    // the same way twice. A map that rearranges itself on every reload is one
+    // nobody can navigate by memory.
+    const nodes = graph.nodes.map(function (n, i) {
+        const angle = (i / graph.nodes.length) * Math.PI * 2;
+        return Object.assign({}, n, {
+            x: W / 2 + Math.cos(angle) * Math.min(W, H) * 0.32,
+            y: H / 2 + Math.sin(angle) * Math.min(W, H) * 0.32,
+            vx: 0, vy: 0,
+        });
+    });
+    const index = {};
+    nodes.forEach(function (n) { index[n.key] = n; });
+    const edges = graph.edges.filter(function (e) {
+        return index[e.source] && index[e.target];
+    });
+
+    for (let step = 0; step < 300; step++) {
+        // Repulsion.
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = i + 1; j < nodes.length; j++) {
+                const a = nodes[i], b = nodes[j];
+                let dx = a.x - b.x, dy = a.y - b.y;
+                let d2 = dx * dx + dy * dy;
+                if (d2 < 1) { d2 = 1; dx = (i - j) || 1; dy = 1; }
+                const force = 4000 / d2;
+                const d = Math.sqrt(d2);
+                a.vx += (dx / d) * force; a.vy += (dy / d) * force;
+                b.vx -= (dx / d) * force; b.vy -= (dy / d) * force;
+            }
+        }
+        // Attraction along edges.
+        edges.forEach(function (e) {
+            const a = index[e.source], b = index[e.target];
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const d = Math.sqrt(dx * dx + dy * dy) || 1;
+            const force = (d - 120) * 0.02;
+            a.vx += (dx / d) * force; a.vy += (dy / d) * force;
+            b.vx -= (dx / d) * force; b.vy -= (dy / d) * force;
+        });
+        nodes.forEach(function (n) {
+            n.x = Math.max(40, Math.min(W - 40, n.x + n.vx * 0.4));
+            n.y = Math.max(24, Math.min(H - 24, n.y + n.vy * 0.4));
+            n.vx *= 0.55; n.vy *= 0.55;
+        });
+    }
+
+    const NS = 'http://www.w3.org/2000/svg';
+    function make(tag, attrs) {
+        const node = document.createElementNS(NS, tag);
+        Object.keys(attrs).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+        return node;
+    }
+
+    edges.forEach(function (e) {
+        const a = index[e.source], b = index[e.target];
+        const line = make('line', {
+            x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+            class: 'edge' + (e.is_stale ? ' stale' : ''),
+        });
+        const label = [e.local_port, e.remote_port].filter(Boolean).join(' ↔ ');
+        if (label) {
+            const title = make('title', {});
+            title.textContent = label;
+            line.appendChild(title);
+        }
+        el.appendChild(line);
+    });
+
+    nodes.forEach(function (n) {
+        const g = make('g', {class: 'node' + (n.resolved ? '' : ' unresolved')});
+        g.appendChild(make('circle', {cx: n.x, cy: n.y, r: n.resolved ? 8 : 6}));
+        const text = make('text', {x: n.x + 12, y: n.y + 4});
+        text.textContent = n.label;
+        g.appendChild(text);
+        const title = make('title', {});
+        title.textContent = n.resolved ? n.label : n.label + ' (not managed here)';
+        g.appendChild(title);
+        el.appendChild(g);
+    });
+})();
+</script>
+{% endblock %}

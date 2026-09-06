@@ -5,6 +5,68 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.557] - 2026-09-06
+
+### Phase 33 — persistent site collectors, topology and port mapping
+
+Built on Phase 32's models rather than replacing them, as the roadmap's
+dependency note asked. **Every phase on the roadmap is now complete.**
+
+**`DiscoverySite` is a standing credential**, which Phase 32's one-shot token
+deliberately is not. That is a real relaxation, so the boundary that makes it
+acceptable is enforced and tested rather than asserted:
+
+- it reads **only its own scan settings** — a test asserts an asset named
+  "Secret server" appears nowhere in the config response, and pins the exact set
+  of keys it returns;
+- it writes **only** discovery results, into the one organization and location it
+  was registered for. A payload naming another org is ignored;
+- it rotates and revokes, both taking effect immediately;
+- every check-in and scan is audit-logged with a source IP.
+
+If it leaks, the holder learns which subnets one site sweeps and can file device
+records there. It is not a way in.
+
+**`NetworkLink`** stores LLDP/CDP adjacencies, idempotent on re-report — a
+collector runs nightly and re-reports the same links, so "seen again" moves a
+timestamp rather than writing another row. A year of nightly scans must not bury
+the one link that changed. A neighbour we do not manage is kept as an unresolved
+node: *"there is something on port 12 we don't manage"* is exactly what a
+topology map should show. A link unseen for a month is flagged stale rather than
+deleted, because a cable that stopped being reported is information, and quietly
+removing it makes a map that only ever agrees with itself.
+
+**`SwitchPortEntry`** answers "which port is this device on" — the question that
+otherwise costs a walk to the comms room. One row per (port, VLAN, MAC), so an
+uplink carrying everything behind it is a fact to display rather than a conflict
+to resolve. A MAC that cannot be tied to a known device leaves the link empty
+rather than guessing: a port entry naming the wrong device sends somebody to the
+wrong socket, which is worse than sending them nowhere.
+
+**Topology map** is a force-directed SVG in about sixty lines of vanilla JS,
+seeded from node index rather than `Math.random` so the same network draws the
+same way twice — a map that rearranges itself on every reload is one nobody can
+navigate by memory.
+
+**On-demand scan** is a flag the collector picks up on its next config fetch, not
+a push. The collector polls; we never open a connection into a client's network.
+The flag clears as it is handed over, or the collector would scan on every fetch
+forever.
+
+**What is shipped versus what is tested, stated plainly.** The server side is
+complete and covered by 112 tests. `deploy/network-collector/collector.py` is a
+reference implementation: its ping-sweep and ARP paths use only the standard
+library, and its **SNMP paths are documented extension points returning empty
+lists**. LLDP/CDP walks need `pysnmp` and real switch hardware to validate
+against, and an untested walk that silently returned nothing would look identical
+to a working feature that happens to find no neighbours. The server accepts and
+stores that data today, and the docstrings give the exact shape. A systemd unit
+and a README ship alongside.
+
+54 new tests (112 in the app). Migrations:
+`network_discovery.0002_discoverysite_networklink_switchportentry`,
+`network_discovery.0003_discoverysite_scan_requested_at`.
+
 ## [3.17.556] - 2026-09-06
 
 ### Phase 32 — remote network discovery import

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Port map — {{ location.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-ethernet"></i> Switch port map</h4>
+    <a href="{% url 'network_discovery:sites' organization.pk location.pk %}"
+       class="btn btn-link btn-sm">Collectors</a>
+</div>
+<p class="text-muted">
+    Which port a device is on, per VLAN. An uplink legitimately carries many MACs —
+    everything behind it — so a port with a long list is a fact rather than a fault.
+</p>
+
+<form method="get" class="card mb-3">
+    <div class="card-body row g-2 align-items-end">
+        <div class="col-md-9">
+            <label class="form-label small" for="q">Search</label>
+            <input type="text" class="form-control form-control-sm" id="q" name="q"
+                   value="{{ query }}" placeholder="MAC, IP, port or device name">
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary btn-sm w-100">Search</button>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    {% if entries %}
+    <table class="table table-sm mb-0 align-middle">
+        <thead>
+            <tr><th>Switch</th><th>Port</th><th>VLAN</th><th>MAC</th><th>IP</th><th>Device</th><th>Last seen</th></tr>
+        </thead>
+        <tbody>
+        {% for e in entries %}
+            <tr>
+                <td class="small">{{ e.switch_asset.name }}</td>
+                <td class="small font-monospace">{{ e.port_name }}</td>
+                <td class="small">{{ e.vlan_id|default:"—" }}</td>
+                <td class="small font-monospace">{{ e.mac_address }}</td>
+                <td class="small font-monospace">{{ e.ip_address|default:"—" }}</td>
+                <td class="small">
+                    {% if e.device_asset %}<a href="/assets/{{ e.device_asset.pk }}/">{{ e.device_asset.name }}</a>
+                    {% else %}<span class="text-muted">unknown</span>{% endif %}
+                </td>
+                <td class="small text-muted">{{ e.last_seen_at|date:"j M, H:i" }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="card-body text-muted">
+        {% if query %}Nothing matches "{{ query }}".
+        {% else %}No switch port data yet. A collector with SNMP enabled populates this.{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

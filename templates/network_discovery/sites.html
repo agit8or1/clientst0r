@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Collectors — {{ location.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-satellite-dish"></i> Site collectors</h4>
+    <div>
+        <a href="{% url 'network_discovery:topology' organization.pk location.pk %}"
+           class="btn btn-outline-secondary btn-sm">Topology</a>
+        <a href="{% url 'network_discovery:port_map' organization.pk location.pk %}"
+           class="btn btn-outline-secondary btn-sm">Port map</a>
+        <a href="{% url 'network_discovery:home' organization.pk location.pk %}"
+           class="btn btn-link btn-sm">One-shot discovery</a>
+    </div>
+</div>
+<p class="text-muted">{{ organization.name }} · {{ location.name }}</p>
+
+<div class="alert alert-warning">
+    A collector runs on a schedule against this site only. Its key can read
+    <strong>nothing but its own scan settings</strong> and write nothing but discovery
+    results — no assets, no credentials, no other site. Rotate or revoke it at any
+    time; both take effect immediately.
+</div>
+
+{% if new_key %}
+<div class="card border-success mb-3">
+    <div class="card-header py-2 bg-success text-white"><strong>Collector key — shown once</strong></div>
+    <div class="card-body">
+        <p class="mb-2">
+            Copy this into the collector's configuration now. The server stores only a
+            hash and cannot show it again; if you lose it, rotate the key.
+        </p>
+        <div class="input-group">
+            <input type="text" class="form-control font-monospace" id="nd_site_key"
+                   value="{{ new_key }}" readonly>
+            <button class="btn btn-outline-secondary" type="button"
+                    onclick="navigator.clipboard.writeText(document.getElementById('nd_site_key').value)">
+                Copy
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if can_generate %}
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>Register a collector</strong></div>
+    <form method="post" action="{% url 'network_discovery:site_register' organization.pk location.pk %}">
+        {% csrf_token %}
+        <div class="card-body row g-2 align-items-end">
+            <div class="col-md-9">
+                <label class="form-label small" for="name">Name</label>
+                <input type="text" class="form-control form-control-sm" id="name"
+                       name="name" maxlength="120" required
+                       placeholder="HQ comms room collector">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary btn-sm w-100">Register</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header py-2"><strong>Collectors</strong></div>
+    {% if sites %}
+    <table class="table table-sm mb-0 align-middle">
+        <thead>
+            <tr><th>Name</th><th>State</th><th>Last check-in</th><th>Last scan</th><th>Every</th><th>Version</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for s in sites %}
+            <tr>
+                <td>
+                    {{ s.name }}
+                    {% if s.is_overdue %}
+                        <span class="badge bg-warning text-dark ms-1"
+                              title="Missed its window by more than three intervals">Overdue</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if s.state == 'active' %}<span class="badge bg-success">Active</span>
+                    {% elif s.state == 'disabled' %}<span class="badge bg-secondary">Disabled</span>
+                    {% else %}<span class="badge bg-danger">Revoked</span>{% endif %}
+                </td>
+                <td class="small">{{ s.last_seen_at|date:"j M Y, H:i"|default:"never" }}</td>
+                <td class="small">{{ s.last_scan_at|date:"j M Y, H:i"|default:"never" }}</td>
+                <td class="small text-muted">{{ s.scan_interval_minutes }} min</td>
+                <td class="small text-muted">{{ s.collector_version|default:"—" }}</td>
+                <td class="text-end">
+                    {% if s.scan_pending %}
+                        <span class="badge bg-info text-dark">Scan requested</span>
+                    {% elif s.state == 'active' %}
+                    <form method="post"
+                          action="{% url 'network_discovery:site_scan_now' organization.pk location.pk s.pk %}"
+                          class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-primary btn-sm"
+                                title="The collector picks this up on its next check-in">
+                            Scan now
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% if can_generate and s.state != 'revoked' %}
+                    <form method="post"
+                          action="{% url 'network_discovery:site_rotate' organization.pk location.pk s.pk %}"
+                          class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-secondary btn-sm"
+                                onclick="return confirm('Rotate the key? The collector stops working until you give it the new one.')">
+                            Rotate key
+                        </button>
+                    </form>
+                    <form method="post"
+                          action="{% url 'network_discovery:site_revoke' organization.pk location.pk s.pk %}"
+                          class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                                onclick="return confirm('Revoke this collector? Its key stops working immediately.')">
+                            Revoke
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="card-body text-muted">No collectors registered for this site.</div>
+    {% endif %}
+</div>
+{% endblock %}

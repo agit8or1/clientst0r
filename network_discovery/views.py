@@ -23,9 +23,11 @@ from locations.models import Location
 
 from .importer import import_payload
 from .models import (
-    DEFAULT_TOKEN_TTL_MINUTES, MAX_DEVICES_PER_UPLOAD,
-    NetworkDiscoveryImport, NetworkDiscoveryToken,
+    DEFAULT_TOKEN_TTL_MINUTES, MAX_DEVICES_PER_UPLOAD, DiscoverySite,
+    NetworkDiscoveryImport, NetworkDiscoveryToken, SwitchPortEntry,
+    normalise_mac, valid_ipv4,
 )
+from .topology import ingest_links, ingest_switch_ports, topology_graph
 from .script import render_discovery_script
 
 logger = logging.getLogger(__name__)
@@ -334,3 +336,310 @@ def upload(request):
         'skipped': counts['skipped'],
         'errors': counts['error'],
     })
+
+
+# ---------------------------------------------------------------------------
+# Phase 33 (v3.17.557–558) — persistent site collectors
+# ---------------------------------------------------------------------------
+
+@login_required
+def sites(request, org_id, location_id):
+    """Collectors registered for one org + location."""
+    organization, location = _scope(request, org_id, location_id)
+    return render(request, 'network_discovery/sites.html', {
+        'organization': organization,
+        'location': location,
+        'sites': DiscoverySite.objects.filter(
+            organization=organization, location=location
+        ).select_related('created_by', 'snmp_credential'),
+        'can_generate': user_has_perm(request.user, 'network_discovery_generate'),
+        'new_key': request.session.pop('nd_new_site_key', None),
+        'new_key_site': request.session.pop('nd_new_site_id', None),
+    })
+
+
+@login_required
+@require_POST
+def site_register(request, org_id, location_id):
+    organization, location = _scope(request, org_id, location_id)
+
+    if not user_has_perm(request.user, 'network_discovery_generate'):
+        messages.error(request, "You don't have permission to register collectors.")
+        return redirect('network_discovery:sites', org_id=org_id,
+                        location_id=location_id)
+
+    name = (request.POST.get('name') or '').strip()[:120]
+    if not name:
+        messages.error(request, 'Give the collector a name.')
+        return redirect('network_discovery:sites', org_id=org_id,
+                        location_id=location_id)
+
+    if DiscoverySite.objects.filter(
+            organization=organization, location=location, name=name).exists():
+        messages.error(request, 'A collector with that name already exists here.')
+        return redirect('network_discovery:sites', org_id=org_id,
+                        location_id=location_id)
+
+    site, raw = DiscoverySite.register(
+        organization=organization, location=location, name=name,
+        created_by=request.user)
+
+    request.session['nd_new_site_key'] = raw
+    request.session['nd_new_site_id'] = site.pk
+
+    _audit(request.user, 'create', organization=organization, request=request,
+           object_id=site.pk,
+           description=f'Registered discovery collector "{name}" at '
+                       f'location {location.pk}')
+    messages.success(
+        request,
+        'Collector registered. Its key is shown once below — copy it now.')
+    return redirect('network_discovery:sites', org_id=org_id,
+                    location_id=location_id)
+
+
+@login_required
+@require_POST
+def site_rotate(request, org_id, location_id, site_id):
+    organization, location = _scope(request, org_id, location_id)
+    site = get_object_or_404(DiscoverySite, pk=site_id,
+                             organization=organization, location=location)
+
+    if not user_has_perm(request.user, 'network_discovery_generate'):
+        messages.error(request, "You don't have permission to rotate keys.")
+        return redirect('network_discovery:sites', org_id=org_id,
+                        location_id=location_id)
+
+    raw = site.rotate_key()
+    request.session['nd_new_site_key'] = raw
+    request.session['nd_new_site_id'] = site.pk
+
+    _audit(request.user, 'update', organization=organization, request=request,
+           object_id=site.pk, description='Rotated collector key')
+    messages.warning(
+        request,
+        'Key rotated. The collector stops working until you give it the new '
+        'one — the old key stopped being valid the moment you clicked.')
+    return redirect('network_discovery:sites', org_id=org_id,
+                    location_id=location_id)
+
+
+@login_required
+@require_POST
+def site_revoke(request, org_id, location_id, site_id):
+    organization, location = _scope(request, org_id, location_id)
+    site = get_object_or_404(DiscoverySite, pk=site_id,
+                             organization=organization, location=location)
+
+    if not user_has_perm(request.user, 'network_discovery_generate'):
+        messages.error(request, "You don't have permission to revoke collectors.")
+        return redirect('network_discovery:sites', org_id=org_id,
+                        location_id=location_id)
+
+    site.revoke()
+    _audit(request.user, 'update', organization=organization, request=request,
+           object_id=site.pk, description='Revoked collector')
+    messages.success(request, 'Collector revoked. Its key no longer works.')
+    return redirect('network_discovery:sites', org_id=org_id,
+                    location_id=location_id)
+
+
+# --- collector-facing endpoints (key-only) ---------------------------------
+
+def _collector_site(request, payload=None):
+    """The site for the key on this request, or None.
+
+    The key is read from a header rather than the body so a config *fetch*,
+    which has no body, can carry it the same way a results push does.
+    """
+    raw = request.headers.get('X-Discovery-Key') or ''
+    if not raw and isinstance(payload, dict):
+        raw = payload.get('key') or ''
+    return DiscoverySite.find_usable(raw)
+
+
+@csrf_exempt
+def collector_config(request):
+    """What a collector should scan.
+
+    The only read this credential can perform, and it returns nothing but the
+    site's own scan settings — no assets, no credentials, no other site.
+    """
+    site = _collector_site(request)
+    if site is None:
+        return JsonResponse({'ok': False, 'error': 'invalid key'}, status=403)
+
+    site.note_checkin(
+        source_ip=_client_ip(request),
+        version=request.headers.get('X-Collector-Version', ''))
+
+    config = site.scan_config()
+    # Cleared as it is handed over: the request has been delivered, and leaving
+    # it set would make the collector scan on every fetch forever.
+    if site.scan_pending:
+        site.scan_requested_at = None
+        site.save(update_fields=['scan_requested_at', 'updated_at'])
+
+    return JsonResponse({'ok': True, 'config': config})
+
+
+@csrf_exempt
+@require_POST
+def collector_results(request):
+    """A scheduled scan's results: devices, neighbours and bridge tables.
+
+    Reuses the Phase 32 import for devices rather than growing a second import
+    path — two importers would drift, and the dedup rules are the part that
+    must not.
+    """
+    if len(request.body or b'') > MAX_UPLOAD_BYTES:
+        return JsonResponse({'ok': False, 'error': 'payload too large'}, status=413)
+
+    try:
+        payload = json.loads((request.body or b'{}').decode('utf-8'))
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({'ok': False, 'error': 'invalid JSON'}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse({'ok': False, 'error': 'invalid payload'}, status=400)
+
+    site = _collector_site(request, payload)
+    if site is None:
+        return JsonResponse({'ok': False, 'error': 'invalid key'}, status=403)
+
+    source_ip = _client_ip(request)
+    if _rate_limited(source_ip):
+        return JsonResponse({'ok': False, 'error': 'too many uploads'}, status=429)
+
+    devices = payload.get('devices')
+    if devices is not None and not isinstance(devices, list):
+        return JsonResponse(
+            {'ok': False, 'error': 'devices must be a list'}, status=400)
+    devices = devices or []
+    if len(devices) > MAX_DEVICES_PER_UPLOAD:
+        return JsonResponse({'ok': False, 'error': 'too many devices'}, status=413)
+
+    dry_run = bool(payload.get('dry_run'))
+
+    discovery_import = NetworkDiscoveryImport.objects.create(
+        organization=site.organization,
+        location=site.location,
+        uploaded_by_user=site.created_by,
+        source_ip=source_ip,
+        is_dry_run=dry_run,
+        raw_payload={
+            'device_count': len(devices),
+            'collector_site_id': site.pk,
+            'collector_version': str(payload.get('collector_version') or '')[:40],
+            'dry_run': dry_run,
+        },
+    )
+    counts = import_payload(discovery_import, devices, dry_run=dry_run)
+
+    # Topology is not written on a dry run either — a preview that quietly
+    # rewired the map would not be a preview.
+    if dry_run:
+        link_counts = port_counts = {'created': 0, 'updated': 0, 'skipped': 0}
+    else:
+        link_counts = ingest_links(site, payload.get('neighbours') or [])
+        port_counts = ingest_switch_ports(site, payload.get('switch_ports') or [])
+
+    site.last_scan_at = timezone.now()
+    site.save(update_fields=['last_scan_at', 'updated_at'])
+
+    _audit(site.created_by, 'create', organization=site.organization,
+           request=request, object_id=site.pk,
+           description=(
+               f'Collector scan from site {site.pk}: {counts["device"]} device(s), '
+               f'{link_counts["created"]} new link(s), '
+               f'{port_counts["created"]} new port entr(ies)'
+               + (' [dry run]' if dry_run else '')))
+
+    return JsonResponse({
+        'ok': True,
+        'import_id': discovery_import.pk,
+        'dry_run': dry_run,
+        'devices': counts['device'],
+        'created': counts['imported'],
+        'updated': counts['updated'],
+        'skipped': counts['skipped'],
+        'errors': counts['error'],
+        'links': link_counts,
+        'switch_ports': port_counts,
+    })
+
+
+# --- topology views --------------------------------------------------------
+
+@login_required
+def topology(request, org_id, location_id):
+    organization, location = _scope(request, org_id, location_id)
+    graph = topology_graph(organization, location)
+    return render(request, 'network_discovery/topology.html', {
+        'organization': organization,
+        'location': location,
+        'nodes': graph['nodes'],
+        'edges': graph['edges'],
+        'graph_json': json.dumps({
+            'nodes': graph['nodes'],
+            'edges': [
+                {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
+                 for k, v in edge.items()}
+                for edge in graph['edges']
+            ],
+        }),
+    })
+
+
+@login_required
+def port_map(request, org_id, location_id):
+    """Switch port / MAC / IP correlation — "which port is this device on"."""
+    organization, location = _scope(request, org_id, location_id)
+
+    entries = SwitchPortEntry.objects.filter(
+        organization=organization, location=location
+    ).select_related('switch_asset', 'device_asset')
+
+    query = (request.GET.get('q') or '').strip()
+    if query:
+        from django.db.models import Q
+        normalised = normalise_mac(query)
+        filters = (Q(mac_address__icontains=query)
+                   | Q(port_name__icontains=query)
+                   | Q(switch_asset__name__icontains=query)
+                   | Q(device_asset__name__icontains=query))
+        if normalised:
+            filters = filters | Q(mac_address=normalised)
+        if valid_ipv4(query):
+            filters = filters | Q(ip_address=query)
+        entries = entries.filter(filters)
+
+    return render(request, 'network_discovery/port_map.html', {
+        'organization': organization,
+        'location': location,
+        'entries': entries[:500],
+        'query': query,
+    })
+
+
+@login_required
+@require_POST
+def site_scan_now(request, org_id, location_id, site_id):
+    """Phase 33.4 (v3.17.558): ask a collector to scan on its next check-in."""
+    organization, location = _scope(request, org_id, location_id)
+    site = get_object_or_404(DiscoverySite, pk=site_id,
+                             organization=organization, location=location)
+
+    if not site.is_usable:
+        messages.error(request, 'That collector is revoked or disabled.')
+        return redirect('network_discovery:sites', org_id=org_id,
+                        location_id=location_id)
+
+    site.request_scan()
+    _audit(request.user, 'update', organization=organization, request=request,
+           object_id=site.pk, description='Requested an on-demand scan')
+    messages.success(
+        request,
+        'Scan requested. The collector picks it up on its next check-in — it '
+        'polls us, we never connect into the client network.')
+    return redirect('network_discovery:sites', org_id=org_id,
+                    location_id=location_id)
