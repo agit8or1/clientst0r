@@ -5,6 +5,65 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.556] - 2026-09-06
+
+### Phase 32 — remote network discovery import
+
+New `network_discovery` app. A technician picks a location, generates a
+PowerShell script, runs it on a Windows host inside the client's network, and the
+devices it finds land as Asset records under that site.
+
+The roadmap's constraint shapes everything here and is worth restating: *do not
+turn this into an RMM agent — no persistent agents, no permanent API keys, no
+exploit scanning.*
+
+**The token is the whole security story.** It is 43 characters from `secrets`,
+lives 15 minutes by default, is single-use, is scoped to one organization *and*
+one location, is write-only, is revocable, and is stored as a SHA-256 hash with
+the plaintext shown exactly once at generation. If it leaks, the worst it does is
+let someone file device records against one client site until it expires — and
+every use is audit-logged with its source IP.
+
+**Every upload rejection returns an identical response.** Expired, revoked,
+spent and never-existed are indistinguishable to the caller. An anonymous
+endpoint that tells you *why* your token failed is a token oracle.
+
+**The upload endpoint is CSRF-exempt, deliberately.** The caller is a PowerShell
+script with no cookie and no session, so there is no ambient authority for a
+cross-site request to ride on; the token in the body is the only thing that
+authorises anything. A payload naming a different organization is ignored — the
+token decides where results land, never the data.
+
+**The script does not authenticate to anything.** It pings, reads the scanning
+machine's own ARP table, optionally asks DNS for names, and — only with
+`-Classify` — opens and immediately closes a TCP connection to six well-known
+ports to guess a device type. No credentials, no writes, no vulnerability
+probing, nothing installed, nothing left running. It writes its JSON locally
+*before* uploading, so a failed upload never loses the sweep, and it prints the
+server URL it will post to. `-DryRun` previews without writing anything.
+
+**Import never overwrites what a person typed.** Matching is MAC first, then
+organization + location + IP — scoped to the location because 192.168.1.10
+exists at every client an MSP looks after. On a match, only blank fields are
+filled; a name a technician chose survives a sweep that thinks it knows better.
+MACs are normalised across the three formats Windows reports them in, or the same
+device imports twice.
+
+One malformed device never loses the rest of a sweep: failures are recorded per
+device with a reason, so "why was that switch skipped" has an answer weeks later.
+
+**One bug caught by its own test:** the create path stamped discovery metadata
+onto the new asset in memory and never saved it. The test asserting a created
+asset carries its last-seen timestamp failed, correctly.
+
+Also adds the `network_discovery_generate` role permission — generating a script
+hands somebody a credential that can write into a client's records, so it is its
+own permission rather than folded into `assets_create`.
+
+58 tests, covering every case the roadmap's test list names. Migrations:
+`network_discovery.0001_initial`,
+`accounts.0035_roletemplate_network_discovery_generate`.
+
 ## [3.17.555] - 2026-09-06
 
 ### Phase 35.6 — project billing (Phase 35 complete)

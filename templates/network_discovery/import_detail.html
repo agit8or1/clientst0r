@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Discovery import #{{ discovery_import.pk }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="fas fa-radar"></i> Discovery import #{{ discovery_import.pk }}</h4>
+    <a href="{% url 'network_discovery:home' organization.pk location.pk %}"
+       class="btn btn-link btn-sm">Back to network discovery</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body py-2 small text-muted">
+        {{ discovery_import.created_at|date:"j M Y, H:i" }} ·
+        {{ organization.name }} / {{ location.name }} ·
+        from {{ discovery_import.source_ip|default:"unknown" }} ·
+        {{ discovery_import.device_count }} device{{ discovery_import.device_count|pluralize }}
+        {% if discovery_import.is_dry_run %}
+            · <span class="badge bg-info text-dark">Preview — nothing was written</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header py-2"><strong>Devices</strong></div>
+    <table class="table table-sm mb-0 align-middle">
+        <thead>
+            <tr><th>IP</th><th>MAC</th><th>Hostname</th><th>Type</th><th>Result</th><th>Detail</th><th>Asset</th></tr>
+        </thead>
+        <tbody>
+        {% for r in results %}
+            <tr>
+                <td class="small font-monospace">{{ r.ip_address|default:"—" }}</td>
+                <td class="small font-monospace">{{ r.mac_address|default:"—" }}</td>
+                <td class="small">{{ r.hostname|default:"—" }}</td>
+                <td class="small text-muted">{{ r.device_type|default:"—" }}</td>
+                <td>
+                    {% if r.status == 'created' %}<span class="badge bg-success">Created</span>
+                    {% elif r.status == 'updated' %}<span class="badge bg-primary">Updated</span>
+                    {% elif r.status == 'matched' %}<span class="badge bg-secondary">Matched</span>
+                    {% elif r.status == 'preview' %}<span class="badge bg-info text-dark">Preview</span>
+                    {% elif r.status == 'error' %}<span class="badge bg-danger">Error</span>
+                    {% else %}<span class="badge bg-secondary">Skipped</span>{% endif %}
+                </td>
+                <td class="small text-muted">{{ r.detail|default:"—" }}</td>
+                <td class="small">
+                    {% if r.asset %}
+                        <a href="/assets/{{ r.asset.pk }}/">{{ r.asset.name }}</a>
+                    {% else %}—{% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

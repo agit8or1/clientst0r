@@ -99,6 +99,7 @@ INSTALLED_APPS = [
     'field_ops.apps.FieldOpsConfig',
     'statuspage.apps.StatusPageConfig',
     'netconfig.apps.NetConfigConfig',
+    'network_discovery.apps.NetworkDiscoveryConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies)

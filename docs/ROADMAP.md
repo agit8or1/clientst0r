@@ -612,7 +612,7 @@ Per-rule GeoIP / IP / time-of-day gates on top of the vault. New `VaultAccessRul
 ---
 - Click-to-select world map for country selection *(shipped v3.17.522 — replaces comma-separated ISO-code text boxes on both the vault access-rule form and the global firewall country rules with a clickable world map; a country belongs to one list, so "allowed AND blocked" is not expressible. Country names resolve server-side from a bundled ISO 3166-1 table, never from the browser. Map backdrop is configurable — colour pattern, random, or an uploaded image — and is cosmetic only, saved through its own endpoint so it can never rewrite firewall rules)*
 
-## Phase 32 — Remote Network Discovery Import **(M · future / late-stage)** [planned]
+## Phase 32 — Remote Network Discovery Import **(M · future / late-stage)** [complete]
 
 A technician opens an Organization in ClientSt0r, picks a Location, and clicks **Generate Network Discovery Script**. ClientSt0r issues a temporary one-time-use token bound to that single org + location, generates a downloadable PowerShell script, and the tech runs it on a Windows host inside the client's network. The script does a safe (non-intrusive, non-credentialed) sweep of the local subnets, collects IP / MAC / hostname / vendor data, and uploads the results back to ClientSt0r. ClientSt0r imports / updates Asset records under that Org + Location, deduping by MAC and by org+location+IP.
 
@@ -683,6 +683,13 @@ Token generation; expiration; revocation; valid upload; expired token rejected; 
 ### Goal
 
 Provide MSP-friendly remote network discovery without standing up a full RMM agent. Everything is **temporary, scoped, auditable**, and bound to a single org + location. Not a backdoor. Not a persistent agent.
+
+✅ **Phase 32 complete at v3.17.556.** New `network_discovery` app. Every security requirement above is implemented and tested: 15-minute single-use tokens stored as SHA-256 hashes with the plaintext shown exactly once, scoped to one org + location, write-only, revocable, rate-limited, with every generation / download / upload audit-logged including source IP.
+
+Two implementation notes worth recording:
+
+- **The re-download endpoint can only work while the generating user's session still holds the plaintext.** The roadmap asked for a re-download that keeps the token hidden; since the server stores only a hash, there is nothing to rebuild the script from once that session copy is gone. It says so and offers a new token rather than pretending otherwise.
+- **Every upload rejection returns an identical response.** Expired, revoked, spent and never-existed are indistinguishable to the caller — an anonymous endpoint that distinguishes them is a token oracle.
 
 Phase 33 layers the deeper, persistent / scheduled, multi-protocol discovery on top of this single-shot foundation.
 
@@ -1142,7 +1149,7 @@ Positioned last in the roadmap (v3.17.169) because it's the largest single under
 | 27 — Advanced Accounting Reconciliation | M | 2-3 weeks | extends QBO/Xero connection |
 | 28 — Browser Extension + Offline Vault Access | L | 4-5 weeks | separate codebase |
 | 31 — Vault GeoIP / IP / Time Access Rules | S | shipped v3.17.163 | extends FirewallMiddleware GeoIP infra |
-| 32 — Remote Network Discovery Import | M | 2-3 weeks | future / late-stage — non-RMM, scoped, single-use tokens |
+| 32 — Remote Network Discovery Import | M | shipped v3.17.556 | future / late-stage — non-RMM, scoped, single-use tokens |
 | 33 — Network Discovery & Auto Documentation | L | 4-6 weeks | extends Phase 32 + Phase 16 |
 | 34 — Network Configuration Backup | M | shipped v3.17.544–547 | extends Phase 33 + Phase 9 alerts |
 | 35 — Advanced Project Management | L | shipped v3.17.548–555 | extends `psa.Project` (v3.17.213 quote→project shipped) |

@@ -15,6 +15,20 @@
         <a href="{% url 'locations:send_navigation_link' location.id %}" class="btn btn-primary me-2" data-bs-toggle="tooltip" title="Send navigation link via email or SMS">
             <i class="fas fa-location-arrow"></i> Send Navigation
         </a>
+        {% comment %}
+            Phase 32 (v3.17.556) — network discovery is scoped to one
+            organization and one location, so its entry point lives on the
+            location rather than anywhere more general. Hidden for a shared
+            location with no owning organization, which has no scope to bind a
+            token to.
+        {% endcomment %}
+        {% if location.organization_id %}
+        <a href="/network-discovery/orgs/{{ location.organization_id }}/locations/{{ location.id }}/"
+           class="btn btn-outline-secondary me-2"
+           title="Generate a scoped, single-use network discovery script for this site">
+            <i class="fas fa-radar"></i> Network Discovery
+        </a>
+        {% endif %}
         <a href="{% url 'locations:location_edit' location.id %}" class="btn btn-warning me-2">
             <i class="fas fa-edit"></i> Edit
         </a>

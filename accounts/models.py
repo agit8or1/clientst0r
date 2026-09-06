@@ -690,6 +690,13 @@ class RoleTemplate(BaseModel):
     assets_edit = models.BooleanField(default=False, help_text='Edit assets')
     assets_delete = models.BooleanField(default=False, help_text='Delete assets')
 
+    # Phase 32 (v3.17.556) — generating a discovery script hands somebody a
+    # credential that can write assets into a client's records, so it is its
+    # own permission rather than folded into assets_create.
+    network_discovery_generate = models.BooleanField(
+        default=False,
+        help_text='Generate remote network discovery scripts and tokens')
+
     # Documents Permissions
     docs_view = models.BooleanField(default=True, help_text='View documents')
     docs_create = models.BooleanField(default=False, help_text='Create documents')

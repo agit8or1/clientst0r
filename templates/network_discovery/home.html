@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Network discovery — {{ location.name }}{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="fas fa-radar"></i> Network discovery</h4>
+<p class="text-muted">
+    {{ organization.name }} · {{ location.name }}
+</p>
+
+<div class="alert alert-warning">
+    <strong>Run the generated script only on networks you are authorised to scan.</strong>
+    It performs a ping sweep and reads the scanning machine's own ARP table. It uses
+    no credentials, changes nothing on the network, installs nothing, and does not
+    scan for vulnerabilities.
+</div>
+
+{% if new_token %}
+<div class="card border-success mb-3">
+    <div class="card-header py-2 bg-success text-white">
+        <strong>Your token — shown once</strong>
+    </div>
+    <div class="card-body">
+        <p class="mb-2">
+            This is the only time this token is displayed. The server stores only a
+            hash of it and <strong>cannot show it again</strong>. Download the script
+            now; if you lose it, generate a new one.
+        </p>
+        <div class="input-group mb-2">
+            <input type="text" class="form-control font-monospace" id="nd_token"
+                   value="{{ new_token }}" readonly>
+            <button class="btn btn-outline-secondary" type="button"
+                    onclick="navigator.clipboard.writeText(document.getElementById('nd_token').value)">
+                Copy
+            </button>
+        </div>
+        <a href="{% url 'network_discovery:download' organization.pk location.pk new_token_id %}"
+           class="btn btn-primary btn-sm">Download the PowerShell script</a>
+    </div>
+</div>
+{% endif %}
+
+{% if can_generate %}
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>Generate a script</strong></div>
+    <form method="post" action="{% url 'network_discovery:generate' organization.pk location.pk %}">
+        {% csrf_token %}
+        <div class="card-body row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small" for="ttl_minutes">Valid for (minutes)</label>
+                <input type="number" min="1" max="1440" class="form-control form-control-sm"
+                       id="ttl_minutes" name="ttl_minutes" value="{{ default_ttl }}">
+                <div class="form-text">Single-use, and capped at a day.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small" for="notes">Note</label>
+                <input type="text" class="form-control form-control-sm" id="notes"
+                       name="notes" maxlength="255" placeholder="e.g. main office sweep">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    Generate script
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% else %}
+<div class="alert alert-secondary">
+    You don't have permission to generate discovery scripts.
+</div>
+{% endif %}
+
+<div class="card mb-3">
+    <div class="card-header py-2"><strong>Tokens</strong></div>
+    {% if tokens %}
+    <table class="table table-sm mb-0 align-middle">
+        <thead>
+            <tr><th>Created</th><th>By</th><th>Expires</th><th>Uses</th><th>State</th><th>Note</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for t in tokens %}
+            <tr>
+                <td class="small">{{ t.created_at|date:"j M Y, H:i" }}</td>
+                <td class="small text-muted">{{ t.created_by.get_username|default:"—" }}</td>
+                <td class="small">{{ t.expires_at|date:"j M Y, H:i" }}</td>
+                <td class="small">{{ t.use_count }} / {{ t.max_uses }}</td>
+                <td>
+                    {% if t.state == 'active' %}<span class="badge bg-success">Active</span>
+                    {% elif t.state == 'used' %}<span class="badge bg-secondary">Used</span>
+                    {% elif t.state == 'expired' %}<span class="badge bg-secondary">Expired</span>
+                    {% else %}<span class="badge bg-danger">Revoked</span>{% endif %}
+                </td>
+                <td class="small text-muted">{{ t.notes|default:"—" }}</td>
+                <td class="text-end">
+                    {% if t.state == 'active' and can_generate %}
+                    <form method="post"
+                          action="{% url 'network_discovery:revoke' organization.pk location.pk t.pk %}"
+                          class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Revoke</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="card-body text-muted">No tokens generated for this location yet.</div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-header py-2"><strong>Import history</strong></div>
+    {% if imports %}
+    <table class="table table-sm mb-0 align-middle">
+        <thead>
+            <tr><th>When</th><th>Devices</th><th>Created</th><th>Updated</th><th>Skipped</th><th>Errors</th><th>From</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for i in imports %}
+            <tr>
+                <td class="small">
+                    {{ i.created_at|date:"j M Y, H:i" }}
+                    {% if i.is_dry_run %}<span class="badge bg-info text-dark ms-1">Preview</span>{% endif %}
+                </td>
+                <td>{{ i.device_count }}</td>
+                <td>{{ i.imported_count }}</td>
+                <td>{{ i.updated_count }}</td>
+                <td>{{ i.skipped_count }}</td>
+                <td>{% if i.error_count %}<span class="text-danger">{{ i.error_count }}</span>{% else %}0{% endif %}</td>
+                <td class="small text-muted">{{ i.source_ip|default:"—" }}</td>
+                <td class="text-end">
+                    <a href="{% url 'network_discovery:import_detail' organization.pk location.pk i.pk %}"
+                       class="btn btn-outline-secondary btn-sm">Detail</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="card-body text-muted">Nothing has been uploaded for this location yet.</div>
+    {% endif %}
+</div>
+{% endblock %}
