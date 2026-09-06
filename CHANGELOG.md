@@ -5,6 +5,50 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.553] - 2026-09-06
+
+### Phase 35.3 — project profitability
+
+Revenue, labour cost and margin per project, on the project page.
+
+**Cost is effective-dated.** Each time entry is costed at the rate that applied
+to that technician on the day the work happened, via the existing
+`resourcing.TechCostRate`. A raise in June must not retroactively make March's
+work more expensive, which is what a single current rate would do — and the
+model was already effective-dated for precisely this reason.
+
+**Revenue is billable hours at the client contract's hourly rate.** Cost counts
+*all* hours; revenue counts only billable ones, so non-billable time correctly
+eats the margin rather than being invisible.
+
+**No rate means no revenue and no margin — not zero.** Consistent with the budget
+work in v3.17.549 and the status page's "no data" uptime in v3.17.538. A margin
+computed against unknown revenue would be a subtraction from nothing dressed up
+as a business figure, and a project showing a healthy-looking £0 cost is worse
+than one that says it cannot tell you.
+
+**Guesses are declared rather than blended in.** `TechCostRate.rate_for()` falls
+back to a system default when a technician has no configured rate, so a cost is
+always producible — that is the right call, a default beats refusing to cost
+anything. But the breakdown counts how many entries took that path and the page
+says so, because a margin built partly on defaults should not be presented as
+measured.
+
+**Entries with no user recorded are skipped, not costed at the default.**
+Charging them would attribute cost to a person who is not there, inventing labour
+spend out of a missing foreign key.
+
+Zero revenue does not divide by zero: the margin is still reported (negative,
+correctly), the percentage is `None`.
+
+**A third instance of the same test-fixture trap**, worth recording because it
+keeps recurring: the time-entry helper defaulted `user=None` and then did `user if
+user is not None else self.tech`, so the test asking for an entry with *nobody*
+recorded silently got one with a technician attached — and passed for the wrong
+reason until the assertion disagreed. Sentinel now, same as the budget tests.
+
+15 new tests; full `psa` suite green. No migration.
+
 ## [3.17.552] - 2026-09-06
 
 ### Navy Space becomes a soft default users can change

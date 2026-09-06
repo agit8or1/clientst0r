@@ -41,6 +41,63 @@
         {% endif %}
     </div>
     <div class="col-md-8">
+        {# Phase 35.3 (v3.17.553) — revenue, cost, margin. #}
+        <div class="card mb-3">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <strong>Profitability</strong>
+                {% if profit.margin_percent is not None %}
+                    {% if profit.margin_percent < 0 %}
+                        <span class="badge bg-danger">Losing money</span>
+                    {% elif profit.margin_percent < 20 %}
+                        <span class="badge bg-warning text-dark">Thin margin</span>
+                    {% else %}
+                        <span class="badge bg-success">{{ profit.margin_percent }}% margin</span>
+                    {% endif %}
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="row small">
+                    <div class="col-md-3">
+                        <div class="text-muted">Revenue</div>
+                        <div>
+                            {% if profit.revenue is not None %}{{ profit.revenue }}
+                            {% else %}<span class="text-muted">not known</span>{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted">Labour cost</div>
+                        <div>{{ profit.cost }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted">Margin</div>
+                        <div>
+                            {% if profit.margin is not None %}{{ profit.margin }}
+                            {% else %}<span class="text-muted">—</span>{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-muted">Hours</div>
+                        <div>{{ profit.billable_hours }} billable / {{ profit.total_hours }}</div>
+                    </div>
+                </div>
+
+                {% if profit.revenue is None %}
+                <div class="text-muted small mt-2">
+                    No hourly rate on this client's active contract, so revenue and margin
+                    cannot be calculated. Showing nothing rather than a number that would
+                    look like a measurement.
+                </div>
+                {% endif %}
+                {% if profit.used_default_cost_for %}
+                <div class="text-muted small mt-2">
+                    {{ profit.used_default_cost_for }} time entr{{ profit.used_default_cost_for|pluralize:"y,ies" }}
+                    costed at the system default because that technician has no configured
+                    cost rate — the margin above is partly an estimate.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
         {# Phase 35.2 (v3.17.549) — budget vs actuals. #}
         {% if budget.state != 'no_budget' %}
         <div class="card mb-3">

@@ -982,6 +982,87 @@ class Project(models.Model):
             return 'warning'
         return 'ok'
 
+    # ----- Phase 35.3 (v3.17.553): profitability ---------------------------
+
+    def cost_breakdown(self):
+        """Labour cost of the time logged against this project.
+
+        Each entry is costed at the rate that applied to that technician on the
+        day the work happened — `TechCostRate` is effective-dated for exactly
+        this reason, so a raise in June does not retroactively make March's
+        work more expensive.
+
+        `used_default_for` counts entries costed at the system default because
+        the technician has no configured rate. The number is still produced —
+        a default is better than refusing to cost anything — but the caller is
+        told, so a margin built on guesses is not presented as measured.
+        """
+        from decimal import Decimal
+
+        from resourcing.models import TechCostRate
+
+        entries = (TicketTimeEntry.objects
+                   .filter(ticket__project=self)
+                   .select_related('user'))
+
+        total = Decimal('0.00')
+        used_default_for = 0
+        rate_cache = {}
+        for entry in entries:
+            if entry.user_id is None:
+                # Nobody to cost it against. Skipping is the honest choice:
+                # charging it at a default would attribute cost to a person
+                # who is not recorded.
+                continue
+            day = (entry.started_at or entry.created_at).date()
+            key = (entry.user_id, day)
+            if key not in rate_cache:
+                rate_cache[key] = TechCostRate.rate_for(entry.user, day)
+                if not TechCostRate.objects.filter(
+                        user_id=entry.user_id, effective_from__lte=day).exists():
+                    used_default_for += 1
+            hours = Decimal(entry.duration_minutes or 0) / Decimal(60)
+            total += (hours * Decimal(str(rate_cache[key])))
+
+        return {
+            'cost': total.quantize(Decimal('0.01')),
+            'used_default_for': used_default_for,
+        }
+
+    def actual_cost(self):
+        return self.cost_breakdown()['cost']
+
+    def profitability(self):
+        """Revenue, cost and margin for this project.
+
+        `revenue` and therefore `margin` are None when no hourly rate is known
+        — see `actual_amount`. A margin computed against an unknown revenue
+        would be a subtraction from nothing dressed up as a business figure.
+        """
+        from decimal import Decimal
+
+        breakdown = self.cost_breakdown()
+        revenue = self.actual_amount()
+        cost = breakdown['cost']
+
+        margin = None
+        margin_percent = None
+        if revenue is not None:
+            margin = (Decimal(str(revenue)) - cost).quantize(Decimal('0.01'))
+            if revenue:
+                margin_percent = float(
+                    (margin / Decimal(str(revenue)) * 100).quantize(Decimal('0.1')))
+
+        return {
+            'revenue': revenue,
+            'cost': cost,
+            'margin': margin,
+            'margin_percent': margin_percent,
+            'used_default_cost_for': breakdown['used_default_for'],
+            'billable_hours': self.actual_hours(billable_only=True),
+            'total_hours': self.actual_hours(),
+        }
+
     def budget_summary(self):
         """Everything the project page needs, in one call."""
         return {

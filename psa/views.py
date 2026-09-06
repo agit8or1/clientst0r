@@ -2010,6 +2010,8 @@ def project_detail(request, pk):
         'project_templates': templates,
         # Phase 35.2 (v3.17.549) — budget vs actuals.
         'budget': item.budget_summary(),
+        # Phase 35.3 (v3.17.553) — revenue, cost and margin.
+        'profit': item.profitability(),
     })
 
 

@@ -765,6 +765,11 @@ Planned capabilities:
 - **An unknown amount is reported as unknown, never as zero.** Spend needs an hourly rate from the client's active contract; without one `actual_amount()` returns `None` and the page says so. A project showing no spend because nobody recorded a rate reads as comfortably under budget when the truth is that it has not been measured. *(shipped v3.17.549)*
 - **Worst of the two budgets wins.** A project inside its hours but over its money is over — saying otherwise would be the comfortable answer rather than the true one. An unmeasurable money budget does not mask a breached hours budget. *(shipped v3.17.549)*
 
+### Sub-phase 35.3 — Profitability *(shipped v3.17.553)*
+- **Cost from effective-dated `resourcing.TechCostRate`** — each time entry is costed at the rate that applied to that technician on the day the work happened, so a raise in June does not retroactively make March's work more expensive. *(shipped v3.17.553)*
+- **Revenue is billable hours at the client contract's rate; margin is the difference.** Both are `None` when no rate is known, because a margin computed against unknown revenue is a subtraction from nothing dressed up as a business figure. *(shipped v3.17.553)*
+- **Guesses are declared.** Entries costed at the system default because a technician has no configured rate are counted and surfaced, so a margin built partly on defaults is not presented as measured. Entries with no user recorded are skipped rather than costed at a default, which would attribute cost to nobody. *(shipped v3.17.553)*
+
 ### Sub-phase 35.4 — Tasks become tickets *(shipped v3.17.550)*
 - **Any project task can spawn a ticket on demand**, linked through the task's existing `related_ticket`. The two are not merged: the task stays the unit of planning, and the ticket becomes the unit of work that time, SLA and comments hang off. *(shipped v3.17.550)*
 - **The ticket is attached to the project**, which is the entire point — time logged on it counts towards the project's actuals from 35.2. A task's due date becomes the ticket's resolution target, because a task due Friday whose ticket carries no date drops off every SLA view. *(shipped v3.17.550)*
@@ -774,7 +779,7 @@ Remaining planned capabilities:
 - **Project templates** *(shipped v3.17.548 — see 35.1)*
 - Project phases and milestones *(milestones partial — `ProjectTask.is_milestone` flag exists)*
 - **Project budget tracking** *(shipped v3.17.549 — see 35.2)*
-- Project profitability *(extends Phase 3.2 contract profitability with project-scoped breakdown)*
+- **Project profitability** *(shipped v3.17.553 — see 35.3)*
 - **Project-to-ticket task generation** *(shipped v3.17.550 — see 35.4)*
 - Project billing support — project-bundled invoice generation, fixed-fee vs. T&M handling, milestone billing triggers
 - Gantt / calendar-style planning view — drag-to-reschedule task bars on a timeline, dependency arrows between tasks
