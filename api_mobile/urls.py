@@ -11,8 +11,10 @@ from . import (
     views_field_ops,
     views_inventory,
     views_kb,
+    views_netconfig,
     views_notifications,
     views_ocr,
+    views_projects,
     views_receipts,
     views_scan,
     views_tickets,
@@ -36,6 +38,23 @@ urlpatterns = [
     path('auth/logout/', views_auth.logout_view, name='logout'),
     path('auth/me/', views_auth.me_view, name='me'),
     path('auth/refresh/', views_auth.refresh_view, name='refresh'),
+
+    # Projects (v3.17.558) — Phase 35's field-relevant slice.
+    path('projects/', views_projects.project_list_view, name='project_list'),
+    path('projects/<int:pk>/', views_projects.project_detail_view,
+         name='project_detail'),
+    path('project-tasks/<int:pk>/', views_projects.project_task_view,
+         name='project_task'),
+
+    # Network device configs (v3.17.558) — Phase 34's field-relevant slice.
+    path('netconfig/devices/', views_netconfig.device_list_view,
+         name='netconfig_devices'),
+    path('netconfig/devices/<int:pk>/', views_netconfig.device_detail_view,
+         name='netconfig_device_detail'),
+    path('netconfig/devices/<int:pk>/collect/', views_netconfig.collect_view,
+         name='netconfig_collect'),
+    path('netconfig/backups/<int:pk>/', views_netconfig.backup_detail_view,
+         name='netconfig_backup'),
 
     # Dashboard + organizations (v3.17.347)
     path('dashboard/', views_dashboard.dashboard_view, name='dashboard'),

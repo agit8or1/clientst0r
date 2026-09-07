@@ -5,6 +5,56 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.558] - 2026-09-07
+
+### Mobile: projects and config backups
+
+Phases 34 and 35 shipped server-side over the last twenty releases and none of
+them reached the app. This brings across the slice a technician in a van
+actually needs, and deliberately leaves the rest on the desk.
+
+**Projects.** A tile, a list filtered *Mine / Open / All*, and a detail screen
+with the task list, what each task is waiting on, and buttons to move a task
+between todo / in progress / done.
+
+- **"Mine" is the default filter but not the default query.** A project with
+  nothing assigned yet would otherwise be invisible to the person about to be
+  assigned it, so "All" is one tap away and the API defaults to everything.
+- **Hours budget is shown; money is not.** Margin is not a number to hand
+  somebody standing in a client's server room, and nothing in the app can raise
+  an invoice. A test serialises the whole detail payload and asserts the words
+  *margin*, *revenue* and *amount* — and the contract rate itself — appear
+  nowhere in it.
+- **A blocked task says what it is waiting for**, and can still be marked done.
+  The blocking task may have been finished by somebody who has not updated it,
+  and refusing would leave a tech unable to record work they actually did. It
+  asks first, but only in that case — a confirmation on every status change is
+  one nobody reads.
+- Status only. Retitling, rescheduling and reassigning are planning decisions
+  that need the timeline and the dependency graph in front of you.
+
+**Config backups.** Network devices, their snapshot history, and the stored
+config text — the thing you want when you are in front of a switch and need to
+know what it was configured to do.
+
+- **"Capture config now" runs the server-side collector.** The phone never holds
+  a device credential and never opens an SSH session; it asks the server to. A
+  test asserts the vault password *and the device's host address* appear nowhere
+  in the mobile payload. That is the only reason this is safe to tap on a
+  client's guest wifi.
+- The button explains itself when it cannot be used. A greyed-out control with
+  no reason is what generates the support call.
+- Config bodies are capped at 200,000 characters with the client told when it
+  truncated — a running-config is thousands of lines and the question is usually
+  about one VLAN.
+- Drift verdicts from Phase 34.3 (baseline / unauthorized / in change window)
+  render as pills on each snapshot.
+
+Two nav tiles added, taking the grid to a clean 4×3.
+
+30 new API tests. No migration. **versionCode 3170536 → 3170558; AAB rebuild
+required** — this is the first mobile change since v3.17.536.
+
 ## [3.17.557] - 2026-09-06
 
 ### Phase 33 — persistent site collectors, topology and port mapping
