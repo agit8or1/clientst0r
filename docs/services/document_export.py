@@ -106,7 +106,19 @@ class _BlockParser(HTMLParser):
         self._drop = 0
         # Stack of 'ul' / 'ol' for nested lists.
         self._list_stack: list[str] = []
-        self._pending: dict[str, Any] | None = None
+        # The block currently being assembled.
+        #
+        # Named _pending_block, not _pending: HTMLParser.reset() — called from
+        # our super().__init__() above — now keeps its own incremental feed
+        # buffer in self._pending. Assigning our attribute afterwards replaced
+        # that buffer with None, and feed() then raised
+        # "'NoneType' object has no attribute 'append'" for any input shorter
+        # than _parse_threshold. In practice that meant empty documents only,
+        # because the threshold is 1 and longer input takes a branch that
+        # tolerates a falsy buffer — but the collision was real for any
+        # threshold, and masking it by short-circuiting empty input would have
+        # left the trap set.
+        self._pending_block: dict[str, Any] | None = None
         self._pre = 0
         self._pre_text: list[str] = []
         # Table state.
@@ -118,7 +130,7 @@ class _BlockParser(HTMLParser):
     # -- helpers ----------------------------------------------------------
     def _flush(self) -> None:
         """Emit the block under construction, if it has any content."""
-        pending, self._pending = self._pending, None
+        pending, self._pending_block = self._pending_block, None
         runs = [r for r in self._runs if r['text']]
         self._runs = []
         if not runs:
@@ -129,7 +141,7 @@ class _BlockParser(HTMLParser):
 
     def _start_block(self, block: dict[str, Any]) -> None:
         self._flush()
-        self._pending = block
+        self._pending_block = block
 
     def _add_text(self, text: str) -> None:
         if self._cell is not None:
