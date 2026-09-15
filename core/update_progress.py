@@ -5,8 +5,12 @@ Uses file-based storage to persist across service restarts.
 import json
 import time
 import os
+import tempfile
 from pathlib import Path
 from django.conf import settings
+
+# Cap on retained log lines. Every write rewrites the whole file.
+MAX_LOG_LINES = 400
 
 
 class UpdateProgress:
@@ -29,24 +33,81 @@ class UpdateProgress:
         })
 
     def set_progress(self, data):
-        """Update progress data."""
+        """Write progress atomically.
+
+        `open(path, 'w')` truncates immediately and then streams the JSON out
+        in buffered chunks. The last thing an update does is reload gunicorn,
+        which kills this process — and if that lands mid-write, the file on
+        disk is one 8KB buffer flush with no closing brace. The update has
+        succeeded and the progress file says nothing parseable about it.
+
+        Writing to a temporary file in the same directory and renaming over
+        the target makes the swap atomic: a reader sees either the whole old
+        file or the whole new one, never half of either.
+        """
+        data = self._trim_logs(data)
+        tmp_path = None
         try:
-            with open(self.progress_file, 'w') as f:
+            fd, tmp_path = tempfile.mkstemp(
+                dir=str(self.progress_file.parent),
+                prefix=f'.{self.progress_file.name}.', suffix='.tmp')
+            with os.fdopen(fd, 'w') as f:
                 json.dump(data, f)
-        except Exception as e:
-            # Fallback to no progress tracking if file write fails
-            pass
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, self.progress_file)
+            tmp_path = None
+        except Exception:
+            # Progress reporting is cosmetic; never let it break an update.
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+
+    @staticmethod
+    def _trim_logs(data, keep=MAX_LOG_LINES):
+        """Keep the log list bounded.
+
+        It was unbounded, and every line rewrites the whole file, so a long
+        update did O(n^2) work and produced a file large enough that a
+        partial write was likely rather than unlucky.
+        """
+        logs = data.get('logs')
+        if isinstance(logs, list) and len(logs) > keep:
+            dropped = len(logs) - keep
+            data = dict(data)
+            data['logs'] = ([{
+                'message': f'... {dropped} earlier line(s) trimmed ...',
+                'level': 'info',
+                'timestamp': time.time(),
+            }] + logs[-keep:])
+        return data
 
     def get_progress(self):
-        """Get current progress."""
-        try:
-            if self.progress_file.exists():
-                with open(self.progress_file, 'r') as f:
-                    return json.load(f)
-        except Exception:
-            pass
+        """Get current progress.
 
-        # Return default if file doesn't exist or can't be read
+        A file that exists but will not parse is reported as `unknown`, not
+        `idle`. They are different situations and the front-end has to be able
+        to tell them apart: `idle` means no update is running, which is what
+        left the progress bar sitting on its last step forever when a
+        truncated file was read as "nothing happening".
+        """
+        if not self.progress_file.exists():
+            return self._idle()
+        try:
+            with open(self.progress_file, 'r') as f:
+                return json.load(f)
+        except (ValueError, OSError):
+            state = self._idle()
+            state['status'] = 'unknown'
+            state['error'] = ('The progress file could not be read. The update '
+                              'itself may well have finished — check the '
+                              'version on this page.')
+            return state
+
+    @staticmethod
+    def _idle():
         return {
             'status': 'idle',
             'current_step': '',

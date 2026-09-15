@@ -5,6 +5,46 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.562] - 2026-09-15
+
+### The update progress bar no longer hangs on "Restart Service"
+
+Reported from a real update: the page sat on Restart Service indefinitely. The
+update had finished. The server was already running the new version. What
+broke was the progress bar reporting on itself.
+
+An update's last act is reloading gunicorn, which kills the process writing the
+progress file. `set_progress` used `open(path, 'w')` — truncate immediately,
+then stream the JSON out in buffered chunks — and the reload landed inside that
+write. The file left behind was 8,195 bytes ending mid-key at `"level"`, while
+beginning `{"status": "completed", ...}` with all five steps listed. The writer
+had the right answer and was killed one buffer flush in.
+
+`get_progress` then caught the `JSONDecodeError` and returned `status: 'idle'`.
+The front-end reads `idle` as "no update is running", so it kept redrawing the
+last step it had seen, with no way to tell a finished update from one that
+never started.
+
+- **Writes are atomic.** A temp file in the same directory, fsynced, then
+  `os.replace()` over the target. A reader sees the whole old file or the whole
+  new one, never half of either. A test writes 60 times and parses the file
+  after every one.
+- **Logs are capped at 400 lines.** They were unbounded, and every line
+  rewrites the whole file, so the file grew until a partial write was likely
+  rather than unlucky. That is why this surfaced now rather than on earlier
+  updates, and it also removes the O(n^2) rewriting.
+- **An unreadable file reports `unknown`, not `idle`.** The front-end stops
+  polling, says plainly that it could not confirm the result, and reloads so
+  the version on screen answers the question. A six-minute ceiling on the
+  poller means no future failure of this shape can spin forever either.
+
+Seven tests in `core/tests/test_update_progress.py`, one built from the exact
+byte pattern the production file had. The behaviour was also confirmed directly
+against that file: the old code reports `idle`, the new code reports `unknown`.
+
+Nothing about how an update is performed changed — only how its progress is
+recorded and read.
+
 ## [3.17.561] - 2026-09-15
 
 ### Tax is charged on the taxable lines

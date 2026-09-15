@@ -1183,6 +1183,13 @@ fetched by id without checking which tenant it belongs to.
   half-up rather than banker's. Issued invoices are not restated; the new
   read-only `manage.py psa_tax_audit` reports which are affected and by how
   much, per client.
+- Update progress reporting *(shipped v3.17.562)* — the progress file was
+  written non-atomically and the reload that ends an update killed the writer
+  mid-write, leaving unparseable JSON that `get_progress` reported as `idle`.
+  The front-end could not distinguish that from "no update running" and sat on
+  the last step forever, while the update had in fact succeeded. Writes are now
+  atomic, logs bounded, and an unreadable file reports `unknown` so the page
+  says so and re-checks the running version.
 - **Remaining in this phase:** SLA calculation, invoice duplicate prevention
   and the rest of billing arithmetic, background job failure handling, search
   and export scoping, and what the AI features are allowed to read.
@@ -1249,7 +1256,7 @@ fetched by id without checking which tenant it belongs to.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

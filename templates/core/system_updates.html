@@ -801,10 +801,37 @@ function startUpdate() {
     });
 }
 
+function finishUnverified(message) {
+    // Not a failure and not a confirmed success: say so plainly, then let
+    // waitForServerThenReload bring the page back so the version on screen
+    // answers the question.
+    const box = document.getElementById('updateProgress') || document.body;
+    const note = document.createElement('div');
+    note.className = 'alert alert-warning mt-3';
+    note.innerHTML = '<i class="fas fa-circle-question"></i> <strong>'
+        + 'Could not confirm the result.</strong><br>'
+        + message
+        + '<br>Reloading to check the version actually running.';
+    box.appendChild(note);
+    waitForServerThenReload();
+}
+
 function pollProgress() {
     let lastKnownProgress = {steps_completed: [], total_steps: 5};
+    const pollStartedAt = Date.now();
+    // The reload at the end of an update kills whatever is writing the
+    // progress file. If that leaves the file unreadable the poller used to
+    // spin forever on the last step it had seen, with the update already
+    // finished. Nothing here runs longer than this.
+    const POLL_CEILING_MS = 6 * 60 * 1000;
 
     const pollInterval = setInterval(function() {
+        if (Date.now() - pollStartedAt > POLL_CEILING_MS) {
+            clearInterval(pollInterval);
+            finishUnverified('The update is taking longer to report back than '
+                + 'expected. It may already have finished.');
+            return;
+        }
         fetch('{% url "core:update_progress_api" %}')
             .then(response => {
                 if (!response.ok) {
@@ -841,6 +868,13 @@ function pollProgress() {
                 } else if (data.status === 'failed') {
                     clearInterval(pollInterval);
                     showError(data.error || 'Unknown error');
+                } else if (data.status === 'unknown') {
+                    // The progress file exists but will not parse — almost
+                    // always because the service reload interrupted a write.
+                    // The update itself usually succeeded, so verify against
+                    // the server rather than leaving the bar spinning.
+                    clearInterval(pollInterval);
+                    finishUnverified(data.error || 'Progress could not be read.');
                 }
             })
             .catch(error => {
