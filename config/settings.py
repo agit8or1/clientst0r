@@ -262,6 +262,24 @@ STORAGES = {
     },
 }
 
+# Under `manage.py test`, resolve {% static %} without the manifest.
+#
+# CompressedManifestStaticFilesStorage looks every static reference up in
+# staticfiles.json, which is a build artefact produced by collectstatic. View
+# tests render real templates, so the moment a new stylesheet is added to
+# base.html the whole view suite errors with "Missing staticfiles manifest
+# entry" until somebody runs collectstatic — a failure about the build state of
+# the checkout, not about the code under test.
+#
+# Deployment is unaffected: update.sh runs collectstatic (step 4/5) and so does
+# docker-entrypoint.sh, so the manifest is always regenerated before the app
+# serves a request.
+import sys as _sys_static
+if 'test' in _sys_static.argv:
+    STORAGES['staticfiles']['BACKEND'] = (
+        'django.contrib.staticfiles.storage.StaticFilesStorage'
+    )
+
 # Media files (private, served via X-Accel-Redirect)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
