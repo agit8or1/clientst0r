@@ -19,6 +19,10 @@ Keep customer documentation, assets, credentials and support workflows on your o
 
 [![The ClientSt0r dashboard for a managed client: quick actions, record counts, a site map with two mapped locations, and panels for the next seven days of scheduled work, outstanding tasks and website monitor status](docs/images/github/dashboard.png)](docs/images/github/dashboard.png)
 
+### 30-second walkthrough
+
+[![Animated walkthrough: the client dashboard, the service desk queue, a ticket showing its contract, SLA countdown and masked vault context, the runbook behind it, the asset record, the vault, a project timeline and a profitability report](docs/images/github/walkthrough.gif)](docs/images/github/walkthrough.gif)
+
 ## Why MSPs run it
 
 **Documentation that sits next to the work.** A ticket opens with the client's active
@@ -64,7 +68,8 @@ by secret — and the time logged against it, billable or not.
 </tr>
 </table>
 
-[See the full tour — assets, knowledge base, runbooks →](docs/screenshots.md)
+[See the full tour →](docs/screenshots.md) — 24 screenshots across documentation, the
+service desk, quotes and invoices, contracts, projects, scheduling and reporting.
 
 ## Quick Start
 
