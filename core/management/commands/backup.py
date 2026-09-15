@@ -13,7 +13,6 @@ from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 from django.utils import timezone
-from cryptography.fernet import Fernet
 
 
 class Command(BaseCommand):
@@ -23,13 +22,22 @@ class Command(BaseCommand):
         parser.add_argument(
             '--output-dir',
             type=str,
-            default='/tmp/clientst0r-backups',
-            help='Directory to store backup files'
+            default=str(Path(settings.BASE_DIR) / 'backups'),
+            help='Directory to store backup files (default: BASE_DIR/backups)'
         )
         parser.add_argument(
             '--encrypt',
             action='store_true',
-            help='Encrypt backup file'
+            default=True,
+            help='Encrypt the backup (default: on)'
+        )
+        parser.add_argument(
+            '--no-encrypt',
+            dest='encrypt',
+            action='store_false',
+            help='Write the archive in the clear. The archive holds the whole '
+                 'database — every ticket, document and customer record. Vault '
+                 'secrets stay encrypted inside it, nothing else does.'
         )
         parser.add_argument(
             '--include-media',
@@ -53,6 +61,22 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         output_dir = Path(options['output_dir'])
         output_dir.mkdir(parents=True, exist_ok=True)
+        # A database dump is readable by anyone who can read the directory.
+        # mkdir's default lands on 0755 under a normal umask; narrow it.
+        try:
+            os.chmod(output_dir, 0o700)
+        except OSError:
+            self.stdout.write(self.style.WARNING(
+                f'Could not restrict permissions on {output_dir}; check them by hand.'
+            ))
+
+        if not options['encrypt']:
+            self.stdout.write(self.style.WARNING(
+                'Writing an UNENCRYPTED backup. The archive contains the whole '
+                'database in the clear — tickets, documents, customer records. '
+                'Vault secrets stay encrypted inside it; nothing else does. '
+                'Store it somewhere you would be willing to store the database.'
+            ))
 
         timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
         backup_name = f'clientst0r_backup_{timestamp}'
@@ -91,6 +115,11 @@ class Command(BaseCommand):
                 encrypted_file = self._encrypt_backup(archive_file)
                 archive_file.unlink()  # Remove unencrypted file
                 archive_file = encrypted_file
+
+            try:
+                os.chmod(archive_file, 0o600)
+            except OSError:
+                pass
 
             # Cleanup temp directory
             self._cleanup_temp(temp_dir)
@@ -190,9 +219,10 @@ class Command(BaseCommand):
 
     def _encrypt_backup(self, archive_file):
         """Encrypt backup file using Fernet encryption"""
-        # Get encryption key from settings
-        master_key = settings.APP_MASTER_KEY.encode()
-        fernet = Fernet(master_key)
+        # See vault.encryption.get_fernet — normalised so that a key shape the
+        # application accepts cannot fail here or, worse, at restore time.
+        from vault.encryption import get_fernet
+        fernet = get_fernet()
 
         # Read archive file
         with open(archive_file, 'rb') as f:

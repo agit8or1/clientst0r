@@ -5,6 +5,57 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.560] - 2026-09-15
+
+### Backups: encrypted by default, and one key-normalisation path
+
+Two findings from the Phase 49.2 audit, both in backup and restore.
+
+**`manage.py backup` wrote the database in the clear, into /tmp.** The command
+described itself as producing encrypted backups, but `--encrypt` was
+`store_true` with no default, so encryption was opt-in and off. The default
+output directory was `/tmp/clientst0r-backups`, created at 0755 under a normal
+umask. The archive holds the whole database — every ticket, document and
+customer record. Vault secrets stay AES-GCM encrypted inside it and were never
+exposed; nothing else was protected.
+
+- `--encrypt` now defaults on. `--no-encrypt` opts out and warns, naming what
+  the archive contains rather than just saying "unencrypted".
+- Default output moved to `BASE_DIR/backups`. `/tmp` is world-readable *and*
+  swept by tmpfiles, so a backup left there could quietly disappear.
+- The output directory is chmod 0700 and the finished archive 0600.
+
+**A master key the application accepted could fail at restore.** Backup and
+restore built their Fernet from `settings.APP_MASTER_KEY.encode()` directly,
+handing Fernet the raw configured string. The rest of the vault normalises the
+key first — whitespace, URL-safe alphabet, padding. An unpadded key therefore
+worked everywhere in the application and raised
+`ValueError: Fernet key must be 32 url-safe base64-encoded bytes` inside
+restore. Recovery is the worst place to discover a key-handling difference.
+
+Both commands now route through the new `vault.encryption.get_fernet()`. This
+is backward compatible by construction rather than by hope: both the old and
+new paths end at the same 32 raw bytes for every key the old path accepted, and
+a test asserts that archives written by the previous code still decrypt.
+
+**Behaviour changes.** Nothing in the repository invokes `backup` — there is no
+systemd timer or scheduler task for it — so this reaches anything you run by
+hand. A script reading `/tmp/clientst0r-backups` will no longer find files
+there, and one relying on the unencrypted default now receives a `.enc` archive
+unless it passes `--no-encrypt`.
+
+Nine tests in `core/tests/test_backup_restore.py`, covering the argument
+defaults, all four master-key shapes, and old-format compatibility. The
+encryption-default and /tmp-default failures were confirmed against the
+unfixed code; the key-shape defect was demonstrated directly, by building a
+Fernet the old way from an unpadded key that the vault accepts.
+
+Still open in this area, not addressed here: RMM and integration credentials
+use the v1 encryption layer, which has no AAD context binding or key-rotation
+version tag, while vault passwords use v2, which has both. Re-encrypting live
+credentials is a migration and belongs in its own release. There is also no key
+rotation command, which is why v2's version tag currently drives nothing.
+
 ## [3.17.559] - 2026-09-15
 
 ### Interface consistency, tenant-boundary fixes, and a rebuilt GitHub presentation

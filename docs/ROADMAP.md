@@ -1164,10 +1164,20 @@ fetched by id without checking which tenant it belongs to.
 - Covered by `core/tests/test_cross_tenant_views.py` (11) and
   `api_mobile/tests_timeclock_scoping.py` (4), alongside the existing
   `core/tests/test_tenant_isolation.py` (10).
-- **Remaining in this phase:** credential encryption and key recovery, SLA
-  calculation, billing arithmetic and duplicate prevention, background job
-  failure handling, search and export scoping, and what the AI features are
-  allowed to read.
+- Backup and restore *(shipped v3.17.560)* — `manage.py backup` defaulted to an
+  unencrypted database dump in `/tmp` at 0755; encryption is now on by default,
+  the destination moved off `/tmp`, and both directory and archive are
+  permission-restricted. Backup and restore also handled the master key
+  differently from the vault, so an unpadded key worked throughout the
+  application and failed at restore; both now share
+  `vault.encryption.get_fernet()`, and existing archives still decrypt.
+- **Known and deferred:** RMM and integration credentials use the v1 encryption
+  layer (no AAD context binding, no version tag), while vault passwords use v2
+  (both). Re-encrypting live credentials is a migration and needs its own
+  release with a rollback path. No key rotation command exists.
+- **Remaining in this phase:** SLA calculation, billing arithmetic and
+  duplicate prevention, background job failure handling, search and export
+  scoping, and what the AI features are allowed to read.
 
 **Sizing:** **M** — 49.1 complete; 49.2 is roughly half the audit surface.
 
@@ -1231,7 +1241,7 @@ fetched by id without checking which tenant it belongs to.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 first pass shipped v3.17.559, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

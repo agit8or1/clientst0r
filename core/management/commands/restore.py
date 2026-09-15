@@ -13,7 +13,6 @@ from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 from django.utils import timezone
-from cryptography.fernet import Fernet
 
 
 class Command(BaseCommand):
@@ -105,9 +104,11 @@ class Command(BaseCommand):
 
     def _decrypt_backup(self, encrypted_file, temp_dir):
         """Decrypt backup file"""
-        # Get encryption key from settings
-        master_key = settings.APP_MASTER_KEY.encode()
-        fernet = Fernet(master_key)
+        # Normalised the same way the vault normalises it, so a key shape the
+        # application accepts cannot fail at restore time. See
+        # vault.encryption.get_fernet.
+        from vault.encryption import get_fernet
+        fernet = get_fernet()
 
         # Read encrypted file
         with open(encrypted_file, 'rb') as f:

@@ -4,6 +4,7 @@ Master key is loaded from APP_MASTER_KEY environment variable (base64-encoded 32
 """
 import base64
 import os
+from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from django.conf import settings
 
@@ -153,3 +154,20 @@ def decrypt_dict(data: dict) -> dict:
         else:
             decrypted[key] = value
     return decrypted
+
+
+def get_fernet():
+    """Fernet instance keyed by the normalised master key.
+
+    `Fernet(settings.APP_MASTER_KEY.encode())` — what backup and restore used
+    to do — hands Fernet the raw configured string. Fernet then base64-decodes
+    it itself, so it rejects key shapes this module deliberately accepts: an
+    unpadded key passes everywhere in the application and fails here. Restore
+    is the worst place to discover that.
+
+    Routing through `get_master_key()` applies the same normalisation as the
+    rest of the vault. It is backward compatible by construction: both paths
+    end at the same 32 raw bytes for any key the old path accepted, so
+    backups written before this change still decrypt.
+    """
+    return Fernet(base64.urlsafe_b64encode(get_master_key()))
