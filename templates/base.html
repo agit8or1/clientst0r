@@ -32,6 +32,9 @@
     <link href="{% static 'css/themes.css' %}" rel="stylesheet">
     <link href="{% static 'css/custom.css' %}" rel="stylesheet">
     <link href="{% static 'css/mobile.css' %}" rel="stylesheet">
+    <!-- Shared UI layer — loaded last so it settles conflicts rather than adding
+         a fourth opinion. See the header of ui.css before extending it. -->
+    <link href="{% static 'css/ui.css' %}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
 </head>
 <body class="{% if user_background_url or user_background_color %}has-background{% endif %}" {% if user_background_url %}style="background-image: url('{{ user_background_url }}');"{% elif user_background_color %}style="background-color: {{ user_background_color }};"{% endif %}>
@@ -258,21 +261,29 @@
                 </ul>
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}
-                    <!-- Support This Project Link -->
+                    {% comment %}
+                    Favourites stays a one-click destination; the rest of the loose
+                    utility icons moved into the labelled More menu below so the bar
+                    stops colliding with the search box. Nothing was removed — every
+                    destination is still reachable. See v3.17.559.
+                    {% endcomment %}
                     <li class="nav-item">
-                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#supportProjectModal" title="Support this open-source project" style="animation: heartbeat 2s ease-in-out infinite;">
-                            <i class="fas fa-heart text-danger"></i>
+                        <a class="nav-link nav-util" href="{% url 'core:favorite_list' %}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Favorites' %}" aria-label="{% trans 'Favorites' %}">
+                            <i class="fas fa-star" aria-hidden="true"></i>
                         </a>
                     </li>
-                    <li class="nav-item"><a class="nav-link px-2" href="{% url 'core:favorite_list' %}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Favorites' %}"><i class="fas fa-star text-warning"></i></a></li>
-                    {# v3.17.484 — Beta-test the Android app CTA for logged-in users. #}
-                    <li class="nav-item">
-                        <a class="nav-link px-2" href="{% url 'core:beta_test_signup' %}"
-                           data-bs-toggle="tooltip" data-bs-placement="bottom"
-                           title="{% trans 'Beta-test the Android mobile app' %}">
-                            <i class="fas fa-mobile-screen-button text-info"></i>
-                            <span class="d-none d-xl-inline ms-1">{% trans "Beta app" %}</span>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle nav-util" href="#" id="moreMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis" aria-hidden="true"></i>
+                            <span class="d-xxl-none ms-1">{% trans "More" %}</span>
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="moreMenu">
+                            {# v3.17.484 — Beta-test the Android app CTA for logged-in users. #}
+                            <li><a class="dropdown-item" href="{% url 'core:beta_test_signup' %}"><i class="fas fa-mobile-screen-button fa-fw"></i> {% trans "Beta app" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:install_app' %}"><i class="fas fa-download fa-fw"></i> {% trans "Install app" %}</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#supportProjectModal"><i class="fas fa-heart fa-fw text-danger"></i> {% trans "Support this project" %}</a></li>
+                        </ul>
                     </li>
                     <!-- Global KB lives under PSA → KB when PSA is enabled; otherwise stays in the primary navbar -->
                     {% if global_kb_enabled and not psa_enabled %}
@@ -283,9 +294,11 @@
 
                     <!-- Search Form -->
                     <li class="nav-item">
-                        <form class="d-flex mx-2" action="{% url 'core:search' %}" method="get">
-                            <input class="form-control form-control-sm me-1" type="search" name="q" placeholder="{% trans 'Search...' %}" aria-label="{% trans 'Search' %}" style="width: 180px;" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Search across passwords, assets, documents, and more' %}">
-                            <button class="btn btn-outline-light btn-sm" type="submit" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Search' %}"><i class="fas fa-search"></i></button>
+                        <form class="nav-search" action="{% url 'core:search' %}" method="get" role="search">
+                            <i class="fas fa-search nav-search__icon" aria-hidden="true"></i>
+                            <input class="form-control" type="search" name="q"
+                                   placeholder="{% trans 'Search passwords, assets, documents…' %}"
+                                   aria-label="{% trans 'Search across passwords, assets, documents, and more' %}">
                         </form>
                     </li>
                     <!-- Theme Toggle -->
@@ -434,24 +447,23 @@
     <style>
         /* ── Client / Org pill ─────────────────────────────────────── */
         .org-pill {
-            border-radius: .4rem;
-            padding: .28rem .6rem !important;
-            max-width: 180px;
+            border-radius: 999px;
+            padding: .3rem .65rem !important;
+            max-width: 200px;
             min-width: 0;
             overflow: hidden;
-            font-size: .78rem;
-            transition: filter .15s, transform .1s;
+            font-size: 13px;
             /* pill is a flex container — children must not force expansion */
             flex-shrink: 1 !important;
         }
-        .org-pill:hover { filter: brightness(1.1); transform: translateY(-1px); }
-        .org-pill:active { transform: translateY(0); }
 
-        /* Active client — amber pill */
+        /* Amber means "you are working inside one client"; the subtle outline
+           below means "global view, every tenant". Flattened in v3.17.559 —
+           the gradient, glow and lift were carrying no information. */
         .org-pill-active {
-            background: linear-gradient(135deg, #f59e0b, #d97706) !important;
-            color: #1a1a1a !important;
-            box-shadow: 0 0 0 2px rgba(245,158,11,.35), 0 2px 6px rgba(0,0,0,.2);
+            background: #f0a020 !important;
+            color: #1f2933 !important;
+            border: 1px solid #d98c12;
         }
         .org-pill-active .org-pill-caret { color: rgba(0,0,0,.45); font-size: .6rem; }
         /* hide Bootstrap caret */
@@ -474,7 +486,7 @@
             min-width: 0;
             flex: 1 1 0;
             font-weight: 600;
-            font-size: .78rem;
+            font-size: 13px;
             line-height: 1.2;
         }
 

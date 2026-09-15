@@ -472,13 +472,12 @@ h6 { font-size: 1rem; }
 }
 
 .card:hover {
-    box-shadow: var(--shadow-hover);
-    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
 }
 
 .card-header {
-    background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%);
-    border-bottom: 2px solid var(--gray-300);
+    background: var(--surface, #ffffff);
+    border-bottom: 1px solid var(--border-color, var(--gray-200));
     font-weight: 600;
     padding: var(--spacing-md) var(--spacing-lg);
     border-top-left-radius: var(--border-radius-lg) !important;
@@ -1621,25 +1620,13 @@ h1, h2, h3, h4, h5, h6,
 }
 
 /* 6. Tables — site-wide table-sm-equivalent density */
-.table.table > tbody > tr > td,
-.table.table > thead > tr > th,
-.table.table > tfoot > tr > td,
-.table.table > tfoot > tr > th {
-    padding: 0.4rem 0.5rem;
-}
+/* Table density moved to ui.css (row min-height 42px). */
 
 /* 7. Buttons (leave .btn-lg and .btn-sm alone) */
-.btn:not(.btn-lg):not(.btn-sm) {
-    padding: 0.3rem 0.7rem;
-    font-size: 0.92rem;
-}
+/* Button metrics moved to ui.css (control height 38px). */
 
 /* 8. Input controls (leave .form-control-lg and .form-control-sm alone) */
-.form-control:not(.form-control-lg):not(.form-control-sm),
-.form-select:not(.form-select-lg):not(.form-select-sm) {
-    padding: 0.3rem 0.65rem;
-    font-size: 0.92rem;
-}
+/* Input metrics moved to ui.css (control height 38px). */
 
 /* 10. Breadcrumbs */
 .breadcrumb {
@@ -1679,8 +1666,9 @@ nav[aria-label="breadcrumb"]:not(.card *) > .breadcrumb {
    oversize via .fa-lg / .fa-2x / .fa-3x. Also tightens the row .g-2 gutter
    so the grid of cards packs in more efficiently.
    ======================================================================== */
-html { font-size: 14.5px; }                    /* was browser default 16px → ~10% baseline shrink */
-body { font-size: 0.92rem; }
+/* Root-font shrink removed in v3.17.559 — it scaled the whole application down
+   by ~10%, so every rem rule below rendered under its stated size. Typography
+   now lives in ui.css and is expressed in px. */
 
 .card .card-body h3,
 .card .card-body .h3 { font-size: 1.15rem; line-height: 1.2; }
@@ -1714,8 +1702,7 @@ body { font-size: 0.92rem; }
 .row.mb-4 { margin-bottom: 0.85rem !important; }
 
 /* Page-title h2 — slightly smaller, less vertical bloat */
-main h2 { font-size: 1.35rem; }
-main h2 + .badge { font-size: 0.7rem; }
+/* Page-title sizing now comes from .ui-page-title in ui.css. */
 
 /* ========================================================================
    NAVBAR FIT (v3.17.161 — 2026-04-30)
@@ -1726,50 +1713,12 @@ main h2 + .badge { font-size: 0.7rem; }
    icon padding so everything fits without forcing a hamburger collapse.
    ======================================================================== */
 
-@media (min-width: 992px) {
-    /* Lighter nav-link padding when expanded */
-    .navbar-expand-lg .navbar-nav .nav-link {
-        padding-left: 0.55rem !important;
-        padding-right: 0.55rem !important;
-        font-size: 0.88rem;
-    }
-    /* Drop the icon-margin gap — icon + label share less horizontal space */
-    .navbar-nav .nav-link i.fas,
-    .navbar-nav .nav-link i.fab,
-    .navbar-nav .nav-link i.bi {
-        margin-right: 0.2rem !important;
-    }
-    /* Search box narrower at default size */
-    .navbar form input[type="search"] {
-        width: 130px !important;
-        font-size: 0.82rem;
-    }
-    /* Org pill — cap width so it doesn't push everything off */
-    .org-pill { max-width: 140px !important; font-size: .72rem; }
-    /* Live clock — drop a few pixels */
-    #nav-clock { font-size: 0.72rem !important; }
-    /* User dropdown badge */
-    .navbar .badge { font-size: 0.65rem; }
-}
-
-/* Even tighter at narrow desktop sizes (1280-1500px) */
-@media (min-width: 992px) and (max-width: 1500px) {
-    .navbar-expand-lg .navbar-nav .nav-link {
-        padding-left: 0.4rem !important;
-        padding-right: 0.4rem !important;
-        font-size: 0.82rem;
-    }
-    .navbar form input[type="search"] {
-        width: 110px !important;
-    }
-    /* Hide the live clock at narrow desktop sizes — it's nice-to-have */
-    #nav-clock { display: none !important; }
-    /* Hide the verbose "Staff" pill on user dropdown */
-    .navbar .nav-item.dropdown #userDropdown .badge { display: none; }
-    /* Truncate org pill harder */
-    .org-pill { max-width: 100px !important; }
-    .org-pill-name { font-size: .68rem !important; }
-}
+/* v3.17.559 — the two navbar squeeze blocks that lived here are gone.
+   They shrank nav padding, icon size, the search box and the client pill
+   (max-width: 100px !important) to force the bar to fit on 1280-1500px
+   laptops. static/css/ui.css now owns navbar sizing and handles the same
+   widths by dropping the brand wordmark and the top-level icons instead,
+   so labels and the client name stay readable. */
 
 /* v3.17.225: legacy "flex-wrap: wrap" fallbacks removed.
    Bootstrap's navbar-expand-xxl now collapses to a hamburger below

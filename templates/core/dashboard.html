@@ -120,32 +120,6 @@
     {% endif %}
 </div>
 
-<!-- Location Map -->
-<div class="card mb-3">
-    <div class="card-header py-1 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 small"><i class="fas fa-map-marked-alt"></i> Location Map</h6>
-        <div>
-            <button id="toggle-devices" class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="Show or hide RMM devices with location data on the map">
-                <i class="fas fa-laptop"></i> <span id="device-toggle-text">Show Devices</span>
-            </button>
-            <button id="toggle-dragging" class="btn btn-sm btn-outline-secondary me-2" style="display: none;">
-                <i class="fas fa-lock"></i> <span id="dragging-toggle-text">Dragging Disabled</span>
-            </button>
-            <button id="toggle-satellite" class="btn btn-sm btn-outline-info me-2" style="display: none;">
-                <i class="fas fa-satellite"></i> <span id="satellite-toggle-text">Satellite View</span>
-            </button>
-            <a href="{% url 'locations:location_list' %}" class="btn btn-sm btn-link py-0" data-bs-toggle="tooltip" data-bs-placement="top" title="View and manage all physical locations">View All</a>
-        </div>
-    </div>
-    <div class="card-body p-0">
-        <div id="location-map" style="height: 350px; width: 100%; position: relative; z-index: 1; cursor: grab;"></div>
-        <div id="map-message" class="text-center py-5 text-muted" style="display: none;">
-            <i class="fas fa-map-marker-alt fa-2x mb-2"></i><br>
-            <span id="map-message-text">Loading map...</span>
-        </div>
-    </div>
-</div>
-
 <div class="row g-2">
     {% comment %}
         v3.17.524 — Schedule + Tasks replace the two audit-log panels and absorb
@@ -264,6 +238,38 @@
 
 <!-- Old Quick Actions card removed — superseded by the wizard row at the top of this dashboard. -->
 
+
+<!-- Location Map -->
+<div class="card mb-3">
+    <div class="card-header py-1 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-map-marked-alt"></i> Location map</h6>
+        <div>
+            <button id="toggle-devices" class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="Show or hide RMM devices with location data on the map">
+                <i class="fas fa-laptop"></i> <span id="device-toggle-text">Show Devices</span>
+            </button>
+            <button id="toggle-dragging" class="btn btn-sm btn-outline-secondary me-2" style="display: none;">
+                <i class="fas fa-lock"></i> <span id="dragging-toggle-text">Dragging Disabled</span>
+            </button>
+            <button id="toggle-satellite" class="btn btn-sm btn-outline-info me-2" style="display: none;">
+                <i class="fas fa-satellite"></i> <span id="satellite-toggle-text">Satellite View</span>
+            </button>
+            <button id="toggle-map-size" class="btn btn-sm btn-outline-secondary me-2"
+                    data-bs-toggle="tooltip" data-bs-placement="top" title="Expand or collapse the map">
+                <i class="fas fa-up-right-and-down-left-from-center"></i> <span id="map-size-text">Expand</span>
+            </button>
+            <a href="{% url 'locations:location_list' %}" class="btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" data-bs-placement="top" title="View and manage all physical locations">View all</a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="location-map" style="height: 260px; width: 100%; position: relative; z-index: 1; cursor: grab;"></div>
+        <div id="map-message" class="text-center py-5 text-muted" style="display: none;">
+            <i class="fas fa-map-marker-alt fa-2x mb-2"></i><br>
+            <span id="map-message-text">Loading map...</span>
+        </div>
+    </div>
+</div>
+
+
 {% block extra_js %}
 <style>
 /* Theme-aware Leaflet popup styling */
@@ -283,6 +289,23 @@
 // Initialize location map with device layer support
 document.addEventListener('DOMContentLoaded', function() {
     const mapDiv = document.getElementById('location-map');
+
+    // v3.17.559 — the map now sits below the working panels at 260px with an
+    // explicit expand. Leaflet caches container size, so every height change
+    // has to be followed by invalidateSize() or the tiles render into the old
+    // box and the view drifts off-centre.
+    const mapSizeBtn = document.getElementById('toggle-map-size');
+    if (mapSizeBtn && mapDiv) {
+        mapSizeBtn.addEventListener('click', function () {
+            const expanded = mapDiv.style.height === '560px';
+            mapDiv.style.height = expanded ? '260px' : '560px';
+            document.getElementById('map-size-text').textContent = expanded ? 'Expand' : 'Collapse';
+            const m = window.__dashboardMap;
+            if (m && m.invalidateSize) {
+                setTimeout(function () { m.invalidateSize(); }, 210);
+            }
+        });
+    }
     const messageDiv = document.getElementById('map-message');
     const messageText = document.getElementById('map-message-text');
     const toggleButton = document.getElementById('toggle-devices');
@@ -436,7 +459,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 // Create map with configured settings
-                map = L.map('location-map', {
+                // Handle for the expand/collapse control above.
+                map = window.__dashboardMap = L.map('location-map', {
                     dragging: {{ map_dragging_enabled|lower }},
                     scrollWheelZoom: true,
                     touchZoom: true,

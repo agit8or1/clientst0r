@@ -3,77 +3,99 @@
 {% block title %}Documents{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1><i class="fas fa-file-alt"></i> Documents</h1>
-    <div class="btn-group">
-        <a href="{% url 'docs:category_list' %}" class="btn btn-secondary"><i class="fas fa-folder"></i> Categories</a>
-        <a href="{% url 'docs:template_list' %}" class="btn btn-secondary"><i class="fas fa-file-alt"></i> Templates</a>
-        <a href="{% url 'docs:ai_assistant' %}" class="btn btn-info"><i class="fas fa-robot"></i> AI Assistant</a>
-        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#uploadModal">
-            <i class="fas fa-upload"></i> Upload Files
+<div class="ui-page-head">
+    <div class="ui-page-head__main">
+        <h1 class="ui-page-title"><i class="fas fa-file-alt"></i> Documents</h1>
+        <p class="ui-page-sub">
+            {{ org_docs|length }} document{{ org_docs|length|pluralize }}{% if query or selected_category or selected_tag %} matching the current filters{% endif %}
+        </p>
+    </div>
+    <div class="ui-page-head__actions">
+        {# Secondary, then primary. One bright action per page. #}
+        <a href="{% url 'docs:ai_assistant' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-robot"></i> AI Assistant
+        </a>
+
+        <div class="dropdown">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-folder-tree"></i> Organize
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{% url 'docs:category_list' %}"><i class="fas fa-folder fa-fw"></i> Categories</a></li>
+                <li><a class="dropdown-item" href="{% url 'docs:template_list' %}"><i class="fas fa-file-alt fa-fw"></i> Templates</a></li>
+            </ul>
+        </div>
+
+        <div class="dropdown">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-right-left"></i> Import &amp; export
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><h6 class="dropdown-header">Bring documents in</h6></li>
+                <li><a class="dropdown-item" href="{% url 'docs:document_import' %}"><i class="fas fa-file-import fa-fw"></i> Import &amp; AI review</a></li>
+                <li><hr class="dropdown-divider"></li>
+                {# Issue #144 — bulk export of whatever the current filters select. #}
+                <li><h6 class="dropdown-header">Export the {{ org_docs|length }} listed document{{ org_docs|length|pluralize }}</h6></li>
+                <li><a class="dropdown-item" href="{% url 'docs:document_export_bulk' 'pdf' %}{{ export_query }}"><i class="fas fa-file-pdf fa-fw"></i> PDF</a></li>
+                <li><a class="dropdown-item" href="{% url 'docs:document_export_bulk' 'docx' %}{{ export_query }}"><i class="fas fa-file-word fa-fw"></i> Word (.docx)</a></li>
+                <li><a class="dropdown-item" href="{% url 'docs:document_export_bulk' 'md' %}{{ export_query }}"><i class="fas fa-hashtag fa-fw"></i> Markdown (.md)</a></li>
+                <li><a class="dropdown-item" href="{% url 'docs:document_export_bulk' 'html' %}{{ export_query }}"><i class="fas fa-file-code fa-fw"></i> HTML (print-ready)</a></li>
+            </ul>
+        </div>
+
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            <i class="fas fa-upload"></i> Upload files
         </button>
-        <a href="{% url 'docs:document_import' %}" class="btn btn-success"><i class="fas fa-file-import"></i> Import &amp; AI Review</a>
-        {# Issue #144 — bulk export of whatever the current filters select. #}
-        <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="fas fa-file-export"></i> Export All
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end">
-            <li><h6 class="dropdown-header">Download a ZIP of the {{ org_docs|length }} listed document{{ org_docs|length|pluralize }}</h6></li>
-            <li><a class="dropdown-item" href="{% url 'docs:document_export_bulk' 'pdf' %}{{ export_query }}"><i class="fas fa-file-pdf fa-fw text-danger"></i> PDF</a></li>
-            <li><a class="dropdown-item" href="{% url 'docs:document_export_bulk' 'docx' %}{{ export_query }}"><i class="fas fa-file-word fa-fw text-primary"></i> Word (.docx)</a></li>
-            <li><a class="dropdown-item" href="{% url 'docs:document_export_bulk' 'md' %}{{ export_query }}"><i class="fas fa-hashtag fa-fw text-muted"></i> Markdown (.md)</a></li>
-            <li><a class="dropdown-item" href="{% url 'docs:document_export_bulk' 'html' %}{{ export_query }}"><i class="fas fa-file-code fa-fw text-success"></i> HTML (print-ready)</a></li>
-        </ul>
-        <a href="{% url 'docs:document_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New Document</a>
+        <a href="{% url 'docs:document_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New document
+        </a>
     </div>
 </div>
 
-<!-- Filters -->
-<div class="card mb-3">
-    <div class="card-body py-2">
-        <form method="get" class="row g-2 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label small mb-1">Search</label>
-                <input type="text" name="q" class="form-control form-control-sm" placeholder="Search documents..." value="{{ query }}">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label small mb-1">Category</label>
-                <select name="category" class="form-select form-select-sm">
-                    <option value="">All Categories</option>
-                    {% for cat in categories %}
-                    <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:"s" %}selected{% endif %}>
-                        {{ cat.name }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label small mb-1">Tag</label>
-                <select name="tag" class="form-select form-select-sm">
-                    <option value="">All Tags</option>
-                    {% for tag in tags %}
-                    <option value="{{ tag.id }}" {% if selected_tag == tag.id|stringformat:"s" %}selected{% endif %}>
-                        {{ tag.name }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary btn-sm w-100">
-                    <i class="fas fa-filter"></i> Filter
-                </button>
-                <a href="{% url 'docs:document_list' %}" class="btn btn-outline-secondary btn-sm w-100 mt-1">
-                    <i class="fas fa-times"></i> Clear
-                </a>
-            </div>
-        </form>
+<form method="get" class="ui-filter-bar">
+    <div class="ui-field ui-field--grow">
+        <label class="ui-field__label" for="docSearch">Search</label>
+        {% comment %}
+        Server-side: covers title and document body across the whole result set,
+        which the table's own client-side box cannot do. It is the only search
+        on this page for exactly that reason.
+        {% endcomment %}
+        <input type="text" id="docSearch" name="q" class="form-control"
+               placeholder="Search titles and contents…" value="{{ query }}">
     </div>
-</div>
+    <div class="ui-field">
+        <label class="ui-field__label" for="docCategory">Category</label>
+        <select id="docCategory" name="category" class="form-select">
+            <option value="">All categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="ui-field">
+        <label class="ui-field__label" for="docTag">Tag</label>
+        <select id="docTag" name="tag" class="form-select">
+            <option value="">All tags</option>
+            {% for tag in tags %}
+            <option value="{{ tag.id }}" {% if selected_tag == tag.id|stringformat:"s" %}selected{% endif %}>{{ tag.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="ui-field ui-field--auto">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Apply filters</button>
+    </div>
+    {% if query or selected_category or selected_tag %}
+    <div class="ui-field ui-field--auto">
+        <a href="{% url 'docs:document_list' %}" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Clear</a>
+    </div>
+    {% endif %}
+</form>
 
 {% if org_docs %}
-<!-- View Toggle -->
-<div class="d-flex justify-content-end mb-3">
-    <div class="btn-group btn-group-sm" role="group">
+<div class="ui-toolbar">
+    <span class="ui-page-sub" style="margin:0">Showing {{ org_docs|length }} document{{ org_docs|length|pluralize }}</span>
+    <span class="ui-toolbar__spacer"></span>
+    <div class="btn-group btn-group-sm" role="group" aria-label="Result layout">
         <button type="button" class="btn btn-outline-secondary" id="cardViewBtn"><i class="fas fa-th"></i> Card</button>
         <button type="button" class="btn btn-outline-secondary active" id="tableViewBtn"><i class="fas fa-list"></i> Table</button>
     </div>
@@ -167,7 +189,8 @@
                 <h6 class="mb-0"><i class="fas fa-building"></i> Organization Documents</h6>
             </div>
             <div class="card-body">
-                <table id="orgDocsTable" class="table table-striped table-hover">
+                <div class="ui-table-wrap">
+                <table id="orgDocsTable" class="table table-hover">
                     <thead>
                         <tr>
                             <th>Title</th>
@@ -175,15 +198,15 @@
                             <th>Category</th>
                             <th>Tags</th>
                             <th>Updated</th>
-                            <th width="100">Actions</th>
+                            <th class="ui-actions" data-orderable="false">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for doc in org_docs %}
                         <tr>
-                            <td>
-                                <a href="{% url 'docs:document_detail' doc.slug %}">{{ doc.title }}</a>
-                                {% if doc.is_template %}<span class="badge bg-success ms-2">Template</span>{% endif %}
+                            <td class="ui-wrap">
+                                <a class="ui-primary-cell" href="{% url 'docs:document_detail' doc.slug %}">{{ doc.title }}</a>
+                                {% if doc.is_template %}<span class="ui-badge ui-badge--neutral ms-2">Template</span>{% endif %}
                             </td>
                             <td>
                                 {% if doc.content_type == 'file' %}
@@ -218,39 +241,49 @@
                                     <i class="fas fa-code fa-lg text-primary"></i> HTML
                                 {% endif %}
                             </td>
-                            <td>
-                                {% if doc.category %}
-                                <span class="badge bg-secondary">{{ doc.category.name }}</span>
-                                {% else %}—{% endif %}
+                            <td class="ui-wrap">
+                                {% if doc.category %}{{ doc.category.name }}{% else %}<span class="text-muted">—</span>{% endif %}
                             </td>
                             <td>
                                 {% for tag in doc.tags.all %}
                                 <span class="badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
                                 {% endfor %}
                             </td>
-                            <td>{{ doc.updated_at|date:"Y-m-d" }}</td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{% url 'docs:document_detail' doc.slug %}" class="btn btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
-                                    {% if has_write_permission %}
-                                    <a href="{% url 'docs:document_edit' doc.slug %}" class="btn btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
-                                    <button type="button" class="btn btn-outline-danger" title="Delete" onclick="deleteDocument('{{ doc.slug }}', '{{ doc.title|escapejs }}')"><i class="fas fa-trash"></i></button>
-                                    {% endif %}
-                                </div>
+                            <td><time datetime="{{ doc.updated_at|date:'c' }}" title="{{ doc.updated_at }}">{{ doc.updated_at|date:"j M Y" }}</time></td>
+                            <td class="ui-actions">
+                                <a href="{% url 'docs:document_detail' doc.slug %}" class="btn btn-sm btn-outline-secondary ui-btn-icon" title="View {{ doc.title }}" aria-label="View {{ doc.title }}"><i class="fas fa-eye" aria-hidden="true"></i></a>
+                                {% if has_write_permission %}
+                                <a href="{% url 'docs:document_edit' doc.slug %}" class="btn btn-sm btn-outline-secondary ui-btn-icon" title="Edit {{ doc.title }}" aria-label="Edit {{ doc.title }}"><i class="fas fa-edit" aria-hidden="true"></i></a>
+                                <button type="button" class="btn btn-sm btn-outline-danger ui-btn-icon" title="Delete {{ doc.title }}" aria-label="Delete {{ doc.title }}" onclick="deleteDocument('{{ doc.slug }}', '{{ doc.title|escapejs }}')"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
 {% else %}
 <div class="card">
-    <div class="card-body text-center py-5">
-        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-        <p class="text-muted">No documents found. <a href="{% url 'docs:document_create' %}">Create one</a> or <button type="button" class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#uploadModal">upload files</button>.</p>
+    <div class="ui-empty">
+        <i class="fas fa-inbox ui-empty__icon" aria-hidden="true"></i>
+        <div class="ui-empty__title">{% if query or selected_category or selected_tag %}No documents match these filters{% else %}No documents yet{% endif %}</div>
+        <p class="ui-empty__body">
+            {% if query or selected_category or selected_tag %}
+            Try a broader search, or clear the filters to see everything in this organization.
+            {% else %}
+            Write a document, or upload files you already have.
+            {% endif %}
+        </p>
+        {% if query or selected_category or selected_tag %}
+        <a href="{% url 'docs:document_list' %}" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Clear filters</a>
+        {% else %}
+        <a href="{% url 'docs:document_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New document</a>
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#uploadModal"><i class="fas fa-upload"></i> Upload files</button>
+        {% endif %}
     </div>
 </div>
 {% endif %}
@@ -547,12 +580,23 @@ $(document).ready(function() {
 
         // Initialize DataTable when switching to table view
         if (table === null) {
+            // No DataTables search box here on purpose. The filter bar above
+            // searches title *and* body server-side across the whole result
+            // set; this widget can only match text already rendered into a
+            // cell, so keeping both offered two boxes with different reach.
             table = $('#orgDocsTable').DataTable({
                 order: [[4, 'desc']],
                 pageLength: 25,
-                language: {
-                    search: "_INPUT_",
-                    searchPlaceholder: "Search documents..."
+                searching: false,
+                columnDefs: [{ targets: -1, orderable: false }],
+                lengthChange: false,
+                info: false,
+                // Paging controls only appear once there is a second page.
+                drawCallback: function () {
+                    var api = this.api();
+                    var pages = api.page.info().pages;
+                    $(api.table().container()).find('.dataTables_paginate')
+                        .toggle(pages > 1);
                 }
             });
         }

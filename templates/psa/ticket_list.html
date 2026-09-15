@@ -1,95 +1,110 @@
 {% extends "base.html" %}
-{% block title %}PSA — Tickets{% endblock %}
+{% load psa_ui %}
+{% block title %}Tickets{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h2 class="mb-0"><i class="fas fa-ticket-alt me-2"></i>PSA Tickets</h2>
-        <small class="text-muted">
+
+<div class="ui-page-head">
+    <div class="ui-page-head__main">
+        <h1 class="ui-page-title"><i class="fas fa-ticket-alt"></i> Tickets</h1>
+        <p class="ui-page-sub">
             {% if filter_values.client %}
-                {% for c in available_clients %}{% if c.id|slugify == filter_values.client %}Filtered to <strong>{{ c.name }}</strong>{% endif %}{% endfor %}
-            {% else %}
-                All clients · {{ tickets|length }} ticket{{ tickets|length|pluralize }} (newest 200)
-            {% endif %}
-        </small>
+                {% for c in available_clients %}{% if c.id|slugify == filter_values.client %}{{ c.name }} · {% endif %}{% endfor %}
+            {% else %}All clients · {% endif %}{{ tickets|length }} ticket{{ tickets|length|pluralize }}{% if tickets|length == 200 %} (newest 200){% endif %}
+        </p>
     </div>
-    <div>
-        <a href="{% url 'psa:ticket_create' %}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>New Ticket</a>
+    <div class="ui-page-head__actions">
+        <a href="{% url 'psa:ticket_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New ticket</a>
     </div>
 </div>
 
-{# Filter bar — all params are URL-driven so admins can bookmark a view. #}
-<form method="get" class="card mb-3">
-    <div class="card-body py-3">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label small mb-1">Client</label>
-                <select name="client" class="form-select form-select-sm">
-                    <option value="">All clients</option>
-                    {% for c in available_clients %}
-                    <option value="{{ c.id }}" {% if filter_values.client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">Status</label>
-                <select name="status" class="form-select form-select-sm">
-                    <option value="">Any</option>
-                    {% for s in available_statuses %}
-                    <option value="{{ s.id }}" {% if filter_values.status == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">Priority</label>
-                <select name="priority" class="form-select form-select-sm">
-                    <option value="">Any</option>
-                    {% for p in available_priorities %}
-                    <option value="{{ p.id }}" {% if filter_values.priority == p.id|stringformat:"s" %}selected{% endif %}>{{ p.code }} — {{ p.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">Queue</label>
-                <select name="queue" class="form-select form-select-sm">
-                    <option value="">Any</option>
-                    {% for q in available_queues %}
-                    <option value="{{ q.id }}" {% if filter_values.queue == q.id|stringformat:"s" %}selected{% endif %}>{{ q.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">Assigned</label>
-                <select name="assigned" class="form-select form-select-sm">
-                    <option value="">Anyone</option>
-                    <option value="me" {% if filter_values.assigned == "me" %}selected{% endif %}>Me</option>
-                    <option value="unassigned" {% if filter_values.assigned == "unassigned" %}selected{% endif %}>Unassigned</option>
-                </select>
-            </div>
-            <div class="col-md-1 d-flex gap-1">
-                <button type="submit" class="btn btn-sm btn-primary w-100" title="Apply filters"><i class="fas fa-filter"></i></button>
-                {% if has_filters %}
-                <a href="{% url 'psa:ticket_list' %}" class="btn btn-sm btn-outline-secondary" title="Clear"><i class="fas fa-times"></i></a>
-                {% endif %}
-            </div>
-        </div>
-        <div class="row g-2 mt-1">
-            <div class="col-12">
-                <input type="text" name="q" value="{{ filter_values.q }}" placeholder="Search ticket number or subject…" class="form-control form-control-sm">
-            </div>
-        </div>
+{% comment %}
+Filter bar — every parameter is URL-driven so a view can be bookmarked.
+Controls share one height and wrap as a row rather than sitting in fixed
+Bootstrap columns that collapse awkwardly between breakpoints.
+{% endcomment %}
+<form method="get" class="ui-filter-bar">
+    <div class="ui-field ui-field--grow">
+        <label class="ui-field__label" for="tkQ">Search</label>
+        <input type="text" id="tkQ" name="q" value="{{ filter_values.q }}"
+               placeholder="Ticket number or subject…" class="form-control">
     </div>
+    <div class="ui-field">
+        <label class="ui-field__label" for="tkClient">Client</label>
+        <select id="tkClient" name="client" class="form-select">
+            <option value="">All clients</option>
+            {% for c in available_clients %}
+            <option value="{{ c.id }}" {% if filter_values.client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="ui-field">
+        <label class="ui-field__label" for="tkStatus">Status</label>
+        <select id="tkStatus" name="status" class="form-select">
+            <option value="">Any status</option>
+            {% for s in available_statuses %}
+            <option value="{{ s.id }}" {% if filter_values.status == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="ui-field">
+        <label class="ui-field__label" for="tkPriority">Priority</label>
+        <select id="tkPriority" name="priority" class="form-select">
+            <option value="">Any priority</option>
+            {% for p in available_priorities %}
+            <option value="{{ p.id }}" {% if filter_values.priority == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }} ({{ p.code }})</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="ui-field">
+        <label class="ui-field__label" for="tkQueue">Queue</label>
+        <select id="tkQueue" name="queue" class="form-select">
+            <option value="">Any queue</option>
+            {% for q in available_queues %}
+            <option value="{{ q.id }}" {% if filter_values.queue == q.id|stringformat:"s" %}selected{% endif %}>{{ q.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="ui-field">
+        <label class="ui-field__label" for="tkAssigned">Assigned</label>
+        <select id="tkAssigned" name="assigned" class="form-select">
+            <option value="">Anyone</option>
+            <option value="me" {% if filter_values.assigned == "me" %}selected{% endif %}>Me</option>
+            <option value="unassigned" {% if filter_values.assigned == "unassigned" %}selected{% endif %}>Unassigned</option>
+        </select>
+    </div>
+    <div class="ui-field ui-field--auto">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Apply filters</button>
+    </div>
+    {% if has_filters %}
+    <div class="ui-field ui-field--auto">
+        <a href="{% url 'psa:ticket_list' %}" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Clear</a>
+    </div>
+    {% endif %}
 </form>
+
+{% if has_filters %}
+<div class="ui-applied">
+    <span class="text-muted">Filtered by:</span>
+    {% if filter_values.q %}<span class="ui-chip"><i class="fas fa-magnifying-glass"></i> “{{ filter_values.q }}”</span>{% endif %}
+    {% for c in available_clients %}{% if filter_values.client == c.id|stringformat:"s" %}<span class="ui-chip"><i class="fas fa-building"></i> {{ c.name }}</span>{% endif %}{% endfor %}
+    {% for s in available_statuses %}{% if filter_values.status == s.id|stringformat:"s" %}<span class="ui-chip">{{ s.name }}</span>{% endif %}{% endfor %}
+    {% for p in available_priorities %}{% if filter_values.priority == p.id|stringformat:"s" %}<span class="ui-chip">{{ p.name }}</span>{% endif %}{% endfor %}
+    {% for q in available_queues %}{% if filter_values.queue == q.id|stringformat:"s" %}<span class="ui-chip">{{ q.name }}</span>{% endif %}{% endfor %}
+    {% if filter_values.assigned == "me" %}<span class="ui-chip">Assigned to me</span>{% endif %}
+    {% if filter_values.assigned == "unassigned" %}<span class="ui-chip">Unassigned</span>{% endif %}
+    <a href="{% url 'psa:ticket_list' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times"></i> Clear all</a>
+</div>
+{% endif %}
 
 <div class="card">
     <div class="card-body p-0">
         {% if tickets %}
-        <div class="table-responsive">
+        <div class="ui-table-wrap">
             <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
+                <thead>
                     <tr>
-                        <th>Number</th>
+                        <th style="width: 40%">Subject</th>
                         <th>Client</th>
-                        <th>Subject</th>
                         <th>Priority</th>
                         <th>Status</th>
                         <th>Queue</th>
@@ -100,33 +115,45 @@
                 <tbody>
                     {% for t in tickets %}
                     <tr>
-                        <td><a href="{% url 'psa:ticket_detail' t.ticket_number %}"><code>{{ t.ticket_number }}</code></a></td>
-                        <td>
-                            <span class="badge rounded-pill" style="background:hsl({% widthratio t.organization.id 1 47 %}, 55%, 42%); color: white;">
-                                {{ t.organization.name|default:"—" }}
-                            </span>
+                        {% comment %}
+                        Subject is the thing a technician scans for, so it is the
+                        strongest text in the row and carries the link. The ticket
+                        number stays findable underneath in a quieter monospace.
+                        {% endcomment %}
+                        <td class="ui-wrap">
+                            <a class="ui-primary-cell" href="{% url 'psa:ticket_detail' t.ticket_number %}">{{ t.subject }}</a>
+                            <div class="ui-ref">{{ t.ticket_number }}</div>
                         </td>
-                        <td>{{ t.subject|truncatechars:60 }}</td>
-                        <td><span class="badge bg-secondary">{{ t.priority.code }}</span></td>
-                        <td><span class="badge bg-info text-dark">{{ t.status.name }}</span></td>
-                        <td><small>{{ t.queue.name }}</small></td>
-                        <td><small>{{ t.assigned_to.username|default:"—" }}</small></td>
-                        <td><small class="text-muted">{{ t.created_at|timesince }} ago</small></td>
+                        <td class="ui-wrap"><span class="ui-org">{{ t.organization.name|default:"—" }}</span></td>
+                        {% comment %}
+                        Tone comes from the operator's own configuration —
+                        priority rank by sort_order, status by is_terminal /
+                        pauses_sla — never from parsing the label text.
+                        {% endcomment %}
+                        <td><span class="ui-badge ui-badge--{{ t.priority|priority_tone }}">{{ t.priority|priority_label }}</span></td>
+                        <td><span class="ui-badge ui-badge--{{ t.status|status_tone }}">{{ t.status.name }}</span></td>
+                        <td>{{ t.queue.name }}</td>
+                        <td class="ui-wrap">{% if t.assigned_to %}{{ t.assigned_to.get_full_name|default:t.assigned_to.username }}{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
+                        <td>
+                            <time datetime="{{ t.created_at|date:'c' }}" title="{{ t.created_at }}">{{ t.created_at|timesince }} ago</time>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
         {% else %}
-        <div class="text-center text-muted py-5">
+        <div class="ui-empty">
             {% if has_filters %}
-            <i class="fas fa-search fa-3x mb-3 d-block"></i>
-            <p class="mb-2">No tickets match those filters.</p>
-            <a href="{% url 'psa:ticket_list' %}" class="btn btn-sm btn-outline-secondary">Clear filters</a>
+            <i class="fas fa-search ui-empty__icon" aria-hidden="true"></i>
+            <div class="ui-empty__title">No tickets match these filters</div>
+            <p class="ui-empty__body">Try widening the search, or clear the filters to see the whole queue.</p>
+            <a href="{% url 'psa:ticket_list' %}" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Clear filters</a>
             {% else %}
-            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
-            <p class="mb-2">No tickets yet.</p>
-            <a href="{% url 'psa:ticket_create' %}" class="btn btn-sm btn-primary">Create the first ticket</a>
+            <i class="fas fa-inbox ui-empty__icon" aria-hidden="true"></i>
+            <div class="ui-empty__title">No tickets yet</div>
+            <p class="ui-empty__body">Work logged here shows up across the dashboard, contracts and reporting.</p>
+            <a href="{% url 'psa:ticket_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Create the first ticket</a>
             {% endif %}
         </div>
         {% endif %}

@@ -3,6 +3,7 @@ Vault views - Password management and security features
 """
 import logging
 import requests
+from django.utils.html import escape
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -138,7 +139,9 @@ def password_list_datatables(request):
             f'<a href="{detail_url}">{password.title}</a>',
             password.username or '—',
             url_html,
-            f'<span class="badge bg-primary">{password.get_password_type_display()}</span>',
+            # Plain text, not a badge: every row carries a type, so a coloured
+            # pill on all of them added weight without adding information.
+            escape(password.get_password_type_display()),
             security_badge,
             tags_html or '—',
             actions_html

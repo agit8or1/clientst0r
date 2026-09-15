@@ -1,0 +1,837 @@
+/* =========================================================================
+   ClientSt0r — shared UI layer (v3.17.559)
+
+   One place for the primitives every module reuses: page headers, toolbars,
+   filter bars, cards, tables, badges, form controls and empty states.
+
+   Loaded last, so it settles the disagreements between custom.css, themes.css
+   and Bootstrap rather than adding a fourth opinion. It deliberately works
+   through the existing theme variables in themes.css (--surface, --text-primary,
+   --border-color, ...) so all twelve themes and both light and dark keep
+   working without a second palette.
+
+   Two rules for anyone extending this file:
+     1. Scope to our own classes or to `main`. Never restyle a bare element
+        globally — DataTables, Select2, Leaflet, EasyMDE and Bootstrap modals
+        all live in this page and break when you do.
+     2. Sizes are px on purpose. The app used to shrink itself with
+        `html { font-size: 14.5px }`, which made every rem in the codebase mean
+        something different from what it said.
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   1. Scale tokens
+   ------------------------------------------------------------------------- */
+:root {
+    /* Spacing — 4 / 8 / 12 / 16 / 24 / 32 */
+    --ui-1: 4px;
+    --ui-2: 8px;
+    --ui-3: 12px;
+    --ui-4: 16px;
+    --ui-6: 24px;
+    --ui-8: 32px;
+
+    /* Type */
+    --ui-text: 14px;          /* body + table text            */
+    --ui-text-sm: 13px;       /* supporting metadata          */
+    --ui-text-xs: 12px;       /* timestamps, counts, captions */
+    --ui-title: 26px;         /* page titles                  */
+    --ui-section: 15px;       /* card + section headings      */
+
+    /* Controls */
+    --ui-control-h: 38px;     /* inputs and standard buttons  */
+    --ui-row-h: 42px;         /* table rows (min, not fixed)  */
+
+    /* Surfaces */
+    --ui-radius: 8px;
+    --ui-radius-sm: 6px;
+    --ui-shadow: 0 1px 2px rgba(16, 24, 40, .06);
+
+    /* Neutral fallbacks, used only when no theme variable is present. Every
+       theme in themes.css overrides these via --surface / --border-color etc. */
+    --ui-page-bg: #f4f6f8;
+    --ui-surface: #ffffff;
+    --ui-border: #e3e8ef;
+    --ui-text-color: #1f2933;
+    --ui-muted: #647084;
+    --ui-primary: #0d6efd;
+}
+
+/* Bind the shared tokens to whichever theme is active. */
+[data-theme] {
+    --ui-page-bg: var(--background-alt, #f4f6f8);
+    --ui-surface: var(--surface, #ffffff);
+    --ui-border: var(--border-color, #e3e8ef);
+    --ui-text-color: var(--text-primary, #1f2933);
+    --ui-muted: var(--text-secondary, #647084);
+    --ui-primary: var(--primary-color, #0d6efd);
+}
+
+/* -------------------------------------------------------------------------
+   2. Baseline
+   Restores a 16px root. The old 14.5px root shrank the whole application, so
+   every rem-based rule in custom.css silently rendered ~10% under its stated
+   size. Text sizing now says what it means.
+   ------------------------------------------------------------------------- */
+html { font-size: 16px; }
+
+body {
+    font-size: var(--ui-text);
+    line-height: 1.5;
+    color: var(--ui-text-color);
+}
+
+main {
+    font-size: var(--ui-text);
+}
+
+/* -------------------------------------------------------------------------
+   3. Page header — breadcrumb, title, context, actions
+   ------------------------------------------------------------------------- */
+.ui-page-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--ui-3);
+    margin-bottom: var(--ui-4);
+}
+
+.ui-page-head__main { min-width: 0; }
+
+.ui-page-title {
+    display: flex;
+    align-items: center;
+    gap: var(--ui-2);
+    margin: 0;
+    font-size: var(--ui-title);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--ui-text-color);
+}
+
+/* Title icons stay modest — no fa-2x/fa-3x decoration in a page heading. */
+.ui-page-title > i,
+.ui-page-title > .fa,
+.ui-page-title > .fas,
+.ui-page-title > .far {
+    font-size: 20px;
+    color: var(--ui-muted);
+}
+
+.ui-page-sub {
+    margin: var(--ui-1) 0 0;
+    font-size: var(--ui-text-sm);
+    color: var(--ui-muted);
+}
+
+.ui-page-head__actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--ui-2);
+}
+
+/* Breadcrumbs sit above the title, quiet and flat. */
+main .breadcrumb {
+    background: transparent;
+    padding: 0;
+    margin-bottom: var(--ui-2);
+    font-size: var(--ui-text-sm);
+}
+main .breadcrumb .breadcrumb-item + .breadcrumb-item::before { color: var(--ui-muted); }
+main .breadcrumb a { text-decoration: none; }
+main .breadcrumb a:hover { text-decoration: underline; }
+
+/* -------------------------------------------------------------------------
+   4. Toolbars and filter bars
+   ------------------------------------------------------------------------- */
+.ui-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--ui-2);
+    margin-bottom: var(--ui-3);
+}
+.ui-toolbar__spacer { margin-left: auto; }
+
+.ui-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--ui-3);
+    padding: var(--ui-3) var(--ui-4);
+    margin-bottom: var(--ui-3);
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius);
+}
+
+.ui-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-1);
+    min-width: 160px;
+    flex: 1 1 160px;
+}
+.ui-field--grow { flex: 3 1 260px; }
+.ui-field--auto { flex: 0 0 auto; min-width: 0; }
+
+.ui-field > label,
+.ui-field__label {
+    font-size: var(--ui-text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--ui-muted);
+    margin: 0;
+}
+
+/* Applied-filter chips */
+.ui-applied {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--ui-2);
+    margin-bottom: var(--ui-3);
+    font-size: var(--ui-text-sm);
+}
+.ui-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ui-1);
+    padding: 2px var(--ui-2);
+    border: 1px solid var(--ui-border);
+    border-radius: 999px;
+    background: var(--ui-surface);
+    color: var(--ui-text-color);
+    font-size: var(--ui-text-xs);
+}
+
+/* -------------------------------------------------------------------------
+   5. Controls — one height for inputs and standard buttons
+   ------------------------------------------------------------------------- */
+main .form-control:not(.form-control-sm):not(.form-control-lg):not(textarea),
+main .form-select:not(.form-select-sm):not(.form-select-lg) {
+    min-height: var(--ui-control-h);
+    padding: var(--ui-2) var(--ui-3);
+    font-size: var(--ui-text);
+    border-radius: var(--ui-radius-sm);
+    border-color: var(--ui-border);
+}
+
+main textarea.form-control {
+    padding: var(--ui-2) var(--ui-3);
+    font-size: var(--ui-text);
+    border-radius: var(--ui-radius-sm);
+    border-color: var(--ui-border);
+}
+
+main .btn:not(.btn-sm):not(.btn-lg) {
+    min-height: var(--ui-control-h);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ui-2);
+    padding: var(--ui-2) var(--ui-3);
+    font-size: var(--ui-text);
+    font-weight: 500;
+    border-radius: var(--ui-radius-sm);
+}
+
+main .btn-sm {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ui-1);
+    font-size: var(--ui-text-sm);
+    border-radius: var(--ui-radius-sm);
+}
+
+/* Icon-only buttons stay square rather than collapsing to a sliver. */
+main .btn.ui-btn-icon {
+    width: var(--ui-control-h);
+    min-width: var(--ui-control-h);
+    padding: 0;
+}
+main .btn-sm.ui-btn-icon { width: 30px; min-width: 30px; padding: 0; }
+
+/* Visible keyboard focus everywhere, not just where Bootstrap remembers. */
+main a:focus-visible,
+main button:focus-visible,
+main .btn:focus-visible,
+main .form-control:focus-visible,
+main .form-select:focus-visible,
+main [tabindex]:focus-visible {
+    outline: 2px solid var(--ui-primary);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+/* -------------------------------------------------------------------------
+   6. Cards — flat, quiet, no lift on hover
+   ------------------------------------------------------------------------- */
+main .card {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius) !important;
+    box-shadow: var(--ui-shadow);
+    margin-bottom: var(--ui-4);
+    transition: none;
+}
+main .card:hover {
+    box-shadow: var(--ui-shadow);
+    transform: none;
+}
+
+main .card-header {
+    background: var(--ui-surface);
+    background-image: none;
+    border-bottom: 1px solid var(--ui-border);
+    box-shadow: none;
+    padding: var(--ui-3) var(--ui-4);
+    font-size: var(--ui-section);
+    font-weight: 600;
+    color: var(--ui-text-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ui-2);
+}
+main .card-header > h1, main .card-header > h2, main .card-header > h3,
+main .card-header > h4, main .card-header > h5, main .card-header > h6,
+main .card-header .h5, main .card-header .h6 {
+    margin: 0;
+    font-size: var(--ui-section);
+    font-weight: 600;
+}
+main .card-header i { color: var(--ui-muted); }
+
+main .card-body { padding: var(--ui-4); }
+main .card-footer {
+    background: var(--ui-surface);
+    border-top: 1px solid var(--ui-border);
+    padding: var(--ui-3) var(--ui-4);
+}
+
+/* A section heading outside a card. */
+.ui-section-title {
+    font-size: var(--ui-section);
+    font-weight: 600;
+    margin: 0 0 var(--ui-2);
+    color: var(--ui-text-color);
+}
+
+/* -------------------------------------------------------------------------
+   7. Tables
+   ------------------------------------------------------------------------- */
+.ui-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+main .table {
+    font-size: var(--ui-text);
+    color: var(--ui-text-color);
+    margin-bottom: 0;
+    border-color: var(--ui-border);
+    --bs-table-bg: transparent;
+}
+
+main .table > thead > tr > th {
+    padding: var(--ui-2) var(--ui-3);
+    font-size: var(--ui-text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--ui-muted);
+    background: transparent;
+    border-bottom: 1px solid var(--ui-border);
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+main .table > tbody > tr > td {
+    padding: var(--ui-2) var(--ui-3);
+    height: var(--ui-row-h);
+    vertical-align: middle;
+    border-bottom: 1px solid var(--ui-border);
+    border-top: 0;
+}
+
+main .table > tbody > tr:last-child > td { border-bottom: 0; }
+
+main .table-hover > tbody > tr:hover > td {
+    background: var(--surface-hover, rgba(13, 110, 253, .04));
+}
+
+/* Striping is off by default — the row separator is enough. Keep the class
+   working for anywhere that genuinely wants it, just far more quietly. */
+main .table-striped > tbody > tr:nth-of-type(odd) > td {
+    background: rgba(100, 112, 132, .025);
+}
+
+/* Money and numeric comparison columns. */
+.ui-num,
+main .table td.ui-num,
+main .table th.ui-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+/* Action column keeps a stable width so rows do not shuffle. */
+main .table td.ui-actions,
+main .table th.ui-actions {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+}
+.ui-actions .btn + .btn { margin-left: var(--ui-1); }
+
+/* Long names and subjects wrap instead of forcing the page sideways. */
+.ui-wrap {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* -------------------------------------------------------------------------
+   8. Badges — readable, sentence case, restrained
+   ------------------------------------------------------------------------- */
+.ui-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ui-1);
+    padding: 2px var(--ui-2);
+    border-radius: var(--ui-radius-sm);
+    font-size: var(--ui-text-xs);
+    font-weight: 600;
+    line-height: 1.6;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+.ui-badge--neutral { background: rgba(100, 112, 132, .10); color: var(--ui-muted); border-color: rgba(100, 112, 132, .18); }
+.ui-badge--info    { background: rgba(13, 110, 253, .10); color: #0b5ed7; border-color: rgba(13, 110, 253, .20); }
+.ui-badge--open    { background: rgba(13, 110, 253, .10); color: #0b5ed7; border-color: rgba(13, 110, 253, .20); }
+.ui-badge--active  { background: rgba(25, 135, 84, .12); color: #146c43; border-color: rgba(25, 135, 84, .22); }
+.ui-badge--warn    { background: rgba(255, 140, 0, .14); color: #a35b00; border-color: rgba(255, 140, 0, .26); }
+.ui-badge--danger  { background: rgba(220, 53, 69, .12); color: #b02a37; border-color: rgba(220, 53, 69, .22); }
+.ui-badge--done    { background: rgba(100, 112, 132, .10); color: var(--ui-muted); border-color: rgba(100, 112, 132, .18); }
+
+/* Dark themes need lighter ink on the same tinted grounds. */
+[data-bs-theme="dark"] .ui-badge--info,
+[data-bs-theme="dark"] .ui-badge--open   { color: #79b0ff; }
+[data-bs-theme="dark"] .ui-badge--active { color: #55d6a4; }
+[data-bs-theme="dark"] .ui-badge--warn   { color: #ffb45c; }
+[data-bs-theme="dark"] .ui-badge--danger { color: #ff8f99; }
+[data-bs-theme="dark"] .ui-badge--neutral,
+[data-bs-theme="dark"] .ui-badge--done   { color: #aeb7c4; }
+
+/* A client / organization reference is context, not a headline. */
+.ui-org {
+    font-size: var(--ui-text-sm);
+    color: var(--ui-muted);
+}
+
+/* A record number: findable, not shouty. */
+.ui-ref {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--ui-text-xs);
+    color: var(--ui-muted);
+}
+a.ui-ref { text-decoration: none; }
+a.ui-ref:hover { text-decoration: underline; }
+
+/* The primary text in a row — the thing you are actually scanning for. */
+.ui-primary-cell {
+    font-size: var(--ui-text);
+    font-weight: 600;
+    text-decoration: none;
+}
+.ui-primary-cell:hover { text-decoration: underline; }
+
+/* -------------------------------------------------------------------------
+   9. Empty, loading and error states
+   ------------------------------------------------------------------------- */
+.ui-empty {
+    padding: var(--ui-8) var(--ui-4);
+    text-align: center;
+    color: var(--ui-muted);
+}
+.ui-empty__icon { font-size: 28px; opacity: .45; margin-bottom: var(--ui-3); display: block; }
+.ui-empty__title { font-size: var(--ui-section); font-weight: 600; color: var(--ui-text-color); margin-bottom: var(--ui-1); }
+.ui-empty__body { font-size: var(--ui-text-sm); margin-bottom: var(--ui-3); }
+
+.ui-state-error {
+    padding: var(--ui-3) var(--ui-4);
+    border: 1px solid rgba(220, 53, 69, .25);
+    background: rgba(220, 53, 69, .06);
+    border-radius: var(--ui-radius-sm);
+    font-size: var(--ui-text-sm);
+}
+
+/* -------------------------------------------------------------------------
+   10. Detail pages — main work area wider than supporting context
+   ------------------------------------------------------------------------- */
+.ui-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr);
+    gap: var(--ui-4);
+    align-items: start;
+}
+@media (max-width: 991.98px) {
+    .ui-detail { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* A labelled metadata list, used in the supporting column. */
+.ui-meta { margin: 0; }
+.ui-meta__row {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--ui-3);
+    padding: var(--ui-2) 0;
+    border-bottom: 1px solid var(--ui-border);
+    font-size: var(--ui-text-sm);
+}
+.ui-meta__row:last-child { border-bottom: 0; }
+.ui-meta__label { color: var(--ui-muted); flex: 0 0 auto; }
+.ui-meta__value { text-align: right; min-width: 0; overflow-wrap: anywhere; }
+
+/* -------------------------------------------------------------------------
+   11. Page ground
+   ------------------------------------------------------------------------- */
+body:not(.has-background) { background: var(--ui-page-bg); }
+
+/* -------------------------------------------------------------------------
+   12. Responsive
+   ------------------------------------------------------------------------- */
+@media (max-width: 767.98px) {
+    :root { --ui-title: 22px; }
+    .ui-page-head { flex-direction: column; align-items: stretch; }
+    .ui-page-head__actions { justify-content: flex-start; }
+    .ui-filter-bar { padding: var(--ui-3); }
+    .ui-field { flex: 1 1 100%; }
+}
+
+/* Nothing may push the whole page sideways; wide tables scroll in their own
+   container instead (see .ui-table-wrap). */
+html, body { overflow-x: hidden; }
+
+/* =========================================================================
+   13. Application header
+   The bar carries eleven module dropdowns plus search, org context and user
+   controls. These rules keep it on one line at desktop widths and hand it to
+   the Bootstrap drawer before anything collides.
+   ========================================================================= */
+.navbar .navbar-container {
+    padding-top: var(--ui-2);
+    padding-bottom: var(--ui-2);
+}
+
+.navbar .navbar-brand { margin-right: var(--ui-3); padding: 0; }
+.navbar .navbar-brand img { height: 30px; width: auto; display: block; }
+
+/* Primary module nav.
+
+   The bar carries nine module menus plus search, client context and account
+   controls — about 1855px of content. Rather than wrapping it into five stacked
+   rows (unusable) or hiding it all behind a hamburger at 1440 (the commonest
+   laptop width), it stays on one line and sheds its least informative pixels
+   first as the window narrows: the brand wordmark, then the top-level icons,
+   which are duplicated inside every dropdown anyway. Below the Bootstrap
+   expand breakpoint the whole thing becomes the drawer. */
+.navbar .navbar-nav { align-items: center; }
+.navbar .navbar-nav > .nav-item > .nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    font-size: var(--ui-text);
+    border-radius: var(--ui-radius-sm);
+    white-space: nowrap;
+}
+.navbar .navbar-nav > .nav-item > .nav-link > i { font-size: 14px; width: 16px; text-align: center; }
+
+/* Between the expand breakpoint and a wide desktop, trim to fit. Every label
+   and destination stays; only decoration goes. */
+@media (min-width: 1400px) and (max-width: 1749.98px) {
+    .navbar .navbar-brand img { height: 26px; }
+    .navbar .navbar-brand { margin-right: var(--ui-2); }
+    /* The wall clock is decoration and goes first; the brand keeps its
+       wordmark, which measurement showed there is room for. */
+    .navbar #nav-clock { display: none !important; }
+    /* Top-level icons go before any label does — each one is repeated on the
+       matching item inside the dropdown. */
+    .navbar .navbar-nav > .nav-item > .nav-link:not(.nav-util) > i:first-child { display: none; }
+    .navbar .navbar-nav > .nav-item > .nav-link { padding: 6px 5px; gap: 0; }
+    .navbar .nav-search { max-width: 190px; margin: 0 var(--ui-1); }
+    .navbar .org-pill { max-width: 130px; }
+}
+
+.navbar .navbar-nav > .nav-item > .nav-link:hover,
+.navbar .navbar-nav > .nav-item > .nav-link:focus-visible {
+    background: rgba(255, 255, 255, .14);
+}
+.navbar .navbar-nav > .nav-item.active > .nav-link,
+.navbar .navbar-nav > .nav-item > .nav-link.active,
+.navbar .navbar-nav > .nav-item.show > .nav-link {
+    background: rgba(255, 255, 255, .20);
+    font-weight: 600;
+}
+
+/* Dropdown panels line up under their trigger and stay readable. */
+.navbar .dropdown-menu {
+    font-size: var(--ui-text);
+    border-radius: var(--ui-radius-sm);
+    border-color: var(--ui-border);
+    box-shadow: 0 6px 24px rgba(16, 24, 40, .14);
+    padding: var(--ui-1) 0;
+    margin-top: var(--ui-1);
+}
+.navbar .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: var(--ui-2);
+    padding: 7px var(--ui-3);
+}
+.navbar .dropdown-header {
+    font-size: var(--ui-text-xs);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* Search: a real field, not a 180px sliver, and it gives way before the
+   module links do. */
+.navbar .nav-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 160px;
+    min-width: 120px;
+    max-width: 260px;
+    margin: 0 var(--ui-2);
+}
+.navbar .nav-search__icon {
+    position: absolute;
+    left: 10px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, .7);
+    pointer-events: none;
+}
+.navbar .nav-search .form-control {
+    height: 34px;
+    padding: 0 var(--ui-3) 0 30px;
+    font-size: var(--ui-text-sm);
+    color: #fff;
+    background: rgba(255, 255, 255, .14);
+    border: 1px solid rgba(255, 255, 255, .22);
+    border-radius: var(--ui-radius-sm);
+}
+.navbar .nav-search .form-control::placeholder { color: rgba(255, 255, 255, .65); }
+.navbar .nav-search .form-control:focus {
+    background: rgba(255, 255, 255, .22);
+    border-color: rgba(255, 255, 255, .55);
+    color: #fff;
+    box-shadow: none;
+}
+
+/* Utility icons (favourites, More, theme) share one footprint. */
+.navbar .nav-link.nav-util {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+}
+.navbar .nav-link.nav-util i { font-size: 15px; }
+
+/* Current client vs. the global view — the one piece of context that must
+   never be ambiguous. */
+.navbar .org-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 170px;
+    height: 34px;
+    padding: 0 var(--ui-2);
+    border-radius: 999px;
+    font-size: var(--ui-text-sm);
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+.navbar .org-pill .org-pill-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* Colour for the two pill states lives with the markup in base.html:
+   amber for a selected client, outline for the global view. Only layout
+   belongs here. */
+
+/* Below the expand breakpoint everything is in the drawer; let it breathe and
+   scroll rather than run off the bottom of a phone. */
+@media (max-width: 1399.98px) {
+    .navbar .navbar-collapse {
+        max-height: calc(100vh - 64px);
+        overflow-y: auto;
+        padding-bottom: var(--ui-3);
+    }
+    .navbar .navbar-nav { align-items: stretch; flex-wrap: nowrap; flex-direction: column; }
+    .navbar .navbar-nav > .nav-item > .nav-link { padding: 10px var(--ui-3); }
+    .navbar .nav-search { max-width: none; margin: var(--ui-2) var(--ui-3); }
+    .navbar .org-pill { max-width: none; justify-content: flex-start; }
+}
+
+/* The support heart used to pulse forever in the corner of a work tool. */
+@media (prefers-reduced-motion: no-preference) {
+    .navbar [style*="heartbeat"] { animation: none !important; }
+}
+
+/* =========================================================================
+   14. Dashboard tiles
+   Six full-bleed saturated cards (primary/success/info/warning/secondary/
+   danger) read as six alerts competing for attention. Summary metrics are
+   reference, not alarm: keep them on the normal surface and let the accent
+   live in a single number, with colour reserved for states that mean
+   something.
+   ========================================================================= */
+main .card.bg-primary,
+main .card.bg-success,
+main .card.bg-info,
+main .card.bg-warning,
+main .card.bg-secondary,
+main .card.bg-danger {
+    background: var(--ui-surface) !important;
+    border: 1px solid var(--ui-border);
+    color: var(--ui-text-color) !important;
+}
+main .card.bg-primary *,
+main .card.bg-success *,
+main .card.bg-info *,
+main .card.bg-warning *,
+main .card.bg-secondary *,
+main .card.bg-danger * {
+    color: var(--ui-text-color) !important;
+}
+/* The metric itself carries the accent. */
+main .card.bg-primary .h4, main .card.bg-primary h4,
+main .card.bg-success .h4, main .card.bg-success h4,
+main .card.bg-info .h4, main .card.bg-info h4,
+main .card.bg-warning .h4, main .card.bg-warning h4,
+main .card.bg-secondary .h4, main .card.bg-secondary h4,
+main .card.bg-danger .h4, main .card.bg-danger h4 {
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.1;
+}
+main .card.bg-primary i, main .card.bg-success i, main .card.bg-info i,
+main .card.bg-warning i, main .card.bg-secondary i, main .card.bg-danger i {
+    color: var(--ui-muted) !important;
+    font-size: 16px;
+}
+/* The tiles grew a JS scale() on hover; a metric is not a button. */
+main .card[onmouseover] { transition: none !important; }
+
+/* =========================================================================
+   15. Row actions and money columns
+   ========================================================================= */
+
+/* Row actions arrived as a rainbow: a blue PDF button beside a green download
+   beside a red email. Colour in a table should mean something, so the whole
+   action group reads as neutral and only genuinely destructive controls stay
+   red. Buttons keep their own classes — this is presentation only, so a
+   template that means `btn-danger` still gets it. */
+/* themes.css sets `.btn-primary { background-color: var(--primary-color)
+   !important }` for all twelve themes, so these overrides have to carry
+   !important too — specificity alone loses to an important declaration. */
+main table .btn-group > .btn:not(.btn-danger):not(.btn-outline-danger),
+main table td .btn:not(.btn-danger):not(.btn-outline-danger),
+main .ui-actions .btn:not(.btn-danger):not(.btn-outline-danger) {
+    background-color: transparent !important;
+    border-color: var(--ui-border) !important;
+    color: var(--ui-muted) !important;
+    box-shadow: none;
+}
+main table .btn-group > .btn:not(.btn-danger):not(.btn-outline-danger):hover,
+main table td .btn:not(.btn-danger):not(.btn-outline-danger):hover,
+main .ui-actions .btn:not(.btn-danger):not(.btn-outline-danger):hover {
+    background-color: var(--surface-hover, rgba(13, 110, 253, .07)) !important;
+    color: var(--ui-text-color) !important;
+    border-color: var(--ui-border) !important;
+}
+main table td .btn.btn-danger,
+main table td .btn.btn-outline-danger,
+main .ui-actions .btn.btn-outline-danger {
+    background-color: transparent !important;
+    border-color: rgba(220, 53, 69, .35) !important;
+    color: #b02a37 !important;
+}
+[data-bs-theme="dark"] main table td .btn.btn-outline-danger,
+[data-bs-theme="dark"] main .ui-actions .btn.btn-outline-danger { color: #ff8f99; }
+
+/* Money and quantity columns. Header cells matching these names are right
+   aligned with the figures beneath them and set in tabular numerals so digits
+   line up down the column. */
+main table th.text-end, main table td.text-end,
+main table th.ui-num, main table td.ui-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+/* Any cell carrying a currency figure gets tabular numerals even where the
+   template has not been updated to mark the column. */
+main table td:has(> .ui-money), main table .ui-money {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+/* =========================================================================
+   16. Page-level action strips
+   A detail page header had a blue PDF button beside a blue Download beside a
+   blue Email beside an amber "Push to accounting" — five saturated controls
+   competing with each other and with the page's real primary action. Same
+   rule as the table one: neutral by default, colour where it means something.
+   ========================================================================= */
+.ui-page-head__actions .btn-info,
+.ui-page-head__actions .btn-success,
+.ui-page-head__actions .btn-warning,
+.ui-page-head__actions .btn-secondary {
+    background-color: transparent !important;
+    border-color: var(--ui-border) !important;
+    color: var(--ui-text-color) !important;
+}
+.ui-page-head__actions .btn-info:hover,
+.ui-page-head__actions .btn-success:hover,
+.ui-page-head__actions .btn-warning:hover,
+.ui-page-head__actions .btn-secondary:hover {
+    background: var(--surface-hover, rgba(13, 110, 253, .07));
+    border-color: var(--ui-border);
+    color: var(--ui-text-color);
+}
+
+/* Quick-action shortcut tiles: readable in dark, where the light-theme
+   treatment left grey-on-grey. */
+[data-bs-theme="dark"] main .card .btn-outline-primary,
+[data-bs-theme="dark"] main .card .btn-outline-secondary {
+    color: #cfd6e4;
+    border-color: rgba(255, 255, 255, .18);
+}
+[data-bs-theme="dark"] main .card .btn-outline-primary:hover,
+[data-bs-theme="dark"] main .card .btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, .08);
+    color: #ffffff;
+}
+[data-bs-theme="dark"] main .card.bg-primary,
+[data-bs-theme="dark"] main .card.bg-success,
+[data-bs-theme="dark"] main .card.bg-info,
+[data-bs-theme="dark"] main .card.bg-warning,
+[data-bs-theme="dark"] main .card.bg-secondary,
+[data-bs-theme="dark"] main .card.bg-danger {
+    background: var(--surface, #2b2b2b) !important;
+    border-color: var(--border-color, #444);
+}

@@ -26,31 +26,45 @@
         <span class="badge bg-secondary">Inactive</span>
         {% endif %}
     </h1>
-    <div>
+    <div class="ui-page-head__actions">
+        <a href="{% url 'accounts:organization_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to list
+        </a>
         {% if user_membership.role == 'owner' or user_membership.role == 'admin' or user.is_superuser or user.is_staff %}
-        <a href="{% url 'compliance:evidence_pack' organization.id %}" class="btn btn-info"
+        <a href="{% url 'compliance:evidence_pack' organization.id %}" class="btn btn-outline-secondary"
            title="One-click compliance evidence packet — 2FA status, user access, password access history, asset inventory, ticket/SLA history">
-            <i class="fas fa-shield-halved"></i> Evidence Pack
+            <i class="fas fa-shield-halved"></i> Evidence pack
         </a>
         {% endif %}
         {% if user_membership.role == 'owner' or user.is_superuser %}
-        <a href="{% url 'accounts:organization_edit' organization.id %}" class="btn btn-secondary">
+        <a href="{% url 'accounts:organization_edit' organization.id %}" class="btn btn-primary">
             <i class="fas fa-edit"></i> Edit
         </a>
-        <a href="{% url 'accounts:organization_delete' organization.id %}" class="btn btn-danger">
-            <i class="fas fa-trash"></i> Delete
-        </a>
+        {% comment %}
+        Delete sits behind a More menu rather than beside Edit as an equally
+        sized red button. It still goes to the same confirmation page.
+        {% endcomment %}
+        <div class="dropdown">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"
+                    aria-expanded="false" aria-label="More actions">
+                <i class="fas fa-ellipsis"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <a class="dropdown-item text-danger" href="{% url 'accounts:organization_delete' organization.id %}">
+                        <i class="fas fa-trash fa-fw"></i> Delete organization
+                    </a>
+                </li>
+            </ul>
+        </div>
         {% endif %}
-        <a href="{% url 'accounts:organization_list' %}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left"></i> Back to List
-        </a>
     </div>
 </div>
 
 <div class="d-flex flex-wrap gap-2 mb-4">
     {% for svc in services %}
     <a href="{% url 'accounts:organization_service_info' organization.id svc.slug %}"
-        class="btn btn-sm {% if svc.slug == 'voip' %}btn-primary{% elif svc.slug == 'email' %}btn-info{% elif svc.slug == 'o365' %}btn-warning{% elif svc.slug == 'web' %}btn-success{% elif svc.slug == 'firewall' %}btn-danger{% else %}btn-secondary{% endif %}">
+        class="btn btn-sm btn-outline-secondary">
         <i class="fas {{ svc.icon }} me-1"></i>{{ svc.label }}
     </a>
     {% endfor %}
