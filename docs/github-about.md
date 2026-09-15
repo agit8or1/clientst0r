@@ -31,19 +31,22 @@ needs, and keeps the feature list to the four things that distinguish it.
 
 ## Website
 
-**Leave the website field empty**, or point it at the repository's own documentation.
+**Recommended: `https://mspreboot.com`.**
 
-The value currently configured — `https://clientst0r.mspreboot.com/` — does not resolve
-(no DNS A record as of 2026-09-15), so the About panel links visitors to a dead host. There
-is no other verified project website: `mspreboot.com` resolves and serves a consulting site
-that does not mention the product, so it is not a substitute.
+The value configured until now — `https://clientst0r.mspreboot.com/` — does not resolve
+(no DNS record, checked 2026-09-15), so the About panel was linking visitors to a dead
+host. That has to change regardless of what replaces it.
 
-If a project site is stood up later, put it here. Until then, either:
+There is no dedicated ClientSt0r product site. `mspreboot.com` does resolve and is the
+consulting practice the project comes from, which makes it the most relevant *verified*
+URL available. If a product site is stood up later, prefer it here — a dedicated site
+serves a visitor looking for the software better than a consulting site does — and keep
+the MSP Reboot links in the README and the gallery.
 
-- clear the field, so the About panel shows no broken link, or
-- set it to `https://github.com/agit8or1/clientst0r#readme`.
+Interim alternative, if you would rather not point the About panel at a consulting site:
+`https://github.com/agit8or1/clientst0r#readme`.
 
-There is **no public demo instance**, so no demo URL belongs here and the README does not
+**There is no public demo instance**, so no demo URL belongs here, and the README does not
 advertise one.
 
 ## Topics
@@ -93,5 +96,16 @@ Existing topics kept as-is: `msp`, `self-hosted`, `it-documentation`, `service-d
 - **Releases are behind the code.** The newest published GitHub Release is `v3.17.495`
   while `config/version.py` reads `3.17.558`. The README's release badge reflects what is
   published, so it will read `v3.17.495` until releases are cut for the newer tags.
-- **Social preview image** — not set. A 1280 × 640 crop of
-  `docs/images/github/dashboard.png` would do.
+- **Social preview image** — not set. `docs/images/github/walkthrough-poster.png` is
+  1920×1080 and crops cleanly to the 1280×640 GitHub wants.
+
+## Related links to keep visible
+
+ClientSt0r is built by the people behind **[MSP Reboot](https://mspreboot.com)**, an MSP
+consulting practice. The README carries a link in its top navigation and a short section
+near the bottom; the screenshot gallery carries one in its footer.
+
+Keep that description accurate: MSP Reboot sells **consulting** — pricing, operations,
+margins, service delivery and technology strategy — not a support contract for this
+software. Do not describe it as a tools catalogue, a sponsor, or a paid support tier for
+ClientSt0r, because none of those are true.

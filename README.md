@@ -11,17 +11,29 @@ Keep customer documentation, assets, credentials and support workflows on your o
 
 [![License: MIT](https://img.shields.io/github/license/agit8or1/clientst0r?color=blue)](LICENSE) [![Latest release](https://img.shields.io/github/v/release/agit8or1/clientst0r?label=release)](https://github.com/agit8or1/clientst0r/releases) [![CodeQL](https://github.com/agit8or1/clientst0r/actions/workflows/codeql.yml/badge.svg)](https://github.com/agit8or1/clientst0r/actions/workflows/codeql.yml) [![Docker image](https://github.com/agit8or1/clientst0r/actions/workflows/docker-image.yml/badge.svg)](https://github.com/agit8or1/clientst0r/actions/workflows/docker-image.yml)
 
-[Screenshots](docs/screenshots.md) · [Quick Start](#quick-start) · [Documentation](#documentation) · [Releases](https://github.com/agit8or1/clientst0r/releases) · [Report a bug](https://github.com/agit8or1/clientst0r/issues/new?template=bug_report.yml)
+[Quick Start](#quick-start) · [Screenshots](docs/screenshots.md) · [Walkthrough](#watch-it-work) · [Documentation](#documentation) · [Releases](https://github.com/agit8or1/clientst0r/releases) · [Report a bug](https://github.com/agit8or1/clientst0r/issues/new?template=bug_report.yml) · [MSP Reboot](https://mspreboot.com)
 
 </div>
 
 ---
 
-[![The ClientSt0r dashboard for a managed client: quick actions, record counts, a site map with two mapped locations, and panels for the next seven days of scheduled work, outstanding tasks and website monitor status](docs/images/github/dashboard.png)](docs/images/github/dashboard.png)
+[![The ClientSt0r dashboard for a managed client: quick actions, record counts, and panels for the next seven days of scheduled work, outstanding tasks and website monitor status](docs/images/github/client-dashboard-light.png)](docs/images/github/client-dashboard-light.png)
 
-### 30-second walkthrough
+## Watch it work
 
-[![Animated walkthrough: the client dashboard, the service desk queue, a ticket showing its contract, SLA countdown and masked vault context, the runbook behind it, the asset record, the vault, a project timeline and a profitability report](docs/images/github/walkthrough.gif)](docs/images/github/walkthrough.gif)
+[![Walkthrough video: a technician moves from the client dashboard into the queue, opens a ticket carrying its contract and credentials, reads the runbook behind it, and finishes on what the month earned](docs/images/github/walkthrough-poster.png)](docs/images/github/walkthrough.gif)
+
+**[▶ Watch the walkthrough](docs/images/github/walkthrough.gif)** — a 34-second cut of
+the client dashboard, the customer record, and a ticket carrying its contract, SLA and
+masked vault context.
+
+The full **3-minute walkthrough** covers all of that plus the rack elevation, IPAM,
+dispatch, a project plan with dependencies, quote-to-invoice and profitability
+reporting, in both light and dark themes. It is caption-led — there is no narration
+track — and the
+[transcript](docs/media/walkthrough.txt) and [captions](docs/media/walkthrough.vtt) are
+here. Regenerate it, or the screenshots, with
+[`scripts/demo/`](scripts/demo/README.md).
 
 ## Why MSPs run it
 
@@ -41,35 +53,48 @@ ticket belongs to an organization. Technicians switch client context in one clic
 role-based membership decides who sees what. Multi-site clients, parent/child
 organizations and per-client PSA settings are first-class, not bolted on.
 
-## A closer look
+## See it in action
 
-### A ticket that already knows the customer
+A ticket that already knows the customer — contract, SLA countdown, internal notes kept
+apart from client replies, and the credentials the job needs, listed but never revealed.
 
-[![Ticket detail showing the client's active contract and hours used, an SLA countdown, internal and client-visible activity, the linked network asset, vault context listing five credentials by title and username with every secret hidden, and logged billable time](docs/images/github/ticket-detail.png)](docs/images/github/ticket-detail.png)
-
-Contract and hours consumed, SLA countdown, client-visible replies separated from internal
-notes, the linked asset, the credentials this job needs — listed by title and username, never
-by secret — and the time logged against it, billable or not.
+[![Ticket detail showing the client's active contract, SLA countdown, internal and client-visible activity, the linked asset, vault context with every secret hidden, and logged time](docs/images/github/ticket-detail-light.png)](docs/images/github/ticket-detail-light.png)
 
 <table>
 <tr>
-<td width="33%" valign="top">
-<a href="docs/images/github/tickets.png"><img src="docs/images/github/tickets.png" alt="Service desk queue listing nine tickets across four client organizations, with filters for client, status, priority, queue and assignee"></a>
-<b>Service desk queue</b><br>Every client in one list, filtered by status, priority, queue or technician.
+<td width="50%" valign="top">
+<a href="docs/images/github/ticket-queue-dark.png"><img src="docs/images/github/ticket-queue-dark.png" alt="Service desk queue in dark theme listing twelve tickets across four clients with subject, client, priority, status, queue, assignee and age"></a>
+<b>One queue, every client</b> · Dark<br>Filter by status, priority, queue or technician.
 </td>
-<td width="33%" valign="top">
-<a href="docs/images/github/client-overview.png"><img src="docs/images/github/client-overview.png" alt="Client overview page for a logistics company showing company information, primary contact details and two mapped sites"></a>
-<b>Client overview</b><br>Contacts, sites and the documentation stack for one customer.
+<td width="50%" valign="top">
+<a href="docs/images/github/dispatch-board-dark.png"><img src="docs/images/github/dispatch-board-dark.png" alt="Dispatch board in dark theme showing a week of scheduled work by technician with an SLA-at-risk banner"></a>
+<b>Dispatch the week</b> · Dark<br>Drag a ticket onto a technician; breaches surface up top.
 </td>
-<td width="33%" valign="top">
-<a href="docs/images/github/vault.png"><img src="docs/images/github/vault.png" alt="Password vault listing nine credentials for one client with usernames and security status shown and every secret hidden"></a>
-<b>Encrypted vault</b><br>AES-GCM at rest, per-entry access rules, reveals audited.
+</tr>
+<tr>
+<td width="50%" valign="top">
+<a href="docs/images/github/rack-elevation-dark.png"><img src="docs/images/github/rack-elevation-dark.png" alt="Rack elevation in dark theme showing a 42U rack populated with firewall, core switch, patch panel, servers, NAS and UPS at their unit positions"></a>
+<b>What is actually in the rack</b> · Dark<br>Each device linked to its asset record.
+</td>
+<td width="50%" valign="top">
+<a href="docs/images/github/project-timeline-light.png"><img src="docs/images/github/project-timeline-light.png" alt="Project timeline in light theme: a Gantt chart of seven tasks with milestones marked"></a>
+<b>Projects with dependencies</b> · Light<br>Drag a bar to reschedule; blocked work is flagged.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<a href="docs/images/github/vault-dark.png"><img src="docs/images/github/vault-dark.png" alt="Password vault in dark theme listing nine credentials with title, username and security status, every secret hidden"></a>
+<b>Credentials, never on screen</b> · Dark<br>AES-GCM at rest; every reveal audited.
+</td>
+<td width="50%" valign="top">
+<a href="docs/images/github/report-profitability-light.png"><img src="docs/images/github/report-profitability-light.png" alt="Profitability by client report in light theme showing revenue, cost, margin and blended margin percentage"></a>
+<b>What the month earned</b> · Light<br>Revenue against cost of delivery, from logged time.
 </td>
 </tr>
 </table>
 
-[See the full tour →](docs/screenshots.md) — 24 screenshots across documentation, the
-service desk, quotes and invoices, contracts, projects, scheduling and reporting.
+**[See all 28 screenshots →](docs/screenshots.md)** — light and dark, across documentation,
+the service desk, dispatch, projects, reporting and administration.
 
 ## Quick Start
 
@@ -199,6 +224,17 @@ or [Discussions](https://github.com/agit8or1/clientst0r/discussions).
 ## License
 
 MIT — see [LICENSE](LICENSE). Use it, fork it, run it for your clients.
+
+## MSP Reboot
+
+ClientSt0r is built by the people behind **[MSP Reboot](https://mspreboot.com)** — an MSP
+consulting practice run by a former 25-year MSP owner, working with owners on pricing,
+operations, margins, service delivery and technology strategy.
+
+The consulting and this software are separate things: ClientSt0r is MIT-licensed and
+self-hosted, and nothing here requires an engagement. There is no paid support tier and no
+service-level commitment attached to the project — if you want commercial help with your
+operation rather than with the software, that is what mspreboot.com is for.
 
 ---
 

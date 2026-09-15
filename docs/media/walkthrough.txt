@@ -1,0 +1,31 @@
+ClientSt0r walkthrough — transcript
+(caption-led; no narration track. Use this as a narration script.)
+
+[00:00:06.000] One tenant per client. Open a customer and everything is scoped to them.
+[00:00:13.800] The week ahead. Scheduled tickets and maintenance falling due, merged into one list.
+[00:00:19.600] Monitor status and the client's sites sit underneath, as reference rather than headline.
+[00:00:23.600] The customer record. Contacts, addresses, sites, and shortcuts into their documentation.
+[00:00:29.600] A service desk you own, not one you rent. Every client in one queue.
+[00:00:35.600] A ticket that already knows the customer — active contract, hours used, and the SLA countdown.
+[00:00:43.900] Internal notes stay internal. Client-visible replies are kept visibly separate.
+[00:00:49.700] The credentials this job needs, by title and username only. Secrets are never rendered here.
+[00:00:55.700] The runbook lives beside the work, linked from the ticket that needed it.
+[00:01:01.700] Per-client documentation and a shared knowledge base, searchable across titles and body text.
+[00:01:06.700] Light or dark, per person. Twelve themes ship, and every screen honours the one you pick.
+[00:01:12.700] The asset record: identity, network, OS, hardware, rack position, warranty and lifecycle.
+[00:01:20.500] Lifecycle and warranty dates mean the refresh conversation happens before the hardware fails.
+[00:01:24.500] What is physically in the comms room — every device at its U position, linked to its asset record.
+[00:01:31.000] Address space per client: subnets with VLAN, gateway and DNS, and which addresses are free.
+[00:01:36.500] The vault: AES-GCM encrypted at rest, per-entry access rules, audited reveals.
+[00:01:42.500] Dispatch the week. Drag a ticket onto a technician's row; SLA risk surfaces at the top.
+[00:01:49.000] Recurring maintenance runs on its own schedule, with per-task sign-off.
+[00:01:54.500] Projects with real dependencies. Drag a bar to reschedule; blocked work says so, and by what.
+[00:02:02.800] The dependency table underneath is where the blocking relationships are edited.
+[00:02:06.800] Back to light for the commercial side. Draft, sent and accepted quotes across every client.
+[00:02:11.800] Quote to signature: a PDF, an email, and a signing link the customer uses without an account.
+[00:02:18.300] Every invoice line carries its origin, so a billing query is answerable without reconstructing it.
+[00:02:24.800] Agreements track themselves: block hours with rollover, auto-renewal, and a profitability snapshot.
+[00:02:30.300] Revenue against cost of delivery, per client, drawn from logged time and issued invoices.
+[00:02:36.800] Client health combines SLA performance, ticket velocity, billing aging and engagement.
+[00:02:42.800] And the whole book of business: every tenant, every site, on one page.
+[00:02:48.800] Modules are opt-in. The service desk, AI assistance and the rest stay off until you turn them on.

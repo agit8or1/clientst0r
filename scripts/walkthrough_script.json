@@ -1,0 +1,254 @@
+[
+  {
+    "kind": "card",
+    "title": "ClientSt0r",
+    "subtitle": "Self-hosted IT documentation and service desk for MSPs \u2014 client assets, runbooks, an encrypted credential vault and native ticketing, all on your own infrastructure.",
+    "url": "github.com/agit8or1/clientst0r",
+    "secs": 6.0
+  },
+  {
+    "route": "/core/dashboard/",
+    "org": "client",
+    "theme": "light",
+    "hold": 6.0,
+    "highlight_start": true,
+    "caption_html": "<b>One tenant per client.</b> Open a customer and everything \u2014 assets, documents, credentials, tickets \u2014 is scoped to them.",
+    "caption_text": "One tenant per client. Open a customer and everything is scoped to them.",
+    "scrolls": [
+      {
+        "to": 560,
+        "secs": 1.8,
+        "hold": 4.0,
+        "caption_html": "<b>The week ahead.</b> Scheduled tickets and maintenance falling due, merged into one list.",
+        "caption_text": "The week ahead. Scheduled tickets and maintenance falling due, merged into one list."
+      },
+      {
+        "to": 1000,
+        "secs": 1.8,
+        "hold": 4.0,
+        "caption_html": "<b>Monitor status and the client's sites</b> sit underneath, as reference rather than headline.",
+        "caption_text": "Monitor status and the client's sites sit underneath, as reference rather than headline."
+      }
+    ]
+  },
+  {
+    "route": "/accounts/organizations/2/",
+    "org": "client",
+    "theme": "light",
+    "hold": 6.0,
+    "caption_html": "<b>The customer record.</b> Contacts, addresses, sites, and shortcuts into their VoIP, email, Microsoft 365 and firewall documentation.",
+    "caption_text": "The customer record. Contacts, addresses, sites, and shortcuts into their documentation."
+  },
+  {
+    "route": "/psa/",
+    "org": "msp",
+    "theme": "light",
+    "hold": 6.0,
+    "caption_html": "<b>A service desk you own, not one you rent.</b> Every client in one queue, filtered by status, priority, queue or technician.",
+    "caption_text": "A service desk you own, not one you rent. Every client in one queue."
+  },
+  {
+    "route": "/psa/t/PSA-2026-000001/",
+    "org": "client",
+    "theme": "light",
+    "hold": 6.5,
+    "wait_for_text": "Vault Context",
+    "caption_html": "<b>A ticket that already knows the customer.</b> Their active contract and hours used, and the SLA countdown, without leaving the page.",
+    "caption_text": "A ticket that already knows the customer \u2014 active contract, hours used, and the SLA countdown.",
+    "scrolls": [
+      {
+        "to": 480,
+        "secs": 1.8,
+        "hold": 4.0,
+        "caption_html": "<b>Internal notes stay internal.</b> Client-visible replies are kept visibly separate, so nothing leaks by accident.",
+        "caption_text": "Internal notes stay internal. Client-visible replies are kept visibly separate."
+      },
+      {
+        "to": 1020,
+        "secs": 1.8,
+        "hold": 6.0,
+        "caption_html": "<b>The credentials this job needs</b> \u2014 by title and username only. Secrets are never rendered here; opening one is permissioned and audited.",
+        "caption_text": "The credentials this job needs, by title and username only. Secrets are never rendered here."
+      }
+    ],
+    "poster_frame": true
+  },
+  {
+    "route": "/docs/runbook-warehouse-scanner-onboarding/",
+    "org": "client",
+    "theme": "light",
+    "hold": 6.0,
+    "highlight_end": true,
+    "caption_html": "<b>The runbook lives beside the work</b> \u2014 written for the technician who will run it, and linked from the ticket that needed it.",
+    "caption_text": "The runbook lives beside the work, linked from the ticket that needed it."
+  },
+  {
+    "route": "/docs/",
+    "org": "client",
+    "theme": "light",
+    "hold": 5.0,
+    "caption_html": "<b>Per-client documentation and a shared knowledge base</b>, searchable across titles and body text.",
+    "caption_text": "Per-client documentation and a shared knowledge base, searchable across titles and body text."
+  },
+  {
+    "route": "/assets/",
+    "org": "client",
+    "theme": "dark",
+    "hold": 6.0,
+    "caption_html": "<b>Light or dark, per person.</b> Twelve themes ship, and every screen honours the one you pick.",
+    "caption_text": "Light or dark, per person. Twelve themes ship, and every screen honours the one you pick."
+  },
+  {
+    "route": "/assets/9/",
+    "org": "client",
+    "theme": "dark",
+    "hold": 6.0,
+    "caption_html": "<b>The asset record.</b> Identity, network, operating system, hardware, rack position, warranty and lifecycle \u2014 on one page.",
+    "caption_text": "The asset record: identity, network, OS, hardware, rack position, warranty and lifecycle.",
+    "scrolls": [
+      {
+        "to": 520,
+        "secs": 1.8,
+        "hold": 4.0,
+        "caption_html": "<b>Lifecycle and warranty dates</b> mean the refresh conversation happens before the hardware fails.",
+        "caption_text": "Lifecycle and warranty dates mean the refresh conversation happens before the hardware fails."
+      }
+    ]
+  },
+  {
+    "route": "/monitoring/racks/6/",
+    "org": "client",
+    "theme": "dark",
+    "hold": 6.5,
+    "caption_html": "<b>What is physically in the comms room</b> \u2014 every device at its U position, linked back to its asset record.",
+    "caption_text": "What is physically in the comms room \u2014 every device at its U position, linked to its asset record."
+  },
+  {
+    "route": "/monitoring/ipam/",
+    "org": "client",
+    "theme": "dark",
+    "hold": 5.5,
+    "caption_html": "<b>Address space per client</b> \u2014 subnets with their VLAN, gateway and DNS, and which addresses are free.",
+    "caption_text": "Address space per client: subnets with VLAN, gateway and DNS, and which addresses are free."
+  },
+  {
+    "route": "/vault/",
+    "org": "client",
+    "theme": "dark",
+    "hold": 6.0,
+    "caption_html": "<b>The vault.</b> AES-GCM encrypted at rest, organised per client, with per-entry access rules and audited reveals.",
+    "caption_text": "The vault: AES-GCM encrypted at rest, per-entry access rules, audited reveals."
+  },
+  {
+    "route": "/psa/dispatch/",
+    "org": "client",
+    "theme": "dark",
+    "hold": 6.5,
+    "caption_html": "<b>Dispatch the week.</b> Drag a ticket onto a technician's row; anything close to breaching its SLA surfaces at the top.",
+    "caption_text": "Dispatch the week. Drag a ticket onto a technician's row; SLA risk surfaces at the top."
+  },
+  {
+    "route": "/scheduling/",
+    "org": "client",
+    "theme": "dark",
+    "hold": 5.5,
+    "caption_html": "<b>Recurring maintenance</b> runs on its own schedule, with per-task sign-off, separate from the ticket queue.",
+    "caption_text": "Recurring maintenance runs on its own schedule, with per-task sign-off."
+  },
+  {
+    "route": "/psa/projects/1/timeline/",
+    "org": "msp",
+    "theme": "dark",
+    "hold": 6.5,
+    "wait_for_text": "Schedule & dependencies",
+    "caption_html": "<b>Projects with real dependencies.</b> Drag a bar to reschedule; work that is blocked says so, and by what.",
+    "caption_text": "Projects with real dependencies. Drag a bar to reschedule; blocked work says so, and by what.",
+    "scrolls": [
+      {
+        "to": 430,
+        "secs": 1.8,
+        "hold": 4.0,
+        "caption_html": "<b>The dependency table</b> underneath is where the blocking relationships are actually edited.",
+        "caption_text": "The dependency table underneath is where the blocking relationships are edited."
+      }
+    ]
+  },
+  {
+    "route": "/psa/quotes/",
+    "org": "msp",
+    "theme": "light",
+    "hold": 5.0,
+    "caption_html": "<b>Back to light for the commercial side.</b> Draft, sent and accepted quotes across every client.",
+    "caption_text": "Back to light for the commercial side. Draft, sent and accepted quotes across every client."
+  },
+  {
+    "route": "/psa/quotes/1/",
+    "org": "msp",
+    "theme": "light",
+    "hold": 6.5,
+    "caption_html": "<b>Quote to signature.</b> A PDF, an email, and a signing link the customer uses without an account. Accepting it can open a ticket or spin up a project.",
+    "caption_text": "Quote to signature: a PDF, an email, and a signing link the customer uses without an account."
+  },
+  {
+    "route": "/psa/invoices/1/",
+    "org": "msp",
+    "theme": "light",
+    "hold": 6.5,
+    "caption_html": "<b>Every invoice line carries its origin</b> \u2014 a contract period, a logged time entry, an expense \u2014 so a billing query is answerable.",
+    "caption_text": "Every invoice line carries its origin, so a billing query is answerable without reconstructing it."
+  },
+  {
+    "route": "/psa/contracts/1/",
+    "org": "msp",
+    "theme": "light",
+    "hold": 5.5,
+    "caption_html": "<b>Agreements track themselves.</b> Block hours with rollover, auto-renewal, and a profitability snapshot for the period.",
+    "caption_text": "Agreements track themselves: block hours with rollover, auto-renewal, and a profitability snapshot."
+  },
+  {
+    "route": "/reports/psa/profitability-by-client/",
+    "org": "msp",
+    "theme": "light",
+    "hold": 6.5,
+    "caption_html": "<b>Revenue against cost of delivery, per client</b> \u2014 drawn from the time already logged and the invoices already issued.",
+    "caption_text": "Revenue against cost of delivery, per client, drawn from logged time and issued invoices."
+  },
+  {
+    "route": "/reports/psa/client-health/",
+    "org": "msp",
+    "theme": "light",
+    "hold": 6.0,
+    "caption_html": "<b>Client health</b> combines SLA performance, ticket velocity, billing aging and engagement, so at-risk accounts surface early.",
+    "caption_text": "Client health combines SLA performance, ticket velocity, billing aging and engagement."
+  },
+  {
+    "route": "/core/global-dashboard/",
+    "org": "msp",
+    "theme": "light",
+    "hold": 6.0,
+    "caption_html": "<b>And the whole book of business</b> \u2014 every tenant, every site, on one page.",
+    "caption_text": "And the whole book of business: every tenant, every site, on one page."
+  },
+  {
+    "route": "/core/settings/features/",
+    "org": "msp",
+    "theme": "light",
+    "hold": 5.5,
+    "caption_html": "<b>Modules are opt-in.</b> The service desk, AI assistance and the rest stay off until an administrator turns them on.",
+    "caption_text": "Modules are opt-in. The service desk, AI assistance and the rest stay off until you turn them on."
+  },
+  {
+    "kind": "card",
+    "title": "Run it yourself",
+    "subtitle": "docker compose up -d, or a one-line install on Ubuntu. MIT licensed, self-hosted, no SaaS tier and no hosted service.",
+    "url": "github.com/agit8or1/clientst0r",
+    "secs": 5.5
+  },
+  {
+    "kind": "card",
+    "title": "MSP Reboot",
+    "subtitle": "ClientSt0r is built by the people behind MSP Reboot \u2014 an MSP consulting practice working with owners on pricing, operations and service delivery.",
+    "url": "mspreboot.com",
+    "secs": 5.5
+  }
+]

@@ -1,0 +1,321 @@
+{
+  "_comment": [
+    "Screenshot manifest for docs/screenshots.md and the README.",
+    "Each entry records the route, theme, viewport and the demo data it needs, so",
+    "the set can be regenerated without guesswork. Capture with:",
+    "  scripts/demo/setup_demo.py   (build the isolated demo instance)",
+    "  scripts/capture_screenshots.py --out docs/images/github",
+    "Themes are switched through the application's own toggle, not injected CSS."
+  ],
+  "defaults": {
+    "user": "demo.tech",
+    "organization": "Northwind Logistics",
+    "width": 1440,
+    "height": 1000,
+    "scale": 2
+  },
+  "screenshots": [
+    {
+      "name": "client-dashboard-light",
+      "route": "/core/dashboard/",
+      "theme": "light",
+      "group": "overview",
+      "heading": "Client dashboard",
+      "caption": "Open a client and see the week ahead: scheduled tickets, maintenance falling due, monitor status, and where their sites are.",
+      "alt": "Client dashboard in light theme with quick actions, record counts, a seven-day schedule, outstanding tasks, monitor status and a site map",
+      "max_h": 1060
+    },
+    {
+      "name": "global-dashboard-dark",
+      "route": "/core/global-dashboard/",
+      "theme": "dark",
+      "group": "overview",
+      "heading": "Every client at once",
+      "caption": "The MSP-wide view: totals across all tenants, thirty-day health, and a map of every client site.",
+      "alt": "Cross-tenant dashboard in dark theme showing counts for organizations, users, assets, documents and monitors, a thirty-day health summary, and a map of client sites across the United States",
+      "organization": "Beacon Managed IT",
+      "max_h": 1060
+    },
+    {
+      "name": "client-overview-light",
+      "route": "/accounts/organizations/2/",
+      "theme": "light",
+      "group": "overview",
+      "heading": "Customer overview",
+      "caption": "Everything about one customer in one place \u2014 contacts, sites, and shortcuts into their documentation.",
+      "alt": "Customer overview page in light theme showing company information, primary contact details and two mapped sites",
+      "max_h": 790
+    },
+    {
+      "name": "project-timeline-light",
+      "route": "/psa/projects/1/timeline/",
+      "theme": "light",
+      "group": "insights",
+      "heading": "Project timeline",
+      "caption": "Drag a bar to reschedule. Dependencies show what is blocked and what it is waiting for.",
+      "alt": "Project timeline in light theme: a Gantt chart of seven tasks with milestones marked, above a dependency table showing blocked tasks and what each waits for",
+      "organization": "Beacon Managed IT",
+      "wait_for_text": [
+        "Schedule & dependencies"
+      ],
+      "max_h": 560
+    },
+    {
+      "name": "dispatch-board-dark",
+      "route": "/psa/dispatch/",
+      "theme": "dark",
+      "group": "insights",
+      "heading": "Dispatch board",
+      "caption": "A week of work per technician. Drag a ticket onto a row to schedule it; the banner flags anything close to breaching.",
+      "alt": "Dispatch board in dark theme showing a week of scheduled work by technician with an SLA-at-risk banner and unassigned tickets",
+      "organization": "Northwind Logistics",
+      "max_h": 860
+    },
+    {
+      "name": "report-profitability-light",
+      "route": "/reports/psa/profitability-by-client/",
+      "theme": "light",
+      "group": "insights",
+      "heading": "Profitability by client",
+      "caption": "Revenue against cost of delivery for the period, drawn from logged time and issued invoices \u2014 not typed in.",
+      "alt": "Profitability by client report in light theme showing revenue, cost, margin and blended margin percentage with a per-client breakdown",
+      "organization": "Beacon Managed IT",
+      "max_h": 1000
+    },
+    {
+      "name": "report-client-health-dark",
+      "route": "/reports/psa/client-health/",
+      "theme": "dark",
+      "group": "insights",
+      "heading": "Client health score",
+      "caption": "A composite of SLA performance, ticket velocity, billing aging and engagement \u2014 so at-risk accounts surface before they churn.",
+      "alt": "Client health score report in dark theme ranking five clients by a composite score built from SLA, velocity, aging, engagement and an NPS proxy",
+      "organization": "Beacon Managed IT",
+      "max_h": 1100
+    },
+    {
+      "name": "report-hourly-rate-light",
+      "route": "/reports/psa/effective-hourly-rate/",
+      "theme": "light",
+      "group": "insights",
+      "heading": "Effective hourly rate",
+      "caption": "What an hour actually earned once non-billable time is counted, per client and per technician.",
+      "alt": "Effective hourly rate report in light theme showing average, highest, lowest and median rates with billable hours and utilisation per client",
+      "organization": "Beacon Managed IT",
+      "max_h": 980
+    },
+    {
+      "name": "rack-elevation-dark",
+      "route": "/monitoring/racks/6/",
+      "theme": "dark",
+      "group": "insights",
+      "heading": "Rack elevation",
+      "caption": "What is in the comms room, at which U, drawing how much power \u2014 linked to the asset record for each device.",
+      "alt": "Rack elevation view in dark theme showing a 42U rack populated with a firewall, core switch, patch panel, servers, NAS and UPS at their unit positions",
+      "max_h": 1400
+    },
+    {
+      "name": "ipam-subnets-light",
+      "route": "/monitoring/ipam/",
+      "theme": "light",
+      "group": "insights",
+      "heading": "IP address management",
+      "caption": "Subnets per client with their VLAN, gateway and DNS, and which addresses are allocated, reserved or free.",
+      "alt": "IP address management in light theme listing four subnets with network, VLAN, gateway and location for one client",
+      "max_h": 860
+    },
+    {
+      "name": "scheduling-dark",
+      "route": "/scheduling/",
+      "theme": "dark",
+      "group": "insights",
+      "heading": "Recurring maintenance",
+      "caption": "Maintenance that recurs on its own schedule, with per-task sign-off, kept separate from the ticket queue.",
+      "alt": "Scheduling page in dark theme showing tasks needing sign-off and upcoming maintenance for the next seven days with priority and status",
+      "max_h": 900
+    },
+    {
+      "name": "monitors-light",
+      "route": "/monitoring/websites/",
+      "theme": "light",
+      "group": "insights",
+      "heading": "Uptime and certificate expiry",
+      "caption": "Endpoint checks with response time, and the certificate expiry date you would otherwise find out about at 2am.",
+      "alt": "Website monitor list in light theme showing monitored endpoints with status, response time, SSL expiry date and last check time",
+      "max_h": 760
+    },
+    {
+      "name": "ticket-queue-dark",
+      "route": "/psa/",
+      "theme": "dark",
+      "group": "workflows",
+      "heading": "Service desk queue",
+      "caption": "Every client in one queue. Filter by status, priority, queue or technician; the subject is what you scan, not the badges.",
+      "alt": "Service desk queue in dark theme listing twelve tickets across four clients with subject, client, priority, status, queue, assignee and age",
+      "organization": "Beacon Managed IT",
+      "max_h": 1100
+    },
+    {
+      "name": "ticket-detail-light",
+      "route": "/psa/t/PSA-2026-000001/",
+      "theme": "light",
+      "group": "workflows",
+      "heading": "A ticket that knows the customer",
+      "caption": "Contract and hours used, the SLA countdown, internal notes kept apart from client replies, the linked asset, and the credentials this job needs \u2014 listed, never revealed.",
+      "alt": "Ticket detail in light theme showing the client's active contract, SLA countdown, internal and client-visible activity, the linked asset, vault context with secrets hidden, and logged time",
+      "wait_for_text": [
+        "Vault Context"
+      ],
+      "max_h": 1520
+    },
+    {
+      "name": "documents-dark",
+      "route": "/docs/",
+      "theme": "dark",
+      "group": "workflows",
+      "heading": "Client documentation",
+      "caption": "Per-client documents and global knowledge base articles, searchable by title and body.",
+      "alt": "Document list in dark theme showing per-client documentation with category, tags and last-updated date",
+      "max_h": 760
+    },
+    {
+      "name": "kb-runbook-light",
+      "route": "/docs/runbook-warehouse-scanner-onboarding/",
+      "theme": "light",
+      "group": "workflows",
+      "heading": "Runbooks beside the work",
+      "caption": "A procedure written for the technician who will actually run it \u2014 and linked from the tickets that need it.",
+      "alt": "Knowledge base runbook in light theme with when-to-use guidance, numbered steps and an escalation note",
+      "max_h": 820
+    },
+    {
+      "name": "assets-dark",
+      "route": "/assets/",
+      "theme": "dark",
+      "group": "workflows",
+      "heading": "Asset register",
+      "caption": "Every device you look after for a client, filterable by type, manufacturer, status and location.",
+      "alt": "Asset list in dark theme showing devices with name, type, manufacturer, model and serial number, with filters above",
+      "max_h": 900
+    },
+    {
+      "name": "asset-detail-light",
+      "route": "/assets/9/",
+      "theme": "light",
+      "group": "workflows",
+      "heading": "Asset detail",
+      "caption": "Identity, network, operating system, hardware, rack position, warranty and lifecycle on one record.",
+      "alt": "Asset detail in light theme for a domain controller showing identity, network, operating system, hardware specification, physical position, lifecycle dates and tags",
+      "max_h": 1240
+    },
+    {
+      "name": "vault-dark",
+      "route": "/vault/",
+      "theme": "dark",
+      "group": "workflows",
+      "heading": "Credential vault",
+      "caption": "AES-GCM encrypted at rest, organised per client. Secrets are never rendered into a list \u2014 opening one is a permissioned, audited act.",
+      "alt": "Password vault in dark theme listing nine credentials for one client with title, username and security status, every secret hidden",
+      "max_h": 900
+    },
+    {
+      "name": "quote-detail-light",
+      "route": "/psa/quotes/1/",
+      "theme": "light",
+      "group": "workflows",
+      "heading": "Quote to signature",
+      "caption": "Line items, tax and total, a PDF, and a signing link the customer can use without an account. Accepting it can open a ticket or spin up a project.",
+      "alt": "Quote detail in light theme with line items, subtotal, tax and total, plus actions to view the PDF, email it, copy a signing URL or accept it",
+      "organization": "Beacon Managed IT",
+      "max_h": 1100
+    },
+    {
+      "name": "invoice-detail-dark",
+      "route": "/psa/invoices/1/",
+      "theme": "dark",
+      "group": "workflows",
+      "heading": "Invoices that explain themselves",
+      "caption": "Every line carries its origin \u2014 a contract period, a logged time entry, an expense \u2014 so a billing query is answerable without reconstructing it.",
+      "alt": "Invoice detail in dark theme with line items tagged by origin, a payment recording form and a push-to-accounting action",
+      "organization": "Beacon Managed IT",
+      "max_h": 1100
+    },
+    {
+      "name": "contract-detail-light",
+      "route": "/psa/contracts/1/",
+      "theme": "light",
+      "group": "workflows",
+      "heading": "Agreements and hours",
+      "caption": "Block hours with rollover rules, auto-renewal, and a profitability snapshot for the current period.",
+      "alt": "Contract detail in light theme showing hours consumed, rollover policy, auto-renewal state and a profitability snapshot",
+      "organization": "Beacon Managed IT",
+      "max_h": 520
+    },
+    {
+      "name": "project-detail-dark",
+      "route": "/psa/projects/1/",
+      "theme": "dark",
+      "group": "workflows",
+      "heading": "Project delivery",
+      "caption": "Tasks, milestones and assignees with budget consumption and profitability rolled up from the work already logged.",
+      "alt": "Project detail in dark theme showing client, owner, dates, a ready-to-bill panel, profitability, budget consumption and a task list with milestones",
+      "organization": "Beacon Managed IT",
+      "max_h": 1280
+    },
+    {
+      "name": "quotes-list-light",
+      "route": "/psa/quotes/",
+      "theme": "light",
+      "group": "management",
+      "heading": "Quote pipeline",
+      "caption": "Draft, sent and accepted quotes across every client, with totals and a one-click PDF.",
+      "alt": "Quote list in light theme showing three quotes across three clients with status, total and creation date",
+      "organization": "Beacon Managed IT",
+      "max_h": 720
+    },
+    {
+      "name": "invoices-list-dark",
+      "route": "/psa/invoices/",
+      "theme": "dark",
+      "group": "management",
+      "heading": "Billing at a glance",
+      "caption": "Sent, paid and overdue invoices with balances, and whether each has been pushed to your accounting system.",
+      "alt": "Invoice list in dark theme showing three invoices with sent, paid and overdue status, totals, balances and accounting push state",
+      "organization": "Beacon Managed IT",
+      "max_h": 720
+    },
+    {
+      "name": "contracts-list-light",
+      "route": "/psa/contracts/",
+      "theme": "light",
+      "group": "management",
+      "heading": "Agreements per client",
+      "caption": "Which clients are on managed agreements, which are on block hours, and how much of the allowance is gone.",
+      "alt": "Contract list in light theme showing three agreements with type, status, hours used against allowance and period",
+      "organization": "Beacon Managed IT",
+      "max_h": 720
+    },
+    {
+      "name": "organizations-dark",
+      "route": "/accounts/organizations/",
+      "theme": "dark",
+      "group": "access",
+      "heading": "Tenants and access",
+      "caption": "Every client is its own tenant. Membership decides who sees what; switching client context is one click.",
+      "alt": "Organization list in dark theme showing client tenants with member counts, asset counts and status",
+      "organization": "Beacon Managed IT",
+      "max_h": 800
+    },
+    {
+      "name": "feature-toggles-light",
+      "route": "/core/settings/features/",
+      "theme": "light",
+      "group": "access",
+      "heading": "Feature toggles",
+      "caption": "The service desk, AI assistance and other modules are opt-in \u2014 off until an administrator turns them on.",
+      "alt": "Feature toggle settings in light theme showing switches for optional modules including the native PSA service desk",
+      "organization": "Beacon Managed IT",
+      "max_h": 1000
+    }
+  ]
+}
