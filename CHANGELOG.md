@@ -5,6 +5,63 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.561] - 2026-09-15
+
+### Tax is charged on the taxable lines
+
+`is_taxable` has existed on `InvoiceLineItem` and `QuoteLineItem` since those
+models were written. It defaults to True, is exposed in the UI, is copied
+through credit memos, and no tax calculation ever read it. Both
+`recompute_totals()` methods computed tax from the entire subtotal.
+
+Any invoice mixing taxable goods with non-taxable labour or reimbursed
+expenses overcharged the customer. On a 2,000 labour + 900 hardware + 180
+travel invoice at 8.25%, the tax charged was 254.10 against 74.25 actually
+due — 179.85 too much, every billing cycle.
+
+`create_credit_memo(amount=...)` made the disagreement explicit: it writes
+`is_taxable=False` on the credit line, and the old calculation taxed it
+anyway. A 500.00 goodwill credit went out worth 541.25.
+
+Tax now accumulates over taxable lines only, in both methods. Rounding moved
+to ROUND_HALF_UP at the same time — Decimal defaults to banker's rounding,
+which disagrees with the accounting providers by a cent on exact half-cent
+results (10.00 at 8.25% is 0.825 exactly, charged as 0.82). That is the drift
+`provider_tax_amount` was added to detect.
+
+Seven tests in `psa/tests/test_invoice_tax.py`; four failed against the
+unfixed code with exactly the numbers above, and the other three are
+regression guards for the all-taxable, zero-rate and full-credit-memo cases
+that were already correct. 998 tests green across psa, reports and
+integrations.
+
+**Existing invoices are not rewritten.** Stored totals stay as issued until
+something recomputes them — an edit, a payment, or a re-push to the accounting
+provider — at which point the corrected figure applies. That is deliberate:
+silently restating issued invoices is not a code decision.
+
+### A read-only report of affected invoices
+
+New `manage.py psa_tax_audit` lists invoices whose stored tax disagrees with
+the corrected calculation, with a per-client breakdown and a net total.
+
+    manage.py psa_tax_audit
+    manage.py psa_tax_audit --org acme --since 2026-01-01 --csv audit.csv
+
+Drafts and voids are excluded by default — a draft was never sent and a void
+was withdrawn — as are credit memos, so credits carrying the same defect do
+not net off the overcharge total. `--all-statuses` and
+`--include-credit-memos` opt back in.
+
+It modifies nothing, and a test asserts that: subtotal, tax_amount, total,
+status and amount_paid are unchanged across a run. The output states in plain
+terms that a hand-edited tax amount or a rate changed after issue also lands
+in the list, and that nothing in it constitutes a refund decision.
+
+Six tests in `psa/tests/test_tax_audit.py`. They caught a crash before real
+data would have: `iterator()` after `prefetch_related()` raises unless given
+an explicit `chunk_size`.
+
 ## [3.17.560] - 2026-09-15
 
 ### Backups: encrypted by default, and one key-normalisation path

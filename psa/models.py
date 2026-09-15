@@ -2408,14 +2408,25 @@ class Quote(models.Model):
         return f'{prefix}{n + 1:05d}'
 
     def recompute_totals(self):
-        from decimal import Decimal, InvalidOperation
-        sub = sum((li.line_total for li in self.line_items.all()), Decimal('0'))
+        from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+        sub = Decimal('0')
+        taxable_sub = Decimal('0')
+        for li in self.line_items.all():
+            lt = li.line_total
+            sub += lt
+            if li.is_taxable:
+                taxable_sub += lt
         self.subtotal = sub
         try:
             rate = Decimal(str(self.tax_rate or '0'))
         except (InvalidOperation, ValueError, TypeError):
             rate = Decimal('0')
-        self.tax_amount = (sub * rate).quantize(Decimal('0.01'))
+        # Tax the taxable lines, not the whole subtotal. `is_taxable` is set
+        # per line and was previously written and never read. ROUND_HALF_UP
+        # because Decimal defaults to banker's rounding, which disagrees with
+        # the accounting providers by a cent on exact half-cent results.
+        self.tax_amount = (taxable_sub * rate).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP)
         self.total = sub + self.tax_amount
         self.save(update_fields=['subtotal', 'tax_amount', 'total'])
 
@@ -3453,14 +3464,28 @@ class Invoice(models.Model):
         return f'{prefix}{n + 1:05d}'
 
     def recompute_totals(self):
-        from decimal import Decimal, InvalidOperation
-        sub = sum((li.line_total for li in self.line_items.all()), Decimal('0'))
+        from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+        sub = Decimal('0')
+        taxable_sub = Decimal('0')
+        for li in self.line_items.all():
+            lt = li.line_total
+            sub += lt
+            if li.is_taxable:
+                taxable_sub += lt
         self.subtotal = sub
         try:
             rate = Decimal(str(self.tax_rate or '0'))
         except (InvalidOperation, ValueError, TypeError):
             rate = Decimal('0')
-        self.tax_amount = (sub * rate).quantize(Decimal('0.01'))
+        # Tax the taxable lines, not the whole subtotal. `is_taxable` is set
+        # per line — by the UI, by the quote-to-invoice copy, and explicitly by
+        # create_credit_memo — and was previously written and never read, so a
+        # mixed invoice taxed labour and reimbursed expenses alongside goods.
+        # ROUND_HALF_UP because Decimal defaults to banker's rounding, which
+        # disagrees with the accounting providers by a cent on exact half-cent
+        # results; `provider_tax_amount` exists to catch that kind of drift.
+        self.tax_amount = (taxable_sub * rate).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP)
         self.total = sub + self.tax_amount
         # Recompute amount_paid from related Payment rows
         paid = sum((Decimal(str(p.amount or '0')) for p in self.payments.all()), Decimal('0'))

@@ -1175,9 +1175,17 @@ fetched by id without checking which tenant it belongs to.
   layer (no AAD context binding, no version tag), while vault passwords use v2
   (both). Re-encrypting live credentials is a migration and needs its own
   release with a rollback path. No key rotation command exists.
-- **Remaining in this phase:** SLA calculation, billing arithmetic and
-  duplicate prevention, background job failure handling, search and export
-  scoping, and what the AI features are allowed to read.
+- Billing arithmetic *(partial — tax shipped v3.17.561)* — `is_taxable` was
+  stored on every invoice and quote line and read by no tax calculation, so
+  invoices mixing taxable goods with non-taxable labour or reimbursed expenses
+  overcharged the customer, and partial credit memos were worth more than the
+  credit requested. Tax now accumulates over taxable lines only and rounds
+  half-up rather than banker's. Issued invoices are not restated; the new
+  read-only `manage.py psa_tax_audit` reports which are affected and by how
+  much, per client.
+- **Remaining in this phase:** SLA calculation, invoice duplicate prevention
+  and the rest of billing arithmetic, background job failure handling, search
+  and export scoping, and what the AI features are allowed to read.
 
 **Sizing:** **M** — 49.1 complete; 49.2 is roughly half the audit surface.
 
@@ -1241,7 +1249,7 @@ fetched by id without checking which tenant it belongs to.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 
