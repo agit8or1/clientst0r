@@ -31,20 +31,16 @@ needs, and keeps the feature list to the four things that distinguish it.
 
 ## Website
 
-**Recommended: `https://mspreboot.com`.**
+**Set to `https://mspreboot.com`** (applied 2026-09-15).
 
-The value configured until now — `https://clientst0r.mspreboot.com/` — does not resolve
-(no DNS record, checked 2026-09-15), so the About panel was linking visitors to a dead
-host. That has to change regardless of what replaces it.
+The previous value, `https://clientst0r.mspreboot.com/`, had no DNS record, so the About
+panel was linking visitors to a host that did not resolve. `mspreboot.com` resolves, and
+is the consulting practice the project comes from, which makes it the most relevant
+*verified* URL available.
 
-There is no dedicated ClientSt0r product site. `mspreboot.com` does resolve and is the
-consulting practice the project comes from, which makes it the most relevant *verified*
-URL available. If a product site is stood up later, prefer it here — a dedicated site
-serves a visitor looking for the software better than a consulting site does — and keep
-the MSP Reboot links in the README and the gallery.
-
-Interim alternative, if you would rather not point the About panel at a consulting site:
-`https://github.com/agit8or1/clientst0r#readme`.
+There is no dedicated ClientSt0r product site. If one is stood up later, prefer it here —
+a product site serves someone looking for the software better than a consulting site does
+— and keep the MSP Reboot links in the README and the gallery either way.
 
 **There is no public demo instance**, so no demo URL belongs here, and the README does not
 advertise one.
