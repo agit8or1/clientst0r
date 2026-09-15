@@ -31,13 +31,14 @@ Please provide as much information as possible:
 
 ### Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 2.24.x  | :white_check_mark: |
-| 2.23.x  | :white_check_mark: |
-| < 2.23  | :x:                |
+| Version  | Supported          |
+| -------- | ------------------ |
+| 3.17.x   | :white_check_mark: |
+| < 3.17   | :x:                |
 
-We provide security updates for the current major version and one previous major version. Please update to the latest version to receive security patches.
+Security updates land on the current release line only. ClientSt0r ships continuously and
+upgrades in place from the web UI (**Admin → System → System Updates**), so the supported
+line is always the latest one — update rather than pinning an older release.
 
 ### Disclosure Policy
 
@@ -1443,7 +1444,7 @@ See separate section below for copy/paste implementation guide.
 
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
 - [Django Security](https://docs.djangoproject.com/en/5.0/topics/security/)
-- [DRF Security](https://www.django-rest-framework.org/topics/security/)
+- [DRF Authentication](https://www.django-rest-framework.org/api-guide/authentication/)
 - [CSP Reference](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
 - [HSTS Preload](https://hstspreload.org/)
 - [Security Headers](https://securityheaders.com/)

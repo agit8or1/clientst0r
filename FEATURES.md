@@ -1,6 +1,8 @@
 # Client St0r Features
 
-Complete feature documentation for Client St0r — self-hosted MSP documentation, ticketing, billing, monitoring, and compliance platform. Current release: **v3.17.444**.
+Complete feature documentation for ClientSt0r — self-hosted IT documentation and service desk for MSPs: client assets, runbooks, an encrypted credential vault, native ticketing with SLAs and billing, monitoring and compliance.
+
+See the [README](README.md) for positioning and install steps, and [docs/screenshots.md](docs/screenshots.md) for the visual tour.
 
 ## 🔐 Security Features
 
@@ -827,7 +829,7 @@ The mobile app exposes only six primary screens; everything else is reachable as
 
 ## 🚀 Performance & Deployment
 - **Optimization** - Database indexing, query optimization, caching, lazy loading, pagination
-- **Scalability** - Horizontal scaling, database replication, CDN integration, minified assets
+- **Scale** - Vertical scale on a single host; database indexing and query optimization keep large asset and ticket sets responsive. Clustered / multi-node deployment is out of scope.
 - **Installation** - One-command install (`bash install.sh`), `docker compose up -d` Docker / Compose path (Phase 42 — v3.17.490), systemd integration, Nginx config
 - **Maintenance** - Zero-downtime updates, automated backups, log rotation, health checks (dedicated `/health/` endpoint as of v3.17.490)
 
@@ -839,6 +841,37 @@ The mobile app exposes only six primary screens; everything else is reachable as
 - **GitHub Container Registry** — `.github/workflows/docker-image.yml` builds on every PR and publishes `ghcr.io/agit8or1/clientst0r:latest` + semver tags on push to `main` / `v*`. Buildx GHA layer cache. `linux/amd64` (ARM line commented in).
 - **Operator UX** — `Makefile` wraps `docker compose` with one-word targets: `make docker-up` / `docker-logs` / `docker-shell` / `docker-migrate` / `docker-createsuperuser` / `dev-up` / `backup` / `restore`.
 - **Documentation** — `.env.example` covers every supported variable with inline guidance; [`docs/docker.md`](docs/docker.md) covers quick start, profiles, persistent volumes, backups, upgrades, dev mode, and troubleshooting (race conditions, lost `APP_MASTER_KEY`, ARM hosts).
+
+---
+
+## 🏗️ Architecture
+
+### Technology stack
+
+| Layer | What it runs on |
+|---|---|
+| Framework | Django 6.0 |
+| API | Django REST Framework 3.17, optional GraphQL |
+| Database | MariaDB 10.11 (the Compose default); MySQL 8.0+ also supported, SQLite for local development |
+| Application server | Gunicorn, behind Nginx |
+| Authentication | `django-two-factor-auth` (TOTP), optional Azure AD / Entra ID SSO and LDAP |
+| Encryption | Python `cryptography` — AES-GCM for secrets at rest |
+| Password hashing | Argon2 |
+| Frontend | Bootstrap 5 and vanilla JavaScript, no build step |
+| Scheduling | systemd timers (no Redis or Celery required) |
+
+### Design decisions
+
+- **Two install paths, both first-class** — native systemd install via `install.sh`, or
+  `docker compose up -d`. Neither is a wrapper around the other.
+- **No broker, no worker fleet** — recurring work runs on systemd timers. Redis is optional
+  and only used if you point `CACHES` at it.
+- **Single server by design** — one VM or one container host per MSP. There is no clustered
+  or multi-node deployment story.
+- **Self-hosted only** — no hosted service, no phone-home. AI-assisted features are gated
+  behind `psa_ai_enabled` and call nothing until you enable them and supply a key.
+- **API-driven** — REST and GraphQL endpoints back the mobile app, the browser extension
+  and third-party integrations.
 
 ---
 

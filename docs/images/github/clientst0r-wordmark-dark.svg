@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 112" width="520" height="112" role="img" aria-labelledby="t d">
+  <title id="t">ClientSt0r</title>
+  <desc id="d">ClientSt0r — self-hosted IT documentation and service desk for MSPs</desc>
+  <defs>
+    <linearGradient id="ic" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="zg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(8,16)">
+    <polygon points="40,0 80,20 80,60 40,80 0,60 0,20" fill="url(#ic)"/>
+    <rect x="24" y="24" width="32" height="5" rx="2.5" fill="#ffffff" opacity="0.92"/>
+    <rect x="24" y="37" width="32" height="5" rx="2.5" fill="#ffffff" opacity="0.7"/>
+    <rect x="24" y="50" width="20" height="5" rx="2.5" fill="#ffffff" opacity="0.5"/>
+  </g>
+
+  <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+    <text x="112" y="58" font-size="44" font-weight="700" letter-spacing="-1" fill="#f1f5f9">ClientSt</text>
+    <text x="303" y="58" font-size="44" font-weight="700" letter-spacing="-1" fill="url(#zg)">0</text>
+    <text x="332" y="58" font-size="44" font-weight="700" letter-spacing="-1" fill="#f1f5f9">r</text>
+    <text x="114" y="84" font-size="14.5" font-weight="500" letter-spacing="1.6" fill="#94a3b8">SELF-HOSTED IT DOCS &#38; SERVICE DESK</text>
+  </g>
+</svg>

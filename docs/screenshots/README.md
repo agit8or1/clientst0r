@@ -1,10 +1,13 @@
-# Client St0r Screenshots
+# ClientSt0r screenshots — archive
 
-**Version:** v3.13.68
-**Date:** March 2026
-**Total Screenshots:** 42
+> **This is the archive.** The current visual tour lives at
+> [`docs/screenshots.md`](../screenshots.md), captured against the current release.
+> The images below are from **v3.13.68 (March 2026)** and show older styling, but cover
+> feature areas that have not been recaptured — PSA quotes and invoices, the dispatch
+> board, workflow rules, contracts, compliance frameworks, security alert ingestion,
+> integration setup forms, monitoring, racks, IPAM, wallboards and fleet inventory.
 
-All screenshots showcase Client St0r with random backgrounds enabled and include demo data watermarks.
+All screenshots use demo data.
 
 ---
 
@@ -15,9 +18,6 @@ All screenshots showcase Client St0r with random backgrounds enabled and include
 
 ### Quick Add
 ![Quick Add](quick-add.png)
-
-### About
-![About](about-page.png)
 
 ### Profile
 ![Profile](profile.png)
