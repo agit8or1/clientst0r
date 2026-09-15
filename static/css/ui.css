@@ -835,3 +835,21 @@ main table td:has(> .ui-money), main table .ui-money {
     background: var(--surface, #2b2b2b) !important;
     border-color: var(--border-color, #444);
 }
+
+/* =========================================================================
+   17. Public pages over a decorative background
+   /core/about/ and friends are reachable signed out, where the app still
+   paints its background image. A page title in the theme's text colour
+   disappeared into it. Give those titles their own readable ground rather
+   than removing the background, which people choose deliberately.
+   ========================================================================= */
+main .about-title {
+    display: inline-block;
+    padding: var(--ui-2) var(--ui-4);
+    margin-bottom: var(--ui-4);
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius);
+    box-shadow: var(--ui-shadow);
+    color: var(--ui-text-color);
+}

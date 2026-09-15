@@ -49,7 +49,12 @@
 <!-- Page Content -->
 <div id="page-content" class="row">
     <div class="col-md-8 offset-md-2">
-        <h1>About Client St0r</h1>
+        {% comment %}
+        Carried on its own surface: this page is reachable while signed out,
+        where the app paints its decorative background, and a bare <h1> in the
+        theme's text colour was rendering near-invisible over it.
+        {% endcomment %}
+        <h1 class="ui-page-title about-title">About {{ system_settings.custom_company_name|default:"Client St0r" }}</h1>
 
         <div class="card border-primary mb-4">
             <div class="card-body">
