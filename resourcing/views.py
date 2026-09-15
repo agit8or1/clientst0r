@@ -19,6 +19,7 @@ from django.db import models
 from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from core.tenancy import get_scoped_object_or_404, scope_to_request
 from django.urls import reverse
 from django.utils import timezone
 
@@ -333,7 +334,11 @@ def tech_roster(request):
 @login_required
 @require_perm('resourcing_manage_holidays')
 def holiday_list(request):
-    holidays = Holiday.objects.select_related('organization').all()
+    # Holidays with a NULL organization are national ones shared by every
+    # tenant, so they stay visible; everything else is bounded by membership.
+    holidays = scope_to_request(
+        Holiday.objects.select_related('organization'), request, include_global=True,
+    )
     return render(request, 'resourcing/holiday_list.html', {
         'holidays': holidays,
         'today': timezone.now().date(),
@@ -344,13 +349,13 @@ def holiday_list(request):
 @require_perm('resourcing_manage_holidays')
 def holiday_add(request):
     if request.method == 'POST':
-        form = HolidayForm(request.POST)
+        form = HolidayForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Holiday added.')
             return redirect('resourcing:holiday_list')
     else:
-        form = HolidayForm()
+        form = HolidayForm(request=request)
     return render(request, 'resourcing/holiday_form.html', {
         'form': form, 'mode': 'add', 'title': 'Add Holiday',
     })
@@ -359,15 +364,18 @@ def holiday_add(request):
 @login_required
 @require_perm('resourcing_manage_holidays')
 def holiday_edit(request, pk):
-    instance = get_object_or_404(Holiday, pk=pk)
+    # Strict scoping on the write path: a member of one tenant must not reach
+    # another tenant's holiday by id, nor edit a shared national holiday,
+    # which would change it for everybody.
+    instance = get_scoped_object_or_404(Holiday, request, pk=pk)
     if request.method == 'POST':
-        form = HolidayForm(request.POST, instance=instance)
+        form = HolidayForm(request.POST, instance=instance, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Holiday updated.')
             return redirect('resourcing:holiday_list')
     else:
-        form = HolidayForm(instance=instance)
+        form = HolidayForm(instance=instance, request=request)
     return render(request, 'resourcing/holiday_form.html', {
         'form': form, 'instance': instance, 'mode': 'edit', 'title': 'Edit Holiday',
     })
@@ -376,7 +384,7 @@ def holiday_edit(request, pk):
 @login_required
 @require_perm('resourcing_manage_holidays')
 def holiday_delete(request, pk):
-    instance = get_object_or_404(Holiday, pk=pk)
+    instance = get_scoped_object_or_404(Holiday, request, pk=pk)
     if request.method == 'POST':
         instance.delete()
         messages.success(request, 'Holiday deleted.')

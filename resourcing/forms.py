@@ -60,6 +60,62 @@ class WorkingHoursForm(forms.ModelForm):
 
 
 class HolidayForm(forms.ModelForm):
+    """Holiday create/edit.
+
+    Takes the request so the organization choices can be bounded by
+    membership. Without that, the select listed every tenant, letting anyone
+    with `resourcing_manage_holidays` create a holiday inside another client —
+    or move an existing one there — regardless of which organizations they
+    actually belong to.
+
+    A NULL organization means "every tenant" (a national holiday). That option
+    stays available only to cross-tenant users, because a member of one client
+    should not be able to create or reassign a row that applies to all of them.
+    """
+
+    def __init__(self, *args, request=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.request = request
+        if request is None:
+            return
+
+        from core.models import Organization
+        from core.tenancy import accessible_org_ids, is_cross_tenant_user
+
+        allowed = accessible_org_ids(request)
+        field = self.fields.get('organization')
+        if field is None:
+            return
+        if allowed is not None:
+            field.queryset = Organization.objects.filter(id__in=allowed).order_by('name')
+        if not is_cross_tenant_user(request):
+            # Remove the blank "applies to every org" choice.
+            field.required = True
+            field.empty_label = None
+
+    def clean_organization(self):
+        """Re-check server-side: a narrowed queryset is a UI affordance, and
+        the POSTed value still has to be verified."""
+        org = self.cleaned_data.get('organization')
+        request = getattr(self, 'request', None)
+        if request is None:
+            return org
+
+        from core.tenancy import accessible_org_ids, is_cross_tenant_user
+        if is_cross_tenant_user(request):
+            return org
+        allowed = accessible_org_ids(request)
+        if org is None:
+            raise forms.ValidationError(
+                'Choose an organization. Holidays that apply to every '
+                'organization can only be set by an administrator.'
+            )
+        if allowed is not None and org.id not in allowed:
+            raise forms.ValidationError(
+                'You do not have access to that organization.'
+            )
+        return org
+
     class Meta:
         model = Holiday
         fields = ['organization', 'name', 'date', 'is_recurring_yearly', 'notes']

@@ -39,8 +39,12 @@ def descendant_org_ids(organization):
     from .models import Organization
     if organization is None:
         return set()
-    seen = {organization.pk}
-    frontier = [organization.pk]
+    # Accepts an Organization or a bare primary key, so callers that already
+    # hold an id (core.tenancy) do not have to re-fetch the row just to walk
+    # the tree.
+    root_pk = organization.pk if hasattr(organization, 'pk') else organization
+    seen = {root_pk}
+    frontier = [root_pk]
     for _ in range(5):
         children = list(
             Organization.objects.filter(parent_id__in=frontier)

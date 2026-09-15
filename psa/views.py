@@ -19,6 +19,7 @@ from django.views.decorators.http import require_http_methods
 from audit.models import AuditLog
 from core.decorators import require_admin, require_write
 from core.middleware import get_request_organization
+from core.tenancy import get_scoped_object_or_404, scope_to_request
 from vault.models import Password
 from inventory.models import InventoryItem, Tool
 
@@ -3507,7 +3508,12 @@ def workflow_suggestion_list(request):
     from core.models import SystemSetting
     ss = SystemSetting.get_settings()
     ai_enabled = bool(getattr(ss, 'psa_ai_enabled', False))
-    qs = WorkflowSuggestion.objects.order_by('-generated_at')
+    # Scoped to the caller's organizations: these carry AI-derived summaries
+    # and rationales about a client's ticket patterns, and the list was
+    # previously rendering every tenant's to any signed-in user.
+    qs = scope_to_request(
+        WorkflowSuggestion.objects.order_by('-generated_at'), request,
+    )
     if ai_enabled:
         qs = qs.filter(status='pending')
     else:
@@ -3530,7 +3536,7 @@ def workflow_suggestion_decide(request, pk):
     if not getattr(ss, 'psa_ai_enabled', False):
         messages.error(request, 'AI features are disabled in System Settings.')
         return redirect('psa:workflow_suggestion_list')
-    s = get_object_or_404(WorkflowSuggestion, pk=pk)
+    s = get_scoped_object_or_404(WorkflowSuggestion, request, pk=pk)
     action = (request.POST.get('action') or '').strip()
     if action == 'accept':
         rule = s.accept(user=request.user)
