@@ -230,10 +230,15 @@ ClientSt0r is built by the people behind **[MSP Reboot](https://mspreboot.com)**
 consulting practice run by a former 25-year MSP owner, working with owners on pricing,
 operations, margins, service delivery and technology strategy.
 
-The consulting and this software are separate things: ClientSt0r is MIT-licensed and
-self-hosted, and nothing here requires an engagement. There is no paid support tier and no
-service-level commitment attached to the project — if you want commercial help with your
-operation rather than with the software, that is what mspreboot.com is for.
+**Managed hosting and commercial support are available** through MSP Reboot for teams
+that would rather not run it themselves, or want someone on the hook when something
+breaks. [Get in touch](https://mspreboot.com) for scope and pricing.
+
+None of that is required to use ClientSt0r. The software is MIT-licensed and every
+first-party feature is free and unrestricted when you self-host it — no paid tiers, no
+seat or client limits, no licence activation, and no feature that only works with a
+subscription. Paying for hosting or support buys you our time and infrastructure, not
+access to the product.
 
 ---
 

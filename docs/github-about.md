@@ -101,7 +101,12 @@ ClientSt0r is built by the people behind **[MSP Reboot](https://mspreboot.com)**
 consulting practice. The README carries a link in its top navigation and a short section
 near the bottom; the screenshot gallery carries one in its footer.
 
-Keep that description accurate: MSP Reboot sells **consulting** — pricing, operations,
-margins, service delivery and technology strategy — not a support contract for this
-software. Do not describe it as a tools catalogue, a sponsor, or a paid support tier for
-ClientSt0r, because none of those are true.
+Keep that description accurate. MSP Reboot sells **consulting** — pricing, operations,
+margins, service delivery and technology strategy — and also offers **managed hosting and
+commercial support for ClientSt0r** for teams that would rather not self-host.
+
+What must not drift is the line between the two: the software itself is MIT-licensed and
+every first-party feature works, unrestricted, on a self-hosted install. Hosting and
+support buy time and infrastructure, never access to functionality. Do not describe MSP
+Reboot as a tools catalogue or a sponsor, and do not imply a specific service-level
+commitment here — point at mspreboot.com for scope and pricing instead.
