@@ -23,16 +23,15 @@ Keep customer documentation, assets, credentials and support workflows on your o
 
 [![Walkthrough video: a technician moves from the client dashboard into the queue, opens a ticket carrying its contract and credentials, reads the runbook behind it, and finishes on what the month earned](docs/images/github/walkthrough-poster.png)](docs/images/github/walkthrough.gif)
 
-**[▶ Watch the walkthrough](docs/images/github/walkthrough.gif)** — a 34-second cut of
-the client dashboard, the customer record, and a ticket carrying its contract, SLA and
-masked vault context.
+**[▶ Watch the full 3-minute walkthrough (MP4, 4.5 MB)](https://github.com/agit8or1/clientst0r/releases/download/v3.17.558/clientst0r-walkthrough.mp4)**
+— or the [56-second highlight](https://github.com/agit8or1/clientst0r/releases/download/v3.17.558/clientst0r-walkthrough-highlight.mp4).
+The animation above is a 34-second excerpt.
 
-The full **3-minute walkthrough** covers all of that plus the rack elevation, IPAM,
-dispatch, a project plan with dependencies, quote-to-invoice and profitability
-reporting, in both light and dark themes. It is caption-led — there is no narration
-track — and the
-[transcript](docs/media/walkthrough.txt) and [captions](docs/media/walkthrough.vtt) are
-here. Regenerate it, or the screenshots, with
+It runs through three end-to-end workflows — a ticket from queue to runbook, the week
+scheduled on the dispatch board and a project plan, and quote to invoice to profitability
+— with a deliberate light-to-dark transition partway. It is caption-led; there is no
+narration track. [Transcript](docs/media/walkthrough.txt) ·
+[captions](docs/media/walkthrough.vtt) · regenerate it, or the screenshots, with
 [`scripts/demo/`](scripts/demo/README.md).
 
 ## Why MSPs run it

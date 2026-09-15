@@ -279,6 +279,8 @@ The service desk, AI assistance and other modules are opt-in — off until an ad
 - Each image is cropped to where the page's content ends, so none of them carry a slab of empty background.
 - Route, theme, viewport and the demo data each view needs are recorded in [`scripts/screenshot_manifest.json`](../scripts/screenshot_manifest.json).
 
+Prefer moving pictures? The [3-minute walkthrough](https://github.com/agit8or1/clientst0r/releases/download/v3.17.558/clientst0r-walkthrough.mp4) covers the same ground end to end, in both themes.
+
 Older captures from previous releases are kept in [`docs/screenshots/`](screenshots/README.md).
 
 ---

@@ -107,6 +107,11 @@ def main() -> int:
     w('- Route, theme, viewport and the demo data each view needs are recorded in '
       '[`scripts/screenshot_manifest.json`](../scripts/screenshot_manifest.json).')
     w('')
+    w('Prefer moving pictures? The '
+      '[3-minute walkthrough](https://github.com/agit8or1/clientst0r/releases/download/'
+      'v3.17.558/clientst0r-walkthrough.mp4) covers the same ground end to end, in both '
+      'themes.')
+    w('')
     w('Older captures from previous releases are kept in '
       '[`docs/screenshots/`](screenshots/README.md).')
     w('')
