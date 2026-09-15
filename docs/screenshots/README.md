@@ -178,5 +178,94 @@ All screenshots use demo data.
 
 ---
 
-**Client St0r** - Self-Hosted IT Documentation Platform
+## 🛡️ Security Alert Ingestion
+
+Unified triage queue for EDR / AV / firewall alerts from any vendor, plus auto-ticket
+rules that fire on matching inbound alerts.
+
+### Alert triage queue
+![Security alerts list](security-alerts-list.png)
+
+### Vendor connections
+![Vendor connections](security-alerts-connections.png)
+
+### New vendor connection
+![New vendor connection](security-alerts-connection-new.png)
+
+### Auto-ticket rules
+![Auto-ticket rules](security-alerts-rules.png)
+
+### New auto-ticket rule
+![New auto-ticket rule](security-alerts-rule-new.png)
+
+---
+
+## 🔌 Integration Connection Forms
+
+### New UniFi connection
+![New UniFi connection](integrations-unifi-new.png)
+
+### New Microsoft 365 connection
+![New M365 connection](integrations-m365-new.png)
+
+---
+
+## 📺 Wallboards
+
+TV-ready big-number displays, configurable per organization.
+
+### Wallboard list
+![Wallboard list](wallboards-list.png)
+
+### New wallboard
+![New wallboard](wallboards-new.png)
+
+---
+
+## 🎫 Service Desk — additional views
+
+### Dispatch heatmap
+![Dispatch heatmap](dispatch-heatmap.png)
+
+### Recurring ticket schedule form
+![Recurring schedule form](psa-recurring-form.png)
+
+### Organizations grid
+![Organizations grid](organizations-grid.png)
+
+### Processes
+![Processes](processes.png)
+
+---
+
+## 🧾 Vehicle Receipt Scanning
+
+### Receipt list and cost summary
+![Vehicle receipts](vehicle-receipts.png)
+
+### Add receipt
+![Add receipt](vehicle-receipt-form.png)
+
+---
+
+## 📱 Install App / Phone Shortcut
+
+### Install App page
+![Install App page](install-app.png)
+
+### Phone shortcut
+![PWA shortcut](pwa-shortcut.png)
+
+---
+
+## 🗺️ Live Roadmap
+
+The roadmap renders in-app from `docs/ROADMAP.md`, and is also published to the About-page
+card and a polling-friendly JSON feed at `/core/roadmap.json`.
+
+![Live roadmap page](roadmap.png)
+
+---
+
+**ClientSt0r** — self-hosted IT documentation and service desk for MSPs
 https://github.com/agit8or1/clientst0r

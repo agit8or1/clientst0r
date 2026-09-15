@@ -1,3 +1,0 @@
-Client St0r is an open-source, self-hosted MSP documentation platform.
-It is commonly evaluated as an open-source IT Glue alternative and a self-hosted Hudu alternative.
-Repository: https://github.com/agit8or1/clientst0r

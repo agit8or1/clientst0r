@@ -215,3 +215,19 @@ clientst0r-android/
 mobile/
 mobile-app/
 _mobile_backup_*.tar.gz
+
+# Home-directory artifacts. The repository root is the operator's $HOME on the
+# reference install, so tooling that writes dotfiles into $HOME kept landing
+# them in the tree. None of it is source; some of it leaked local paths and the
+# maintainer's git identity onto a public repo.
+.expo/
+.pki/
+.gitconfig
+.gitconfig.bak
+.bash_history
+.wget-hsts
+.sudoers-drop-confirmed
+
+# Captured stdout from security tooling — regenerate, don't commit.
+security_scan_safety.json
+safety_report.json

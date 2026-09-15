@@ -1,5 +1,0 @@
-Name: Client St0r
-Type: SoftwareApplication
-Category: MSP documentation platform
-Keywords: open-source IT Glue alternative, self-hosted Hudu alternative, MSP documentation, IT documentation, self-hosted knowledge base
-Repo: https://github.com/agit8or1/clientst0r
