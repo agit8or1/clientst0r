@@ -41,6 +41,15 @@ file and the browser profile must not be committed.
 
 ## The dataset
 
+Compliance frameworks are seeded separately, because they come from the
+application's own `seed_pci_dss` / `seed_hipaa` commands:
+
+```bash
+python manage.py seed_pci_dss --settings=demo_settings
+python manage.py seed_hipaa   --settings=demo_settings
+python scripts/demo/seed_compliance.py   # enrol clients, fill in attestations
+```
+
 `seed_demo.py` creates one MSP tenant (**Beacon Managed IT**) and four client
 tenants — Northwind Logistics, Ridgeline Dental Group, Harbor Point Credit Union
 and Cascade Manufacturing — with assets, documentation, runbooks, credentials,

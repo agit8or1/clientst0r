@@ -1,6 +1,6 @@
 # ClientSt0r — screenshot gallery
 
-28 views of the running application — 15 in the light theme, 13 in dark. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
+30 views of the running application — 16 in the light theme, 14 in dark. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
 
 All organizations, people, hostnames, addresses and credentials below are invented. Domains use the reserved `.example` TLD and addresses are RFC 1918. Nothing is masked after the fact because nothing needed masking — the application never renders a secret into a list, a ticket or a report.
 
@@ -11,7 +11,7 @@ All organizations, people, hostnames, addresses and credentials below are invent
 ## Contents
 
 - [Overview and dashboards](#overview-and-dashboards) — 3 views
-- [Visual insights and monitoring](#visual-insights-and-monitoring) — 9 views
+- [Visual insights and monitoring](#visual-insights-and-monitoring) — 11 views
 - [Everyday workflows](#everyday-workflows) — 11 views
 - [Management and configuration](#management-and-configuration) — 3 views
 - [Access and administration](#access-and-administration) — 2 views
@@ -123,6 +123,22 @@ Maintenance that recurs on its own schedule, with per-task sign-off, kept separa
 [![Website monitor list in light theme showing monitored endpoints with status, response time, SSL expiry date and last check time](images/github/monitors-light.png)](images/github/monitors-light.png)
 
 Endpoint checks with response time, and the certificate expiry date you would otherwise find out about at 2am.
+
+### Compliance frameworks per client
+
+**Dark theme**
+
+[![Compliance overview in dark theme showing PCI-DSS and HIPAA framework cards for one client with progress bars, status counts and a recertification countdown](images/github/compliance-overview-dark.png)](images/github/compliance-overview-dark.png)
+
+Which frameworks a client is enrolled in, how far through the attestation they are, and when recertification is next due.
+
+### Attestation checklist
+
+**Light theme**
+
+[![PCI-DSS attestation checklist in light theme with per-control status dropdowns, notes, evidence links and last-reviewed stamps, colour-coded by compliance state](images/github/compliance-checklist-light.png)](images/github/compliance-checklist-light.png)
+
+Per-control status, notes and an evidence link, with who last reviewed it and when — the record you hand an auditor.
 
 ---
 

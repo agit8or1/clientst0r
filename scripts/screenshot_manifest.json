@@ -316,6 +316,28 @@
       "alt": "Feature toggle settings in light theme showing switches for optional modules including the native PSA service desk",
       "organization": "Beacon Managed IT",
       "max_h": 1000
+    },
+    {
+      "name": "compliance-overview-dark",
+      "route": "/compliance/organizations/4/",
+      "theme": "dark",
+      "group": "insights",
+      "organization": "Harbor Point Credit Union",
+      "max_h": 900,
+      "heading": "Compliance frameworks per client",
+      "caption": "Which frameworks a client is enrolled in, how far through the attestation they are, and when recertification is next due.",
+      "alt": "Compliance overview in dark theme showing PCI-DSS and HIPAA framework cards for one client with progress bars, status counts and a recertification countdown"
+    },
+    {
+      "name": "compliance-checklist-light",
+      "route": "/compliance/organizations/4/pci-dss-v4/",
+      "theme": "light",
+      "group": "insights",
+      "organization": "Harbor Point Credit Union",
+      "max_h": 1250,
+      "heading": "Attestation checklist",
+      "caption": "Per-control status, notes and an evidence link, with who last reviewed it and when \u2014 the record you hand an auditor.",
+      "alt": "PCI-DSS attestation checklist in light theme with per-control status dropdowns, notes, evidence links and last-reviewed stamps, colour-coded by compliance state"
     }
   ]
 }
