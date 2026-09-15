@@ -281,5 +281,101 @@ card and a polling-friendly JSON feed at `/core/roadmap.json`.
 
 ---
 
+## Service desk — earlier captures
+
+### Ticket queue
+![Ticket list with priority pills, SLA chips and a client column](psa-tickets.png)
+
+### Ticket detail
+![Full ticket detail with vault context, time tracker, expenses, AI assist and similar-ticket suggestions](psa-ticket-detail.png)
+
+### New ticket
+![New-ticket form with the client picker](psa-new-ticket.png)
+
+### Dispatch board
+![Seven-day dispatch grid with an Other column for undated work](psa-dispatch.png)
+
+### Approval queue
+![Queue of items waiting on an approver](psa-approvals.png)
+
+### Recurring schedules
+![Schedules that generate tickets on a recurring cadence](psa-recurring.png)
+
+### Service catalog
+![Grid of catalog items available to raise against](psa-service-catalog.png)
+
+### Email ingestion
+![IMAP mailbox list used to turn inbound mail into tickets](psa-email-config.png)
+
+---
+
+## Quotes, invoices and contracts — earlier captures
+
+### Quote list
+![Quotes with status pills and a sign-URL action](psa-quotes.png)
+
+### Quote detail
+![Quote detail with PDF, email and signing-URL actions](psa-quote-detail.png)
+
+### Quote editor
+![Compact line-item editor for a quote](psa-quote-form.png)
+
+### Customer signature
+![Signature canvas the customer uses from a tokenised link, without an account](psa-quote-sign.png)
+
+### Quote PDF
+![Branded quote PDF generated server-side, with a logo header](psa-pdf-quote.png)
+
+### Invoice list
+![Invoice list across clients](psa-invoices.png)
+
+### Invoice detail
+![Invoice detail with payments, balance and the accounting push action](psa-invoice-detail.png)
+
+### Invoice editor
+![Compact invoice line-item editor](psa-invoice-form.png)
+
+### Invoice PDF
+![Branded invoice PDF generated server-side](psa-pdf-invoice.png)
+
+### Contract list
+![Contracts with hours-used bars](psa-contracts.png)
+
+### SLA matrix editor
+![Per-priority SLA matrix editor on a contract](psa-contract-form.png)
+
+### Client account
+![Net balance, aging, invoices, payments and charges for one client](psa-client-account.png)
+
+### Aging report
+![Cross-client receivables aging report](psa-aging.png)
+
+---
+
+## Projects and automation — earlier captures
+
+### Project list
+![Projects across clients](psa-projects.png)
+
+### Project detail
+![Project detail with the task and milestone editor](psa-project-detail.png)
+
+### Workflow rules
+![Rule list for automation that fires on ticket events](psa-workflow-rules.png)
+
+### Workflow rule editor
+![Rule editor with match conditions and actions](psa-workflow-rule-form.png)
+
+---
+
+## Integrations — earlier captures
+
+### Distributor integrations
+![Distributor connections for Ingram Micro, Pax8, TD Synnex and others](integrations-distributors.png)
+
+### Accounting integrations
+![Accounting connections for QuickBooks Online, Xero and others](integrations-accounting.png)
+
+---
 **ClientSt0r** — self-hosted IT documentation and service desk for MSPs
 https://github.com/agit8or1/clientst0r

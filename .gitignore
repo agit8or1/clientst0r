@@ -231,3 +231,15 @@ _mobile_backup_*.tar.gz
 # Captured stdout from security tooling — regenerate, don't commit.
 security_scan_safety.json
 safety_report.json
+
+# Screenshot and walkthrough capture artefacts. The demo instance, its SQLite
+# database, raw frames and rendered video all live outside the repository —
+# see scripts/demo/README.md. Only the optimised PNGs under
+# docs/images/github/ are committed.
+/var-tmp-clientst0r-demo/
+clientst0r-demo/
+*.mp4
+*.webm
+frames/
+walkthrough-raw/
+.playwright/

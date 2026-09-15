@@ -9,6 +9,7 @@ Start at the [README](../README.md) for positioning, screenshots and install ste
 * [Manual update guide](MANUAL_UPDATE_GUIDE.md)
 * [Auto-update](../AUTO_UPDATE.md)
 * [Seeding data](SEEDING_DATA.md) — equipment catalog and knowledge base seed sets
+* [OS package scanner](PACKAGE_SCANNER.md) — apt / yum / dnf / pacman security update detection
 * [Upgrade notes](../UPGRADE_NOTES.md)
 
 ## Using it
@@ -30,6 +31,7 @@ Start at the [README](../README.md) for positioning, screenshots and install ste
 * [Contributing](../CONTRIBUTING.md)
 * [Feature requests](FEATURE_REQUESTS.md)
 * [GitHub About panel, topics and website](github-about.md)
+* [Producing the screenshots and walkthrough](../scripts/demo/README.md)
 * [Privacy policy](PRIVACY_POLICY.md)
 
 ## Background reading
