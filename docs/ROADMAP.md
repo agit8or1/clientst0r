@@ -1118,6 +1118,60 @@ Positioned last in the roadmap (v3.17.169) because it's the largest single under
 
 ---
 
+## Phase 49 — Interface consistency and tenant-boundary hardening **(M · quality)** [in progress]
+
+Two strands of work that aren't features but that everything else sits on: a
+single shared interface scale, and an audit of the places where a record is
+fetched by id without checking which tenant it belongs to.
+
+### Sub-phase 49.1 — Shared UI layer *(shipped v3.17.559)*
+- `static/css/ui.css` — one set of scale tokens (type, control height, row
+  height, spacing, radius) layered over the existing theme variables, loaded
+  last so it reads `--surface` / `--border-color` / `--text-primary` from
+  whichever of the twelve themes is active. No theme was replaced.
+- Removed the global shrink: `custom.css` had been setting `html` to 14.5px and
+  `body` to 0.92rem, which scaled the whole application down rather than sizing
+  its parts. Sizes are now stated once, in pixels.
+- Application header: the navigation needs ~1855px of content and the target
+  viewport is 1440px. Rather than let it wrap into stacked rows, a measured trim
+  window between 1400px and 1750px drops the clock, the nav-link icons and some
+  padding. Nothing is removed from the menu.
+- Page headers, filter bars, tables, badges, empty states and dashboard tiles
+  standardised against the tokens. Verified with no horizontal page overflow at
+  1440×900, 1920×1080, 1024×768 and 390px.
+- Ticket lists no longer infer urgency from a priority's code string. New
+  `psa_ui` template filters rank `TicketPriority` by its configured
+  `sort_order`, and derive a status's tone from `is_terminal` / `pauses_sla`.
+  Neither model carries a colour field, so nothing is read from one.
+
+### Sub-phase 49.2 — Tenant-boundary audit *(partial — first pass shipped v3.17.559)*
+- `core/tenancy.py` — `accessible_org_ids(request)`, `scope_to_request()` and
+  `get_scoped_object_or_404()`. The last raises `Http404` rather than
+  `PermissionDenied` on purpose: a 403 confirms the record exists somewhere.
+- Fixed four views that reached across tenants by id: holiday list / edit /
+  delete in `resourcing`, and the AI workflow-suggestion list and decide views
+  in `psa`. `HolidayForm` now narrows its organization choices *and*
+  re-validates the submitted value, since a narrowed `<select>` is a UI
+  affordance and not a control.
+- Fixed the mobile clock-in endpoint, which built a `TimeclockEntry` straight
+  from four client-supplied foreign keys. This matters past the record itself:
+  `TimeclockEntry` carries `derived_time_entry`, so a clock-in can become a
+  billable time entry against whichever organization it names.
+- **Root cause, still open:** `user_has_perm()` returns True when a role
+  template sets a flag on *any* active membership. It answers "may this user do
+  this kind of thing", not "may they do it to this record". Views that call it
+  and then fetch by id are the shape to keep looking for.
+- Covered by `core/tests/test_cross_tenant_views.py` (11) and
+  `api_mobile/tests_timeclock_scoping.py` (4), alongside the existing
+  `core/tests/test_tenant_isolation.py` (10).
+- **Remaining in this phase:** credential encryption and key recovery, SLA
+  calculation, billing arithmetic and duplicate prevention, background job
+  failure handling, search and export scoping, and what the AI features are
+  allowed to read.
+
+**Sizing:** **M** — 49.1 complete; 49.2 is roughly half the audit surface.
+
+---
 ## What's explicitly NOT in this plan
 
 - Multi-currency beyond per-record `currency` field
@@ -1177,6 +1231,7 @@ Positioned last in the roadmap (v3.17.169) because it's the largest single under
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 first pass shipped v3.17.559, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

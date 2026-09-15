@@ -22,6 +22,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from audit.models import AuditLog
+from api_mobile.scoping import accessible_org_ids
+from core.models import Organization
+from locations.models import Location
+from psa.models import Project, Ticket
 from field_ops.models import (
     ClientSiteGeofence,
     GeofenceVisit,
@@ -79,6 +83,25 @@ def _is_off_shift(user, when):
     except Exception:
         # On any failure, do not drop pings — fail-open keeps GPS flowing.
         return False
+
+
+def _scoped_fk(raw, field, allowed_qs):
+    """Validate one client-supplied foreign key.
+
+    Returns `(pk_or_None, None)` when acceptable, or `(None, Response)` to
+    return straight to the caller. A value the technician cannot reach is a
+    404, not a 403, so the response does not confirm that the row exists in
+    some other tenant.
+    """
+    if raw in (None, '', 0):
+        return None, None
+    try:
+        pk = int(raw)
+    except (TypeError, ValueError):
+        return None, Response({'detail': f'{field} must be an integer'}, status=400)
+    if not allowed_qs.filter(pk=pk).exists():
+        return None, Response({'detail': f'{field} not found'}, status=404)
+    return pk, None
 
 
 @api_view(['POST'])
@@ -236,12 +259,39 @@ def clock_in_view(request):
         except (TypeError, ValueError):
             gps_accuracy = None
 
+    # Every foreign key here arrives from the client, so each one is checked
+    # against the technician's memberships before it is stored. Without this a
+    # clock-in could be filed against any organization, ticket, project or
+    # location by id — and TimeclockEntry.derived_time_entry means such an
+    # entry can go on to become billable time against that client.
+    #
+    # Same shape as views_tickets, views_vault, views_dispatch and
+    # views_workflows, which all validate organization_id this way.
+    org_ids = list(accessible_org_ids(user))
+
+    org_id, err = _scoped_fk(data.get('organization_id'), 'organization_id',
+                             Organization.objects.filter(id__in=org_ids))
+    if err:
+        return err
+    location_id, err = _scoped_fk(data.get('location_id'), 'location_id',
+                                  Location.objects.filter(organization_id__in=org_ids))
+    if err:
+        return err
+    ticket_id, err = _scoped_fk(data.get('ticket_id'), 'ticket_id',
+                                Ticket.objects.filter(organization_id__in=org_ids))
+    if err:
+        return err
+    project_id, err = _scoped_fk(data.get('project_id'), 'project_id',
+                                 Project.objects.filter(client_org_id__in=org_ids))
+    if err:
+        return err
+
     entry = TimeclockEntry(
         tech=user,
-        organization_id=data.get('organization_id') or None,
-        location_id=data.get('location_id') or None,
-        ticket_id=data.get('ticket_id') or None,
-        project_id=data.get('project_id') or None,
+        organization_id=org_id,
+        location_id=location_id,
+        ticket_id=ticket_id,
+        project_id=project_id,
         notes=(data.get('notes') or '')[:2000],
         source='mobile',
     )

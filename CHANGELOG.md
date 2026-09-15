@@ -5,6 +5,103 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.559] - 2026-09-15
+
+### Interface consistency, tenant-boundary fixes, and a rebuilt GitHub presentation
+
+A catch-up release. The work below landed across fourteen commits since
+v3.17.558 without a version bump — that was a mistake, because Settings →
+Updates had nothing to detect and the running server stayed on .558. This entry
+covers all of it; there is one tag rather than fourteen because the commits are
+already pushed and retagging them would mean rewriting history.
+
+**What actually changes in the running application:** the UI pass, two bug
+fixes, and four security fixes. The README, screenshot gallery and walkthrough
+video are GitHub-side only and will not look any different once you apply this.
+
+#### Shared UI layer
+
+- New `static/css/ui.css` defines the scale once — type sizes, control height,
+  row height, spacing steps, corner radius — and reads colour from whichever of
+  the twelve themes is active. No theme was replaced or overridden.
+- **Removed the global shrink.** `custom.css` had been setting `html` to 14.5px
+  and `body` to 0.92rem, which scaled the whole application down instead of
+  sizing its parts. Sizes are now stated in pixels, once.
+- Application header: the navigation wants ~1855px and the common viewport is
+  1440px. A measured window between 1400px and 1750px drops the clock, the
+  nav-link icons and some padding so it stays on one row. Nothing was removed
+  from the menu.
+- Page headers, filter bars, tables, badges, empty states, detail grids and
+  dashboard tiles standardised against the tokens. Documents, ticket lists and
+  the dashboards got the most attention. Checked for horizontal overflow at
+  1440×900, 1920×1080, 1024×768 and 390px — none at any width.
+- Dashboard tile labels were unreadable on the dark themes: `themes.css` paints
+  every `small` with `--text-secondary` and `!important`, which sat too low
+  against the tile. They now lift partway toward the body text — enough to read,
+  not so far that the label competes with the number it labels.
+- Ticket lists no longer guess urgency from a priority's code string. New
+  `psa_ui` filters rank `TicketPriority` by its configured `sort_order`, and
+  read a status's tone from `is_terminal` / `pauses_sla`. Neither model has a
+  colour field, so nothing pretends to read one.
+
+#### Tenant boundaries
+
+Four views fetched a record by id and checked only whether the user held the
+relevant permission flag. `user_has_perm()` returns True when a role template
+sets a flag on *any* active membership — it answers "may this user do this kind
+of thing", not "may they do it to this record".
+
+- `resourcing` holiday list, edit and delete were reachable across tenants. The
+  list also leaked other organizations' holidays. Shared national holidays
+  (those with no organization) still appear, but can no longer be edited by a
+  tenant user. `HolidayForm` narrows its organization choices *and* re-validates
+  the submitted value on the server — a narrowed `<select>` is a UI affordance,
+  not a control.
+- `psa` AI workflow-suggestion list and decide had the same shape.
+- The mobile clock-in endpoint built a `TimeclockEntry` directly from four
+  client-supplied foreign keys with no validation, while every other mobile
+  endpoint that takes an `organization_id` checks it. This reaches past the
+  record: `TimeclockEntry` carries `derived_time_entry`, so a clock-in can
+  become a billable time entry against whichever organization it names.
+- New `core/tenancy.py` — `accessible_org_ids()`, `scope_to_request()` and
+  `get_scoped_object_or_404()`. That last one raises `Http404`, not
+  `PermissionDenied`, deliberately: a 403 confirms the record exists somewhere.
+- 15 new tests (`core/tests/test_cross_tenant_views.py`,
+  `api_mobile/tests_timeclock_scoping.py`), alongside the 10 existing ones in
+  `core/tests/test_tenant_isolation.py`. Each was confirmed to fail against the
+  unfixed code before the fix went in.
+
+The audit that found these is not finished. Credential encryption and key
+recovery, SLA calculation, billing arithmetic, background job failures, export
+scoping and AI data access are still ahead — tracked as Phase 49.2.
+
+#### Fixes
+
+- `docs/services/document_export.py`: `_BlockParser` assigned `self._pending`,
+  which is `HTMLParser`'s own feed buffer. Exporting an empty document raised
+  `AttributeError: 'NoneType' object has no attribute 'append'`. Renamed the
+  attribute rather than special-casing empty input, so the collision is gone
+  rather than hidden. Pre-existing since 2026-09-02.
+- `manage.py test` now resolves `{% static %}` without the hashed manifest.
+  Fifteen tests were failing on a missing manifest entry for a newly added
+  stylesheet.
+
+#### GitHub presentation (no effect on the running app)
+
+- README rebuilt around what the product does, with a 30-image gallery
+  (`docs/screenshots.md`, roughly half light and half dark via the app's own
+  theme selector), a 3-minute walkthrough video and a 56-second highlight cut,
+  both attached to their release rather than committed as binaries.
+- Capture tooling is reusable and refuses to run against a non-demo database:
+  `scripts/capture_screenshots.py`, `scripts/capture_walkthrough.py` and their
+  manifests.
+- Repository cleanup: home-directory artifacts and superseded process docs
+  removed. `.gitconfig` was among them — it had been tracked, and carried a
+  maintainer email address and a broken credential helper.
+- MSP Reboot offers managed hosting and commercial support. The software itself
+  stays MIT-licensed and free to self-host, with no paid tiers, seat limits or
+  license activation.
+
 ## [3.17.558] - 2026-09-07
 
 ### Mobile: projects and config backups

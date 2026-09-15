@@ -734,6 +734,23 @@ main .card.bg-warning i, main .card.bg-secondary i, main .card.bg-danger i {
     color: var(--ui-muted) !important;
     font-size: 16px;
 }
+/* The label under each metric. themes.css:610 paints every `small` with
+   --text-secondary and !important, which on the dark themes (dark, dracula,
+   monokai) sits too low against the tile surface to read comfortably. Lift it
+   toward the body text — but only part of the way, so the label doesn't end up
+   shouting as loud as the number it labels. The flat value is the fallback for
+   engines without color-mix. */
+main .card.bg-primary small, main .card.bg-primary .small,
+main .card.bg-success small, main .card.bg-success .small,
+main .card.bg-info small, main .card.bg-info .small,
+main .card.bg-warning small, main .card.bg-warning .small,
+main .card.bg-secondary small, main .card.bg-secondary .small,
+main .card.bg-danger small, main .card.bg-danger .small {
+    color: var(--ui-muted) !important;
+    color: color-mix(in srgb, var(--ui-muted) 45%, var(--ui-text-color)) !important;
+    font-size: var(--ui-text-sm);
+}
+
 /* The tiles grew a JS scale() on hover; a metric is not a button. */
 main .card[onmouseover] { transition: none !important; }
 
