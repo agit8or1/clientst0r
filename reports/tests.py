@@ -4608,3 +4608,218 @@ class PDFExportTests(TestCase):
         self._login(c, self.staff)
         r = c.get('/reports/kpi/?format=pdf')
         self._assert_pdf(r, 'kpi-dashboard.pdf')
+
+
+# ---------------------------------------------------------------------------
+# v3.17.568 — dashboard widgets answer to permissions and to tenancy
+# ---------------------------------------------------------------------------
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class WidgetViewerScopeTests(TestCase):
+    """
+    A widget renders the same numbers as a report page, so it has to enforce
+    the same two rules. Before v3.17.568 it enforced neither: every source
+    aggregated across every client, and the only gate was
+    `reports_view_dashboards`, which every role has by default. A read-only
+    member of one client could open a shared dashboard and read the MSP's
+    revenue and its other clients' names.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        from datetime import date
+        from django.contrib.auth.models import User
+        from django.core.management import call_command
+        from accounts.models import Membership, RoleTemplate
+        from core.models import Organization
+        from psa.models import (
+            Queue, TicketStatus, TicketPriority, TicketType, Ticket, Invoice,
+        )
+        call_command('psa_seed_defaults', verbosity=0)
+
+        cls.acme = Organization.objects.create(name='Acme', slug='acme-widgets')
+        cls.other = Organization.objects.create(name='Umbrella', slug='umbrella-widgets')
+        cls.today = date.today()
+
+        common = dict(
+            queue=Queue.objects.first(),
+            status=TicketStatus.objects.filter(slug='new').first(),
+            priority=TicketPriority.objects.first(),
+            ticket_type=TicketType.objects.first(),
+        )
+        Ticket.objects.create(organization=cls.acme, subject='Acme one', **common)
+        for i in range(3):
+            Ticket.objects.create(organization=cls.other,
+                                  subject=f'Umbrella {i}', **common)
+
+        for i, (org, total) in enumerate([(cls.acme, 100), (cls.other, 900)]):
+            Invoice.objects.create(
+                organization=org, client_org=org,
+                invoice_number=f'INV-W-{i}', title='T',
+                invoice_date=cls.today, due_date=cls.today,
+                total=total, amount_paid=0, status='sent',
+                subtotal=total, tax_amount=0, currency='USD',
+            )
+
+        # Acme's own admin: money yes, other clients no.
+        cls.acme_admin = User.objects.create_user('acme_admin', 'aa@x.com', 'pw')
+        rt_fin = RoleTemplate.objects.create(
+            name='WidgetOrgAdmin',
+            reports_view_dashboards=True, reports_view_financial=True,
+            reports_view_sla=True, audit_view=True,
+        )
+        Membership.objects.create(user=cls.acme_admin, organization=cls.acme,
+                                  role='admin', role_template=rt_fin, is_active=True)
+
+        # Acme read-only tech: dashboards only — no money at all.
+        cls.acme_readonly = User.objects.create_user('acme_ro', 'ro@x.com', 'pw')
+        rt_ro = RoleTemplate.objects.create(
+            name='WidgetOrgReadOnly',
+            reports_view_dashboards=True, reports_view_financial=False,
+            reports_view_sla=False, audit_view=False,
+        )
+        Membership.objects.create(user=cls.acme_readonly, organization=cls.acme,
+                                  role='readonly', role_template=rt_ro, is_active=True)
+
+        cls.msp = User.objects.create_user('msp', 'm@x.com', 'pw',
+                                           is_staff=True, is_superuser=True)
+
+    # -- the registry contract ------------------------------------------------
+
+    def test_every_registered_source_declares_a_spec(self):
+        """An unspecced source falls back to MSP-only; catch it here instead."""
+        from reports.widget_sources import REGISTRY, WIDGET_SPECS
+        self.assertEqual(set(REGISTRY), set(WIDGET_SPECS))
+
+    def test_no_viewer_means_no_access_rather_than_full_access(self):
+        from reports.widget_sources import get_widget_data
+        data = get_widget_data('revenue_this_period', {})
+        self.assertTrue(data.get('restricted'))
+
+    # -- permission gate ------------------------------------------------------
+
+    def test_read_only_member_cannot_read_revenue_through_a_widget(self):
+        from reports.widget_sources import get_widget_data, viewer_for
+        data = get_widget_data('revenue_this_period', {},
+                               viewer_for(self.acme_readonly))
+        self.assertTrue(data.get('restricted'))
+        self.assertIn('reports_view_financial', data['error'])
+        self.assertNotIn('value', data)
+
+    def test_read_only_member_cannot_read_client_names_through_a_widget(self):
+        from reports.widget_sources import get_widget_data, viewer_for
+        data = get_widget_data('top_clients_by_revenue', {},
+                               viewer_for(self.acme_readonly))
+        self.assertTrue(data.get('restricted'))
+
+    def test_read_only_member_cannot_read_the_sla_trend(self):
+        from reports.widget_sources import get_widget_data, viewer_for
+        data = get_widget_data('sla_breach_trend', {},
+                               viewer_for(self.acme_readonly))
+        self.assertTrue(data.get('restricted'))
+
+    def test_the_permission_is_what_unlocks_it(self):
+        from reports.widget_sources import get_widget_data, viewer_for
+        data = get_widget_data('revenue_this_period', {},
+                               viewer_for(self.acme_admin))
+        self.assertNotIn('error', data)
+        self.assertIn('value', data)
+
+    # -- tenancy --------------------------------------------------------------
+
+    def test_org_member_sees_only_their_own_clients_tickets(self):
+        from reports.widget_sources import get_widget_data, viewer_for
+        data = get_widget_data('open_tickets_count', {},
+                               viewer_for(self.acme_readonly))
+        self.assertEqual(data['value'], '1')
+
+    def test_msp_staff_still_see_every_client(self):
+        from reports.widget_sources import get_widget_data, viewer_for
+        data = get_widget_data('open_tickets_count', {},
+                               viewer_for(self.msp, is_staff_user=True))
+        self.assertEqual(data['value'], '4')
+
+    def test_revenue_is_limited_to_the_viewers_own_clients(self):
+        from reports.widget_sources import get_widget_data, viewer_for
+        mine = get_widget_data('revenue_this_period', {},
+                               viewer_for(self.acme_admin))
+        # Acme's own $100, not Umbrella's $900 as well.
+        self.assertEqual(mine['value'], '$100')
+        everyones = get_widget_data('revenue_this_period', {},
+                                    viewer_for(self.msp, is_staff_user=True))
+        self.assertEqual(everyones['value'], '$1,000')
+
+    def test_a_client_table_never_names_another_clients_org(self):
+        from reports.widget_sources import get_widget_data, viewer_for
+        data = get_widget_data('top_clients_by_revenue', {},
+                               viewer_for(self.acme_admin))
+        names = [row[0] for row in data['rows']]
+        self.assertIn('Acme', names)
+        self.assertNotIn('Umbrella', names)
+
+    def test_ticket_trend_is_scoped_too(self):
+        from reports.widget_sources import get_widget_data, viewer_for
+        mine = get_widget_data('tickets_opened_30d', {},
+                               viewer_for(self.acme_readonly))
+        everyones = get_widget_data('tickets_opened_30d', {},
+                                    viewer_for(self.msp, is_staff_user=True))
+        self.assertEqual(sum(mine['series'][0]['data']), 1)
+        self.assertEqual(sum(everyones['series'][0]['data']), 4)
+
+    def test_a_source_with_no_client_to_scope_by_is_msp_only(self):
+        """
+        django-axes attempts carry no organization, so `recent_failed_logins`
+        cannot be narrowed to one client. It is shown to whoever may see every
+        client and refused to everyone else, rather than shown unscoped.
+        """
+        from reports.widget_sources import get_widget_data, viewer_for
+        restricted = get_widget_data('recent_failed_logins', {},
+                                     viewer_for(self.acme_admin))
+        self.assertTrue(restricted.get('restricted'))
+        allowed = get_widget_data('recent_failed_logins', {},
+                                  viewer_for(self.msp, is_staff_user=True))
+        self.assertIn('value', allowed)
+
+    def test_a_viewer_with_no_membership_sees_nothing(self):
+        from django.contrib.auth.models import User
+        from reports.widget_sources import get_widget_data, viewer_for
+        nobody = User.objects.create_user('nobody_w', 'n@x.com', 'pw')
+        data = get_widget_data('open_tickets_count', {}, viewer_for(nobody))
+        self.assertEqual(data['value'], '0')
+
+    # -- through the actual page ---------------------------------------------
+
+    def test_dashboard_page_does_not_render_revenue_for_a_read_only_member(self):
+        from reports.models import Dashboard, DashboardWidget
+        dash = Dashboard.objects.create(
+            name='Shared board', is_global=True, created_by=self.msp,
+        )
+        DashboardWidget.objects.create(
+            dashboard=dash, title='Revenue this period',
+            widget_type='metric', data_source='revenue_this_period',
+        )
+        DashboardWidget.objects.create(
+            dashboard=dash, title='Top clients',
+            widget_type='table', data_source='top_clients_by_revenue',
+        )
+
+        self.client.force_login(self.acme_readonly)
+        r = self.client.get(f'/reports/dashboards/{dash.pk}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn(b'$1,000', r.content)
+        self.assertNotIn(b'Umbrella', r.content)
+        self.assertIn(b'reports_view_financial', r.content)
+
+    def test_dashboard_page_still_shows_the_msp_everything(self):
+        from reports.models import Dashboard, DashboardWidget
+        dash = Dashboard.objects.create(
+            name='MSP board', is_global=True, created_by=self.msp,
+        )
+        DashboardWidget.objects.create(
+            dashboard=dash, title='Revenue this period',
+            widget_type='metric', data_source='revenue_this_period',
+        )
+        self.client.force_login(self.msp)
+        r = self.client.get(f'/reports/dashboards/{dash.pk}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'$1,000', r.content)

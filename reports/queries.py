@@ -20,6 +20,22 @@ from django.contrib.auth.models import User
 
 # ---- Hours -----------------------------------------------------------------
 
+def scope_to_organizations(qs, field, organization):
+    """
+    Apply a client-org filter to `qs` on `field`.
+
+    `organization` is either one Organization (or pk) — the long-standing
+    single-client form these queries were written for — or an iterable of
+    them, which is what a viewer who belongs to several client orgs needs.
+    None means no filter: every client the caller is entitled to see.
+    """
+    if organization is None:
+        return qs
+    if isinstance(organization, (list, tuple, set, frozenset)):
+        return qs.filter(**{f'{field}__in': list(organization)})
+    return qs.filter(**{field: organization})
+
+
 def hours_minutes_by_client(start_date, end_date, organization=None):
     """
     Total billable + non-billable minutes by client_org for the period.
@@ -31,8 +47,7 @@ def hours_minutes_by_client(start_date, end_date, organization=None):
         started_at__date__gte=start_date,
         started_at__date__lte=end_date,
     ).select_related('ticket__organization')
-    if organization is not None:
-        qs = qs.filter(ticket__organization=organization)
+    qs = scope_to_organizations(qs, 'ticket__organization', organization)
 
     out = {}  # client_id → row
     for te in qs:
@@ -839,8 +854,7 @@ def revenue_leakage(start_date, end_date, organization=None,
         is_billable=True,
         started_at__date__lte=stale_cutoff,
     ).select_related('ticket__organization', 'user')
-    if organization is not None:
-        te_qs = te_qs.filter(ticket__organization=organization)
+    te_qs = scope_to_organizations(te_qs, 'ticket__organization', organization)
 
     stale_rows = {}
     for te in te_qs:
@@ -882,8 +896,7 @@ def revenue_leakage(start_date, end_date, organization=None,
 
     # --- 2. Expired contract blocks ----------------------------------------
     expired_qs = Contract.objects.filter(status='expired').select_related('client_org')
-    if organization is not None:
-        expired_qs = expired_qs.filter(organization=organization)
+    expired_qs = scope_to_organizations(expired_qs, 'organization', organization)
     expired_out = []
     for c in expired_qs:
         if not c.total_hours or c.hours_used >= float(c.total_hours):
@@ -904,8 +917,7 @@ def revenue_leakage(start_date, end_date, organization=None,
     stuck_qs = Invoice.objects.filter(
         status='draft', invoice_date__lte=stuck_cutoff,
     ).select_related('client_org')
-    if organization is not None:
-        stuck_qs = stuck_qs.filter(organization=organization)
+    stuck_qs = scope_to_organizations(stuck_qs, 'organization', organization)
     stuck_out = []
     for inv in stuck_qs:
         days_stuck = (today - inv.invoice_date).days
@@ -996,8 +1008,7 @@ def sla_trend_by_priority(start_date, end_date, organization=None, bucket='week'
                 created_at__date__gte=b_start,
                 created_at__date__lte=b_end,
             )
-            if organization is not None:
-                qs = qs.filter(organization=organization)
+            qs = scope_to_organizations(qs, 'organization', organization)
             cnt = qs.count()
 
             # Response breaches: first_response_due_at exists, AND either
@@ -1317,8 +1328,7 @@ def client_health_scores_all(organization_filter=None):
     score asc (worst clients first — most-actionable view)."""
     from core.models import Organization
     qs = Organization.objects.filter(is_active=True)
-    if organization_filter is not None:
-        qs = qs.filter(pk=organization_filter)
+    qs = scope_to_organizations(qs, 'pk', organization_filter)
     rows = []
     for org in qs:
         s = client_health_score(org.pk)

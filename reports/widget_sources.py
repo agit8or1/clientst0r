@@ -21,13 +21,150 @@ def _last_n_days(n=30):
     return today - timedelta(days=n - 1), today
 
 
+# ---- Who is looking --------------------------------------------------------
+#
+# A widget puts the same numbers on screen as a report page does, so it has to
+# answer the same two questions that page answers: may this user see this kind
+# of data at all, and whose data are they entitled to see? Until v3.17.568 no
+# widget asked either — every source aggregated across every client, and the
+# only gate was `reports_view_dashboards`, which every role has by default. A
+# read-only member of one client could open a shared dashboard and read the
+# MSP's revenue and its other clients' names.
+#
+# `WIDGET_SPECS` states both answers per data source:
+#   perm  — the permission the equivalent report page requires, or None when
+#           any dashboard viewer may see it.
+#   scope — SCOPE_ORG when the source honours `params['org_ids']`; SCOPE_MSP
+#           when the underlying rows have no client to scope by (django-axes
+#           attempts, the user table), which means the source may only be
+#           shown to a viewer entitled to every client.
+
+SCOPE_ORG = 'org'
+SCOPE_MSP = 'msp'
+
+WIDGET_SPECS = {
+    # Money — same bar as the profitability / leakage report pages.
+    'revenue_this_period': ('reports_view_financial', SCOPE_ORG),
+    'top_clients_by_revenue': ('reports_view_financial', SCOPE_ORG),
+    'revenue_trend_30d': ('reports_view_financial', SCOPE_ORG),
+    'unbilled_hours': ('reports_view_financial', SCOPE_ORG),
+    'hours_split_pie': ('reports_view_financial', SCOPE_ORG),
+    # SLA — same bar as the SLA trends page.
+    'sla_breach_trend': ('reports_view_sla', SCOPE_ORG),
+    # Service desk.
+    'open_tickets_count': (None, SCOPE_ORG),
+    'overdue_tickets_count': (None, SCOPE_ORG),
+    'avg_resolution_hours': (None, SCOPE_ORG),
+    'tickets_by_priority': (None, SCOPE_ORG),
+    'tickets_opened_30d': (None, SCOPE_ORG),
+    'my_assigned_tickets': (None, SCOPE_ORG),
+    'active_techs': (None, SCOPE_ORG),
+    # Client health.
+    'at_risk_clients': (None, SCOPE_ORG),
+    'client_health_breakdown': (None, SCOPE_ORG),
+    # Other modules — each behind its own module's view permission.
+    'recent_sales_activity': ('crm_view', SCOPE_ORG),
+    'low_stock_items': ('procurement_view', SCOPE_ORG),
+    'security_alerts_24h': (None, SCOPE_ORG),
+    'security_alerts_open_critical': (None, SCOPE_ORG),
+    'alerts_by_severity': (None, SCOPE_ORG),
+    'monitors_down': (None, SCOPE_ORG),
+    'monitors_status_breakdown': (None, SCOPE_ORG),
+    'ssl_expiring_soon': (None, SCOPE_ORG),
+    'domain_expiring_soon': (None, SCOPE_ORG),
+    'warranties_expiring_soon': (None, SCOPE_ORG),
+    'vault_activity_24h': ('audit_view', SCOPE_ORG),
+    # No client to scope these by, so they are MSP-wide or nothing.
+    'recent_failed_logins': ('audit_view', SCOPE_MSP),
+    'techs_logged_in': (None, SCOPE_MSP),
+}
+
+# An unregistered source is treated as the most sensitive thing it could be,
+# so adding one to REGISTRY without a spec fails closed rather than leaking.
+DEFAULT_SPEC = (None, SCOPE_MSP)
+
+REQUIRED_PERMS = sorted({perm for perm, _ in WIDGET_SPECS.values() if perm})
+
+
+def viewer_for(user, is_staff_user=False):
+    """
+    Build the viewer context `get_widget_data` needs, from a request's user.
+
+    `org_ids` is None for someone entitled to every client (superuser or MSP
+    staff) and a list of their active memberships' organization ids otherwise
+    — the same rule `psa.views._scoped_ticket_qs` applies to tickets.
+    """
+    from accounts.permission_utils import user_has_perm
+
+    if not user or not getattr(user, 'is_authenticated', False):
+        return no_access_viewer()
+
+    if user.is_superuser or is_staff_user:
+        org_ids = None
+    else:
+        org_ids = list(
+            user.memberships.filter(is_active=True)
+            .values_list('organization_id', flat=True)
+        ) if hasattr(user, 'memberships') else []
+
+    return {
+        'user_id': user.id,
+        'org_ids': org_ids,
+        'perms': {p for p in REQUIRED_PERMS if user_has_perm(user, p)},
+    }
+
+
+def no_access_viewer():
+    """A viewer entitled to nothing — the default when a caller supplies none."""
+    return {'user_id': None, 'org_ids': [], 'perms': set()}
+
+
+def msp_wide_viewer():
+    """A viewer entitled to everything — for system callers with no request."""
+    return {'user_id': None, 'org_ids': None, 'perms': set(REQUIRED_PERMS)}
+
+
+def _org_ids(params):
+    """The client orgs this render is limited to, or None for all of them."""
+    return (params or {}).get('org_ids')
+
+
+def _scoped(qs, params, field='organization_id'):
+    """Limit a queryset to the viewer's client orgs."""
+    ids = _org_ids(params)
+    if ids is None:
+        return qs
+    return qs.filter(**{f'{field}__in': ids})
+
+
+def _scoped_rows(rows, params, key='client_id'):
+    """Same idea for the per-client row lists `reports.queries` returns."""
+    ids = _org_ids(params)
+    if ids is None:
+        return rows
+    allowed = set(ids)
+    return [r for r in rows if r.get(key) in allowed]
+
+
+def _restricted(message):
+    """The payload a widget renders when the viewer may not see its data.
+
+    Both the dashboard and wallboard templates already render `error` as a
+    warning tile, so a restricted widget shows the reason in place of numbers
+    rather than showing a plausible-looking zero.
+    """
+    return {'error': message, 'restricted': True}
+
+
 # ---- METRIC widgets --------------------------------------------------------
 
 def revenue_this_period(params):
     from reports.queries import revenue_by_client
     days = int(params.get('days', 30))
     start, end = _last_n_days(days)
-    rows = revenue_by_client(start, end)
+    # `revenue_by_client` groups by the invoice's client_org, so filtering its
+    # rows is what limits this to the viewer's own clients.
+    rows = _scoped_rows(revenue_by_client(start, end), params)
     total = sum(r['invoiced'] for r in rows)
     return {
         'value': f'${total:,.0f}',
@@ -40,7 +177,7 @@ def revenue_this_period(params):
 def open_tickets_count(params):
     from psa.models import Ticket
     from django.utils import timezone
-    qs = Ticket.objects.filter(status__is_terminal=False)
+    qs = _scoped(Ticket.objects.filter(status__is_terminal=False), params)
     cat = (params or {}).get('category') or 'all'
     label = 'Open tickets'
     if cat == 'unassigned':
@@ -64,10 +201,10 @@ def open_tickets_count(params):
 def overdue_tickets_count(params):
     from psa.models import Ticket
     from django.utils import timezone
-    n = Ticket.objects.filter(
+    n = _scoped(Ticket.objects.filter(
         status__is_terminal=False,
         resolution_due_at__lt=timezone.now(),
-    ).count()
+    ), params).count()
     return {
         'value': str(n),
         'subtitle': 'SLA overdue',
@@ -79,7 +216,8 @@ def overdue_tickets_count(params):
 def unbilled_hours(params):
     """Stale (>30d) billable time not yet invoiced."""
     from reports.queries import revenue_leakage
-    leak = revenue_leakage(date.today() - timedelta(days=365), date.today())
+    leak = revenue_leakage(date.today() - timedelta(days=365), date.today(),
+                           organization=_org_ids(params))
     stale = leak['totals']['stale']
     return {
         'value': f'${stale:,.0f}',
@@ -93,8 +231,9 @@ def active_techs(params):
     """Distinct techs who logged time in last 30 days."""
     from psa.models import TicketTimeEntry
     start, _ = _last_n_days(30)
-    n = TicketTimeEntry.objects.filter(
-        started_at__date__gte=start
+    n = _scoped(
+        TicketTimeEntry.objects.filter(started_at__date__gte=start),
+        params, 'ticket__organization_id',
     ).values('user_id').distinct().count()
     return {
         'value': str(n),
@@ -110,9 +249,9 @@ def avg_resolution_hours(params):
     from django.utils import timezone
     from datetime import timedelta as td
     cutoff = timezone.now() - td(days=30)
-    closed = Ticket.objects.filter(
+    closed = _scoped(Ticket.objects.filter(
         closed_at__gte=cutoff, status__is_terminal=True,
-    ).exclude(closed_at__isnull=True).exclude(created_at__isnull=True)
+    ), params).exclude(closed_at__isnull=True).exclude(created_at__isnull=True)
     total = 0
     cnt = 0
     for t in closed:
@@ -136,7 +275,7 @@ def top_clients_by_revenue(params):
     days = int(params.get('days', 30))
     limit = int(params.get('limit', 5))
     start, end = _last_n_days(days)
-    rows = revenue_by_client(start, end)[:limit]
+    rows = _scoped_rows(revenue_by_client(start, end), params)[:limit]
     return {
         'columns': ['Client', 'Invoiced', 'Outstanding'],
         'rows': [
@@ -153,7 +292,7 @@ def tickets_by_priority(params):
     from psa.models import Ticket
     from django.db.models import Count
     cat = (params or {}).get('category') or 'priority'
-    base = Ticket.objects.filter(status__is_terminal=False)
+    base = _scoped(Ticket.objects.filter(status__is_terminal=False), params)
     if cat == 'queue':
         agg = base.values('queue__name').annotate(n=Count('id')).order_by('-n')[:8]
         rows = [[r['queue__name'] or '—', str(r['n'])] for r in agg]
@@ -175,9 +314,9 @@ def my_assigned_tickets(params):
     uid = params.get('user_id')
     if not uid:
         return {'columns': ['Ticket', 'Subject', 'Priority'], 'rows': []}
-    qs = Ticket.objects.filter(
+    qs = _scoped(Ticket.objects.filter(
         assigned_to_id=uid, status__is_terminal=False,
-    ).select_related('priority').order_by('-resolution_due_at')[:8]
+    ), params).select_related('priority').order_by('-resolution_due_at')[:8]
     rows = [
         [t.ticket_number, t.subject[:60], t.priority.code if t.priority_id else '']
         for t in qs
@@ -193,10 +332,10 @@ def revenue_trend_30d(params):
     today = date.today()
     days = [today - timedelta(days=i) for i in range(29, -1, -1)]
     by_day = {d: 0.0 for d in days}
-    invs = Invoice.objects.filter(
+    invs = _scoped(Invoice.objects.filter(
         invoice_date__gte=days[0], invoice_date__lte=today,
         status__in=['sent', 'partial', 'paid', 'overdue'],
-    )
+    ), params, 'client_org_id')
     for inv in invs:
         if inv.invoice_date in by_day:
             by_day[inv.invoice_date] += float(inv.total or 0)
@@ -237,15 +376,16 @@ def tickets_opened_30d(params):
     days = [today - timedelta(days=i) for i in range(29, -1, -1)]
     labels = [d.strftime('%m/%d') for d in days]
     cat = (params or {}).get('category') or 'opened'
+    base = _scoped(Ticket.objects.all(), params)
     if cat == 'closed':
         counts = [
-            Ticket.objects.filter(closed_at__date=d).count()
+            base.filter(closed_at__date=d).count()
             for d in days
         ]
         return {'labels': labels, 'series': [{'name': 'Closed', 'data': counts}]}
     if cat == 'net':
-        opened = [Ticket.objects.filter(created_at__date=d).count() for d in days]
-        closed = [Ticket.objects.filter(closed_at__date=d).count() for d in days]
+        opened = [base.filter(created_at__date=d).count() for d in days]
+        closed = [base.filter(closed_at__date=d).count() for d in days]
         net = [o - c for o, c in zip(opened, closed)]
         return {
             'labels': labels,
@@ -255,7 +395,7 @@ def tickets_opened_30d(params):
                 {'name': 'Net (backlog Δ)', 'data': net},
             ],
         }
-    counts = [Ticket.objects.filter(created_at__date=d).count() for d in days]
+    counts = [base.filter(created_at__date=d).count() for d in days]
     return {'labels': labels, 'series': [{'name': 'Opened', 'data': counts}]}
 
 
@@ -263,7 +403,7 @@ def hours_split_pie(params):
     """Billable vs non-billable hours (last 30d)."""
     from reports.queries import hours_minutes_by_client
     start, end = _last_n_days(30)
-    rows = hours_minutes_by_client(start, end)
+    rows = hours_minutes_by_client(start, end, organization=_org_ids(params))
     bill = sum(r['billable_minutes'] for r in rows) / 60.0
     nonbill = sum(r['nonbillable_minutes'] for r in rows) / 60.0
     return {'labels': ['Billable', 'Non-billable'], 'data': [round(bill, 1), round(nonbill, 1)]}
@@ -274,7 +414,8 @@ def sla_breach_trend(params):
     from reports.queries import sla_trend_by_priority
     end = date.today()
     start = end - timedelta(days=29)
-    data = sla_trend_by_priority(start, end, bucket='day')
+    data = sla_trend_by_priority(start, end, organization=_org_ids(params),
+                                 bucket='day')
     labels = data['buckets']
     series = []
     for p in ['P1', 'P2', 'P3']:  # only top 3 priorities for the widget
@@ -294,7 +435,7 @@ def at_risk_clients(params):
     """
     from reports.queries import client_health_scores_all
     cat = (params or {}).get('category') or 'worst'
-    rows = client_health_scores_all()
+    rows = client_health_scores_all(organization_filter=_org_ids(params))
     if cat == 'trouble_only':
         rows = [r for r in rows if r['category'] == 'trouble'][:8]
     elif cat == 'at_risk_only':
@@ -311,7 +452,7 @@ def at_risk_clients(params):
 def client_health_breakdown(params):
     """Pie chart: Healthy / At-Risk / Trouble counts."""
     from reports.queries import client_health_scores_all
-    rows = client_health_scores_all()
+    rows = client_health_scores_all(organization_filter=_org_ids(params))
     counts = {'Healthy': 0, 'At-Risk': 0, 'Trouble': 0}
     for r in rows:
         if r['category'] == 'healthy':
@@ -330,7 +471,7 @@ def recent_sales_activity(params):
     try:
         from crm.models import SalesActivity
         rows = []
-        for a in SalesActivity.objects.select_related(
+        for a in _scoped(SalesActivity.objects.all(), params).select_related(
             'lead', 'opportunity', 'client_org', 'user',
         ).order_by('-occurred_at')[:10]:
             target = (
@@ -358,9 +499,9 @@ def low_stock_items(params):
     rows = []
     try:
         from inventory.models import InventoryItem
-        for it in InventoryItem.objects.filter(
+        for it in _scoped(InventoryItem.objects.filter(
             quantity__lte=models.F('min_quantity')
-        ).exclude(min_quantity=0)[:10]:
+        ), params).exclude(min_quantity=0)[:10]:
             rows.append([str(it), str(it.quantity), str(it.min_quantity)])
     except Exception:
         pass
@@ -377,8 +518,9 @@ def security_alerts_24h(params):
         from security_alerts.models import SecurityAlert
         cutoff = timezone.now() - timedelta(hours=24)
         rows = []
+        alerts = _scoped(SecurityAlert.objects.all(), params)
         for sev in ['critical', 'high', 'medium', 'low', 'info']:
-            n = SecurityAlert.objects.filter(severity=sev, status='new', seen_at__gte=cutoff).count()
+            n = alerts.filter(severity=sev, status='new', seen_at__gte=cutoff).count()
             if n:
                 rows.append([sev.upper(), str(n)])
         return {'columns': ['Severity', 'New (24h)'], 'rows': rows or [['—', '0']]}
@@ -393,7 +535,7 @@ def security_alerts_open_critical(params):
         from datetime import timedelta
         from django.utils import timezone
         cat = (params or {}).get('category') or 'critical_high'
-        qs = SecurityAlert.objects.all()
+        qs = _scoped(SecurityAlert.objects.all(), params)
         label = 'Open critical / high security alerts'
         if cat == 'critical_high':
             qs = qs.filter(severity__in=['critical', 'high'], status='new')
@@ -441,9 +583,9 @@ def monitors_down(params):
     """Count of WebsiteMonitors currently in `down` or `error` state."""
     try:
         from monitoring.models import WebsiteMonitor
-        n = WebsiteMonitor.objects.filter(
+        n = _scoped(WebsiteMonitor.objects.filter(
             is_enabled=True, status__in=['down', 'error'],
-        ).count()
+        ), params).count()
         return {
             'value': str(n),
             'subtitle': 'Monitors currently down',
@@ -462,11 +604,11 @@ def ssl_expiring_soon(params):
     try:
         from monitoring.models import WebsiteMonitor
         cutoff = _tz.now() + _td(days=days)
-        n = WebsiteMonitor.objects.filter(
+        n = _scoped(WebsiteMonitor.objects.filter(
             is_enabled=True, ssl_enabled=True,
             ssl_expires_at__isnull=False,
             ssl_expires_at__lte=cutoff,
-        ).count()
+        ), params).count()
         return {
             'value': str(n),
             'subtitle': f'SSL certs expiring in {days}d',
@@ -485,11 +627,11 @@ def domain_expiring_soon(params):
     try:
         from monitoring.models import WebsiteMonitor
         cutoff = _tz.now() + _td(days=days)
-        n = WebsiteMonitor.objects.filter(
+        n = _scoped(WebsiteMonitor.objects.filter(
             is_enabled=True,
             domain_expires_at__isnull=False,
             domain_expires_at__lte=cutoff,
-        ).count()
+        ), params).count()
         return {
             'value': str(n),
             'subtitle': f'Domains expiring in {days}d',
@@ -507,11 +649,11 @@ def warranties_expiring_soon(params):
     try:
         from assets.models import Asset
         cutoff = _date.today() + _td(days=days)
-        n = Asset.objects.filter(
+        n = _scoped(Asset.objects.filter(
             warranty_expiry__isnull=False,
             warranty_expiry__lte=cutoff,
             warranty_expiry__gte=_date.today(),
-        ).count()
+        ), params).count()
         return {
             'value': str(n),
             'subtitle': f'Assets warranty expiring in {days}d',
@@ -548,10 +690,10 @@ def vault_activity_24h(params):
     try:
         from audit.models import AuditLog
         cutoff = _tz.now() - _td(hours=24)
-        n = AuditLog.objects.filter(
+        n = _scoped(AuditLog.objects.filter(
             object_type__iexact='password',
             timestamp__gte=cutoff,
-        ).count()
+        ), params).count()
         return {
             'value': str(n),
             'subtitle': 'Vault events (24h)',
@@ -567,8 +709,9 @@ def alerts_by_severity(params):
     try:
         from security_alerts.models import SecurityAlert
         rows = []
+        alerts = _scoped(SecurityAlert.objects.all(), params)
         for sev in ['critical', 'high', 'medium', 'low', 'info']:
-            n = SecurityAlert.objects.filter(severity=sev, status='new').count()
+            n = alerts.filter(severity=sev, status='new').count()
             rows.append([sev.upper(), str(n)])
         return {'columns': ['Severity', 'Open'], 'rows': rows}
     except Exception:
@@ -582,8 +725,9 @@ def monitors_status_breakdown(params):
         labels = ['Active', 'Warning', 'Down', 'Unknown']
         keys = ['active', 'warning', 'down', 'unknown']
         data = []
+        monitors = _scoped(WebsiteMonitor.objects.filter(is_enabled=True), params)
         for k in keys:
-            data.append(WebsiteMonitor.objects.filter(is_enabled=True, status=k).count())
+            data.append(monitors.filter(status=k).count())
         return {'labels': labels, 'data': data}
     except Exception:
         return {'labels': [], 'data': []}
@@ -818,15 +962,39 @@ def get_template(key):
     return None
 
 
-def get_widget_data(data_source: str, params: dict) -> dict:
-    """Lookup + execute. Returns {'error': str} if data source unknown
-    or the callable raises (so a single bad widget doesn't crash the
-    whole dashboard render)."""
+def get_widget_data(data_source: str, params: dict, viewer: dict = None) -> dict:
+    """
+    Look the source up, check the viewer may see it, and execute it.
+
+    `viewer` comes from `viewer_for(request.user, request.is_staff_user)`.
+    Omitting it means no access at all, not full access: a caller that forgets
+    to pass one renders visibly empty tiles instead of quietly handing every
+    client's data to whoever asked.
+
+    Returns {'error': str} if the data source is unknown, the viewer may not
+    see it, or the callable raises (so one bad widget can't take the whole
+    dashboard down with it).
+    """
     fn = REGISTRY.get(data_source)
     if fn is None:
         return {'error': f'Unknown data source: {data_source}'}
+
+    viewer = no_access_viewer() if viewer is None else viewer
+    perm, scope = WIDGET_SPECS.get(data_source, DEFAULT_SPEC)
+    org_ids = viewer.get('org_ids')
+
+    if perm and perm not in (viewer.get('perms') or ()):
+        return _restricted(f'Restricted — needs the {perm} permission')
+    if scope == SCOPE_MSP and org_ids is not None:
+        return _restricted('Restricted — this widget reports across every client')
+
+    params = dict(params or {})
+    params['org_ids'] = org_ids
+    if viewer.get('user_id') is not None:
+        params['user_id'] = viewer['user_id']
+
     try:
-        return fn(params or {})
+        return fn(params)
     except Exception as exc:
         import logging
         logging.getLogger('reports.widgets').exception('widget %s failed', data_source)

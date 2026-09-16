@@ -1231,13 +1231,22 @@ fetched by id without checking which tenant it belongs to.
   auth, retries and the base-URL validation the manager's own requests skipped —
   Autotask and HaloPSA notes are implemented rather than stubs, and a failure is
   recorded and shown to the tech instead of being swallowed.
+- Dashboard widget scoping *(shipped v3.17.568)* — every dashboard and
+  wallboard widget aggregated across every client and checked no permission
+  beyond `reports_view_dashboards`, which each role carries by default. A
+  read-only member of one client could open a shared board and read the MSP's
+  revenue and its other clients' names — data the report pages showing the same
+  numbers refuse them. Each data source now declares the permission it needs
+  and how it scopes; a viewer sees their own clients' figures, MSP staff still
+  see everything, and a source with no client to scope by is shown only to
+  someone entitled to every client.
 - **Remaining in this phase:** the rest of billing arithmetic, search and export
   scoping, and what the AI features are allowed to read.
 
 **Sizing:** **M** — 49.1 complete; 49.2 has covered views, backup/restore,
 invoice tax, update progress, SLA, invoice duplication, background job failure
-handling, expiry notifications and PSA ticket notes, with export scoping and AI
-data access still ahead.
+handling, expiry notifications, PSA ticket notes and dashboard widget scoping,
+with export scoping and AI data access still ahead.
 
 ---
 ## What's explicitly NOT in this plan
@@ -1299,7 +1308,7 @@ data access still ahead.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

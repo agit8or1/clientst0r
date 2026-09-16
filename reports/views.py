@@ -100,7 +100,7 @@ def dashboard_detail(request, pk):
     `reports.widget_sources` registry so the template just emits HTML
     based on the prepared `widget.rendered` payload.
     """
-    from .widget_sources import get_widget_data
+    from .widget_sources import get_widget_data, viewer_for
     orgs = get_user_organizations(request.user)
 
     dashboard = get_object_or_404(
@@ -119,10 +119,13 @@ def dashboard_detail(request, pk):
     # Render data for each widget. Errors are captured per-widget so a
     # single misbehaving data source can't blow up the whole page.
     has_chart = False
+    # Who is looking decides both which widgets render at all and whose
+    # clients they aggregate — a dashboard can be shared (or global) and is
+    # not itself a statement about what its viewer may see.
+    viewer = viewer_for(request.user, getattr(request, 'is_staff_user', False))
     for w in widgets:
         params = dict(w.query_params or {})
-        params['user_id'] = request.user.id
-        w.rendered = get_widget_data(w.data_source, params)
+        w.rendered = get_widget_data(w.data_source, params, viewer)
         # Pre-serialize chart payload so the template can drop it into a
         # <script type="application/json"> tag without re-encoding.
         if w.widget_type in ('chart_line', 'chart_bar', 'chart_pie'):
@@ -1948,7 +1951,7 @@ def wallboard_view(request, pk):
     refresh applies to the whole rendered page); they're informational
     until the JS-side per-widget refresher ships in a future sub-phase.
     """
-    from .widget_sources import get_widget_data
+    from .widget_sources import get_widget_data, viewer_for
 
     board = get_object_or_404(Wallboard, pk=pk)
     if not _user_can_see_wallboards(request.user, board.organization):
@@ -1956,6 +1959,7 @@ def wallboard_view(request, pk):
         raise Http404('Wallboard not found')
 
     from .widget_sources import get_categories, default_category
+    viewer = viewer_for(request.user, getattr(request, 'is_staff_user', False))
     rendered_widgets = []
     has_chart = False
     for w in board.widgets.order_by('order', 'created_at'):
@@ -1965,7 +1969,7 @@ def wallboard_view(request, pk):
         if cats:
             active_cat = params.get('category') or default_category(w.data_source)
             params['category'] = active_cat
-        data = get_widget_data(w.data_source, params)
+        data = get_widget_data(w.data_source, params, viewer)
         if w.widget_type in ('chart_line', 'chart_bar', 'chart_pie'):
             has_chart = True
         rendered_widgets.append({
@@ -2010,8 +2014,9 @@ def wallboard_rotate(request, pk):
         rotate_target_pk = None
         rotate_seconds = 0
 
-    from .widget_sources import get_widget_data
+    from .widget_sources import get_widget_data, viewer_for
     from .widget_sources import get_categories, default_category
+    viewer = viewer_for(request.user, getattr(request, 'is_staff_user', False))
     rendered_widgets = []
     has_chart = False
     for w in board.widgets.order_by('order', 'created_at'):
@@ -2021,7 +2026,7 @@ def wallboard_rotate(request, pk):
         if cats:
             active_cat = params.get('category') or default_category(w.data_source)
             params['category'] = active_cat
-        data = get_widget_data(w.data_source, params)
+        data = get_widget_data(w.data_source, params, viewer)
         if w.widget_type in ('chart_line', 'chart_bar', 'chart_pie'):
             has_chart = True
         rendered_widgets.append({
@@ -2270,6 +2275,7 @@ def wallboard_widget_data(request, pk):
     """
     from .widget_sources import (
         get_widget_data, get_categories, is_valid_category, default_category,
+        viewer_for,
     )
     widget = get_object_or_404(WallboardWidget.objects.select_related('wallboard'), pk=pk)
     if not _user_can_see_wallboards(request.user, widget.wallboard.organization):
@@ -2284,7 +2290,10 @@ def wallboard_widget_data(request, pk):
             return JsonResponse({'error': 'unknown category'}, status=400)
         params['category'] = category or default_category(widget.data_source)
 
-    data = get_widget_data(widget.data_source, params)
+    data = get_widget_data(
+        widget.data_source, params,
+        viewer_for(request.user, getattr(request, 'is_staff_user', False)),
+    )
     return JsonResponse({
         'widget_type': widget.widget_type,
         'data': data,

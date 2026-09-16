@@ -5,6 +5,56 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.568] - 2026-09-16
+
+### Dashboard widgets now answer to permissions and to tenancy
+
+Every dashboard and wallboard widget aggregated across every client in the
+install and checked no permission beyond `reports_view_dashboards` — which
+every role template, down to Read-Only, grants by default.
+
+The report pages are careful about this. `psa_profitability_by_client` is
+behind `reports_view_financial`; `psa_sla_trends` is behind
+`reports_view_sla`; `agreement_reconciliation` narrows to the caller's own
+orgs unless they are staff. The widget layer showed the same numbers with
+neither check. A read-only member of one client could open a shared — or
+global — dashboard and read the MSP's total revenue, its top clients by name
+and invoiced amount, MSP-wide unbilled hours, SLA breach trends, failed-login
+counts and vault activity. Nothing in the UI suggested the tiles were
+anything other than their own.
+
+`reports/widget_sources.py` now states, per data source, both answers:
+
+- **`perm`** — the permission the equivalent report page requires, or None
+  when any dashboard viewer may see it. Money sources take
+  `reports_view_financial`, the SLA trend takes `reports_view_sla`, the
+  CRM/inventory/audit-backed ones take their own module's view permission.
+- **`scope`** — `SCOPE_ORG` for a source that honours the viewer's client
+  orgs, `SCOPE_MSP` for one whose rows have no client to scope by
+  (django-axes attempts, the user table). An `SCOPE_MSP` source is shown to
+  someone entitled to every client and refused to everyone else, rather than
+  shown unscoped.
+
+`viewer_for(user, is_staff_user)` builds the viewer context by the same rule
+`psa.views._scoped_ticket_qs` applies to tickets: superuser and MSP staff see
+every client, everyone else sees their active memberships' orgs. All four
+render paths — dashboard detail, wallboard view, wallboard rotate and the
+per-widget category refresh — pass it.
+
+Two details worth naming:
+
+- **`get_widget_data` without a viewer now means no access, not full access.**
+  A call site that forgets one renders visibly empty tiles instead of quietly
+  handing every client's data to whoever asked. A data source missing from
+  `WIDGET_SPECS` falls back the same way.
+- **A restricted widget says so.** Both templates already render an `error`
+  key as a warning tile, so the viewer gets the reason in place of the
+  numbers rather than a plausible-looking zero.
+
+`reports/queries.py` grew `scope_to_organizations()`, which lets the query
+functions the widgets call take a list of client orgs as well as the single
+one they already accepted. No caller's existing behaviour changes.
+
 ## [3.17.567] - 2026-09-16
 
 ### Workflow completion notes now actually reach the PSA ticket
