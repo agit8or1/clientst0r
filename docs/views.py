@@ -10,6 +10,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from core.middleware import get_request_organization
 from core.decorators import require_write, require_admin, require_organization_context
+from core.ai_gate import require_ai_enabled_json
 from .models import Document, DocumentVersion, DocumentCategory
 from .forms import DocumentForm
 import os
@@ -411,11 +412,11 @@ def _docs_ai_ready():
     Returns (ok: bool, message: str). `message` is a user-facing reason when
     not ok, otherwise the provider name.
     """
-    from core.models import SystemSetting
+    from core.ai_gate import AI_DISABLED_MESSAGE, ai_features_enabled
     from .services.llm_providers import is_llm_configured
 
-    if not SystemSetting.get_settings().psa_ai_enabled:
-        return (False, 'AI features are turned off. Enable them in Settings → PSA (AI).')
+    if not ai_features_enabled():
+        return (False, AI_DISABLED_MESSAGE)
     has_ai, provider_name = is_llm_configured()
     if not has_ai:
         return (False, f'LLM provider is not configured. Please configure {provider_name} in Settings → AI.')
@@ -1506,15 +1507,17 @@ def ai_assistant(request):
     AI Documentation Assistant - Generate documentation from prompts with templates.
     """
     from .services.ai_documentation_generator import DOCUMENTATION_TEMPLATES
-    from .services.llm_providers import is_llm_configured
 
     org = get_request_organization(request)
 
-    # Check if AI is configured
-    has_ai, provider_name = is_llm_configured()
-    if not has_ai:
-        messages.error(request, f'LLM provider is not configured. Please configure {provider_name} in Settings → AI.')
+    # Both the master switch and a configured provider, same as every other
+    # AI surface — this page used to ask only about the provider.
+    ai_ok, ai_message = _docs_ai_ready()
+    if not ai_ok:
+        messages.error(request, ai_message)
         return redirect('docs:document_list')
+    provider_name = ai_message
+    has_ai = True
 
     return render(request, 'docs/ai_assistant.html', {
         'templates': DOCUMENTATION_TEMPLATES,
@@ -1524,10 +1527,15 @@ def ai_assistant(request):
 
 
 @login_required
+@require_ai_enabled_json
 @require_http_methods(['POST'])
 def ai_generate(request):
     """
     Generate documentation using AI.
+
+    The master switch is enforced by the decorator: before v3.17.569 this
+    endpoint checked only that a provider was configured, so turning AI off
+    in Settings left it generating (and spending) as before.
     """
     from .services.ai_documentation_generator import AIDocumentationGenerator
     from .services.llm_providers import is_llm_configured
@@ -1566,6 +1574,7 @@ def ai_generate(request):
 
 
 @login_required
+@require_ai_enabled_json
 @require_http_methods(['POST'])
 def ai_enhance(request):
     """
@@ -1615,6 +1624,7 @@ def ai_enhance(request):
 
 
 @login_required
+@require_ai_enabled_json
 @require_http_methods(['POST'])
 def ai_validate(request):
     """

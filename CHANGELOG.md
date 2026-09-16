@@ -5,6 +5,62 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.569] - 2026-09-16
+
+### The AI spend controls never ran, and the master switch missed six endpoints
+
+**`AIAbuseControlMiddleware` guarded nothing.** It decided what to cover by
+matching two hand-typed path prefixes:
+
+    '/locations/generate-floorplan/',
+    '/api/ai/',
+
+The floor-plan route is `/locations/<id>/generate-floor-plan/` — different
+spelling, and missing the id segment — and `/api/ai/` has never been a route
+in this project. `_is_ai_endpoint` therefore never returned True. The
+middleware was in `MIDDLEWARE` and fell straight through on every request for
+its entire life: no per-user request cap, no per-org request cap, no spend
+cap, nothing recorded, on any AI endpoint.
+
+Two more faults sat behind that one, each enough on its own to disable half
+the control had the matching ever worked:
+
+- It read `request.organization`. `CurrentOrganizationMiddleware` sets
+  `request.current_organization`; nothing sets `organization`. Both org-level
+  caps were skipped.
+- `_check_limits` reads `ai_spend_user_*` / `ai_spend_org_*`, and
+  `_track_usage` only ever wrote the request counters. Nothing wrote the
+  spend keys, so the dollar caps could not fire.
+
+And `get_ai_usage_stats()`, which reports the numbers, has no callers — so
+nobody ever saw that they were always zero.
+
+Matching is now by resolved URL name against `AI_ENDPOINT_NAMES`, which lists
+all twelve endpoints that reach a provider, so a route can be re-spelled
+without disarming the control, and a test fails if one is renamed or removed.
+Full resolution costs ~120us on a miss, which would be pure waste on the
+static files and ordinary pages that are nearly every request, so a prefix
+check runs first and only candidates are resolved — 0.6us for everything
+else. A second test keeps the prefix list and the endpoint list in step, so
+the fast path cannot quietly stop covering something.
+Org attribution goes through `get_request_organization` like the rest of the
+app. `record_ai_spend()` is what feeds the spend caps: the middleware sees a
+response, not a token count, so it does not invent a cost — a caller that
+reports nothing is bounded by the request caps, and the PSA AI path keeps its
+own finer-grained token ceiling in `psa_ai.services.guardrails`, which was
+working all along.
+
+**Six endpoints never consulted `psa_ai_enabled`.** Project convention is
+that every AI feature is gated by the master switch. The documentation
+assistant (`ai_assistant`, `ai_generate`, `ai_enhance`, `ai_validate`), asset
+AI documentation and floor-plan generation each checked only that a provider
+was configured — so an admin who turned AI off in Settings still had all six
+generating, and still spending against the configured provider. They now go
+through the new `core/ai_gate.py`, which is also where the three
+independently-grown copies of the check (`psa_ai.views._ai_on`,
+`security_alerts.ai_summarizer.is_ai_enabled`, `docs.views._docs_ai_ready`)
+now read the flag from, so they cannot drift apart again.
+
 ## [3.17.568] - 2026-09-16
 
 ### Dashboard widgets now answer to permissions and to tenancy

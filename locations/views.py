@@ -335,6 +335,13 @@ def generate_floor_plan(request, location_id):
         )
 
     if request.method == 'POST':
+        # The master switch first — generation used to start on the API key
+        # alone, so turning AI off in Settings did not turn this off.
+        from core.ai_gate import AI_DISABLED_MESSAGE, ai_features_enabled
+        if not ai_features_enabled():
+            messages.error(request, AI_DISABLED_MESSAGE)
+            return redirect('locations:location_detail', location_id=location.id)
+
         # Check if Anthropic API key is configured
         if not settings.ANTHROPIC_API_KEY:
             messages.error(

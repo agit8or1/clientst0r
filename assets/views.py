@@ -741,6 +741,12 @@ def asset_ai_doc(request, pk):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
 
+    # The master switch, which this endpoint did not consult before v3.17.569
+    # — it asked only whether a provider was configured.
+    from core.ai_gate import AI_DISABLED_MESSAGE, ai_features_enabled
+    if not ai_features_enabled():
+        return JsonResponse({'success': False, 'error': AI_DISABLED_MESSAGE}, status=400)
+
     try:
         return _asset_ai_doc_inner(request, pk)
     except Exception as exc:  # noqa: BLE001 — last-resort JSON catcher

@@ -21,11 +21,8 @@ logger = logging.getLogger('security_alerts.ai_summarizer')
 
 
 def is_ai_enabled() -> bool:
-    from core.models import SystemSetting
-    try:
-        return bool(getattr(SystemSetting.get_settings(), 'psa_ai_enabled', False))
-    except Exception:
-        return False
+    from core.ai_gate import ai_features_enabled
+    return ai_features_enabled()
 
 
 def summarize_incident(incident, *, requested_by=None) -> dict:

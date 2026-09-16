@@ -1240,13 +1240,25 @@ fetched by id without checking which tenant it belongs to.
   and how it scopes; a viewer sees their own clients' figures, MSP staff still
   see everything, and a source with no client to scope by is shown only to
   someone entitled to every client.
+- AI gating + spend controls *(shipped v3.17.569)* — `AIAbuseControlMiddleware`
+  matched two hand-typed path prefixes, neither of which is a route this
+  project has, so it fell through on every request: no rate cap, no spend cap,
+  nothing recorded, on any AI endpoint. It also read an org attribute nothing
+  sets, and its spend keys were read but never written. Matching is now by
+  resolved URL name over every endpoint that reaches a provider. Separately,
+  six endpoints — the documentation assistant's four, asset AI documentation
+  and floor-plan generation — never consulted the `psa_ai_enabled` master
+  switch, so turning AI off left them generating and spending; all six now
+  read it through one shared gate.
 - **Remaining in this phase:** the rest of billing arithmetic, search and export
-  scoping, and what the AI features are allowed to read.
+  scoping, and what the AI features are allowed to read (the PSA AI context
+  builder is already org-scoped and withholds internal notes — the remaining
+  question is the other AI surfaces' prompt inputs).
 
 **Sizing:** **M** — 49.1 complete; 49.2 has covered views, backup/restore,
 invoice tax, update progress, SLA, invoice duplication, background job failure
-handling, expiry notifications, PSA ticket notes and dashboard widget scoping,
-with export scoping and AI data access still ahead.
+handling, expiry notifications, PSA ticket notes, dashboard widget scoping and
+AI gating + spend controls, with export scoping and AI data access still ahead.
 
 ---
 ## What's explicitly NOT in this plan
@@ -1308,7 +1320,7 @@ with export scoping and AI data access still ahead.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

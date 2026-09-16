@@ -41,8 +41,8 @@ def _client_ip(request):
 def _ai_on(request):
     """Check both the master PSA flag (decorator handles that) AND the AI
     sub-flag. The decorator stack already enforces psa_enabled."""
-    from core.models import SystemSetting
-    return SystemSetting.get_settings().psa_ai_enabled
+    from core.ai_gate import ai_features_enabled
+    return ai_features_enabled()
 
 
 def _user_can_view_suggestion(user, suggestion: AISuggestion, request=None) -> bool:

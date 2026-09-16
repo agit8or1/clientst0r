@@ -7,9 +7,73 @@ import logging
 from django.core.cache import cache
 from django.conf import settings
 from django.http import JsonResponse
+from django.urls import Resolver404, resolve
 from decimal import Decimal
 
 logger = logging.getLogger('core')
+
+
+# Every endpoint that reaches an LLM provider, by `namespace:name`. The PSA
+# AI endpoints are listed too: they carry their own token quota in
+# `psa_ai.services.guardrails`, and the request caps here sit on top of it.
+AI_ENDPOINT_NAMES = frozenset({
+    'assets:asset_ai_doc',
+    'docs:ai_generate',
+    'docs:ai_enhance',
+    'docs:ai_validate',
+    'docs:ai_review_import',
+    'locations:generate_floor_plan',
+    'psa_ai:generate_reply',
+    'psa_ai:generate_actions',
+    'psa_ai:generate_triage',
+    'security_alerts:incident_ai_summarize',
+    'vehicles:receipt_ocr_extract',
+    'api_mobile:ocr_receipt',
+})
+
+
+# Full URL resolution costs ~120us on a miss, which is pure waste on the
+# static files and ordinary pages that make up almost every request. These
+# prefixes are the cheap first pass; anything matching one is then resolved
+# properly. `test_every_named_endpoint_sits_under_a_known_prefix` checks the
+# two stay in step, so the fast path can never quietly exclude an endpoint.
+AI_PATH_PREFIXES = (
+    '/api/',
+    '/assets/',
+    '/docs/',
+    '/locations/',
+    '/psa/',
+    '/security/',
+    '/vehicles/',
+)
+
+
+def _request_org(request):
+    """The org to attribute this call to.
+
+    `CurrentOrganizationMiddleware` sets `current_organization`; this file
+    used to read `request.organization`, which nothing has ever set, so both
+    org-level caps were skipped even on a request that matched.
+    """
+    from core.middleware import get_request_organization
+
+    return get_request_organization(request)
+
+
+def record_ai_spend(user, organization, amount):
+    """Record real spend against today's caps.
+
+    For callers that know what a generation actually cost. Amounts are USD
+    and accumulate for 24 hours, against the same keys `_check_limits` reads.
+    """
+    ttl = 86400
+    amount = Decimal(str(amount))
+    if user is not None:
+        key = f'ai_spend_user_{user.id}_today'
+        cache.set(key, Decimal(str(cache.get(key, 0))) + amount, ttl)
+    if organization is not None:
+        key = f'ai_spend_org_{organization.id}_today'
+        cache.set(key, Decimal(str(cache.get(key, 0))) + amount, ttl)
 
 
 class AIAbuseControlMiddleware:
@@ -31,11 +95,8 @@ class AIAbuseControlMiddleware:
         self.max_daily_spend_per_user = Decimal(str(getattr(settings, 'AI_MAX_DAILY_SPEND_PER_USER', 10.00)))  # USD
         self.max_daily_spend_per_org = Decimal(str(getattr(settings, 'AI_MAX_DAILY_SPEND_PER_ORG', 100.00)))  # USD
 
-        # AI endpoint patterns (paths that use Anthropic API)
-        self.ai_endpoints = [
-            '/locations/generate-floorplan/',
-            '/api/ai/',  # Generic AI endpoints
-        ]
+        # Which endpoints this covers is decided by resolved URL name, not by
+        # hand-typed path prefixes — see AI_ENDPOINT_NAMES.
 
     def __call__(self, request):
         # Check if this is an AI endpoint
@@ -43,7 +104,7 @@ class AIAbuseControlMiddleware:
             return self.get_response(request)
 
         # Check authentication
-        if not request.user or not request.user.is_authenticated:
+        if not getattr(request, 'user', None) or not request.user.is_authenticated:
             return JsonResponse({'error': 'Authentication required'}, status=401)
 
         # Check request limits
@@ -61,13 +122,32 @@ class AIAbuseControlMiddleware:
         return response
 
     def _is_ai_endpoint(self, path):
-        """Check if path is an AI endpoint."""
-        return any(endpoint in path for endpoint in self.ai_endpoints)
+        """Whether this path is one of the AI endpoints, by resolved URL name.
+
+        Matching used to be a list of two hand-typed path prefixes, and both
+        were wrong: `/locations/generate-floorplan/` is spelled
+        `/locations/<id>/generate-floor-plan/`, and `/api/ai/` is not a route
+        this project has ever had. `_is_ai_endpoint` therefore never returned
+        True, and the whole middleware fell through on every request — no
+        request cap, no spend cap, no usage recorded, for the entire life of
+        the file.
+
+        Resolving the name instead means a route can be re-spelled without
+        disarming the control, and `test_every_named_ai_endpoint_resolves`
+        fails loudly if one is renamed or removed.
+        """
+        if not path.startswith(AI_PATH_PREFIXES):
+            return False
+        try:
+            match = resolve(path)
+        except Resolver404:
+            return False
+        return match.view_name in AI_ENDPOINT_NAMES
 
     def _check_limits(self, request):
         """Check if user/org has exceeded limits."""
         user = request.user
-        org = getattr(request, 'organization', None)
+        org = _request_org(request)
 
         # Check user request count
         user_cache_key = f'ai_requests_user_{user.id}_today'
@@ -96,7 +176,11 @@ class AIAbuseControlMiddleware:
                     'reset_in_hours': self._get_hours_until_reset()
                 }, status=429)
 
-        # Check user spend (if tracking is enabled)
+        # Spend is only enforced for callers that report a real cost through
+        # `record_ai_spend()`. The middleware sees a response, not a token
+        # count, so it never invents one; a caller that reports nothing is
+        # bounded by the request caps above. The PSA AI path has its own,
+        # finer-grained token ceiling in `psa_ai.services.guardrails`.
         user_spend_key = f'ai_spend_user_{user.id}_today'
         user_spend = Decimal(str(cache.get(user_spend_key, 0)))
 
@@ -128,7 +212,7 @@ class AIAbuseControlMiddleware:
     def _track_usage(self, request, response):
         """Track AI usage for billing and rate limiting."""
         user = request.user
-        org = getattr(request, 'organization', None)
+        org = _request_org(request)
 
         # Increment request counters (24-hour TTL)
         ttl = 86400  # 24 hours
