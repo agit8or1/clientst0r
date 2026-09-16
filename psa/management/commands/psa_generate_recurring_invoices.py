@@ -13,9 +13,14 @@ from __future__ import annotations
 from datetime import date
 
 from django.core.management.base import BaseCommand
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from psa.models import Contract
+
+
+class _NothingToBill(Exception):
+    """Internal: unwinds the transaction when there is nothing to bill."""
 
 
 class Command(BaseCommand):
@@ -61,31 +66,60 @@ class Command(BaseCommand):
                                                      contract.billing_frequency)
                     contract.next_billing_date = nxt
                 else:
-                    inv = contract.generate_invoice(
-                        on_date=contract.next_billing_date,
-                    )
-                    if inv is None:
-                        # Disabled or zero-amount; bail out of this contract
+                    period = contract.next_billing_date
+                    # v3.17.564 — the invoice and the cursor advance commit
+                    # together or not at all. They used to be separate writes,
+                    # and anything that interrupted the run between them left
+                    # the invoice committed with the cursor unmoved, so the
+                    # next daily run billed the same period again.
+                    try:
+                        with transaction.atomic():
+                            inv = contract.generate_invoice(on_date=period)
+                            if inv is None:
+                                # Disabled or zero-amount; bail out of this
+                                # contract. Raise so the transaction unwinds
+                                # cleanly rather than committing a half-step.
+                                raise _NothingToBill()
+                            nxt = Contract._advance_billing(
+                                period, contract.billing_frequency)
+                            contract.last_billed_at = today
+                            contract.next_billing_date = nxt
+                            contract.save(update_fields=[
+                                'last_billed_at', 'next_billing_date',
+                                'updated_at',
+                            ])
+                    except _NothingToBill:
                         break
+                    except IntegrityError:
+                        # The uniqueness constraint caught a period already
+                        # billed — a concurrent run, or a retry after one.
+                        # Move the cursor past it rather than looping forever.
+                        self.stdout.write(self.style.WARNING(
+                            f'{contract.name}: period {period} is already '
+                            f'invoiced; advancing without re-billing.'))
+                        contract.next_billing_date = Contract._advance_billing(
+                            period, contract.billing_frequency)
+                        contract.save(update_fields=['next_billing_date',
+                                                     'updated_at'])
+                        cycles += 1
+                        continue
+
                     spawned += 1
                     self.stdout.write(self.style.SUCCESS(
                         f'Generated {inv.invoice_number} for '
-                        f'{contract.name} (period {contract.next_billing_date})'
+                        f'{contract.name} (period {period})'
                     ))
-                    # Phase 15 v11: optional auto-push to accounting
+                    # Phase 15 v11: optional auto-push to accounting.
+                    # Deliberately outside the transaction: pushing to an
+                    # external accounting system is not something a rollback
+                    # can undo, so it must not be able to roll back the
+                    # invoice either.
                     if auto_push:
                         try:
                             self._auto_push(inv)
                         except Exception as exc:
                             self.stdout.write(self.style.WARNING(
                                 f'auto-push failed for {inv.invoice_number}: {exc}'))
-                    nxt = Contract._advance_billing(contract.next_billing_date,
-                                                     contract.billing_frequency)
-                    contract.last_billed_at = today
-                    contract.next_billing_date = nxt
-                    contract.save(update_fields=[
-                        'last_billed_at', 'next_billing_date', 'updated_at',
-                    ])
                 cycles += 1
 
         self.stdout.write(self.style.SUCCESS(

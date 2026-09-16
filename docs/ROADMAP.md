@@ -1197,11 +1197,19 @@ fetched by id without checking which tenant it belongs to.
   a client breached through no fault of the technician. Breach state is now
   persisted on save and on the five-minute tick, and pause time is accumulated
   and credited back to both due-dates on resume.
-- **Remaining in this phase:** invoice duplicate prevention
-  and the rest of billing arithmetic, background job failure handling, search
-  and export scoping, and what the AI features are allowed to read.
+- Invoice duplicate prevention *(shipped v3.17.564)* — the recurring generator
+  relied on advancing a cursor after writing the invoice, with no transaction
+  around the pair, so an interrupted run re-billed the period next day and a
+  manual re-run duplicated outright. Now a unique constraint per contract and
+  period, an application guard that returns the existing invoice, and an atomic
+  cursor advance.
+- **Remaining in this phase:** the rest of billing arithmetic, background job
+  failure handling, search and export scoping, and what the AI features are
+  allowed to read.
 
-**Sizing:** **M** — 49.1 complete; 49.2 is roughly half the audit surface.
+**Sizing:** **M** — 49.1 complete; 49.2 has covered views, backup/restore,
+invoice tax, update progress, SLA and invoice duplication, with background
+jobs, export scoping and AI data access still ahead.
 
 ---
 ## What's explicitly NOT in this plan
@@ -1263,7 +1271,7 @@ fetched by id without checking which tenant it belongs to.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

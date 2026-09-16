@@ -13,7 +13,7 @@ Foreign keys reference existing models discovered in INTEGRATION_MAP.md:
   - scheduling.ScheduledTask (linked calendar event)
 """
 from django.conf import settings as django_settings
-from django.db import models, transaction
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
 
@@ -1898,6 +1898,27 @@ class Contract(models.Model):
         if self.billing_frequency == 'none':
             return None
         on_date = on_date or _d.today()
+
+        # v3.17.564 — do not bill the same period twice.
+        #
+        # Previously this method created an Invoice unconditionally, and the
+        # daily generator relied on advancing `next_billing_date` afterwards to
+        # stay idempotent. Those are two separate writes: anything that
+        # interrupted the run in between left the invoice committed and the
+        # cursor unmoved, and the next run billed the customer again. A manual
+        # re-run did the same thing with no interruption needed.
+        #
+        # Returning the existing invoice rather than raising keeps the caller's
+        # retry path working: a re-run reports the invoice it already made
+        # instead of failing or duplicating. `Project.generate_invoice` has
+        # guarded this way since it was written; this brings the contract path
+        # in line.
+        existing = Invoice.objects.filter(
+            source_contract=self, billing_period_start=on_date,
+            is_credit_memo=False).first()
+        if existing is not None:
+            return existing
+
         amount = self.effective_recurring_amount
         usage = self.usage_line_items()
         if amount <= 0 and not usage:
@@ -1912,6 +1933,7 @@ class Contract(models.Model):
             client_org=self.client_org,
             title=f'{self.name} — {self.get_billing_frequency_display()} {on_date:%Y-%m}',
             invoice_date=on_date,
+            billing_period_start=on_date,
             currency='USD',
             source_contract=self,
             created_by=user,
@@ -3314,6 +3336,17 @@ class Invoice(models.Model):
     source_contract = models.ForeignKey('Contract', on_delete=models.SET_NULL,
                                         null=True, blank=True, related_name='invoices')
 
+    # v3.17.564 — which billing period this invoice covers, for contract-
+    # generated invoices. Paired with the unique constraint below, this is what
+    # makes billing the same period twice impossible rather than merely
+    # unlikely. Null for invoices not generated from a contract period, and
+    # null on every invoice that predates this release — MariaDB treats nulls
+    # as distinct in a unique index, so existing rows never collide.
+    billing_period_start = models.DateField(
+        null=True, blank=True, db_index=True,
+        help_text='Start of the billing period this invoice covers, when it '
+                  'was generated from a contract.')
+
     # Accounting integration handoff
     accounting_provider = models.CharField(max_length=50, blank=True,
         help_text='quickbooks_online | xero | etc.')
@@ -3419,6 +3452,25 @@ class Invoice(models.Model):
             models.Index(fields=['client_org', 'status']),
             models.Index(fields=['requires_approval', 'approved_at']),
         ]
+        constraints = [
+            # v3.17.564 — one invoice per contract per billing period.
+            #
+            # The recurring generator previously relied on advancing
+            # `next_billing_date` for idempotency, but the invoice and that
+            # cursor advance were separate writes. Anything that interrupted
+            # the run between them left the invoice committed and the cursor
+            # where it was, and the next daily run billed the customer again.
+            #
+            # A guard in application code closes the common case; this closes
+            # it in the only place two concurrent workers cannot both pass.
+            # Credit memos are excluded — crediting a period is a separate,
+            # legitimate document for the same period.
+            models.UniqueConstraint(
+                fields=['source_contract', 'billing_period_start'],
+                condition=models.Q(billing_period_start__isnull=False,
+                                   is_credit_memo=False),
+                name='uniq_invoice_per_contract_period'),
+        ]
 
     def __str__(self):
         return f'{self.invoice_number} — {self.title}'
@@ -3429,9 +3481,30 @@ class Invoice(models.Model):
         return (Decimal(self.total) - Decimal(self.amount_paid)).quantize(Decimal('0.01'))
 
     def save(self, *args, **kwargs):
-        if not self.invoice_number:
+        if self.invoice_number:
+            return super().save(*args, **kwargs)
+
+        # v3.17.564 — `_next_number` reads the highest existing number and adds
+        # one, which two workers can do concurrently and reach the same answer.
+        # `invoice_number` is unique, so the loser used to surface a raw
+        # IntegrityError to whoever clicked the button. Retry on a savepoint:
+        # the re-read sees the winner's row and picks the next number up.
+        #
+        # A savepoint rather than a bare retry because this often runs inside
+        # an outer transaction (the recurring generator), where an unhandled
+        # IntegrityError would poison the whole block.
+        last_error = None
+        for _attempt in range(5):
             self.invoice_number = self._next_number()
-        super().save(*args, **kwargs)
+            try:
+                with transaction.atomic():
+                    return super().save(*args, **kwargs)
+            except IntegrityError as exc:
+                if 'invoice_number' not in str(exc).lower():
+                    raise  # a different constraint — not ours to retry
+                last_error = exc
+                self.invoice_number = ''
+        raise last_error
 
     def flag_for_approval(self, *, total_threshold=None, overage_pct_threshold=None):
         """

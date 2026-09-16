@@ -5,6 +5,57 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.564] - 2026-09-16
+
+### A billing period is invoiced once
+
+`Contract.generate_invoice` created an Invoice unconditionally. The daily
+`psa_generate_recurring_invoices` command claimed idempotency in its own
+docstring — "already-billed periods don't get re-billed because the cron
+advances the date" — but the invoice and that cursor advance were two separate
+writes with no transaction around them. Anything that interrupted a run
+between them left the invoice committed and `next_billing_date` unmoved, so the
+next day's run billed the customer again. A manual re-run duplicated with no
+interruption needed at all.
+
+Measured against the unfixed code: three calls for one September period
+produced three invoices and billed 7,500.00 against a 2,500.00 contract.
+
+`Project.generate_invoice` has guarded against exactly this since it was
+written (`already_fixed_fee_invoiced`). The contract path — the one on a daily
+timer — had nothing.
+
+Three layers, because the first two can both be walked through:
+
+- **A unique constraint** on `(source_contract, billing_period_start)`, via a
+  new `Invoice.billing_period_start` column. This is the layer two concurrent
+  workers cannot both pass. Credit memos are excluded: crediting a period is a
+  legitimate second document for that period.
+- **An application guard** — `generate_invoice` returns the existing invoice
+  for the period rather than creating or raising, so a caller's retry path
+  reports the invoice it already made.
+- **An atomic cursor advance** — the invoice and `next_billing_date` commit
+  together. An `IntegrityError` from a concurrent run advances the cursor
+  rather than looping. The optional accounting auto-push stays deliberately
+  outside the transaction: a push to QuickBooks or Xero is not something a
+  rollback can undo, so it must not be able to roll back the invoice either.
+
+Also fixed a latent race in `Invoice._next_number`, which reads the highest
+existing number and adds one. Two workers reach the same answer and, since
+`invoice_number` is unique, the loser surfaced a raw IntegrityError to whoever
+clicked the button. It now retries on a savepoint — a savepoint specifically
+because this runs inside the generator's transaction, where a bare
+IntegrityError would poison the whole block.
+
+**Migration `psa.0068` is additive.** Every existing invoice gets
+`billing_period_start = NULL`, and nulls are distinct in a unique index, so no
+existing row can collide with another. A test pins that manual invoices, which
+carry no period, remain unaffected.
+
+Seven tests in `psa/tests/test_invoice_duplicates.py`, including the crashed-run
+sequence — an invoice committed with the cursor left behind, which is exactly
+what the following day's run encounters.
+
 ## [3.17.563] - 2026-09-15
 
 ### SLA: the clock pauses, and breaches are recorded
