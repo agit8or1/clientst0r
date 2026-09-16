@@ -174,76 +174,41 @@ class Command(BaseCommand):
             self.stdout.write(f"    Equipment catalog update failed: {e}")
 
     def run_ssl_expiry_check(self):
-        """Check for expiring SSL certificates and send notifications."""
-        from monitoring.models import WebsiteMonitor
+        """Email about SSL certificates that are expiring, or have expired."""
         from core.models import SystemSetting
-        from django.utils import timezone
-        from datetime import timedelta
+        from monitoring.expiry_notifications import check_ssl_expiry
 
-        settings = SystemSetting.get_settings()
-        if not settings.notify_on_ssl_expiry:
-            return
-
-        warning_days = settings.ssl_expiry_warning_days
-        threshold = timezone.now() + timedelta(days=warning_days)
-
-        expiring = WebsiteMonitor.objects.filter(
-            ssl_enabled=True,
-            ssl_expires_at__lte=threshold,
-            ssl_expires_at__gte=timezone.now()
+        counts = check_ssl_expiry(SystemSetting.get_settings(), log=self.stdout.write)
+        self.stdout.write(
+            f"    SSL expiry check: {counts['due']} within warning window, "
+            f"{counts['notified']} notified, {counts['skipped']} already sent"
         )
-
-        count = expiring.count()
-        if count > 0:
-            self.stdout.write(f"    Found {count} expiring SSL certificates")
-            # TODO: Send email notifications
-        else:
-            self.stdout.write(f"    No expiring SSL certificates found")
 
     def run_domain_expiry_check(self):
-        """Check for expiring domains and send notifications."""
-        from monitoring.models import Expiration
+        """Email about domain registrations that are expiring, or have expired."""
         from core.models import SystemSetting
-        from django.utils import timezone
-        from datetime import timedelta
+        from monitoring.expiry_notifications import check_domain_expiry
 
-        settings = SystemSetting.get_settings()
-        if not settings.notify_on_domain_expiry:
-            return
-
-        warning_days = settings.domain_expiry_warning_days
-        threshold = timezone.now() + timedelta(days=warning_days)
-
-        expiring = Expiration.objects.filter(
-            expiration_type='domain',
-            expires_at__lte=threshold,
-            expires_at__gte=timezone.now()
+        counts = check_domain_expiry(SystemSetting.get_settings(), log=self.stdout.write)
+        self.stdout.write(
+            f"    Domain expiry check: {counts['due']} within warning window, "
+            f"{counts['notified']} notified, {counts['skipped']} already sent"
         )
-
-        count = expiring.count()
-        if count > 0:
-            self.stdout.write(f"    Found {count} expiring domains")
-            # TODO: Send email notifications
-        else:
-            self.stdout.write(f"    No expiring domains found")
 
     def run_vault_password_expiry(self):
         """Check for expiring vault passwords and send email notifications."""
         from vault.models import Password
         from core.models import SystemSetting
+        from core.mailer import (
+            brand_name, default_from_email, get_smtp_connection,
+            notification_recipients, send_to_recipients, site_url,
+        )
         from django.utils import timezone
-        from django.db import models
         from datetime import timedelta
-        from django.contrib.auth import get_user_model
-        from django.core.mail import send_mail, get_connection
 
         settings = SystemSetting.get_settings()
         if not settings.notify_on_password_expiry:
             self.stdout.write('    Vault password expiry notifications disabled — skipping')
-            return
-
-        if not settings.smtp_enabled or not settings.smtp_host:
-            self.stdout.write('    SMTP not configured — skipping vault password expiry emails')
             return
 
         warning_days = settings.password_expiry_warning_days
@@ -273,31 +238,13 @@ class Command(BaseCommand):
 
         self.stdout.write(f'    Found {len(all_due)} vault password(s) needing expiry notification')
 
-        # Get SMTP connection
-        try:
-            from vault.encryption import decrypt
-            smtp_password = decrypt(settings.smtp_password) if settings.smtp_password else ''
-        except Exception:
-            smtp_password = settings.smtp_password or ''
-
-        try:
-            connection = get_connection(
-                backend='django.core.mail.backends.smtp.EmailBackend',
-                host=settings.smtp_host,
-                port=settings.smtp_port,
-                username=settings.smtp_username,
-                password=smtp_password,
-                use_tls=settings.smtp_use_tls,
-                use_ssl=settings.smtp_use_ssl,
-                timeout=15,
-            )
-        except Exception as e:
-            self.stdout.write(f'    SMTP connection failed: {e}')
+        connection = get_smtp_connection(settings)
+        if connection is None:
+            self.stdout.write('    SMTP not configured — skipping vault password expiry emails')
             return
 
-        User = get_user_model()
-        site_url = (settings.site_url or '').rstrip('/')
-        from_email = f'{settings.smtp_from_name} <{settings.smtp_from_email}>' if settings.smtp_from_email else settings.smtp_username
+        base_url = site_url(settings)
+        from_email = default_from_email(settings)
 
         # Group passwords by organisation so we can notify org-specific admins
         from collections import defaultdict
@@ -307,19 +254,7 @@ class Command(BaseCommand):
 
         notified_count = 0
         for org_id, passwords in by_org.items():
-            # Find recipients: superusers + org staff
-            if org_id:
-                recipients = list(
-                    User.objects.filter(
-                        is_active=True, email__gt='',
-                    ).filter(
-                        models.Q(is_superuser=True) | models.Q(organization_memberships__organization_id=org_id, organization_memberships__role__in=['admin', 'owner'])
-                    ).values_list('email', flat=True).distinct()
-                )
-            else:
-                recipients = list(
-                    User.objects.filter(is_active=True, is_superuser=True, email__gt='').values_list('email', flat=True)
-                )
+            recipients = notification_recipients(org_id)
 
             if not recipients:
                 self.stdout.write(f'    No recipients for org {org_id} — marking as notified anyway')
@@ -334,32 +269,19 @@ class Command(BaseCommand):
                 else:
                     days = (pw.expires_at - now).days
                     status = f'expires in {days} day{"s" if days != 1 else ""}'
-                detail_url = f'{site_url}/vault/{pw.pk}/' if site_url else f'/vault/{pw.pk}/'
+                detail_url = f'{base_url}/vault/{pw.pk}/' if base_url else f'/vault/{pw.pk}/'
                 lines.append(f'  • {pw.title} ({status}): {detail_url}')
 
             org_name = passwords[0].organization.name if passwords[0].organization else 'Global'
-            subject = f'[{settings.custom_company_name or settings.site_name or "Client St0r"}] Vault password expiry alert — {org_name}'
+            subject = f'[{brand_name(settings)}] Vault password expiry alert — {org_name}'
             body = (
                 f'The following vault password{"s" if len(passwords) > 1 else ""} '
                 f'{"are" if len(passwords) > 1 else "is"} expiring or have expired:\n\n'
                 + '\n'.join(lines)
-                + f'\n\nLog in to review and update: {site_url}/vault/'
+                + f'\n\nLog in to review and update: {base_url}/vault/'
             )
 
-            sent = 0
-            for email in recipients:
-                try:
-                    send_mail(
-                        subject=subject,
-                        message=body,
-                        from_email=from_email,
-                        recipient_list=[email],
-                        connection=connection,
-                        fail_silently=False,
-                    )
-                    sent += 1
-                except Exception as e:
-                    self.stdout.write(f'    Email to {email} failed: {e}')
+            sent = send_to_recipients(connection, from_email, recipients, subject, body)
 
             if sent > 0:
                 Password.objects.filter(pk__in=[p.pk for p in passwords]).update(expiry_notification_sent=True)
@@ -381,8 +303,10 @@ class Command(BaseCommand):
         """Email superusers a digest of unresolved system warnings."""
         from core.models import SystemSetting, SystemWarningNotification
         from core.system_warnings import collect_system_warnings, severity_summary, worst_severity
-        from django.contrib.auth import get_user_model
-        from django.core.mail import send_mail, get_connection
+        from core.mailer import (
+            brand_name, default_from_email, get_smtp_connection,
+            notification_recipients, send_to_recipients, site_url,
+        )
 
         settings = SystemSetting.get_settings()
         if not settings.smtp_enabled or not settings.smtp_host:
@@ -405,11 +329,7 @@ class Command(BaseCommand):
             return
 
         # Recipients: active superusers with email
-        User = get_user_model()
-        recipients = list(
-            User.objects.filter(is_active=True, is_superuser=True, email__gt='')
-            .values_list('email', flat=True).distinct()
-        )
+        recipients = notification_recipients()
         if not recipients:
             self.stdout.write('    No superuser recipients — marking warnings as notified anyway')
             for w in new_warnings:
@@ -419,33 +339,14 @@ class Command(BaseCommand):
                 )
             return
 
-        try:
-            from vault.encryption import decrypt
-            smtp_password = decrypt(settings.smtp_password) if settings.smtp_password else ''
-        except Exception:
-            smtp_password = settings.smtp_password or ''
-
-        try:
-            connection = get_connection(
-                backend='django.core.mail.backends.smtp.EmailBackend',
-                host=settings.smtp_host,
-                port=settings.smtp_port,
-                username=settings.smtp_username,
-                password=smtp_password,
-                use_tls=settings.smtp_use_tls,
-                use_ssl=settings.smtp_use_ssl,
-                timeout=15,
-            )
-        except Exception as e:
-            self.stdout.write(f'    SMTP connection failed: {e}')
+        connection = get_smtp_connection(settings)
+        if connection is None:
+            self.stdout.write('    SMTP connection failed — skipping system warnings digest')
             return
 
-        from_email = (
-            f'{settings.smtp_from_name} <{settings.smtp_from_email}>'
-            if settings.smtp_from_email else settings.smtp_username
-        )
-        site_url = (settings.site_url or '').rstrip('/')
-        brand = settings.custom_company_name or settings.site_name or 'Client St0r'
+        from_email = default_from_email(settings)
+        base_url = site_url(settings)
+        brand = brand_name(settings)
         worst = worst_severity(new_warnings) or 'info'
         summary = severity_summary(new_warnings)
 
@@ -460,29 +361,16 @@ class Command(BaseCommand):
             'Warnings:',
         ]
         for w in new_warnings:
-            url = (site_url + w['action_url']) if (site_url and w['action_url']) else w['action_url']
+            url = (base_url + w['action_url']) if (base_url and w['action_url']) else w['action_url']
             body_lines.append(f'  • [{w["severity"].upper()}] {w["title"]}')
             body_lines.append(f'      {w["detail"]}')
             if url:
                 body_lines.append(f'      → {url}')
             body_lines.append('')
-        body_lines.append(f'Review all warnings: {site_url}/core/security/')
+        body_lines.append(f'Review all warnings: {base_url}/core/security/')
         body = '\n'.join(body_lines)
 
-        sent_to = 0
-        for email in recipients:
-            try:
-                send_mail(
-                    subject=subject,
-                    message=body,
-                    from_email=from_email,
-                    recipient_list=[email],
-                    connection=connection,
-                    fail_silently=False,
-                )
-                sent_to += 1
-            except Exception as e:
-                self.stdout.write(f'    Email to {email} failed: {e}')
+        sent_to = send_to_recipients(connection, from_email, recipients, subject, body)
 
         if sent_to > 0:
             for w in new_warnings:

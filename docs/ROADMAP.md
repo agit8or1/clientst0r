@@ -1211,12 +1211,24 @@ fetched by id without checking which tenant it belongs to.
   schedule silently with no recovery short of editing the database. A claim now
   expires after six hours and is taken with a conditional UPDATE, which also
   stops two overlapping scheduler runs from executing the same task twice.
+- Expiry notifications *(shipped v3.17.566)* — the SSL and domain expiry
+  scheduled tasks both ended at a `# TODO: Send email notifications`, so two
+  checks enabled by default reported a healthy green result daily while sending
+  nothing. Both now send, per organization. Three narrower faults went with it:
+  already-expired items were excluded from the query, per-item warning windows
+  and per-monitor opt-outs were ignored, and domain checking read only manually
+  entered rows. Re-notification is keyed on the expiry date, so a renewal
+  re-arms the warning. Also fixed the vault password expiry recipient query,
+  which named a reverse accessor no model defines and could only have raised
+  FieldError on its first real send. Shared plumbing now lives in
+  `core/mailer.py`.
 - **Remaining in this phase:** the rest of billing arithmetic, search and export
   scoping, and what the AI features are allowed to read.
 
 **Sizing:** **M** — 49.1 complete; 49.2 has covered views, backup/restore,
-invoice tax, update progress, SLA, invoice duplication and background job
-failure handling, with export scoping and AI data access still ahead.
+invoice tax, update progress, SLA, invoice duplication, background job failure
+handling and expiry notifications, with export scoping and AI data access still
+ahead.
 
 ---
 ## What's explicitly NOT in this plan
@@ -1278,7 +1290,7 @@ failure handling, with export scoping and AI data access still ahead.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

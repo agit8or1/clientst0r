@@ -5,6 +5,63 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.566] - 2026-09-16
+
+### SSL and domain expiry checks now send the notification they promised
+
+Both scheduled tasks ended at a literal `# TODO: Send email notifications`.
+They counted what was expiring, wrote the count to the scheduler log, and
+returned success. Both are enabled by default, so Settings > Scheduler has been
+showing a healthy green check for two notifications that have never been sent
+once since they were written.
+
+The counting halves were also wrong in three ways that carried straight into the
+sending version if left alone:
+
+- **Already-expired items were filtered out.** Both queries ended
+  `expires_at__gte=now`, so the one state that actually takes a site down — a
+  certificate or registration that has lapsed — produced no notification at all.
+  Expiry is now its own escalated phase, with `EXPIRED` in the subject line.
+- **Per-item warning windows were ignored.** `WebsiteMonitor.ssl_warning_days`
+  and `domain_warning_days`, and `Expiration.warning_days`, are all on the edit
+  forms and all defaulted to the global setting instead. The wider of the item's
+  own window and the global one now applies, so neither setting warns later than
+  it says it will.
+- **Per-monitor opt-outs were ignored.** `notify_on_ssl_expiry` and
+  `notify_on_domain_expiry` on the monitor did nothing.
+
+Domain checking also looked only at manually entered `Expiration` rows, ignoring
+`WebsiteMonitor.domain_expires_at` — writable through the monitor form and the
+API. Both sources are now read. (Nothing populates that column automatically;
+there is no WHOIS collector yet.)
+
+Re-notification is keyed, not flagged: the stored key is `"<expiry>:<phase>"`,
+so a renewed certificate re-arms its own warning without anything having to
+reset a flag, and crossing from warning into expired re-arms it once more for
+the escalation. A daily task with a plain "sent" boolean would have gone quiet
+for good after its first send.
+
+### Fixed: the vault password expiry email would have crashed on its first real send
+
+Its recipient query filtered on `organization_memberships`, a reverse accessor
+no model defines — `accounts.Membership` sets `memberships`. The query could only
+ever have raised `FieldError`. It had not been reached in production because the
+task returns early when no vault password carries an expiry date, so the failure
+was waiting on the first one that did. Inactive memberships are excluded now too.
+
+### Shared notification plumbing
+
+`core/mailer.py` holds the four things every notifying task needs: an SMTP
+connection built from the encrypted `SystemSetting` password, a From address, an
+organization's recipient list, and a send loop where one rejected address does
+not take the rest of the notification with it. Writing that out a fourth time is
+a good part of why the two expiry tasks stopped at a TODO. The two copies inside
+`run_scheduler.py` (vault password expiry, system warnings digest) now use it;
+the copies in `scheduling/` and `run_security_scan` are untouched for now.
+
+Covered by `monitoring/tests_expiry_notifications.py` (17 tests). 393 green
+across monitoring, core, vault, accounts, scheduling and api.
+
 ## [3.17.565] - 2026-09-16
 
 ### A killed scheduler process no longer takes a task off the schedule forever

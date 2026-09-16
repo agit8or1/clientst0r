@@ -60,6 +60,13 @@ class WebsiteMonitor(BaseModel):
     notify_on_ssl_expiry = models.BooleanField(default=True)
     notify_on_domain_expiry = models.BooleanField(default=True)
 
+    # What the last expiry notification was about, as "<iso expiry>:<phase>".
+    # A renewed certificate has a new expiry, so the key stops matching and the
+    # next warning is sent without anything having to reset a flag; crossing
+    # from 'warning' to 'expired' changes the phase and re-arms the same way.
+    ssl_expiry_notified_key = models.CharField(max_length=64, blank=True, default='')
+    domain_expiry_notified_key = models.CharField(max_length=64, blank=True, default='')
+
     # Last error
     last_error = models.TextField(blank=True)
 
@@ -372,8 +379,11 @@ class Expiration(BaseModel):
     auto_renew = models.BooleanField(default=False)
     renewal_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
-    # Notification status
+    # Notification status. `notification_sent` is the historical flag (exposed
+    # over GraphQL); `notification_key` is what the scheduler actually tests, so
+    # that renewing an item re-arms its warning — see WebsiteMonitor above.
     notification_sent = models.BooleanField(default=False)
+    notification_key = models.CharField(max_length=64, blank=True, default='')
 
     objects = OrganizationManager()
 
