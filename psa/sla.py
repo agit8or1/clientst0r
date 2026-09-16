@@ -6,12 +6,23 @@ Phase 2c keeps it pragmatic: due-dates are computed from the priority's
 `Ticket.created_at`. Business hours and holidays land in a later phase
 (needs a calendar source we don't yet have).
 
-Pause logic: if the current ticket status has `pauses_sla=True`
-(Waiting on Client / Vendor), the SLA is considered paused — we
-extend the due-date by the pause duration on resume. For Phase 2c we
-keep it simple: a paused status just suppresses the breach badge in
-the UI; full pause-and-resume accounting comes with the workflow
-engine.
+Pause logic (v3.17.563): entering a status with `pauses_sla=True`
+(Waiting on Client / Vendor) stamps `Ticket.sla_paused_at`. Leaving it
+adds the elapsed time to `Ticket.sla_paused_minutes` and pushes both
+due-dates out by the same amount, so time spent waiting on someone
+else is not charged against the technician's SLA.
+
+Until v3.17.563 this module's docstring claimed that already happened.
+It did not: a paused status only suppressed the breach badge, the
+declared `sla_paused_until` field was never written by any code, and a
+ticket parked for three days came back with its original deadline and
+breached immediately.
+
+Breach state (v3.17.563): `refresh_breach_flags` persists the live
+computation onto `Ticket.sla_breached_response` / `_resolution`. Those
+columns are what the SLA breach report and the breach KPI read, and
+nothing had ever set them, so both reported zero while the ticket badge
+— computed live by the functions below — said otherwise.
 """
 from __future__ import annotations
 
@@ -69,6 +80,91 @@ def apply_due_dates(ticket, *, save=True):
     ticket.resolution_due_at = res
     if save:
         ticket.save(update_fields=['first_response_due_at', 'resolution_due_at', 'updated_at'])
+
+
+def pause_sla(ticket, *, now=None, save=True):
+    """Stamp the start of a pause. No-op if already paused."""
+    if ticket.sla_paused_at is not None:
+        return False
+    ticket.sla_paused_at = now or timezone.now()
+    if save:
+        ticket.save(update_fields=['sla_paused_at', 'updated_at'])
+    return True
+
+
+def resume_sla(ticket, *, now=None, save=True):
+    """Close out a pause and push the due-dates out by its duration.
+
+    Returns the number of minutes credited. No-op if not paused.
+
+    The deadlines move rather than the elapsed time being subtracted at
+    comparison time, so a due-date shown in the UI, exported to a report, or
+    handed to a workflow rule is the real one and every reader agrees.
+    """
+    if ticket.sla_paused_at is None:
+        return 0
+    now = now or timezone.now()
+    elapsed = now - ticket.sla_paused_at
+    minutes = max(0, int(elapsed.total_seconds() // 60))
+
+    fields = ['sla_paused_at', 'sla_paused_minutes', 'updated_at']
+    ticket.sla_paused_minutes = (ticket.sla_paused_minutes or 0) + minutes
+    ticket.sla_paused_at = None
+
+    if elapsed.total_seconds() > 0:
+        if ticket.first_response_due_at and not ticket.first_response_at:
+            ticket.first_response_due_at += elapsed
+            fields.append('first_response_due_at')
+        if ticket.resolution_due_at and not ticket.resolved_at:
+            ticket.resolution_due_at += elapsed
+            fields.append('resolution_due_at')
+
+    if save:
+        ticket.save(update_fields=fields)
+    return minutes
+
+
+def refresh_breach_flags(ticket, *, now=None, save=True):
+    """Persist the live breach computation onto the ticket.
+
+    `sla_breached_response` and `sla_breached_resolution` are what
+    `reports.generators.PSASLABreachesReport` filters on and what the
+    `sla_breach_count_30d` KPI counts. Nothing ever wrote them, so both
+    reported zero breaches however many there had been, while the badge on the
+    ticket — computed live by the functions above — said otherwise.
+
+    Clears as well as sets: extending a deadline or reopening a ticket must not
+    leave a breach recorded against it.
+
+    But only where there is a deadline to judge against. With no
+    `resolution_due_at` the question "did this breach?" has no answer, and
+    "no answer" must not be written down as "no". A breach is a historical
+    fact; clearing one requires evidence it did not happen, not an absence of
+    evidence that it did. So a ticket with no SLA target keeps whatever is
+    already recorded — including a flag set by an import, a migration, or an
+    integration.
+
+    Returns True when a flag changed.
+    """
+    now = now or timezone.now()
+    changed = False
+
+    if ticket.first_response_due_at:
+        response = response_breached(ticket, now=now)
+        if ticket.sla_breached_response != response:
+            ticket.sla_breached_response = response
+            changed = True
+
+    if ticket.resolution_due_at:
+        resolution = resolution_breached(ticket, now=now)
+        if ticket.sla_breached_resolution != resolution:
+            ticket.sla_breached_resolution = resolution
+            changed = True
+
+    if changed and save:
+        ticket.save(update_fields=['sla_breached_response',
+                                   'sla_breached_resolution', 'updated_at'])
+    return changed
 
 
 def is_paused(ticket):

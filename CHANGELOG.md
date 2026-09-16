@@ -5,6 +5,71 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.563] - 2026-09-15
+
+### SLA: the clock pauses, and breaches are recorded
+
+Two defects from the Phase 49.2 audit, both in SLA calculation.
+
+**The SLA breach report always returned zero.**
+`Ticket.sla_breached_response` and `sla_breached_resolution` are declared
+fields that no production code ever set. `PSASLABreachesReport` filters on
+them and the `sla_breach_count_30d` KPI counts them, so both reported no
+breaches however many there had been. Meanwhile `psa.sla.resolution_breached()`
+computed the truth live for the ticket badge. The badge said breached; the
+report an MSP would show a client said there were none.
+
+New `psa.sla.refresh_breach_flags()` persists the live computation. It clears
+as well as sets, so extending a deadline or reopening a ticket does not leave
+a breach recorded against it — but only where there is a deadline to judge
+against. With no due-date the question "did this breach?" has no answer, and
+"no answer" must not be written down as "no": clearing a breach needs evidence
+it did not happen, not an absence of evidence that it did. The first version of
+this did clear flags on tickets with no SLA target, which would have erased
+breaches recorded by an import or integration;
+`reports.tests.KPIDashboardTests` caught it.
+
+It runs on save and from the existing five-minute `psa_sla_workflow_tick` —
+the second matters, because a ticket that simply runs out of time is never
+saved and nothing else would notice.
+
+**Pausing the clock never moved the deadline.** `psa/sla.py` said in its own
+module docstring that "we extend the due-date by the pause duration on resume".
+Nothing did. `Ticket.sla_paused_until` was declared and never written by any
+code. A ticket parked in Waiting on Client for three days came back with its
+original deadline and breached immediately, through no fault of the technician.
+
+Entering a status with `pauses_sla` now stamps `sla_paused_at`; leaving it adds
+the elapsed time to `sla_paused_minutes` and pushes both due-dates out by the
+same amount. The deadlines move, rather than the elapsed time being subtracted
+at comparison time, so the date shown in the UI, written to an export and read
+by a workflow rule are the same date.
+
+This is hooked into `post_save` rather than the ticket detail view, because
+status changes also arrive from the mobile API, the inbound email ingester,
+workflow actions and bulk imports. A pause that only counted when someone
+clicked the status dropdown would be worse than none. The sync is wrapped and
+logged: SLA bookkeeping must never stop a ticket being saved.
+
+The module docstring claiming the behaviour already existed has been corrected.
+It is plausibly why this went unnoticed.
+
+**Migration `psa.0067` is additive** — two new columns, nothing dropped.
+`sla_paused_until` stays in place, marked deprecated. Removing a column is not
+something a cleanup pass should do to a customer's database.
+
+**Expect the breach numbers to change.** Once this is live the SLA breach
+report stops reporting zero, and the first tick will flag historical tickets
+still open past their deadline. If that report has been read as "no breaches",
+the real figure is about to appear.
+
+Sixteen tests in `psa/tests/test_sla_calculation.py`, three of them pinning that a recorded breach survives a refresh it cannot evaluate. Against the old logic
+four fail behaviourally — pause accounting and the tick — and six raise
+ImportError for a function that does not exist there, which proves nothing on
+its own; the breach-reporting half was demonstrated directly instead, by
+showing `resolution_breached()` returning True, the stored flag False, and the
+report returning zero rows for the same ticket. 911 tests green across psa and reports.
+
 ## [3.17.562] - 2026-09-15
 
 ### The update progress bar no longer hangs on "Restart Service"

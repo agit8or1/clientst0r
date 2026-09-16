@@ -21,6 +21,10 @@ from .models import Ticket, TicketComment
 logger = logging.getLogger('psa.signals')
 
 
+# Ticket ids currently inside _sync_sla_state. The SLA helpers save the
+# ticket, which re-fires post_save; this stops that recursing.
+_SLA_SYNCING = set()
+
 # ticket_id -> {status_id, assigned_to_id, resolution_due_at} captured pre_save
 _PRIOR_TICKET = {}
 
@@ -89,6 +93,32 @@ def _capture_prior_status(sender, instance, **kwargs):
         }
 
 
+def _sync_sla_state(instance, prior, created):
+    """Open or close an SLA pause on a status change, then refresh breach flags.
+
+    Re-entrancy: the helpers below call `ticket.save(update_fields=...)`, which
+    fires this signal again. `_SLA_SYNCING` holds the ticket ids currently
+    being adjusted so the nested pass returns immediately.
+    """
+    from psa import sla
+
+    if instance.pk in _SLA_SYNCING:
+        return
+    _SLA_SYNCING.add(instance.pk)
+    try:
+        status_changed = (
+            created or prior.get('status_id') != instance.status_id
+        )
+        if status_changed and instance.status_id:
+            if instance.status.pauses_sla:
+                sla.pause_sla(instance)
+            else:
+                sla.resume_sla(instance)
+        sla.refresh_breach_flags(instance)
+    finally:
+        _SLA_SYNCING.discard(instance.pk)
+
+
 @receiver(post_save, sender=Ticket)
 def _fire_ticket_workflow(sender, instance, created, **kwargs):
     prior = _PRIOR_TICKET.pop(instance.pk, {
@@ -96,6 +126,21 @@ def _fire_ticket_workflow(sender, instance, created, **kwargs):
         'assigned_to_id': None,
         'resolution_due_at': None,
     })
+
+    # v3.17.563 — SLA pause accounting and breach state.
+    #
+    # Hooked here rather than in the ticket views because status changes arrive
+    # from several places: the detail view, the mobile API, the inbound email
+    # ingester, workflow actions and bulk imports. A pause that only counted
+    # when a human clicked the status dropdown would be worse than none.
+    #
+    # Wrapped and logged: an SLA bookkeeping error must never stop a ticket
+    # being saved.
+    try:
+        _sync_sla_state(instance, prior, created)
+    except Exception:
+        logger.exception('PSA SLA state sync failed for ticket %s', instance.pk)
+
     try:
         from .workflow_engine import fire
         if created:

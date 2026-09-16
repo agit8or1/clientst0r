@@ -304,7 +304,29 @@ class Ticket(models.Model):
     signoff_note = models.TextField(blank=True)
     last_client_response_at = models.DateTimeField(null=True, blank=True)
     last_tech_response_at = models.DateTimeField(null=True, blank=True)
+    # Deprecated (v3.17.563). Declared long ago and never written by any code.
+    # Left in place rather than dropped: removing a column is not something a
+    # cleanup pass should do to a customer's database. `sla_paused_at` and
+    # `sla_paused_minutes` below are what actually track pause time.
     sla_paused_until = models.DateTimeField(null=True, blank=True)
+
+    # v3.17.563 — real pause accounting. `sla_paused_at` is stamped when the
+    # ticket enters a status with pauses_sla and cleared when it leaves;
+    # `sla_paused_minutes` accumulates every completed pause. Due dates are
+    # pushed out by the pause duration on resume, so time spent waiting on a
+    # client or vendor is not charged against the technician's SLA.
+    sla_paused_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text='When the current SLA pause began. Null when running.')
+    sla_paused_minutes = models.PositiveIntegerField(
+        default=0,
+        help_text='Total minutes this ticket has spent in a paused status.')
+
+    # Persisted breach state. These are what the SLA breach report and the
+    # breach KPI read. Before v3.17.563 nothing ever set them, so both
+    # reported zero regardless of what had happened; psa.sla computed the
+    # truth live for the ticket badge and the two disagreed. Kept fresh by
+    # `psa.sla.refresh_breach_flags`, called on save and from the SLA tick.
     sla_breached_response = models.BooleanField(default=False)
     sla_breached_resolution = models.BooleanField(default=False)
 

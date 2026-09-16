@@ -15,6 +15,7 @@ from django.core.management.base import BaseCommand
 from django.db.models import Q
 
 from psa.models import Ticket
+from psa.sla import refresh_breach_flags
 from psa.workflow_engine import fire
 
 
@@ -40,10 +41,23 @@ class Command(BaseCommand):
 
         evaluated = 0
         fired_total = 0
+        flagged = 0
         for ticket in qs:
             evaluated += 1
             if dry:
                 continue
+
+            # v3.17.563 — persist breach state here as well as on save. A
+            # ticket that simply runs out of time is never saved, so nothing
+            # else would ever notice it had breached, and the breach report
+            # reads these columns rather than recomputing.
+            try:
+                if refresh_breach_flags(ticket):
+                    flagged += 1
+            except Exception as exc:
+                self.stdout.write(self.style.ERROR(
+                    f'{ticket.ticket_number}: breach flag refresh failed: {exc}'))
+
             try:
                 n = fire('sla_threshold_crossed', ticket)
                 fired_total += n
@@ -53,5 +67,5 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             f'{"[dry] " if dry else ""}Evaluated {evaluated} ticket(s); '
-            f'{fired_total} rule(s) fired.'
+            f'{fired_total} rule(s) fired; {flagged} breach flag(s) updated.'
         ))
