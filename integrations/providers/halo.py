@@ -20,6 +20,7 @@ class HaloPSAProvider(BaseProvider):
     supports_companies = True
     supports_contacts = True
     supports_tickets = True
+    supports_ticket_notes = True
     supports_projects = True
     supports_agreements = True
 
@@ -315,3 +316,38 @@ class HaloPSAProvider(BaseProvider):
             return datetime.strptime(date_string[:19], '%Y-%m-%dT%H:%M:%S')
         except Exception:
             return None
+
+    def add_ticket_note(self, ticket_id: str, note: str, internal: bool = False) -> bool:
+        """
+        Append a note to a HaloPSA ticket.
+
+        Halo models notes as actions against the ticket, and `POST /api/Actions`
+        takes a list of them. `hiddenfromuser` is what keeps an internal note off
+        the end-user portal, and no email is sent for one.
+        """
+        if not ticket_id:
+            logger.error("HaloPSA: cannot add a note without a ticket id")
+            return False
+
+        try:
+            numeric_id = int(str(ticket_id).strip())
+        except (TypeError, ValueError):
+            logger.error(f"HaloPSA: ticket id {ticket_id!r} is not numeric")
+            return False
+
+        try:
+            self._make_request(
+                'POST',
+                '/api/Actions',
+                json=[{
+                    'ticket_id': numeric_id,
+                    'note': note,
+                    'hiddenfromuser': internal,
+                    'sendemail': False,
+                }],
+            )
+            logger.info(f"HaloPSA: added note to ticket {numeric_id}")
+            return True
+        except Exception as e:
+            logger.error(f"HaloPSA: failed to add note to ticket {numeric_id}: {e}")
+            return False

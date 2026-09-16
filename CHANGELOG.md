@@ -5,6 +5,63 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.567] - 2026-09-16
+
+### Workflow completion notes now actually reach the PSA ticket
+
+`PSAManager.add_ticket_note` decrypted the connection's credentials with
+`decrypt_v2(connection.encrypted_credentials)`. `PSAConnection` does not store
+that column as one encrypted blob — `set_credentials` writes
+`json.dumps(encrypt_dict(...))`, a JSON object whose *values* are individually
+encrypted. `decrypt_v2` was therefore handed a string starting `{"api_key": ...`,
+failed to base64-decode it, and raised; `_get_credentials` caught that and
+returned `None`; and all five provider branches returned `False` on their first
+line. No workflow completion note has ever reached a PSA ticket, for any
+provider, since the manager was written.
+
+Nothing surfaced that. The one caller — completing the last stage of a
+PSA-linked workflow execution in `processes/views.py` — discarded the return
+value and wrote an audit entry reading "completed execution and updated PSA
+ticket T-1234" either way. The audit trail asserted a note had landed on the
+ticket every time, and the tech was never told otherwise.
+
+Three parts to the fix:
+
+- **Note posting moved into the provider layer.** The manager was carrying its
+  own copy of each vendor's auth and its own `requests.post` calls. The provider
+  classes already hold that, correctly, along with HaloPSA's OAuth token
+  exchange, a session with retry/backoff, and `_validate_base_url` — the SSRF
+  guard every other outbound integration call passes through and these did not.
+  `add_ticket_note` is now part of the provider interface, gated by a
+  `supports_ticket_notes` flag, and the manager is a dispatcher.
+
+- **Autotask and HaloPSA notes implemented.** Both were `# TODO` stubs behind
+  the dead credential check, though both are otherwise fully supported PSAs.
+  Autotask posts to the ticket's `Notes` child collection; HaloPSA posts an
+  action to `/api/Actions`. Where a provider's visibility flag could be wrong
+  for a given tenant, it is wrong in the safe direction: `internal=True` maps to
+  the value that keeps the note off the client portal, and the Autotask
+  `publish` values are named constants rather than inline integers so that
+  stays reviewable. Syncro's note call also moves to the documented
+  `/tickets/{id}/comment` endpoint and sets `do_not_email` on internal notes —
+  an internal note that mails the customer a copy is not internal.
+
+- **The caller reads the result.** The audit entry records what happened and
+  carries `psa_note_posted` in `new_value`; a failure says "was NOT posted" with
+  the reason. The stage still completes — a workflow that finishes without its
+  PSA note has still finished — but the response carries `psa_note_error` and
+  both UIs that complete stages say so rather than reloading clean.
+
+A provider with no note API (Zendesk, Freshservice, Kaseya BMS, RangerMSP, Alga)
+now reports `unsupported` distinctly from a failure, so the audit entry names
+the real reason. Those five remain unimplemented.
+
+The vendor endpoints follow each PSA's documented ticket-note API; they could
+not be exercised against live tenants here, and the tests assert the request
+each provider builds rather than a round trip.
+
+24 new tests across `integrations/tests_psa_notes.py` and `processes/tests.py`.
+
 ## [3.17.566] - 2026-09-16
 
 ### SSL and domain expiry checks now send the notification they promised

@@ -20,6 +20,7 @@ class ConnectWiseManageProvider(BaseProvider):
     supports_companies = True
     supports_contacts = True
     supports_tickets = True
+    supports_ticket_notes = True
     supports_projects = True
     supports_agreements = True
 
@@ -318,3 +319,30 @@ class ConnectWiseManageProvider(BaseProvider):
             return datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%SZ')
         except Exception:
             return None
+
+    def add_ticket_note(self, ticket_id: str, note: str, internal: bool = False) -> bool:
+        """
+        Append a note to a ConnectWise Manage service ticket.
+
+        An internal note goes in as internal analysis, which the customer portal
+        does not render; a customer-visible one goes in as detail description.
+        """
+        if not ticket_id:
+            logger.error("ConnectWise: cannot add a note without a ticket id")
+            return False
+
+        try:
+            self._make_request(
+                'POST',
+                f'/v4_6_release/apis/3.0/service/tickets/{ticket_id}/notes',
+                json={
+                    'text': note,
+                    'detailDescriptionFlag': not internal,
+                    'internalAnalysisFlag': internal,
+                },
+            )
+            logger.info(f"ConnectWise: added note to ticket {ticket_id}")
+            return True
+        except Exception as e:
+            logger.error(f"ConnectWise: failed to add note to ticket {ticket_id}: {e}")
+            return False

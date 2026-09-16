@@ -1222,13 +1222,22 @@ fetched by id without checking which tenant it belongs to.
   which named a reverse accessor no model defines and could only have raised
   FieldError on its first real send. Shared plumbing now lives in
   `core/mailer.py`.
+- PSA ticket notes *(shipped v3.17.567)* — the workflow completion note posted
+  to a linked PSA ticket decrypted the connection's credentials with the wrong
+  scheme, so every provider branch failed on its first line and no note had ever
+  reached a PSA. The caller discarded the result and logged "updated PSA ticket
+  X" regardless, so the audit trail asserted a note had landed every time. Note
+  posting now goes through the provider layer — which carries each vendor's
+  auth, retries and the base-URL validation the manager's own requests skipped —
+  Autotask and HaloPSA notes are implemented rather than stubs, and a failure is
+  recorded and shown to the tech instead of being swallowed.
 - **Remaining in this phase:** the rest of billing arithmetic, search and export
   scoping, and what the AI features are allowed to read.
 
 **Sizing:** **M** — 49.1 complete; 49.2 has covered views, backup/restore,
 invoice tax, update progress, SLA, invoice duplication, background job failure
-handling and expiry notifications, with export scoping and AI data access still
-ahead.
+handling, expiry notifications and PSA ticket notes, with export scoping and AI
+data access still ahead.
 
 ---
 ## What's explicitly NOT in this plan
@@ -1290,7 +1299,7 @@ ahead.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

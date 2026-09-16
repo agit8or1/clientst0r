@@ -1172,6 +1172,10 @@
                     btn.disabled = false;
                     return;
                 }
+                if (data.psa_note_posted === false) {
+                    alert('Stage completed, but the PSA ticket note was not posted: '
+                          + (data.psa_note_error || 'unknown error'));
+                }
                 // Toggle button + parent <li> classes
                 btn.classList.toggle('checked');
                 var li = btn.closest('.workflow-stage-item');

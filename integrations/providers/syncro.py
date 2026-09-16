@@ -20,6 +20,7 @@ class SyncroProvider(BaseProvider):
     supports_companies = True
     supports_contacts = True
     supports_tickets = True
+    supports_ticket_notes = True
     supports_projects = False
     supports_agreements = False
 
@@ -268,3 +269,32 @@ class SyncroProvider(BaseProvider):
                 'user_id': raw_data.get('user_id'),
             }
         }
+
+    def add_ticket_note(self, ticket_id: str, note: str, internal: bool = False) -> bool:
+        """
+        Append a comment to a Syncro ticket.
+
+        `hidden` keeps the comment off the customer-facing ticket view, and
+        `do_not_email` stops Syncro mailing the contact a copy of it — an
+        internal note that triggers a customer email is not internal.
+        """
+        if not ticket_id:
+            logger.error("Syncro: cannot add a note without a ticket id")
+            return False
+
+        try:
+            self._make_request(
+                'POST',
+                f'/api/v1/tickets/{ticket_id}/comment',
+                json={
+                    'subject': 'Note',
+                    'body': note,
+                    'hidden': internal,
+                    'do_not_email': internal,
+                },
+            )
+            logger.info(f"Syncro: added note to ticket {ticket_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Syncro: failed to add note to ticket {ticket_id}: {e}")
+            return False

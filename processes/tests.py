@@ -517,3 +517,131 @@ class RunbookDashboardTests(TestCase):
         r = c.get(f'/processes/dashboard/{self.outsider_org.id}/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'OutsideCo')
+
+
+# ---------------------------------------------------------------------------
+# v3.17.567 — the PSA note posted when the last stage of a workflow completes
+# ---------------------------------------------------------------------------
+
+@override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class StageCompletePSANoteTests(TestCase):
+    """
+    Completing the final stage of a PSA-linked execution posts a summary note to
+    the ticket. The view used to discard the result of that call and log
+    "completed execution and updated PSA ticket X" unconditionally, so the audit
+    trail asserted the note had landed whether or not one ever did — and nothing
+    reached the tech either.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        from integrations.models import PSAConnection, PSATicket
+
+        cls.org = Organization.objects.create(name='NoteCo', slug='note-co')
+        cls.user = User.objects.create_user('note-user', 'n@x.com', 'pw')
+        Membership.objects.create(
+            user=cls.user, organization=cls.org, role=Role.OWNER, is_active=True,
+        )
+        cls.proc = Process.objects.create(
+            organization=cls.org, title='Onboarding', created_by=cls.user,
+        )
+        cls.stage = ProcessStage.objects.create(
+            process=cls.proc, title='Provision M365', order=1,
+        )
+        conn = PSAConnection(
+            organization=cls.org, provider_type='connectwise_manage',
+            name='CW', base_url='https://psa.example.com',
+        )
+        conn.set_credentials({'company_id': 'a', 'public_key': 'b', 'private_key': 'c'})
+        conn.save()
+        cls.ticket = PSATicket.objects.create(
+            organization=cls.org, connection=conn,
+            external_id='4242', ticket_number='T-4242', subject='Onboard',
+        )
+
+    def setUp(self):
+        self.execution = ProcessExecution.objects.create(
+            organization=self.org, process=self.proc, status='in_progress',
+            psa_ticket=self.ticket, assigned_to=self.user, started_by=self.user,
+        )
+        self.completion = ProcessStageCompletion.objects.create(
+            execution=self.execution, stage=self.stage,
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+        s = self.client.session
+        s['2fa_prompted'] = True
+        s['current_organization_id'] = self.org.id
+        s.save()
+
+    def _complete(self):
+        return self.client.post(f'/processes/completion/{self.completion.pk}/complete/')
+
+    def _psa_log(self):
+        return self.execution.audit_logs.filter(
+            action_type='execution_completed', description__contains='PSA ticket',
+        ).first()
+
+    def test_successful_note_is_logged_as_an_update(self):
+        from unittest import mock
+        from integrations.psa_manager import PSANoteResult
+
+        with mock.patch('integrations.psa_manager.PSAManager.add_ticket_note',
+                        return_value=PSANoteResult(PSANoteResult.OK, 'posted')):
+            r = self._complete()
+
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('psa_note_error', r.json())
+        log = self._psa_log()
+        self.assertIsNotNone(log)
+        self.assertIn('updated PSA ticket T-4242', log.description)
+        self.assertTrue(log.new_value['psa_note_posted'])
+
+    def test_failed_note_is_not_logged_as_an_update(self):
+        from unittest import mock
+        from integrations.psa_manager import PSANoteResult
+
+        with mock.patch('integrations.psa_manager.PSAManager.add_ticket_note',
+                        return_value=PSANoteResult(PSANoteResult.FAILED, 'connection refused')):
+            r = self._complete()
+
+        self.assertEqual(r.status_code, 200)
+        log = self._psa_log()
+        self.assertIsNotNone(log)
+        self.assertIn('NOT posted', log.description)
+        self.assertIn('connection refused', log.description)
+        self.assertFalse(log.new_value['psa_note_posted'])
+
+    def test_failed_note_is_reported_to_the_tech(self):
+        from unittest import mock
+        from integrations.psa_manager import PSANoteResult
+
+        with mock.patch('integrations.psa_manager.PSAManager.add_ticket_note',
+                        return_value=PSANoteResult(PSANoteResult.UNSUPPORTED, 'no note API')):
+            r = self._complete()
+
+        body = r.json()
+        self.assertTrue(body['success'])
+        self.assertFalse(body['psa_note_posted'])
+        self.assertIn('no note API', body['psa_note_error'])
+
+    def test_stage_still_completes_when_the_psa_call_raises(self):
+        from unittest import mock
+
+        with mock.patch('integrations.psa_manager.PSAManager.add_ticket_note',
+                        side_effect=Exception('boom')):
+            r = self._complete()
+
+        self.assertEqual(r.status_code, 200)
+        self.completion.refresh_from_db()
+        self.execution.refresh_from_db()
+        self.assertTrue(self.completion.is_completed)
+        self.assertEqual(self.execution.status, 'completed')
+        self.assertIn('boom', r.json()['psa_note_error'])
+
+    def test_execution_without_a_psa_ticket_reports_nothing(self):
+        self.execution.psa_ticket = None
+        self.execution.save(update_fields=['psa_ticket'])
+        r = self._complete()
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('psa_note_error', r.json())

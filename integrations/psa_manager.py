@@ -2,10 +2,33 @@
 PSA Manager - Unified interface for PSA ticket operations
 """
 import logging
-import requests
-from django.core.exceptions import ValidationError
 
 logger = logging.getLogger('integrations')
+
+
+class PSANoteResult:
+    """
+    Outcome of one attempt to post a note to a PSA ticket.
+
+    Truthy when the PSA accepted the note, so `if psa_manager.add_ticket_note(...)`
+    reads the same as the plain boolean this used to return. `reason` says which
+    kind of failure it was, and `detail` is a sentence fit for an audit entry.
+    """
+
+    OK = 'ok'
+    UNSUPPORTED = 'unsupported'       # provider has no ticket-note API here
+    INVALID_TICKET = 'invalid_ticket'  # no ticket, or no connection behind it
+    FAILED = 'failed'                  # the PSA rejected it, or was unreachable
+
+    def __init__(self, reason, detail):
+        self.reason = reason
+        self.detail = detail
+
+    def __bool__(self):
+        return self.reason == self.OK
+
+    def __repr__(self):
+        return f"<PSANoteResult {self.reason}: {self.detail}>"
 
 
 class PSAManager:
@@ -20,166 +43,61 @@ class PSAManager:
         """
         Add a note/comment to a PSA ticket.
 
+        The work is delegated to the provider classes in `integrations.providers`
+        rather than reimplemented here. They already hold each vendor's auth
+        (HaloPSA's OAuth token exchange among it), decrypt the connection's
+        credentials the way the model encrypted them, and validate the
+        connection's base URL before anything is sent to it.
+
         Args:
             ticket: PSATicket instance
             note: Note text to add
             internal: Whether the note is internal/private (default: False)
 
         Returns:
-            bool: True if successful, False otherwise
+            PSANoteResult: truthy only if the PSA accepted the note.
         """
+        from .providers import PROVIDER_REGISTRY, get_provider
+
         if not ticket or not ticket.connection:
             self.logger.error("Invalid ticket or connection")
-            return False
+            return PSANoteResult(
+                PSANoteResult.INVALID_TICKET,
+                "no PSA ticket or no connection behind it",
+            )
 
-        provider = ticket.connection.provider_type
-        self.logger.info(f"Adding note to {provider} ticket {ticket.ticket_number}")
+        connection = ticket.connection
+        provider_type = connection.provider_type
+        label = ticket.ticket_number or ticket.external_id or f"id={ticket.pk}"
+
+        provider_class = PROVIDER_REGISTRY.get(provider_type)
+        if provider_class is None:
+            self.logger.warning(f"PSA provider {provider_type} is not registered")
+            return PSANoteResult(
+                PSANoteResult.UNSUPPORTED,
+                f"{provider_type} is not a supported PSA provider",
+            )
+
+        if not provider_class.supports_ticket_notes:
+            self.logger.warning(f"PSA provider {provider_type} cannot post ticket notes")
+            return PSANoteResult(
+                PSANoteResult.UNSUPPORTED,
+                f"{provider_class.provider_name} does not support posting ticket notes",
+            )
+
+        self.logger.info(f"Adding note to {provider_type} ticket {label}")
 
         try:
-            if provider == 'itflow':
-                return self._add_note_itflow(ticket, note, internal)
-            elif provider == 'connectwise_manage':
-                return self._add_note_connectwise(ticket, note, internal)
-            elif provider == 'autotask':
-                return self._add_note_autotask(ticket, note, internal)
-            elif provider == 'halo_psa':
-                return self._add_note_halo(ticket, note, internal)
-            elif provider == 'syncro':
-                return self._add_note_syncro(ticket, note, internal)
-            else:
-                self.logger.warning(f"PSA provider {provider} not supported for ticket notes")
-                return False
-
+            provider = get_provider(connection)
+            posted = provider.add_ticket_note(ticket.external_id, note, internal=internal)
         except Exception as e:
-            self.logger.error(f"Failed to add note to {provider} ticket: {e}")
-            return False
+            self.logger.error(f"Failed to add note to {provider_type} ticket {label}: {e}")
+            return PSANoteResult(PSANoteResult.FAILED, f"{provider_type} error: {e}")
 
-    def _get_credentials(self, connection):
-        """Decrypt and return connection credentials."""
-        from vault.encryption_v2 import decrypt_v2
-        import json
+        if posted:
+            return PSANoteResult(PSANoteResult.OK, f"note posted to {provider_type} ticket {label}")
 
-        try:
-            decrypted = decrypt_v2(connection.encrypted_credentials)
-            return json.loads(decrypted)
-        except Exception as e:
-            self.logger.error(f"Failed to decrypt credentials: {e}")
-            return None
-
-    def _add_note_itflow(self, ticket, note, internal=False):
-        """Add note to ITFlow ticket."""
-        creds = self._get_credentials(ticket.connection)
-        if not creds:
-            return False
-
-        api_key = creds.get('api_key')
-        if not api_key:
-            self.logger.error("ITFlow API key not found in credentials")
-            return False
-
-        # ITFlow API endpoint
-        url = f"{ticket.connection.base_url.rstrip('/')}/api/v1/tickets/add_comment.php"
-
-        data = {
-            'api_key': api_key,
-            'ticket_id': ticket.external_id or ticket.ticket_number,
-            'comment': note,
-            'internal': 1 if internal else 0
-        }
-
-        try:
-            response = requests.post(url, data=data, timeout=30)
-            response.raise_for_status()
-            self.logger.info(f"Successfully added note to ITFlow ticket {ticket.ticket_number}")
-            return True
-        except requests.RequestException as e:
-            self.logger.error(f"ITFlow API error: {e}")
-            return False
-
-    def _add_note_connectwise(self, ticket, note, internal=False):
-        """Add note to ConnectWise Manage ticket."""
-        creds = self._get_credentials(ticket.connection)
-        if not creds:
-            return False
-
-        company_id = creds.get('company_id')
-        public_key = creds.get('public_key')
-        private_key = creds.get('private_key')
-
-        if not all([company_id, public_key, private_key]):
-            self.logger.error("ConnectWise credentials incomplete")
-            return False
-
-        # ConnectWise API endpoint
-        url = f"{ticket.connection.base_url.rstrip('/')}/v4_6_release/apis/3.0/service/tickets/{ticket.external_id}/notes"
-
-        # ConnectWise auth format
-        import base64
-        auth_string = f"{company_id}+{public_key}:{private_key}"
-        encoded_auth = base64.b64encode(auth_string.encode()).decode()
-
-        headers = {
-            'Authorization': f'Basic {encoded_auth}',
-            'Content-Type': 'application/json',
-            'clientId': creds.get('client_id', 'Client St0r')
-        }
-
-        data = {
-            'text': note,
-            'detailDescriptionFlag': not internal,  # If not internal, it's customer-visible
-            'internalAnalysisFlag': internal
-        }
-
-        try:
-            response = requests.post(url, json=data, headers=headers, timeout=30)
-            response.raise_for_status()
-            self.logger.info(f"Successfully added note to ConnectWise ticket {ticket.ticket_number}")
-            return True
-        except requests.RequestException as e:
-            self.logger.error(f"ConnectWise API error: {e}")
-            return False
-
-    def _add_note_autotask(self, ticket, note, internal=False):
-        """Add note to Autotask ticket."""
-        # TODO: Implement Autotask ticket note API
-        self.logger.warning("Autotask ticket notes not yet implemented")
-        return False
-
-    def _add_note_halo(self, ticket, note, internal=False):
-        """Add note to HaloPSA ticket."""
-        # TODO: Implement HaloPSA ticket note API
-        self.logger.warning("HaloPSA ticket notes not yet implemented")
-        return False
-
-    def _add_note_syncro(self, ticket, note, internal=False):
-        """Add note to Syncro ticket."""
-        creds = self._get_credentials(ticket.connection)
-        if not creds:
-            return False
-
-        api_key = creds.get('api_key')
-        if not api_key:
-            self.logger.error("Syncro API key not found")
-            return False
-
-        # Syncro API endpoint
-        url = f"{ticket.connection.base_url.rstrip('/')}/api/v1/tickets/{ticket.external_id}/comments"
-
-        headers = {
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json'
-        }
-
-        data = {
-            'comment': note,
-            'hidden': internal
-        }
-
-        try:
-            response = requests.post(url, json=data, headers=headers, timeout=30)
-            response.raise_for_status()
-            self.logger.info(f"Successfully added note to Syncro ticket {ticket.ticket_number}")
-            return True
-        except requests.RequestException as e:
-            self.logger.error(f"Syncro API error: {e}")
-            return False
+        return PSANoteResult(
+            PSANoteResult.FAILED,
+            f"{provider_type} did not accept the note for ticket {label}",
+        )

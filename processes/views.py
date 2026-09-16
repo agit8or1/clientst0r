@@ -963,6 +963,7 @@ def stage_complete(request, pk):
 
     # Store old state for audit
     was_completed = completion.is_completed
+    psa_note_error = None
 
     # Update completion
     completion.is_completed = True
@@ -1014,28 +1015,53 @@ def stage_complete(request, pk):
                 # Post to PSA ticket
                 from integrations.psa_manager import PSAManager
                 psa_manager = PSAManager()
-                psa_manager.add_ticket_note(
+                result = psa_manager.add_ticket_note(
                     ticket=completion.execution.psa_ticket,
                     note=summary,
                     internal=completion.execution.psa_note_internal
                 )
 
-                # Log the PSA update in audit
+                # Log what actually happened. Recording "updated PSA ticket X"
+                # without looking at the result left the audit trail asserting a
+                # note had reached the PSA whether or not one ever did.
+                psa_number = completion.execution.psa_ticket.ticket_number
+                if result:
+                    description = (
+                        f"{request.user.username} completed execution and updated "
+                        f"PSA ticket {psa_number}"
+                    )
+                else:
+                    description = (
+                        f"{request.user.username} completed execution; the note for "
+                        f"PSA ticket {psa_number} was NOT posted ({result.detail})"
+                    )
+                    logger.error(f"PSA note not posted: {result.detail}")
+                    psa_note_error = result.detail
+
                 ProcessExecutionAuditLog.log_action(
                     execution=completion.execution,
                     action_type='execution_completed',
                     user=request.user,
-                    description=f"{request.user.username} completed execution and updated PSA ticket {completion.execution.psa_ticket.ticket_number}",
+                    description=description,
+                    new_value={'psa_note_posted': bool(result), 'psa_ticket': psa_number},
                     request=request
                 )
             except Exception as e:
                 logger.error(f"Failed to update PSA ticket: {e}")
+                psa_note_error = str(e)
                 # Don't fail the execution if PSA update fails
 
-    return JsonResponse({
+    response = {
         'success': True,
         'completion_percentage': completion.execution.completion_percentage
-    })
+    }
+    # A workflow that finishes without its PSA note has still finished, so the
+    # stage completion stands — but the tech is told, instead of finding out
+    # when the customer asks why the ticket went quiet.
+    if psa_note_error:
+        response['psa_note_posted'] = False
+        response['psa_note_error'] = psa_note_error
+    return JsonResponse(response)
 
 
 @login_required

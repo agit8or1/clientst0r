@@ -188,6 +188,13 @@ $(document).ready(function() {
                 },
                 success: function(data) {
                     if (data.success) {
+                        // The stage is complete either way, but if this was the
+                        // last one and the PSA note did not reach the ticket,
+                        // say so rather than letting the reload look clean.
+                        if (data.psa_note_posted === false) {
+                            alert('Stage completed, but the PSA ticket note was not posted: '
+                                  + (data.psa_note_error || 'unknown error'));
+                        }
                         // Reload page to show updated status
                         location.reload();
                     } else {

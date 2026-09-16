@@ -42,6 +42,7 @@ class BaseProvider:
     supports_projects = False
     supports_agreements = False
     supports_webhooks = False
+    supports_ticket_notes = False
 
     def __init__(self, connection):
         """
@@ -146,9 +147,12 @@ class BaseProvider:
         # Set default timeout if not provided
         kwargs.setdefault('timeout', 30)
 
-        # Add authentication headers (implemented by subclass)
-        headers = kwargs.pop('headers', {})
-        headers.update(self._get_auth_headers())
+        # Add authentication headers (implemented by subclass). Caller-supplied
+        # headers are applied last and win: a provider that has to post a
+        # form-encoded body needs to override the Content-Type its auth headers
+        # declare, and there is no auth header a caller has reason to replace.
+        headers = dict(self._get_auth_headers())
+        headers.update(kwargs.pop('headers', {}))
         kwargs['headers'] = headers
 
         try:
@@ -241,6 +245,20 @@ class BaseProvider:
         raise NotImplementedError("Subclass must implement get_ticket()")
 
     # Optional methods - implement if provider supports them
+
+    def add_ticket_note(self, ticket_id: str, note: str, internal: bool = False) -> bool:
+        """
+        Append a note / comment to an existing ticket.
+
+        `internal` asks for a note the end customer cannot see. A provider that
+        cannot honour that distinction must not silently publish the note to the
+        customer: it should leave `supports_ticket_notes` False instead.
+
+        Returns True only when the PSA accepted the note.
+        """
+        if not self.supports_ticket_notes:
+            raise NotImplementedError(f"{self.provider_name} does not support ticket notes")
+        raise NotImplementedError("Subclass must implement add_ticket_note()")
 
     def list_projects(self, company_id: Optional[str] = None) -> List[Dict]:
         """

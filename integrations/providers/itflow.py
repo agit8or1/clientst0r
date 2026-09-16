@@ -25,6 +25,7 @@ class ITFlowProvider(BaseProvider):
     supports_companies = True
     supports_contacts = True
     supports_tickets = True
+    supports_ticket_notes = True
     supports_projects = False
     supports_agreements = False
 
@@ -353,3 +354,31 @@ class ITFlowProvider(BaseProvider):
             'closed_at': self._parse_datetime(raw_data.get('ticket_closed_at')),
             'raw_data': raw_data,
         }
+
+    def add_ticket_note(self, ticket_id: str, note: str, internal: bool = False) -> bool:
+        """
+        Append a comment to an ITFlow ticket.
+
+        `add_comment.php` takes a form-encoded body, not JSON, so the
+        Content-Type from the auth headers is overridden for this one call.
+        """
+        if not ticket_id:
+            logger.error("ITFlow: cannot add a note without a ticket id")
+            return False
+
+        try:
+            self._make_request(
+                'POST',
+                '/tickets/add_comment.php',
+                data={
+                    'ticket_id': ticket_id,
+                    'comment': note,
+                    'internal': 1 if internal else 0,
+                },
+                headers={'Content-Type': 'application/x-www-form-urlencoded'},
+            )
+            logger.info(f"ITFlow: added note to ticket {ticket_id}")
+            return True
+        except Exception as e:
+            logger.error(f"ITFlow: failed to add note to ticket {ticket_id}: {e}")
+            return False

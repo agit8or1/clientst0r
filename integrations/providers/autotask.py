@@ -20,6 +20,7 @@ class AutotaskProvider(BaseProvider):
     supports_companies = True
     supports_contacts = True
     supports_tickets = True
+    supports_ticket_notes = True
     supports_projects = True
     supports_agreements = True
 
@@ -270,3 +271,53 @@ class AutotaskProvider(BaseProvider):
                 return datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%SZ')
             except Exception:
                 return None
+
+    # Autotask TicketNote picklists. `publish` decides who can read the note,
+    # so the two values are named rather than inlined: 1 keeps the note inside
+    # Autotask, 2 also exposes it to the client portal. If either value is ever
+    # wrong for a tenant, it must be wrong in the safe direction — a note that
+    # stays internal — so `internal` maps to 1 and nothing else does.
+    PUBLISH_INTERNAL_ONLY = 1
+    PUBLISH_ALL_INCLUDING_PORTAL = 2
+    NOTE_TYPE_TASK_NOTES = 1
+
+    def add_ticket_note(self, ticket_id: str, note: str, internal: bool = False) -> bool:
+        """
+        Append a note to an Autotask ticket.
+
+        Autotask exposes ticket notes as a child collection of the ticket and
+        requires a title on every note, which the body does not supply, so the
+        first line of the note is reused (Autotask caps the field at 250).
+        """
+        if not ticket_id:
+            logger.error("Autotask: cannot add a note without a ticket id")
+            return False
+
+        try:
+            numeric_id = int(str(ticket_id).strip())
+        except (TypeError, ValueError):
+            logger.error(f"Autotask: ticket id {ticket_id!r} is not numeric")
+            return False
+
+        title = (note or '').strip().splitlines()[0] if (note or '').strip() else 'Note'
+
+        try:
+            self._make_request(
+                'POST',
+                f'/v1.0/Tickets/{numeric_id}/Notes',
+                json={
+                    'ticketID': numeric_id,
+                    'title': title[:250],
+                    'description': note,
+                    'noteType': self.NOTE_TYPE_TASK_NOTES,
+                    'publish': (
+                        self.PUBLISH_INTERNAL_ONLY if internal
+                        else self.PUBLISH_ALL_INCLUDING_PORTAL
+                    ),
+                },
+            )
+            logger.info(f"Autotask: added note to ticket {numeric_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Autotask: failed to add note to ticket {numeric_id}: {e}")
+            return False
