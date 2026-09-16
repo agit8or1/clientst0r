@@ -5,6 +5,53 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.565] - 2026-09-16
+
+### A killed scheduler process no longer takes a task off the schedule forever
+
+`ScheduledTask` took its run lock by writing `last_status='running'` and cleared
+it only after the work returned. Nothing else in the codebase ever cleared it:
+no reaper, and no reset button on Settings > Scheduler. So any death between
+those two writes left the row at `running` permanently, and `should_run()`
+returned `False` permanently after — the task silently stopped running, its
+`next_run_at` receding into the past, and the only recovery was editing the
+database by hand.
+
+The deaths are ordinary, not exotic: a reboot, an OOM kill, a `systemctl stop`
+while the nightly breach scan is halfway through the vault. This host rebooted
+today at 17:25; had the scheduler been mid-task, that task would be dead now.
+
+The irony is that the scheduler already ships `cleanup_stuck_scans` — a task
+whose entire job is to reap security scans stuck in `running` for more than two
+hours. The scheduler had no such protection for itself.
+
+Two changes:
+
+- **A stale claim expires.** A run still flagged `running` more than
+  `STALE_RUN_MINUTES` (6 hours) after it started is treated as abandoned and is
+  re-claimable. Six hours is comfortably above the slowest shipped task — the
+  security scan's own stuck-scan cleanup gives Snyk two. `should_run()` returns
+  `True` for a stale run directly rather than falling through to the
+  `next_run_at` comparison, because a task interrupted on its *first* execution
+  has no `next_run_at` at all: that was a second, independent way to be stuck.
+
+- **The lock is taken with a conditional UPDATE.** The timer fires every minute
+  and several tasks run longer than that, so two scheduler processes can hold
+  the same row, both having decided it is due. `claim()` now returns `True` only
+  to the process whose UPDATE actually matched a row; the loser skips the task
+  instead of running it a second time. Previously `mark_started()` wrote
+  unconditionally and both would have run.
+
+The scheduler reports a reclaim rather than performing it quietly — the run
+that was interrupted is worth knowing about — and `mark_started()` is gone,
+since leaving a second, non-atomic way to take the lock invites its reuse.
+
+`last_run_at` was documented as "Last successful execution time" while being
+written at the *start* of a run. The reaper measures the age of a claim from it,
+so the help text now says what the field holds.
+
+Covered by `core/tests/test_scheduler_stale_lock.py`.
+
 ## [3.17.564] - 2026-09-16
 
 ### A billing period is invoiced once

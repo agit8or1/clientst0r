@@ -18,12 +18,36 @@ class Command(BaseCommand):
         tasks = ScheduledTask.objects.all()
         ran_count = 0
         skipped_count = 0
+        reclaimed_count = 0
 
         for task in tasks:
             if task.should_run():
+                # Captured before claim() overwrites them: a task that was
+                # sitting at 'running' got here only by being stale, and the
+                # operator wants to know that happened.
+                was_stale = task.last_status == 'running'
+                stale_since = task.last_run_at
+
+                if not task.claim():
+                    # Another scheduler process took it between our read and
+                    # our write. Its run is the real one; ours would be a
+                    # duplicate.
+                    skipped_count += 1
+                    self.stdout.write(
+                        f"  Skipped: {task.get_task_type_display()} (claimed by another scheduler run)"
+                    )
+                    continue
+
+                if was_stale:
+                    since = stale_since.isoformat() if stale_since else "an unrecorded time"
+                    self.stdout.write(self.style.WARNING(
+                        f"  Reclaimed: {task.get_task_type_display()} was left 'running' "
+                        f"since {since} by a process that did not finish"
+                    ))
+                    reclaimed_count += 1
+
                 self.stdout.write(f"  Running: {task.get_task_type_display()}")
                 try:
-                    task.mark_started()
                     self.run_task(task)
                     task.mark_completed()
                     self.stdout.write(self.style.SUCCESS(f"  ✓ Completed: {task.get_task_type_display()}"))
@@ -43,11 +67,10 @@ class Command(BaseCommand):
                     reason = "unknown"
                 self.stdout.write(f"  Skipped: {task.get_task_type_display()} ({reason})")
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Scheduler completed: {ran_count} tasks run, {skipped_count} tasks skipped"
-            )
-        )
+        summary = f"Scheduler completed: {ran_count} tasks run, {skipped_count} tasks skipped"
+        if reclaimed_count:
+            summary += f", {reclaimed_count} stale run(s) reclaimed"
+        self.stdout.write(self.style.SUCCESS(summary))
 
     def run_task(self, task):
         """Execute the actual task based on its type."""

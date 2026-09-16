@@ -1203,13 +1203,20 @@ fetched by id without checking which tenant it belongs to.
   manual re-run duplicated outright. Now a unique constraint per contract and
   period, an application guard that returns the existing invoice, and an atomic
   cursor advance.
-- **Remaining in this phase:** the rest of billing arithmetic, background job
-  failure handling, search and export scoping, and what the AI features are
-  allowed to read.
+- Background job failure handling *(shipped v3.17.565)* — `ScheduledTask` took
+  its run lock by writing `last_status='running'` and nothing in the codebase
+  ever cleared it except the same process on its way out. A reboot or an OOM
+  kill between those two writes left the row at `running` permanently and
+  `should_run()` returned False permanently after, so the task went off the
+  schedule silently with no recovery short of editing the database. A claim now
+  expires after six hours and is taken with a conditional UPDATE, which also
+  stops two overlapping scheduler runs from executing the same task twice.
+- **Remaining in this phase:** the rest of billing arithmetic, search and export
+  scoping, and what the AI features are allowed to read.
 
 **Sizing:** **M** — 49.1 complete; 49.2 has covered views, backup/restore,
-invoice tax, update progress, SLA and invoice duplication, with background
-jobs, export scoping and AI data access still ahead.
+invoice tax, update progress, SLA, invoice duplication and background job
+failure handling, with export scoping and AI data access still ahead.
 
 ---
 ## What's explicitly NOT in this plan
@@ -1271,7 +1278,7 @@ jobs, export scoping and AI data access still ahead.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

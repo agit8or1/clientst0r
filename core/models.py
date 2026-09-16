@@ -1074,7 +1074,9 @@ class ScheduledTask(models.Model):
     )
 
     # Execution tracking
-    last_run_at = models.DateTimeField(null=True, blank=True, help_text='Last successful execution time')
+    # Set when a run *starts*, not when it finishes — the stale-run reaper in
+    # should_run() measures the age of the claim from it.
+    last_run_at = models.DateTimeField(null=True, blank=True, help_text='When the last run started')
     next_run_at = models.DateTimeField(null=True, blank=True, help_text='Next scheduled execution time')
     last_status = models.CharField(
         max_length=20,
@@ -1097,17 +1099,50 @@ class ScheduledTask(models.Model):
         db_table = 'scheduled_tasks'
         ordering = ['task_type']
 
+    # A run still flagged 'running' this long after it started is treated as
+    # abandoned and may be re-claimed. Comfortably above the slowest shipped
+    # task: the security scan's own stuck-scan cleanup gives Snyk 2 hours.
+    STALE_RUN_MINUTES = 360
+
     def __str__(self):
         return f"{self.get_task_type_display()} (every {self.interval_minutes} min)"
+
+    def is_stale_run(self):
+        """True when this task is flagged 'running' but nothing is running it.
+
+        Only a live scheduler process sets that flag, and it clears it in the
+        same `handle()` call — so the flag can outlive the work in exactly one
+        situation: the process died before it could clear it. A reboot, an OOM
+        kill, `systemctl stop` mid-run, a deploy that restarts the box while the
+        nightly breach scan is halfway through the vault.
+
+        Nothing else clears the flag. There is no reaper elsewhere, and the
+        Settings > Scheduler page offers no reset, so before this check a single
+        badly-timed reboot took a task off the schedule permanently and
+        silently — the row just sat at 'running' with its next_run_at receding
+        into the past, and the only recovery was editing the database by hand.
+        """
+        if self.last_status != 'running':
+            return False
+        if not self.last_run_at:
+            # Flagged running with no start time recorded: nothing can be
+            # measured, and no live run can be in this state.
+            return True
+        from django.utils import timezone
+        from datetime import timedelta
+        return timezone.now() - self.last_run_at >= timedelta(minutes=self.STALE_RUN_MINUTES)
 
     def should_run(self):
         """Check if this task should run now based on schedule."""
         if not self.enabled:
             return False
 
-        # Never run if status is 'running' (prevent overlapping executions)
         if self.last_status == 'running':
-            return False
+            # Don't overlap a live run. A dead one is a different matter: the
+            # work it claimed never happened, so the task is due now regardless
+            # of what next_run_at says (which, for a run interrupted on its
+            # first execution, is still None).
+            return self.is_stale_run()
 
         from django.utils import timezone
         now = timezone.now()
@@ -1122,6 +1157,37 @@ class ScheduledTask(models.Model):
 
         return False
 
+    def claim(self):
+        """Take the run lock, returning True only if this process won it.
+
+        A conditional UPDATE rather than a read-then-write, because the timer
+        fires every minute and plenty of tasks run longer than that: two
+        scheduler processes can hold the same row, both having decided it is
+        due. The database settles it — the second UPDATE re-evaluates its WHERE
+        against the first one's committed write, matches nothing, and reports 0
+        rows, so that process skips the task instead of running it twice.
+
+        The same WHERE is what lets a stale claim be taken over: a 'running' row
+        older than STALE_RUN_MINUTES is as claimable as an idle one.
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.now()
+        stale_before = now - timedelta(minutes=self.STALE_RUN_MINUTES)
+        claimable = (
+            ~models.Q(last_status='running')
+            | models.Q(last_status='running', last_run_at__isnull=True)
+            | models.Q(last_status='running', last_run_at__lt=stale_before)
+        )
+        won = type(self).objects.filter(pk=self.pk, enabled=True).filter(claimable).update(
+            last_status='running', last_run_at=now,
+        )
+        if won:
+            self.last_status = 'running'
+            self.last_run_at = now
+        return bool(won)
+
     def calculate_next_run(self):
         """Calculate the next run time based on interval."""
         from django.utils import timezone
@@ -1132,13 +1198,6 @@ class ScheduledTask(models.Model):
             self.next_run_at = self.last_run_at + timedelta(minutes=self.interval_minutes)
         else:
             self.next_run_at = now + timedelta(minutes=self.interval_minutes)
-
-    def mark_started(self):
-        """Mark task as started."""
-        from django.utils import timezone
-        self.last_status = 'running'
-        self.last_run_at = timezone.now()
-        self.save(update_fields=['last_status', 'last_run_at'])
 
     def mark_completed(self, error=None):
         """Mark task as completed (success or failed)."""
