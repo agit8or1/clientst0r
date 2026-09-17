@@ -103,9 +103,24 @@ class AIAbuseControlMiddleware:
         if not self._is_ai_endpoint(request.path):
             return self.get_response(request)
 
-        # Check authentication
+        # This middleware caps usage; it does not authenticate. It used to
+        # refuse an unauthenticated caller with 401 here, which was harmless
+        # only because `_is_ai_endpoint` never matched anything. Once matching
+        # started working in v3.17.569 that line began rejecting every
+        # token-authenticated API client: `api_mobile` authenticates with an
+        # `Authorization: Token ...` header that DRF resolves inside the view,
+        # so `request.user` is still anonymous out here. The mobile receipt
+        # scanner got a 401 before its view ever ran.
+        #
+        # An anonymous-at-this-point request is therefore passed through and
+        # left to the view's own authentication to accept or refuse.
         if not getattr(request, 'user', None) or not request.user.is_authenticated:
-            return JsonResponse({'error': 'Authentication required'}, status=401)
+            response = self.get_response(request)
+            # DRF has populated request.user by now, so a token client's call
+            # is still recorded — its caps engage from the next request on.
+            if response.status_code == 200:
+                self._track_usage(request, response)
+            return response
 
         # Check request limits
         limit_check = self._check_limits(request)
@@ -211,7 +226,11 @@ class AIAbuseControlMiddleware:
 
     def _track_usage(self, request, response):
         """Track AI usage for billing and rate limiting."""
-        user = request.user
+        user = getattr(request, 'user', None)
+        if user is None or not user.is_authenticated:
+            # Nothing to attribute the call to — a view that authenticates
+            # internally may still leave request.user anonymous.
+            return
         org = _request_org(request)
 
         # Increment request counters (24-hour TTL)

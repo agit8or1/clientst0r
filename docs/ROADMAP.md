@@ -1268,6 +1268,13 @@ fetched by id without checking which tenant it belongs to.
   new `core.tenancy.get_org_object_or_404` (current org + descendants, not the
   wider membership rule PSA uses). Models whose lists are strict keep strict
   detail scoping.
+- AI abuse middleware hotfix *(shipped v3.17.572)* — v3.17.569 made the
+  middleware match real endpoints for the first time, which activated a 401 it
+  had always carried but never executed. `api_mobile` resolves its
+  `Authorization: Token` header inside the view, so `request.user` is anonymous
+  at middleware level and every token-authenticated AI call — the mobile
+  receipt scanner among them — was refused before its view ran. The middleware
+  caps usage and no longer authenticates.
 - **Remaining in this phase:** the rest of billing arithmetic, export scoping,
   and what the AI features are allowed to read (the PSA AI context builder is
   already org-scoped and withholds internal notes — the open question is the
@@ -1280,8 +1287,9 @@ fetched by id without checking which tenant it belongs to.
 **Sizing:** **M** — 49.1 complete; 49.2 has covered views, backup/restore,
 invoice tax, update progress, SLA, invoice duplication, background job failure
 handling, expiry notifications, PSA ticket notes, dashboard widget scoping, AI
-gating + spend controls, search scoping and the organization hierarchy in
-detail views, with export scoping and AI data access still ahead.
+gating + spend controls, search scoping, the organization hierarchy in detail
+views and the abuse-middleware hotfix, with export scoping and AI data access
+still ahead.
 
 ---
 ## What's explicitly NOT in this plan
@@ -1343,7 +1351,7 @@ detail views, with export scoping and AI data access still ahead.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

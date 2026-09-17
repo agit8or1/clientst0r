@@ -5,6 +5,39 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.572] - 2026-09-17
+
+### Hotfix: the abuse middleware was rejecting the mobile app
+
+v3.17.569 fixed `AIAbuseControlMiddleware` so that it matched real endpoints
+for the first time. It had never matched anything, which is why nobody had
+noticed that its first action on a matched request was:
+
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+
+`api_mobile` authenticates with an `Authorization: Token ...` header that DRF
+resolves *inside* the view, so `request.user` is still anonymous out at
+middleware level. From v3.17.569 every token-authenticated call to an AI
+endpoint — the mobile app's receipt scanner among them — got a 401 before its
+view ran.
+
+Fixing the matching activated a latent bug. The lesson is that switching on
+dead code means auditing what it does, not only that it now runs.
+
+This middleware caps usage; it does not authenticate. An anonymous-at-this-
+point request is now passed through for the view's own authentication to
+accept or refuse. Usage is still recorded afterwards, once DRF has populated
+`request.user`, so a token client's caps engage from its next request.
+`_track_usage` also no longer assumes an authenticated user, which would have
+raised on `AnonymousUser.id`.
+
+`MiddlewareDoesNotAuthenticateTests` pins both halves.
+
+Found by `api_mobile.MobileOcrEndpointTests.test_ocr_disabled_returns_503`
+failing (401 != 503) in the full suite run for v3.17.571 — the one failure in
+2611 tests, and inherited rather than caused by that release.
+
 ## [3.17.571] - 2026-09-17
 
 ### A list that shows a row now links to a detail page that opens it

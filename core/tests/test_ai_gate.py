@@ -229,3 +229,56 @@ class AIMasterSwitchTests(TestCase):
         )
         self.assertEqual(r.status_code, 400)
         self.assertIn('turned off', r.json()['error'])
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class MiddlewareDoesNotAuthenticateTests(TestCase):
+    """
+    The abuse middleware caps usage; it must not stand in for a view's own
+    authentication.
+
+    It carried a `401 Authentication required` for an unauthenticated caller,
+    which was harmless only while `_is_ai_endpoint` matched nothing. When
+    v3.17.569 made matching work, that line started refusing every
+    token-authenticated API client: `api_mobile` authenticates with an
+    `Authorization: Token ...` header that DRF resolves inside the view, so
+    `request.user` is still anonymous at middleware time. The mobile receipt
+    scanner returned 401 before its view ran.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+
+    def test_an_anonymous_request_reaches_the_view(self):
+        from django.test import RequestFactory
+
+        seen = {}
+
+        def _view(request):
+            seen['called'] = True
+            from django.http import HttpResponse
+            return HttpResponse('reached', status=200)
+
+        mw = AIAbuseControlMiddleware(_view)
+        from django.contrib.auth.models import AnonymousUser
+
+        request = RequestFactory().post(reverse_any('api_mobile:ocr_receipt'))
+        request.user = AnonymousUser()
+        request.current_organization = None
+
+        response = mw(request)
+        self.assertTrue(seen.get('called'), 'middleware short-circuited the view')
+        self.assertEqual(response.status_code, 200)
+
+    def test_an_anonymous_request_records_no_usage(self):
+        """Nothing to attribute it to, so nothing is counted against anyone."""
+        from django.contrib.auth.models import AnonymousUser
+        from django.http import HttpResponse
+        from django.test import RequestFactory
+
+        mw = AIAbuseControlMiddleware(lambda r: HttpResponse('ok', status=200))
+        request = RequestFactory().post(reverse_any('api_mobile:ocr_receipt'))
+        request.user = AnonymousUser()
+        request.current_organization = None
+        mw(request)  # must not raise on AnonymousUser.id
