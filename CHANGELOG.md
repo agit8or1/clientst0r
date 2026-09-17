@@ -5,6 +5,43 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.577] - 2026-09-17
+
+### Credit memos now reduce what the client owes
+
+There are two kinds of credit in this system and only one of them counted.
+
+An **account credit** is a `Charge` with `is_credit=True`, and `get_psa_balance`
+subtracted it. A **credit memo** is an `Invoice` with `is_credit_memo=True`
+whose line prices are negated, so its balance comes out negative — and the
+balance loop began `if bal <= 0: continue`, which skipped it entirely.
+
+Issue a $500 credit memo against a $2,000 invoice and nothing moved:
+outstanding stayed $2,000, credits stayed $0, net balance stayed $2,000. The
+client account page and the aging report both went on showing the full amount
+due, so the client was chased for money that had already been credited to
+them. `is_credit_memo` was set on creation, guarded against double-crediting,
+and excluded from both the contract duplicate check and the tax audit — the
+balance calculation was the one place that never consulted it.
+
+`get_psa_balance` gains `invoice_credits`, subtracted from `net_balance`.
+`outstanding` keeps its existing meaning as gross receivables, because the
+aging columns are built from it, and credit memos stay out of the aging
+buckets: a credit is not a receivable and has nothing to age. An invoice paid
+beyond its total lands in the same bucket by the same arithmetic — the
+overpayment is money the client is owed.
+
+Two knock-on fixes:
+
+- The aging report skipped any client with nothing outstanding and no account
+  credit. A client whose only balance was a credit memo dropped off the report
+  entirely, hiding exactly the row that needed actioning.
+- Both templates showed one kind of credit and silently omitted the other.
+  They now name account credits and credit memos separately.
+
+Six of the eight tests in `core/tests/test_billing_credit_memos.py` fail
+against the previous code.
+
 ## [3.17.576] - 2026-09-17
 
 ### Floor-plan generation follows the configured LLM provider

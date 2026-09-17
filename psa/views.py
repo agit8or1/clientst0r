@@ -4600,14 +4600,19 @@ def aging_report(request):
     client_ids = list(set(client_ids))
     rows = []
     totals = {'outstanding': 0, '0_30': 0, '31_60': 0, '61_90': 0, '90_plus': 0,
-              'credit_total': 0, 'net_balance': 0}
+              'credit_total': 0, 'invoice_credits': 0, 'net_balance': 0}
     for client in Organization.objects.filter(pk__in=client_ids).order_by('name'):
         s = get_psa_balance(client, msp_org=org)
-        if s['outstanding'] == 0 and s['credit_total'] == 0:
+        # A client whose only balance is a credit memo has nothing
+        # outstanding and no account credit, and would drop off the report
+        # entirely — hiding the very thing that needs actioning.
+        if (s['outstanding'] == 0 and s['credit_total'] == 0
+                and s['invoice_credits'] == 0):
             continue
         rows.append({'client': client, 'summary': s})
         totals['outstanding'] += float(s['outstanding'])
         totals['credit_total'] += float(s['credit_total'])
+        totals['invoice_credits'] += float(s['invoice_credits'])
         totals['net_balance'] += float(s['net_balance'])
         for k in ('0_30', '31_60', '61_90', '90_plus'):
             totals[k] += float(s['aging'][k])

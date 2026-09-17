@@ -51,6 +51,11 @@
             <div class="card-body py-2">
                 <div class="small text-muted">Available credits</div>
                 <h5 class="mb-0">{{ summary.credit_total }}</h5>
+                {% if summary.invoice_credits %}
+                <div class="small text-muted mt-1">
+                    + {{ summary.invoice_credits }} in credit memos
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

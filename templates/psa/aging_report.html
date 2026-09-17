@@ -22,7 +22,8 @@
                     <th class="text-end">61–90 d</th>
                     <th class="text-end text-warning">90+ d</th>
                     <th class="text-end">Outstanding</th>
-                    <th class="text-end">Credits</th>
+                    <th class="text-end">Account credits</th>
+                    <th class="text-end">Credit memos</th>
                     <th class="text-end">Net</th>
                     <th></th>
                 </tr>
@@ -37,11 +38,12 @@
                     <td class="text-end text-warning">{{ r.summary.aging.90_plus }}</td>
                     <td class="text-end">{{ r.summary.outstanding }}</td>
                     <td class="text-end text-muted">{{ r.summary.credit_total }}</td>
+                    <td class="text-end text-muted">{{ r.summary.invoice_credits }}</td>
                     <td class="text-end"><strong>{{ r.summary.net_balance }}</strong></td>
                     <td><a href="{% url 'psa:client_account' r.client.id %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-eye"></i></a></td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="9" class="text-center text-muted py-4">No outstanding balances.</td></tr>
+                <tr><td colspan="10" class="text-center text-muted py-4">No outstanding balances.</td></tr>
                 {% endfor %}
             </tbody>
             {% if rows %}
@@ -54,6 +56,7 @@
                     <th class="text-end text-warning">{{ totals.90_plus|floatformat:2 }}</th>
                     <th class="text-end">{{ totals.outstanding|floatformat:2 }}</th>
                     <th class="text-end text-muted">{{ totals.credit_total|floatformat:2 }}</th>
+                    <th class="text-end text-muted">{{ totals.invoice_credits|floatformat:2 }}</th>
                     <th class="text-end"><strong>{{ totals.net_balance|floatformat:2 }}</strong></th>
                     <th></th>
                 </tr>

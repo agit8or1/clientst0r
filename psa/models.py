@@ -3924,12 +3924,27 @@ def get_psa_balance(client_org, *, msp_org=None):
     """Compute the per-client account balance.
 
     Returns a dict:
-      outstanding       — sum of unpaid invoice balances
-      credit_total      — sum of unbilled credits
+      outstanding       — sum of unpaid invoice balances (receivables only)
+      credit_total      — sum of unbilled account credits (Charge rows)
+      invoice_credits   — sum of credits sitting on invoices: credit memos,
+                          and any invoice paid beyond its total
       uninvoiced_charges — sum of unbilled non-credit charges
       net_balance       — outstanding + uninvoiced_charges - credit_total
+                          - invoice_credits
       aging             — {0_30: x, 31_60: x, 61_90: x, 90_plus: x}
                            computed from invoice.due_date (or invoice_date when due null)
+
+    There are two kinds of credit in this system and only one of them used to
+    count. An account credit is a `Charge` with `is_credit=True`, and it was
+    subtracted. A credit memo is an `Invoice` with `is_credit_memo=True` whose
+    line prices are negated, so its balance is negative — and the loop below
+    skipped every non-positive balance, which meant a credit memo changed
+    nothing at all. Issuing a $500 memo against a $2,000 invoice left the
+    client account page and the aging report both still showing $2,000 due, so
+    the client was chased for money that had already been credited to them.
+
+    An invoice paid beyond its total lands in the same bucket for the same
+    reason: the overpayment is money the client is owed.
 
     The MSP filter is optional — when provided, scopes to that MSP's
     invoices/charges only (matters for multi-tenant SaaS hosting).
@@ -3944,12 +3959,20 @@ def get_psa_balance(client_org, *, msp_org=None):
         chg_qs = chg_qs.filter(organization=msp_org)
 
     outstanding = Decimal('0')
+    invoice_credits = Decimal('0')
     aging = {'0_30': Decimal('0'), '31_60': Decimal('0'),
              '61_90': Decimal('0'), '90_plus': Decimal('0')}
     today = date.today()
     for inv in inv_qs:
         bal = Decimal(str(inv.balance or '0'))
-        if bal <= 0:
+        if bal < 0:
+            # A credit memo, or an invoice paid beyond its total. Held as a
+            # positive magnitude and subtracted below. Deliberately kept out
+            # of the aging buckets: a credit is not a receivable and has
+            # nothing to age.
+            invoice_credits += -bal
+            continue
+        if bal == 0:
             continue
         outstanding += bal
         anchor = inv.due_date or inv.invoice_date
@@ -3974,10 +3997,11 @@ def get_psa_balance(client_org, *, msp_org=None):
         (Decimal(str(c.amount or '0')) for c in chg_qs.filter(is_credit=False, invoiced=False)),
         Decimal('0'),
     )
-    net = outstanding + uninvoiced_charges - credit_total
+    net = outstanding + uninvoiced_charges - credit_total - invoice_credits
     return {
         'outstanding': outstanding,
         'credit_total': credit_total,
+        'invoice_credits': invoice_credits,
         'uninvoiced_charges': uninvoiced_charges,
         'net_balance': net,
         'aging': aging,
