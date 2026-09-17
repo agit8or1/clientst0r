@@ -342,11 +342,18 @@ def generate_floor_plan(request, location_id):
             messages.error(request, AI_DISABLED_MESSAGE)
             return redirect('locations:location_detail', location_id=location.id)
 
-        # Check if Anthropic API key is configured
-        if not settings.ANTHROPIC_API_KEY:
+        # Any configured provider will do, not Anthropic specifically — this
+        # checked `ANTHROPIC_API_KEY` directly, so an install running Ollama
+        # was told to add an Anthropic key for a feature that no longer needs
+        # one.
+        from docs.services.llm_providers import is_llm_configured
+
+        has_llm, provider_label = is_llm_configured()
+        if not has_llm:
             messages.error(
                 request,
-                "Anthropic API key is not configured. Please add your API key in Settings → AI & LLM to use floor plan generation."
+                f"No LLM provider is configured. Set up {provider_label} in "
+                f"Settings → AI to use floor plan generation."
             )
             return redirect('locations:location_detail', location_id=location.id)
 

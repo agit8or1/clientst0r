@@ -5,6 +5,35 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.576] - 2026-09-17
+
+### Floor-plan generation follows the configured LLM provider
+
+The last AI surface building its own provider client.
+`AIFloorPlanGenerator.__init__` constructed
+`anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)` and `_get_ai_design`
+called it directly, so an install running Ollama for data residency still sent
+its building briefs — dimensions, headcount, department structure, security
+requirements — to a third party. It now goes through `LLMProvider.generate`
+like every other AI feature.
+
+The view in front of it checked `ANTHROPIC_API_KEY` specifically, which told
+an install running Ollama to add an Anthropic key for a feature that no longer
+needs one. It now asks `is_llm_configured()` and names whichever provider is
+actually selected.
+
+The existing fallback layout is kept and now covers three cases rather than
+one: no provider configured, the provider failing, and output with no JSON in
+it. The constructor takes an injectable provider with a sentinel default, so
+"supplied nothing" stays distinct from an explicit "no provider".
+
+`test_no_ai_surface_still_hardcodes_a_provider_client` closes the sweep that
+v3.17.575 began: it parses every module in the project and fails if any of
+them constructs a provider client directly. Two exceptions are documented in
+the test — the provider layer itself, and `core/services/api_key_validator.py`,
+which validates an Anthropic key typed into Settings and so has to talk to
+Anthropic rather than to whatever is configured.
+
 ## [3.17.575] - 2026-09-17
 
 ### Receipt scanning follows the LLM provider you configured

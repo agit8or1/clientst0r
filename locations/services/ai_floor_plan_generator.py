@@ -1,7 +1,12 @@
 """
-AI-powered floor plan generation using Claude.
+AI-powered floor plan generation.
 
-This service uses Claude to intelligently design office floor plans based on:
+The design request goes to whichever LLM provider the install has configured
+(Settings → AI), via `docs.services.llm_providers`. This service used to build
+its own Anthropic client from `ANTHROPIC_API_KEY`, so an install running a
+local model still sent its building briefs to a third party.
+
+The service designs office floor plans based on:
 - Building dimensions
 - Number of employees
 - Department structure
@@ -9,20 +14,36 @@ This service uses Claude to intelligently design office floor plans based on:
 - Security requirements
 """
 
-import anthropic
-from django.conf import settings
 from .drawio_builder import DrawioFloorPlanBuilder
 import json
 import logging
 
 logger = logging.getLogger('locations')
 
+# Distinguishes "caller supplied nothing" from "caller supplied no provider".
+_UNSET = object()
+
 
 class AIFloorPlanGenerator:
     """Generate intelligent floor plans using Claude AI."""
 
-    def __init__(self):
-        self.client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    # A short system prompt; the detailed brief stays in the user prompt that
+    # `_build_design_prompt` already produces.
+    SYSTEM_PROMPT = (
+        'You are an expert office space planner. Respond with a single JSON '
+        'object describing the floor plan and nothing else.'
+    )
+
+    def __init__(self, provider=_UNSET):
+        """`provider` is injectable; omitted, the configured one is used.
+
+        The sentinel default keeps "not supplied" distinct from an explicit
+        `provider=None`, which means "no provider available" and takes the
+        fallback design.
+        """
+        from docs.services.llm_providers import get_configured_provider
+
+        self.provider = get_configured_provider() if provider is _UNSET else provider
 
     def generate_floor_plan(
         self,
@@ -165,21 +186,18 @@ Conference rooms near reception, private offices along perimeter, open space in 
         return prompt
 
     def _get_ai_design(self, prompt: str) -> dict:
-        """Get floor plan design from Claude."""
+        """Get a floor plan design from the configured LLM provider."""
         try:
-            message = self.client.messages.create(
-                model=settings.CLAUDE_MODEL,
-                max_tokens=4096,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
+            if self.provider is None:
+                raise ValueError('No LLM provider is configured')
 
-            # Extract JSON from response
-            response_text = message.content[0].text
+            result = self.provider.generate(
+                self.SYSTEM_PROMPT, prompt, max_tokens=4096,
+            )
+            if not result.get('success'):
+                raise ValueError(result.get('error') or 'LLM returned no content')
+
+            response_text = result.get('content') or ''
 
             # Try to find JSON in the response
             json_start = response_text.find('{')
