@@ -2558,18 +2558,28 @@ def settings_data_export(request):
     from docs.models import Document
     from vault.models import Password
 
-    # Get statistics for current organization
-    # Note: For superuser, we could show all orgs or let them select
+    # These counts head a page whose button exports exactly these rows, so
+    # they follow the same scope the export does: the selected organization
+    # and its descendants, or the whole install in global view.
+    from core.middleware import get_request_organization
+
+    org = get_request_organization(request)
+
+    def _count(model):
+        return (model.objects.count() if org is None
+                else model.objects.for_organization(org).count())
+
     stats = {
-        'assets': Asset.objects.count(),
-        'contacts': Contact.objects.count(),
-        'documents': Document.objects.count(),
-        'passwords': Password.objects.count(),
+        'assets': _count(Asset),
+        'contacts': _count(Contact),
+        'documents': _count(Document),
+        'passwords': _count(Password),
     }
 
     context = {
         'current_tab': 'data_export',
         'stats': stats,
+        'export_organization': org,
     }
 
     return render(request, 'core/settings_data_export.html', context)
@@ -2588,29 +2598,55 @@ def export_data(request):
     export_format = request.POST.get('format', 'json')  # 'json', 'hudu', 'itglue'
     export_type = request.POST.get('type', 'all')  # 'all', 'assets', 'contacts', 'docs', 'passwords'
 
+    # `_format_for_hudu` / `_format_for_itglue` map assets, documents and
+    # contacts; neither maps passwords. Asking for passwords in one of those
+    # formats produced a successful download containing no passwords at all,
+    # with nothing to say so. Refuse instead of returning silence.
+    if export_type == 'passwords' and export_format in ('hudu', 'itglue'):
+        return JsonResponse({
+            'success': False,
+            'message': (
+                f'The {export_format} format does not carry passwords. Export '
+                'passwords as JSON, or export another data type in this format.'
+            ),
+        }, status=400)
+
+    from core.middleware import get_request_organization
+
+    org = get_request_organization(request)
+
+    def _scoped(model):
+        """Everything, or this organization and its descendants.
+
+        The export used to read `Model.objects.all()` regardless of the
+        organization selected in the switcher, so a superuser exporting while
+        looking at one client silently got every client in the install.
+        """
+        return model.objects.all() if org is None else model.objects.for_organization(org)
+
     try:
         # Build export data based on type
         export_data = {}
 
         if export_type in ['all', 'assets']:
             from assets.models import Asset
-            assets = Asset.objects.all().select_related('equipment_model', 'primary_contact')
+            assets = _scoped(Asset).select_related('equipment_model', 'primary_contact')
             export_data['assets'] = [_serialize_asset(asset, export_format) for asset in assets]
 
         if export_type in ['all', 'contacts']:
             from assets.models import Contact
-            contacts = Contact.objects.all()
+            contacts = _scoped(Contact)
             export_data['contacts'] = [_serialize_contact(contact, export_format) for contact in contacts]
 
         if export_type in ['all', 'documents']:
             from docs.models import Document
-            documents = Document.objects.all()
+            documents = _scoped(Document)
             export_data['documents'] = [_serialize_document(doc, export_format) for doc in documents]
 
         # Note: Passwords require special handling for security
         if export_type == 'passwords':
             from vault.models import Password
-            passwords = Password.objects.all()
+            passwords = _scoped(Password)
             export_data['passwords'] = [_serialize_password(pwd, export_format) for pwd in passwords]
 
         # Format the export based on target system
@@ -2620,6 +2656,23 @@ def export_data(request):
             formatted_data = _format_for_itglue(export_data)
         else:
             formatted_data = export_data
+            if 'passwords' in export_data:
+                # The values are this install's ciphertext. Nothing else can
+                # read them, which is worth stating in the file rather than
+                # leaving whoever receives it to discover it.
+                formatted_data = {
+                    'export_info': {
+                        'source': 'Client St0r',
+                        'format': 'json',
+                        'organization': org.name if org else 'all organizations',
+                        'passwords_note': (
+                            'password_encrypted values are ciphertext readable only '
+                            'by the Client St0r install that produced them. They '
+                            'cannot be imported into another system.'
+                        ),
+                    },
+                    **export_data,
+                }
 
         # Generate filename
         timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
@@ -2654,8 +2707,13 @@ def _serialize_asset(asset, format_type):
         'hostname': asset.hostname,
         'ip_address': asset.ip_address,
         'mac_address': asset.mac_address,
-        'location': asset.location,
-        'status': asset.status,
+        # `Asset` has neither a `location` nor a `status` field — reading
+        # them raised AttributeError on the first asset, so the export has
+        # never produced anything but {"success": false} for the Assets and
+        # All types. Status lives in `custom_fields`, the way
+        # `assets.views.asset_list` filters it; there is no location field at
+        # all, so the key is dropped rather than invented.
+        'status': (asset.custom_fields or {}).get('status', ''),
         'purchase_date': asset.purchase_date,
         'warranty_expiry': asset.warranty_expiry,
         'notes': asset.notes,
@@ -2689,7 +2747,7 @@ def _serialize_document(doc, format_type):
     return {
         'id': doc.id,
         'title': doc.title,
-        'content': doc.content,
+        'content': doc.body,
         'category': doc.category.name if doc.category else None,
         'tags': [tag.name for tag in doc.tags.all()],
         'is_global': doc.organization is None,
@@ -2707,8 +2765,10 @@ def _serialize_password(pwd, format_type):
         'url': pwd.url,
         'password_type': pwd.password_type,
         'notes': pwd.notes,
-        # Do NOT export decrypted password for security
-        'password_encrypted': pwd.password_encrypted,
+        # Ciphertext only — never the decrypted value. The field is
+        # `encrypted_password`; this read `password_encrypted`, which does not
+        # exist, so the passwords export raised on its first row.
+        'password_encrypted': pwd.encrypted_password,
     }
 
 

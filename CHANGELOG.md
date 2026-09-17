@@ -5,6 +5,56 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.573] - 2026-09-17
+
+### The data export had never exported anything, and the KB export skipped subsidiaries
+
+**Every type of data export failed on its first row.** Settings → Data Export
+builds its payload with three serializers, and each read a field its model
+does not have:
+
+- `_serialize_asset` read `asset.location` and `asset.status`. `Asset` has
+  neither. Status lives in `custom_fields`, the way `assets.views.asset_list`
+  filters it; there is no location field at all, so that key is dropped
+  rather than invented.
+- `_serialize_document` read `doc.content`. `Document` stores its text in
+  `body`.
+- `_serialize_password` read `pwd.password_encrypted`. The field is
+  `encrypted_password`.
+
+Each raised `AttributeError`, which the view's blanket `except` turned into
+`{"success": false, "message": "Export failed: ..."}` — returned with HTTP
+200, so the browser saved it as the download. Assets, Documents, Passwords
+and All have produced nothing but that error since the feature was written.
+Only Contacts worked.
+
+**The export ignored the organization selector.** It read
+`Model.objects.all()` regardless, so a superuser exporting while looking at
+one client silently got every client in the install. It now scopes to the
+selected organization and its descendants, as do the counts heading that
+page.
+
+**Passwords in the Hudu and IT Glue formats.** `_format_for_hudu` and
+`_format_for_itglue` map assets, documents and contacts, and never touch
+passwords — so that combination was a successful download containing no
+passwords at all. It is now refused with a reason. The JSON export's
+`password_encrypted` values are this install's ciphertext, readable by
+nothing else; the file now says so rather than leaving the recipient to find
+out.
+
+**Knowledge Base scoping.** `document_detail` began including descendant
+organizations in v3.17.571 while `document_list` still filtered a bare
+`organization=org`, so a parent organization could open a subsidiary's
+document by slug but never saw it listed. Its category and tag dropdowns had
+the same limit, which would leave a subsidiary's category unselectable beside
+a document visible in the same list. `document_export_bulk` shared the fault,
+and handing a departing client one archive of all their documentation is that
+endpoint's stated purpose — for a parent company it silently omitted every
+subsidiary document the list had just shown them.
+
+All nine tests in `core/tests/test_docs_export_scoping.py` fail against the
+previous code.
+
 ## [3.17.572] - 2026-09-17
 
 ### Hotfix: the abuse middleware was rejecting the mobile app

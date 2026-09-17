@@ -1275,7 +1275,17 @@ fetched by id without checking which tenant it belongs to.
   at middleware level and every token-authenticated AI call — the mobile
   receipt scanner among them — was refused before its view ran. The middleware
   caps usage and no longer authenticates.
-- **Remaining in this phase:** the rest of billing arithmetic, export scoping,
+- Export scoping + the data export itself *(shipped v3.17.573)* — all three
+  export serializers read fields their models do not have (`asset.location`,
+  `asset.status`, `doc.content`, `pwd.password_encrypted`), so Assets,
+  Documents, Passwords and All had only ever downloaded
+  `{"success": false}` at HTTP 200; only Contacts worked. The export also
+  ignored the organization selector, and offering passwords in the Hudu / IT
+  Glue formats produced a file with no passwords in it. The KB list, its
+  category/tag filters and `document_export_bulk` now include descendant orgs
+  like the detail pages do, so a departing parent company's archive stops
+  omitting its subsidiaries' documentation.
+- **Remaining in this phase:** the rest of billing arithmetic,
   and what the AI features are allowed to read (the PSA AI context builder is
   already org-scoped and withholds internal notes — the open question is the
   other AI surfaces' prompt inputs). The remaining hand-rolled
@@ -1288,7 +1298,7 @@ fetched by id without checking which tenant it belongs to.
 invoice tax, update progress, SLA, invoice duplication, background job failure
 handling, expiry notifications, PSA ticket notes, dashboard widget scoping, AI
 gating + spend controls, search scoping, the organization hierarchy in detail
-views and the abuse-middleware hotfix, with export scoping and AI data access
+views, the abuse-middleware hotfix and the data export, with AI data access
 still ahead.
 
 ---
@@ -1351,7 +1361,7 @@ still ahead.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

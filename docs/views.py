@@ -59,14 +59,16 @@ def document_list(request):
             is_template=False  # Exclude templates
         ).select_related('organization').prefetch_related('tags', 'category')
     else:
-        # Organization view: show only docs for current org
-        documents = Document.objects.filter(
-            organization=org,
+        # Organization view: this org's docs and its descendants'. Bare
+        # `organization=org` stopped at the selected org, so a parent
+        # organization could open a subsidiary's document by slug (v3.17.571)
+        # but never saw it listed.
+        documents = Document.objects.for_organization(org).filter(
             is_published=True,
             is_archived=False,
             is_global=False,  # Exclude global KB articles
             is_template=False  # Exclude templates
-        ).prefetch_related('tags', 'category')
+        ).select_related('organization').prefetch_related('tags', 'category')
 
     # Filter by category
     category_id = request.GET.get('category')
@@ -93,9 +95,14 @@ def document_list(request):
         from core.models import Tag
         tags = Tag.objects.all().order_by('organization__name', 'name')
     else:
-        categories = DocumentCategory.objects.filter(organization=org).order_by('order', 'name')
+        categories = DocumentCategory.objects.for_organization(org).order_by(
+            'organization__name', 'order', 'name')
         from core.models import Tag
-        tags = Tag.objects.filter(organization=org).order_by('name')
+        # Tag is a plain Model with no OrganizationManager, so it scopes by
+        # the same id set directly.
+        from core.utils import descendant_org_ids
+        tags = Tag.objects.filter(
+            organization_id__in=descendant_org_ids(org)).order_by('name')
 
     # Check if user has write permission
     has_write_permission = False
@@ -1946,7 +1953,12 @@ def document_export_bulk(request, fmt):
         is_published=True, is_archived=False, is_global=False, is_template=False,
     )
     if not in_global_view:
-        documents = documents.filter(organization=org)
+        # Same scope as `document_list`, whose filters this endpoint honours.
+        # A departing parent company's archive silently omitted every
+        # subsidiary document the list page had just shown them.
+        from core.utils import descendant_org_ids
+        documents = documents.filter(
+            organization_id__in=descendant_org_ids(org))
 
     category_id = request.GET.get('category')
     if category_id:
