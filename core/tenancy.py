@@ -90,3 +90,32 @@ def get_scoped_object_or_404(model_or_qs, request, *, field: str = 'organization
         scope_to_request(qs, request, field=field, include_global=include_global),
         **lookup,
     )
+
+
+def get_org_object_or_404(model_or_qs, org, *, field: str = 'organization',
+                          **lookup):
+    """`get_object_or_404`, scoped exactly the way the list pages are.
+
+    This is the current-organization rule — the organization selected in the
+    switcher, plus its descendants — and is deliberately *not*
+    `get_scoped_object_or_404` above, which spans every organization the user
+    is a member of. PSA and resourcing want that wider rule and say so; the
+    per-client pages do not, and widening them here would let a member of two
+    clients open the unselected one's record by URL.
+
+    It exists because the two halves had drifted apart. A list page runs
+    `Model.objects.for_organization(org)`, which includes descendants — that
+    is the whole point of `Organization.parent`, whose own help text reads
+    "The parent's queries see descendants' rows". The detail, edit and delete
+    views those lists link to looked the row up with a bare
+    `organization=org`. So a parent organization's asset list rendered a
+    subsidiary's server and the link to it returned 404.
+
+    `descendant_org_ids(None)` is the empty set, so an unset organization
+    matches no row — the same 404 a bare `organization=None` produced.
+    """
+    qs = model_or_qs if hasattr(model_or_qs, 'filter') else model_or_qs._default_manager.all()
+    return get_object_or_404(
+        qs.filter(**{f'{field}_id__in': descendant_org_ids(org)}),
+        **lookup,
+    )

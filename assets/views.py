@@ -10,6 +10,7 @@ from core.middleware import get_request_organization
 from core.decorators import require_write, require_organization_context
 from core.webhook_sender import send_webhook
 from core.models import Webhook
+from core.tenancy import get_org_object_or_404
 from .models import Asset, Contact, Relationship, ContactRating, ContactNote
 from .forms import AssetForm, ContactForm
 
@@ -129,7 +130,7 @@ def asset_detail(request, pk):
         asset_org = asset.organization
     else:
         # Organization view: filter by current org
-        asset = get_object_or_404(Asset, pk=pk, organization=org)
+        asset = get_org_object_or_404(Asset, org, pk=pk)
         asset_org = org
 
     # Get relationships for this asset's organization
@@ -257,7 +258,7 @@ def asset_edit(request, pk):
         asset = get_object_or_404(Asset, pk=pk)
         org = asset.organization
     else:
-        asset = get_object_or_404(Asset, pk=pk, organization=org)
+        asset = get_org_object_or_404(Asset, org, pk=pk)
 
     if request.method == 'POST':
         form = AssetForm(request.POST, instance=asset, organization=org)
@@ -332,7 +333,7 @@ def contact_detail(request, pk):
     View contact details.
     """
     org = get_request_organization(request)
-    contact = get_object_or_404(Contact, pk=pk, organization=org)
+    contact = get_org_object_or_404(Contact, org, pk=pk)
 
     # Get assets associated with this contact
     # FIX: Add select_related for query optimization
@@ -362,7 +363,7 @@ def contact_detail(request, pk):
 def contact_add_rating(request, pk):
     """Submit a rating + feedback for a contact."""
     org = get_request_organization(request)
-    contact = get_object_or_404(Contact, pk=pk, organization=org)
+    contact = get_org_object_or_404(Contact, org, pk=pk)
 
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'POST required'}, status=405)
@@ -401,7 +402,7 @@ def contact_add_rating(request, pk):
 def contact_add_note(request, pk):
     """Add or edit a note on a contact."""
     org = get_request_organization(request)
-    contact = get_object_or_404(Contact, pk=pk, organization=org)
+    contact = get_org_object_or_404(Contact, org, pk=pk)
 
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'POST required'}, status=405)
@@ -439,7 +440,7 @@ def contact_add_note(request, pk):
 def contact_delete_note(request, pk, note_id):
     """Delete a note (author or superuser only)."""
     org = get_request_organization(request)
-    contact = get_object_or_404(Contact, pk=pk, organization=org)
+    contact = get_org_object_or_404(Contact, org, pk=pk)
     note = get_object_or_404(ContactNote, id=note_id, contact=contact)
 
     if note.author != request.user and not request.user.is_superuser:
@@ -482,7 +483,7 @@ def contact_edit(request, pk):
     Edit contact.
     """
     org = get_request_organization(request)
-    contact = get_object_or_404(Contact, pk=pk, organization=org)
+    contact = get_org_object_or_404(Contact, org, pk=pk)
 
     if request.method == 'POST':
         form = ContactForm(request.POST, instance=contact, organization=org)
@@ -514,7 +515,7 @@ def asset_generate_profile(request, pk):
 
     org = get_request_organization(request)
     if org:
-        asset = get_object_or_404(Asset, pk=pk, organization=org)
+        asset = get_org_object_or_404(Asset, org, pk=pk)
     else:
         asset = get_object_or_404(Asset, pk=pk)
 
@@ -777,7 +778,7 @@ def _asset_ai_doc_inner(request, pk):
     from django.shortcuts import get_object_or_404
     org = get_request_organization(request)
     if org:
-        asset = get_object_or_404(Asset, pk=pk, organization=org)
+        asset = get_org_object_or_404(Asset, org, pk=pk)
     else:
         asset = get_object_or_404(Asset, pk=pk)
 
@@ -886,7 +887,7 @@ def asset_delete(request, pk):
     Delete asset.
     """
     org = get_request_organization(request)
-    asset = get_object_or_404(Asset, pk=pk, organization=org)
+    asset = get_org_object_or_404(Asset, org, pk=pk)
 
     if request.method == 'POST':
         name = asset.name
@@ -906,7 +907,7 @@ def contact_delete(request, pk):
     Delete contact.
     """
     org = get_request_organization(request)
-    contact = get_object_or_404(Contact, pk=pk, organization=org)
+    contact = get_org_object_or_404(Contact, org, pk=pk)
 
     if request.method == 'POST':
         name = contact.name
@@ -930,7 +931,7 @@ def asset_api_detail(request, pk):  # noqa: write permission checked inline for 
 
     org = get_request_organization(request)
     if org:
-        asset = get_object_or_404(Asset, pk=pk, organization=org)
+        asset = get_org_object_or_404(Asset, org, pk=pk)
     else:
         asset = get_object_or_404(Asset, pk=pk)
 

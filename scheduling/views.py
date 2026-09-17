@@ -10,6 +10,7 @@ from datetime import timedelta
 from collections import defaultdict
 from core.middleware import get_request_organization
 from core.decorators import require_admin, require_write
+from core.tenancy import get_org_object_or_404
 from .models import (
     ScheduledTask, SchedulerWallboard, TaskAssignment, TaskComment,
 )
@@ -125,7 +126,7 @@ def task_create(request):
 def task_detail(request, pk):
     """Show task details, assignments, comments."""
     org = get_request_organization(request)
-    task = get_object_or_404(ScheduledTask, pk=pk, organization=org)
+    task = get_org_object_or_404(ScheduledTask, org, pk=pk)
     assignments = task.task_assignments.select_related('user').all()
     comments = task.comments.select_related('author').order_by('created_at')
 
@@ -176,7 +177,7 @@ def task_detail(request, pk):
 def task_edit(request, pk):
     """Edit an existing scheduled task."""
     org = get_request_organization(request)
-    task = get_object_or_404(ScheduledTask, pk=pk, organization=org)
+    task = get_org_object_or_404(ScheduledTask, org, pk=pk)
 
     if request.method == 'POST':
         form = ScheduledTaskForm(request.POST, instance=task, org=org)
@@ -214,7 +215,7 @@ def task_edit(request, pk):
 def task_delete(request, pk):
     """Delete a scheduled task."""
     org = get_request_organization(request)
-    task = get_object_or_404(ScheduledTask, pk=pk, organization=org)
+    task = get_org_object_or_404(ScheduledTask, org, pk=pk)
 
     if request.method == 'POST':
         title = task.title
@@ -229,7 +230,7 @@ def task_delete(request, pk):
 def task_sign_off(request, pk):
     """Sign off on a task as the current user."""
     org = get_request_organization(request)
-    task = get_object_or_404(ScheduledTask, pk=pk, organization=org)
+    task = get_org_object_or_404(ScheduledTask, org, pk=pk)
     assignment = get_object_or_404(TaskAssignment, task=task, user=request.user)
 
     if request.method == 'POST':
@@ -248,7 +249,7 @@ def task_sign_off(request, pk):
 def task_complete(request, pk):
     """Force-complete a task as an admin."""
     org = get_request_organization(request)
-    task = get_object_or_404(ScheduledTask, pk=pk, organization=org)
+    task = get_org_object_or_404(ScheduledTask, org, pk=pk)
 
     if request.method == 'POST':
         task.status = 'completed'
@@ -269,7 +270,7 @@ def task_complete(request, pk):
 def task_cancel(request, pk):
     """Cancel a task."""
     org = get_request_organization(request)
-    task = get_object_or_404(ScheduledTask, pk=pk, organization=org)
+    task = get_org_object_or_404(ScheduledTask, org, pk=pk)
 
     if request.method == 'POST':
         task.status = 'cancelled'
@@ -284,7 +285,7 @@ def task_cancel(request, pk):
 def task_spawn_next(request, pk):
     """Manually spawn the next recurrence of a task."""
     org = get_request_organization(request)
-    task = get_object_or_404(ScheduledTask, pk=pk, organization=org)
+    task = get_org_object_or_404(ScheduledTask, org, pk=pk)
 
     if request.method == 'POST':
         new_task = task.spawn_next_occurrence()

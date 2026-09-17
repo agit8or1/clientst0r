@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from core.middleware import get_request_organization
 from core.decorators import require_write
+from core.tenancy import get_org_object_or_404
 from .models import Asset
 from monitoring.models import VLAN
 import json
@@ -24,7 +25,7 @@ def asset_port_config(request, pk):
         asset = get_object_or_404(Asset, pk=pk)
         org = asset.organization
     else:
-        asset = get_object_or_404(Asset, pk=pk, organization=org)
+        asset = get_org_object_or_404(Asset, org, pk=pk)
 
     # Check if asset supports ports
     if not asset.has_ports():
@@ -55,7 +56,7 @@ def asset_port_config_save(request, pk):
         return JsonResponse({'error': 'POST required'}, status=405)
 
     org = get_request_organization(request)
-    asset = get_object_or_404(Asset, pk=pk, organization=org)
+    asset = get_org_object_or_404(Asset, org, pk=pk)
 
     if not asset.has_ports():
         return JsonResponse({'error': 'Asset does not support ports'}, status=400)

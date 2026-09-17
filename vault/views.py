@@ -12,6 +12,7 @@ from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 from core.middleware import get_request_organization
 from core.decorators import require_write, require_organization_context
+from core.tenancy import get_org_object_or_404
 from audit.models import AuditLog
 from .models import Password, PasswordBreachCheck, VaultAccessRule
 from .forms import PasswordForm
@@ -181,7 +182,7 @@ def password_detail(request, pk):
         password = get_object_or_404(Password, pk=pk)
     else:
         # Organization view: filter by current org
-        password = get_object_or_404(Password, pk=pk, organization=org)
+        password = get_org_object_or_404(Password, org, pk=pk)
 
     # v3.17.163: VaultAccessRule gate -- GeoIP / IP / time-of-day check.
     decision = _evaluate_vault_access(password, request.user, request)
@@ -263,7 +264,7 @@ def password_reveal(request, pk):
     if in_global_view:
         password = get_object_or_404(Password, pk=pk)
     else:
-        password = get_object_or_404(Password, pk=pk, organization=org)
+        password = get_org_object_or_404(Password, org, pk=pk)
 
     if request.method == 'POST':
         # Phase 37 (v3.17.241): per-credential approval gate. If
@@ -382,7 +383,7 @@ def password_request_reveal(request, pk):
     if in_global_view:
         password = get_object_or_404(Password, pk=pk)
     else:
-        password = get_object_or_404(Password, pk=pk, organization=org)
+        password = get_org_object_or_404(Password, org, pk=pk)
 
     if not password.requires_reveal_approval:
         return JsonResponse({'error': 'This password does not require approval'},
@@ -426,7 +427,7 @@ def password_break_glass(request, pk):
     if in_global_view:
         password = get_object_or_404(Password, pk=pk)
     else:
-        password = get_object_or_404(Password, pk=pk, organization=org)
+        password = get_org_object_or_404(Password, org, pk=pk)
 
     if not password.requires_reveal_approval:
         return JsonResponse({'error': 'This password does not require approval'},
@@ -620,7 +621,7 @@ def password_test_breach(request, pk):
     if not org and (request.user.is_superuser or _is_staff):
         password = get_object_or_404(Password, pk=pk)
     else:
-        password = get_object_or_404(Password, pk=pk, organization=org)
+        password = get_org_object_or_404(Password, org, pk=pk)
 
     if request.method == 'POST':
         try:
@@ -751,7 +752,7 @@ def password_edit(request, pk):
     Edit password entry.
     """
     org = get_request_organization(request)
-    password = get_object_or_404(Password, pk=pk, organization=org)
+    password = get_org_object_or_404(Password, org, pk=pk)
 
     if request.method == 'POST':
         form = PasswordForm(request.POST, instance=password, organization=org)
@@ -836,7 +837,7 @@ def password_delete(request, pk):
     Delete password entry.
     """
     org = get_request_organization(request)
-    password = get_object_or_404(Password, pk=pk, organization=org)
+    password = get_org_object_or_404(Password, org, pk=pk)
 
     if request.method == 'POST':
         title = password.title
@@ -938,7 +939,7 @@ def generate_otp_api(request, pk):
     if not org and (request.user.is_superuser or _is_staff):
         password = get_object_or_404(Password, pk=pk)
     else:
-        password = get_object_or_404(Password, pk=pk, organization=org)
+        password = get_org_object_or_404(Password, org, pk=pk)
 
     try:
         otp_data = password.generate_otp()
@@ -992,7 +993,7 @@ def password_qrcode(request, pk):
     if not org and (request.user.is_superuser or _is_staff):
         password = get_object_or_404(Password, pk=pk)
     else:
-        password = get_object_or_404(Password, pk=pk, organization=org)
+        password = get_org_object_or_404(Password, org, pk=pk)
 
     if password.password_type != 'otp' or not password.otp_secret:
         return HttpResponse("Not an OTP entry or secret not configured", status=400)

@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from core.middleware import get_request_organization
 from core.decorators import require_write
+from core.tenancy import get_org_object_or_404
 from .models import Asset, NetworkPortConfiguration, EquipmentModel
 import json
 
@@ -64,7 +65,7 @@ def port_config_create(request):
         equipment_model = get_object_or_404(EquipmentModel, pk=equipment_model_id)
         asset = None
         if asset_id:
-            asset = get_object_or_404(Asset, pk=asset_id, organization=org)
+            asset = get_org_object_or_404(Asset, org, pk=asset_id)
 
         config = NetworkPortConfiguration.objects.create(
             organization=org,

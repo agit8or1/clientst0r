@@ -20,6 +20,7 @@ from .providers.rmm import get_rmm_provider
 from .providers.distributors import get_distributor_provider
 from vault.encryption import EncryptionError
 from django.conf import settings
+from core.tenancy import get_org_object_or_404
 import logging
 
 logger = logging.getLogger('integrations')
@@ -241,7 +242,7 @@ def integration_create(request):
 def integration_detail(request, pk):
     """View connection details."""
     org = get_request_organization(request)
-    connection = get_object_or_404(PSAConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(PSAConnection, org, pk=pk)
 
     companies = PSACompany.objects.filter(connection=connection)[:10]
     tickets = PSATicket.objects.filter(connection=connection).order_by('-external_updated_at')[:10]
@@ -258,7 +259,7 @@ def integration_detail(request, pk):
 def integration_edit(request, pk):
     """Edit PSA connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(PSAConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(PSAConnection, org, pk=pk)
 
     if request.method == 'POST':
         form = PSAConnectionForm(request.POST, instance=connection, organization=org)
@@ -302,7 +303,7 @@ def integration_edit(request, pk):
 def integration_delete(request, pk):
     """Delete PSA connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(PSAConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(PSAConnection, org, pk=pk)
 
     if request.method == 'POST':
         name = connection.name
@@ -320,7 +321,7 @@ def integration_delete(request, pk):
 def integration_test(request, pk):
     """Test PSA connection with diagnostic information (AJAX)."""
     org = get_request_organization(request)
-    connection = get_object_or_404(PSAConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(PSAConnection, org, pk=pk)
 
     if request.method == 'POST':
         try:
@@ -394,7 +395,7 @@ def integration_test(request, pk):
 def integration_sync(request, pk):
     """Trigger manual sync (AJAX)."""
     org = get_request_organization(request)
-    connection = get_object_or_404(PSAConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(PSAConnection, org, pk=pk)
 
     if request.method == 'POST':
         try:
@@ -456,7 +457,7 @@ def psa_tickets(request):
 def psa_company_detail(request, pk):
     """View PSA company details."""
     org = get_request_organization(request)
-    company = get_object_or_404(PSACompany, pk=pk, organization=org)
+    company = get_org_object_or_404(PSACompany, org, pk=pk)
 
     # Get related contacts and tickets
     contacts = company.contacts.all()
@@ -484,7 +485,7 @@ def psa_contacts(request):
 def psa_contact_detail(request, pk):
     """View PSA contact details."""
     org = get_request_organization(request)
-    contact = get_object_or_404(PSAContact, pk=pk, organization=org)
+    contact = get_org_object_or_404(PSAContact, org, pk=pk)
 
     # Get related tickets
     tickets = contact.tickets.order_by('-external_updated_at')[:20]
@@ -499,7 +500,7 @@ def psa_contact_detail(request, pk):
 def psa_ticket_detail(request, pk):
     """View PSA ticket details."""
     org = get_request_organization(request)
-    ticket = get_object_or_404(PSATicket, pk=pk, organization=org)
+    ticket = get_org_object_or_404(PSATicket, org, pk=pk)
 
     return render(request, 'integrations/psa_ticket_detail.html', {
         'ticket': ticket,
@@ -578,7 +579,7 @@ def rmm_create(request):
 def rmm_detail(request, pk):
     """View RMM connection details."""
     org = get_request_organization(request)
-    connection = get_object_or_404(RMMConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
 
     devices = RMMDevice.objects.filter(connection=connection).order_by('-last_seen')[:20]
     total_devices = RMMDevice.objects.filter(connection=connection).count()
@@ -597,7 +598,7 @@ def rmm_detail(request, pk):
 def rmm_edit(request, pk):
     """Edit RMM connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(RMMConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
 
     if request.method == 'POST':
         form = RMMConnectionForm(request.POST, instance=connection, organization=org)
@@ -641,7 +642,7 @@ def rmm_edit(request, pk):
 def rmm_delete(request, pk):
     """Delete RMM connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(RMMConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
 
     if request.method == 'POST':
         name = connection.name
@@ -1062,7 +1063,7 @@ def psa_organization_mapping(request, pk):
     from django.db.models import Q
 
     org = get_request_organization(request)
-    connection = get_object_or_404(PSAConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(PSAConnection, org, pk=pk)
 
     if request.method == 'POST':
         # Process mappings
@@ -1193,7 +1194,7 @@ def rmm_organization_mapping(request, pk):
     from django.db.models import Q
 
     org = get_request_organization(request)
-    connection = get_object_or_404(RMMConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
 
     if request.method == 'POST':
         # For RMM, we can't use ExternalObjectMap (PSA-only)
@@ -1422,7 +1423,7 @@ def unifi_detail(request, pk):
 def unifi_edit(request, pk):
     """Edit UniFi connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(UnifiConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(UnifiConnection, org, pk=pk)
 
     if request.method == 'POST':
         form = UnifiConnectionForm(request.POST, instance=connection, organization=org)
@@ -1441,7 +1442,7 @@ def unifi_edit(request, pk):
 def unifi_delete(request, pk):
     """Delete UniFi connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(UnifiConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(UnifiConnection, org, pk=pk)
 
     if request.method == 'POST':
         name = connection.name
@@ -1497,7 +1498,7 @@ def _get_unifi_connection(request, pk):
     if request.user.is_superuser or getattr(request, 'is_staff_user', False):
         return get_object_or_404(UnifiConnection, pk=pk)
     org = get_request_organization(request)
-    return get_object_or_404(UnifiConnection, pk=pk, organization=org)
+    return get_org_object_or_404(UnifiConnection, org, pk=pk)
 
 
 def _get_unifi_provider(connection):
@@ -2161,7 +2162,7 @@ def omada_create(request):
 def omada_detail(request, pk):
     """View Omada connection details and cached data."""
     org = get_request_organization(request)
-    connection = get_object_or_404(OmadaConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(OmadaConnection, org, pk=pk)
     data = connection.cached_data or {}
 
     sites = []
@@ -2185,7 +2186,7 @@ def omada_detail(request, pk):
 def omada_edit(request, pk):
     """Edit Omada connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(OmadaConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(OmadaConnection, org, pk=pk)
 
     if request.method == 'POST':
         form = OmadaConnectionForm(request.POST, instance=connection, organization=org)
@@ -2204,7 +2205,7 @@ def omada_edit(request, pk):
 def omada_delete(request, pk):
     """Delete Omada connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(OmadaConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(OmadaConnection, org, pk=pk)
 
     if request.method == 'POST':
         name = connection.name
@@ -2221,7 +2222,7 @@ def omada_test(request, pk):
     """Test Omada connection."""
     from integrations.providers.omada import OmadaProvider
     org = get_request_organization(request)
-    connection = get_object_or_404(OmadaConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(OmadaConnection, org, pk=pk)
     creds = connection.get_credentials()
     provider = OmadaProvider(
         host=connection.host,
@@ -2245,7 +2246,7 @@ def omada_sync(request, pk):
     from integrations.providers.omada import OmadaProvider
 
     org = get_request_organization(request)
-    connection = get_object_or_404(OmadaConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(OmadaConnection, org, pk=pk)
     creds = connection.get_credentials()
     provider = OmadaProvider(
         host=connection.host,
@@ -2284,7 +2285,7 @@ def omada_sync(request, pk):
 def omada_import_assets(request, pk):
     """Import Omada devices into the asset registry."""
     org = get_request_organization(request)
-    connection = get_object_or_404(OmadaConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(OmadaConnection, org, pk=pk)
     data = connection.cached_data or {}
 
     all_devices = []
@@ -2339,7 +2340,7 @@ def grandstream_create(request):
 def grandstream_detail(request, pk):
     """View Grandstream connection details and cached data."""
     org = get_request_organization(request)
-    connection = get_object_or_404(GrandstreamConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(GrandstreamConnection, org, pk=pk)
     data = connection.cached_data or {}
 
     sites = []
@@ -2363,7 +2364,7 @@ def grandstream_detail(request, pk):
 def grandstream_edit(request, pk):
     """Edit Grandstream connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(GrandstreamConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(GrandstreamConnection, org, pk=pk)
 
     if request.method == 'POST':
         form = GrandstreamConnectionForm(request.POST, instance=connection, organization=org)
@@ -2382,7 +2383,7 @@ def grandstream_edit(request, pk):
 def grandstream_delete(request, pk):
     """Delete Grandstream connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(GrandstreamConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(GrandstreamConnection, org, pk=pk)
 
     if request.method == 'POST':
         name = connection.name
@@ -2399,7 +2400,7 @@ def grandstream_test(request, pk):
     """Test Grandstream connection."""
     from integrations.providers.grandstream import GrandstreamProvider
     org = get_request_organization(request)
-    connection = get_object_or_404(GrandstreamConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(GrandstreamConnection, org, pk=pk)
     creds = connection.get_credentials()
     provider = GrandstreamProvider(
         host=connection.host,
@@ -2422,7 +2423,7 @@ def grandstream_sync(request, pk):
     from integrations.providers.grandstream import GrandstreamProvider
 
     org = get_request_organization(request)
-    connection = get_object_or_404(GrandstreamConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(GrandstreamConnection, org, pk=pk)
     creds = connection.get_credentials()
     provider = GrandstreamProvider(
         host=connection.host,
@@ -2460,7 +2461,7 @@ def grandstream_sync(request, pk):
 def grandstream_import_assets(request, pk):
     """Import Grandstream devices into the asset registry."""
     org = get_request_organization(request)
-    connection = get_object_or_404(GrandstreamConnection, pk=pk, organization=org)
+    connection = get_org_object_or_404(GrandstreamConnection, org, pk=pk)
     data = connection.cached_data or {}
 
     all_devices = []
@@ -2515,7 +2516,7 @@ def m365_create(request):
 def m365_detail(request, pk):
     """View M365 connection details and cached data."""
     org = get_request_organization(request)
-    connection = get_object_or_404(M365Connection, pk=pk, organization=org)
+    connection = get_org_object_or_404(M365Connection, org, pk=pk)
     data = connection.cached_data or {}
     raw_mailbox = data.get('mailbox_usage', [])
     first_mb = raw_mailbox[0] if raw_mailbox else {}
@@ -2544,7 +2545,7 @@ def m365_detail(request, pk):
 def m365_edit(request, pk):
     """Edit M365 connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(M365Connection, pk=pk, organization=org)
+    connection = get_org_object_or_404(M365Connection, org, pk=pk)
 
     if request.method == 'POST':
         form = M365ConnectionForm(request.POST, instance=connection, organization=org)
@@ -2563,7 +2564,7 @@ def m365_edit(request, pk):
 def m365_delete(request, pk):
     """Delete M365 connection."""
     org = get_request_organization(request)
-    connection = get_object_or_404(M365Connection, pk=pk, organization=org)
+    connection = get_org_object_or_404(M365Connection, org, pk=pk)
 
     if request.method == 'POST':
         name = connection.name
@@ -2580,7 +2581,7 @@ def m365_test(request, pk):
     """Test M365 connection."""
     from integrations.providers.m365 import M365Provider
     org = get_request_organization(request)
-    connection = get_object_or_404(M365Connection, pk=pk, organization=org)
+    connection = get_org_object_or_404(M365Connection, org, pk=pk)
     creds = connection.get_credentials()
     provider = M365Provider(connection.tenant_id, creds.get('client_id', ''), creds.get('client_secret', ''))
     result = provider.test_connection()
@@ -2602,7 +2603,7 @@ def m365_sync(request, pk):
     import html as html_lib
 
     org = get_request_organization(request)
-    connection = get_object_or_404(M365Connection, pk=pk, organization=org)
+    connection = get_org_object_or_404(M365Connection, org, pk=pk)
     creds = connection.get_credentials()
 
     provider = M365Provider(connection.tenant_id, creds.get('client_id', ''), creds.get('client_secret', ''))

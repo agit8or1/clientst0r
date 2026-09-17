@@ -2,13 +2,14 @@
 Monitoring API Views - REST endpoints for rack device management
 """
 import logging
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from core.middleware import get_request_organization
+from core.tenancy import get_org_object_or_404
 from .models import Rack, RackDevice, RackResource, RackConnection
 
 logger = logging.getLogger('monitoring')
@@ -171,6 +172,11 @@ def update_rack_device_position(request, pk):
             'success': False,
             'error': 'Invalid value'
         }, status=400)
+    except Http404:
+        # A scoped lookup refusing another tenant's row is a 404, not a server
+        # error. Without this the blanket handler below turns every refusal
+        # into a 500 and logs a traceback for it.
+        raise
     except Exception:
         logger.exception('API view error')
         return JsonResponse({
@@ -209,7 +215,7 @@ def rack_device_detail(request, pk):
             if 'asset_id' in data:
                 asset_id = data['asset_id']
                 if asset_id:
-                    asset = get_object_or_404(Asset, pk=asset_id, organization=org) if org else get_object_or_404(Asset, pk=asset_id)
+                    asset = get_org_object_or_404(Asset, org, pk=asset_id) if org else get_object_or_404(Asset, pk=asset_id)
                     device.asset = asset
                 else:
                     device.asset = None
@@ -236,6 +242,11 @@ def rack_device_detail(request, pk):
             'success': False,
             'error': 'Invalid JSON in request body'
         }, status=400)
+    except Http404:
+        # A scoped lookup refusing another tenant's row is a 404, not a server
+        # error. Without this the blanket handler below turns every refusal
+        # into a 500 and logs a traceback for it.
+        raise
     except Exception:
         logger.exception('API view error')
         return JsonResponse({
@@ -268,7 +279,7 @@ def create_rack_device(request, pk):
             return JsonResponse({'success': False, 'error': 'asset_id is required'}, status=400)
 
         # Get asset — skip org filter in global view mode
-        asset = get_object_or_404(Asset, pk=asset_id) if not org else get_object_or_404(Asset, pk=asset_id, organization=org)
+        asset = get_org_object_or_404(Asset, org, pk=asset_id) if org else get_object_or_404(Asset, pk=asset_id)
 
         if asset.rack_units:
             units = asset.rack_units
@@ -346,6 +357,11 @@ def create_rack_device(request, pk):
             'success': False,
             'error': 'Invalid value'
         }, status=400)
+    except Http404:
+        # A scoped lookup refusing another tenant's row is a 404, not a server
+        # error. Without this the blanket handler below turns every refusal
+        # into a 500 and logs a traceback for it.
+        raise
     except Exception:
         logger.exception('API view error')
         return JsonResponse({
@@ -476,6 +492,11 @@ def patch_panel_port_connect(request, pk, port_num):
             'success': False,
             'error': 'Invalid JSON in request body'
         }, status=400)
+    except Http404:
+        # A scoped lookup refusing another tenant's row is a 404, not a server
+        # error. Without this the blanket handler below turns every refusal
+        # into a 500 and logs a traceback for it.
+        raise
     except Exception:
         logger.exception('API view error')
         return JsonResponse({
@@ -536,6 +557,11 @@ def patch_panel_port_disconnect(request, pk, port_num):
             'port': ports[port_index]
         })
 
+    except Http404:
+        # A scoped lookup refusing another tenant's row is a 404, not a server
+        # error. Without this the blanket handler below turns every refusal
+        # into a 500 and logs a traceback for it.
+        raise
     except Exception:
         logger.exception('API view error')
         return JsonResponse({
@@ -597,6 +623,11 @@ def patch_panel_port_update(request, pk, port_num):
             'success': False,
             'error': 'Invalid JSON in request body'
         }, status=400)
+    except Http404:
+        # A scoped lookup refusing another tenant's row is a 404, not a server
+        # error. Without this the blanket handler below turns every refusal
+        # into a 500 and logs a traceback for it.
+        raise
     except Exception:
         logger.exception('API view error')
         return JsonResponse({
@@ -797,6 +828,11 @@ def update_device_board_position(request, pk):
             'success': False,
             'error': 'Invalid value'
         }, status=400)
+    except Http404:
+        # A scoped lookup refusing another tenant's row is a 404, not a server
+        # error. Without this the blanket handler below turns every refusal
+        # into a 500 and logs a traceback for it.
+        raise
     except Exception:
         logger.exception('API view error')
         return JsonResponse({
@@ -863,6 +899,11 @@ def update_resource_board_position(request, pk):
             'success': False,
             'error': 'Invalid value'
         }, status=400)
+    except Http404:
+        # A scoped lookup refusing another tenant's row is a 404, not a server
+        # error. Without this the blanket handler below turns every refusal
+        # into a 500 and logs a traceback for it.
+        raise
     except Exception:
         logger.exception('API view error')
         return JsonResponse({

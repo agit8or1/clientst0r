@@ -8,6 +8,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from core.middleware import get_request_organization
 from core.decorators import require_admin, require_write
+from core.tenancy import get_org_object_or_404
 from .models import (
     InventoryCategory, InventoryItem, InventoryLocation, InventoryTransaction, Tool,
 )
@@ -87,7 +88,7 @@ def item_list(request):
 def item_detail(request, pk):
     """Show item details and transaction history."""
     org = get_request_organization(request)
-    item = get_object_or_404(InventoryItem, pk=pk, organization=org)
+    item = get_org_object_or_404(InventoryItem, org, pk=pk)
     transactions = item.transactions.select_related('performed_by').order_by('-created_at')
 
     return render(request, 'inventory/item_detail.html', {
@@ -124,7 +125,7 @@ def item_create(request):
 def item_edit(request, pk):
     """Edit an existing inventory item."""
     org = get_request_organization(request)
-    item = get_object_or_404(InventoryItem, pk=pk, organization=org)
+    item = get_org_object_or_404(InventoryItem, org, pk=pk)
 
     if request.method == 'POST':
         form = InventoryItemForm(request.POST, instance=item, org=org)
@@ -147,7 +148,7 @@ def item_edit(request, pk):
 def item_delete(request, pk):
     """Delete an inventory item."""
     org = get_request_organization(request)
-    item = get_object_or_404(InventoryItem, pk=pk, organization=org)
+    item = get_org_object_or_404(InventoryItem, org, pk=pk)
 
     if request.method == 'POST':
         name = item.name
@@ -163,7 +164,7 @@ def item_delete(request, pk):
 def item_adjust(request, pk):
     """Adjust stock quantity for an item."""
     org = get_request_organization(request)
-    item = get_object_or_404(InventoryItem, pk=pk, organization=org)
+    item = get_org_object_or_404(InventoryItem, org, pk=pk)
 
     if request.method == 'POST':
         form = InventoryAdjustForm(request.POST)
@@ -199,7 +200,7 @@ def item_adjust(request, pk):
 def item_scan(request, qr_code):
     """Look up an item by QR code and redirect to its detail page."""
     org = get_request_organization(request)
-    item = get_object_or_404(InventoryItem, qr_code=qr_code, organization=org)
+    item = get_org_object_or_404(InventoryItem, org, qr_code=qr_code)
     return redirect('inventory:item_detail', pk=item.pk)
 
 
@@ -241,7 +242,7 @@ def category_create(request):
 def category_edit(request, pk):
     """Edit an existing category."""
     org = get_request_organization(request)
-    category = get_object_or_404(InventoryCategory, pk=pk, organization=org)
+    category = get_org_object_or_404(InventoryCategory, org, pk=pk)
 
     if request.method == 'POST':
         form = InventoryCategoryForm(request.POST, instance=category)
@@ -264,7 +265,7 @@ def category_edit(request, pk):
 def category_delete(request, pk):
     """Delete a category."""
     org = get_request_organization(request)
-    category = get_object_or_404(InventoryCategory, pk=pk, organization=org)
+    category = get_org_object_or_404(InventoryCategory, org, pk=pk)
 
     if request.method == 'POST':
         name = category.name
@@ -313,7 +314,7 @@ def location_create(request):
 def location_edit(request, pk):
     """Edit an existing location."""
     org = get_request_organization(request)
-    location = get_object_or_404(InventoryLocation, pk=pk, organization=org)
+    location = get_org_object_or_404(InventoryLocation, org, pk=pk)
 
     if request.method == 'POST':
         form = InventoryLocationForm(request.POST, instance=location)
@@ -336,7 +337,7 @@ def location_edit(request, pk):
 def location_delete(request, pk):
     """Delete a location."""
     org = get_request_organization(request)
-    location = get_object_or_404(InventoryLocation, pk=pk, organization=org)
+    location = get_org_object_or_404(InventoryLocation, org, pk=pk)
 
     if request.method == 'POST':
         name = location.name

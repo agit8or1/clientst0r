@@ -11,6 +11,7 @@ from django.views.decorators.http import require_http_methods
 from core.middleware import get_request_organization
 from core.decorators import require_write, require_admin, require_organization_context
 from core.ai_gate import require_ai_enabled_json
+from core.tenancy import get_org_object_or_404
 from .models import Document, DocumentVersion, DocumentCategory
 from .forms import DocumentForm
 import os
@@ -144,7 +145,7 @@ def document_detail(request, slug):
         document = get_object_or_404(Document, slug=slug)
     else:
         # Organization view: filter by current org
-        document = get_object_or_404(Document, slug=slug, organization=org)
+        document = get_org_object_or_404(Document, org, slug=slug)
 
     # Get versions
     versions = document.versions.all()[:10]  # Last 10 versions
@@ -310,7 +311,7 @@ def document_delete(request, slug):
     Delete document. Requires write permission.
     """
     org = get_request_organization(request)
-    document = get_object_or_404(Document, slug=slug, organization=org)
+    document = get_org_object_or_404(Document, org, slug=slug)
 
     if request.method == 'POST':
         title = document.title
@@ -1869,7 +1870,7 @@ def _resolve_document_for_export(request, slug):
     in_global_view = not org and (request.user.is_superuser or is_staff)
     if in_global_view:
         return get_object_or_404(Document, slug=slug)
-    return get_object_or_404(Document, slug=slug, organization=org)
+    return get_org_object_or_404(Document, org, slug=slug)
 
 
 @login_required

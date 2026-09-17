@@ -1258,20 +1258,30 @@ fetched by id without checking which tenant it belongs to.
   row). Both were under-returns, so neither was ever reported — a search
   saying "no results" looks like the thing not existing. Results now also name
   their owning org, since a result set can span organizations.
+- Organization hierarchy in detail views *(shipped v3.17.571)* — the list
+  pages include descendant orgs via `for_organization()`, which is what
+  `Organization.parent` documents, but the detail, edit and delete views they
+  link to looked rows up with a bare `organization=org`. A parent org's asset
+  list showed a subsidiary's server and the link 404'd; the same split ran
+  through passwords, contacts, inventory, scheduled tasks, documents and the
+  integration connections — 78 lookups in nine modules. All now go through a
+  new `core.tenancy.get_org_object_or_404` (current org + descendants, not the
+  wider membership rule PSA uses). Models whose lists are strict keep strict
+  detail scoping.
 - **Remaining in this phase:** the rest of billing arithmetic, export scoping,
-  what the AI features are allowed to read (the PSA AI context builder is
+  and what the AI features are allowed to read (the PSA AI context builder is
   already org-scoped and withholds internal notes — the open question is the
-  other AI surfaces' prompt inputs), and a wider sweep of the ~170 hand-rolled
-  `filter(organization=org)` call sites that bypass `for_organization()` and so
-  miss descendant orgs the way search did. Not all are wrong — creating a row
-  and looking up a membership are correctly strict — so that one needs judging
-  case by case rather than a blanket replace.
+  other AI surfaces' prompt inputs). The remaining hand-rolled
+  `filter(organization=org)` sites are config and admin objects (tags,
+  categories, API keys, webhooks, audit logs) plus correctly-strict ones
+  (creating a row, slug uniqueness, membership lookups); each needs judging on
+  its own rather than a blanket replace.
 
 **Sizing:** **M** — 49.1 complete; 49.2 has covered views, backup/restore,
 invoice tax, update progress, SLA, invoice duplication, background job failure
 handling, expiry notifications, PSA ticket notes, dashboard widget scoping, AI
-gating + spend controls and search scoping, with export scoping and AI data
-access still ahead.
+gating + spend controls, search scoping and the organization hierarchy in
+detail views, with export scoping and AI data access still ahead.
 
 ---
 ## What's explicitly NOT in this plan
@@ -1333,7 +1343,7 @@ access still ahead.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

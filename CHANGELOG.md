@@ -5,6 +5,55 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.571] - 2026-09-17
+
+### A list that shows a row now links to a detail page that opens it
+
+`Organization.parent`'s own help text reads "The parent's queries see
+descendants' rows; descendants stay scoped to themselves", and the list pages
+implement exactly that through `OrganizationManager.for_organization()`. The
+detail, edit and delete views those lists link to looked their row up with a
+bare `organization=org`, which stops at the selected organization.
+
+So a parent organization's asset list rendered a subsidiary's server and the
+link to it returned 404. The same split ran through passwords, contacts,
+inventory, scheduled tasks, documents and every integration connection — 78
+lookups across nine modules, each one a dead link from a row the user was
+already being shown.
+
+`core/tenancy.py` gains `get_org_object_or_404`, and those 78 lookups now use
+it. It is deliberately *not* the existing `get_scoped_object_or_404`, which
+spans every organization the user is a member of: PSA and resourcing want
+that wider rule and say so, but applying it here would let someone who
+belongs to two clients open the unselected one's record by URL. The new
+helper is the current-organization rule — the organization in the switcher,
+plus its descendants — which is what the lists already do and nothing more.
+
+Only models whose lists already include descendants were changed. A model
+whose list is strict (`Diagram`, `Process`, `APIKey`, `AuditLog`,
+`Membership`, `Rack`, `OrganizationCompliance`) keeps strict detail scoping:
+there is no broken link to repair there, and widening it would be a policy
+change rather than a fix.
+
+Three things found while making the change:
+
+- **`M365Connection` was missed on the first pass.** Its name contains
+  digits, and the scan that decided which models qualified captured names
+  with `[A-Za-z_]+`, which stops at the `3` — so it appeared in the results
+  as a model called `M` and its five lookups stayed strict while the
+  integrations dashboard listed it with `for_organization`. Found by redoing
+  the scan with a pattern that allows digits, before this shipped.
+
+- **`monitoring/api_views.py` wrote one of these lookups as a conditional
+  with the unscoped branch first** (`<unscoped> if not org else <scoped>`).
+  Mechanically rewriting it inverted the branches, which would have handed
+  any organization's asset to any caller through a JSON API. Caught before
+  commit; `RackDeviceAssetScopeTests` now pins the branch rather than its
+  spelling, so the inversion cannot come back silently.
+- **Eight blanket `except Exception` handlers in that module swallowed
+  `Http404`**, turning every tenant refusal into a 500 with a logged
+  traceback. They now re-raise it, so a refusal is a 404 as intended.
+
 ## [3.17.570] - 2026-09-17
 
 ### Global search now sees what the list pages see
