@@ -5,6 +5,42 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.570] - 2026-09-17
+
+### Global search now sees what the list pages see
+
+`core.search_views.global_search` filtered a bare `organization=org` on every
+one of its six content types. The list pages it mirrors go through
+`OrganizationManager.for_organization()`. Two consequences:
+
+- **Phase 18's organization hierarchy was ignored.** `for_organization()`
+  includes descendant orgs, which is the whole point of the parent/child
+  structure — a holding company's queries see its subsidiaries' rows. Search
+  did not. A user at a parent org saw a subsidiary's assets, contacts,
+  documents and passwords on every list page, and got nothing for them here.
+- **Global view returned nothing at all.** For a staff user or superuser with
+  no organization selected, `org` is None, so `filter(organization=None)`
+  matched no row. Search came back empty across all six content types while
+  every list page showed the whole install.
+
+Both are under-returns, which is why neither was ever reported: a search
+saying "no results" is indistinguishable from the thing not existing.
+
+Scoping now follows `assets.views.asset_list` exactly — global view searches
+everything, everyone else searches their org and its descendants, and a user
+with neither gets an explicit empty queryset rather than an accidental one.
+PSA companies and contacts are scoped by their own `organization` the way
+`integrations.views` does them, instead of reaching through the connection.
+
+Because a result set can now span organizations, each row carries the owning
+org's name; the badge is suppressed when the results cannot span orgs, where
+it would just be noise. The PSA branch still tolerates the tables being
+absent on an install that has never configured an integration, but it logs
+instead of swallowing the exception silently.
+
+Seven of the eleven new tests in `core/tests/test_global_search_scoping.py`
+fail against the previous implementation.
+
 ## [3.17.569] - 2026-09-16
 
 ### The AI spend controls never ran, and the master switch missed six endpoints

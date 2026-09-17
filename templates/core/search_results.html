@@ -33,7 +33,7 @@
         {% for asset in assets %}
         <a href="{% url 'assets:asset_detail' asset.pk %}" class="list-group-item list-group-item-action">
             <div class="d-flex w-100 justify-content-between">
-                <h6 class="mb-1">{% asset_type_icon asset.asset_type "me-1" %} {{ asset.name }}</h6>
+                <h6 class="mb-1">{% asset_type_icon asset.asset_type "me-1" %} {{ asset.name }}{% if show_org_badge and asset.organization %}<span class="badge bg-light text-dark border ms-2">{{ asset.organization.name }}</span>{% endif %}</h6>
                 <small class="text-muted">{{ asset.get_asset_type_display }}</small>
             </div>
             {% if asset.asset_tag %}
@@ -55,7 +55,7 @@
         {% for doc in documents %}
         <a href="{% url 'docs:document_detail' doc.slug %}" class="list-group-item list-group-item-action">
             <div class="d-flex w-100 justify-content-between">
-                <h6 class="mb-1"><i class="fas fa-file-alt text-primary"></i> {{ doc.title }}</h6>
+                <h6 class="mb-1"><i class="fas fa-file-alt text-primary"></i> {{ doc.title }}{% if show_org_badge and doc.organization %}<span class="badge bg-light text-dark border ms-2">{{ doc.organization.name }}</span>{% endif %}</h6>
                 <small class="text-muted">{{ doc.updated_at|date:"M d, Y" }}</small>
             </div>
         </a>
@@ -96,7 +96,7 @@
         {% for password in passwords %}
         <a href="{% url 'vault:password_detail' password.pk %}" class="list-group-item list-group-item-action">
             <div class="d-flex w-100 justify-content-between">
-                <h6 class="mb-1"><i class="fas fa-key text-warning"></i> {{ password.title }}</h6>
+                <h6 class="mb-1"><i class="fas fa-key text-warning"></i> {{ password.title }}{% if show_org_badge and password.organization %}<span class="badge bg-light text-dark border ms-2">{{ password.organization.name }}</span>{% endif %}</h6>
                 {% if password.username %}
                 <small class="text-muted">{{ password.username }}</small>
                 {% endif %}
@@ -117,7 +117,7 @@
         {% for contact in contacts %}
         <a href="{% url 'assets:contact_detail' contact.pk %}" class="list-group-item list-group-item-action">
             <div class="d-flex w-100 justify-content-between">
-                <h6 class="mb-1"><i class="fas fa-user text-info"></i> {{ contact.full_name }}</h6>
+                <h6 class="mb-1"><i class="fas fa-user text-info"></i> {{ contact.full_name }}{% if show_org_badge and contact.organization %}<span class="badge bg-light text-dark border ms-2">{{ contact.organization.name }}</span>{% endif %}</h6>
                 {% if contact.email %}
                 <small class="text-muted">{{ contact.email }}</small>
                 {% endif %}
@@ -137,7 +137,7 @@
     <div class="list-group list-group-flush">
         {% for company in psa_companies %}
         <div class="list-group-item">
-            <h6 class="mb-1"><i class="fas fa-building text-success"></i> {{ company.name }}</h6>
+            <h6 class="mb-1"><i class="fas fa-building text-success"></i> {{ company.name }}{% if show_org_badge and company.organization %}<span class="badge bg-light text-dark border ms-2">{{ company.organization.name }}</span>{% endif %}</h6>
             <small class="text-muted">{{ company.connection.name }}</small>
         </div>
         {% endfor %}
@@ -154,7 +154,7 @@
     <div class="list-group list-group-flush">
         {% for contact in psa_contacts %}
         <div class="list-group-item">
-            <h6 class="mb-1"><i class="fas fa-user-tie text-success"></i> {{ contact.name }}</h6>
+            <h6 class="mb-1"><i class="fas fa-user-tie text-success"></i> {{ contact.name }}{% if show_org_badge and contact.organization %}<span class="badge bg-light text-dark border ms-2">{{ contact.organization.name }}</span>{% endif %}</h6>
             {% if contact.email %}
             <small class="text-muted">{{ contact.email }}</small>
             {% endif %}
