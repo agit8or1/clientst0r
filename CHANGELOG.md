@@ -5,6 +5,31 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.574] - 2026-09-17
+
+### The vault export permission stops advertising a feature that does not exist
+
+`vault_export` is defined on every role template, is a labelled checkbox
+("Export passwords") in the role editor, and is displayed in the role list.
+Nothing anywhere checks it, because Client St0r has no bulk password export —
+there is no view and no URL. Granting or denying it changed nothing at all.
+
+It is now labelled as unimplemented in both places it appears, with a note
+saying plainly that the setting is stored but grants nothing. The field is
+kept rather than dropped so a role's stored intent survives until the feature
+exists, and its `help_text` is deliberately left alone: changing it would
+generate a migration for a cosmetic string.
+
+Building the export was considered and deliberately not done. A bulk password
+export is a path that decrypts every credential in an organization and hands
+it over as a file; it needs master-key handling, per-record audit, and
+probably re-authentication and an approval step. That is a feature to design,
+not something to add while fixing adjacent bugs.
+
+`core/tests/test_vault_export_permission.py` pins the honest state, and two of
+its tests fail the moment anyone builds the export or adds a gate — so the
+label cannot quietly become a lie in either direction.
+
 ## [3.17.573] - 2026-09-17
 
 ### The data export had never exported anything, and the KB export skipped subsidiaries

@@ -67,7 +67,15 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="vault_export" id="vault_export"
                                        {% if role %}{% if role.vault_export %}checked{% endif %}{% elif copy_from %}{% if copy_from.vault_export %}checked{% endif %}{% endif %}>
-                                <label class="form-check-label" for="vault_export">Export passwords</label>
+                                <label class="form-check-label text-muted" for="vault_export">
+                                    Export passwords
+                                    <span class="badge bg-secondary ms-1">Not yet implemented</span>
+                                </label>
+                                <div class="form-text">
+                                    Client St0r has no bulk password export. This setting is
+                                    stored but nothing checks it, so granting it does not
+                                    currently allow anything.
+                                </div>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="vault_view_password" id="vault_view_password"

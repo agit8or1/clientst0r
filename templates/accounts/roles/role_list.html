@@ -64,7 +64,7 @@
                                             <li>{% if role.vault_create %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Create</li>
                                             <li>{% if role.vault_edit %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Edit</li>
                                             <li>{% if role.vault_delete %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Delete</li>
-                                            <li>{% if role.vault_export %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Export</li>
+                                            <li class="text-muted">{% if role.vault_export %}<i class="fas fa-check text-muted"></i>{% else %}<i class="fas fa-times text-muted"></i>{% endif %} Export <em>(not implemented)</em></li>
                                             <li>{% if role.vault_view_password %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Passwords</li>
                                         </ul>
                                     </div>
@@ -218,7 +218,7 @@
                                             <li>{% if role.vault_create %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Create</li>
                                             <li>{% if role.vault_edit %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Edit</li>
                                             <li>{% if role.vault_delete %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Delete</li>
-                                            <li>{% if role.vault_export %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} Export</li>
+                                            <li class="text-muted">{% if role.vault_export %}<i class="fas fa-check text-muted"></i>{% else %}<i class="fas fa-times text-muted"></i>{% endif %} Export <em>(not implemented)</em></li>
                                             <li>{% if role.vault_view_password %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-times text-danger"></i>{% endif %} View Passwords</li>
                                         </ul>
                                     </div>
