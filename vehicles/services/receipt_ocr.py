@@ -1,150 +1,108 @@
 """
 AI-powered receipt OCR for vehicle expense tracking.
-Uses Claude vision to extract structured data from receipt images.
+
+Vision extraction runs through whichever LLM provider the install has
+configured (Settings → AI), via `docs.services.llm_providers`. This module
+used to hardcode Anthropic, which meant an install running a local model
+still sent every receipt image off-network.
 """
-import base64
-import json
 import logging
 
 logger = logging.getLogger('vehicles')
 
-SYSTEM_PROMPT = """You are a receipt data extraction assistant.
-Extract expense data from receipt images and return ONLY valid JSON with no other text.
-Be precise with amounts — always use numbers, never strings for monetary values.
-If a field cannot be determined, use null."""
-
-EXTRACT_PROMPT = """Extract the following from this receipt image and return as JSON:
-
-{
-  "vendor": "store/business name (string or null)",
-  "date": "date in YYYY-MM-DD format (string or null)",
-  "amount": total amount paid as number (e.g. 45.20, not "$45.20"),
-  "tax_amount": tax amount as number or null,
-  "category": one of: "fuel", "maintenance", "repair", "insurance", "registration", "toll", "cleaning", "inspection", "other",
-  "odometer": odometer/mileage reading as integer if shown on receipt, else null,
-  "description": "brief summary of items purchased (string or null)",
-  "confidence": "high" if data is clear, "medium" if some fields are uncertain, "low" if image is poor quality
-}
-
-Category guidance:
-- fuel: gas station, petrol, diesel purchases
-- maintenance: oil change, filters, routine service
-- repair: mechanic, parts, bodywork, tire replacement
-- insurance: insurance payment or premium
-- registration: DMV, license plate, registration fees
-- toll: toll roads, parking, bridge fees
-- cleaning: car wash, detailing
-- inspection: emissions test, safety inspection
-
-Return ONLY the JSON object, no explanation."""
-
 
 def extract_receipt_data(image_file):
     """
-    Use Claude vision to extract structured data from a receipt image.
+    Extract structured data from a receipt image via the configured LLM.
 
-    Args:
-        image_file: Django InMemoryUploadedFile or similar file object
+    This used to build its own `anthropic.Anthropic(api_key=...)` client from
+    `settings.ANTHROPIC_API_KEY`, with its own copy of the prompt, its own
+    code-fence stripping and its own type coercion — a second implementation
+    of what `docs.services.llm_providers` already does for Anthropic, OpenAI
+    and Ollama through `LLMProvider.extract_receipt_fields`.
 
-    Returns:
-        dict with keys: success, data (if success), error (if failure)
-        data contains: vendor, date, amount, tax_amount, category,
-                       odometer, description, confidence
+    The mobile app's receipt scanner (`api_mobile.views_receipts`) has always
+    gone through that provider layer. This one did not, so the same receipt
+    scanned in the web UI went to Anthropic no matter which provider the
+    administrator had configured. On an install running Ollama — chosen
+    precisely to keep data on the premises — every receipt image still left
+    the network.
+
+    Returns the same shape as before: {'success': bool, 'data': {...}} or
+    {'success': False, 'error': str}.
     """
-    from django.conf import settings
+    from docs.services.llm_providers import get_configured_provider
 
-    api_key = getattr(settings, 'ANTHROPIC_API_KEY', None)
-    if not api_key:
-        return {'success': False, 'error': 'Anthropic API key not configured. Set it in Settings → AI.'}
-
-    # Read and encode image
     try:
         image_file.seek(0)
-        image_data = image_file.read()
-        b64_data = base64.standard_b64encode(image_data).decode('utf-8')
+        image_bytes = image_file.read()
     except Exception as e:
         logger.error(f'[receipt_ocr] Failed to read image: {e}')
         return {'success': False, 'error': f'Could not read image file: {e}'}
 
-    # Determine media type
     content_type = getattr(image_file, 'content_type', 'image/jpeg')
     if content_type not in ('image/jpeg', 'image/png', 'image/gif', 'image/webp'):
         content_type = 'image/jpeg'
 
-    # Call Claude
     try:
-        import anthropic
-        model = getattr(settings, 'CLAUDE_MODEL', 'claude-sonnet-4-6')
-        client = anthropic.Anthropic(api_key=api_key)
+        provider = get_configured_provider()
+    except Exception as exc:
+        logger.warning(f'[receipt_ocr] LLM provider load failed: {exc}')
+        provider = None
 
-        response = client.messages.create(
-            model=model,
-            max_tokens=512,
-            system=SYSTEM_PROMPT,
-            messages=[{
-                'role': 'user',
-                'content': [
-                    {
-                        'type': 'image',
-                        'source': {
-                            'type': 'base64',
-                            'media_type': content_type,
-                            'data': b64_data,
-                        },
-                    },
-                    {
-                        'type': 'text',
-                        'text': EXTRACT_PROMPT,
-                    },
-                ],
-            }],
-        )
-
-        raw_text = ''
-        for block in response.content:
-            if hasattr(block, 'text'):
-                raw_text += block.text
-
-        # Parse JSON from response
-        raw_text = raw_text.strip()
-        # Strip markdown code fences if present
-        if raw_text.startswith('```'):
-            raw_text = raw_text.split('```')[1]
-            if raw_text.startswith('json'):
-                raw_text = raw_text[4:]
-            raw_text = raw_text.strip()
-
-        data = json.loads(raw_text)
-
-        # Sanitise types
-        if data.get('amount') is not None:
-            try:
-                data['amount'] = float(data['amount'])
-            except (TypeError, ValueError):
-                data['amount'] = None
-        if data.get('tax_amount') is not None:
-            try:
-                data['tax_amount'] = float(data['tax_amount'])
-            except (TypeError, ValueError):
-                data['tax_amount'] = None
-        if data.get('odometer') is not None:
-            try:
-                data['odometer'] = int(data['odometer'])
-            except (TypeError, ValueError):
-                data['odometer'] = None
-
-        valid_categories = {
-            'fuel', 'maintenance', 'repair', 'insurance',
-            'registration', 'toll', 'cleaning', 'inspection', 'other',
+    if provider is None:
+        return {
+            'success': False,
+            'error': 'No LLM provider is configured. Set one in Settings → AI.',
         }
-        if data.get('category') not in valid_categories:
-            data['category'] = 'other'
 
-        return {'success': True, 'data': data}
+    try:
+        result = provider.extract_receipt_fields(image_bytes, content_type)
+    except Exception as exc:
+        logger.error(f'[receipt_ocr] provider error: {exc}')
+        return {'success': False, 'error': f'AI extraction failed: {exc}'}
 
-    except json.JSONDecodeError as e:
-        logger.warning(f'[receipt_ocr] JSON parse error: {e} | raw: {raw_text[:200]}')
-        return {'success': False, 'error': 'Could not parse AI response. Try a clearer image.'}
-    except Exception as e:
-        logger.error(f'[receipt_ocr] Claude API error: {e}')
-        return {'success': False, 'error': f'AI extraction failed: {e}'}
+    if not result.get('success'):
+        return result
+
+    # The provider layer speaks the shared receipt schema under 'extracted'
+    # (amount_total / amount_tax / category_hint / line_items); the vehicle
+    # receipt form speaks amount / tax_amount / category / description. The
+    # mobile scanner maps between them the same way in
+    # `api_mobile.views_receipts`. Mapping here keeps the form's contract intact.
+    ex = result.get('extracted') or {}
+
+    def _num(value, caster):
+        if value is None:
+            return None
+        try:
+            return caster(value)
+        except (TypeError, ValueError):
+            return None
+
+    line_items = ex.get('line_items') or []
+    description = ', '.join(str(i) for i in line_items)[:500] if line_items else None
+
+    valid_categories = {
+        'fuel', 'maintenance', 'repair', 'insurance',
+        'registration', 'toll', 'cleaning', 'inspection', 'other',
+    }
+    category = ex.get('category_hint')
+    if category not in valid_categories:
+        category = 'other'
+
+    return {'success': True, 'data': {
+        'vendor': ex.get('vendor'),
+        'date': ex.get('date'),
+        'amount': _num(ex.get('amount_total'), float),
+        'tax_amount': _num(ex.get('amount_tax'), float),
+        'category': category,
+        'odometer': _num(ex.get('odometer'), int),
+        'description': description,
+        # The shared schema carries no confidence field; the form treats a
+        # missing value as "unknown" rather than claiming high confidence.
+        'confidence': None,
+        # Fuel-specific figures the old prompt never asked for, now available.
+        'gallons': _num(ex.get('gallons'), float),
+        'cost_per_gallon': _num(ex.get('cost_per_gallon'), float),
+    }}

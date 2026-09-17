@@ -5,6 +5,38 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.575] - 2026-09-17
+
+### Receipt scanning follows the LLM provider you configured
+
+The same feature had two implementations that disagreed about where your data
+goes. Scanning a receipt in the mobile app went through
+`get_configured_provider().extract_receipt_fields(...)` and honoured the
+configured provider. Scanning the same receipt in the web UI built its own
+`anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)` client and went to
+Anthropic regardless.
+
+On an install running Ollama — chosen precisely to keep data on the premises
+— every receipt image scanned from the web still left the network, along with
+whatever is on it: vendor, amounts, dates, often card digits and locations.
+
+`vehicles/services/receipt_ocr.py` now routes through the provider layer like
+the mobile scanner does. Its duplicated prompt, code-fence stripping and type
+coercion go with the duplicated client; `LLMProvider.extract_receipt_fields`
+already implements all of it for Anthropic, OpenAI and Ollama.
+
+The two schemas differ — the provider layer returns `amount_total`,
+`amount_tax`, `category_hint` and `line_items` under an `extracted` key, while
+the vehicle receipt form speaks `amount`, `tax_amount`, `category` and
+`description` — so the mapping is explicit, mirroring what
+`api_mobile.views_receipts` already does. Getting it wrong would have produced
+a form with blank amounts and OCR that looked like it had worked, so the
+mapping has a test of its own.
+
+Two incidental gains: `gallons` and `cost_per_gallon` reach the form for the
+first time, since the hand-rolled prompt never asked for them, and
+`confidence` is reported as unknown rather than invented.
+
 ## [3.17.574] - 2026-09-17
 
 ### The vault export permission stops advertising a feature that does not exist
