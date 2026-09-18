@@ -5,6 +5,45 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.585] - 2026-09-18
+
+### The utility controls are visible buttons again
+
+Beta app, Install app and Support this project sat behind an ellipsis
+dropdown between the star and the search box. v3.17.559 put them there to
+stop the bar colliding with the search field; v3.17.580 then freed the room
+by grouping Security, CRM and Reports under the main navigation's More menu.
+A control nobody can see is a control nobody uses, so they are individual
+buttons again — same order, same icons, same behaviour, with Support still
+opening the same modal.
+
+Each has an `aria-label`, a descriptive tooltip, a focus ring that is visible
+against the dark bar, and `aria-hidden` on its icon. The Support button opens
+a modal, so `data-bs-toggle` is spoken for; its tooltip is hooked with
+`data-bs-tooltip` and the initialiser now looks for both.
+
+This is **not** the main navigation's More menu (`moreNavDropdown`), which
+stays a dropdown along with Admin. A test asserts that.
+
+Verified in Chromium at seven widths rather than by reading markup — 2560,
+1920, 1600, 1536, 1440, 1024 and 390. Navbar height is identical to the
+pre-change baseline at every one (72 / 70 / 88 / 88 / 88), so three extra
+buttons cost no vertical space. Below 1400 the navbar is already the drawer,
+where they render as full-width labelled rows; nothing is ever behind an
+overflow menu.
+
+Two findings from measuring rather than assuming:
+
+- **Wrapping was the wrong answer.** Tried first: at 1536 the right-hand
+  group is squeezed to roughly 600px, so `flex-wrap` put one control per row
+  and made the navbar 345px tall. A compact `.nav-util` footprint fits
+  everything on one line instead.
+- **The first attempt broke the layout for an unrelated reason.** The
+  explanatory comment was a two-line `{# ... #}`. Django honours those on one
+  line only, so the second line rendered as an 858px text node inside the
+  navbar and pushed the controls onto three rows. `test_no_multi_line_hash_comments`
+  exists for exactly this and now runs as part of this change's loop.
+
 ## [3.17.584] - 2026-09-18
 
 ### Bundled services are saved, and no longer silently deleted (issue #147)

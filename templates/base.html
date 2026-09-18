@@ -260,28 +260,43 @@
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}
                     {% comment %}
-                    Favourites stays a one-click destination; the rest of the loose
-                    utility icons moved into the labelled More menu below so the bar
-                    stops colliding with the search box. Nothing was removed — every
-                    destination is still reachable. See v3.17.559.
+                    v3.17.585 — the utility controls are individual buttons again.
+
+                    v3.17.559 put Beta app / Install app / Support this project
+                    behind an ellipsis menu to stop the bar colliding with the
+                    search box; v3.17.580 then freed up real estate by grouping
+                    Security, CRM and Reports under the main "More" menu, so the
+                    room exists and a control nobody can see is a control nobody
+                    uses. They sit in their original order with their original
+                    icons and behaviour — Support still opens the same modal —
+                    and wrap onto a second row rather than collapsing back into
+                    an overflow menu. Do not confuse this cluster with the main
+                    navigation's More menu, which is a different thing.
                     {% endcomment %}
                     <li class="nav-item">
                         <a class="nav-link nav-util" href="{% url 'core:favorite_list' %}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Favorites' %}" aria-label="{% trans 'Favorites' %}">
                             <i class="fas fa-star" aria-hidden="true"></i>
                         </a>
                     </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle nav-util" href="#" id="moreMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-ellipsis" aria-hidden="true"></i>
-                            <span class="d-xxl-none ms-1">{% trans "More" %}</span>
+                    {# v3.17.484 — Beta-test the Android app CTA for logged-in users. #}
+                    <li class="nav-item">
+                        <a class="nav-link nav-util" href="{% url 'core:beta_test_signup' %}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Beta-test the Android app' %}" aria-label="{% trans 'Beta app' %}">
+                            <i class="fas fa-mobile-screen-button" aria-hidden="true"></i>
+                            <span class="d-xxl-none ms-2">{% trans "Beta app" %}</span>
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="moreMenu">
-                            {# v3.17.484 — Beta-test the Android app CTA for logged-in users. #}
-                            <li><a class="dropdown-item" href="{% url 'core:beta_test_signup' %}"><i class="fas fa-mobile-screen-button fa-fw"></i> {% trans "Beta app" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'core:install_app' %}"><i class="fas fa-download fa-fw"></i> {% trans "Install app" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#supportProjectModal"><i class="fas fa-heart fa-fw text-danger"></i> {% trans "Support this project" %}</a></li>
-                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link nav-util" href="{% url 'core:install_app' %}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Install the app on your phone or desktop' %}" aria-label="{% trans 'Install app' %}">
+                            <i class="fas fa-download" aria-hidden="true"></i>
+                            <span class="d-xxl-none ms-2">{% trans "Install app" %}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        {# data-bs-toggle is the modal's here, so the tooltip uses data-bs-tooltip #}
+                        <a class="nav-link nav-util" href="#" data-bs-toggle="modal" data-bs-target="#supportProjectModal" data-bs-tooltip data-bs-placement="bottom" title="{% trans 'Support this open-source project' %}" aria-label="{% trans 'Support this project' %}">
+                            <i class="fas fa-heart text-danger" aria-hidden="true"></i>
+                            <span class="d-xxl-none ms-2">{% trans "Support this project" %}</span>
+                        </a>
                     </li>
                     <!-- Global KB lives under PSA → KB when PSA is enabled; otherwise stays in the primary navbar -->
                     {% if global_kb_enabled and not psa_enabled %}
@@ -769,7 +784,10 @@
         {% if tooltips_enabled %}
         // Initialize Bootstrap tooltips with a small delay to ensure all page elements are ready
         function initTooltips() {
-            const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            // `[data-bs-tooltip]` is for elements whose `data-bs-toggle` is
+            // already spoken for — the Support button opens a modal with it.
+            const tooltipTriggerList = document.querySelectorAll(
+                '[data-bs-toggle="tooltip"], [data-bs-tooltip]');
             console.log('Initializing tooltips for', tooltipTriggerList.length, 'elements');
             tooltipTriggerList.forEach(function(tooltipTriggerEl) {
                 // Dispose existing tooltip if present to avoid duplicates

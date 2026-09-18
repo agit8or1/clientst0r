@@ -639,7 +639,8 @@ html, body { overflow-x: hidden; }
     box-shadow: none;
 }
 
-/* Utility icons (favourites, More, theme) share one footprint. */
+/* Utility icons — favourites, beta app, install app, support, theme — share
+   one footprint so the cluster reads as a row of peers. */
 .navbar .nav-link.nav-util {
     display: inline-flex;
     align-items: center;
@@ -649,6 +650,40 @@ html, body { overflow-x: hidden; }
     padding: 0 8px;
 }
 .navbar .nav-link.nav-util i { font-size: 15px; }
+
+/* v3.17.585 — the utility cluster is individual buttons rather than an
+   ellipsis menu, so it has to earn its width back.
+
+   Measured in the browser: at 1920 the bar was already exactly full, and
+   three 34px buttons in place of one 51px ellipsis overflowed it. The trim
+   below reclaims more than that, and between 1400 and 1749 the existing trim
+   media query does the same job. Wrapping was tried first and is worse: the
+   right-hand group is squeezed to roughly 600px at 1536, so wrapping put one
+   control per row and made the navbar 345px tall. Below 1400 the whole navbar
+   becomes the drawer, where the controls are full-width labelled rows. */
+.navbar .nav-link.nav-util {
+    min-width: 30px;
+    padding: 0 6px;
+}
+
+/* The focus ring has to clear the neighbouring button now that they sit
+   shoulder to shoulder, and must be visible on the dark navbar in both
+   themes. */
+.navbar .nav-link.nav-util:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, .85);
+    outline-offset: -2px;
+}
+
+/* In the collapsed drawer these are full-width rows with a label beside the
+   icon, so the square icon footprint has to relax or the label sits in a
+   34px box. */
+@media (max-width: 1399.98px) {
+    .navbar .navbar-collapse .nav-link.nav-util {
+        justify-content: flex-start;
+        min-width: 0;
+        padding: 6px 8px;
+    }
+}
 
 /* Current client vs. the global view — the one piece of context that must
    never be ambiguous. */
