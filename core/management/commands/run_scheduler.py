@@ -73,7 +73,24 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(summary))
 
     def run_task(self, task):
-        """Execute the actual task based on its type."""
+        """Execute the actual task based on its type.
+
+        These methods let their exceptions out on purpose. Nine of them used
+        to wrap the `call_command` in `try/except Exception` and write the
+        failure to stdout, which meant `run_task` returned normally, `handle`
+        called `task.mark_completed()` with no error, and the task recorded
+        `last_status='success'`. A nightly job could fail every night while
+        the Scheduled Tasks page showed a green tick for it; the only trace
+        was a line in the systemd journal that nobody reads.
+
+        The caller in `handle` already does the right thing with an exception
+        — `mark_completed(error=...)` records `failed` and the message — so
+        the guards were not adding protection, only hiding the outcome.
+
+        A task that legitimately has nothing to do should return quietly, the
+        way `run_asset_age_check` does when its feature is switched off. That
+        is different from failing, and is still reported as success.
+        """
         if task.task_type == 'website_monitoring':
             self.run_website_monitoring()
         elif task.task_type == 'psa_sync':
@@ -134,19 +151,12 @@ class Command(BaseCommand):
         more often than daily costs nothing extra per device.
         """
         from django.core.management import call_command
-        try:
-            call_command('backup_network_configs', verbosity=0)
-        except Exception as e:
-            self.stdout.write(f"    Network config backup failed: {e}")
+        call_command('backup_network_configs', verbosity=0)
 
     def run_psa_sync(self):
         """Run PSA synchronization."""
         from django.core.management import call_command
-        try:
-            call_command('sync_psa', verbosity=0)
-        except Exception as e:
-            # PSA sync might not be configured, that's okay
-            self.stdout.write(f"    PSA sync not available: {e}")
+        call_command('sync_psa', verbosity=0)
 
     def run_accounting_sync(self):
         """Phase 44.3 (v3.17.531): two-way accounting sync.
@@ -160,18 +170,12 @@ class Command(BaseCommand):
     def run_password_breach_scan(self):
         """Check all passwords against HaveIBeenPwned breach database."""
         from django.core.management import call_command
-        try:
-            call_command('check_password_breaches', verbosity=1)
-        except Exception as e:
-            self.stdout.write(f"    Password breach scan failed: {e}")
+        call_command('check_password_breaches', verbosity=1)
 
     def run_equipment_catalog_update(self):
         """Update equipment catalog with new hardware releases."""
         from django.core.management import call_command
-        try:
-            call_command('update_equipment_catalog', verbosity=1)
-        except Exception as e:
-            self.stdout.write(f"    Equipment catalog update failed: {e}")
+        call_command('update_equipment_catalog', verbosity=1)
 
     def run_ssl_expiry_check(self):
         """Email about SSL certificates that are expiring, or have expired."""
@@ -293,11 +297,8 @@ class Command(BaseCommand):
     def run_python_dep_scan(self):
         """Scan installed Python packages for known CVEs (pip-audit)."""
         from django.core.management import call_command
-        try:
-            call_command('scan_python_packages', '--save', verbosity=0)
-            self.stdout.write('    Python dep scan complete')
-        except Exception as e:
-            self.stdout.write(f"    Python dep scan failed: {e}")
+        call_command('scan_python_packages', '--save', verbosity=0)
+        self.stdout.write('    Python dep scan complete')
 
     def run_system_warnings_digest(self):
         """Email superusers a digest of unresolved system warnings."""
@@ -392,34 +393,22 @@ class Command(BaseCommand):
     def run_update_check(self):
         """Check for system updates from GitHub."""
         from django.core.management import call_command
-        try:
-            call_command('check_updates', verbosity=1)
-        except Exception as e:
-            self.stdout.write(f"    Update check failed: {e}")
+        call_command('check_updates', verbosity=1)
 
     def run_cleanup_stuck_scans(self):
         """Cleanup stuck security scans (Snyk scans running > 2 hours)."""
         from django.core.management import call_command
-        try:
-            call_command('cleanup_stuck_scans', verbosity=1)
-        except Exception as e:
-            self.stdout.write(f"    Cleanup stuck scans failed: {e}")
+        call_command('cleanup_stuck_scans', verbosity=1)
 
     def run_scheduling_alerts(self):
         """Send email/SMS alerts for upcoming and overdue scheduled tasks."""
         from django.core.management import call_command
-        try:
-            call_command('check_scheduled_task_alerts', verbosity=1)
-        except Exception as e:
-            self.stdout.write(f"    Scheduling alerts failed: {e}")
+        call_command('check_scheduled_task_alerts', verbosity=1)
 
     def run_security_scan(self):
         """Run automated security scan and alert superusers on findings."""
         from django.core.management import call_command
-        try:
-            call_command('run_security_scan', verbosity=1)
-        except Exception as e:
-            self.stdout.write(f"    Security scan failed: {e}")
+        call_command('run_security_scan', verbosity=1)
 
     def run_asset_age_check(self):
         """Evaluate asset age warnings against configured thresholds."""

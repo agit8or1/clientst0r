@@ -5,6 +5,42 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.583] - 2026-09-18
+
+### A scheduled task that fails no longer records success
+
+Nine of `run_scheduler`'s `run_*` methods wrapped their `call_command` in
+`try/except Exception` and wrote the failure to stdout. `run_task` then
+returned normally, `handle` called `task.mark_completed()` with no error, and
+the task recorded `last_status='success'`. A nightly job could fail every
+night while the Scheduled Tasks page showed a green tick for it; the only
+trace was a line in the systemd journal.
+
+The guards were not adding protection. `handle` already calls
+`mark_completed(error=...)` on an exception, which records `failed` along with
+the message — so removing the guards is what lets the existing, correct
+handling do its job.
+
+Affected: network config backup, PSA sync, password breach scan, equipment
+catalog update, Python dependency scan, update check, cleanup stuck scans,
+scheduling alerts, and security scan.
+
+The PSA one shows how this survives. Three layers each assumed another would
+report the failure: `sync_psa`'s `sync_connection` swallows per-connection
+errors, so the command never raises, so `run_psa_sync`'s guard never fired, so
+the task marked success. Its comment read "PSA sync might not be configured,
+that's okay" — but `sync_psa` handles that case explicitly, with a warning and
+a clean return. The guard defended against something that could not happen
+while suppressing everything that could.
+
+A task that legitimately has nothing to do still returns quietly and reports
+success, the way `run_asset_age_check` does when its feature is switched off.
+That is different from failing and is unchanged.
+
+`test_no_run_method_catches_an_exception_without_re_raising` parses the module
+and fails if any `run_*` swallows again, so the pattern cannot creep back. All
+nine are confirmed failing against the previous code.
+
 ## [3.17.582] - 2026-09-18
 
 ### A sync that drops records no longer reports success
