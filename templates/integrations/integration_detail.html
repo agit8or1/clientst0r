@@ -96,6 +96,9 @@
                     <dd class="col-sm-8">
                         {% if connection.last_sync_status == 'success' %}
                         <span class="badge bg-success"><i class="fas fa-check"></i> Success</span>
+                        {% elif connection.last_sync_status == 'partial' %}
+                        {# v3.17.582 — the sync ran but dropped records; last_error says which. #}
+                        <span class="badge bg-warning text-dark"><i class="fas fa-triangle-exclamation"></i> Partial</span>
                         {% elif connection.last_sync_status == 'error' %}
                         <span class="badge bg-danger"><i class="fas fa-exclamation-triangle"></i> Error</span>
                         {% else %}

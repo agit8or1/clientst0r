@@ -23,6 +23,10 @@ WORKING_FRESHNESS = timedelta(hours=24)
 # implemented at different times.
 _OK_STATUSES = {'ok', 'success', 'completed', 'complete'}
 _ERROR_STATUSES = {'error', 'failed', 'failure'}
+# v3.17.582 — the sync ran and reached the provider, but dropped some records
+# on the way in. Not broken, and emphatically not working: the records are
+# missing and the next run retries them because the status is not 'success'.
+_PARTIAL_STATUSES = {'partial', 'degraded'}
 
 
 def _is_enabled(conn) -> bool:
@@ -42,7 +46,7 @@ def connection_status(conn) -> dict:
     Return the visual status of an integration connection.
 
     Returns a dict with keys:
-      - state: 'off' | 'working' | 'broken' | 'unknown'
+      - state: 'off' | 'working' | 'partial' | 'broken' | 'unknown'
       - label: short human label (e.g. 'OFF', 'ON · Working')
       - tooltip: long-form description / error message for hover
       - last_at: datetime of last sync attempt, or None
@@ -59,7 +63,23 @@ def connection_status(conn) -> dict:
             'last_at': last_at,
         }
 
-    # Enabled. Decide working / broken / unknown.
+    # Enabled. Decide working / partial / broken / unknown.
+    #
+    # Partial is checked before the error branch on purpose: a partial sync
+    # writes its summary into `last_error` so the operator can see what was
+    # dropped, and the error branch keys on that field being non-empty. Read
+    # in the other order, every partial sync would report as broken.
+    if last_status in _PARTIAL_STATUSES:
+        msg = last_error or 'Some records were not synced.'
+        if len(msg) > 240:
+            msg = msg[:237] + '...'
+        return {
+            'state': 'partial',
+            'label': 'ON · Partial',
+            'tooltip': f'{msg}. The next sync will retry them.',
+            'last_at': last_at,
+        }
+
     if last_error or last_status in _ERROR_STATUSES:
         # Truncate huge tracebacks for the tooltip.
         msg = last_error or 'Last sync reported an error.'

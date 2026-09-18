@@ -26,6 +26,48 @@ class SyncError(Exception):
     pass
 
 
+def summarise_errors(stats):
+    """Per-entity error counts as a readable sentence, or '' when there are none.
+
+    `stats` is the per-entity {created, updated, errors} dict both sync classes
+    keep.
+    """
+    failed = [(name, counts.get('errors', 0)) for name, counts in stats.items()
+              if counts.get('errors', 0)]
+    if not failed:
+        return ''
+    parts = [f'{count} {name}' for name, count in sorted(failed)]
+    return ', '.join(parts) + ' failed to sync'
+
+
+def apply_sync_outcome(connection, stats, sync_start):
+    """Record how the sync actually went, and say so on the connection.
+
+    Both sync classes catch per-record failures, count them and carry on —
+    which is right, since one malformed record should not abandon the run. But
+    they then wrote `last_sync_status = 'success'` unconditionally, so a sync
+    in which *every* record failed reported success with an empty
+    `last_error`, and the UI showed a green tick.
+
+    That was compounded by the incremental cursor. `updated_since` is taken
+    from `last_sync_at` only when the last status was 'success', so a run that
+    silently "succeeded" while dropping every record moved the cursor past
+    those records — and the next run asked only for things changed since. The
+    dropped records were never offered again unless they changed upstream.
+    Permanent data loss, reported as success.
+
+    Recording 'partial' fixes both halves at once: the operator sees that
+    something was dropped, and because the status is no longer 'success' the
+    next run falls back to a full sync and re-offers the records that failed.
+    """
+    error_summary = summarise_errors(stats)
+    connection.last_sync_at = sync_start
+    connection.last_sync_status = 'partial' if error_summary else 'success'
+    connection.last_error = error_summary[:500]
+    connection.save()
+    return error_summary
+
+
 class PSASync:
     """
     Synchronizes data from a PSA connection to local database.
@@ -64,13 +106,11 @@ class PSASync:
             if self.connection.sync_tickets:
                 self.sync_tickets()
 
-            # Update connection status
-            self.connection.last_sync_at = self.sync_start
-            self.connection.last_sync_status = 'success'
-            self.connection.last_error = ''
-            self.connection.save()
+            # Update connection status — 'partial' when records were dropped,
+            # which also makes the next run a full sync so they are retried.
+            error_summary = apply_sync_outcome(
+                self.connection, self.stats, self.sync_start)
 
-            # Audit log
             AuditLog.log(
                 user=None,
                 action='sync',
@@ -78,11 +118,15 @@ class PSASync:
                 object_type='psa_connection',
                 object_id=self.connection.id,
                 object_repr=str(self.connection),
-                description=f"PSA sync completed: {self.stats}",
-                success=True
+                description=(f"PSA sync completed with errors ({error_summary}): {self.stats}"
+                             if error_summary else f"PSA sync completed: {self.stats}"),
+                success=not error_summary
             )
 
-            logger.info(f"Sync completed successfully: {self.stats}")
+            if error_summary:
+                logger.warning(f"Sync completed with errors — {error_summary}: {self.stats}")
+            else:
+                logger.info(f"Sync completed successfully: {self.stats}")
             return self.stats
 
         except Exception as e:
@@ -442,13 +486,12 @@ class RMMSync:
             if self.connection.sync_software and self.provider.supports_software:
                 self.sync_software()
 
-            # Update connection status
-            self.connection.last_sync_at = self.sync_start
-            self.connection.last_sync_status = 'success'
-            self.connection.last_error = ''
-            self.connection.save()
+            # Update connection status — see `apply_sync_outcome`: 'partial'
+            # when records were dropped, which also makes the next run a full
+            # sync so they are retried rather than skipped forever.
+            error_summary = apply_sync_outcome(
+                self.connection, self.stats, self.sync_start)
 
-            # Audit log
             AuditLog.log(
                 user=None,
                 action='sync',
@@ -456,11 +499,15 @@ class RMMSync:
                 object_type='rmm_connection',
                 object_id=self.connection.id,
                 object_repr=str(self.connection),
-                description=f"RMM sync completed: {self.stats}",
-                success=True
+                description=(f"RMM sync completed with errors ({error_summary}): {self.stats}"
+                             if error_summary else f"RMM sync completed: {self.stats}"),
+                success=not error_summary
             )
 
-            logger.info(f"RMM sync completed successfully: {self.stats}")
+            if error_summary:
+                logger.warning(f"RMM sync completed with errors — {error_summary}: {self.stats}")
+            else:
+                logger.info(f"RMM sync completed successfully: {self.stats}")
             return self.stats
 
         except Exception as e:

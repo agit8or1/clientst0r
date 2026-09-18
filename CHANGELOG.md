@@ -5,6 +5,48 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.582] - 2026-09-18
+
+### A sync that drops records no longer reports success
+
+Both `PSASync` and `RMMSync` catch per-record failures, count them and carry
+on. That part is right: one malformed record should not abandon the whole run.
+But they then wrote `last_sync_status = 'success'` unconditionally, so a sync
+in which every record failed reported success, with an empty `last_error` and
+a green tick on the integrations dashboard:
+
+    companies created    : 0
+    companies errors     : 5
+    connection status    : 'success'
+    connection last_error: ''
+
+The incremental cursor compounded it into data loss. `updated_since` is taken
+from `last_sync_at` only when the last status was `'success'`, so a run that
+silently "succeeded" while dropping records moved the cursor past them, and
+the next run asked the provider only for records changed since. The dropped
+records were never offered again unless something changed them upstream.
+
+Recording the truth fixes both halves at once. A run with per-record errors
+now ends `'partial'`, with `last_error` naming what was dropped — and because
+the status is no longer `'success'`, the next run falls back to a full sync
+and re-offers exactly the records that failed. `apply_sync_outcome()` is
+shared by both sync classes so they cannot drift apart on this again.
+
+The audit log entry and the log line follow the same distinction: a partial
+run is recorded with `success=False` and logged at warning rather than info.
+
+`connection_status()` gains a `partial` state, checked **before** the broken
+branch. A partial sync writes its summary into `last_error`, and the broken
+branch decides by that field being non-empty, so in the other order every
+partial sync would have reported as broken. It renders as an amber "ON ·
+Partial" pill whose tooltip says the records will be retried; the PSA and RMM
+detail pages gained a matching badge, since `partial` would otherwise have
+fallen through to a grey "N/A".
+
+Eleven tests, including one that asserts the *next* sync passes
+`updated_since=None` — that is the data-loss half of the bug, and the part
+worth catching a regression in.
+
 ## [3.17.581] - 2026-09-18
 
 ### Expired contracts were invoicing the client forever

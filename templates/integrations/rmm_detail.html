@@ -89,7 +89,10 @@
                         <td>
                             {% if connection.last_sync_status == 'success' %}
                             <span class="badge bg-success">Success</span>
-                            {% elif connection.last_sync_status == 'failed' %}
+                            {% elif connection.last_sync_status == 'partial' %}
+                            {# v3.17.582 — the sync ran but dropped records; last_error says which. #}
+                            <span class="badge bg-warning text-dark">Partial</span>
+                            {% elif connection.last_sync_status == 'error' or connection.last_sync_status == 'failed' %}
                             <span class="badge bg-danger">Failed</span>
                             {% else %}
                             <span class="badge bg-secondary">Pending</span>

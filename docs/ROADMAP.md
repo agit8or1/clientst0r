@@ -1350,9 +1350,16 @@ fetched by id without checking which tenant it belongs to.
   part that *was* an error — billing continuing after the contract ended
   entirely.
 
-**Remaining:** nothing named. The audit continues opportunistically; the PSA
-sync paths (`integrations/sync.py`) and the scheduler commands have not had a
-systematic pass and are the natural next candidates.
+- **Sync status honesty** *(shipped v3.17.582)* — `PSASync` and `RMMSync`
+  wrote `last_sync_status = 'success'` however many records they had dropped,
+  and the incremental cursor only advances after a success, so silently
+  dropped records were never re-offered. A run with per-record errors now ends
+  `partial`, which both tells the operator what was lost and makes the next
+  run a full sync that retries it.
+
+**Remaining:** nothing named. The audit continues opportunistically; the
+scheduler commands have not had a systematic pass and are the natural next
+candidate.
 
 **Sizing:** **M** — both sub-phases complete. 49.1 delivered the shared UI
 layer; 49.2 worked through covered views, backup/restore, invoice tax, update
@@ -1431,7 +1438,7 @@ waiting for reports.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **complete — 49.1 (v3.17.559); 49.2 (v3.17.559–581) — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, vault-export permission v3.17.574, AI data access v3.17.575–576, credit memos v3.17.577, late fees v3.17.578, late-fee audit v3.17.579, navbar overflow v3.17.580, expired contracts v3.17.581** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **complete — 49.1 (v3.17.559); 49.2 (v3.17.559–581) — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, vault-export permission v3.17.574, AI data access v3.17.575–576, credit memos v3.17.577, late fees v3.17.578, late-fee audit v3.17.579, navbar overflow v3.17.580, expired contracts v3.17.581, sync status honesty v3.17.582** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 
