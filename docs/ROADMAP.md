@@ -1307,6 +1307,12 @@ fetched by id without checking which tenant it belongs to.
   $2,000 invoice left both the client account page and the aging report showing
   $2,000 due. Credit memos and overpaid invoices now net off the balance, and
   the aging report stops dropping clients whose only balance is a credit.
+- Billing arithmetic — late fees on credited invoices *(shipped v3.17.578)* —
+  a credit memo leaves the credited invoice's `amount_paid` and `status`
+  untouched, so the late-fee cron read the full balance and charged a
+  percentage of money the customer no longer owed; an invoice credited in full
+  still drew a fee on the whole original amount. Fees now use
+  `Invoice.net_balance_due`.
 - **Remaining in this phase:** the rest of billing arithmetic,
   and what the AI features are allowed to read (the PSA AI context builder is
   already org-scoped and withholds internal notes — the open question is the
@@ -1383,7 +1389,7 @@ still ahead.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, vault-export permission v3.17.574, AI data access v3.17.575–576, credit memos v3.17.577, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, vault-export permission v3.17.574, AI data access v3.17.575–576, credit memos v3.17.577, late fees v3.17.578, audit continuing** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

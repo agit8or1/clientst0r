@@ -5,6 +5,42 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.578] - 2026-09-17
+
+### Credited invoices were still being charged late fees
+
+Issuing a credit memo does not touch the credited invoice's `amount_paid` or
+`status` — the memo is a separate negative invoice pointing back through
+`credits_invoice`. So `Invoice.balance` still read as the full amount due, and
+`psa_apply_late_fees` used that figure directly.
+
+An invoice credited **in full** was therefore charged a late fee on the whole
+original amount:
+
+    invoice total=1000.00  balance=1000.00  status=sent
+    memo    total=-1000.00 credits_invoice=1
+    LATE FEE CHARGED: 50.00 — Late fee for INV-2026-00001 (overdue $1000.00, 5.00%)
+
+Unlike v3.17.577, which showed wrong figures, this one wrote a real `Charge`
+against the client. Any install running late fees alongside credit memos has
+been billing customers for money they do not owe.
+
+`Invoice` gains `credited_amount` (what non-void credit memos have credited
+back, as a positive magnitude) and `net_balance_due` (`balance` less that,
+floored at zero). The late-fee command uses the net figure, so a partial
+credit reduces the fee proportionally — 5% of the $600 still owed, not of the
+original $1,000 — and a fully credited invoice is charged nothing.
+
+`net_balance_due` is floored deliberately: an over-credit is credit on the
+account, not a debt owed in reverse, and `get_psa_balance` already accounts
+for it there. The two fixes compose without double-counting.
+
+Credit memos are now also excluded from the late-fee query explicitly. They
+were previously excluded only by the accident that `amount_paid < total` is
+false when the total is negative.
+
+Both new behavioural tests fail against the previous command.
+
 ## [3.17.577] - 2026-09-17
 
 ### Credit memos now reduce what the client owes

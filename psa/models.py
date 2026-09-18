@@ -3480,6 +3480,35 @@ class Invoice(models.Model):
         from decimal import Decimal
         return (Decimal(self.total) - Decimal(self.amount_paid)).quantize(Decimal('0.01'))
 
+    @property
+    def credited_amount(self):
+        """How much of this invoice has been credited back by credit memos.
+
+        A credit memo is a separate Invoice pointing here through
+        `credits_invoice`, with negative totals. Issuing one does not touch
+        this invoice's `amount_paid` or `status`, so `balance` alone still
+        reads as the full amount due after the customer has been credited.
+        Returned as a positive magnitude; void memos do not count.
+        """
+        from decimal import Decimal
+
+        total = Decimal('0')
+        for memo in self.credit_memos.exclude(status='void'):
+            total += -Decimal(str(memo.total or '0'))
+        return total.quantize(Decimal('0.01'))
+
+    @property
+    def net_balance_due(self):
+        """What the customer actually still owes on this invoice.
+
+        `balance` less anything credited back. Never negative: an over-credit
+        is a credit on the account, not a debt owed in reverse, and
+        `get_psa_balance` accounts for it there.
+        """
+        from decimal import Decimal
+
+        return max(Decimal('0.00'), self.balance - self.credited_amount)
+
     def save(self, *args, **kwargs):
         if self.invoice_number:
             return super().save(*args, **kwargs)

@@ -141,3 +141,75 @@ class AgingReportShowsCreditMemosTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Acme')
         self.assertContains(r, 'Credit memos')
+
+
+class LateFeesRespectCreditMemosTests(TestCase):
+    """
+    Issuing a credit memo does not touch the credited invoice's `amount_paid`
+    or `status`, so `balance` still read as the full amount due. The late-fee
+    cron used that figure directly and charged a percentage of money the
+    customer no longer owed — on an invoice credited in full, a fee on the
+    whole original amount.
+    """
+
+    def setUp(self):
+        from core.models import SystemSetting
+
+        ss = SystemSetting.get_settings()
+        ss.late_fee_pct = Decimal('5')
+        ss.late_fee_min_days_overdue = 10
+        ss.save()
+        self.org = Organization.objects.create(name='Late', slug='lf-org')
+        self.overdue = date.today() - timedelta(days=60)
+
+    def _overdue_invoice(self, amount):
+        return make_invoice(self.org, amount, due=self.overdue)
+
+    def _run(self):
+        from django.core.management import call_command
+        call_command('psa_apply_late_fees')
+        return Charge.objects.filter(description__startswith='Late fee')
+
+    def test_no_late_fee_on_a_fully_credited_invoice(self):
+        inv = self._overdue_invoice('1000.00')
+        inv.create_credit_memo()  # credits every line
+        self.assertEqual(self._run().count(), 0)
+
+    def test_a_partial_credit_reduces_the_fee(self):
+        """5% of the $600 still owed, not of the original $1,000."""
+        inv = self._overdue_invoice('1000.00')
+        inv.create_credit_memo(amount=Decimal('400.00'))
+        fees = self._run()
+        self.assertEqual(fees.count(), 1)
+        self.assertEqual(fees.first().amount, Decimal('30.00'))
+
+    def test_an_uncredited_invoice_is_charged_as_before(self):
+        self._overdue_invoice('1000.00')
+        fees = self._run()
+        self.assertEqual(fees.count(), 1)
+        self.assertEqual(fees.first().amount, Decimal('50.00'))
+
+    def test_a_voided_credit_memo_does_not_reduce_the_fee(self):
+        inv = self._overdue_invoice('1000.00')
+        memo = inv.create_credit_memo(amount=Decimal('400.00'))
+        memo.status = 'void'
+        memo.save(update_fields=['status'])
+        fees = self._run()
+        self.assertEqual(fees.first().amount, Decimal('50.00'))
+
+    def test_a_credit_memo_never_accrues_a_late_fee_of_its_own(self):
+        inv = self._overdue_invoice('1000.00')
+        memo = inv.create_credit_memo(amount=Decimal('400.00'))
+        memo.due_date = self.overdue
+        memo.status = 'sent'
+        memo.save(update_fields=['due_date', 'status'])
+        fees = self._run()
+        self.assertEqual(fees.count(), 1)
+        self.assertNotIn(memo.invoice_number, fees.first().description)
+
+    def test_net_balance_due_never_goes_negative(self):
+        """An over-credit is account credit, not a debt owed in reverse."""
+        inv = self._overdue_invoice('100.00')
+        inv.create_credit_memo(amount=Decimal('250.00'))
+        self.assertEqual(inv.net_balance_due, Decimal('0.00'))
+        self.assertEqual(inv.credited_amount, Decimal('250.00'))

@@ -36,9 +36,10 @@ class Command(BaseCommand):
 
         cutoff = date.today() - timedelta(days=min_days)
         invs = (Invoice.objects
-                .filter(due_date__lte=cutoff)
+                .filter(due_date__lte=cutoff, is_credit_memo=False)
                 .filter(~Q(status__in=['paid', 'void'])
-                        & Q(amount_paid__lt=F('total'))))
+                        & Q(amount_paid__lt=F('total')))
+                .prefetch_related('credit_memos'))
 
         applied = 0
         for inv in invs:
@@ -48,7 +49,11 @@ class Command(BaseCommand):
                 description__startswith=tag,
             ).exists():
                 continue
-            balance = Decimal(str(inv.total)) - Decimal(str(inv.amount_paid))
+            # Net off any credit memos first. Issuing one does not touch the
+            # invoice's `amount_paid` or `status`, so a fully-credited invoice
+            # still read as the full amount overdue and was charged a late fee
+            # on money the customer no longer owed.
+            balance = inv.net_balance_due
             if balance <= 0:
                 continue
             fee = (balance * pct / Decimal('100')).quantize(Decimal('0.01'))
