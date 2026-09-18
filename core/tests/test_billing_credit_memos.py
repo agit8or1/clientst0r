@@ -213,3 +213,60 @@ class LateFeesRespectCreditMemosTests(TestCase):
         inv.create_credit_memo(amount=Decimal('250.00'))
         self.assertEqual(inv.net_balance_due, Decimal('0.00'))
         self.assertEqual(inv.credited_amount, Decimal('250.00'))
+
+
+class ContractLastBilledStampTests(TestCase):
+    """
+    `Contract.generate_invoice()` reset its meters' `last_billed_at` but left
+    the contract's own stamp to the caller. `psa_generate_recurring_invoices`
+    is currently the only caller and did stamp it, so the field was right in
+    practice — right only because there was one caller. A second one would
+    have skipped it silently, and `_proration_factor` reads that field to
+    decide whether to prorate a first invoice.
+    """
+
+    def setUp(self):
+        from psa.models import Contract
+
+        self.org = Organization.objects.create(name='Retained', slug='lba-org')
+        self.today = date.today()
+        self.contract = Contract.objects.create(
+            organization=self.org, client_org=self.org, name='Retainer',
+            status='active', billing_frequency='monthly',
+            recurring_amount=Decimal('500.00'),
+            start_date=self.today - timedelta(days=90),
+            next_billing_date=self.today)
+
+    def test_generate_invoice_stamps_the_contract_itself(self):
+        self.assertIsNone(self.contract.last_billed_at)
+        self.contract.generate_invoice(on_date=self.today)
+        self.contract.refresh_from_db()
+        self.assertEqual(self.contract.last_billed_at, self.today)
+
+    def test_the_cron_still_stamps_it_too(self):
+        from django.core.management import call_command
+
+        call_command('psa_generate_recurring_invoices')
+        self.contract.refresh_from_db()
+        self.assertEqual(self.contract.last_billed_at, date.today())
+
+    def test_the_stamp_does_not_change_the_amount_just_invoiced(self):
+        """
+        `_proration_factor` returns 1.0 once `last_billed_at` is set, so a
+        stamp written before the factor was read would have silently switched
+        off proration for the very invoice being raised.
+        """
+        from psa.models import Contract
+
+        c = Contract.objects.create(
+            organization=self.org, client_org=self.org, name='Mid-month start',
+            status='active', billing_frequency='monthly',
+            recurring_amount=Decimal('300.00'), proration_enabled=True,
+            start_date=self.today + timedelta(days=15),
+            next_billing_date=self.today)
+        inv = c.generate_invoice(on_date=self.today)
+        line = inv.line_items.filter(source='contract').first()
+
+        self.assertIsNotNone(line)
+        self.assertLess(line.unit_price, Decimal('300.00'))
+        self.assertIn('prorated', line.description)

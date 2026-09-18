@@ -138,22 +138,6 @@
                             <li><a class="dropdown-item" href="{% url 'psa_ai:inbox' %}"><i class="fas fa-wand-magic-sparkles"></i> {% trans "AI Inbox" %}</a></li>
                         </ul>
                     </li>
-                    <!-- Phase 9 — Security alert ingestion (v3.17.168) -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="securityDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-shield-halved"></i> {% trans "Security" %}
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'security_alerts:alert_list' %}"><i class="fas fa-triangle-exclamation"></i> {% trans "Security Alerts" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'security_alerts:connection_list' %}"><i class="fas fa-plug"></i> {% trans "Vendor Connections" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'security_alerts:rule_list' %}"><i class="fas fa-bolt"></i> {% trans "Auto-Ticket Rules" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            {% if user.is_superuser %}
-                            <li><a class="dropdown-item" href="{% url 'core:security_dashboard' %}"><i class="fas fa-shield-alt"></i> {% trans "Security Dashboard" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'core:snyk_scans' %}"><i class="fas fa-bug"></i> {% trans "Vulnerability Scans" %}</a></li>
-                            {% endif %}
-                        </ul>
-                    </li>
                     {% endif %}
                     {% if workflows_enabled or inventory_enabled or scheduling_enabled or monitoring_enabled or vehicles_enabled %}
                     <li class="nav-item dropdown">
@@ -200,36 +184,50 @@
                         </ul>
                     </li>
                     {% endif %}
-                    {% if crm_enabled %}
+                    {% comment %}
+                    v3.17.580 — Security, CRM and Reports were three more
+                    top-level menus than the bar could hold: ten of them plus
+                    the search box, org pill and user menu overflowed at any
+                    realistic width. They are sections of this one menu now,
+                    grouped with headers the way the Admin menu already is.
+                    Operations stays top-level — nineteen children is too many
+                    to nest behind another click. Nothing was removed; every
+                    destination below is the same URL it was.
+                    {% endcomment %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="crmDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-chart-pie"></i> {% trans "CRM" %}
+                        <a class="nav-link dropdown-toggle" href="#" id="moreNavDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-layer-group"></i> {% trans "More" %}
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'crm:home' %}"><i class="fas fa-home"></i> {% trans "Overview" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:pipeline' %}"><i class="fas fa-columns"></i> {% trans "Pipeline" %}</a></li>
+                            {% if psa_enabled %}
+                            <li><h6 class="dropdown-header"><i class="fas fa-shield-halved fa-fw"></i> {% trans "Security" %}</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'security_alerts:alert_list' %}"><i class="fas fa-triangle-exclamation fa-fw"></i> {% trans "Security Alerts" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'security_alerts:connection_list' %}"><i class="fas fa-plug fa-fw"></i> {% trans "Vendor Connections" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'security_alerts:rule_list' %}"><i class="fas fa-bolt fa-fw"></i> {% trans "Auto-Ticket Rules" %}</a></li>
+                            {% if user.is_superuser %}
+                            <li><a class="dropdown-item" href="{% url 'core:security_dashboard' %}"><i class="fas fa-shield-alt fa-fw"></i> {% trans "Security Dashboard" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:snyk_scans' %}"><i class="fas fa-bug fa-fw"></i> {% trans "Vulnerability Scans" %}</a></li>
+                            {% endif %}
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:lead_list' %}"><i class="fas fa-user-plus"></i> {% trans "Leads" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:opportunity_list' %}"><i class="fas fa-handshake"></i> {% trans "Opportunities" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:campaign_list' %}"><i class="fas fa-bullhorn"></i> {% trans "Campaigns" %}</a></li>
+                            {% endif %}
+                            {% if crm_enabled %}
+                            <li><h6 class="dropdown-header"><i class="fas fa-chart-pie fa-fw"></i> {% trans "CRM" %}</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'crm:home' %}"><i class="fas fa-home fa-fw"></i> {% trans "Overview" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crm:pipeline' %}"><i class="fas fa-columns fa-fw"></i> {% trans "Pipeline" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crm:lead_list' %}"><i class="fas fa-user-plus fa-fw"></i> {% trans "Leads" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crm:opportunity_list' %}"><i class="fas fa-handshake fa-fw"></i> {% trans "Opportunities" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crm:campaign_list' %}"><i class="fas fa-bullhorn fa-fw"></i> {% trans "Campaigns" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crm:commission_list' %}"><i class="fas fa-hand-holding-usd fa-fw"></i> {% trans "Commissions" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'crm:commission_rule_list' %}"><i class="fas fa-cogs fa-fw"></i> {% trans "Commission Rules" %}</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:commission_list' %}"><i class="fas fa-hand-holding-usd"></i> {% trans "Commissions" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:commission_rule_list' %}"><i class="fas fa-cogs"></i> {% trans "Commission Rules" %}</a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-chart-bar"></i> {% trans "Reports" %}
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'reports:home' %}"><i class="fas fa-home"></i> {% trans "Reports Home" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'reports:dashboard_list' %}"><i class="fas fa-th-large"></i> {% trans "Dashboards" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'reports:wallboard_list' %}"><i class="fas fa-tv"></i> {% trans "Wallboards" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'reports:template_list' %}"><i class="fas fa-file-pdf"></i> {% trans "Generate Reports" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'reports:generated_list' %}"><i class="fas fa-history"></i> {% trans "Report History" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'reports:analytics_overview' %}"><i class="fas fa-chart-line"></i> {% trans "Analytics" %}</a></li>
+                            {% endif %}
+                            <li><h6 class="dropdown-header"><i class="fas fa-chart-bar fa-fw"></i> {% trans "Reports" %}</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'reports:home' %}"><i class="fas fa-home fa-fw"></i> {% trans "Reports Home" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'reports:dashboard_list' %}"><i class="fas fa-th-large fa-fw"></i> {% trans "Dashboards" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'reports:wallboard_list' %}"><i class="fas fa-tv fa-fw"></i> {% trans "Wallboards" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'reports:template_list' %}"><i class="fas fa-file-pdf fa-fw"></i> {% trans "Generate Reports" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'reports:generated_list' %}"><i class="fas fa-history fa-fw"></i> {% trans "Report History" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'reports:analytics_overview' %}"><i class="fas fa-chart-line fa-fw"></i> {% trans "Analytics" %}</a></li>
                         </ul>
                     </li>
                     {% if user.is_superuser %}

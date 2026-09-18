@@ -5,6 +5,47 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.580] - 2026-09-18
+
+### The top menu bar stops overflowing
+
+Ten top-level menus — Dashboard, Assets, Vault, Docs, PSA, Security,
+Operations, CRM, Reports, Admin — plus the search box, organization pill and
+user menu did not fit the bar at any realistic width. v3.17.559 moved the
+loose utility icons into the ⋯ menu for the same reason; this does the same
+job one level up.
+
+Security, CRM and Reports are now headed sections of a single **More** menu,
+grouped the way the Admin menu already groups System / Security / Management /
+Mobile. Nothing was removed: all eighteen destinations are the same URLs, and
+a test asserts each one still appears in the rendered navbar rather than
+checking the template source.
+
+Operations stays top-level deliberately. Nineteen children is too many to put
+behind a second click — that would trade a width problem for a depth problem.
+
+The feature flags travelled with the sections. Security was nested inside
+`{% if psa_enabled %}` alongside PSA, and CRM had its own `{% if crm_enabled %}`;
+both guards live inside the new menu, as does the `{% if user.is_superuser %}`
+around Security Dashboard and Vulnerability Scans. There is a test for each,
+so turning PSA or CRM off still removes exactly what it used to.
+
+### `Contract.generate_invoice()` stamps its own `last_billed_at`
+
+The method reset its meters' `last_billed_at` but left the contract's own
+stamp to the caller. `psa_generate_recurring_invoices` is the only caller and
+did stamp it, inside the same transaction — so the field was right in
+practice, and right only because there was one caller. A second one, a "bill
+this contract now" button say, would have skipped it silently, and
+`_proration_factor` reads that field to decide whether to prorate a first
+invoice.
+
+The method now stamps what it is responsible for, the way it already did for
+meters. It is written after `_proration_factor` has read the pre-billing
+value, so it cannot change the amount just invoiced — there is a test for that
+specifically, since a stamp written too early would have silently switched off
+proration for the very invoice being raised.
+
 ## [3.17.579] - 2026-09-18
 
 ### `psa_audit_late_fees` — find late fees charged on already-credited money

@@ -1891,7 +1891,17 @@ class Contract(models.Model):
           `current_quantity > 0` (NOT prorated — usage is what it is)
 
         After successful generation the meters' `current_quantity` is
-        zeroed and `last_billed_at` stamped.
+        zeroed and both the meters' and this contract's `last_billed_at`
+        are stamped.
+
+        The contract stamp used to be the caller's job, and
+        `psa_generate_recurring_invoices` — the only caller — did it inside
+        the same transaction, so the field was correct in practice. It was
+        correct only because there was one caller: a second one, a "bill this
+        now" button say, would have skipped it silently, and
+        `_proration_factor` reads that field to decide whether to prorate. The
+        method now stamps what it is responsible for, the way it already does
+        for meters.
         """
         from datetime import date as _d
         from decimal import Decimal as _D
@@ -1973,6 +1983,20 @@ class Contract(models.Model):
                 meter.last_billed_at = _tz.now()
                 meter.save(update_fields=['current_quantity',
                                             'last_billed_at', 'updated_at'])
+
+        # Stamped here rather than left to the caller. Safe to do after the
+        # fact: `_proration_factor` above has already read the pre-billing
+        # value, so this cannot change the amount just invoiced.
+        #
+        # `psa_generate_recurring_invoices` overwrites this with its run date
+        # immediately afterwards in the same transaction, which differs from
+        # `on_date` when it is catching up on missed periods. Both are true
+        # statements about recent billing and the field's only reader,
+        # `_proration_factor`, tests it for None rather than reading the date,
+        # so the cron's value is left to win rather than churn a field whose
+        # help_text calls it the generation date.
+        self.last_billed_at = on_date
+        self.save(update_fields=['last_billed_at', 'updated_at'])
         return inv
 
     def pause(self, *, until=None):
