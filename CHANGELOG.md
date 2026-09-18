@@ -5,6 +5,37 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.579] - 2026-09-18
+
+### `psa_audit_late_fees` — find late fees charged on already-credited money
+
+v3.17.578 stopped the late-fee cron charging a percentage of money a credit
+memo had credited back. It did not undo the `Charge` rows already written, and
+those are real charges on a client's account rather than a display artefact.
+This read-only command reports them.
+
+It reconstructs each fee's working from the charge description, which
+`psa_apply_late_fees` writes as `(overdue $1000.00, 5.00% applied)` — so the
+amount billed on and the rate used are both recoverable rather than inferred
+from current state. Against that it sums only the credits that existed **when
+the fee was raised**: a memo issued afterwards does not make the charge wrong,
+because it was correct on the day. What remains is what the fee should have
+been.
+
+Following `psa_tax_audit`, it writes nothing — no charge modified or removed,
+no invoice recomputed — and leaves the correction to you and your accountant.
+Fees already carried onto an invoice are listed separately, since those want a
+credit memo rather than simply deleting the charge.
+
+Two things it flags rather than skipping: descriptions that do not match the
+expected format (someone retyped one by hand), and fees naming an invoice that
+no longer exists. Both are listed for manual review instead of being silently
+dropped from the count.
+
+    manage.py psa_audit_late_fees
+    manage.py psa_audit_late_fees --org acme --since 2026-01-01
+    manage.py psa_audit_late_fees --csv /path/to/late-fee-audit.csv
+
 ## [3.17.578] - 2026-09-17
 
 ### Credited invoices were still being charged late fees
