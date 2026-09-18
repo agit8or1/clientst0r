@@ -1350,6 +1350,24 @@ fetched by id without checking which tenant it belongs to.
   part that *was* an error — billing continuing after the contract ended
   entirely.
 
+- Bundled services lost on save *(shipped v3.17.584, issue #147)* — reported
+  by @roccordx, who traced it to the editor binding its submit handler with
+  `document.querySelector('form')`, which returns the document's first form —
+  the navbar search box, since `base.html` renders the navbar before the
+  content block. `bundle_items_json` posted empty every time. Worse than it
+  looked: the view deletes rows absent from the submitted JSON, so an empty
+  field deleted every existing bundle item on any save, including ones
+  `psa_auto_renew_contracts` had copied onto a renewal. The view now separates
+  a missing field from an empty list, and a test scans every template for the
+  pattern — which also turned up the same bug in `core/settings_ai.html`.
+- Utility controls back on the toolbar *(shipped v3.17.585)* — Beta app,
+  Install app and Support this project were behind an ellipsis dropdown
+  between the star and the search box; v3.17.580 freed the room, so they are
+  individual buttons again with accessible names, tooltips and focus styling.
+  Verified in a browser at seven widths: single row on the bar, labelled rows
+  in the drawer below 1400, and navbar height unchanged from baseline at every
+  width. Wrapping was tried and rejected by measurement — at 1536 it produced
+  one control per row and a 345px navbar.
 - **Sync status honesty** *(shipped v3.17.582)* — `PSASync` and `RMMSync`
   wrote `last_sync_status = 'success'` however many records they had dropped,
   and the incremental cursor only advances after a success, so silently
@@ -1444,7 +1462,7 @@ waiting for reports.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **complete — 49.1 (v3.17.559); 49.2 (v3.17.559–581) — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, vault-export permission v3.17.574, AI data access v3.17.575–576, credit memos v3.17.577, late fees v3.17.578, late-fee audit v3.17.579, navbar overflow v3.17.580, expired contracts v3.17.581, sync status honesty v3.17.582, scheduler failure reporting v3.17.583** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **complete — 49.1 (v3.17.559); 49.2 (v3.17.559–581) — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, vault-export permission v3.17.574, AI data access v3.17.575–576, credit memos v3.17.577, late fees v3.17.578, late-fee audit v3.17.579, navbar overflow v3.17.580, expired contracts v3.17.581, sync status honesty v3.17.582, scheduler failure reporting v3.17.583, bundled services #147 v3.17.584, utility toolbar v3.17.585** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 
