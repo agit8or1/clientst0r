@@ -2623,11 +2623,23 @@ def contract_form(request, pk=None):
         # Reconcile by pk: update existing rows, create new ones, delete
         # those no longer in the submitted list.
         import json
-        bundle_json = request.POST.get('bundle_items_json') or '[]'
-        try:
-            bundle_rows = json.loads(bundle_json)
-        except (ValueError, TypeError):
-            bundle_rows = []
+
+        # A submission that carries no `bundle_items_json` at all is not the
+        # same as one carrying an empty list. The empty list means the user
+        # cleared every row and the reconciliation below should delete them;
+        # a missing field means the editor never ran — which is exactly what
+        # issue #147 was, and it made saving a contract for any other reason
+        # silently delete a bundle the form had never even shown as removed.
+        # Auto-renewal copies bundle items onto the renewal contract, so rows
+        # can exist without this form ever having created them.
+        bundle_json = request.POST.get('bundle_items_json')
+        if bundle_json is None:
+            bundle_rows = None
+        else:
+            try:
+                bundle_rows = json.loads(bundle_json or '[]')
+            except (ValueError, TypeError):
+                bundle_rows = None
 
         if isinstance(bundle_rows, list):
             from psa.models import ContractBundleItem

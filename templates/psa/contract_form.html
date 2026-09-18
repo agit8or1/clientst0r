@@ -357,8 +357,14 @@
         recompute();
     });
 
-    // Serialize on form submit — find the parent contract form
-    const form = document.querySelector('form');
+    // Serialize on form submit — the form this editor actually lives in.
+    //
+    // Issue #147: this was `document.querySelector('form')`, which returns the
+    // first form in the whole document, not the nearest one. base.html renders
+    // the navbar before the page's content block, and the navbar contains the
+    // search form — so `serialize` was bound to the search box and never ran
+    // when the contract was saved. `bundle_items_json` posted empty every time.
+    const form = hidden.closest('form');
     if (form) form.addEventListener('submit', serialize);
 
     // Initial compute

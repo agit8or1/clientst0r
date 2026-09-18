@@ -5,6 +5,41 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.584] - 2026-09-18
+
+### Bundled services are saved, and no longer silently deleted (issue #147)
+
+Reported by @roccordx, who diagnosed it exactly: the bundle editor bound its
+submit handler with `document.querySelector('form')`, which returns the first
+form in the *document*, not the nearest one. `base.html` renders the navbar —
+which contains the search form — before the content block, so `serialize` was
+attached to the search box and never ran when the contract was saved.
+`bundle_items_json` posted empty every time. Their fix, `hidden.closest('form')`,
+is applied.
+
+Two things the browser could not show:
+
+**It was destroying data, not just failing to save.** The view reconciles by
+deleting rows absent from the submitted JSON:
+
+    item.bundle_items.exclude(pk__in=seen_pks).delete()
+
+With the field empty, `seen_pks` is empty — so every existing bundle item was
+deleted on *any* save. `psa_auto_renew_contracts` copies bundle items onto
+renewal contracts, so rows exist that this form never created; editing a
+renewed contract's name silently wiped its bundle. The view now separates a
+submission that carries no `bundle_items_json` at all (the editor never ran —
+do not reconcile) from one carrying an empty list (the user cleared every row
+— delete them). Malformed JSON no longer wipes the bundle either; it used to
+fall through to `[]`.
+
+**The same bug was in `core/settings_ai.html`**, where the restart overlay and
+the double-submit guard were bound to the search box for the same reason.
+Fixed there too.
+
+`test_no_template_binds_to_the_first_form_in_the_document` scans every
+template and fails on the pattern, so it cannot come back. Ten tests in all.
+
 ## [3.17.583] - 2026-09-18
 
 ### A scheduled task that fails no longer records success

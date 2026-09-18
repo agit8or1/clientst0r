@@ -819,9 +819,17 @@ function testOllamaConnection() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
+    // Issue #147, same fault as `psa/contract_form.html`:
+    // `document.querySelector('form')` returns the first form in the whole
+    // document, and base.html renders the navbar — which contains the search
+    // form — before the content block. The restart overlay and the
+    // double-submit guard were bound to the search box and never ran when
+    // these settings were saved. Reach the settings form through the save
+    // button that lives inside it.
     const overlay = document.getElementById('restartOverlay');
     const saveBtn = document.getElementById('saveSettingsBtn');
+    const form = saveBtn ? saveBtn.closest('form') : null;
+    if (!form) return;
 
     form.addEventListener('submit', function(e) {
         // Show the restart overlay
