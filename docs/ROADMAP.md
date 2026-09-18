@@ -1118,7 +1118,7 @@ Positioned last in the roadmap (v3.17.169) because it's the largest single under
 
 ---
 
-## Phase 49 — Interface consistency and tenant-boundary hardening **(M · quality)** [in progress]
+## Phase 49 — Interface consistency and tenant-boundary hardening **(M · quality)** [complete]
 
 Two strands of work that aren't features but that everything else sits on: a
 single shared interface scale, and an audit of the places where a record is
@@ -1144,7 +1144,7 @@ fetched by id without checking which tenant it belongs to.
   `sort_order`, and derive a status's tone from `is_terminal` / `pauses_sla`.
   Neither model carries a colour field, so nothing is read from one.
 
-### Sub-phase 49.2 — Tenant-boundary audit *(partial — first pass shipped v3.17.559)*
+### Sub-phase 49.2 — Tenant-boundary audit *(complete — first pass v3.17.559, closed out v3.17.581)*
 - `core/tenancy.py` — `accessible_org_ids(request)`, `scope_to_request()` and
   `get_scoped_object_or_404()`. The last raises `Http404` rather than
   `PermissionDenied` on purpose: a 403 confirms the record exists somewhere.
@@ -1324,21 +1324,52 @@ fetched by id without checking which tenant it belongs to.
   their feature flags intact and every destination tested to still render.
   Separately, `Contract.generate_invoice()` now stamps its own
   `last_billed_at` rather than relying on its single caller to do it.
-- **Remaining in this phase:** the rest of billing arithmetic,
-  and what the AI features are allowed to read (the PSA AI context builder is
-  already org-scoped and withholds internal notes — the open question is the
-  other AI surfaces' prompt inputs). The remaining hand-rolled
-  `filter(organization=org)` sites are config and admin objects (tags,
-  categories, API keys, webhooks, audit logs) plus correctly-strict ones
-  (creating a row, slug uniqueness, membership lookups); each needs judging on
-  its own rather than a blanket replace.
+- Expired contracts kept billing *(shipped v3.17.581)* — the recurring-invoice
+  cron filtered on `status='active'` and never read `end_date`, and nothing
+  ever set a contract to `expired`, so a client who did not renew was invoiced
+  every month forever while `Contract.for_ticket` had already stopped covering
+  their tickets. The invoice cron now respects `end_date` and the lifecycle
+  cron expires ended contracts, so billing and coverage agree.
+**Decisions taken, so they read as choices rather than gaps:**
 
-**Sizing:** **M** — 49.1 complete; 49.2 has covered views, backup/restore,
-invoice tax, update progress, SLA, invoice duplication, background job failure
-handling, expiry notifications, PSA ticket notes, dashboard widget scoping, AI
-gating + spend controls, search scoping, the organization hierarchy in detail
-views, the abuse-middleware hotfix and the data export, with AI data access
-still ahead.
+- **The remaining hand-rolled `filter(organization=org)` sites stay strict.**
+  About 170 of them survive the v3.17.571 sweep, and they divide into two
+  groups. Some are correctly strict by nature — creating a row, checking slug
+  uniqueness within an organization, looking up a membership — and widening
+  them would be a bug, not a fix. The rest are per-organization *configuration*
+  rather than client records: tags, document categories, API keys, webhooks,
+  audit logs. Those have strict lists **and** strict detail views, so unlike
+  the 78 lookups fixed in v3.17.571 there is no broken link to repair. Whether
+  a parent organization should administer a subsidiary's API keys and webhooks
+  is a product decision rather than a defect, and the answer taken here is no:
+  seeing a subsidiary's assets is a roll-up, holding its credentials is not.
+- **Contracts ending mid-period bill the full period.** Proration applies to a
+  mid-period start only. This is left as-is deliberately: whether a customer
+  who cancels on the 10th owes the whole month is a commercial term, not an
+  arithmetic error, and the software should not decide it. v3.17.581 fixed the
+  part that *was* an error — billing continuing after the contract ended
+  entirely.
+
+**Remaining:** nothing named. The audit continues opportunistically; the PSA
+sync paths (`integrations/sync.py`) and the scheduler commands have not had a
+systematic pass and are the natural next candidates.
+
+**Sizing:** **M** — both sub-phases complete. 49.1 delivered the shared UI
+layer; 49.2 worked through covered views, backup/restore, invoice tax, update
+progress, SLA, invoice duplication, background job failure handling, expiry
+notifications, PSA ticket notes, dashboard widget scoping, AI gating and spend
+controls, search scoping, the organization hierarchy in detail views, the
+abuse-middleware hotfix, the data export, the vault-export permission, AI data
+access, credit memos, late fees, the navbar, and expired contracts.
+
+The recurring finding across 49.2 is worth recording: most of what it caught
+was code that reported success while doing nothing. Notes that never posted
+but were logged as posted, an export that served its own error message as the
+downloaded file with HTTP 200, spend caps guarding no endpoint, a search
+returning empty rather than scoped, a permission gating nothing, and credits
+that credited nothing. None of that produces a support ticket, which is why it
+survived so long — and it is the argument for auditing quiet paths rather than
+waiting for reports.
 
 ---
 ## What's explicitly NOT in this plan
@@ -1400,7 +1431,7 @@ still ahead.
 | 47 — Public scheduler wallboard | S | shipped v3.17.533 | `scheduling.ScheduledTask`; extends the Phase 3.6 wallboards |
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
-| 49 — Interface consistency + tenant-boundary hardening | M | **49.1 complete (v3.17.559); 49.2 in progress — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, vault-export permission v3.17.574, AI data access v3.17.575–576, credit memos v3.17.577, late fees v3.17.578, late-fee audit v3.17.579, navbar overflow v3.17.580, audit continuing** | none — touches every app |
+| 49 — Interface consistency + tenant-boundary hardening | M | **complete — 49.1 (v3.17.559); 49.2 (v3.17.559–581) — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, vault-export permission v3.17.574, AI data access v3.17.575–576, credit memos v3.17.577, late fees v3.17.578, late-fee audit v3.17.579, navbar overflow v3.17.580, expired contracts v3.17.581** | none — touches every app |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

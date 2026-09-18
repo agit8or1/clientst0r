@@ -5,6 +5,46 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.581] - 2026-09-18
+
+### Expired contracts were invoicing the client forever
+
+A contract that reached its `end_date` and was not set to auto-renew went on
+generating an invoice every month, indefinitely. A contract that ended three
+months ago still raised a $500 invoice today.
+
+Nothing in the system closed the loop:
+
+- `psa_generate_recurring_invoices` filtered on `status='active'` and
+  `next_billing_date <= today`. It never looked at `end_date`.
+- `psa_auto_renew_contracts` only handles `auto_renew=True`.
+- `psa_advance_subscription_lifecycle` only cancelled contracts explicitly
+  flagged `cancel_at_period_end`.
+- `expired` has been a valid `Contract.status` since the model was written and
+  nothing ever assigned it.
+
+`Contract.for_ticket()`, meanwhile, has always respected `end_date` — so the
+client stopped being covered for tickets while continuing to be billed for the
+contract. Those two halves disagreeing is what kept it out of sight: the
+symptom was an invoice arriving, not an error appearing.
+
+Fixed at both levels, because they answer different questions:
+
+- **The invoice cron** now also requires `end_date` to be null or today or
+  later. This is the safety net and holds even on an install where the
+  lifecycle cron has never run — which `test_the_filter_holds_even_when_the_lifecycle_cron_never_ran`
+  pins.
+- **The lifecycle cron** expires ended contracts, so the contract list,
+  `for_ticket` and billing finally agree on what is live.
+
+The expire job is deliberately narrow. It skips `auto_renew=True` contracts,
+which belong to `psa_auto_renew_contracts` and would otherwise be raced;
+the exception is one that already has a renewal child, which has been
+succeeded and is no longer the live agreement to bill.
+
+A contract ending *today* still bills its final period. Twelve tests, six of
+which fail against the previous code.
+
 ## [3.17.580] - 2026-09-18
 
 ### The top menu bar stops overflowing

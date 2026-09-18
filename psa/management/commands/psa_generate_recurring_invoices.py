@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import date
 
 from django.core.management.base import BaseCommand
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, transaction, models
 from django.utils import timezone
 
 from psa.models import Contract
@@ -45,10 +45,25 @@ class Command(BaseCommand):
             auto_push = False
 
         # Phase 15 v13: skip paused contracts (paused_at non-null)
+        #
+        # v3.17.581 — and skip contracts whose end_date has passed. This used
+        # to filter on `status` alone, and nothing set a contract to expired:
+        # `psa_auto_renew_contracts` only handles auto_renew=True, and
+        # `psa_advance_subscription_lifecycle` only cancels contracts flagged
+        # cancel_at_period_end. So a client who simply did not renew went on
+        # being invoiced every month, indefinitely, while `Contract.for_ticket`
+        # — which has always respected end_date — had already stopped treating
+        # them as covered.
+        #
+        # `psa_advance_subscription_lifecycle` now expires them properly, but
+        # this filter is the safety net: it holds even on an install where
+        # that cron has never run.
         qs = Contract.objects.filter(
             status='active',
             next_billing_date__lte=today,
             paused_at__isnull=True,
+        ).filter(
+            models.Q(end_date__isnull=True) | models.Q(end_date__gte=today)
         ).exclude(billing_frequency='none')
 
         spawned = 0
