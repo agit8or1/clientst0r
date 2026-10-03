@@ -18,6 +18,7 @@ from .models import Password, PasswordBreachCheck, VaultAccessRule
 from .forms import PasswordForm
 from .breach_checker import PasswordBreachChecker
 from .encryption import EncryptionError
+from .permissions import can_access_password
 from .access_rules import evaluate as _evaluate_vault_access
 from django.conf import settings
 
@@ -266,6 +267,9 @@ def password_reveal(request, pk):
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
 
+    if not can_access_password(request.user, password):
+        return JsonResponse({'error': 'Password reveal permission required'}, status=403)
+
     if request.method == 'POST':
         # Phase 37 (v3.17.241): per-credential approval gate. If
         # `requires_reveal_approval=True`, the user needs a currently-
@@ -385,6 +389,9 @@ def password_request_reveal(request, pk):
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
 
+    if not can_access_password(request.user, password):
+        return JsonResponse({'error': 'Password reveal permission required'}, status=403)
+
     if not password.requires_reveal_approval:
         return JsonResponse({'error': 'This password does not require approval'},
                             status=400)
@@ -428,6 +435,9 @@ def password_break_glass(request, pk):
         password = get_object_or_404(Password, pk=pk)
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
+
+    if not can_access_password(request.user, password):
+        return JsonResponse({'error': 'Password reveal permission required'}, status=403)
 
     if not password.requires_reveal_approval:
         return JsonResponse({'error': 'This password does not require approval'},
@@ -622,6 +632,9 @@ def password_test_breach(request, pk):
         password = get_object_or_404(Password, pk=pk)
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
+
+    if not can_access_password(request.user, password):
+        return JsonResponse({'error': 'Password reveal permission required'}, status=403)
 
     if request.method == 'POST':
         try:
@@ -941,6 +954,16 @@ def generate_otp_api(request, pk):
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
 
+    if not can_access_password(request.user, password):
+        return JsonResponse({'error': 'Password reveal permission required'}, status=403)
+
+    try:
+        decision = _evaluate_vault_access(password, request.user, request)
+    except Exception:
+        return JsonResponse({'error': 'Vault access policy is temporarily unavailable'}, status=503)
+    if not decision.get('allowed', False):
+        return JsonResponse({'error': 'Vault access policy denied this request'}, status=403)
+
     try:
         otp_data = password.generate_otp()
         if otp_data:
@@ -994,6 +1017,16 @@ def password_qrcode(request, pk):
         password = get_object_or_404(Password, pk=pk)
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
+
+    if not can_access_password(request.user, password):
+        return JsonResponse({'error': 'Password reveal permission required'}, status=403)
+
+    try:
+        decision = _evaluate_vault_access(password, request.user, request)
+    except Exception:
+        return JsonResponse({'error': 'Vault access policy is temporarily unavailable'}, status=503)
+    if not decision.get('allowed', False):
+        return JsonResponse({'error': 'Vault access policy denied this request'}, status=403)
 
     if password.password_type != 'otp' or not password.otp_secret:
         return HttpResponse("Not an OTP entry or secret not configured", status=400)

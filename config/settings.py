@@ -747,3 +747,8 @@ BETA_UPSTREAM_URL = os.getenv(
     'BETA_UPSTREAM_URL',
     'https://huduglue.agit8or.net/core/beta-test/upstream/',
 )
+
+# Only these reverse-proxy peers may supply a forwarding chain. Add the exact
+# proxy CIDR when running behind a separate container or load balancer.
+TRUSTED_PROXY_CIDRS = [value.strip() for value in os.getenv(
+    'TRUSTED_PROXY_CIDRS', '127.0.0.1/32,::1/128').split(',') if value.strip()]

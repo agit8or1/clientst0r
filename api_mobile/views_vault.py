@@ -28,7 +28,8 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permission_utils import user_has_perm
+from accounts.permission_utils import user_has_org_perm
+from vault.permissions import can_access_password
 
 from .scoping import accessible_org_ids
 from .throttles import MobileVaultRevealRateThrottle
@@ -71,11 +72,6 @@ def vault_list_view(request):
     org_ids = list(accessible_org_ids(request.user))
 
     if request.method == 'POST':
-        if not user_has_perm(request.user, 'vault_create'):
-            return Response(
-                {'detail': "You don't have permission to create vault items."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
         data = request.data or {}
         org_id = data.get('organization_id')
         try:
@@ -88,6 +84,9 @@ def vault_list_view(request):
                 {'detail': 'organization_id required and must be accessible'},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        if not user_has_org_perm(request.user, org_id, 'vault_create'):
+            return Response({'detail': 'Vault create permission required'},
+                            status=status.HTTP_403_FORBIDDEN)
         title = (data.get('title') or '').strip()
         if not title:
             return Response({'detail': 'title is required'},
@@ -215,7 +214,7 @@ def vault_detail_view(request, pk: int):
         return Response(_serialize_entry(password))
 
     # PATCH
-    if not user_has_perm(request.user, 'vault_edit'):
+    if not can_access_password(request.user, password, 'vault_edit'):
         return Response(
             {'detail': "You don't have permission to edit vault items."},
             status=status.HTTP_403_FORBIDDEN,
@@ -316,6 +315,10 @@ def vault_reveal_view(request, pk: int):
     except Password.DoesNotExist:
         return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    if not can_access_password(request.user, password):
+        return Response({'detail': 'Password reveal permission required'},
+                        status=status.HTTP_403_FORBIDDEN)
+
     ip = request.META.get('REMOTE_ADDR')
     ua = (request.META.get('HTTP_USER_AGENT') or '')[:255]
 
@@ -351,9 +354,9 @@ def vault_reveal_view(request, pk: int):
         from vault.access_rules import evaluate as evaluate_access
         decision = evaluate_access(password, request.user, request)
     except Exception:
-        # If the access-rules subsystem is missing/broken, fall through
-        # to allow rather than 500. The audit log + reveal log still record.
-        decision = {'allowed': True, 'reason': 'access_rules_unavailable'}
+        # A policy outage must never release a protected credential.
+        return Response({'detail': 'Vault access policy is temporarily unavailable'},
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     try:
         AuditLog.log(
@@ -378,7 +381,7 @@ def vault_reveal_view(request, pk: int):
     except Exception:
         pass
 
-    if not decision.get('allowed', True):
+    if not decision.get('allowed', False):
         return Response({
             'detail': decision.get('reason', 'Access denied'),
             'matched_rule_id': decision.get('matched_rule_id'),
