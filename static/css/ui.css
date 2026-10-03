@@ -722,9 +722,88 @@ html, body { overflow-x: hidden; }
     .navbar .org-pill { max-width: none; justify-content: flex-start; }
 }
 
-/* The support heart used to pulse forever in the corner of a work tool. */
+/* -------------------------------------------------------------------------
+   "Help Us Grow" — the navbar heart
+
+   An earlier release stopped this heart pulsing, on the grounds that nothing
+   should animate forever in the corner of a work tool. It is back by request,
+   so the brief is "noticeable, not distracting": a two-beat pulse at human
+   resting rate with a four-second rest between beats, a scale change small
+   enough not to shift the button's box, and a glow that stays well inside the
+   button. Reduced motion gets the glow and the colour and no movement at all.
+
+   The button is a pill rather than a bare icon so the ask reads as an
+   invitation instead of one more tool icon. Its label shows where there is
+   room for it — see the width rules below.
+   ------------------------------------------------------------------------- */
+.navbar .nav-link.nav-help-grow {
+    gap: var(--ui-2);
+    border-radius: 999px;
+    background: rgba(255, 93, 108, .16);
+    border: 1px solid rgba(255, 93, 108, .40);
+    color: #fff;
+}
+.navbar .nav-link.nav-help-grow:hover,
+.navbar .nav-link.nav-help-grow:focus-visible {
+    background: rgba(255, 93, 108, .30);
+    border-color: rgba(255, 93, 108, .70);
+}
+.navbar .nav-help-grow__heart {
+    color: #ff5d6c;
+    /* The resting state already glows, so reduced motion is not a downgrade
+       to a plain icon. */
+    text-shadow: 0 0 5px rgba(255, 93, 108, .55);
+    /* The pulse scales the heart; without its own box to scale in, it drags
+       the label with it. */
+    display: inline-block;
+    transform-origin: center;
+    will-change: transform;
+}
+
+/* The label: shown on a wide desktop, and in the collapsed drawer where every
+   utility control is a full-width labelled row. In between, the navbar is
+   measurably full (see v3.17.585 above) and the heart carries the button on
+   its own — the accessible name and the tooltip both still say "Help Us
+   Grow", so nothing is lost but the pixels. */
+.navbar .nav-help-grow__label { display: none; }
+@media (min-width: 1750px) {
+    .navbar .nav-help-grow__label { display: inline; }
+    .navbar .nav-link.nav-help-grow { min-width: 0; padding: 0 var(--ui-3); }
+}
+@media (max-width: 1399.98px) {
+    .navbar .navbar-collapse .nav-help-grow__label { display: inline; }
+}
+
 @media (prefers-reduced-motion: no-preference) {
-    .navbar [style*="heartbeat"] { animation: none !important; }
+    .navbar .nav-help-grow__heart {
+        animation: hug-heartbeat 4.5s ease-in-out infinite,
+                   hug-heart-glow 4.5s ease-in-out infinite;
+    }
+    /* Pointing at it is already attention; stop competing for it. */
+    .navbar .nav-link.nav-help-grow:hover .nav-help-grow__heart,
+    .navbar .nav-link.nav-help-grow:focus-visible .nav-help-grow__heart {
+        animation-play-state: paused;
+    }
+}
+
+/* Two beats then a rest. The whole cycle of movement is over inside the
+   first 900ms of 4.5s; the remaining 80% is still. */
+@keyframes hug-heartbeat {
+    0%   { transform: scale(1); }
+    4%   { transform: scale(1.16); }
+    8%   { transform: scale(1); }
+    12%  { transform: scale(1.10); }
+    20%  { transform: scale(1); }
+    100% { transform: scale(1); }
+}
+@keyframes hug-heart-glow {
+    0%   { text-shadow: 0 0 5px rgba(255, 93, 108, .55); }
+    4%   { text-shadow: 0 0 10px rgba(255, 93, 108, .90),
+                        0 0 18px rgba(255, 93, 108, .45); }
+    8%   { text-shadow: 0 0 5px rgba(255, 93, 108, .55); }
+    12%  { text-shadow: 0 0 9px rgba(255, 93, 108, .75); }
+    20%  { text-shadow: 0 0 5px rgba(255, 93, 108, .55); }
+    100% { text-shadow: 0 0 5px rgba(255, 93, 108, .55); }
 }
 
 /* =========================================================================
@@ -904,4 +983,232 @@ main .about-title {
     border-radius: var(--ui-radius);
     box-shadow: var(--ui-shadow);
     color: var(--ui-text-color);
+}
+
+/* =========================================================================
+   18. "Help Us Grow" support modal
+   The ask, laid out as a short hero and a stack of action cards. Sharing is
+   the thing we actually want, so its card is the first one, carries the only
+   accent border and the only full-width button, and the hero above it is kept
+   short enough that the share button is visible without scrolling on a
+   laptop.
+
+   Everything works through the shared tokens, so all twelve themes and both
+   light and dark follow without a second palette. Scoped to `.hug-modal`
+   throughout — a bare `section` or `h3` rule here would reach into every
+   other modal in the app.
+   ========================================================================= */
+.hug-modal .modal-body {
+    padding: var(--ui-4) var(--ui-4) var(--ui-6);
+}
+
+/* -- the hero ------------------------------------------------------------ */
+.hug-modal .hug-hero {
+    margin-bottom: var(--ui-4);
+}
+.hug-modal .hug-hero__headline {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0 0 var(--ui-2);
+    color: var(--ui-text-color);
+}
+.hug-modal .hug-hero__intro {
+    font-size: var(--ui-text);
+    line-height: 1.55;
+    margin: 0;
+    color: var(--ui-muted);
+}
+
+/* -- the live region ----------------------------------------------------- */
+/* Always in the DOM so assistive tech is watching it before the first copy,
+   but it only takes up room once it has something to say. */
+.hug-modal .hug-status {
+    margin: 0;
+    font-size: var(--ui-text-sm);
+    font-weight: 600;
+    color: #146c43;
+}
+.hug-modal .hug-status--visible {
+    margin-bottom: var(--ui-3);
+    padding: var(--ui-2) var(--ui-3);
+    background: rgba(25, 135, 84, .12);
+    border: 1px solid rgba(25, 135, 84, .35);
+    border-radius: var(--ui-radius-sm);
+}
+.hug-modal .hug-status--error {
+    color: #842029;
+    background: rgba(220, 53, 69, .12);
+    border-color: rgba(220, 53, 69, .35);
+}
+[data-bs-theme="dark"] .hug-modal .hug-status { color: #75d9a4; }
+[data-bs-theme="dark"] .hug-modal .hug-status--error { color: #ff9ba3; }
+
+/* -- the action cards ---------------------------------------------------- */
+.hug-modal .hug-card {
+    padding: var(--ui-4);
+    margin-bottom: var(--ui-3);
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius);
+}
+/* The one card we want read first. */
+.hug-modal .hug-card--primary {
+    border-color: rgba(220, 53, 69, .45);
+    box-shadow: 0 1px 3px rgba(220, 53, 69, .12);
+}
+.hug-modal .hug-card__title {
+    display: flex;
+    align-items: center;
+    gap: var(--ui-2);
+    font-size: var(--ui-section);
+    font-weight: 600;
+    margin: 0 0 var(--ui-2);
+    color: var(--ui-text-color);
+}
+.hug-modal .hug-card__title i { color: var(--ui-muted); }
+.hug-modal .hug-card--primary .hug-card__title i { color: #dc3545; }
+.hug-modal .hug-card__body {
+    font-size: var(--ui-text-sm);
+    line-height: 1.55;
+    color: var(--ui-muted);
+    margin: 0 0 var(--ui-3);
+}
+.hug-modal .hug-card__secondary {
+    margin: var(--ui-3) 0 0;
+    font-size: var(--ui-text-sm);
+}
+
+/* -- action rows --------------------------------------------------------- */
+/* Wrapping rather than scrolling: on a phone these become one button per
+   row, which is what you want to tap. */
+.hug-modal .hug-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ui-2);
+    margin-top: var(--ui-3);
+}
+.hug-modal .hug-actions .btn { flex: 1 1 auto; }
+.hug-modal .hug-actions__hint {
+    margin: var(--ui-4) 0 0;
+    font-size: var(--ui-text-sm);
+    font-weight: 600;
+    color: var(--ui-text-color);
+}
+.hug-modal .hug-actions__note {
+    margin: var(--ui-2) 0 0;
+    font-size: var(--ui-text-xs);
+    color: var(--ui-muted);
+}
+.hug-modal .hug-share-primary {
+    font-weight: 600;
+}
+/* custom.css:549 takes the border off every `.btn` and only gives it back to
+   `btn-outline-primary`, so an outline-secondary button renders as bare grey
+   text. In here those are real secondary actions — Copy Link, Copy Message,
+   Visit — and without an edge they read as disabled labels rather than
+   buttons, on the light themes as much as the dark ones. Scoped to the modal
+   so the rest of the app keeps whatever it has today. */
+.hug-modal .btn-outline-secondary {
+    border: 1px solid var(--ui-border);
+    background: var(--ui-surface);
+    color: var(--ui-text-color);
+}
+.hug-modal .btn-outline-secondary:hover,
+.hug-modal .btn-outline-secondary:focus-visible {
+    border-color: var(--ui-muted);
+    background: var(--ui-page-bg);
+    color: var(--ui-text-color);
+}
+
+/* Momentary confirmation on the button that was pressed. */
+.hug-modal .btn.hug-copied {
+    background: rgba(25, 135, 84, .15);
+    border-color: rgba(25, 135, 84, .55);
+    color: #146c43;
+}
+[data-bs-theme="dark"] .hug-modal .btn.hug-copied { color: #75d9a4; }
+
+/* -- the reviewable message --------------------------------------------- */
+.hug-modal .hug-message__label {
+    display: block;
+    margin: var(--ui-4) 0 var(--ui-1);
+    font-size: var(--ui-text-xs);
+    font-weight: 600;
+    color: var(--ui-muted);
+}
+.hug-modal .hug-message {
+    font-size: var(--ui-text-sm);
+    line-height: 1.5;
+    resize: vertical;
+}
+
+/* -- the other projects -------------------------------------------------- */
+.hug-modal .hug-projects {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-2);
+}
+.hug-modal .hug-project {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ui-3);
+    padding: var(--ui-3);
+    background: var(--ui-page-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-sm);
+}
+.hug-modal .hug-project__text { flex: 1 1 240px; min-width: 0; }
+.hug-modal .hug-project__name {
+    display: flex;
+    align-items: center;
+    gap: var(--ui-2);
+    margin: 0;
+    font-size: var(--ui-text);
+    font-weight: 600;
+    color: var(--ui-text-color);
+}
+.hug-modal .hug-project__desc {
+    margin: var(--ui-1) 0 0;
+    font-size: var(--ui-text-sm);
+    color: var(--ui-muted);
+}
+/* The destination in full, so nobody has to trust a button label. */
+.hug-modal .hug-project__url {
+    margin: var(--ui-1) 0 0;
+    font-size: var(--ui-text-xs);
+    color: var(--ui-muted);
+    word-break: break-all;
+}
+.hug-modal .hug-project__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ui-2);
+}
+
+/* -- the closing line ---------------------------------------------------- */
+.hug-modal .hug-closing {
+    margin: var(--ui-4) 0 0;
+    text-align: center;
+    font-size: var(--ui-text-sm);
+    color: var(--ui-muted);
+}
+
+/* -- phones -------------------------------------------------------------- */
+/* Full-width buttons beat a row of half-width ones on a 360px screen, and
+   the modal keeps the viewport's edges rather than running off them. */
+@media (max-width: 575.98px) {
+    .hug-modal .modal-body { padding: var(--ui-3) var(--ui-3) var(--ui-4); }
+    .hug-modal .hug-hero__headline { font-size: 19px; }
+    .hug-modal .hug-card { padding: var(--ui-3); }
+    .hug-modal .hug-actions .btn,
+    .hug-modal .hug-project__actions .btn { flex: 1 1 100%; }
+    /* `rows` is measured in lines of the default width; at 360px the same
+       message needs more of them before it stops being a scrollbox. */
+    .hug-modal .hug-message { min-height: 140px; }
 }

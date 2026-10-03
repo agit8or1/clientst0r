@@ -1402,6 +1402,53 @@ that credited nothing. None of that produces a support ticket, which is why it
 survived so long — and it is the argument for auditing quiet paths rather than
 waiting for reports.
 
+## Phase 50 — "Help Us Grow" call to action **(S · growth)** [shipped — v3.17.586]
+
+The project has always had a Support modal behind a heart in the navbar. It
+offered three links and asked for a GitHub star. The thing most likely to
+actually help — one person telling another person about it — was the one thing
+it did not make easy.
+
+Phase 50 rebuilds that heart into a share-first call to action, and moves every
+destination it points at into one configuration file so the same partial can be
+reused across our other apps.
+
+- **A visible entry point** *(shipped v3.17.586)* — the navbar heart is now a
+  labelled pill, "Help Us Grow", with a two-beat pulse and a red glow. The beat
+  lasts under a second in a four-and-a-half-second cycle, and
+  `prefers-reduced-motion` turns the movement off while keeping the glow and
+  the colour. It opens the modal on click and never by itself.
+- **Sharing first** *(shipped v3.17.586)* — the first card in the modal, above
+  the fold on a laptop, offers the native share sheet where the browser has one
+  (`navigator.share`), a copyable link, a copyable ready-to-post message shown
+  in an editable field so it can be read before it is sent, and LinkedIn,
+  Facebook, X and email as fallbacks. Every one of them opens a draft the user
+  sends themselves; nothing is posted on anyone's behalf.
+- **The rest of what we build** *(shipped v3.17.586)* — MSP Reboot and MSPZero
+  each get a Visit action and a separate Share and Copy link action, plus a
+  ready-to-copy message for the network as a whole. Only this project is
+  described as open source, because only this project's licence is ours to
+  state.
+- **GitHub, sponsorship and the business** *(shipped v3.17.586)* — a star
+  button, the GitHub profile, the existing verified GitHub Sponsors link, and
+  MSP Reboot with its Facebook page. The sponsorship card omits itself when no
+  destination is configured rather than rendering an empty ask.
+- **One place for the destinations** *(shipped v3.17.586)* —
+  `config/support_links.py` holds the project, the network, GitHub, the sponsor
+  link and the business, overridable per install through a `SUPPORT_LINKS`
+  setting. The templates carry no URLs; a test fails if one appears in them.
+  What gets shared is the public project URL, never the address of the running
+  install.
+
+**Open configuration:** `PROJECT.public_url` is currently the public
+repository, because there is no ClientSt0r product site — see
+`docs/github-about.md`. If one is stood up, that one value is the only edit
+needed.
+
+**Sizing:** **S** — one config module, two template partials, one stylesheet
+section, one script, 45 tests. No migrations, no new dependencies, no new
+views or URLs.
+
 ---
 ## What's explicitly NOT in this plan
 
@@ -1463,6 +1510,7 @@ waiting for reports.
 | 48 — Task warning windows | S | shipped v3.17.535 | `scheduling.ScheduledTask` + Phase 47 |
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
 | 49 — Interface consistency + tenant-boundary hardening | M | **complete — 49.1 (v3.17.559); 49.2 (v3.17.559–581) — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, vault-export permission v3.17.574, AI data access v3.17.575–576, credit memos v3.17.577, late fees v3.17.578, late-fee audit v3.17.579, navbar overflow v3.17.580, expired contracts v3.17.581, sync status honesty v3.17.582, scheduler failure reporting v3.17.583, bundled services #147 v3.17.584, utility toolbar v3.17.585** | none — touches every app |
+| 50 — "Help Us Grow" call to action | S | shipped v3.17.586 | none — `config/support_links.py` + `templates/core/_help_us_grow_*.html`; reuses the existing GitHub Sponsors link |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

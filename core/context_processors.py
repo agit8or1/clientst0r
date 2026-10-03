@@ -92,3 +92,19 @@ def organization_context(request):
         context['user_organizations'] = []
 
     return context
+
+
+def support_links(request):
+    """Expose the "Help Us Grow" destinations to every template.
+
+    The support modal lives in `base.html` on every page, so the data it
+    renders has to be in the global context rather than passed by a view.
+    Everything comes from `config/support_links.py` — see that file before
+    adding a URL anywhere in the modal markup.
+    """
+    from config.support_links import get_support_links
+    try:
+        return {'support': get_support_links()}
+    except Exception:
+        # A bad override must not take out every page in the app.
+        return {'support': None}

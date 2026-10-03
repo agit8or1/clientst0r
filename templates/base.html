@@ -291,13 +291,7 @@
                             <span class="d-xxl-none ms-2">{% trans "Install app" %}</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        {# data-bs-toggle is the modal's here, so the tooltip uses data-bs-tooltip #}
-                        <a class="nav-link nav-util" href="#" data-bs-toggle="modal" data-bs-target="#supportProjectModal" data-bs-tooltip data-bs-placement="bottom" title="{% trans 'Support this open-source project' %}" aria-label="{% trans 'Support this project' %}">
-                            <i class="fas fa-heart text-danger" aria-hidden="true"></i>
-                            <span class="d-xxl-none ms-2">{% trans "Support this project" %}</span>
-                        </a>
-                    </li>
+                    {% include "core/_help_us_grow_button.html" %}
                     <!-- Global KB lives under PSA → KB when PSA is enabled; otherwise stays in the primary navbar -->
                     {% if global_kb_enabled and not psa_enabled %}
                         {% if is_staff_user or user.is_superuser %}
@@ -394,7 +388,7 @@
                             <li><a class="dropdown-item" href="{% url 'core:about' %}" data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'System information and version details' %}"><i class="fas fa-info-circle"></i> {% trans "About" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'core:roadmap' %}" data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Public roadmap of planned features' %}"><i class="fas fa-map"></i> {% trans "Roadmap" %}</a></li>
                             <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#reportBugModal" title="{% trans 'Report an issue to GitHub' %}"><i class="fas fa-bug"></i> {% trans "Report Bug" %}</a></li>
-                            <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#supportProjectModal" title="{% trans 'Support this open-source project' %}"><i class="fas fa-heart"></i> {% trans "Support This Project" %}</a></li>
+                            <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#supportProjectModal" title="{% trans 'Help us grow — share the project, star it, or sponsor development' %}"><i class="fas fa-heart"></i> {% trans "Help Us Grow" %}</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li class="dropdown-header"><i class="fas fa-mobile-alt me-2"></i>{% trans "Mobile &amp; Browser Access" %}</li>
                             <li><a class="dropdown-item" href="{% url 'core:install_app' %}" id="menu-install-pwa" title="{% trans 'Add Client St0r to your phone or desktop home screen' %}"><i class="fas fa-download"></i> {% trans "Install App / Add to Home Screen" %}</a></li>
@@ -533,6 +527,9 @@
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- "Help Us Grow" modal: native share sheet + clipboard, with fallbacks.
+         Deferred and self-guarding, so it costs nothing on pages without the modal. -->
+    <script src="{% static 'js/help_us_grow.js' %}" defer></script>
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
@@ -720,63 +717,11 @@
         });
     </script>
 
-    <!-- Support This Project Modal -->
-    <div class="modal fade" id="supportProjectModal" tabindex="-1" aria-labelledby="supportProjectModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title" id="supportProjectModalLabel"><i class="fas fa-heart"></i> Support This Project</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="text-center mb-4">
-                        <i class="fas fa-heart fa-4x text-danger mb-3"></i>
-                        <p class="lead">Thank you for using Client St0r!</p>
-                        <p>If you find this project helpful, here are two ways you can support it:</p>
-                    </div>
-
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title"><i class="fas fa-bullhorn text-primary"></i> Spread the Word</h6>
-                            <p class="card-text small mb-2">Check out my other open-source projects and give them a ⭐ on GitHub!</p>
-                            <a href="https://github.com/agit8or1/" target="_blank" class="btn btn-primary btn-sm w-100">
-                                <i class="fab fa-github"></i> Visit GitHub Profile
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title"><i class="fas fa-heart text-danger"></i> Sponsor This Project</h6>
-                            <p class="card-text small mb-2">Support development of Client St0r directly via GitHub Sponsors.</p>
-                            <a href="https://github.com/sponsors/agit8or1" target="_blank" class="btn btn-danger btn-sm w-100">
-                                <i class="fas fa-heart"></i> Sponsor on GitHub
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title"><i class="fas fa-briefcase text-success"></i> Support My Business</h6>
-                            <p class="card-text small mb-2">Need MSP Related Services for your MSP or Consulting?</p>
-                            <a href="https://mspreboot.com" target="_blank" class="btn btn-success btn-sm w-100">
-                                <i class="fas fa-external-link-alt"></i> Visit MSP Reboot
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="alert alert-info mb-0">
-                        <small>
-                            <i class="fas fa-code"></i> Client St0r is free and open-source software. Your support helps keep this project alive and growing!
-                        </small>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    {% comment %}
+    "Help Us Grow" — the support modal. Markup in the partial, every
+    destination in config/support_links.py. Click-only; never auto-opened.
+    {% endcomment %}
+    {% include "core/_help_us_grow_modal.html" %}
     {% endif %}
 
     <!-- Global Tooltip Initialization -->

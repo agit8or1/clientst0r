@@ -161,6 +161,9 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.organization_context',
                 'accounts.context_processors.user_theme',
+                # "Help Us Grow" destinations — the support modal is in
+                # base.html on every page, so no view can supply them.
+                'core.context_processors.support_links',
             ],
         },
     },

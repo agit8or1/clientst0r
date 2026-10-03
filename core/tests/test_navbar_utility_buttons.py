@@ -1,6 +1,7 @@
 """The utility controls are visible buttons, not an overflow menu.
 
-Beta app, Install app and Support this project sat behind an ellipsis
+Beta app, Install app and the support heart (relabelled "Help Us Grow"
+in v3.17.586) sat behind an ellipsis
 dropdown between the star and the search box (v3.17.559). A control nobody
 can see is a control nobody uses, and v3.17.580 freed the room by grouping
 Security, CRM and Reports under the main navigation's More menu.
@@ -73,8 +74,8 @@ class UtilityControlsAreVisibleTests(TestCase):
     def test_the_three_live_in_the_cluster_as_buttons(self):
         cluster = self._utility_cluster(self._html())
         self.assertEqual(cluster.count('nav-link nav-util'), 3,
-                         'expected beta app, install app and support as peers '
-                         'of the star')
+                         'expected beta app, install app and Help Us Grow as '
+                         'peers of the star')
         self.assertIn(reverse('core:beta_test_signup'), cluster)
         self.assertIn(reverse('core:install_app'), cluster)
         self.assertIn('data-bs-target="#supportProjectModal"', cluster)
@@ -107,7 +108,7 @@ class UtilityControlsAreVisibleTests(TestCase):
 
     def test_each_button_has_an_accessible_name(self):
         html = self._html()
-        for label in ('Beta app', 'Install app', 'Support this project'):
+        for label in ('Beta app', 'Install app', 'Help Us Grow'):
             self.assertIn(f'aria-label="{label}"', html)
 
     def test_each_button_has_a_descriptive_tooltip(self):
@@ -115,7 +116,7 @@ class UtilityControlsAreVisibleTests(TestCase):
         html = self._html()
         for phrase in ('Beta-test the Android app',
                        'Install the app on your phone or desktop',
-                       'Support this open-source project'):
+                       'Help us grow'):
             self.assertIn(phrase, html)
 
     def test_the_modal_button_gets_a_tooltip_despite_its_toggle_being_taken(self):

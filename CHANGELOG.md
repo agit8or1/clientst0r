@@ -5,6 +5,111 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.586] - 2026-10-03
+
+### "Help Us Grow" — a share-first call to action
+
+The navbar heart has always opened a Support modal: three links and a request
+for a GitHub star. The thing most likely to actually help — one person telling
+another person about the project — was the one thing it did not make easy.
+Rebuilt around sharing, with every destination moved into one config file so
+the same partial can be dropped into our other apps.
+
+**The entry point.** The heart is now a labelled pill, "Help Us Grow", in the
+utility cluster next to the star, Beta app and Install app. It pulses: two
+beats inside the first 900ms of a 4.5-second cycle, with a red glow. The scale
+change is small enough that the button's box never moves, the glow stays
+inside the pill, and hovering pauses the beat rather than competing with the
+pointer for attention.
+
+v3.17.559 had added a rule that killed this animation outright — "the support
+heart used to pulse forever in the corner of a work tool". That rule is gone,
+by request. `prefers-reduced-motion: reduce` now removes the movement and
+keeps the glow and the colour, so respecting the preference is not a downgrade
+to a plain grey icon. A test asserts both halves of that.
+
+The label shows at 1750px and up and in the collapsed drawer below 1400px.
+Between those widths the navbar is measurably full (see v3.17.585), so the
+heart carries the button alone — the `aria-label` and the tooltip both still
+say "Help Us Grow". Measured in Chromium at 1920, 1750, 1600, 1440, 1024 and
+390: the full button fits with no clipping and no horizontal page overflow at
+any of them, and the search field keeps its width.
+
+**Sharing leads.** The first card in the modal, verified visible without
+scrolling at 1440×900 and at 390px:
+
+- **Share This Project** uses `navigator.share` where the browser has it, so
+  the OS share sheet does the work. Where it does not, the button copies the
+  message instead and the per-network buttons below are always rendered.
+- **Copy Link** and **Copy Ready-to-Post Message**, plus LinkedIn, Facebook, X
+  and email. Every one opens a draft the user sends themselves — nothing is
+  posted on anyone's behalf, and the modal says so.
+- The suggested message is shown in an editable field so it can be read and
+  reworded before it goes anywhere. It is assembled in the config module from
+  the project name, description and URL, and is held under X's 280 characters
+  with the link counted at its shortened 23 — there is a test for that, because
+  a truncated share message loses the URL.
+
+**The rest of what we build.** MSP Reboot and MSPZero each get a Visit action
+and a *separate* Share and Copy link action, with Share as the emphasised one.
+Plus a ready-to-copy message for the network as a whole. Only this project is
+described as open source; the others are products and services and their
+licensing is not ours to state. A test asserts no network entry describes
+itself as free or open source.
+
+**GitHub, sponsorship, the business.** A star button, the GitHub profile, the
+existing verified GitHub Sponsors link (unchanged — it is preserved, not
+replaced), and MSP Reboot with its Facebook page. The sponsorship card omits
+itself entirely when no destination is configured, rather than rendering an
+empty ask; so does the star button when no public repository is known.
+
+**One place for the destinations.** New `config/support_links.py` holds the
+project, the network, GitHub, the sponsor link and the business, overridable
+per install through a `SUPPORT_LINKS` setting that merges one level deep. The
+two template partials carry no URLs at all and a test fails if one appears in
+them. What gets shared is the public project URL — never the address of the
+running install, which is a private dashboard, often a tenant hostname, and
+may carry a token.
+
+`PROJECT.public_url` is currently the public repository, because there is no
+ClientSt0r product site (`docs/github-about.md` records that
+`clientst0r.mspreboot.com` has no DNS record). If one is stood up, that single
+value is the only edit needed.
+
+**Accessibility.** Bootstrap's modal already gives the focus trap, Escape and
+focus restoration; all three were verified in Chromium through a real click on
+the trigger rather than assumed. Copy and share results are announced through
+one `role="status"` live region, and "Link copied!" / "Message copied!" appear
+**only** after the clipboard write actually resolves. When it is refused — and
+in headless Chromium it is, which is how the path got tested — the code falls
+through to `execCommand`, then to selecting the visible message field and
+saying so. A cancelled share sheet is not reported as a failure.
+
+**One bug caught in review, worth naming.** Django's `{# #}` is single-line
+only. Six multi-line `{# ... #}` blocks in the new partial rendered as body
+text, and the words "Star This Project" from an explanatory note appeared
+inside the modal — which also made a test pass that should have failed. All
+six are `{% comment %}` blocks now and a test rejects any multi-line `{# #}`
+in either partial.
+
+**Also.** `custom.css:549` removes the border from every `.btn` and only gives
+it back to `btn-outline-primary`, so Copy Link and friends rendered as bare
+grey text. Given an edge inside this modal only; the rest of the app is
+untouched.
+
+Existing entry points are preserved: the modal keeps its `supportProjectModal`
+id, so the account menu item still opens it (relabelled to match).
+
+**Files.** New: `config/support_links.py`,
+`templates/core/_help_us_grow_modal.html`,
+`templates/core/_help_us_grow_button.html`, `static/js/help_us_grow.js`,
+`core/tests/test_help_us_grow.py` (45 tests). Changed: `templates/base.html`,
+`static/css/ui.css`, `core/context_processors.py`, `config/settings.py`,
+`core/tests/test_navbar_utility_buttons.py`.
+
+No migrations. No new dependencies. No new views or URLs. `manage.py test core
+accounts` — 384 tests, all passing.
+
 ## [3.17.585] - 2026-09-18
 
 ### The utility controls are visible buttons again

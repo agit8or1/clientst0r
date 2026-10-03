@@ -1,0 +1,316 @@
+{% load i18n %}
+{% comment %}
+"Help Us Grow" support modal.
+
+Opened only by a click — on the navbar heart (`_help_us_grow_button.html`) or
+the matching item in the account menu. Never auto-opened.
+
+Every destination comes from `config/support_links.py` via the `support`
+context processor. Do not hard-code a URL in here: one file is what lets this
+partial be dropped into another of our apps unchanged.
+
+The modal keeps the id `supportProjectModal` that shipped before the rebuild so
+the account-menu entry point and anything else already pointing at it keep
+working.
+
+Order is deliberate. Sharing is the ask, so it is the first card and sits above
+the fold on a laptop; GitHub, sponsorship and the business follow. The hero
+heart is decorative and is hidden from screen readers.
+{% endcomment %}
+<div class="modal fade hug-modal" id="supportProjectModal" tabindex="-1"
+     aria-labelledby="supportProjectModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title d-flex align-items-center gap-2" id="supportProjectModalLabel">
+          <i class="fas fa-heart text-danger" aria-hidden="true"></i>
+          {% trans "Help Us Grow" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                aria-label="{% trans 'Close' %}"></button>
+      </div>
+
+      <div class="modal-body">
+
+        {# Single polite live region for every copy / share result. #}
+        <p class="hug-status" id="hugStatus" role="status" aria-live="polite"></p>
+
+        <div class="hug-hero">
+          <h2 class="hug-hero__headline">{% trans "Love what we're building? Help us grow." %}</h2>
+          <p class="hug-hero__intro">
+            {% trans "A quick share, a GitHub star, or a recommendation can make a real difference. Help more people discover our projects and keep development moving." %}
+          </p>
+        </div>
+
+        {% comment %}
+ ---------------------------------------------------------------
+           1. Share the project — the primary ask, so it leads and is the
+              only card with a full-width primary action.
+           ---------------------------------------------------------------
+        {% endcomment %}
+        <section class="hug-card hug-card--primary" aria-labelledby="hugShareHeading">
+          <h3 class="hug-card__title" id="hugShareHeading">
+            <i class="fas fa-share-nodes" aria-hidden="true"></i>
+            {% trans "Share the project" %}
+          </h3>
+          <p class="hug-card__body">
+            {% trans "Know someone who could use this? Share it with your team, another business owner, or your favorite IT community." %}
+          </p>
+
+          <button type="button" class="btn btn-danger btn-lg w-100 hug-share-primary"
+                  data-hug-share
+                  data-hug-title="{{ support.PROJECT.name }}"
+                  data-hug-text="{{ support.SHARE_MESSAGE }}"
+                  data-hug-url="{{ support.PROJECT.public_url }}">
+            <i class="fas fa-share-nodes" aria-hidden="true"></i>
+            {% trans "Share This Project" %}
+          </button>
+
+          <div class="hug-actions">
+            <button type="button" class="btn btn-outline-secondary"
+                    data-hug-copy="{{ support.PROJECT.public_url }}"
+                    data-hug-copied="{% trans 'Link copied!' %}">
+              <i class="fas fa-link" aria-hidden="true"></i>
+              {% trans "Copy Link" %}
+            </button>
+            <button type="button" class="btn btn-outline-secondary"
+                    data-hug-copy="{{ support.SHARE_MESSAGE }}"
+                    data-hug-copied="{% trans 'Message copied!' %}">
+              <i class="fas fa-clipboard" aria-hidden="true"></i>
+              {% trans "Copy Ready-to-Post Message" %}
+            </button>
+          </div>
+
+          {% comment %}
+ Shown so the message can be read before it is sent, and so there
+             is something to select by hand if the clipboard is blocked.
+          {% endcomment %}
+          <label class="hug-message__label" for="hugShareMessage">
+            {% trans "Suggested message — edit it to sound like you:" %}
+          </label>
+          <textarea class="form-control hug-message" id="hugShareMessage" rows="4"
+                    spellcheck="false">{{ support.SHARE_MESSAGE }}</textarea>
+
+          <p class="hug-actions__hint">{% trans "Or post it to:" %}</p>
+          <div class="hug-actions hug-actions--networks">
+            <a class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer"
+               data-hug-network="linkedin"
+               href="https://www.linkedin.com/sharing/share-offsite/?url={{ support.PROJECT.public_url|urlencode }}">
+              <i class="fab fa-linkedin" aria-hidden="true"></i> {% trans "LinkedIn" %}
+            </a>
+            <a class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer"
+               data-hug-network="facebook"
+               href="https://www.facebook.com/sharer/sharer.php?u={{ support.PROJECT.public_url|urlencode }}">
+              <i class="fab fa-facebook" aria-hidden="true"></i> {% trans "Facebook" %}
+            </a>
+            <a class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer"
+               data-hug-network="x"
+               href="https://twitter.com/intent/tweet?text={{ support.SHARE_MESSAGE|urlencode }}">
+              <i class="fab fa-x-twitter" aria-hidden="true"></i> {% trans "X" %}
+            </a>
+            <a class="btn btn-outline-primary"
+               data-hug-network="email"
+               href="mailto:?subject={{ support.PROJECT.name|urlencode }}&amp;body={{ support.SHARE_MESSAGE|urlencode }}">
+              <i class="fas fa-envelope" aria-hidden="true"></i> {% trans "Email" %}
+            </a>
+          </div>
+          <p class="hug-actions__note">
+            {% trans "Each option opens a draft you send yourself — nothing is posted on your behalf." %}
+          </p>
+        </section>
+
+        {% comment %}
+ ---------------------------------------------------------------
+           2. The rest of what we build. Each one gets Visit and Share as
+              separate actions — sharing is the point, visiting is not.
+           ---------------------------------------------------------------
+        {% endcomment %}
+        {% if support.NETWORK %}
+        <section class="hug-card" aria-labelledby="hugNetworkHeading">
+          <h3 class="hug-card__title" id="hugNetworkHeading">
+            <i class="fas fa-compass" aria-hidden="true"></i>
+            {% trans "Discover &amp; share our other projects" %}
+          </h3>
+          <p class="hug-card__body">
+            {% trans "Help spread the word about the other tools and services we're building." %}
+          </p>
+
+          <ul class="hug-projects">
+            {% for project in support.NETWORK %}
+            <li class="hug-project">
+              <div class="hug-project__text">
+                <p class="hug-project__name">
+                  <i class="{{ project.icon|default:'fas fa-cube' }}" aria-hidden="true"></i>
+                  {{ project.name }}
+                </p>
+                <p class="hug-project__desc">{{ project.description }}</p>
+                <p class="hug-project__url">{{ project.url }}</p>
+              </div>
+              <div class="hug-project__actions">
+                <a class="btn btn-outline-secondary btn-sm" href="{{ project.url }}"
+                   target="_blank" rel="noopener noreferrer"
+                   aria-label="{% blocktrans with name=project.name %}Visit {{ name }}{% endblocktrans %}">
+                  <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                  {% trans "Visit" %}
+                </a>
+                <button type="button" class="btn btn-primary btn-sm"
+                        data-hug-share
+                        data-hug-title="{{ project.name }}"
+                        data-hug-text="{{ project.name }} — {{ project.description }} {{ project.url }}"
+                        data-hug-url="{{ project.url }}"
+                        data-hug-copied="{% trans 'Link copied!' %}"
+                        aria-label="{% blocktrans with name=project.name %}Share {{ name }}{% endblocktrans %}">
+                  <i class="fas fa-share-nodes" aria-hidden="true"></i>
+                  {% trans "Share" %}
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm"
+                        data-hug-copy="{{ project.url }}"
+                        data-hug-copied="{% trans 'Link copied!' %}"
+                        aria-label="{% blocktrans with name=project.name %}Copy link to {{ name }}{% endblocktrans %}">
+                  <i class="fas fa-link" aria-hidden="true"></i>
+                  {% trans "Copy Link" %}
+                </button>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+
+          {% if support.NETWORK_MESSAGE %}
+          <label class="hug-message__label" for="hugNetworkMessage">
+            {% trans "Ready to pass on to your network:" %}
+          </label>
+          <textarea class="form-control hug-message" id="hugNetworkMessage" rows="3"
+                    spellcheck="false">{{ support.NETWORK_MESSAGE }}</textarea>
+          <div class="hug-actions">
+            <button type="button" class="btn btn-outline-secondary"
+                    data-hug-copy="{{ support.NETWORK_MESSAGE }}"
+                    data-hug-copied="{% trans 'Message copied!' %}">
+              <i class="fas fa-clipboard" aria-hidden="true"></i>
+              {% trans "Copy Network Message" %}
+            </button>
+            <button type="button" class="btn btn-primary"
+                    data-hug-share
+                    data-hug-title="{% trans 'Tools and IT services for MSPs' %}"
+                    data-hug-text="{{ support.NETWORK_MESSAGE }}"
+                    data-hug-copied="{% trans 'Message copied!' %}">
+              <i class="fas fa-share-nodes" aria-hidden="true"></i>
+              {% trans "Share With Your Network" %}
+            </button>
+          </div>
+          {% endif %}
+        </section>
+        {% endif %}
+
+        {% comment %}
+ ---------------------------------------------------------------
+           3. GitHub. "Star This Project" only when the public repository
+              is actually configured.
+           ---------------------------------------------------------------
+        {% endcomment %}
+        <section class="hug-card" aria-labelledby="hugGithubHeading">
+          <h3 class="hug-card__title" id="hugGithubHeading">
+            <i class="fab fa-github" aria-hidden="true"></i>
+            {% trans "Star &amp; explore on GitHub" %}
+          </h3>
+          <p class="hug-card__body">
+            {% trans "A GitHub star helps others discover the project. Explore the code, follow development, and share your favorites." %}
+          </p>
+          <div class="hug-actions">
+            {% if support.PROJECT.repo_url %}
+            <a class="btn btn-warning" href="{{ support.PROJECT.repo_url }}"
+               target="_blank" rel="noopener noreferrer">
+              <i class="fas fa-star" aria-hidden="true"></i>
+              {% trans "Star This Project" %}
+            </a>
+            {% endif %}
+            {% if support.GITHUB.org_url %}
+            <a class="btn btn-outline-secondary" href="{{ support.GITHUB.org_url }}"
+               target="_blank" rel="noopener noreferrer">
+              <i class="fab fa-github" aria-hidden="true"></i>
+              {% trans "Explore Our GitHub" %}
+            </a>
+            {% endif %}
+          </div>
+        </section>
+
+        {% comment %}
+ ---------------------------------------------------------------
+           4. Sponsorship. Omitted entirely when no destination is
+              configured — an empty ask is worse than no ask.
+           ---------------------------------------------------------------
+        {% endcomment %}
+        {% if support.SPONSOR.url %}
+        <section class="hug-card" aria-labelledby="hugSponsorHeading">
+          <h3 class="hug-card__title" id="hugSponsorHeading">
+            <i class="fas fa-heart text-danger" aria-hidden="true"></i>
+            {% trans "Sponsor development" %}
+          </h3>
+          <p class="hug-card__body">
+            {% trans "Want to help fund ongoing development, improvements, and maintenance? Consider becoming a sponsor." %}
+          </p>
+          <div class="hug-actions">
+            <a class="btn btn-danger" href="{{ support.SPONSOR.url }}"
+               target="_blank" rel="noopener noreferrer">
+              <i class="fas fa-heart" aria-hidden="true"></i>
+              {% trans "Sponsor Development" %}
+            </a>
+          </div>
+        </section>
+        {% endif %}
+
+        {% comment %}
+ ---------------------------------------------------------------
+           5. The business behind the project.
+           ---------------------------------------------------------------
+        {% endcomment %}
+        {% if support.BUSINESS.url %}
+        <section class="hug-card" aria-labelledby="hugBusinessHeading">
+          <h3 class="hug-card__title" id="hugBusinessHeading">
+            <i class="fas fa-briefcase" aria-hidden="true"></i>
+            {% trans "Support our business" %}
+          </h3>
+          <p class="hug-card__body">
+            {% blocktrans with name=support.BUSINESS.name %}Need IT services or know a business that does? Visit {{ name }} or recommend us to someone who could use a hand.{% endblocktrans %}
+          </p>
+          <div class="hug-actions">
+            <a class="btn btn-success" href="{{ support.BUSINESS.url }}"
+               target="_blank" rel="noopener noreferrer">
+              <i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i>
+              {% blocktrans with name=support.BUSINESS.name %}Visit {{ name }}{% endblocktrans %}
+            </a>
+            <button type="button" class="btn btn-primary"
+                    data-hug-share
+                    data-hug-title="{{ support.BUSINESS.name }}"
+                    data-hug-text="{% blocktrans with name=support.BUSINESS.name url=support.BUSINESS.url %}Looking for IT services or MSP consulting? Take a look at {{ name }}: {{ url }}{% endblocktrans %}"
+                    data-hug-url="{{ support.BUSINESS.url }}"
+                    data-hug-copied="{% trans 'Link copied!' %}">
+              <i class="fas fa-share-nodes" aria-hidden="true"></i>
+              {% blocktrans with name=support.BUSINESS.name %}Share {{ name }}{% endblocktrans %}
+            </button>
+          </div>
+          {% if support.BUSINESS.facebook_url %}
+          <p class="hug-card__secondary">
+            <a href="{{ support.BUSINESS.facebook_url }}" target="_blank" rel="noopener noreferrer">
+              <i class="fab fa-facebook" aria-hidden="true"></i>
+              {% blocktrans with name=support.BUSINESS.name %}Follow {{ name }} on Facebook{% endblocktrans %}
+            </a>
+          </p>
+          {% endif %}
+        </section>
+        {% endif %}
+
+        <p class="hug-closing">
+          {% trans "Every share, recommendation, star, and contribution helps. Thanks for being part of what we're building." %}
+        </p>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          {% trans "Close" %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
