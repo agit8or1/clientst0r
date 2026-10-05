@@ -5,6 +5,72 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.592] - 2026-10-05
+
+### Security: vault permissions and trusted proxies (PR #148, with a follow-up)
+
+Merges PR #148, plus a follow-up so it works behind this project's own
+deployment.
+
+**Vault (from #148)**
+- Reveal, OTP, QR-code, approval-request, break-glass and breach-test
+  endpoints now check `vault_view_password` on the credential's own
+  organization. Before, holding it in *any* organization was enough.
+- Personal credentials are visible only to their owner, superusers
+  included.
+- Mobile create and edit check the target organization. Staff accounts
+  get vault capabilities from their global role template, not from being
+  staff.
+- If the access-rule check itself fails, the request is refused (503)
+  instead of releasing the credential, and a decision with no `allowed`
+  value counts as a denial. OTP and QR codes now go through the same
+  access rules as reveal.
+
+**Client address (from #148)**
+- The firewall and vault access rules used the first `X-Forwarded-For`
+  entry, which any client can set, so a public client could claim to be
+  `127.0.0.1` and skip both. `core/client_ip.py` now accepts forwarding
+  headers only from peers in the new `TRUSTED_PROXY_CIDRS` setting
+  (default: loopback). It walks the chain back from the nearest hop, and
+  a malformed chain fails closed.
+
+**Follow-up, needed for this deployment**
+- **Unix socket.** Native installs run nginx → gunicorn over a unix
+  socket, where `REMOTE_ADDR` is empty. As merged, #148 resolved every
+  such request to no address. With the firewall enabled, the whole site
+  would have returned 403, and IP-based vault rules would have stopped
+  matching. A unix-socket peer can only be a local process, so it is now
+  treated as a trusted local proxy.
+- **LAN exemption.** #148 removed the private-address exemption from any
+  request carrying forwarding headers. nginx always sets `X-Real-IP`, so
+  that removed it for every proxied LAN user. The exemption now applies
+  when the private address is the real client: either the request has no
+  forwarding headers, or it came through a trusted proxy. What #148 was
+  guarding against stays blocked: an unlisted proxy container's own
+  private address doesn't exempt everyone behind it.
+- `.env.example` explains `TRUSTED_PROXY_CIDRS` for docker compose's
+  `proxy` profile.
+
+**Rollout**
+- **Native installs with nginx on the same host:** nothing to do.
+- **Reverse proxy on another machine forwarding to gunicorn's port 8000:**
+  add that proxy's address, e.g.
+  `TRUSTED_PROXY_CIDRS=127.0.0.1/32,::1/128,192.168.22.250/32`. Until you
+  do, every request appears to come from the proxy.
+- **Docker with the `proxy` profile:** add the nginx container's address
+  to `TRUSTED_PROXY_CIDRS`, or every request appears to come from it.
+- **Firewall allowlists:** check that they include your real public
+  address. A forged `X-Forwarded-For: 127.0.0.1` no longer gets through.
+- No migrations.
+
+**Tests**
+- #148's 16 standalone tests in `security_tests/`
+  (`python -m unittest discover -s security_tests`).
+- 13 Django tests in `core/tests/test_client_ip.py` covering unix-socket,
+  loopback, direct, untrusted-proxy and configured-proxy peers, and the
+  firewall's LAN exemption in allowlist mode. Run against #148 as
+  originally written, the unix-socket and LAN-through-nginx cases fail.
+
 ## [3.17.591] - 2026-10-05
 
 ### Removed: unused `static/img/vehicle-diagram.svg`

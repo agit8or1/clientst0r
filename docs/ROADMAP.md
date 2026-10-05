@@ -1401,6 +1401,12 @@ fetched by id without checking which tenant it belongs to.
   and pickup views redrawn as recognisable work vehicles at one consistent
   scale, with every click area kept and the mirrored left/right on the
   front and top views corrected.
+- **Vault permission scoping + trusted proxies** *(shipped v3.17.592, PR #148)*
+  — secret reveal/OTP/QR checks the credential's own organization, policy
+  failures refuse instead of releasing, and client addresses come only from
+  trusted proxies (`TRUSTED_PROXY_CIDRS`; unix-socket nginx treated as
+  local), closing an `X-Forwarded-For` spoof past the firewall and vault IP
+  rules.
 
 **Remaining:** nothing named. Both the sync paths and the scheduler have now
 had a pass, and the recurring finding — code reporting success while doing

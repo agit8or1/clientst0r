@@ -32,12 +32,16 @@ class FirewallMiddleware(MiddlewareMixin):
         if not client_ip:
             return HttpResponseForbidden('Unable to verify client address')
 
-        # Preserve direct LAN access; forwarded requests must obey the configured
-        # policy even if the selected address is private (e.g. a proxy peer).
+        # LAN access is never blocked, as long as the private address really is
+        # the client. With forwarding headers from an untrusted peer, the
+        # address resolved is that peer's own (e.g. an unlisted proxy
+        # container), so it must not unlock the exemption for everyone behind it.
         try:
+            from core.client_ip import is_trusted_peer
             ip_obj = ipaddress.ip_address(client_ip)
-            if not (request.META.get('HTTP_X_FORWARDED_FOR') or request.META.get('HTTP_X_REAL_IP')) and (
-                    ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local):
+            forwarded = request.META.get('HTTP_X_FORWARDED_FOR') or request.META.get('HTTP_X_REAL_IP')
+            if (ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local) and (
+                    not forwarded or is_trusted_peer(request)):
                 return None
         except ValueError:
             pass
