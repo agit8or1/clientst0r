@@ -5,6 +5,20 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.590] - 2026-10-05
+
+### Removed: unused URL-fetching API key validators
+
+`APIKeyValidator.validate_connectwise_psa`, `validate_syncro_rmm` and
+`validate_generic_api_key` in `core/services/api_key_validator.py` took a
+caller-supplied URL and fetched it with a bare `requests.get()`, outside the
+SSRF guard added in v3.17.587/588. Nothing in the codebase called them, so
+they weren't reachable. They are deleted rather than guarded, so that nobody
+wires one back up and reopens the hole.
+
+The four validators that are in use (Anthropic, Google Maps, Twilio and
+Vonage) only call fixed vendor endpoints and are unchanged.
+
 ## [3.17.589] - 2026-10-05
 
 ### Vehicle damage diagrams redrawn
