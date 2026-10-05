@@ -18,28 +18,8 @@ logger = logging.getLogger('vault.access_rules')
 
 
 def _client_ip(request):
-    """Reuse the firewall middleware's IP-extraction logic.
-
-    The middleware exposes `get_client_ip` as an instance method; we
-    wrap an instance to match its behaviour. If anything goes wrong we
-    fall back to the X-Forwarded-For / REMOTE_ADDR path directly.
-    """
-    try:
-        from core.firewall_middleware import FirewallMiddleware
-        # Instantiate without triggering process_request so we can call
-        # the helper directly.
-        ip = FirewallMiddleware(get_response=lambda r: None).get_client_ip(request)
-        if ip:
-            return ip
-    except Exception as exc:
-        logger.debug('firewall middleware client-ip helper unavailable: %s', exc)
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if x_forwarded_for:
-        return x_forwarded_for.split(',')[0].strip()
-    x_real_ip = request.META.get('HTTP_X_REAL_IP', '')
-    if x_real_ip:
-        return x_real_ip.strip()
-    return request.META.get('REMOTE_ADDR', '0.0.0.0')
+    from core.client_ip import get_client_ip
+    return get_client_ip(request)
 
 
 def _country_for_ip(ip):

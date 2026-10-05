@@ -30,12 +30,14 @@ class FirewallMiddleware(MiddlewareMixin):
         # Get client IP
         client_ip = self.get_client_ip(request)
         if not client_ip:
-            return None
+            return HttpResponseForbidden('Unable to verify client address')
 
-        # Always allow private/loopback IPs (LAN access must never be blocked)
+        # Preserve direct LAN access; forwarded requests must obey the configured
+        # policy even if the selected address is private (e.g. a proxy peer).
         try:
             ip_obj = ipaddress.ip_address(client_ip)
-            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
+            if not (request.META.get('HTTP_X_FORWARDED_FOR') or request.META.get('HTTP_X_REAL_IP')) and (
+                    ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local):
                 return None
         except ValueError:
             pass
@@ -63,21 +65,8 @@ class FirewallMiddleware(MiddlewareMixin):
         return None
 
     def get_client_ip(self, request):
-        """Extract client IP from request."""
-        # Check X-Forwarded-For header (proxy/load balancer)
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            # Take the first IP (client IP)
-            ip = x_forwarded_for.split(',')[0].strip()
-            return ip
-
-        # Check X-Real-IP header
-        x_real_ip = request.META.get('HTTP_X_REAL_IP')
-        if x_real_ip:
-            return x_real_ip.strip()
-
-        # Fall back to REMOTE_ADDR
-        return request.META.get('REMOTE_ADDR')
+        from core.client_ip import get_client_ip
+        return get_client_ip(request)
 
     def should_bypass(self, request, settings):
         """Check if request should bypass firewall."""

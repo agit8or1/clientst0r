@@ -46,3 +46,30 @@ def require_perm(perm_name):
             return view_fn(request, *args, **kwargs)
         return _wrapped
     return decorator
+
+
+def user_has_org_perm(user, organization, perm_name) -> bool:
+    """Check a capability on the target organization, never an unrelated one.
+
+    Parent memberships cover descendants, matching core.tenancy. MSP staff use
+    their global role template; staff status alone is not a vault capability.
+    """
+    if not user or not user.is_authenticated or not user.is_active:
+        return False
+    if user.is_superuser:
+        return True
+    profile = getattr(user, 'profile', None)
+    if profile is not None and getattr(profile, 'is_staff_user', lambda: False)():
+        global_permissions = profile.get_global_permissions()
+        if global_permissions is not None:
+            return bool(getattr(global_permissions, perm_name, False))
+    org_id = getattr(organization, 'pk', organization)
+    if org_id is None:
+        return False
+    from core.utils import descendant_org_ids
+    for membership in user.memberships.filter(
+            is_active=True, organization__is_active=True).select_related('role_template'):
+        if org_id in descendant_org_ids(membership.organization_id):
+            if getattr(membership.get_permissions(), perm_name, False):
+                return True
+    return False
