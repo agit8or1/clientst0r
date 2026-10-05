@@ -1,105 +1,35 @@
 <svg id="damage-svg-front" class="damage-diagram-svg" width="560" height="400" viewBox="0 0 560 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-height:340px;">
   <defs>
-    <linearGradient id="vfbg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#d8e4f0"/>
-      <stop offset="40%" stop-color="#eef4fc"/>
-      <stop offset="100%" stop-color="#8898b0"/>
-    </linearGradient>
-    <linearGradient id="vfwin" x1="0" y1="0" x2="0.2" y2="1">
-      <stop offset="0%" stop-color="#b0d0f0" stop-opacity="0.85"/>
-      <stop offset="100%" stop-color="#3070b0" stop-opacity="0.95"/>
-    </linearGradient>
-    <radialGradient id="vftire" cx="45%" cy="38%" r="55%">
-      <stop offset="0%" stop-color="#4a4a4a"/><stop offset="100%" stop-color="#111"/>
-    </radialGradient>
-    <radialGradient id="vfhub" cx="40%" cy="35%" r="60%">
-      <stop offset="0%" stop-color="#e0e0e0"/><stop offset="100%" stop-color="#808080"/>
-    </radialGradient>
+    <linearGradient id="vf-body" gradientUnits="userSpaceOnUse" x1="0" y1="29" x2="0" y2="386"><stop offset="0" stop-color="#f7fafc"/><stop offset="0.45" stop-color="#e2e8f0"/><stop offset="1" stop-color="#a0aec0"/></linearGradient>
+    <linearGradient id="vf-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#718096"/><stop offset="0.55" stop-color="#4a5568"/><stop offset="1" stop-color="#2d3748"/></linearGradient>
+    <linearGradient id="vf-trim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#718096"/><stop offset="1" stop-color="#4a5568"/></linearGradient>
+    <radialGradient id="vf-rim" cx="0.45" cy="0.4" r="0.65"><stop offset="0" stop-color="#e2e8f0"/><stop offset="0.7" stop-color="#a0aec0"/><stop offset="1" stop-color="#718096"/></radialGradient>
     <style>.damage-diagram-svg [data-area]{cursor:pointer}.damage-diagram-svg [data-area]:hover{opacity:0.75}</style>
   </defs>
-
-  <!-- Shadow -->
-  <ellipse cx="280" cy="385" rx="230" ry="10" fill="#00000020"/>
-
-  <!-- ===== BODY FRONT FACE ===== -->
-  <!-- Main body rectangle -->
-  <rect x="72" y="88" width="416" height="250" rx="8" fill="url(#vfbg)" stroke="#8898b0" stroke-width="2"/>
-  <!-- Roof rounded top -->
-  <rect x="90" y="60" width="380" height="50" rx="10" fill="#ccdaea" stroke="#aabece" stroke-width="1.5"/>
-  <!-- Roof section -->
-  <rect data-area="Roof" x="90" y="55" width="380" height="55" rx="10" fill="rgba(255,255,255,0)" stroke="none"/>
-
-  <!-- Bumper -->
-  <rect x="60" y="310" width="440" height="50" rx="8" fill="#4a5568" stroke="#2d3748" stroke-width="2"/>
-  <rect data-area="Front Bumper" x="60" y="310" width="440" height="50" rx="8" fill="rgba(255,255,255,0)" stroke="none"/>
-  <!-- Bumper grille slots -->
-  <rect x="160" y="318" width="240" height="8" rx="3" fill="#3a4050" opacity="0.8"/>
-  <rect x="160" y="330" width="240" height="6" rx="3" fill="#3a4050" opacity="0.6"/>
-  <rect x="160" y="340" width="240" height="6" rx="3" fill="#3a4050" opacity="0.5"/>
-
-  <!-- ===== GRILLE ===== -->
-  <rect data-area="Grille" x="140" y="270" width="280" height="48" rx="6" fill="rgba(255,255,255,0)" stroke="none"/>
-  <!-- Grille visual -->
-  <rect x="142" y="272" width="276" height="44" rx="5" fill="#2a3040" stroke="#404858" stroke-width="2"/>
-  <rect x="148" y="278" width="264" height="6" rx="2" fill="#353d50" opacity="0.9"/>
-  <rect x="148" y="288" width="264" height="6" rx="2" fill="#353d50" opacity="0.8"/>
-  <rect x="148" y="298" width="264" height="6" rx="2" fill="#353d50" opacity="0.7"/>
-
-  <!-- ===== HOOD ===== -->
-  <rect data-area="Hood" x="80" y="230" width="400" height="50" rx="4" fill="rgba(255,255,255,0)" stroke="none"/>
-  <!-- Hood panel -->
-  <rect x="82" y="232" width="396" height="46" rx="4" fill="#c8d8e8" stroke="#a0b4c8" stroke-width="1"/>
-  <!-- Hood crease -->
-  <line x1="280" y1="232" x2="280" y2="278" stroke="#a8b8cc" stroke-width="1.5" opacity="0.5"/>
-
-  <!-- ===== WINDSHIELD ===== -->
-  <rect data-area="Windshield" x="100" y="98" width="360" height="140" rx="8" fill="rgba(255,255,255,0)" stroke="none"/>
-  <rect x="102" y="100" width="356" height="136" rx="7" fill="url(#vfwin)" stroke="#508090" stroke-width="2"/>
-  <!-- Wipers -->
-  <path d="M 130,232 C 160,210 220,202 260,200" stroke="#404858" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <path d="M 290,200 C 330,200 380,208 415,228" stroke="#404858" stroke-width="3" fill="none" stroke-linecap="round"/>
-
-  <!-- ===== HEADLIGHTS ===== -->
-  <!-- Left headlight -->
-  <rect data-area="Headlight (L)" x="72" y="150" width="90" height="88" rx="8" fill="rgba(255,255,255,0)" stroke="none"/>
-  <rect x="74" y="152" width="86" height="84" rx="7" fill="#f4f2a0" stroke="#c8c030" stroke-width="2"/>
-  <ellipse cx="117" cy="194" rx="28" ry="22" fill="white" opacity="0.5"/>
-  <ellipse cx="117" cy="194" rx="16" ry="13" fill="#ffe060" opacity="0.4"/>
-
-  <!-- Right headlight -->
-  <rect data-area="Headlight (R)" x="398" y="150" width="90" height="88" rx="8" fill="rgba(255,255,255,0)" stroke="none"/>
-  <rect x="400" y="152" width="86" height="84" rx="7" fill="#f4f2a0" stroke="#c8c030" stroke-width="2"/>
-  <ellipse cx="443" cy="194" rx="28" ry="22" fill="white" opacity="0.5"/>
-  <ellipse cx="443" cy="194" rx="16" ry="13" fill="#ffe060" opacity="0.4"/>
-
-  <!-- ===== DRL ===== -->
-  <rect data-area="DRL (L)" x="76" y="246" width="58" height="12" rx="5" fill="rgba(255,255,255,0)" stroke="none"/>
-  <rect x="78" y="248" width="54" height="8" rx="4" fill="#f4d040" stroke="#c0a020" stroke-width="1"/>
-
-  <rect data-area="DRL (R)" x="426" y="246" width="58" height="12" rx="5" fill="rgba(255,255,255,0)" stroke="none"/>
-  <rect x="428" y="248" width="54" height="8" rx="4" fill="#f4d040" stroke="#c0a020" stroke-width="1"/>
-
-  <!-- ===== SIDE MIRRORS ===== -->
-  <ellipse data-area="Driver Side Mirror" cx="55" cy="170" rx="20" ry="13" fill="#9aaabf" stroke="#7a8a9f" stroke-width="1.5"/>
-  <ellipse cx="53" cy="168" rx="13" ry="9" fill="url(#vfwin)" opacity="0.7"/>
-
-  <ellipse data-area="Passenger Side Mirror" cx="505" cy="170" rx="20" ry="13" fill="#9aaabf" stroke="#7a8a9f" stroke-width="1.5"/>
-  <ellipse cx="503" cy="168" rx="13" ry="9" fill="url(#vfwin)" opacity="0.7"/>
-
-  <!-- ===== WHEELS ===== -->
-  <!-- Left front wheel (partially visible) -->
-  <circle cx="96" cy="348" r="44" fill="url(#vftire)" stroke="#181818" stroke-width="2"/>
-  <circle cx="96" cy="348" r="30" fill="#2a2a2a"/>
-  <circle cx="96" cy="348" r="22" fill="url(#vfhub)"/>
-  <circle cx="96" cy="348" r="7" fill="#aaa"/>
-
-  <!-- Right front wheel -->
-  <circle cx="464" cy="348" r="44" fill="url(#vftire)" stroke="#181818" stroke-width="2"/>
-  <circle cx="464" cy="348" r="30" fill="#2a2a2a"/>
-  <circle cx="464" cy="348" r="22" fill="url(#vfhub)"/>
-  <circle cx="464" cy="348" r="7" fill="#aaa"/>
-
-  <!-- Wheel zones -->
-  <circle data-area="Front Left Wheel" cx="96" cy="348" r="44" fill="rgba(255,255,255,0)" stroke="none"/>
-  <circle data-area="Front Right Wheel" cx="464" cy="348" r="44" fill="rgba(255,255,255,0)" stroke="none"/>
+  <ellipse cx="280" cy="387" rx="150" ry="6" fill="rgba(0,0,0,0.28)" pointer-events="none"/>
+  <rect x="152" y="292" width="31" height="94" rx="7" fill="#1a202c" stroke="#0f141a" stroke-width="1.5" pointer-events="none"/>
+  <rect x="377" y="292" width="31" height="94" rx="7" fill="#1a202c" stroke="#0f141a" stroke-width="1.5" pointer-events="none"/>
+  <rect x="160" y="336" width="240" height="14" fill="#1a202c" pointer-events="none"/>
+  <path d="M 172,29 L 388,29 Q 404,29 405,44 L 406,116 L 413,200 L 413,338 L 147,338 L 147,200 L 154,116 L 155,44 Q 156,29 172,29 Z" fill="url(#vf-body)" stroke="#2d3748" stroke-width="2" stroke-linejoin="round" pointer-events="none"/>
+  <path data-area="Roof" d="M 155,112 L 155,44 Q 156,29 172,29 L 388,29 Q 404,29 405,44 L 405,112 Z" fill="url(#vf-body)" stroke="#718096" stroke-width="1.25"/>
+  <path d="M 170,40 L 390,40" stroke="#ffffff" stroke-width="2" opacity="0.5" pointer-events="none"/>
+  <path data-area="Windshield" d="M 164,120 L 396,120 Q 402,120 403,126 L 408,186 Q 408,192 402,192 L 158,192 Q 152,192 152,186 L 157,126 Q 158,120 164,120 Z" fill="url(#vf-glass)" stroke="#2d3748" stroke-width="1.5"/>
+  <path d="M 190,124 L 236,124 L 196,188 L 160,188 Z" fill="#ffffff" opacity="0.10" pointer-events="none"/>
+  <g pointer-events="none" stroke="#2d3748" stroke-width="2.5" stroke-linecap="round"><line x1="196" y1="190" x2="268" y2="176"/><line x1="300" y1="190" x2="372" y2="176"/></g>
+  <path data-area="Hood" d="M 154,196 L 406,196 L 400,224 L 160,224 Z" fill="url(#vf-body)" stroke="#718096" stroke-width="1.25"/>
+  <g pointer-events="none" stroke="#718096" stroke-width="1" opacity="0.7"><line x1="232" y1="198" x2="236" y2="222"/><line x1="328" y1="198" x2="324" y2="222"/></g>
+  <path data-area="Grille" d="M 216,228 L 344,228 L 336,284 L 224,284 Z" fill="#2d3748" stroke="#2d3748" stroke-width="1.5" stroke-linejoin="round"/>
+  <g pointer-events="none" stroke="#4a5568" stroke-width="2"><line x1="220" y1="242" x2="340" y2="242"/><line x1="222" y1="256" x2="338" y2="256"/><line x1="224" y1="270" x2="336" y2="270"/></g>
+  <path data-area="Headlight (R)" d="M 152,228 L 208,228 Q 214,228 212,234 L 204,254 Q 202,258 196,258 L 156,258 Q 149,258 150,251 Z" fill="#edf2f7" stroke="#2d3748" stroke-width="1.25"/>
+  <path data-area="Headlight (L)" d="M 152,228 L 208,228 Q 214,228 212,234 L 204,254 Q 202,258 196,258 L 156,258 Q 149,258 150,251 Z" transform="matrix(-1 0 0 1 560 0)" fill="#edf2f7" stroke="#2d3748" stroke-width="1.25"/>
+  <g pointer-events="none" fill="#cbd5e0"><circle cx="176" cy="243" r="9"/><circle cx="384" cy="243" r="9"/></g>
+  <path data-area="Front Bumper" d="M 150,286 L 410,286 Q 416,286 416,292 L 416,336 Q 416,344 408,344 L 152,344 Q 144,344 144,336 L 144,292 Q 144,286 150,286 Z" fill="url(#vf-trim)" stroke="#2d3748" stroke-width="1.5"/>
+  <rect x="222" y="316" width="116" height="18" rx="4" fill="#2d3748" pointer-events="none"/>
+  <rect data-area="DRL (R)" x="158" y="300" width="38" height="9" rx="3" fill="#ecc94b" stroke="#2d3748" stroke-width="1"/>
+  <rect data-area="DRL (L)" x="364" y="300" width="38" height="9" rx="3" fill="#ecc94b" stroke="#2d3748" stroke-width="1"/>
+  <g pointer-events="none" stroke="#4a5568" stroke-width="5" stroke-linecap="round"><line x1="140" y1="186" x2="154" y2="190"/><line x1="420" y1="186" x2="406" y2="190"/></g>
+  <rect data-area="Passenger Side Mirror" x="121" y="134" width="22" height="64" rx="5" fill="url(#vf-trim)" stroke="#2d3748" stroke-width="1.5"/>
+  <rect data-area="Driver Side Mirror" x="417" y="134" width="22" height="64" rx="5" fill="url(#vf-trim)" stroke="#2d3748" stroke-width="1.5"/>
+  <rect data-area="Front Right Wheel" x="150" y="344" width="35" height="44" fill="rgba(0,0,0,0)" stroke="none"/>
+  <rect data-area="Front Left Wheel" x="375" y="344" width="35" height="44" fill="rgba(0,0,0,0)" stroke="none"/>
 </svg>

@@ -1397,6 +1397,10 @@ fetched by id without checking which tenant it belongs to.
   Network controllers may reach the LAN by default; everything else needs
   `ALLOW_PRIVATE_IP_INTEGRATIONS`, and metadata endpoints are refused even
   with it.
+- **Vehicle damage diagrams redrawn** *(shipped v3.17.589)* — all ten van
+  and pickup views redrawn as recognisable work vehicles at one consistent
+  scale, with every click area kept and the mirrored left/right on the
+  front and top views corrected.
 
 **Remaining:** nothing named. Both the sync paths and the scheduler have now
 had a pass, and the recurring finding — code reporting success while doing

@@ -5,6 +5,41 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.589] - 2026-10-05
+
+### Vehicle damage diagrams redrawn
+
+The van and pickup diagrams that technicians click to report damage were
+generic shapes, with oversized wheels and bodies that didn't match from one
+view to the next. All ten views (side, passenger side, front, rear and top
+for each vehicle) are redrawn at one real-world scale, so the five views of
+a vehicle describe the same vehicle.
+
+- **Van:** a high-roof commercial cargo van with a sloped hood, raked
+  windshield, sliding side doors, rear barn doors with windows, pillar
+  taillights and a high-mount stop light.
+- **Pickup:** a 3/4-ton regular cab with an 8 ft bed at stock height, with
+  8-lug wheels, a step bumper and a hitch receiver.
+- Line weight and palette are the same in every view, and the diagrams read
+  on the dark panel and on white. There are no badges or logos.
+
+**Click areas:**
+- Every existing `data-area` name is kept, so past damage reports still
+  highlight the right part.
+- The side views also gained the wheel and bumper areas that other views of
+  the same vehicle already had.
+- `damage_location` is free text and nothing validates it against a list, so
+  existing records are unaffected.
+
+**Left and right fixed.** The old front and top views were mirrored. In the
+front views, the vehicle's left headlight, mirror and wheel were drawn on
+the viewer's left; facing a vehicle, its left side is on your right. In the
+top views, the driver side was drawn at the top with the front pointing
+left. Both are corrected, so on those views some areas are now on the other
+side from where regular users will expect them.
+
+Templates only: no model, view, JavaScript or migration changes.
+
 ## [3.17.588] - 2026-10-05
 
 ### Security: integrations and website monitors use the SSRF guard

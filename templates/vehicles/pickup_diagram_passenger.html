@@ -1,118 +1,68 @@
 <svg id="damage-svg-passenger" class="damage-diagram-svg" width="900" height="320" viewBox="0 0 900 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-height:260px;">
   <defs>
-    <linearGradient id="ptbg-p" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#d0dcea"/>
-      <stop offset="30%" stop-color="#eaf2fc"/>
-      <stop offset="70%" stop-color="#b8cce0"/>
-      <stop offset="100%" stop-color="#8090a8"/>
-    </linearGradient>
-    <linearGradient id="ptbed-p" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#a8b8cc"/>
-      <stop offset="100%" stop-color="#7888a0"/>
-    </linearGradient>
-    <linearGradient id="ptwin-p" x1="0" y1="0" x2="0.3" y2="1">
-      <stop offset="0%" stop-color="#98c0e0" stop-opacity="0.8"/>
-      <stop offset="100%" stop-color="#2858a0" stop-opacity="0.9"/>
-    </linearGradient>
-    <radialGradient id="pttire-p" cx="45%" cy="38%" r="55%">
-      <stop offset="0%" stop-color="#4a4a4a"/><stop offset="100%" stop-color="#111"/>
-    </radialGradient>
-    <radialGradient id="pthub-p" cx="40%" cy="35%" r="60%">
-      <stop offset="0%" stop-color="#e0e0e0"/><stop offset="100%" stop-color="#808080"/>
-    </radialGradient>
+    <linearGradient id="pp-body" gradientUnits="userSpaceOnUse" x1="0" y1="40" x2="0" y2="300"><stop offset="0" stop-color="#f7fafc"/><stop offset="0.45" stop-color="#e2e8f0"/><stop offset="1" stop-color="#a0aec0"/></linearGradient>
+    <linearGradient id="pp-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#718096"/><stop offset="0.55" stop-color="#4a5568"/><stop offset="1" stop-color="#2d3748"/></linearGradient>
+    <linearGradient id="pp-trim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#718096"/><stop offset="1" stop-color="#4a5568"/></linearGradient>
+    <radialGradient id="pp-rim" cx="0.45" cy="0.4" r="0.65"><stop offset="0" stop-color="#e2e8f0"/><stop offset="0.7" stop-color="#a0aec0"/><stop offset="1" stop-color="#718096"/></radialGradient>
     <style>.damage-diagram-svg [data-area]{cursor:pointer}.damage-diagram-svg [data-area]:hover{opacity:0.75}</style>
   </defs>
-
-  <g transform="scale(-1,1) translate(-900,0)">
-    <ellipse cx="450" cy="305" rx="390" ry="12" fill="#00000020"/>
-
-    <!-- ===== TRUCK BED ===== -->
-    <rect x="470" y="130" width="360" height="130" rx="4" fill="url(#ptbed-p)" stroke="#6878a0" stroke-width="1.5"/>
-    <rect x="472" y="185" width="356" height="73" rx="2" fill="#8090a8" opacity="0.6"/>
-    <rect x="470" y="128" width="360" height="16" rx="3" fill="#9aaabf" stroke="#7a8aa8" stroke-width="1.5"/>
-    <rect data-area="Truck Bed" x="470" y="130" width="360" height="130" rx="4" fill="rgba(255,255,255,0)" stroke="none"/>
-
-    <!-- Tailgate -->
-    <rect x="820" y="130" width="40" height="130" rx="4" fill="#9aaabf" stroke="#6878a0" stroke-width="2"/>
-    <rect data-area="Tailgate" x="820" y="130" width="40" height="130" rx="4" fill="rgba(255,255,255,0)" stroke="none"/>
-    <rect x="828" y="188" width="24" height="8" rx="4" fill="#7a8a9a"/>
-
-    <!-- ===== REAR BUMPER ===== -->
-    <rect x="840" y="218" width="42" height="45" rx="5" fill="#4a5568" stroke="#2d3748" stroke-width="1.5"/>
-    <rect data-area="Rear Bumper" x="840" y="218" width="42" height="45" rx="5" fill="rgba(255,255,255,0)" stroke="none"/>
-    <rect x="844" y="240" width="30" height="6" rx="2" fill="#cc2020" opacity="0.8"/>
-
-    <!-- ===== CAB ===== -->
-    <rect x="240" y="98" width="228" height="165" rx="5" fill="url(#ptbg-p)" stroke="#8898b0" stroke-width="1.5"/>
-    <rect x="250" y="70" width="208" height="40" rx="8" fill="#ccdaea" stroke="#aabece" stroke-width="1.5"/>
-    <rect data-area="Roof" x="248" y="62" width="210" height="50" rx="8" fill="rgba(255,255,255,0)" stroke="none"/>
-
-    <!-- ===== HOOD ===== -->
-    <path d="M 118,162 C 128,145 148,130 170,120 C 190,112 212,105 238,100 L 238,215 L 118,215 Z" fill="#c0cede" stroke="#9aaabf" stroke-width="1.5"/>
-    <rect data-area="Hood" x="118" y="100" width="122" height="116" fill="rgba(255,255,255,0)" stroke="none"/>
-    <line x1="168" y1="122" x2="178" y2="215" stroke="#a0b0c4" stroke-width="1" opacity="0.5"/>
-
-    <!-- Front bumper -->
-    <rect x="68" y="200" width="56" height="62" rx="6" fill="#4a5568" stroke="#2d3748" stroke-width="1.5"/>
-    <rect data-area="Front Bumper" x="68" y="200" width="56" height="62" rx="6" fill="rgba(255,255,255,0)" stroke="none"/>
-    <rect x="72" y="208" width="44" height="8" rx="3" fill="#3a4050"/>
-    <rect x="72" y="240" width="16" height="6" rx="2" fill="#f0cc00" opacity="0.8"/>
-
-    <!-- Front lower panel -->
-    <path d="M 100,182 C 110,168 128,160 144,156 L 118,162 C 108,168 100,175 100,185 Z" fill="#b8c8d8" stroke="#9aaabf" stroke-width="1"/>
-
-    <!-- ===== WINDSHIELD ===== -->
-    <path data-area="Windshield" d="M 198,102 C 215,94 228,90 242,88 L 242,170 L 196,170 Z" fill="url(#ptwin-p)" stroke="#607888" stroke-width="1.5"/>
-
-    <!-- ===== PASSENGER DOOR ===== -->
-    <rect x="242" y="100" width="224" height="163" rx="2" fill="#ccd8e8" stroke="#9aaabf" stroke-width="1"/>
-    <rect data-area="Passenger Door" x="242" y="100" width="224" height="163" rx="2" fill="rgba(255,255,255,0)" stroke="none"/>
-    <line x1="242" y1="100" x2="242" y2="263" stroke="#7a8898" stroke-width="2"/>
-    <line x1="464" y1="100" x2="464" y2="263" stroke="#7a8898" stroke-width="2"/>
-    <rect x="432" y="175" width="26" height="9" rx="4" fill="#7a8a9a"/>
-    <line x1="244" y1="168" x2="462" y2="168" stroke="#9aaabf" stroke-width="1" opacity="0.5"/>
-
-    <!-- ===== PASSENGER WINDOW ===== -->
-    <rect data-area="Passenger Window" x="256" y="104" width="196" height="82" rx="6" fill="url(#ptwin-p)" stroke="#607888" stroke-width="1.5"/>
-    <path d="M 272,106 L 296,183 L 276,183 L 258,106 Z" fill="rgba(255,255,255,0.1)"/>
-
-    <!-- ===== HEADLIGHT (R - mirrored to appear on right/front) ===== -->
-    <path data-area="Headlight (R)" d="M 82,142 C 85,130 96,120 112,118 L 138,116 L 138,145 L 84,145 Z" fill="#f4f0a0" stroke="#c8c040" stroke-width="1.5"/>
-    <ellipse cx="114" cy="132" rx="16" ry="11" fill="white" opacity="0.5"/>
-
-    <!-- ===== DRL (R) ===== -->
-    <rect data-area="DRL (R)" x="82" y="170" width="30" height="10" rx="3" fill="#f4d840" stroke="#c0a820" stroke-width="1"/>
-
-    <!-- ===== PASSENGER MIRROR ===== -->
-    <ellipse data-area="Passenger Side Mirror" cx="196" cy="138" rx="20" ry="13" fill="#9aaabf" stroke="#7a8a9f" stroke-width="1.5"/>
-    <ellipse cx="194" cy="136" rx="13" ry="9" fill="url(#ptwin-p)" opacity="0.75"/>
-
-    <!-- ===== TAIL LIGHTS (R) ===== -->
-    <rect data-area="Taillight (R)" x="824" y="132" width="18" height="52" rx="4" fill="rgba(255,255,255,0)" stroke="none"/>
-    <rect x="826" y="134" width="14" height="50" rx="3" fill="#cc1818" stroke="#991010" stroke-width="1.5"/>
-    <rect x="828" y="136" width="10" height="24" rx="2" fill="#ff3030" opacity="0.7"/>
-
-    <!-- ===== WHEELS ===== -->
-    <!-- Front -->
-    <circle cx="188" cy="265" r="54" fill="url(#pttire-p)" stroke="#181818" stroke-width="2.5"/>
-    <circle cx="188" cy="265" r="38" fill="#2a2a2a"/>
-    <circle cx="188" cy="265" r="28" fill="url(#pthub-p)"/>
-    <circle cx="188" cy="265" r="9" fill="#aaa"/>
-    <circle cx="188" cy="241" r="4" fill="#888"/><circle cx="209" cy="252" r="4" fill="#888"/>
-    <circle cx="209" cy="278" r="4" fill="#888"/><circle cx="188" cy="289" r="4" fill="#888"/>
-    <circle cx="167" cy="278" r="4" fill="#888"/><circle cx="167" cy="252" r="4" fill="#888"/>
-
-    <!-- Rear -->
-    <circle cx="660" cy="265" r="54" fill="url(#pttire-p)" stroke="#181818" stroke-width="2.5"/>
-    <circle cx="660" cy="265" r="38" fill="#2a2a2a"/>
-    <circle cx="660" cy="265" r="28" fill="url(#pthub-p)"/>
-    <circle cx="660" cy="265" r="9" fill="#aaa"/>
-    <circle cx="660" cy="241" r="4" fill="#888"/><circle cx="681" cy="252" r="4" fill="#888"/>
-    <circle cx="681" cy="278" r="4" fill="#888"/><circle cx="660" cy="289" r="4" fill="#888"/>
-    <circle cx="639" cy="278" r="4" fill="#888"/><circle cx="639" cy="252" r="4" fill="#888"/>
-
-    <!-- Wheel arches -->
-    <path d="M 126,263 A 66,66 0 0,1 250,263" fill="none" stroke="#606878" stroke-width="3"/>
-    <path d="M 598,263 A 66,66 0 0,1 722,263" fill="none" stroke="#606878" stroke-width="3"/>
+  <g transform="matrix(-1 0 0 1 900 0)">
+  <ellipse cx="450" cy="301" rx="400" ry="7" fill="rgba(0,0,0,0.28)" pointer-events="none"/>
+  <path d="M 124.0,236 A 62 62 0 0 1 246.0,236 Z" fill="#1a202c" pointer-events="none"/>
+  <path d="M 598.2,218 A 62 62 0 0 1 707.8,218 Z" fill="#1a202c" pointer-events="none"/>
+  <rect x="500" y="200" width="10" height="30" fill="#1a202c" pointer-events="none"/>
+  <path d="M 72,228 L 70,130 Q 70,122 78,121 L 276,107 L 338,46 Q 342,40 352,40 L 486,40 Q 496,40 497,50 L 500,236 L 246.0,236 A 62 62 0 0 0 124.0,236 L 80,236 Q 72,236 72,228 Z" fill="url(#pp-body)" stroke="#2d3748" stroke-width="2" stroke-linejoin="round" pointer-events="none"/>
+  <path data-area="Roof" d="M 339,45 Q 343,40 352,40 L 486,40 Q 496,40 497,50 L 497,53 L 347,53 Z" fill="url(#pp-body)" stroke="#718096" stroke-width="1.25" stroke-linejoin="round"/>
+  <path data-area="Passenger Door" d="M 347,53 L 458,53 L 460,236 L 262,236 L 262,124 Q 262,116 270,115 L 288,113 Z" fill="url(#pp-body)" stroke="#718096" stroke-width="1.25" stroke-linejoin="round"/>
+  <path data-area="Hood" d="M 72,126 Q 72,121 80,120 L 276,107 L 288,113 L 86,133 Z" fill="url(#pp-body)" stroke="#718096" stroke-width="1.25" stroke-linejoin="round"/>
+  <path data-area="Windshield" d="M 278,107 L 339,45 L 347,53 L 289,112 Z" fill="url(#pp-glass)" stroke="#2d3748" stroke-width="1.25" stroke-linejoin="round"/>
+  <path data-area="Passenger Window" d="M 356,59 L 444,59 Q 450,59 450,65 L 450,111 L 304,111 Z" fill="url(#pp-glass)" stroke="#2d3748" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M 372,61 L 390,61 L 350,109 L 332,109 Z" fill="#ffffff" opacity="0.10" pointer-events="none"/>
+  <path data-area="Truck Bed" d="M 506,121 L 820,121 L 820,218 L 707.8,218 A 62 62 0 0 0 598.2,218 L 506,218 Z" fill="url(#pp-body)" stroke="#2d3748" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="506" y="120" width="314" height="6" fill="#a0aec0" stroke="#2d3748" stroke-width="1" pointer-events="none"/>
+  <rect data-area="Tailgate" x="820" y="120" width="11" height="96" rx="2" fill="url(#pp-body)" stroke="#2d3748" stroke-width="1.5"/>
+  <rect data-area="Taillight (R)" x="808" y="128" width="12" height="56" rx="3" fill="#c53030" stroke="#2d3748" stroke-width="1.25"/>
+  <rect x="810" y="160" width="8" height="12" rx="2" fill="#edf2f7" pointer-events="none"/>
+  <g pointer-events="none" stroke="#718096" stroke-width="1.25" fill="none"><line x1="92" y1="142" x2="456" y2="142" opacity="0.7"/><line x1="512" y1="142" x2="804" y2="142" opacity="0.7"/><line x1="268" y1="206" x2="456" y2="206" opacity="0.5"/></g>
+  <rect x="428" y="128" width="22" height="7" rx="3" fill="#4a5568" pointer-events="none"/>
+  <path d="M 70,152 L 70,180 L 76,180 L 76,152 Z" fill="#4a5568" pointer-events="none"/>
+  <path data-area="Headlight (R)" d="M 72,128 L 112,124 Q 118,124 117,130 L 113,148 Q 111,152 105,152 L 76,152 Q 72,152 72,148 Z" fill="#edf2f7" stroke="#2d3748" stroke-width="1.25" stroke-linejoin="round"/>
+  <rect data-area="DRL (R)" x="76" y="156" width="30" height="8" rx="3" fill="#ecc94b" stroke="#2d3748" stroke-width="1"/>
+  <path data-area="Front Bumper" d="M 60,184 Q 60,178 66,178 L 126,178 Q 122,206 124,234 L 66,234 Q 60,234 60,228 Z" fill="url(#pp-trim)" stroke="#2d3748" stroke-width="1.5" stroke-linejoin="round"/>
+  <path data-area="Rear Bumper" d="M 806,216 L 838,216 Q 844,216 844,222 L 844,240 Q 844,246 838,246 L 802,246 Q 806,232 806,216 Z" fill="url(#pp-trim)" stroke="#2d3748" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M 330,108 L 344,112" stroke="#4a5568" stroke-width="5" stroke-linecap="round" pointer-events="none"/>
+  <path data-area="Passenger Side Mirror" d="M 300,80 L 326,80 Q 332,80 332,86 L 332,114 Q 332,120 326,120 L 300,120 Q 294,120 294,114 L 294,86 Q 294,80 300,80 Z" fill="url(#pp-trim)" stroke="#2d3748" stroke-width="1.5"/>
+  <g pointer-events="none">
+    <circle cx="185" cy="247" r="53" fill="#1a202c" stroke="#0f141a" stroke-width="1.5"/>
+    <circle cx="185" cy="247" r="50" fill="none" stroke="#2d3748" stroke-width="1.5"/>
+    <circle cx="185" cy="247" r="31" fill="url(#pp-rim)" stroke="#4a5568" stroke-width="1.5"/>
+    <circle cx="185" cy="247" r="19.2" fill="none" stroke="#718096" stroke-width="1.25"/>
+    <circle cx="185" cy="247" r="9.3" fill="#4a5568"/>
+    <circle cx="185.0" cy="232.7" r="2" fill="#2d3748"/>
+    <circle cx="195.1" cy="236.9" r="2" fill="#2d3748"/>
+    <circle cx="199.3" cy="247.0" r="2" fill="#2d3748"/>
+    <circle cx="195.1" cy="257.1" r="2" fill="#2d3748"/>
+    <circle cx="185.0" cy="261.3" r="2" fill="#2d3748"/>
+    <circle cx="174.9" cy="257.1" r="2" fill="#2d3748"/>
+    <circle cx="170.7" cy="247.0" r="2" fill="#2d3748"/>
+    <circle cx="174.9" cy="236.9" r="2" fill="#2d3748"/>
+  </g>
+  <circle data-area="Front Right Wheel" cx="185" cy="247" r="53" fill="rgba(0,0,0,0)" stroke="none"/>
+  <g pointer-events="none">
+    <circle cx="653" cy="247" r="53" fill="#1a202c" stroke="#0f141a" stroke-width="1.5"/>
+    <circle cx="653" cy="247" r="50" fill="none" stroke="#2d3748" stroke-width="1.5"/>
+    <circle cx="653" cy="247" r="31" fill="url(#pp-rim)" stroke="#4a5568" stroke-width="1.5"/>
+    <circle cx="653" cy="247" r="19.2" fill="none" stroke="#718096" stroke-width="1.25"/>
+    <circle cx="653" cy="247" r="9.3" fill="#4a5568"/>
+    <circle cx="653.0" cy="232.7" r="2" fill="#2d3748"/>
+    <circle cx="663.1" cy="236.9" r="2" fill="#2d3748"/>
+    <circle cx="667.3" cy="247.0" r="2" fill="#2d3748"/>
+    <circle cx="663.1" cy="257.1" r="2" fill="#2d3748"/>
+    <circle cx="653.0" cy="261.3" r="2" fill="#2d3748"/>
+    <circle cx="642.9" cy="257.1" r="2" fill="#2d3748"/>
+    <circle cx="638.7" cy="247.0" r="2" fill="#2d3748"/>
+    <circle cx="642.9" cy="236.9" r="2" fill="#2d3748"/>
+  </g>
+  <circle data-area="Rear Right Wheel" cx="653" cy="247" r="53" fill="rgba(0,0,0,0)" stroke="none"/>
   </g>
 </svg>
