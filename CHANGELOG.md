@@ -5,6 +5,14 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.591] - 2026-10-05
+
+### Removed: unused `static/img/vehicle-diagram.svg`
+
+A generic van side view left over from before the damage diagrams moved
+into the `templates/vehicles/*_diagram*.html` templates (redrawn in
+v3.17.589). No template, stylesheet, script or Python module references it.
+
 ## [3.17.590] - 2026-10-05
 
 ### Removed: unused URL-fetching API key validators
