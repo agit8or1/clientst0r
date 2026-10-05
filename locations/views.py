@@ -22,6 +22,7 @@ from .services import (
 )
 from docs.models import Diagram, DiagramVersion
 from core.middleware import get_request_organization
+from core.decorators import require_write
 import logging
 
 logger = logging.getLogger('locations')
@@ -635,11 +636,33 @@ def refresh_property_data(request, location_id):
         }, status=500)
 
 
+def _optional_int(value):
+    """int() for AI-extracted numbers like 5000, "5,000" or "5000 sqft"; None if unusable."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        try:
+            return int(value)
+        except (ValueError, OverflowError):  # NaN / Infinity, which json.loads accepts
+            return None
+    digits = ''.join(c for c in str(value).split('.')[0] if c.isdigit())
+    return int(digits) if digits else None
+
+
 @login_required
+@require_write
 @require_http_methods(["POST"])
 def import_property_from_url(request, location_id):
-    """Import property data from URL using AI (AJAX)."""
+    """Import property data from URL using AI (AJAX).
+
+    The URL is user-supplied and fetched server-side, so it goes through
+    core.safe_http (public addresses on 80/443 only, redirects re-checked,
+    size and time capped). Errors returned to the browser are generic;
+    detail goes to the log.
+    """
     from django.db.models import Q
+    from core.safe_http import FetchError, UnsafeURLError, validate_public_url
+    from locations.services.property_url_importer import PropertyImportError, get_property_url_importer
 
     org = get_request_organization(request)
     is_staff = hasattr(request, 'is_staff_user') and request.is_staff_user
@@ -649,84 +672,96 @@ def import_property_from_url(request, location_id):
         location = get_object_or_404(Location, id=location_id)
     else:
         location = get_object_or_404(
-            Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)),
+            Location.objects.filter(Q(organization=org) | Q(associated_organizations=org)).distinct(),
             id=location_id
         )
 
     try:
         import json
         body = json.loads(request.body)
-        url = body.get('url', '').strip()
+        url = body.get('url', '') if isinstance(body, dict) else ''
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({'success': False, 'error': 'Invalid request body'}, status=400)
 
-        if not url:
-            return JsonResponse({
-                'success': False,
-                'error': 'URL is required'
-            }, status=400)
+    if not isinstance(url, str) or not url.strip():
+        return JsonResponse({'success': False, 'error': 'URL is required'}, status=400)
 
-        # Validate URL
-        if not url.startswith(('http://', 'https://')):
-            return JsonResponse({
-                'success': False,
-                'error': 'Invalid URL format'
-            }, status=400)
-
-        # Import using AI
-        from locations.services.property_url_importer import get_property_url_importer
-
+    try:
+        url = validate_public_url(url)
         importer = get_property_url_importer()
         property_data = importer.import_from_url(url)
-
-        # Update location with extracted data
-        updates_made = []
-
-        if property_data.get('building_sqft'):
-            location.building_sqft = int(property_data['building_sqft'])
-            updates_made.append(f"Building: {property_data['building_sqft']} sqft")
-
-        if property_data.get('year_built'):
-            location.year_built = int(property_data['year_built'])
-            updates_made.append(f"Year Built: {property_data['year_built']}")
-
-        if property_data.get('property_type'):
-            location.property_type = property_data['property_type']
-            updates_made.append(f"Type: {property_data['property_type']}")
-
-        if property_data.get('property_id'):
-            location.property_id = property_data['property_id']
-            updates_made.append(f"Parcel ID: {property_data['property_id']}")
-
-        if property_data.get('floors_count'):
-            location.floors_count = int(property_data['floors_count'])
-            updates_made.append(f"Floors: {property_data['floors_count']}")
-
-        # Store full data in external_data
-        if not location.external_data:
-            location.external_data = {}
-        location.external_data['url_import'] = property_data
-
-        location.save()
-
-        logger.info(f"Successfully imported property data from URL for location {location.id}: {', '.join(updates_made)}")
-
-        return JsonResponse({
-            'success': True,
-            'updates': updates_made,
-            'property_data': property_data
-        })
-
-    except ValueError as e:
-        logger.error(f"Property URL import validation error: {e}")
+    except UnsafeURLError as e:
+        logger.warning("Property URL import refused for location %s: %s", location.id, e)
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': 'That URL is not allowed. Use a public http:// or https:// address.'
         }, status=400)
-    except Exception as e:
-        logger.error(f"Property URL import failed: {e}", exc_info=True)
+    except FetchError as e:
+        logger.warning("Property URL import fetch failed for location %s: %s", location.id, e)
         return JsonResponse({
             'success': False,
-            'error': f'Import failed: {str(e)}'
+            'error': 'Could not retrieve that page. Check the URL and try again.'
+        }, status=502)
+    except PropertyImportError as e:
+        logger.error("Property URL import extraction failed for location %s: %s", location.id, e)
+        return JsonResponse({
+            'success': False,
+            'error': 'Could not extract property data from that page.'
+        }, status=502)
+    except Exception:
+        logger.exception("Property URL import failed for location %s", location.id)
+        return JsonResponse({
+            'success': False,
+            'error': 'Import failed. Please try again later.'
         }, status=500)
+
+    # Update location with extracted data
+    updates_made = []
+
+    building_sqft = _optional_int(property_data.get('building_sqft'))
+    if building_sqft:
+        location.building_sqft = building_sqft
+        updates_made.append(f"Building: {building_sqft} sqft")
+
+    year_built = _optional_int(property_data.get('year_built'))
+    if year_built:
+        location.year_built = year_built
+        updates_made.append(f"Year Built: {year_built}")
+
+    if property_data.get('property_type'):
+        location.property_type = str(property_data['property_type'])
+        updates_made.append(f"Type: {property_data['property_type']}")
+
+    if property_data.get('property_id'):
+        location.property_id = str(property_data['property_id'])
+        updates_made.append(f"Parcel ID: {property_data['property_id']}")
+
+    floors_count = _optional_int(property_data.get('floors_count'))
+    if floors_count:
+        location.floors_count = floors_count
+        updates_made.append(f"Floors: {floors_count}")
+
+    # Store full data in external_data
+    if not location.external_data:
+        location.external_data = {}
+    location.external_data['url_import'] = property_data
+
+    try:
+        location.save()
+    except Exception:
+        logger.exception("Saving imported property data failed for location %s", location.id)
+        return JsonResponse({
+            'success': False,
+            'error': 'Import failed. Please try again later.'
+        }, status=500)
+
+    logger.info(f"Successfully imported property data from URL for location {location.id}: {', '.join(updates_made)}")
+
+    return JsonResponse({
+        'success': True,
+        'updates': updates_made,
+        'property_data': property_data
+    })
 
 
 @login_required

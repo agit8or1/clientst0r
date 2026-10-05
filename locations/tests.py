@@ -213,3 +213,194 @@ class WANModelTests(TestCase):
     def test_bandwidth_display_download_only(self):
         w = self._wan(bandwidth_download_mbps=200)
         self.assertEqual(w.bandwidth_display, '200 Mbps')
+
+
+# --- import_property_from_url: SSRF + authorization -----------------------
+
+import json  # noqa: E402
+from unittest import mock  # noqa: E402
+
+from django.conf import settings as django_settings  # noqa: E402
+from django.contrib.auth import get_user_model  # noqa: E402
+from django.test import override_settings  # noqa: E402
+from django.urls import reverse  # noqa: E402
+
+from accounts.models import Membership, Role  # noqa: E402
+from core.safe_http import FetchError, UnsafeURLError  # noqa: E402
+import locations.services.property_url_importer  # noqa: E402,F401  (patch target must be importable)
+
+_TEST_MIDDLEWARE = [
+    m for m in django_settings.MIDDLEWARE
+    if 'Enforce2FAMiddleware' not in m and 'AxesMiddleware' not in m
+]
+
+
+@override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class ImportPropertyFromURLTests(TestCase):
+    """The endpoint fetches a user-supplied URL server-side.
+
+    The importer is mocked: these tests cover what reaches it (nothing,
+    for a disallowed URL or an unauthorized user) and what the user sees
+    when it fails (a generic message, never the internal detail). The fetch
+    guard itself is covered in core/tests/test_safe_http.py.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.org = Organization.objects.create(name='ImportCo', slug='import-co')
+        cls.other_org = Organization.objects.create(name='OtherCo', slug='other-co')
+        cls.location = Location.objects.create(organization=cls.org, name='Main', **_addr_kwargs())
+        cls.other_location = Location.objects.create(organization=cls.other_org, name='Theirs', **_addr_kwargs())
+
+        cls.editor = User.objects.create_user('loc_editor', 'e@example.com', 'pw-not-secret')
+        Membership.objects.create(user=cls.editor, organization=cls.org, role=Role.EDITOR, is_active=True)
+        cls.reader = User.objects.create_user('loc_reader', 'r@example.com', 'pw-not-secret')
+        Membership.objects.create(user=cls.reader, organization=cls.org, role=Role.READONLY, is_active=True)
+
+    def _login(self, user):
+        self.client.force_login(user)
+        session = self.client.session
+        session['current_organization_id'] = self.org.id
+        session.save()
+
+    def _post(self, url_value, location=None, raw=None):
+        location = location or self.location
+        body = raw if raw is not None else json.dumps({'url': url_value})
+        return self.client.post(
+            reverse('locations:import_property_from_url', args=[location.id]),
+            data=body, content_type='application/json',
+        )
+
+    def _importer(self, **kwargs):
+        importer = mock.Mock(**kwargs)
+        return mock.patch('locations.services.property_url_importer.get_property_url_importer',
+                          return_value=importer), importer
+
+    # -- authorization -----------------------------------------------------
+    def test_unauthenticated_user_cannot_use_endpoint(self):
+        patcher, importer = self._importer()
+        with patcher:
+            resp = self._post('https://example.com/parcel')
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('login', resp['Location'])
+        importer.import_from_url.assert_not_called()
+
+    def test_readonly_member_cannot_import(self):
+        self._login(self.reader)
+        patcher, importer = self._importer()
+        with patcher:
+            resp = self._post('https://example.com/parcel')
+        self.assertEqual(resp.status_code, 403)
+        importer.import_from_url.assert_not_called()
+
+    def test_cannot_import_into_another_orgs_location(self):
+        self._login(self.editor)
+        patcher, importer = self._importer()
+        with patcher:
+            resp = self._post('https://example.com/parcel', location=self.other_location)
+        self.assertEqual(resp.status_code, 404)
+        importer.import_from_url.assert_not_called()
+        self.other_location.refresh_from_db()
+        self.assertFalse(self.other_location.external_data)
+
+    def test_get_not_allowed(self):
+        self._login(self.editor)
+        resp = self.client.get(reverse('locations:import_property_from_url', args=[self.location.id]))
+        self.assertEqual(resp.status_code, 405)
+
+    # -- input -------------------------------------------------------------
+    def test_missing_url(self):
+        self._login(self.editor)
+        for raw in (json.dumps({}), json.dumps({'url': ''}), json.dumps({'url': '   '}),
+                    json.dumps({'url': None}), json.dumps({'url': ['x']}), json.dumps(['x'])):
+            with self.subTest(raw=raw):
+                resp = self._post(None, raw=raw)
+                self.assertEqual(resp.status_code, 400)
+
+    def test_invalid_json(self):
+        self._login(self.editor)
+        resp = self._post(None, raw='{not json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(resp.json()['success'])
+
+    def test_disallowed_urls_rejected_before_fetch(self):
+        self._login(self.editor)
+        patcher, importer = self._importer()
+        with patcher:
+            for url in ('file:///etc/passwd', 'ftp://example.com/', 'gopher://example.com/',
+                        'dict://example.com:11211/', 'http://localhost/', 'http://127.0.0.1/',
+                        'http://0.0.0.0/', 'http://169.254.169.254/latest/meta-data/',
+                        'http://10.0.0.1/', 'http://172.16.0.1/', 'http://192.168.1.1/',
+                        'http://[::1]/', 'http://[fe80::1]/', 'http://[fd00::1]/',
+                        'http://[::ffff:10.0.0.1]/', 'http://2130706433/',
+                        'http://example.com:6379/', 'http://user:pw@example.com/', 'not a url'):
+                with self.subTest(url=url):
+                    resp = self._post(url)
+                    self.assertEqual(resp.status_code, 400)
+                    data = resp.json()
+                    self.assertFalse(data['success'])
+                    self.assertEqual(data['error'], 'That URL is not allowed. Use a public http:// or https:// address.')
+        importer.import_from_url.assert_not_called()
+
+    # -- outcomes ----------------------------------------------------------
+    def test_valid_public_url_updates_location(self):
+        self._login(self.editor)
+        patcher, importer = self._importer()
+        importer.import_from_url.return_value = {
+            'building_sqft': '5,000', 'year_built': 1995, 'floors_count': 'two',
+            'property_type': 'Commercial Office', 'property_id': '1442930000',
+        }
+        with patcher:
+            resp = self._post('https://example.com/parcel?id=1')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['success'])
+        importer.import_from_url.assert_called_once_with('https://example.com/parcel?id=1')
+        self.location.refresh_from_db()
+        self.assertEqual(self.location.building_sqft, 5000)
+        self.assertEqual(self.location.year_built, 1995)
+        self.assertEqual(self.location.property_id, '1442930000')
+        self.assertIn('url_import', self.location.external_data)
+
+    def test_redirect_or_dns_block_returns_generic_400(self):
+        # The guard can also refuse later, e.g. on a redirect to an internal host.
+        self._login(self.editor)
+        patcher, importer = self._importer()
+        importer.import_from_url.side_effect = UnsafeURLError('redirect to http://10.1.2.3:8080/admin')
+        with patcher:
+            resp = self._post('https://example.com/parcel')
+        self.assertEqual(resp.status_code, 400)
+        self.assertNotIn('10.1.2.3', resp.content.decode())
+
+    def test_fetch_failure_is_generic(self):
+        self._login(self.editor)
+        patcher, importer = self._importer()
+        importer.import_from_url.side_effect = FetchError('Upstream returned HTTP 500: secret-body')
+        with patcher:
+            resp = self._post('https://example.com/parcel')
+        self.assertEqual(resp.status_code, 502)
+        self.assertNotIn('secret-body', resp.content.decode())
+        self.assertNotIn('500', resp.json()['error'])
+
+    def test_unexpected_error_is_generic(self):
+        self._login(self.editor)
+        patcher, importer = self._importer()
+        importer.import_from_url.side_effect = RuntimeError('db password=hunter2 at 10.0.0.3')
+        with patcher:
+            resp = self._post('https://example.com/parcel')
+        self.assertEqual(resp.status_code, 500)
+        body = resp.content.decode()
+        self.assertNotIn('hunter2', body)
+        self.assertNotIn('10.0.0.3', body)
+
+    def test_end_to_end_internal_address_never_connected(self):
+        """No importer mock: a name resolving to loopback is refused at fetch time."""
+        self._login(self.editor)
+        loopback = [(2, 1, 6, '', ('127.0.0.1', 80))]
+        with mock.patch('django.conf.settings.ANTHROPIC_API_KEY', 'test-key', create=True), \
+                mock.patch.dict('sys.modules', {'anthropic': mock.Mock()}), \
+                mock.patch('socket.getaddrinfo', return_value=loopback), \
+                mock.patch('core.safe_http.urllib3_connection.create_connection') as connect:
+            resp = self._post('http://sneaky.example/parcel')
+        self.assertEqual(resp.status_code, 400)
+        connect.assert_not_called()

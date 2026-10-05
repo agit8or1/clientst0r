@@ -1381,6 +1381,16 @@ fetched by id without checking which tenant it belongs to.
   showed a green tick for a job that failed every night. The outer loop
   already recorded failures correctly; the guards only hid the outcome.
 
+- **SSRF in property URL import** *(shipped v3.17.587)* — the location
+  "Import from URL" endpoint fetched whatever URL it was given, following
+  redirects, so a logged-in user could make the server request loopback,
+  private networks or the cloud metadata address. User-supplied URLs now go
+  through `core/safe_http.py`: public http(s) on 80/443 only, every resolved
+  address checked at connect time (so DNS rebinding cannot swap the target),
+  redirects re-checked hop by hop, and size and time caps on the response.
+  The endpoint also now requires write access, and its errors no longer echo
+  internal detail.
+
 **Remaining:** nothing named. Both the sync paths and the scheduler have now
 had a pass, and the recurring finding — code reporting success while doing
 nothing — is recorded above.

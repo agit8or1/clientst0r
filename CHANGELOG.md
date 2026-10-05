@@ -5,6 +5,52 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.587] - 2026-10-05
+
+### Security: property URL import could reach internal addresses (SSRF)
+
+`POST /locations/<id>/import-property-from-url/` takes a URL from the browser
+and fetches it server-side. The only check was that the string started with
+`http://` or `https://`; the fetch was a plain `requests.get()` that followed
+redirects and honoured proxy environment variables. Any logged-in member,
+including a read-only one, could have the server request `127.0.0.1`, RFC1918
+hosts, `169.254.169.254` or anything else it could route to, and failures
+echoed the exception text back. Present since the feature arrived in v2.11.4.
+
+**New: `core/safe_http.py`** — one place for fetching user-supplied URLs.
+
+- The URL must be http(s) on port 80 or 443, with no embedded credentials,
+  no `localhost`/`.local`/`.internal`-style names, and no internal IP written
+  any way: dotted, decimal, hex, octal, shortened, IPv6, IPv4-mapped, NAT64,
+  or with a zone id.
+- The authoritative check runs when the socket opens, inside urllib3. The
+  hostname is resolved once; if *any* address is loopback, private,
+  link-local, CGNAT, multicast, reserved, documentation or metadata, the
+  request is refused. Otherwise the socket connects to that validated IP
+  literal, so no second lookup can rebind it, and the connected peer is
+  checked again. The hostname stays on the connection, so TLS SNI,
+  certificate verification and the Host header behave as before.
+- Redirects are followed manually, at most three, and each target goes
+  through both checks again. Proxies and `~/.netrc` are ignored.
+- 5s connect and 10s read timeouts, a 25s total deadline, a 2 MB body cap
+  (checked against Content-Length and while streaming), and HTML/text
+  content types only.
+
+**The endpoint** now requires write access (`@require_write`), returns a
+generic message for each failure class with the detail in the log, and
+tolerates AI-extracted numbers like `"5,000"` instead of failing on `int()`.
+
+**Tests:** `core/tests/test_safe_http.py` runs real HTTP through requests
+and urllib3 against a local server with DNS faked, covering internal
+addresses, rebinding, redirects, size, timeouts and content types. Disabling
+the connection guard makes the rebinding, peer-check and resolution tests
+fail. `locations/tests.py` covers the endpoint's authorization, input
+handling and error messages.
+
+No migrations, settings or new dependencies. `ALLOW_PRIVATE_IP_INTEGRATIONS`
+deliberately does not apply: it is for operator-configured integrations, not
+URLs typed by users.
+
 ## [3.17.586] - 2026-10-03
 
 ### "Help Us Grow" — a share-first call to action

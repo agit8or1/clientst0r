@@ -5,14 +5,18 @@ Uses Claude AI to extract property data from property appraiser websites.
 Works with Duval County and other property records sites.
 """
 
-import requests
-from anthropic import Anthropic
 from django.conf import settings
 import logging
-from typing import Optional, Dict
+from typing import Dict
 import json
 
+from core.safe_http import FetchError, fetch_public_url
+
 logger = logging.getLogger('locations')
+
+
+class PropertyImportError(Exception):
+    """Import failed after the fetch (AI call or response parsing). Message is for logs only."""
 
 
 class PropertyURLImporter:
@@ -22,6 +26,7 @@ class PropertyURLImporter:
         if not settings.ANTHROPIC_API_KEY:
             raise ValueError("Anthropic API key is required for URL import")
 
+        from anthropic import Anthropic
         self.client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         self.model = getattr(settings, 'CLAUDE_MODEL', 'claude-sonnet-4-5-20250929')
 
@@ -34,34 +39,30 @@ class PropertyURLImporter:
 
         Returns:
             Dict with extracted property data
+
+        Raises:
+            UnsafeURLError: the URL, or a redirect, points somewhere non-public
+            FetchError: the page could not be retrieved
+            PropertyImportError: the AI extraction failed
         """
-        logger.info(f"Importing property data from URL: {url}")
+        logger.info("Importing property data from URL: %r", url)
 
         # Fetch the HTML content
         html_content = self._fetch_html(url)
-        if not html_content:
-            raise Exception("Could not fetch HTML from URL")
+        if not html_content.strip():
+            raise FetchError("Empty response body")
 
         # Use Claude to extract property data
         property_data = self._extract_with_ai(html_content, url)
 
         return property_data
 
-    def _fetch_html(self, url: str) -> Optional[str]:
-        """Fetch HTML content from URL."""
-        try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-
-            response = requests.get(url, headers=headers, timeout=15)
-            response.raise_for_status()
-
-            return response.text
-
-        except requests.RequestException as e:
-            logger.error(f"Failed to fetch HTML: {e}")
-            return None
+    def _fetch_html(self, url: str) -> str:
+        """Fetch HTML content from a user-supplied URL, through the SSRF guard."""
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        return fetch_public_url(url, headers=headers).text
 
     def _extract_with_ai(self, html_content: str, source_url: str) -> Dict:
         """Use Claude AI to extract property data from HTML."""
@@ -164,10 +165,10 @@ Example format:
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON from AI response: {e}")
             logger.error(f"Response text: {response_text}")
-            raise Exception(f"AI returned invalid JSON: {e}")
+            raise PropertyImportError("AI returned invalid JSON") from e
         except Exception as e:
             logger.error(f"AI extraction failed: {e}", exc_info=True)
-            raise Exception(f"Failed to extract property data: {e}")
+            raise PropertyImportError("AI extraction failed") from e
 
 
 def get_property_url_importer():
