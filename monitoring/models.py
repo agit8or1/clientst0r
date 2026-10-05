@@ -6,7 +6,6 @@ from datetime import timedelta
 
 from django.db import models
 from django.contrib.auth.models import User
-from django.conf import settings
 from core.models import Organization, BaseModel
 from core.utils import OrganizationManager
 from assets.models import Asset
@@ -106,6 +105,11 @@ class WebsiteMonitor(BaseModel):
         """
         Perform website health check and SSL certificate check.
         Updates status, response time, and SSL information.
+
+        Both the HTTP request and the certificate fetch go through the SSRF
+        guard (core.safe_http): internal addresses are refused unless
+        ALLOW_PRIVATE_IP_INTEGRATIONS is set, cloud metadata endpoints are
+        refused always, and the address checked is the one connected to.
         """
         import requests
         import ssl
@@ -113,65 +117,29 @@ class WebsiteMonitor(BaseModel):
         from datetime import datetime, timezone as dt_timezone
         from django.utils import timezone
         from urllib.parse import urlparse
-        import ipaddress
+        from core.safe_http import (
+            UnsafeURLError, configured_service_policy, guard_session,
+            resolve_public_addresses, validate_url,
+        )
 
-        # Validate URL to prevent SSRF attacks
-        def is_safe_url(url):
-            """Validate URL to prevent SSRF attacks."""
-            try:
-                parsed = urlparse(url)
-
-                # Only allow http/https schemes
-                if parsed.scheme not in ['http', 'https']:
-                    return False, f"Invalid URL scheme: {parsed.scheme}"
-
-                # Get hostname
-                hostname = parsed.hostname
-                if not hostname:
-                    return False, "Invalid URL: no hostname"
-
-                # Try to resolve hostname to IP
-                try:
-                    ip_str = socket.gethostbyname(hostname)
-                    ip = ipaddress.ip_address(ip_str)
-
-                    # Check if private IP monitoring is allowed via configuration
-                    allow_private_ips = getattr(settings, 'ALLOW_PRIVATE_IP_INTEGRATIONS', False)
-
-                    # Block private IP ranges unless explicitly allowed
-                    if ip.is_private and not allow_private_ips:
-                        return False, f"Cannot monitor private IP addresses: {ip_str}. Set ALLOW_PRIVATE_IP_INTEGRATIONS=True in .env to allow."
-
-                    # Block loopback addresses unless explicitly allowed
-                    if ip.is_loopback and not allow_private_ips:
-                        return False, f"Cannot monitor loopback addresses: {ip_str}. Set ALLOW_PRIVATE_IP_INTEGRATIONS=True to allow localhost monitoring."
-
-                    # Block link-local addresses unless explicitly allowed
-                    if ip.is_link_local and not allow_private_ips:
-                        return False, f"Cannot monitor link-local addresses: {ip_str}. Set ALLOW_PRIVATE_IP_INTEGRATIONS=True to allow."
-
-                except socket.gaierror:
-                    # Hostname doesn't resolve - allow it (will fail naturally)
-                    pass
-
-                return True, None
-
-            except Exception as e:
-                return False, f"URL validation error: {str(e)}"
+        policy = configured_service_policy()
 
         try:
             # Validate URL before making request
-            is_safe, error_msg = is_safe_url(self.url)
-            if not is_safe:
+            try:
+                validate_url(self.url, policy)
+            except UnsafeURLError as e:
                 self.last_checked_at = timezone.now()
                 self.status = 'error'
-                self.last_error = f'Security: {error_msg}'
+                self.last_error = (f'Security: {e}. Set ALLOW_PRIVATE_IP_INTEGRATIONS=True '
+                                   f'in .env to monitor internal addresses.')
                 self.save()
                 return
 
             # Make HTTP request
             start_time = datetime.now()
-            response = requests.get(self.url, timeout=10, verify=True, allow_redirects=False)
+            with guard_session(requests.Session(), policy) as session:
+                response = session.get(self.url, timeout=10, verify=True, allow_redirects=False)
             end_time = datetime.now()
 
             # Calculate response time
@@ -203,8 +171,10 @@ class WebsiteMonitor(BaseModel):
                     # Create SSL context
                     context = ssl.create_default_context()
 
-                    # Get certificate
-                    with socket.create_connection((hostname, port), timeout=5) as sock:
+                    # Get certificate. Connect to a validated address, not
+                    # the name, so this second connection can't be rebound.
+                    address = resolve_public_addresses(hostname, port, policy)[0]
+                    with socket.create_connection((address, port), timeout=5) as sock:
                         with context.wrap_socket(sock, server_hostname=hostname) as ssock:
                             cert = ssock.getpeercert()
 
@@ -240,6 +210,12 @@ class WebsiteMonitor(BaseModel):
 
                 except Exception as ssl_error:
                     self.last_error += f' SSL error: {str(ssl_error)}'
+
+        except UnsafeURLError as e:
+            # The guard refused the address the name resolved to at connect time.
+            self.status = 'error'
+            self.last_error = f'Security: {e}'
+            self.last_checked_at = timezone.now()
 
         except requests.exceptions.Timeout:
             self.status = 'down'

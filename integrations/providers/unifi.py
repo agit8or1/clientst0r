@@ -15,6 +15,8 @@ import logging
 import urllib3
 import requests
 
+from core.safe_http import configured_service_policy, guard_session, lan_controller_policy
+
 logger = logging.getLogger(__name__)
 
 SITE_MANAGER_BASE = 'https://api.ui.com'
@@ -36,13 +38,13 @@ class UnifiProvider:
         self._fp_diag: list = []
         self._tr_diag: list = []
         # Persistent session for legacy cookie-based API — preserves cookies across redirects
-        self._legacy_session = requests.Session()
+        self._legacy_session = guard_session(requests.Session(), lan_controller_policy())
         self._legacy_session.headers.update({'Accept': 'application/json',
                                              'Content-Type': 'application/json'})
         if not verify_ssl:
             self._legacy_session.verify = False
 
-        self.session = requests.Session()
+        self.session = guard_session(requests.Session(), lan_controller_policy())
         self.session.headers.update({
             'X-API-Key': api_key,
             'Accept': 'application/json',
@@ -682,7 +684,7 @@ class UnifiCloudProvider:
 
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.session = requests.Session()
+        self.session = guard_session(requests.Session(), configured_service_policy())
         self.session.headers.update({
             'X-API-Key': api_key,
             'Accept': 'application/json',

@@ -12,6 +12,8 @@ import logging
 import urllib3
 import requests
 
+from core.safe_http import guard_session, lan_controller_policy
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,7 +36,7 @@ class OmadaProvider:
         self._omadac_id = ''
         self._csrf_token = ''
 
-        self.session = requests.Session()
+        self.session = guard_session(requests.Session(), lan_controller_policy())
         self.session.headers.update({
             'Accept': 'application/json',
             'Content-Type': 'application/json',

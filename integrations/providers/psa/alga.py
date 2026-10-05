@@ -8,7 +8,6 @@ Repository: https://github.com/Nine-Minds/alga-psa
 Default hosted: https://algapsa.com
 """
 from ..base import BaseProvider, ProviderError, AuthenticationError
-import requests
 import logging
 import json
 from typing import List, Dict, Any, Optional
@@ -39,7 +38,7 @@ class AlgaPSAProvider(BaseProvider):
     def __init__(self, connection):
         super().__init__(connection)
         self.base_url = connection.base_url.rstrip('/')
-        self.session = requests.Session()
+        # Keep BaseProvider's session: it routes through the SSRF guard.
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """

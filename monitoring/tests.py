@@ -554,3 +554,93 @@ class PruneMonitorChecksTests(TestCase):
         )
         call_command('prune_monitor_checks', stdout=StringIO())
         self.assertEqual(MonitorCheck.objects.count(), 1)
+
+
+# --- WebsiteMonitor.check_status SSRF guard (v3.17.588) ---------------------
+
+import socket  # noqa: E402
+from unittest import mock  # noqa: E402
+
+from django.test import override_settings  # noqa: E402
+
+
+@override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=False)
+class WebsiteMonitorSSRFTests(TestCase):
+    """check_status fetches an org-configured URL; it must not reach internal addresses.
+
+    DNS (`socket.getaddrinfo`) and the connect step are faked: nothing here
+    touches the network.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.org = Organization.objects.create(name='MonCo', slug='mon-co')
+
+    def _monitor(self, url):
+        return WebsiteMonitor.objects.create(organization=self.org, name='m', url=url)
+
+    def _dns(self, ip):
+        fam = socket.AF_INET6 if ':' in ip else socket.AF_INET
+        return mock.patch('socket.getaddrinfo', return_value=[(fam, socket.SOCK_STREAM, 6, '', (ip, 443))])
+
+    def test_internal_literal_refused_without_connecting(self):
+        for url in ('http://127.0.0.1/', 'http://10.0.0.5:8080/', 'http://169.254.169.254/latest/meta-data/',
+                    'http://[::1]/', 'http://localhost/'):
+            with self.subTest(url=url):
+                wm = self._monitor(url)
+                with mock.patch('core.safe_http.urllib3_connection.create_connection') as connect:
+                    wm.check_status()
+                wm.refresh_from_db()
+                self.assertEqual(wm.status, 'error')
+                self.assertIn('Security', wm.last_error)
+                connect.assert_not_called()
+
+    def test_name_resolving_internal_refused_at_connect_time(self):
+        wm = self._monitor('https://status.example.com/')
+        with self._dns('10.0.0.5'), \
+                mock.patch('core.safe_http.urllib3_connection.create_connection') as connect:
+            wm.check_status()
+        wm.refresh_from_db()
+        self.assertEqual(wm.status, 'error')
+        self.assertIn('Security', wm.last_error)
+        connect.assert_not_called()
+
+    def test_public_name_is_attempted_on_validated_ip(self):
+        wm = self._monitor('https://status.example.com:8443/')
+        with self._dns('93.184.215.14'), \
+                mock.patch('core.safe_http.urllib3_connection.create_connection',
+                           side_effect=ConnectionRefusedError(111, 'refused')) as connect:
+            wm.check_status()
+        wm.refresh_from_db()
+        self.assertEqual(wm.status, 'down')
+        self.assertEqual(connect.call_args[0][0], ('93.184.215.14', 8443))
+
+    @override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=True)
+    def test_opt_in_allows_internal_but_not_metadata(self):
+        wm = self._monitor('http://intranet.example.com/')
+        with self._dns('10.0.0.5'), \
+                mock.patch('core.safe_http.urllib3_connection.create_connection',
+                           side_effect=ConnectionRefusedError(111, 'refused')) as connect:
+            wm.check_status()
+        wm.refresh_from_db()
+        self.assertEqual(wm.status, 'down')   # attempted, not refused by policy
+        connect.assert_called()
+
+        wm = self._monitor('http://metadata.example.com/')
+        with self._dns('169.254.169.254'), \
+                mock.patch('core.safe_http.urllib3_connection.create_connection') as connect:
+            wm.check_status()
+        wm.refresh_from_db()
+        self.assertEqual(wm.status, 'error')
+        connect.assert_not_called()
+
+    def test_certificate_fetch_uses_validated_address(self):
+        """The SSL-info connection is a second, raw socket; it must not re-resolve the name."""
+        wm = self._monitor('https://status.example.com/')
+        ok = mock.MagicMock(status_code=200)
+        with self._dns('93.184.215.14'), \
+                mock.patch('requests.Session.get', return_value=ok), \
+                mock.patch('socket.create_connection', side_effect=OSError('stop')) as raw:
+            wm.check_status()
+        raw.assert_called_once()
+        self.assertEqual(raw.call_args[0][0], ('93.184.215.14', 443))

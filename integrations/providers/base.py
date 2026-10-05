@@ -4,11 +4,13 @@ All providers must implement this interface.
 """
 import logging
 import requests
-from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from typing import List, Dict, Optional
 from datetime import datetime
-from django.conf import settings
+
+from core.safe_http import (
+    BlockedDestinationError, UnsafeURLError, configured_service_policy, guard_session, validate_url,
+)
 
 logger = logging.getLogger('integrations')
 
@@ -61,65 +63,27 @@ class BaseProvider:
         """
         Validate base URL to prevent SSRF attacks.
         Raises ProviderError if URL is invalid or unsafe.
+
+        This checks the URL text only. The authoritative check is in the
+        session (core.safe_http): every connection's resolved address is
+        validated at connect time, which also covers redirects and DNS that
+        changes after this point.
         """
-        from urllib.parse import urlparse
-        import socket
-        import ipaddress
-
         try:
-            parsed = urlparse(url)
-
-            # Only allow http/https schemes
-            if parsed.scheme not in ['http', 'https']:
-                raise ProviderError(f"Invalid URL scheme: {parsed.scheme}. Only http/https allowed.")
-
-            # Require hostname
-            if not parsed.hostname:
-                raise ProviderError("Invalid URL: no hostname specified")
-
-            # Try to resolve hostname to IP
-            try:
-                ip_str = socket.gethostbyname(parsed.hostname)
-                ip = ipaddress.ip_address(ip_str)
-
-                # Check if private IP integrations are allowed via configuration
-                allow_private_ips = getattr(settings, 'ALLOW_PRIVATE_IP_INTEGRATIONS', False)
-
-                # Block private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
-                # unless explicitly allowed in configuration
-                if ip.is_private and not allow_private_ips:
-                    raise ProviderError(
-                        f"Cannot connect to private IP addresses: {ip_str}. "
-                        f"To connect to self-hosted services on private networks, set "
-                        f"ALLOW_PRIVATE_IP_INTEGRATIONS=True in your .env file."
-                    )
-
-                # Block loopback addresses (127.0.0.0/8) unless explicitly allowed
-                if ip.is_loopback and not allow_private_ips:
-                    raise ProviderError(
-                        f"Cannot connect to loopback addresses: {ip_str}. "
-                        f"Set ALLOW_PRIVATE_IP_INTEGRATIONS=True to allow localhost connections."
-                    )
-
-                # Block link-local addresses (169.254.0.0/16) unless explicitly allowed
-                if ip.is_link_local and not allow_private_ips:
-                    raise ProviderError(
-                        f"Cannot connect to link-local addresses: {ip_str}. "
-                        f"Set ALLOW_PRIVATE_IP_INTEGRATIONS=True to allow link-local connections."
-                    )
-
-            except socket.gaierror:
-                # Hostname doesn't resolve - this is OK, will fail naturally on connection
-                pass
-
-        except ProviderError:
-            raise
-        except Exception as e:
-            raise ProviderError(f"URL validation error: {str(e)}")
+            validate_url(url, configured_service_policy())
+        except UnsafeURLError as e:
+            raise ProviderError(
+                f"Base URL not allowed ({e}). To connect to self-hosted services on "
+                f"private networks, set ALLOW_PRIVATE_IP_INTEGRATIONS=True in your .env file."
+            ) from None
 
     def _create_session(self):
         """
         Create requests session with retry logic and timeouts.
+
+        Connections go through the SSRF guard (core.safe_http): internal
+        addresses are refused unless ALLOW_PRIVATE_IP_INTEGRATIONS is set,
+        and cloud metadata endpoints are refused always.
         """
         session = requests.Session()
 
@@ -131,11 +95,7 @@ class BaseProvider:
             allowed_methods=["HEAD", "GET", "OPTIONS"]
         )
 
-        adapter = HTTPAdapter(max_retries=retry_strategy)
-        session.mount("http://", adapter)
-        session.mount("https://", adapter)
-
-        return session
+        return guard_session(session, configured_service_policy(), max_retries=retry_strategy)
 
     def _make_request(self, method, endpoint, **kwargs):
         """
@@ -177,6 +137,10 @@ class BaseProvider:
         except requests.exceptions.Timeout:
             logger.error(f"Timeout connecting to {self.provider_name}")
             raise ProviderError(f"Request timeout")
+
+        except BlockedDestinationError as e:
+            logger.error(f"SSRF guard refused connection for {self.provider_name}: {e}")
+            raise ProviderError(f"Connection refused by address policy: {e}")
 
         except requests.exceptions.ConnectionError as e:
             logger.error(f"Connection error to {self.provider_name}: {e}")

@@ -14,6 +14,8 @@ import logging
 import urllib3
 import requests
 
+from core.safe_http import guard_session, lan_controller_policy
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,7 +29,7 @@ class GrandstreamProvider:
         self.api_key = api_key
         self.verify_ssl = verify_ssl
 
-        self.session = requests.Session()
+        self.session = guard_session(requests.Session(), lan_controller_policy())
         self.session.headers.update({
             'Authorization': f'Bearer {api_key}',
             'Accept': 'application/json',

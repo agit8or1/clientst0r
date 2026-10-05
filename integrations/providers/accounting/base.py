@@ -15,6 +15,8 @@ from typing import Any, Dict, Optional
 
 import requests
 
+from core.safe_http import configured_service_policy, guard_session
+
 
 logger = logging.getLogger('integrations.accounting')
 
@@ -59,7 +61,7 @@ class BaseAccountingProvider:
         # Apply default base URL when blank
         if not connection.base_url and self.DEFAULT_BASE_URL:
             connection.base_url = self.DEFAULT_BASE_URL
-        self.session = requests.Session()
+        self.session = guard_session(requests.Session(), configured_service_policy())
 
     @property
     def credentials(self) -> Dict[str, Any]:

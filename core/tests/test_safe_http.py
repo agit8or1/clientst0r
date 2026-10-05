@@ -20,6 +20,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest import mock
 
+import requests
 from django.test import SimpleTestCase
 
 from core import safe_http
@@ -220,8 +221,8 @@ class _PeerOverrideSocket:
         return getattr(self._sock, name)
 
 
-class ConnectionGuardTests(SimpleTestCase):
-    """End-to-end through requests + urllib3, with DNS and connect faked."""
+class _FakeNetworkTestCase(SimpleTestCase):
+    """A local HTTP server, with DNS and the connect step faked (see module docstring)."""
 
     @classmethod
     def setUpClass(cls):
@@ -294,6 +295,11 @@ class ConnectionGuardTests(SimpleTestCase):
         for p in patches:
             p.start()
             self.addCleanup(p.stop)
+
+
+
+class ConnectionGuardTests(_FakeNetworkTestCase):
+    """End-to-end through requests + urllib3, with DNS and connect faked."""
 
     # -- valid ---------------------------------------------------------------
     def test_public_http_url_fetched(self):
@@ -478,3 +484,142 @@ class ConnectionGuardTests(SimpleTestCase):
             result = fetch_public_url('http://twopublic.example/ok')
         self.assertIn('Parcel 42', result.text)
         self.assertEqual(calls, [PUBLIC_IP, PUBLIC_IP_2])
+
+
+# --- policies for operator-configured endpoints -----------------------------
+
+from django.test import override_settings  # noqa: E402
+from urllib3.util.retry import Retry  # noqa: E402
+
+from core.safe_http import (  # noqa: E402
+    BlockedDestinationError, OutboundPolicy, configured_service_policy, guard_session,
+    is_allowed_ip, lan_controller_policy, validate_url,
+)
+
+METADATA_IPS = ('169.254.169.254', '169.254.170.2', 'fd00:ec2::254', '100.100.100.200',
+                '192.0.0.192', '::ffff:169.254.169.254', '64:ff9b::a9fe:a9fe')
+NON_UNICAST = ('0.0.0.0', '224.0.0.1', '255.255.255.255', '240.0.0.1', '::', 'ff02::1')
+
+
+class PolicyTests(SimpleTestCase):
+    @override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=False)
+    def test_configured_service_without_opt_in_is_public_only_any_port(self):
+        policy = configured_service_policy()
+        self.assertIsNone(policy.allowed_ports)
+        self.assertEqual(validate_url('https://psa.example.com:8443/api', policy),
+                         'https://psa.example.com:8443/api')
+        for ip in ('10.0.0.5', '192.168.1.1', '127.0.0.1', '169.254.1.1', 'fd12::1', '100.64.0.1'):
+            with self.subTest(ip=ip):
+                self.assertFalse(is_allowed_ip(ip, policy))
+        for url in ('http://localhost:8000/', 'http://unifi.local/', 'http://10.0.0.5:8443/'):
+            with self.subTest(url=url):
+                with self.assertRaises(UnsafeURLError):
+                    validate_url(url, policy)
+
+    @override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=True)
+    def test_configured_service_with_opt_in_allows_internal_but_not_metadata(self):
+        policy = configured_service_policy()
+        for ip in ('10.0.0.5', '192.168.1.1', '127.0.0.1', '::1', '169.254.1.1', 'fd12::1', '100.64.0.1'):
+            with self.subTest(ip=ip):
+                self.assertTrue(is_allowed_ip(ip, policy))
+        for ip in METADATA_IPS + NON_UNICAST:
+            with self.subTest(ip=ip):
+                self.assertFalse(is_allowed_ip(ip, policy))
+        validate_url('http://localhost:8000/', policy)
+        for url in ('http://169.254.169.254/latest/meta-data/', 'http://metadata.google.internal/',
+                    'http://[fd00:ec2::254]/', 'http://2130706433/'):
+            with self.subTest(url=url):
+                with self.assertRaises(UnsafeURLError):
+                    validate_url(url, policy)
+
+    @override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=False)
+    def test_lan_controller_allows_lan_but_not_loopback_or_metadata(self):
+        policy = lan_controller_policy()
+        for ip in ('192.168.1.1', '10.1.2.3', '172.20.0.1', '100.64.0.1', 'fd12::1', '::ffff:192.168.1.1'):
+            with self.subTest(ip=ip):
+                self.assertTrue(is_allowed_ip(ip, policy))
+        for ip in ('127.0.0.1', '::1', '169.254.1.1', 'fe80::1') + METADATA_IPS + NON_UNICAST:
+            with self.subTest(ip=ip):
+                self.assertFalse(is_allowed_ip(ip, policy))
+        validate_url('https://192.168.1.1:8443/', policy)
+        validate_url('https://unifi.local/', policy)
+        validate_url('https://omada.home.arpa:8043/', policy)
+        for url in ('https://localhost:8443/', 'http://127.0.0.1/', 'http://169.254.169.254/',
+                    'http://metadata.google.internal/'):
+            with self.subTest(url=url):
+                with self.assertRaises(UnsafeURLError):
+                    validate_url(url, policy)
+
+    @override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=True)
+    def test_lan_controller_with_opt_in_allows_loopback_not_metadata(self):
+        policy = lan_controller_policy()
+        self.assertTrue(is_allowed_ip('127.0.0.1', policy))
+        validate_url('https://localhost:8443/', policy)
+        for ip in METADATA_IPS:
+            with self.subTest(ip=ip):
+                self.assertFalse(is_allowed_ip(ip, policy))
+
+    def test_public_web_unchanged(self):
+        self.assertEqual(safe_http.PUBLIC_WEB, OutboundPolicy())
+        self.assertFalse(is_allowed_ip('192.168.1.1'))
+        with self.assertRaises(UnsafeURLError):
+            validate_public_url('https://example.com:8443/')
+
+
+class GuardedSessionTests(_FakeNetworkTestCase):
+    """guard_session() on a plain requests.Session, as integrations use it."""
+
+    def _session(self, policy, **kwargs):
+        return guard_session(requests.Session(), policy, **kwargs)
+
+    def test_lan_name_reachable_under_lan_policy_any_port(self):
+        self.dns['controller.example'] = [['192.168.1.20']]
+        with override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=False):
+            resp = self._session(lan_controller_policy()).get('http://controller.example:8443/ok', timeout=2)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self.connected_to, [('192.168.1.20', 8443)])
+
+    @override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=False)
+    def test_lan_name_refused_under_configured_policy_without_opt_in(self):
+        self.dns['controller.example'] = [['192.168.1.20']]
+        with self.assertRaises(BlockedDestinationError) as ctx:
+            self._session(configured_service_policy()).get('http://controller.example:8443/ok', timeout=2)
+        # Existing `except requests.ConnectionError` handlers catch it unchanged.
+        self.assertIsInstance(ctx.exception, requests.exceptions.ConnectionError)
+        self.assertEqual(self.connected_to, [])
+
+    @override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=True)
+    def test_opt_in_allows_internal_but_metadata_still_refused(self):
+        self.dns['controller.example'] = [['10.0.0.20']]
+        resp = self._session(configured_service_policy()).get('http://controller.example:8080/ok', timeout=2)
+        self.assertEqual(resp.status_code, 200)
+        with self.assertRaises(BlockedDestinationError):
+            self._session(configured_service_policy()).get('http://metadata.example/latest/', timeout=2)
+        with self.assertRaises(BlockedDestinationError):
+            self._session(lan_controller_policy()).get('http://169.254.169.254/latest/', timeout=2)
+
+    @override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=False)
+    def test_redirect_followed_by_requests_is_guarded_per_hop(self):
+        session = self._session(configured_service_policy())
+        with self.assertRaises(BlockedDestinationError):
+            session.get('http://public.example/to-private-ip', timeout=2)  # allow_redirects defaults on
+        self.assertEqual(self.connected_to, [(PUBLIC_IP, 80)])
+
+    @override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=False)
+    def test_blocked_connection_is_not_retried(self):
+        session = self._session(configured_service_policy(),
+                                max_retries=Retry(total=3, backoff_factor=0))
+        with self.assertRaises(BlockedDestinationError):
+            session.get('http://internal.example/ok', timeout=2)
+        self.assertEqual(self.lookups, ['internal.example'])
+
+    def test_session_settings_survive_guarding(self):
+        session = requests.Session()
+        session.headers['X-API-Key'] = 'k'
+        session.verify = False
+        guarded = guard_session(session, lan_controller_policy())
+        self.assertIs(guarded, session)
+        self.assertEqual(session.headers['X-API-Key'], 'k')
+        self.assertFalse(session.verify)
+        self.assertIsInstance(session.get_adapter('https://x.example/'), safe_http.GuardedHTTPAdapter)
+

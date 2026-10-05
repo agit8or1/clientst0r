@@ -152,8 +152,8 @@ class XeroProvider(BaseAccountingProvider):
             if 'json' in kwargs:
                 headers.setdefault('Content-Type', 'application/json')
             call_kwargs = {k: v for k, v in kwargs.items() if k != 'headers'}
-            return requests.request(method, url, headers=headers, timeout=30,
-                                    **call_kwargs)
+            return self.session.request(method, url, headers=headers, timeout=30,
+                                        **call_kwargs)
 
         def force_refresh():
             self.connection.update_credentials(expires_at=0)

@@ -1390,6 +1390,13 @@ fetched by id without checking which tenant it belongs to.
   redirects re-checked hop by hop, and size and time caps on the response.
   The endpoint also now requires write access, and its errors no longer echo
   internal detail.
+- **SSRF guard for integrations and monitors** *(shipped v3.17.588)* — the
+  same connection-level guard now covers every PSA, RMM, accounting,
+  distributor and network-controller integration and the website monitor,
+  replacing a check-then-connect pattern that DNS rebinding could get past.
+  Network controllers may reach the LAN by default; everything else needs
+  `ALLOW_PRIVATE_IP_INTEGRATIONS`, and metadata endpoints are refused even
+  with it.
 
 **Remaining:** nothing named. Both the sync paths and the scheduler have now
 had a pass, and the recurring finding — code reporting success while doing

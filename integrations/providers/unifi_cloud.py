@@ -6,6 +6,8 @@ Authentication: API key in X-API-KEY header (from account.ui.com → API Keys)
 import logging
 import requests
 
+from core.safe_http import configured_service_policy, guard_session
+
 logger = logging.getLogger(__name__)
 
 CLOUD_BASE = 'https://api.ui.com'
@@ -16,7 +18,7 @@ class UnifiCloudProvider:
 
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.session = requests.Session()
+        self.session = guard_session(requests.Session(), configured_service_policy())
         self.session.headers.update({
             'X-API-KEY': api_key,
             'Accept': 'application/json',

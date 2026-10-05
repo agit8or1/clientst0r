@@ -5,6 +5,76 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.588] - 2026-10-05
+
+### Security: integrations and website monitors use the SSRF guard
+
+v3.17.587 added `core/safe_http.py` for the property URL import. The older
+checks in integrations and website monitoring had the same weakness that
+release fixed. They resolved the hostname with `gethostbyname`, judged that
+one address, and then let `requests` resolve it again to connect, so a name
+that changed between the two lookups (DNS rebinding) got through. Redirects
+weren't checked, `gethostbyname` ignores IPv6, and an unresolvable name was
+let through. Several providers had no check at all.
+
+**What changed.** Every integration session and the website monitor now
+connect through the guard, so the address checked is the address connected
+to. That holds on every redirect hop and every retry.
+
+**Policies.** `safe_http` gained `OutboundPolicy`, with three presets:
+
+| Used by | Public | LAN (RFC1918, CGNAT, ULA) | Loopback, link-local | Ports |
+|---|---|---|---|---|
+| Property URL import | yes | no | no | 80, 443 |
+| PSA, RMM, accounting, distributor APIs; UniFi Site Manager; website monitors | yes | only with `ALLOW_PRIVATE_IP_INTEGRATIONS` | only with `ALLOW_PRIVATE_IP_INTEGRATIONS` | any |
+| UniFi, Omada, Grandstream controllers | yes | yes | only with `ALLOW_PRIVATE_IP_INTEGRATIONS` | any |
+
+Network controllers normally live on the LAN, and the setup forms say so
+(`e.g. https://192.168.1.1`), so they reach LAN ranges without the opt-in.
+Under every policy, cloud metadata and credential endpoints (AWS, ECS,
+GCP, Azure, Oracle, Alibaba, including the IPv6 forms) and non-unicast
+addresses are refused, even with `ALLOW_PRIVATE_IP_INTEGRATIONS=True`.
+
+**Behaviour changes to know about**
+
+- UniFi, Omada and Grandstream previously had no check at all. A controller
+  on `localhost` or a link-local address now needs
+  `ALLOW_PRIVATE_IP_INTEGRATIONS=True`. LAN addresses keep working as
+  before.
+- Before, only `is_private`, `is_loopback` and `is_link_local` were
+  blocked. Now everything non-public is blocked by default, including
+  CGNAT (`100.64.0.0/10`, used by Tailscale), reserved and documentation
+  ranges. A PSA or monitor reached over Tailscale needs the opt-in.
+- Guarded sessions refuse to use an HTTP proxy, because the proxy would do
+  the DNS lookup. With `HTTP(S)_PROXY` set, these connections fail rather
+  than go around the guard.
+- A blocked connection shows as "Connection refused by address policy" on
+  providers that use `BaseProvider`, and as "Security: …" on a monitor,
+  rather than a generic connection error.
+
+**Plumbing.** `GuardedHTTPAdapter` takes a policy and `guard_session()` mounts
+it on an existing session, keeping its headers, cookies, `verify` and retry
+settings. A refusal raises `BlockedDestinationError`, which is also a
+`requests` `ConnectionError`, so existing handlers report it without code
+changes; it is raised outside urllib3, so it is never retried. The
+monitor's separate certificate-info socket now connects to the validated
+address too. Xero and QuickBooks API calls go through the provider's guarded
+session instead of bare `requests.request`. Alga no longer replaces the
+guarded `BaseProvider` session with a bare one.
+
+**Tests:** 11 policy and guarded-session tests in `core/tests/test_safe_http.py`,
+8 wiring tests in `integrations/tests.py` that fail if any provider goes back
+to a bare session, and 5 monitor tests in `monitoring/tests.py`, including
+one that the certificate fetch doesn't re-resolve the name.
+
+**Not changed:** calls to fixed vendor hosts (Microsoft Graph, the Xero and
+QuickBooks OAuth endpoints) still use plain `requests`, since nothing a user
+configures reaches them. `core/services/api_key_validator.py` has three
+URL-taking validators with no callers; they are dead code, left for a
+separate cleanup.
+
+No migrations or new settings.
+
 ## [3.17.587] - 2026-10-05
 
 ### Security: property URL import could reach internal addresses (SSRF)

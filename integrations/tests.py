@@ -1098,3 +1098,115 @@ class M365DefenderAlert403Tests(TestCase):
         p._get_all = mock.MagicMock(return_value=[{'id': '1', 'title': 'Alert'}])
         result = p.get_defender_alerts()
         self.assertEqual(result[0]['title'], 'Alert')
+
+
+# --- SSRF guard wiring (v3.17.588) -----------------------------------------
+
+from unittest import mock as _mock  # noqa: E402
+
+from core.safe_http import (  # noqa: E402
+    BlockedDestinationError, GuardedHTTPAdapter, configured_service_policy, lan_controller_policy,
+)
+
+
+@override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=False)
+class SSRFGuardWiringTests(TestCase):
+    """Every integration session goes through core.safe_http with the right policy.
+
+    The guard itself is tested in core/tests/test_safe_http.py. These tests
+    pin the wiring, so a provider that goes back to a bare requests.Session
+    fails here.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.org = Organization.objects.create(name='Guard Org', slug='guard-org')
+
+    def assertGuarded(self, session, policy):
+        for prefix in ('http://', 'https://'):
+            adapter = session.get_adapter(prefix + 'host.example/')
+            self.assertIsInstance(adapter, GuardedHTTPAdapter, prefix)
+            self.assertEqual(adapter.policy, policy, prefix)
+
+    def _psa(self, provider_type, base_url):
+        from .models import PSAConnection
+        conn = PSAConnection(organization=self.org, provider_type=provider_type,
+                             name=f'{provider_type} {base_url}', base_url=base_url)
+        conn.set_credentials({'api_key': 'k', 'tenant_id': 't'})
+        conn.save()
+        return conn
+
+    def test_base_provider_session_guarded_with_retries_kept(self):
+        from .providers import get_provider
+        provider = get_provider(self._psa('syncro', 'https://psa.example.com'))
+        self.assertGuarded(provider.session, configured_service_policy())
+        self.assertEqual(provider.session.get_adapter('https://x/').max_retries.total, 3)
+
+    def test_alga_keeps_the_guarded_session(self):
+        from .providers import get_provider
+        provider = get_provider(self._psa('alga_psa', 'https://alga.example.com'))
+        self.assertGuarded(provider.session, configured_service_policy())
+
+    def test_base_provider_refuses_internal_base_url(self):
+        from .providers import get_provider
+        from .providers.base import ProviderError
+        for url in ('http://10.0.0.5', 'http://192.168.1.10:8443', 'http://localhost:8000',
+                    'http://169.254.169.254', 'http://2130706433'):
+            with self.subTest(url=url):
+                with self.assertRaises(ProviderError):
+                    get_provider(self._psa('syncro', url))
+
+    @override_settings(ALLOW_PRIVATE_IP_INTEGRATIONS=True)
+    def test_opt_in_allows_private_base_url_but_never_metadata(self):
+        from .providers import get_provider
+        from .providers.base import ProviderError
+        get_provider(self._psa('syncro', 'http://10.0.0.5:8080'))
+        with self.assertRaises(ProviderError):
+            get_provider(self._psa('syncro', 'http://169.254.169.254'))
+
+    def test_blocked_connection_becomes_provider_error(self):
+        from .providers import get_provider
+        from .providers.base import ProviderError
+        provider = get_provider(self._psa('syncro', 'https://psa.example.com'))
+        with _mock.patch.object(provider.session, 'request',
+                                side_effect=BlockedDestinationError('resolves to 10.0.0.5')):
+            with self.assertRaises(ProviderError) as ctx:
+                provider._make_request('GET', '/tickets')
+        self.assertIn('address policy', str(ctx.exception))
+
+    def test_lan_controllers_use_lan_policy(self):
+        from .providers.grandstream import GrandstreamProvider
+        from .providers.omada import OmadaProvider
+        from .providers.unifi import UnifiProvider
+        unifi = UnifiProvider('https://192.168.1.1', 'k')
+        self.assertGuarded(unifi.session, lan_controller_policy())
+        self.assertGuarded(unifi._legacy_session, lan_controller_policy())
+        self.assertGuarded(OmadaProvider('https://192.168.1.2:8043', 'u', 'p').session, lan_controller_policy())
+        self.assertGuarded(GrandstreamProvider('', 'k').session, lan_controller_policy())
+
+    def test_cloud_unifi_uses_configured_policy(self):
+        from .providers.unifi import UnifiCloudProvider as SiteManagerProvider
+        from .providers.unifi_cloud import UnifiCloudProvider
+        self.assertGuarded(SiteManagerProvider('k').session, configured_service_policy())
+        self.assertGuarded(UnifiCloudProvider('k').session, configured_service_policy())
+
+    def test_accounting_api_calls_go_through_guarded_session(self):
+        from .models import AccountingConnection
+        from .providers.accounting.quickbooks_online import QuickBooksOnlineProvider
+        from .providers.accounting.xero import XeroProvider
+        for cls, ptype, creds in ((QuickBooksOnlineProvider, 'quickbooks_online', {'realm_id': 'r'}),
+                                  (XeroProvider, 'xero', {'tenant_id': 't'})):
+            with self.subTest(provider=ptype):
+                conn = AccountingConnection.objects.create(
+                    organization=self.org, provider_type=ptype, name=f'{ptype}-guard')
+                conn.set_credentials(creds)
+                conn.save()
+                provider = cls(conn)
+                self.assertGuarded(provider.session, configured_service_policy())
+                ok = _mock.MagicMock(status_code=200)
+                with _mock.patch.object(cls, 'refresh_access_token', return_value='tok'), \
+                        _mock.patch.object(provider.session, 'request', return_value=ok) as send, \
+                        _mock.patch('requests.request') as bare:
+                    provider._api('GET', '/x')
+                send.assert_called_once()
+                bare.assert_not_called()
