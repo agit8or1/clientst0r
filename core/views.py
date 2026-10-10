@@ -1022,26 +1022,38 @@ def force_restart_services(request):
         }, status=500)
 
 
+def _emergency_restart_rate_key(group, request):
+    from core.client_ip import get_client_ip
+    return get_client_ip(request) or 'unknown'
+
+
+@_csrf_exempt
+@require_http_methods(['POST'])
+@ratelimit(key=_emergency_restart_rate_key, rate='10/h', method='POST', block=False)
 def emergency_restart_webhook(request):
     """
-    Emergency restart webhook - no authentication required but needs secret key.
-    This endpoint can be called remotely to force restart stuck servers.
+    Emergency restart webhook - no login, authenticated by a shared secret.
+    Lets an operator force-heal a stuck server remotely.
 
-    Usage: POST /emergency-restart/?secret=YOUR_SECRET_KEY
-
-    Secret key can be set in settings.EMERGENCY_RESTART_SECRET or defaults to a hash.
+    Disabled (404) unless EMERGENCY_RESTART_SECRET is set in the environment.
+    Usage: POST /emergency-restart/ with header `X-Emergency-Secret: <secret>`
+    (or form field `secret`). Never in the query string, which ends up in
+    access logs.
     """
-    from django.conf import settings
-    import hashlib
+    from django.http import Http404
+    from django.utils.crypto import constant_time_compare
     import subprocess
 
-    # Get secret from settings or generate default from SECRET_KEY
-    expected_secret = getattr(settings, 'EMERGENCY_RESTART_SECRET',
-                             hashlib.sha256(settings.SECRET_KEY.encode()).hexdigest()[:32])
+    expected_secret = getattr(settings, 'EMERGENCY_RESTART_SECRET', '')
+    if not expected_secret:
+        raise Http404()
 
-    # Check secret
-    provided_secret = request.GET.get('secret') or request.POST.get('secret')
-    if not provided_secret or provided_secret != expected_secret:
+    if getattr(request, 'limited', False):
+        return JsonResponse({'error': 'Too many attempts'}, status=429)
+
+    provided_secret = (request.headers.get('X-Emergency-Secret')
+                       or request.POST.get('secret') or '')
+    if not provided_secret or not constant_time_compare(provided_secret, expected_secret):
         return JsonResponse({'error': 'Invalid secret'}, status=403)
 
     # Run auto-heal command
@@ -1053,17 +1065,14 @@ def emergency_restart_webhook(request):
             text=True,
             timeout=60
         )
-
-        return JsonResponse({
-            'success': result.returncode == 0,
-            'output': result.stdout,
-            'error': result.stderr if result.returncode != 0 else None
-        })
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+        logger.error(f"Emergency restart failed: {e}")
+        return JsonResponse({'success': False}, status=500)
+
+    if result.returncode != 0:
+        logger.error(f"Emergency restart: auto_heal_version exited {result.returncode}: {result.stderr[-2000:]}")
+    # Command output stays in the server log; the caller only learns the outcome.
+    return JsonResponse({'success': result.returncode == 0})
 
 
 @login_required

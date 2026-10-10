@@ -455,11 +455,8 @@ class ProcessExecutionAuditLog(BaseModel):
         ip_address = None
         user_agent = ''
         if request:
-            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-            if x_forwarded_for:
-                ip_address = x_forwarded_for.split(',')[0].strip()
-            else:
-                ip_address = request.META.get('REMOTE_ADDR')
+            from core.client_ip import get_client_ip
+            ip_address = get_client_ip(request)
             user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]
 
         # Create process-specific audit log

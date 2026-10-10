@@ -7,7 +7,6 @@ from django.urls import path, include
 from django.views.generic import RedirectView, TemplateView
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.decorators.csrf import csrf_exempt
 from two_factor.urls import urlpatterns as tf_urls
 
 from core.views import privacy_policy as core_privacy_policy
@@ -93,7 +92,9 @@ urlpatterns = [
 try:
     from graphene_django.views import GraphQLView
     urlpatterns.append(
-        path('api/v2/graphql/', csrf_exempt(GraphQLView.as_view(graphiql=True)), name='graphql')
+        # Session-authenticated, so CSRF protection stays on: an exempt
+        # endpoint let any site drive mutations with a visitor's cookie.
+        path('api/v2/graphql/', GraphQLView.as_view(graphiql=settings.DEBUG), name='graphql')
     )
 except ImportError:
     pass

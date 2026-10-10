@@ -5,6 +5,76 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.593] - 2026-10-10
+
+### Security: hardening pass across auth, vault channels, uploads and outbound requests
+
+**Authentication**
+- A user with a 2FA device must now pass it in the current session. Before,
+  a password-only login (the stock `/admin/login/` form) produced a full
+  session for staff accounts. Such sessions are now ended and sent through
+  the 2FA login.
+- Removed `/api/auth/token/`. It issued the token the mobile API accepts
+  from a password alone, with no 2FA step. Mobile sign-in
+  (`/api/mobile/v1/auth/login/`, which enforces MFA) and API keys are
+  unchanged.
+
+**Vault**
+- The REST API (`/api/passwords/…` reveal, `?reveal=true`, OTP) and the
+  browser extension (reveal, TOTP) now go through the same gate as the web
+  UI: per-credential `vault_view_password`, the reveal-approval
+  requirement (single-use), and vault access rules, which fail closed.
+- The REST API no longer lists other users' personal (My Vault) entries,
+  and create/edit/delete check `vault_create` / `vault_edit` /
+  `vault_delete`.
+
+**GraphQL (`/api/v2/graphql/`, optional dependency)**
+- Every query and mutation is now limited to the caller's organizations,
+  and mutations check the role capability on the target organization.
+  Password entries expose metadata only.
+- CSRF protection is on (the endpoint is session-authenticated), and
+  GraphiQL and the SQL debug middleware are only enabled with `DEBUG=True`.
+- Fixed the settings bug that made every GraphQL request fail with "A
+  Schema is required", and fixed `createAsset` / `createDocument`, which
+  never worked. `API_V2_GRAPHQL.md` now describes the real
+  authentication.
+
+**Uploads**
+- Attachments are served with a content type derived from the file name,
+  not the uploader's header. Only images, PDFs and plain text open in the
+  browser; everything else (including SVG, HTML and XML) downloads.
+
+**Outbound requests**
+- Outgoing webhooks and outsourcing-partner callbacks go through the SSRF
+  guard (`core/safe_http.py`). Internal addresses are refused unless
+  `ALLOW_PRIVATE_IP_INTEGRATIONS=True`.
+- Creating, editing, testing or toggling webhooks now requires the org
+  Admin role.
+
+**Other**
+- The emergency restart webhook is **disabled unless
+  `EMERGENCY_RESTART_SECRET` is set**. It no longer falls back to a
+  secret derived from `SECRET_KEY`. It is now POST-only and takes the
+  secret in an `X-Emergency-Secret` header, never the query string. It
+  is rate-limited, compares the secret in constant time, and no longer
+  returns command output. `scripts/heal_all_servers.sh` is updated to
+  match.
+- Secure-note link passwords are stored hashed. Existing plaintext ones
+  are upgraded on first successful use. Wrong guesses are limited to 10
+  per note per client per 15 minutes.
+- Package names passed to the system-package updater are validated, so a
+  value can't be read as an `apt-get` / `dnf` option.
+- WAN ping targets can't start with `-`.
+- The remaining hand-rolled client-IP helpers (audit log, API-key
+  last-used IP, mobile, portal, PSA, network-discovery rate limit, and
+  others) now use `core.client_ip` and honour `X-Forwarded-For` only from
+  `TRUSTED_PROXY_CIDRS`.
+
+**Operator notes**
+- If you use `scripts/heal_all_servers.sh`, set `EMERGENCY_RESTART_SECRET`
+  in each server's `.env`.
+- Anyone using `/api/auth/token/` should switch to an API key.
+
 ## [3.17.592] - 2026-10-05
 
 ### Security: vault permissions and trusted proxies (PR #148, with a follow-up)

@@ -9,6 +9,7 @@ from core.models import Webhook, WebhookDelivery
 from core.webhook_forms import WebhookForm, WebhookTestForm
 from core.webhook_sender import deliver_webhook
 from core.middleware import get_request_organization
+from core.decorators import require_admin
 import json
 
 
@@ -26,6 +27,7 @@ def webhook_list(request):
 
 
 @login_required
+@require_admin
 def webhook_create(request):
     """Create a new webhook."""
     org = get_request_organization(request)
@@ -51,6 +53,7 @@ def webhook_create(request):
 
 
 @login_required
+@require_admin
 def webhook_edit(request, webhook_id):
     """Edit an existing webhook."""
     org = get_request_organization(request)
@@ -79,6 +82,7 @@ def webhook_edit(request, webhook_id):
 
 
 @login_required
+@require_admin
 def webhook_delete(request, webhook_id):
     """Delete a webhook."""
     org = get_request_organization(request)
@@ -102,6 +106,7 @@ def webhook_delete(request, webhook_id):
 
 
 @login_required
+@require_admin
 def webhook_test(request, webhook_id):
     """Test webhook delivery."""
     org = get_request_organization(request)
@@ -195,6 +200,7 @@ def webhook_delivery_detail(request, delivery_id):
 
 
 @login_required
+@require_admin
 def webhook_toggle(request, webhook_id):
     """Toggle webhook active status via AJAX."""
     if request.method == 'POST':

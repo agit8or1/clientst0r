@@ -3,7 +3,6 @@ API URL Configuration for Client St0r REST API
 """
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework.authtoken.views import obtain_auth_token
 
 from .views import (
     AssetViewSet, ContactViewSet, DocumentViewSet,
@@ -23,8 +22,9 @@ router.register(r'organizations', OrganizationViewSet, basename='organization')
 app_name = 'api'
 
 urlpatterns = [
-    # Token authentication
-    path('auth/token/', obtain_auth_token, name='api_token_auth'),
+    # No password-only token endpoint: DRF's obtain_auth_token issued the same
+    # token the mobile API accepts without a 2FA step. Use API keys here, or
+    # /api/mobile/v1/auth/login/ (which enforces MFA) for mobile tokens.
 
     # API Key Management (Web UI)
     path('keys/', apikey_list, name='apikey_list'),

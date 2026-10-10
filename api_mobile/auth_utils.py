@@ -19,11 +19,9 @@ MFA_TTL_SECONDS = 300  # 5 minutes
 
 
 def client_ip(request) -> str:
-    """Pull the best-effort client IP from the request."""
-    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if xff:
-        return xff.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR', '') or ''
+    """Client IP; X-Forwarded-For is honoured only from trusted proxies."""
+    from core.client_ip import get_client_ip
+    return get_client_ip(request) or ''
 
 
 def issue_mfa_token(user: User) -> str:

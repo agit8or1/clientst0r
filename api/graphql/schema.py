@@ -72,10 +72,14 @@ class AssetObjectType(DjangoObjectType):
 
 
 class PasswordType(DjangoObjectType):
-    # Don't expose the actual password value
+    # Metadata only: an allowlist, so ciphertext fields (encrypted_password,
+    # otp_secret, ...) and any field added later are never exposed.
     class Meta:
         model = Password
-        exclude = ('password', 'totp_secret')
+        fields = (
+            'id', 'title', 'username', 'url', 'password_type',
+            'organization', 'created_at', 'updated_at',
+        )
 
 
 class DocumentType(DjangoObjectType):
@@ -152,6 +156,67 @@ class DashboardStatsType(graphene.ObjectType):
     active_monitors = graphene.Int()
 
 
+# ===== Scoping =====
+#
+# Every resolver is limited to the organizations the caller can reach in the
+# web app (api.scoping), and every mutation checks the matching role
+# capability on the target organization.
+
+from django.db.models import Q
+from graphql import GraphQLError
+
+from accounts.permission_utils import user_has_org_perm
+from api.scoping import _is_staff_user, _user_reach_ids
+
+
+def _org_ids(info):
+    return _user_reach_ids(info.context.user)
+
+
+def _scoped(queryset, info, organization_id=None):
+    org_ids = _org_ids(info)
+    if organization_id is not None:
+        if organization_id not in org_ids:
+            return queryset.none()
+        org_ids = [organization_id]
+    return queryset.filter(organization_id__in=org_ids)
+
+
+def _scoped_global(queryset, info, organization_id=None):
+    """Org-scoped, plus published global (KB-wide) rows when no org is named."""
+    scoped = Q(organization_id__in=_org_ids(info))
+    if organization_id is not None:
+        if organization_id not in _org_ids(info):
+            return queryset.none()
+        return queryset.filter(organization_id=organization_id)
+    return queryset.filter(scoped | Q(is_global=True, is_published=True))
+
+
+def _visible_passwords(info, organization_id=None):
+    user = info.context.user
+    queryset = _scoped(Password.objects.all(), info, organization_id)
+    return queryset.filter(Q(is_personal=False) | Q(personal_owner=user))
+
+
+def _get_or_none(queryset, pk):
+    return queryset.filter(pk=pk).first()
+
+
+def _require_org_perm(info, organization_id, perm_name):
+    if not user_has_org_perm(info.context.user, organization_id, perm_name):
+        raise GraphQLError('Permission denied')
+
+
+def _visible_users(info):
+    user = info.context.user
+    if _is_staff_user(user):
+        return User.objects.all()
+    return User.objects.filter(
+        memberships__organization_id__in=_org_ids(info),
+        memberships__is_active=True,
+    ).distinct()
+
+
 # ===== Queries =====
 
 class Query(graphene.ObjectType):
@@ -201,135 +266,102 @@ class Query(graphene.ObjectType):
 
     @login_required
     def resolve_user(self, info, id):
-        return User.objects.get(pk=id)
+        return _get_or_none(_visible_users(info), id)
 
     @login_required
     def resolve_users(self, info):
-        return User.objects.all()
+        return _visible_users(info)
 
     @login_required
     def resolve_my_organization(self, info):
-        user = info.context.user
-        return getattr(user, 'organization', None)
+        return Organization.objects.filter(pk__in=_org_ids(info)).order_by('name').first()
 
     @login_required
     def resolve_organization(self, info, id):
-        return Organization.objects.get(pk=id)
+        return Organization.objects.filter(pk__in=_org_ids(info), pk=id).first()
 
     @login_required
     def resolve_organizations(self, info):
-        user = info.context.user
-        if user.is_superuser:
-            return Organization.objects.all()
-        if hasattr(user, 'organization'):
-            return Organization.objects.filter(pk=user.organization.pk)
-        return Organization.objects.none()
+        return Organization.objects.filter(pk__in=_org_ids(info))
 
     @login_required
     def resolve_asset(self, info, id):
-        return Asset.objects.get(pk=id)
+        return _get_or_none(_scoped(Asset.objects.all(), info), id)
 
     @login_required
     def resolve_assets(self, info, organization_id=None):
-        queryset = Asset.objects.all()
-        if organization_id:
-            queryset = queryset.filter(organization_id=organization_id)
-        return queryset
+        return _scoped(Asset.objects.all(), info, organization_id)
 
     @login_required
     def resolve_asset_types(self, info):
-        return AssetType.objects.all()
+        return _scoped(AssetType.objects.all(), info)
 
     @login_required
     def resolve_password(self, info, id):
-        return Password.objects.get(pk=id)
+        return _get_or_none(_visible_passwords(info), id)
 
     @login_required
     def resolve_passwords(self, info, organization_id=None):
-        queryset = Password.objects.all()
-        if organization_id:
-            queryset = queryset.filter(organization_id=organization_id)
-        return queryset
+        return _visible_passwords(info, organization_id)
 
     @login_required
     def resolve_document(self, info, id):
-        return Document.objects.get(pk=id)
+        return _get_or_none(_scoped_global(Document.objects.all(), info), id)
 
     @login_required
     def resolve_documents(self, info, organization_id=None):
-        queryset = Document.objects.all()
-        if organization_id:
-            queryset = queryset.filter(organization_id=organization_id)
-        return queryset
+        return _scoped_global(Document.objects.all(), info, organization_id)
 
     @login_required
     def resolve_diagram(self, info, id):
-        return Diagram.objects.get(pk=id)
+        return _get_or_none(_scoped_global(Diagram.objects.all(), info), id)
 
     @login_required
     def resolve_diagrams(self, info, organization_id=None):
-        queryset = Diagram.objects.all()
-        if organization_id:
-            queryset = queryset.filter(organization_id=organization_id)
-        return queryset
+        return _scoped_global(Diagram.objects.all(), info, organization_id)
 
     @login_required
     def resolve_location(self, info, id):
-        return Location.objects.get(pk=id)
+        return _get_or_none(_scoped(Location.objects.all(), info), id)
 
     @login_required
     def resolve_locations(self, info):
-        return Location.objects.all()
+        return _scoped(Location.objects.all(), info)
 
     @login_required
     def resolve_website_monitor(self, info, id):
-        return WebsiteMonitor.objects.get(pk=id)
+        return _get_or_none(_scoped(WebsiteMonitor.objects.all(), info), id)
 
     @login_required
     def resolve_website_monitors(self, info, organization_id=None):
-        queryset = WebsiteMonitor.objects.all()
-        if organization_id:
-            queryset = queryset.filter(organization_id=organization_id)
-        return queryset
+        return _scoped(WebsiteMonitor.objects.all(), info, organization_id)
 
     @login_required
     def resolve_expirations(self, info, organization_id=None):
-        queryset = Expiration.objects.all()
-        if organization_id:
-            queryset = queryset.filter(organization_id=organization_id)
-        return queryset
+        return _scoped(Expiration.objects.all(), info, organization_id)
 
     @login_required
     def resolve_expiring_soon(self, info, days=30):
-        from datetime import date, timedelta
-        cutoff_date = date.today() + timedelta(days=days)
-        return Expiration.objects.filter(
-            expiration_date__lte=cutoff_date,
-            expiration_date__gte=date.today()
-        ).order_by('expiration_date')
+        from datetime import timedelta
+        from django.utils import timezone
+        now = timezone.now()
+        return _scoped(Expiration.objects.all(), info).filter(
+            expires_at__lte=now + timedelta(days=days),
+            expires_at__gte=now,
+        ).order_by('expires_at')
 
     @login_required
     def resolve_dashboard_stats(self, info):
-        user = info.context.user
-
-        # Get user's organization
-        if user.is_superuser:
-            orgs = Organization.objects.all()
-        elif hasattr(user, 'organization'):
-            orgs = Organization.objects.filter(pk=user.organization.pk)
-        else:
-            orgs = Organization.objects.none()
-
+        org_ids = _org_ids(info)
         return DashboardStatsType(
-            total_organizations=orgs.count(),
-            total_assets=Asset.objects.filter(organization__in=orgs).count(),
-            total_passwords=Password.objects.filter(organization__in=orgs).count(),
-            total_documents=Document.objects.filter(organization__in=orgs).count(),
-            total_diagrams=Diagram.objects.filter(organization__in=orgs).count(),
+            total_organizations=len(org_ids),
+            total_assets=Asset.objects.filter(organization_id__in=org_ids).count(),
+            total_passwords=_visible_passwords(info).count(),
+            total_documents=Document.objects.filter(organization_id__in=org_ids).count(),
+            total_diagrams=Diagram.objects.filter(organization_id__in=org_ids).count(),
             active_monitors=WebsiteMonitor.objects.filter(
-                organization__in=orgs,
-                is_active=True
-            ).count() if hasattr(WebsiteMonitor, 'is_active') else 0,
+                organization_id__in=org_ids, is_enabled=True,
+            ).count(),
         )
 
 
@@ -338,9 +370,8 @@ class Query(graphene.ObjectType):
 class CreateAsset(graphene.Mutation):
     class Arguments:
         name = graphene.String(required=True)
-        asset_type_id = graphene.Int(required=True)
         organization_id = graphene.Int(required=True)
-        description = graphene.String()
+        asset_type = graphene.String()
         serial_number = graphene.String()
         manufacturer = graphene.String()
         model = graphene.String()
@@ -350,29 +381,27 @@ class CreateAsset(graphene.Mutation):
     errors = graphene.List(graphene.String)
 
     @login_required
-    def mutate(self, info, name, asset_type_id, organization_id, **kwargs):
-        try:
-            asset = Asset.objects.create(
-                name=name,
-                asset_type_id=asset_type_id,
-                organization_id=organization_id,
-                created_by=info.context.user,
-                **kwargs
-            )
-            return CreateAsset(asset=asset, success=True, errors=[])
-        except Exception as e:
-            return CreateAsset(asset=None, success=False, errors=[str(e)])
+    def mutate(self, info, name, organization_id, asset_type='other', **kwargs):
+        _require_org_perm(info, organization_id, 'assets_create')
+        if asset_type not in dict(Asset.ASSET_TYPES):
+            return CreateAsset(asset=None, success=False, errors=['Unknown asset type'])
+        asset = Asset.objects.create(
+            name=name,
+            asset_type=asset_type,
+            organization_id=organization_id,
+            created_by=info.context.user,
+            **{key: value for key, value in kwargs.items() if value is not None}
+        )
+        return CreateAsset(asset=asset, success=True, errors=[])
 
 
 class UpdateAsset(graphene.Mutation):
     class Arguments:
         id = graphene.Int(required=True)
         name = graphene.String()
-        description = graphene.String()
         serial_number = graphene.String()
         manufacturer = graphene.String()
         model = graphene.String()
-        is_active = graphene.Boolean()
 
     asset = graphene.Field(AssetObjectType)
     success = graphene.Boolean()
@@ -380,15 +409,15 @@ class UpdateAsset(graphene.Mutation):
 
     @login_required
     def mutate(self, info, id, **kwargs):
-        try:
-            asset = Asset.objects.get(pk=id)
-            for key, value in kwargs.items():
-                if value is not None:
-                    setattr(asset, key, value)
-            asset.save()
-            return UpdateAsset(asset=asset, success=True, errors=[])
-        except Exception as e:
-            return UpdateAsset(asset=None, success=False, errors=[str(e)])
+        asset = _get_or_none(_scoped(Asset.objects.all(), info), id)
+        if asset is None:
+            return UpdateAsset(asset=None, success=False, errors=['Not found'])
+        _require_org_perm(info, asset.organization_id, 'assets_edit')
+        for key, value in kwargs.items():
+            if value is not None:
+                setattr(asset, key, value)
+        asset.save()
+        return UpdateAsset(asset=asset, success=True, errors=[])
 
 
 class DeleteAsset(graphene.Mutation):
@@ -400,12 +429,12 @@ class DeleteAsset(graphene.Mutation):
 
     @login_required
     def mutate(self, info, id):
-        try:
-            asset = Asset.objects.get(pk=id)
-            asset.delete()
-            return DeleteAsset(success=True, errors=[])
-        except Exception as e:
-            return DeleteAsset(success=False, errors=[str(e)])
+        asset = _get_or_none(_scoped(Asset.objects.all(), info), id)
+        if asset is None:
+            return DeleteAsset(success=False, errors=['Not found'])
+        _require_org_perm(info, asset.organization_id, 'assets_delete')
+        asset.delete()
+        return DeleteAsset(success=True, errors=[])
 
 
 class CreateDocument(graphene.Mutation):
@@ -420,16 +449,14 @@ class CreateDocument(graphene.Mutation):
 
     @login_required
     def mutate(self, info, title, content, organization_id):
-        try:
-            document = Document.objects.create(
-                title=title,
-                content=content,
-                organization_id=organization_id,
-                created_by=info.context.user
-            )
-            return CreateDocument(document=document, success=True, errors=[])
-        except Exception as e:
-            return CreateDocument(document=None, success=False, errors=[str(e)])
+        _require_org_perm(info, organization_id, 'docs_create')
+        document = Document.objects.create(
+            title=title,
+            body=content,
+            organization_id=organization_id,
+            created_by=info.context.user
+        )
+        return CreateDocument(document=document, success=True, errors=[])
 
 
 class Mutation(graphene.ObjectType):

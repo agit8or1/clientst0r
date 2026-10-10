@@ -81,14 +81,40 @@ class Enforce2FAMiddleware:
         '/static/',
         '/media/',
     ]
+    # What an authenticated-but-unverified session (user has a device, the
+    # session never passed OTP) may still reach. Deliberately excludes
+    # /account/two_factor/ (device management) and /admin/.
+    UNVERIFIED_ALLOWED_PATHS = [
+        '/account/login/',
+        '/account/logout/',
+        '/static/',
+    ]
 
     def __init__(self, get_response):
         self.get_response = get_response
+
+    @staticmethod
+    def _is_verified(request):
+        is_verified = getattr(request.user, 'is_verified', None)
+        return bool(is_verified()) if callable(is_verified) else False
 
     def __call__(self, request):
         # Skip for unauthenticated users
         if not request.user.is_authenticated:
             return self.get_response(request)
+
+        # A user with a 2FA device must have passed it in *this* session.
+        # Password-only logins (e.g. the stock /admin/login/ form) leave the
+        # session unverified: end it and send them through the 2FA login.
+        if (not request.session.get('azure_ad_authenticated', False)
+                and user_has_device(request.user)
+                and not self._is_verified(request)):
+            if any(request.path.startswith(path) for path in self.UNVERIFIED_ALLOWED_PATHS):
+                return self.get_response(request)
+            from django.contrib.auth.views import redirect_to_login
+            next_url = request.get_full_path()
+            logout(request)
+            return redirect_to_login(next_url, reverse('two_factor:login'))
 
         # Skip for allowed paths
         if any(request.path.startswith(path) for path in self.ALLOWED_PATHS):

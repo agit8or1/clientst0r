@@ -4,8 +4,9 @@
 
 # INSTRUCTIONS:
 # 1. Edit the SERVERS array below with your server URLs
-# 2. The secret is auto-generated from each server's SECRET_KEY
-# 3. Run: ./scripts/heal_all_servers.sh
+# 2. Set EMERGENCY_RESTART_SECRET in each server's .env (the endpoint is
+#    disabled without it) and export the same value here
+# 3. Run: EMERGENCY_RESTART_SECRET=... ./scripts/heal_all_servers.sh
 
 # Add your server URLs here
 SERVERS=(
@@ -25,18 +26,11 @@ echo "  Healing Multiple Servers"
 echo "=========================================="
 echo ""
 
-# Get the secret from Django
-echo "Getting emergency restart secret..."
-cd "$(dirname "$0")/.."
-SECRET=$(python manage.py shell -c "from django.conf import settings; import hashlib; print(hashlib.sha256(settings.SECRET_KEY.encode()).hexdigest()[:32])")
-
+SECRET="${EMERGENCY_RESTART_SECRET:-}"
 if [ -z "$SECRET" ]; then
-    echo -e "${RED}✗ Failed to get secret${NC}"
+    echo -e "${RED}✗ Set EMERGENCY_RESTART_SECRET (the value in each server's .env)${NC}"
     exit 1
 fi
-
-echo -e "${GREEN}✓ Secret obtained${NC}"
-echo ""
 
 # Function to heal a single server
 heal_server() {
@@ -55,8 +49,8 @@ heal_server() {
 
     # Then trigger emergency restart
     echo "  Step 2: Triggering emergency restart..."
-    response=$(curl -s -X POST "$server_url/emergency-restart/?secret=$SECRET" \
-        -H "Content-Type: application/json" \
+    response=$(curl -s -X POST "$server_url/emergency-restart/" \
+        -H "X-Emergency-Secret: $SECRET" \
         2>&1)
 
     if echo "$response" | grep -q '"success": true'; then

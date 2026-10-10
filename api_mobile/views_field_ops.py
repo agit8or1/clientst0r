@@ -50,10 +50,8 @@ def _audit(user, action, request, extra=None):
 
 
 def _client_ip(request):
-    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if xff:
-        return xff.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR') or None
+    from core.client_ip import get_client_ip
+    return get_client_ip(request) or None
 
 
 def _is_off_shift(user, when):

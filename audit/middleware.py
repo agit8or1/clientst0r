@@ -276,10 +276,6 @@ class AuditLoggingMiddleware(MiddlewareMixin):
         return f"{user} {action_text}"
 
     def _get_client_ip(self, request):
-        """Extract client IP address from request."""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0].strip()
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
+        """Client IP; X-Forwarded-For is honoured only from trusted proxies."""
+        from core.client_ip import get_client_ip
+        return get_client_ip(request)

@@ -102,18 +102,14 @@ INSTALLED_APPS = [
     'network_discovery.apps.NetworkDiscoveryConfig',
 ]
 
-# Optional apps - only add if installed (allows updates without dependencies)
-try:
-    import graphene_django
-    INSTALLED_APPS.append('graphene_django')
-except ImportError:
-    pass
-
-try:
-    import corsheaders
-    INSTALLED_APPS.append('corsheaders')
-except ImportError:
-    pass
+# Optional apps - only add if installed (allows updates without dependencies).
+# find_spec, not import: importing graphene_django here reads Django settings
+# while this module is half-loaded, so graphene cached an empty GRAPHENE
+# config and every GraphQL request failed with "A Schema is required".
+from importlib.util import find_spec as _find_spec
+for _optional_app in ('graphene_django', 'corsheaders'):
+    if _find_spec(_optional_app) is not None:
+        INSTALLED_APPS.append(_optional_app)
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -584,6 +580,10 @@ if not API_KEY_SECRET:
     else:
         raise ValueError("API_KEY_SECRET environment variable must be set in production (must differ from SECRET_KEY)")
 
+# Emergency restart webhook (POST /emergency-restart/). Disabled unless set.
+# Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+EMERGENCY_RESTART_SECRET = os.getenv('EMERGENCY_RESTART_SECRET', '')
+
 # Logging
 LOGGING = {
     'version': 1,
@@ -647,9 +647,11 @@ AUTO_UPDATE_CHECK_INTERVAL = int(os.getenv('AUTO_UPDATE_CHECK_INTERVAL', '21600'
 # GraphQL Configuration
 GRAPHENE = {
     'SCHEMA': 'api.graphql.schema.schema',
+    # DjangoDebugMiddleware records every SQL query for the response; only
+    # useful (and only safe) in development.
     'MIDDLEWARE': [
         'graphene_django.debug.DjangoDebugMiddleware',
-    ],
+    ] if DEBUG else [],
 }
 
 # CORS Configuration for GraphQL API

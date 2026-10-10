@@ -7,14 +7,20 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
 from rest_framework.exceptions import PermissionDenied
 
+from accounts.permission_utils import user_has_org_perm
 from audit.models import AuditLog
+from core.client_ip import get_client_ip
 from assets.models import Asset, Contact
 from docs.models import Document
 from vault.models import Password
+from vault.permissions import (
+    RevealDenied, can_access_password, consume_approval, gate_reveal,
+)
 from core.models import Tag, Organization
 
 from .scoping import (
@@ -172,9 +178,55 @@ class PasswordViewSet(OrganizationScopedViewSet):
             return PasswordListSerializer
         return PasswordDetailSerializer
 
+    def get_queryset(self):
+        """Org-scoped, minus other users' personal (My Vault) entries."""
+        return super().get_queryset().filter(
+            Q(is_personal=False) | Q(personal_owner=self.request.user)
+        )
+
+    def _denied(self, password, denial, channel):
+        AuditLog.objects.create(
+            organization=password.organization,
+            user=self.request.user,
+            action='reveal_blocked',
+            object_type='password',
+            object_id=password.id,
+            object_repr=password.title,
+            description=f"API {channel} blocked: {denial.detail}",
+            ip_address=get_client_ip(self.request),
+            user_agent=self.request.META.get('HTTP_USER_AGENT', '')[:255],
+            success=False,
+        )
+        body = {'error': denial.detail}
+        if denial.requires_approval:
+            body['requires_approval'] = True
+        return Response(body, status=denial.status)
+
+    def perform_create(self, serializer):
+        org = resolve_create_org(self.request, serializer)
+        if not user_has_org_perm(self.request.user, org.id, 'vault_create'):
+            raise PermissionDenied('You do not have permission to create passwords.')
+        super().perform_create(serializer)
+
+    def perform_update(self, serializer):
+        if not can_access_password(self.request.user, serializer.instance, 'vault_edit'):
+            raise PermissionDenied('You do not have permission to edit this password.')
+        super().perform_update(serializer)
+
+    def perform_destroy(self, instance):
+        if not can_access_password(self.request.user, instance, 'vault_delete'):
+            raise PermissionDenied('You do not have permission to delete this password.')
+        super().perform_destroy(instance)
+
     def retrieve(self, request, *args, **kwargs):
-        """Log password access on retrieve."""
+        """Log password access on retrieve; ?reveal=true passes the reveal gate."""
         instance = self.get_object()
+        revealing = request.query_params.get('reveal') == 'true'
+        if revealing:
+            try:
+                gate_reveal(request, instance)
+            except RevealDenied as denial:
+                return self._denied(instance, denial, 'reveal')
         # Log against the row's own org — with multi-org keys the active row
         # may belong to a different client than the request's primary org.
         org = instance.organization
@@ -188,12 +240,15 @@ class PasswordViewSet(OrganizationScopedViewSet):
             object_id=instance.id,
             object_repr=instance.title,
             description=f"Password '{instance.title}' accessed via API",
-            ip_address=request.META.get('REMOTE_ADDR'),
+            ip_address=get_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
         )
 
         serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+        data = serializer.data
+        if revealing:
+            consume_approval(instance, request.user)
+        return Response(data)
 
     @action(detail=True, methods=['post'])
     def reveal(self, request, pk=None):
@@ -203,6 +258,10 @@ class PasswordViewSet(OrganizationScopedViewSet):
         """
         password = self.get_object()
         org = password.organization
+        try:
+            gate_reveal(request, password)
+        except RevealDenied as denial:
+            return self._denied(password, denial, 'reveal')
 
         # Log password reveal
         AuditLog.objects.create(
@@ -213,13 +272,13 @@ class PasswordViewSet(OrganizationScopedViewSet):
             object_id=password.id,
             object_repr=password.title,
             description=f"Password '{password.title}' revealed via API",
-            ip_address=request.META.get('REMOTE_ADDR'),
+            ip_address=get_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
         )
 
-        return Response({
-            'password': password.get_password()
-        })
+        plaintext = password.get_password()
+        consume_approval(password, request.user)
+        return Response({'password': plaintext})
 
     @action(detail=True, methods=['get'])
     def otp(self, request, pk=None):
@@ -228,6 +287,10 @@ class PasswordViewSet(OrganizationScopedViewSet):
         GET /api/passwords/{id}/otp/
         """
         password = self.get_object()
+        try:
+            gate_reveal(request, password)
+        except RevealDenied as denial:
+            return self._denied(password, denial, 'otp')
 
         if password.password_type != 'otp':
             return Response(
@@ -251,7 +314,7 @@ class PasswordViewSet(OrganizationScopedViewSet):
             object_id=password.id,
             object_repr=password.title,
             description=f"OTP generated for '{password.title}' via API",
-            ip_address=request.META.get('REMOTE_ADDR'),
+            ip_address=get_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
         )
 

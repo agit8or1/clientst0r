@@ -138,15 +138,26 @@ class PasswordDetailSerializer(OrganizationScopedSerializerMixin):
         ]
         read_only_fields = ['id', 'password', 'otp_code', 'created_at', 'updated_at']
 
+    def _revealing(self):
+        """True only for GET /api/passwords/<id>/?reveal=true, which
+        PasswordViewSet.retrieve has already passed through the reveal gate.
+        Create/update responses never carry secrets."""
+        request = self.context.get('request')
+        view = self.context.get('view')
+        return bool(
+            request and view is not None
+            and getattr(view, 'action', None) == 'retrieve'
+            and request.query_params.get('reveal') == 'true'
+        )
+
     def get_password(self, obj):
         """Only return password if explicitly requested with reveal=true."""
-        request = self.context.get('request')
-        if request and request.query_params.get('reveal') == 'true':
+        if self._revealing():
             return obj.get_password()
         return '**********'
 
     def get_otp_code(self, obj):
-        """Generate OTP code if password type is OTP."""
-        if obj.password_type == 'otp':
+        """Current OTP code, under the same rule as the password."""
+        if obj.password_type == 'otp' and self._revealing():
             return obj.generate_otp()
         return None

@@ -4,11 +4,51 @@ Secure Notes views - Encrypted messaging between users
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.db.models import Q
+from .client_ip import get_client_ip
 from .models import SecureNote
 from .middleware import get_request_organization
+
+# Wrong-password attempts allowed per note per client within the window.
+NOTE_PASSWORD_MAX_FAILURES = 10
+NOTE_PASSWORD_WINDOW_SECONDS = 900
+
+
+def _note_password_ok(request, note, password):
+    """Check a note's access password: hashed, constant-time, attempt-limited.
+
+    Notes created before hashing hold the password in plaintext; those are
+    compared in constant time and upgraded to a hash on the first success.
+    Returns (ok, locked_out).
+    """
+    from django.contrib.auth.hashers import check_password, identify_hasher, make_password
+    from django.core.cache import cache
+    from django.utils.crypto import constant_time_compare
+
+    key = f'securenote_pw_fail:{note.pk}:{get_client_ip(request)}'
+    if cache.get(key, 0) >= NOTE_PASSWORD_MAX_FAILURES:
+        return False, True
+
+    stored = note.access_password or ''
+    password = password or ''
+    try:
+        identify_hasher(stored)
+        ok = bool(stored) and check_password(password, stored)
+    except ValueError:
+        ok = bool(stored) and constant_time_compare(password, stored)
+        if ok:
+            note.access_password = make_password(password)
+            note.save(update_fields=['access_password'])
+
+    if not ok:
+        try:
+            cache.incr(key)
+        except ValueError:
+            cache.set(key, 1, NOTE_PASSWORD_WINDOW_SECONDS)
+    return ok, False
 
 
 @login_required
@@ -70,10 +110,10 @@ def secure_note_detail(request, pk):
     # Check password if required
     if note.require_password and note.sender != request.user:
         if request.method == 'POST':
-            password = request.POST.get('password')
-            # Check password (simplified - should use proper password hashing)
-            if password != note.access_password:
-                messages.error(request, 'Incorrect password.')
+            ok, locked = _note_password_ok(request, note, request.POST.get('password'))
+            if not ok:
+                messages.error(request, 'Too many incorrect attempts. Try again later.'
+                               if locked else 'Incorrect password.')
                 return render(request, 'core/secure_note_password.html', {'note': note})
         else:
             return render(request, 'core/secure_note_password.html', {'note': note})
@@ -132,7 +172,7 @@ def secure_note_create(request):
                 link_only=link_only,
                 read_once=read_once,
                 require_password=require_password,
-                access_password=access_password if require_password else ''
+                access_password=make_password(access_password) if require_password else ''
             )
 
             # Set expiration if provided
@@ -331,24 +371,16 @@ def secure_note_view_link(request, token):
     # Check password if required
     if note.require_password:
         if request.method == 'POST':
-            password = request.POST.get('password')
-            # Check password (simplified - should use proper password hashing)
-            if password != note.access_password:
-                messages.error(request, 'Incorrect password.')
+            ok, locked = _note_password_ok(request, note, request.POST.get('password'))
+            if not ok:
+                messages.error(request, 'Too many incorrect attempts. Try again later.'
+                               if locked else 'Incorrect password.')
                 return render(request, 'core/secure_note_password.html', {'note': note, 'is_link_access': True})
         else:
             return render(request, 'core/secure_note_password.html', {'note': note, 'is_link_access': True})
 
     # Phase 3: Log access
     from .models import SecureNoteAccessLog
-    def get_client_ip(request):
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
-
     SecureNoteAccessLog.objects.create(
         secure_note=note,
         ip_address=get_client_ip(request),

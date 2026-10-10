@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.utils import timezone
 
 from .models import SystemPackageScan, PythonPackageScan
@@ -204,6 +204,11 @@ def update_packages(request):
             args.append('--security-only')
 
         if packages:
+            from core.management.commands.update_system_packages import parse_package_list
+            try:
+                parse_package_list(packages)
+            except CommandError as e:
+                return JsonResponse({'success': False, 'error': str(e)}, status=400)
             args.extend(['--package', packages])
 
         if dry_run:

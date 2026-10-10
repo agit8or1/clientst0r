@@ -780,10 +780,8 @@ def ticket_vault_context(request, ticket_number):
 
 
 def _client_ip(request):
-    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if xff:
-        return xff.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+    from core.client_ip import get_client_ip
+    return get_client_ip(request)
 
 
 def _scoped_ticket_for_write(request, ticket_number):
@@ -7430,31 +7428,32 @@ def _phase7_sign(secret: str, body: bytes) -> str:
 def _phase7_post_to_partner(share, payload: dict) -> dict:
     """Fire an HMAC-signed POST to the partner's webhook. Returns
     {'ok': bool, 'status': int, 'error': str}. Never raises."""
-    import urllib.error
-    import urllib.request
-
     partner = share.partner_org
     url = (partner.partner_endpoint_url or '').strip()
     if not url:
         return {'ok': False, 'status': 0, 'error': 'partner has no endpoint URL'}
     body = _phase7_json.dumps(payload).encode('utf-8')
     sig = _phase7_sign(partner.partner_secret, body)
-    req = urllib.request.Request(
-        url, data=body, method='POST',
-        headers={
-            'Content-Type': 'application/json',
-            'X-CST0R-Signature': sig,
-            'X-CST0R-Share-Pk': str(share.pk),
-            'User-Agent': 'ClientSt0r-Outsourcing/1.0',
-        },
-    )
+    import requests as _requests
+    from core.safe_http import configured_service_policy, guard_session
+    # The endpoint URL is user-supplied: send through the SSRF guard.
+    session = guard_session(_requests.Session(), configured_service_policy())
+    session.trust_env = False
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return {'ok': 200 <= resp.status < 300, 'status': resp.status, 'error': ''}
-    except urllib.error.HTTPError as e:
-        return {'ok': False, 'status': e.code, 'error': str(e)[:200]}
+        resp = session.post(
+            url, data=body, timeout=10, allow_redirects=False,
+            headers={
+                'Content-Type': 'application/json',
+                'X-CST0R-Signature': sig,
+                'X-CST0R-Share-Pk': str(share.pk),
+                'User-Agent': 'ClientSt0r-Outsourcing/1.0',
+            },
+        )
     except Exception as e:
         return {'ok': False, 'status': 0, 'error': str(e)[:200]}
+    if 200 <= resp.status_code < 300:
+        return {'ok': True, 'status': resp.status_code, 'error': ''}
+    return {'ok': False, 'status': resp.status_code, 'error': f'HTTP {resp.status_code}'}
 
 
 @login_required

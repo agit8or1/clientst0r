@@ -646,7 +646,8 @@ class WAN(BaseModel):
         import re
         from django.utils import timezone
 
-        if not re.match(r'^[a-zA-Z0-9.\-]+$', str(self.monitor_target)):
+        # Must start alphanumeric so a target can't be read as a ping option.
+        if not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9.\-]*$', str(self.monitor_target)):
             raise ValueError(f"Invalid monitor target: {self.monitor_target}")
 
         try:

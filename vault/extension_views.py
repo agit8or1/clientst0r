@@ -18,8 +18,10 @@ from django.views.decorators.http import require_http_methods
 
 from audit.models import AuditLog
 from core.middleware import get_request_organization
+from core.client_ip import get_client_ip
 from .extension_auth import extension_auth_required
 from .models import Password, WebExtensionAuthToken
+from .permissions import RevealDenied, consume_approval, gate_reveal
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +80,7 @@ def token_issue(request):
         object_id=row.pk,
         object_repr=row.label or 'extension token',
         description='Issued browser-extension auth token',
-        ip_address=request.META.get('REMOTE_ADDR'),
+        ip_address=get_client_ip(request),
         user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
     )
 
@@ -139,7 +141,7 @@ def token_revoke(request, pk):
             object_id=row.pk,
             object_repr=row.label or 'extension token',
             description='Revoked browser-extension auth token',
-            ip_address=request.META.get('REMOTE_ADDR'),
+            ip_address=get_client_ip(request),
         )
     return JsonResponse({'id': row.pk, 'revoked': True})
 
@@ -212,6 +214,31 @@ def _visible_password_qs(user, organization):
     )
 
 
+def _gate(request, password, event):
+    """Run the shared reveal gate; return an error response if it refuses."""
+    try:
+        gate_reveal(request, password)
+    except RevealDenied as denial:
+        AuditLog.log(
+            user=request.user,
+            action='read',
+            organization=password.organization,
+            object_type='vault.Password',
+            object_id=password.pk,
+            object_repr=password.title,
+            description=f'{event} blocked — {denial.detail}',
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
+            extra_data={'event': event, 'blocked_reason': denial.detail},
+            success=False,
+        )
+        body = {'error': denial.detail}
+        if denial.requires_approval:
+            body['requires_approval'] = True
+        return JsonResponse(body, status=denial.status)
+    return None
+
+
 def _host_from_url(value):
     """Lower-cased host (sans port) from a URL string. None on failure."""
     if not value:
@@ -282,7 +309,7 @@ def autofill(request):
         object_type='vault.Password',
         object_id=None,
         description=f'vault_autofill — host={target_host} matches={len(matches)}',
-        ip_address=request.META.get('REMOTE_ADDR'),
+        ip_address=get_client_ip(request),
         user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
         extra_data={'event': 'vault_autofill', 'host': target_host,
                     'match_count': len(matches)},
@@ -341,7 +368,7 @@ def bulk_sync(request):
         object_type='vault.Password',
         object_id=None,
         description=f'vault_extension_sync — count={len(rows)}',
-        ip_address=request.META.get('REMOTE_ADDR'),
+        ip_address=get_client_ip(request),
         user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
         extra_data={'event': 'vault_extension_sync', 'count': len(rows)},
     )
@@ -394,6 +421,10 @@ def totp_code(request, pk):
     except Password.DoesNotExist:
         return JsonResponse({'error': 'Password not found.'}, status=404)
 
+    denied = _gate(request, password, 'vault_extension_totp')
+    if denied is not None:
+        return denied
+
     otp_data = password.generate_otp()
     if otp_data is None:
         return JsonResponse({'error': 'No TOTP secret configured.'}, status=400)
@@ -411,7 +442,7 @@ def totp_code(request, pk):
         object_id=password.pk,
         object_repr=password.title,
         description=f'vault_extension_totp — {password.title}',
-        ip_address=request.META.get('REMOTE_ADDR'),
+        ip_address=get_client_ip(request),
         user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
         extra_data={'event': 'vault_extension_totp'},
     )
@@ -448,32 +479,9 @@ def reveal(request, pk):
     except Password.DoesNotExist:
         return JsonResponse({'error': 'Password not found.'}, status=404)
 
-    if password.requires_reveal_approval:
-        from .models import VaultRevealRequest
-        approval = (VaultRevealRequest.objects
-                    .filter(password=password, requester=request.user,
-                            status='approved', revealed_at__isnull=True)
-                    .order_by('-decided_at').first())
-        if approval is None or not approval.is_currently_valid:
-            AuditLog.log(
-                user=request.user,
-                action='read',
-                organization=password.organization,
-                object_type='vault.Password',
-                object_id=password.pk,
-                object_repr=password.title,
-                description='vault_extension_reveal blocked — no valid approval',
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
-                extra_data={'event': 'vault_extension_reveal',
-                            'blocked_reason': 'no_approval'},
-                success=False,
-            )
-            return JsonResponse({
-                'error': 'Reveal approval required.',
-                'requires_approval': True,
-            }, status=403)
-        # Mark the approval used after we successfully decrypt below.
+    denied = _gate(request, password, 'vault_extension_reveal')
+    if denied is not None:
+        return denied
 
     try:
         plaintext = password.get_password()
@@ -486,20 +494,13 @@ def reveal(request, pk):
             object_id=password.pk,
             object_repr=password.title,
             description=f'vault_extension_reveal decrypt failed: {e}',
-            ip_address=request.META.get('REMOTE_ADDR'),
+            ip_address=get_client_ip(request),
             extra_data={'event': 'vault_extension_reveal'},
             success=False,
         )
         return JsonResponse({'error': 'Decrypt failed.'}, status=500)
 
-    if password.requires_reveal_approval:
-        from .models import VaultRevealRequest
-        approval = (VaultRevealRequest.objects
-                    .filter(password=password, requester=request.user,
-                            status='approved', revealed_at__isnull=True)
-                    .order_by('-decided_at').first())
-        if approval is not None:
-            approval.mark_revealed()
+    consume_approval(password, request.user)
 
     AuditLog.log(
         user=request.user,
@@ -509,7 +510,7 @@ def reveal(request, pk):
         object_id=password.pk,
         object_repr=password.title,
         description=f'vault_extension_reveal — {password.title}',
-        ip_address=request.META.get('REMOTE_ADDR'),
+        ip_address=get_client_ip(request),
         user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
         extra_data={'event': 'vault_extension_reveal'},
     )
@@ -613,7 +614,7 @@ def verify_master(request):
         object_type='vault.WebExtensionAuthToken',
         object_id=request.extension_token.pk,
         description='vault_extension_verify_master',
-        ip_address=request.META.get('REMOTE_ADDR'),
+        ip_address=get_client_ip(request),
         extra_data={'event': 'vault_extension_verify_master', 'verified': ok},
         success=ok,
     )

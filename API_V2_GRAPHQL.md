@@ -10,27 +10,25 @@ Modern GraphQL API for Client St0r, providing flexible and efficient data queryi
 POST /api/v2/graphql/
 ```
 
-### GraphQL Playground (Development)
+Only mounted when the optional GraphQL dependencies are installed
+(`pip install -r requirements-graphql.txt`). The in-browser GraphiQL IDE
+is served at the same URL only when `DEBUG=True`.
 
-Visit `http://your-domain/api/v2/graphql/playground/` for an interactive GraphQL IDE.
+## Authentication and scoping
 
-## Authentication
+The endpoint uses your normal **web session** (log in first, including
+2FA), so requests need Django's CSRF token (`X-CSRFToken` header). There is
+no JWT or password-for-token mutation; for scripts and integrations use the
+REST API with an API key.
 
-### Using JWT Tokens
+Every query returns only data from organizations you belong to (MSP staff
+and superusers see all organizations), other users' personal vault entries
+are never listed, and password entries expose metadata only. Mutations
+check your role on the target organization (`assets_create`,
+`assets_edit`, `assets_delete`, `docs_create`).
 
-```graphql
-mutation {
-  tokenAuth(username: "your_username", password: "your_password") {
-    token
-    refreshToken
-  }
-}
-```
-
-Include the token in headers:
-```
-Authorization: JWT your-token-here
-```
+> Some examples further down predate these rules and the current schema;
+> use the GraphiQL schema explorer (in development) as the source of truth.
 
 ## Example Queries
 

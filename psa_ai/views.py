@@ -32,10 +32,8 @@ from .services.triage_generator import generate_triage_for_ticket
 
 
 def _client_ip(request):
-    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if xff:
-        return xff.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+    from core.client_ip import get_client_ip
+    return get_client_ip(request)
 
 
 def _ai_on(request):

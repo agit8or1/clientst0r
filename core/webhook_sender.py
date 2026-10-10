@@ -9,6 +9,7 @@ import time
 import logging
 from django.conf import settings
 from core.models import Webhook, WebhookDelivery, SystemSetting
+from core.safe_http import configured_service_policy, guard_session
 
 logger = logging.getLogger('core')
 
@@ -112,7 +113,12 @@ def deliver_webhook(webhook, event_type, payload_data):
     try:
         # Send request
         start_time = time.time()
-        response = requests.post(
+        # Webhook URLs are user-supplied: go through the SSRF guard, which
+        # refuses internal/metadata addresses (LAN only on explicit opt-in)
+        # on every connection, redirects included.
+        session = guard_session(requests.Session(), configured_service_policy())
+        session.trust_env = False
+        response = session.post(
             webhook.url,
             data=payload_json,
             headers=headers,

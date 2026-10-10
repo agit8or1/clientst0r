@@ -3,10 +3,25 @@ Management command to update system packages.
 OPTIONAL: Only runs when explicitly called. Supports apt, yum/dnf, and pacman.
 Can update all packages, security-only, or specific packages.
 """
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
+import re
 import subprocess
 from pathlib import Path
+
+# Debian/RPM/Arch package names (optionally with an :arch suffix). Must start
+# with an alphanumeric, so a value can never be read as a command-line option
+# (e.g. `-oDPkg::Pre-Invoke=...`) by the package manager running under sudo.
+PACKAGE_NAME = re.compile(r'[a-zA-Z0-9][a-zA-Z0-9.+_-]*(:[a-z0-9_-]+)?')
+
+
+def parse_package_list(value):
+    """Split a comma-separated package list, rejecting anything that isn't a package name."""
+    names = [name.strip() for name in (value or '').split(',') if name.strip()]
+    bad = [name for name in names if not PACKAGE_NAME.fullmatch(name)]
+    if bad:
+        raise CommandError(f'Invalid package name(s): {", ".join(bad)}')
+    return names
 
 
 class Command(BaseCommand):
@@ -36,7 +51,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.security_only = options['security_only']
-        self.packages = options['package'].split(',') if options['package'] else []
+        self.packages = parse_package_list(options['package'])
         self.dry_run = options['dry_run']
         self.auto_approve = options['auto_approve']
 

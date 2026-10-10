@@ -43,10 +43,8 @@ UPLOAD_RATE_WINDOW_SECONDS = 3600
 
 
 def _client_ip(request):
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if forwarded:
-        return forwarded.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+    from core.client_ip import get_client_ip
+    return get_client_ip(request)
 
 
 def _audit(user, action, *, organization=None, description='', request=None,

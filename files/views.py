@@ -11,8 +11,26 @@ from django.http import HttpResponse, FileResponse, Http404, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
+from django.utils.http import content_disposition_header
 from core.middleware import get_request_organization
 from .models import Attachment
+
+
+# Types a browser may render in place. Everything else is sent as a download,
+# so an uploaded HTML/SVG/XML file (or a forged upload Content-Type) can never
+# run script on this origin.
+INLINE_TYPES = {
+    'image/png', 'image/jpeg', 'image/gif', 'image/bmp', 'image/webp',
+    'application/pdf', 'text/plain',
+}
+
+
+def _delivery_type(filename):
+    """(Content-Type, inline?) from the stored file name, never the upload's own header."""
+    guessed = mimetypes.guess_type(filename or '')[0] or 'application/octet-stream'
+    if guessed in INLINE_TYPES:
+        return guessed, True
+    return 'application/octet-stream', False
 
 
 @login_required
@@ -53,18 +71,16 @@ def serve_attachment(request, pk):
         internal_path = f"/internal_uploads/{attachment.file.name}"
         response = HttpResponse()
         response['X-Accel-Redirect'] = internal_path
-        response['Content-Type'] = attachment.content_type or 'application/octet-stream'
-        response['Content-Disposition'] = f'inline; filename="{attachment.original_filename}"'
-        return response
     else:
         # Development: serve directly using validated file_path
         # NOTE: FileResponse automatically closes the file handle when response completes
-        return FileResponse(
-            open(file_path, 'rb'),
-            content_type=attachment.content_type,
-            as_attachment=False,
-            filename=attachment.original_filename
-        )
+        response = FileResponse(open(file_path, 'rb'))
+    content_type, inline = _delivery_type(attachment.original_filename)
+    response['Content-Type'] = content_type
+    response['Content-Disposition'] = content_disposition_header(
+        not inline, attachment.original_filename)
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 @login_required
@@ -221,7 +237,7 @@ def upload_attachment(request):
         file=uploaded_file,
         original_filename=uploaded_file.name,
         file_size=uploaded_file.size,
-        content_type=uploaded_file.content_type or mimetypes.guess_type(uploaded_file.name)[0] or 'application/octet-stream',
+        content_type=mimetypes.guess_type(uploaded_file.name)[0] or 'application/octet-stream',
         uploaded_by=request.user,
         description=request.POST.get('description', '')
     )
