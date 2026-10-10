@@ -10,7 +10,7 @@
 - Use GitHub's Security Advisories: [Report a vulnerability](https://github.com/agit8or1/clientst0r/security/advisories/new)
 
 **Alternative Contact:**
-- Email: Create an issue on GitHub with the label "security" (do not include sensitive details in public issues)
+- Email: [agit8or@agit8or.net](mailto:agit8or@agit8or.net) — please do not report vulnerabilities in public issues
 
 ### What to Include
 
