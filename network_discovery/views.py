@@ -349,7 +349,7 @@ def sites(request, org_id, location_id):
         'location': location,
         'sites': DiscoverySite.objects.filter(
             organization=organization, location=location
-        ).select_related('created_by', 'snmp_credential'),
+        ).select_related('created_by'),
         'can_generate': user_has_perm(request.user, 'network_discovery_generate'),
         'new_key': request.session.pop('nd_new_site_key', None),
         'new_key_site': request.session.pop('nd_new_site_id', None),

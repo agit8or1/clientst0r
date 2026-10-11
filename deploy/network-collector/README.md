@@ -11,14 +11,8 @@ and revocation, the config and results endpoints, device import, LLDP/CDP
 topology ingestion, switch-port correlation and the on-demand scan flag. 112
 tests cover it.
 
-`collector.py` is a **reference implementation**. Its ping-sweep and ARP paths
-work with nothing but the Python standard library. Its SNMP paths —
-`emit_neighbours()` and `emit_switch_ports()` — are deliberately left as
-documented extension points returning empty lists, because they need `pysnmp`
-and real switch hardware to validate against, and an untested SNMP walk that
-silently returns nothing would look exactly like a working feature that happens
-to find no neighbours. The server accepts and stores that data today; the
-docstrings give the exact shape it expects.
+`collector.py` is a **reference implementation** that ping-sweeps and reads
+the local ARP table, with nothing but the Python standard library.
 
 Packaging as a container is left to the operator — the script has no
 dependencies, so a `FROM python:3-slim` with two `COPY` lines is the whole

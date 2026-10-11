@@ -5,6 +5,20 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.594] - 2026-10-11
+
+### Removed: SNMP stubs from network discovery
+
+- The site collector (`deploy/network-collector/collector.py`) no longer has
+  the `emit_neighbours()` / `emit_switch_ports()` SNMP stubs, which always
+  returned empty lists. It ping-sweeps and reads ARP, as before.
+- Removed the unused `snmp_enabled` and `snmp_credential` settings from
+  discovery sites. No screen exposed them, and nothing read them. The collector
+  config endpoint no longer returns `snmp_enabled`.
+- The topology and port-map empty states no longer tell users to enable SNMP.
+
+Migration: `network_discovery.0004_remove_discoverysite_snmp`.
+
 ## [3.17.593] - 2026-10-10
 
 ### Security: hardening pass across auth, vault channels, uploads and outbound requests

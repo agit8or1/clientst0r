@@ -697,11 +697,11 @@ Phase 33 layers the deeper, persistent / scheduled, multi-protocol discovery on 
 
 ## Phase 33 — Network Discovery & Auto Documentation **(L)** [complete]
 
-Multi-protocol persistent network discovery and topology inference. Phase 32 ships a one-shot, scoped, single-use ping / ARP script — useful for the first walk-through of a new client. Phase 33 is the always-on companion: a lightweight per-site collector that polls SNMP / LLDP / CDP / ARP on a schedule, keeps the asset inventory current, and generates topology diagrams without manual draw-time.
+Multi-protocol persistent network discovery and topology inference. Phase 32 ships a one-shot, scoped, single-use ping / ARP script — useful for the first walk-through of a new client. Phase 33 is the always-on companion: a lightweight per-site collector that sweeps ICMP / ARP on a schedule, keeps the asset inventory current, and generates topology diagrams without manual draw-time.
 
 Planned capabilities:
 - **Lightweight site collector / agent** — one per client site, packaged as a small container or systemd unit. Pulls config from server, pushes results back. No persistent admin credentials embedded; uses a per-site rotating token similar to Phase 32's scheme.
-- SNMP, ICMP, ARP, LLDP, CDP discovery
+- ICMP and ARP discovery *(SNMP / LLDP / CDP collection is not in scope — stubs removed v3.17.594)*
 - Automatic device inventory import *(extends the single-shot Phase 32 import flow)*
 - Auto-generated topology maps *(extends Phase 16 Documentation Relationship Mapping with a dedicated network-layer view)*
 - Device relationship mapping (which switches connect which APs / endpoints)
@@ -721,7 +721,7 @@ Dependencies: Phase 32 (token + import models — extend rather than replace), P
 - **Topology map** — force-directed SVG rendered from a seeded layout, so the same network draws the same way twice.
 - **Scheduled and on-demand scans** — cadence lives on the site; "scan now" is a flag the collector picks up on its next check-in, because it polls and we never connect inbound to a client network.
 
-**Scope note, stated plainly:** the server side is complete and tested (112 tests). `deploy/network-collector/collector.py` is a reference implementation whose ping/ARP paths work with only the standard library; its **SNMP paths are documented extension points returning empty lists**, because LLDP/CDP walks need `pysnmp` and real switch hardware to validate, and an untested walk that silently returns nothing would look identical to a working feature finding no neighbours. The server accepts and stores that data today.
+**Scope note, stated plainly:** the server side is complete and tested (112 tests). `deploy/network-collector/collector.py` is a reference implementation that ping-sweeps and reads ARP with only the standard library. It does not collect SNMP, LLDP or CDP data; the unused SNMP stubs and per-site SNMP settings were removed in v3.17.594. The topology and port-map views show whatever neighbour and port records the results endpoint receives.
 
 ## Phase 34 — Network Configuration Backup **(M)** [complete]
 

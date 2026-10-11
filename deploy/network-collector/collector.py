@@ -18,12 +18,6 @@ What it does NOT do:
   * no writes or changes to any device
   * nothing persistent beyond this process and its systemd timer
 
-SNMP (LLDP/CDP neighbours and bridge tables) is the one part left as an
-extension point rather than shipped half-built: it needs `pysnmp` and real
-switch hardware to validate against, and an untested SNMP walk that silently
-returns nothing would be worse than an honest gap. The server accepts and
-stores that data today — see `emit_neighbours()` below for the shape it wants.
-
 Usage:
     collector.py --server https://clientst0r.example.com --key <site key>
     collector.py --server ... --key ... --once --dry-run
@@ -155,32 +149,6 @@ def sweep(subnets, max_hosts=1024, timeout_ms=300):
     } for ip in alive]
 
 
-def emit_neighbours():
-    """LLDP/CDP neighbours — the SNMP extension point.
-
-    Return a list shaped like:
-
-        [{'local_mac': 'AA-BB-CC-DD-EE-01', 'local_port': 'Gi0/1',
-          'remote_name': 'ap-01', 'remote_port': 'eth0',
-          'remote_mac': 'AA-BB-CC-DD-EE-02', 'source': 'lldp'}]
-
-    and the server will build topology from it. Left unimplemented on purpose:
-    it needs pysnmp and switch hardware to validate against, and an untested
-    walk that silently returns nothing would look like a working feature that
-    finds no neighbours.
-    """
-    return []
-
-
-def emit_switch_ports():
-    """Bridge-table entries — the other SNMP extension point.
-
-        [{'switch_mac': 'AA-BB-CC-DD-EE-01', 'port': 'Gi0/5',
-          'vlan': 10, 'mac': 'AA-BB-CC-DD-EE-42', 'ip': '10.0.0.42'}]
-    """
-    return []
-
-
 def run_once(args):
     config = fetch_config(args.server, args.key)
     subnets = config.get('subnets') or local_subnets()
@@ -190,8 +158,6 @@ def run_once(args):
         'collector_version': COLLECTOR_VERSION,
         'dry_run': bool(args.dry_run),
         'devices': sweep(subnets, args.max_hosts, args.timeout_ms),
-        'neighbours': emit_neighbours(),
-        'switch_ports': emit_switch_ports(),
     }
     result = post_results(args.server, args.key, payload)
     print(f'{result.get("devices", 0)} device(s): '

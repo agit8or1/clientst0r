@@ -79,10 +79,9 @@ class DiscoverySiteTests(_SiteCase):
         blob = json.dumps(config)
         self.assertNotIn('Secret server', blob)
         self.assertNotIn('key', config)
-        self.assertNotIn('snmp_credential', config)
         self.assertEqual(
             set(config), {'site_id', 'name', 'subnets', 'scan_interval_minutes',
-                          'snmp_enabled', 'classify_enabled', 'scan_now'})
+                          'classify_enabled', 'scan_now'})
 
     def test_a_fresh_collector_is_not_overdue(self):
         self.assertFalse(self.site.is_overdue)

@@ -356,14 +356,6 @@ class DiscoverySite(BaseModel):
         default=1440,
         help_text='How often the collector should scan. Daily by default; an '
                   'hourly sweep of a large site is mostly noise.')
-    snmp_enabled = models.BooleanField(
-        default=False,
-        help_text='Read SNMP for neighbour and port data. Community strings '
-                  'live in the vault, never here.')
-    snmp_credential = models.ForeignKey(
-        'vault.Password', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='discovery_sites',
-        help_text='Vault entry holding the SNMP community or v3 credentials.')
     classify_enabled = models.BooleanField(
         default=False,
         help_text='Probe a handful of well-known ports to guess device types.')
@@ -480,16 +472,13 @@ class DiscoverySite(BaseModel):
         """Exactly what the collector is allowed to know.
 
         Deliberately narrow: subnets, cadence and which probes to run. No asset
-        data, no credentials — the SNMP secret is fetched by the collector from
-        its own configuration store or passed at install time, never handed out
-        by this endpoint.
+        data, no credentials.
         """
         return {
             'site_id': self.pk,
             'name': self.name,
             'subnets': self.subnets if isinstance(self.subnets, list) else [],
             'scan_interval_minutes': self.scan_interval_minutes,
-            'snmp_enabled': self.snmp_enabled,
             'classify_enabled': self.classify_enabled,
             'scan_now': self.scan_pending,
         }
