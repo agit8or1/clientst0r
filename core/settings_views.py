@@ -2,6 +2,9 @@
 Admin Settings Views
 Superuser-only views for managing system configuration.
 """
+from core.ai_models import (
+    CLAUDE_MODEL_IDS, CURRENT_CLAUDE_MODELS, PREVIOUS_CLAUDE_MODELS, is_valid_claude_model,
+)
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -1063,7 +1066,10 @@ def settings_ai(request):
         # Update .env file with new values
         llm_provider = request.POST.get('llm_provider', 'anthropic').strip()
         anthropic_key = request.POST.get('anthropic_api_key', '').strip()
-        claude_model = request.POST.get('claude_model', 'claude-sonnet-4-5-20250929')
+        claude_model = request.POST.get('claude_model', '').strip()
+        if not is_valid_claude_model(claude_model):
+            # Unknown or malformed (it is written into .env): keep what was saved.
+            claude_model = current_claude_model
         moonshot_key = request.POST.get('moonshot_api_key', '').strip()
         moonshot_model = request.POST.get('moonshot_model', 'moonshot-v1-8k')
         minimax_key = request.POST.get('minimax_api_key', '').strip()
@@ -1178,6 +1184,9 @@ def settings_ai(request):
         'current_llm_provider': current_llm_provider,
         'current_anthropic_key': current_anthropic_key,
         'current_claude_model': current_claude_model,
+        'current_claude_models': CURRENT_CLAUDE_MODELS,
+        'previous_claude_models': PREVIOUS_CLAUDE_MODELS,
+        'claude_model_listed': current_claude_model in CLAUDE_MODEL_IDS,
         'current_moonshot_key': current_moonshot_key,
         'current_moonshot_model': current_moonshot_model,
         'current_minimax_key': current_minimax_key,

@@ -10,6 +10,7 @@ import logging
 from typing import Dict
 import json
 
+from core.ai_models import sampling_kwargs
 from core.safe_http import FetchError, fetch_public_url
 
 logger = logging.getLogger('locations')
@@ -125,7 +126,7 @@ Example format:
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=2000,
-                temperature=0,
+                **sampling_kwargs(self.model, temperature=0),
                 messages=[{
                     "role": "user",
                     "content": prompt

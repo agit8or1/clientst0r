@@ -5,6 +5,26 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.596] - 2026-10-13
+
+### Fixed: current Claude models in Settings → AI (issue #149)
+
+- The Claude model dropdown now lists the current models: Claude Opus 5.5
+  (recommended), Sonnet 5.5, Haiku 5.5 and Fable 5.1. Older models that are
+  still served sit in a separate "Previous models" group. Fable 5.1 needs an
+  Anthropic organization with 30-day data retention.
+- Removed Claude 3.5 Sonnet and Claude 3.5 Haiku, which Anthropic has retired.
+- A model set by hand in `.env` that isn't in the list now shows as "currently
+  saved" and stays selected, instead of being replaced on the next save.
+- The model value is validated before it is written to `.env`.
+- The property URL importer and AI triage no longer send `temperature` to
+  models that reject it (Opus 4.7 and later, the Sonnet 5 line, Haiku 5.5,
+  Fable). Before this fix, choosing one of those models broke URL import with
+  a 400 error.
+
+The default for installs that never picked a model is unchanged (Claude Sonnet
+4.5).
+
 ## [3.17.595] - 2026-10-13
 
 ### Fixed: nightly auto-update never reloaded the server

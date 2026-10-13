@@ -70,13 +70,23 @@
                     <div class="mb-3">
                         <label for="claude_model" class="form-label">Claude Model</label>
                         <select class="form-select" id="claude_model" name="claude_model">
-                            <option value="claude-opus-4-5-20251101" {% if current_claude_model == 'claude-opus-4-5-20251101' %}selected{% endif %}>Claude Opus 4.5 (Most Capable)</option>
-                            <option value="claude-sonnet-4-5-20250929" {% if current_claude_model == 'claude-sonnet-4-5-20250929' %}selected{% endif %}>Claude Sonnet 4.5 (Balanced - Recommended)</option>
-                            <option value="claude-3-5-sonnet-20241022" {% if current_claude_model == 'claude-3-5-sonnet-20241022' %}selected{% endif %}>Claude 3.5 Sonnet (Legacy)</option>
-                            <option value="claude-3-5-haiku-20241022" {% if current_claude_model == 'claude-3-5-haiku-20241022' %}selected{% endif %}>Claude 3.5 Haiku (Fastest, Lower Cost)</option>
+                            {% if not claude_model_listed %}
+                            <option value="{{ current_claude_model }}" selected>{{ current_claude_model }} (currently saved)</option>
+                            {% endif %}
+                            <optgroup label="Current models">
+                                {% for model_id, label in current_claude_models %}
+                                <option value="{{ model_id }}" {% if current_claude_model == model_id %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup label="Previous models">
+                                {% for model_id, label in previous_claude_models %}
+                                <option value="{{ model_id }}" {% if current_claude_model == model_id %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </optgroup>
                         </select>
                         <div class="form-text">
-                            Choose the Claude model for AI generation. Sonnet 4.5 offers the best balance of quality and cost.
+                            Choose the Claude model for AI generation. Opus 5.5 gives the best results; Sonnet 5.5 and Haiku 5.5 are faster and cost less.
+                            Fable 5.1 needs an Anthropic organization with 30-day data retention.
                         </div>
                     </div>
                     </div>

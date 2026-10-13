@@ -15,6 +15,8 @@ Mirrors the structure of `reply_generator.py`:
 """
 from __future__ import annotations
 
+from core.ai_models import sampling_kwargs
+
 import logging
 import os
 from decimal import Decimal
@@ -197,7 +199,7 @@ def generate_triage_for_ticket(ticket, *, requested_by, request=None):
         message = client.messages.create(
             model=model,
             max_tokens=TRIAGE_MAX_OUTPUT_TOKENS,
-            temperature=TRIAGE_TEMPERATURE,
+            **sampling_kwargs(model, temperature=TRIAGE_TEMPERATURE),
             system=[
                 {
                     'type': 'text',
