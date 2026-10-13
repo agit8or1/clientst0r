@@ -696,43 +696,18 @@ EOF
 print_status "Environment file created (.env)"
 print_info "Secure random database password generated"
 
-# Step 5.5: Generate sudoers files with correct paths
+# Step 5.5: Root helper
+# v3.17.597: the app runs root actions only through one root-owned program that
+# checks its arguments. This replaced generated sudoers files whose passwordless
+# `sudo cp` rule copied a file the app user can write into /etc/sudoers.d.
 echo ""
-print_info "Step 5.5/11: Generating sudoers files..."
-
-# Create deploy directory if it doesn't exist
-mkdir -p "$INSTALL_DIR/deploy"
-
-# Generate clientst0r-install-sudoers
-cat > "$INSTALL_DIR/deploy/clientst0r-install-sudoers" <<SUDOEOF
-# Sudoers configuration for Client St0r automatic fail2ban installation
-# Install: sudo cp $INSTALL_DIR/deploy/clientst0r-install-sudoers /etc/sudoers.d/clientst0r-install
-# Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-install
-
-# Allow $USER user to install and configure fail2ban without password
-$USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
-$USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y fail2ban
-$USER ALL=(ALL) NOPASSWD: /bin/systemctl enable fail2ban
-$USER ALL=(ALL) NOPASSWD: /bin/systemctl start fail2ban
-$USER ALL=(ALL) NOPASSWD: /bin/systemctl status fail2ban
-$USER ALL=(ALL) NOPASSWD: /bin/cp $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
-$USER ALL=(ALL) NOPASSWD: /bin/chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
-SUDOEOF
-
-# Generate clientst0r-fail2ban-sudoers
-cat > "$INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers" <<FBSUDOEOF
-# Sudoers configuration for Client St0r fail2ban integration
-# Install: sudo cp $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
-# Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
-
-# Allow $USER user to run fail2ban-client without password
-$USER ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
-FBSUDOEOF
-
-print_status "Sudoers files generated with correct paths for user: $USER"
-print_info "Files created:"
-print_info "  • $INSTALL_DIR/deploy/clientst0r-install-sudoers"
-print_info "  • $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers"
+print_info "Step 5.5/11: Installing the root helper..."
+if sudo bash "$INSTALL_DIR/deploy/root-helper/install-root-helper.sh"; then
+    print_status "Root helper installed"
+else
+    print_warning "Root helper install failed. Run it later with:"
+    print_warning "  sudo bash $INSTALL_DIR/deploy/root-helper/install-root-helper.sh"
+fi
 
 # Step 6: Database setup
 echo ""

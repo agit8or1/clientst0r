@@ -390,16 +390,18 @@ Click the **Update** button in the web UI and EVERYTHING happens automatically -
    - ✅ Collects static files
    - ✅ Restarts Gunicorn service
 
-### One-Time Sudo Configuration Required:
+### One-Time Setup Required:
 
-For web-based updates to work, configure passwordless sudo ONCE:
+> **Superseded (v3.17.597).** This section used to tell you to grant passwordless
+> `sudo` for bare `systemd-run` and for `tee` onto the gunicorn unit file. Either
+> one lets anything running as the app user become root. Don't install that rule;
+> if you did, the root helper disables it.
+
+Install the root helper once, from **Settings → Updates → Install root helper**,
+or on the server:
 
 ```bash
-sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<'SUDOERS'
-administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-gunicorn.service, /bin/systemctl status clientst0r-gunicorn.service, /bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service
-SUDOERS
-
-sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update
+sudo bash /home/administrator/deploy/root-helper/install-root-helper.sh
 ```
 
 **After this one-time setup, all future updates are ONE CLICK!**

@@ -107,6 +107,16 @@ class Command(BaseCommand):
                     raise Exception(f'Failed to install curl: {e}\nPlease install manually: apt-get install -y curl')
 
             # Check if npm is installed, install automatically if not
+            if not shutil.which('npm') and use_sudo:
+                # v3.17.597: this used to run the downloaded /tmp/nodesource_setup.sh
+                # through a passwordless `sudo bash /tmp/...` rule. Anything able to
+                # write that file ran it as root, so the app no longer does this.
+                msg = ('Node.js/npm is required for mobile builds. Install it once: '
+                       "sudo bash -c 'curl -fsSL https://deb.nodesource.com/setup_20.x | bash - "
+                       "&& apt-get install -y nodejs'")
+                self._update_status(status_file, 'failed', msg)
+                raise Exception(msg)
+
             if not shutil.which('npm'):
                 self._update_status(status_file, 'building', 'Installing Node.js and npm (first time setup)...')
                 self.stdout.write('Node.js/npm not found. Installing automatically...')

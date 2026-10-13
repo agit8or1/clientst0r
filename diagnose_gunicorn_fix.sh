@@ -64,12 +64,8 @@ else
     else
         echo "❌ sudo systemctl needs password"
         CURRENT_USER="$(whoami)"
-        echo "   Configure sudo with:"
-        echo "   sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<'SUDOERS'"
-        echo "$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-gunicorn.service, /bin/systemctl status clientst0r-gunicorn.service, /bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service"
-        echo "SUDOERS"
-        echo ""
-        echo "   sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update"
+        echo "   Install the root helper once (v3.17.597): Settings → Updates,"
+        echo "   or: sudo bash $(pwd)/deploy/root-helper/install-root-helper.sh"
         exit 1
     fi
 
@@ -86,11 +82,11 @@ else
         echo "You need to configure sudo permissions first:"
         echo ""
         CURRENT_USER="$(whoami)"
-        echo "sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<'SUDOERS'"
-        echo "$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-gunicorn.service, /bin/systemctl status clientst0r-gunicorn.service, /bin/systemctl daemon-reload, /usr/bin/systemd-run, /usr/bin/tee /etc/systemd/system/clientst0r-gunicorn.service"
-        echo "SUDOERS"
-        echo ""
-        echo "sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update"
+        # v3.17.597: this used to suggest granting bare systemd-run and tee onto
+        # the unit file, either of which is root. Unit changes now go through
+        # the root helper.
+        echo "Install the root helper once: Settings → Updates,"
+        echo "or: sudo bash $(pwd)/deploy/root-helper/install-root-helper.sh"
     fi
 fi
 

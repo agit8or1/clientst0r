@@ -24,9 +24,9 @@ administrator ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
 administrator ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y curl
 administrator ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y nodejs
 
-# NodeSource repository setup script, downloaded to a fixed path by the builder
-# immediately before this runs.
-administrator ALL=(ALL) NOPASSWD: /usr/bin/bash /tmp/nodesource_setup.sh
+# v3.17.597: removed `NOPASSWD: /usr/bin/bash /tmp/nodesource_setup.sh`. Anything
+# that could write that /tmp path could run it as root. The builder now asks the
+# operator to install Node.js once by hand instead.
 
 # For a different service user, replace 'administrator' above —
 # setup_mobile_build.sh does this substitution automatically on install.

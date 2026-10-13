@@ -13,6 +13,7 @@ from django.utils import timezone
 from django_ratelimit.decorators import ratelimit
 from config.version import get_version, get_full_version
 from .updater import UpdateService
+from . import root_helper
 from .models import ConsultRequest
 from audit.models import AuditLog
 
@@ -711,7 +712,44 @@ def system_updates(request):
         'newer_changelogs': newer_changelogs,
         'debug_info': debug_info,
         'last_package_scan': last_package_scan,
+        'root_helper_needed': root_helper.needs_bootstrap(),
+        'root_helper_command': root_helper.bootstrap_command(),
     })
+
+
+@login_required
+@user_passes_test(is_superuser)
+@require_http_methods(["POST"])
+@ratelimit(key='user', rate='5/h', method='POST', block=True)
+def root_helper_install(request):
+    """One-time install of the root helper, using the operator's sudo password.
+
+    v3.17.597. After this the app runs root actions only through the helper,
+    and the helper keeps itself and the root-owned config it manages current
+    from signed releases, so this never needs doing again. The password is
+    passed to sudo on stdin and not stored or logged.
+    """
+    if root_helper.is_installed():
+        messages.info(request, 'The root helper is already installed.')
+        return redirect('core:system_updates')
+    password = request.POST.get('sudo_password', '')
+    if not password:
+        messages.error(request, 'Enter the sudo password for the server account that runs Client St0r.')
+        return redirect('core:system_updates')
+
+    ok, output = root_helper.bootstrap_with_password(password)
+    AuditLog.objects.create(
+        user=request.user, username=request.user.username,
+        action='system_update' if ok else 'system_update_failed',
+        object_type='root_helper', object_repr='Root helper install',
+        description='Installed the root helper' if ok else 'Root helper install failed',
+    )
+    if ok:
+        messages.success(request, 'Root helper installed. Old unsafe sudo rules on this server have been disabled.')
+    else:
+        logger.error('Root helper install failed: %s', output)
+        messages.error(request, f'Root helper install failed. Check the password and try again. {output[-300:]}')
+    return redirect('core:system_updates')
 
 
 @login_required

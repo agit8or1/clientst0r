@@ -485,10 +485,9 @@ This is the industry-standard approach for self-updating services!
 v2.14.13 fixed the self-restart timing issue with `systemd-run --on-active=3`, but the restart still wasn't happening because the `administrator` user didn't have passwordless sudo permissions to run systemctl commands.
 
 **The Solution:**
-Added `/etc/sudoers.d/clientst0r-auto-update` with:
-```
-administrator ALL=(ALL) NOPASSWD: /bin/systemctl restart clientst0r-gunicorn.service, /bin/systemctl status clientst0r-gunicorn.service, /usr/bin/systemd-run
-```
+Added `/etc/sudoers.d/clientst0r-auto-update`, granting the gunicorn restart and status commands and `systemd-run`.
+
+> **Superseded.** Granting `systemd-run` with no arguments lets the app user run any command as root. v3.17.520 pinned it to the exact restart command, and v3.17.597 moved all root actions to the root helper (`deploy/root-helper/`). Don't install the original rule.
 
 This allows the auto-update process to execute the scheduled restart without prompting for a password.
 

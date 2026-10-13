@@ -37,7 +37,8 @@ class UpdateReloadTests(SimpleTestCase):
         cls.unit = (base / 'deploy' / 'clientst0r-auto-update.service').read_text(encoding='utf-8')
         cls.installer = (base / 'scripts' / 'install_auto_update.sh').read_text(encoding='utf-8')
 
-    def run_block(self, *, sudo_ok, main_pid='4242', pid_uid=None, nnp=0):
+    def run_block(self, *, sudo_ok, main_pid='4242', pid_uid=None, nnp=0,
+                  root_helper='/nonexistent/clientst0r-root-helper'):
         """Run the reload block; return (exit code, output, calls, progress)."""
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
@@ -57,6 +58,7 @@ SYSTEMCTL=fake_systemctl
 SYSTEMD_RUN=/usr/bin/systemd-run
 BASE_DIR=/srv/app
 NO_NEW_PRIVS={nnp}
+ROOT_HELPER={root_helper}
 PROGRESS_FILE={progress}
 PYTHON_BIN=python3
 {self.block}
@@ -66,6 +68,14 @@ PYTHON_BIN=python3
             return (result.returncode, result.stdout + result.stderr,
                     calls.read_text() if calls.exists() else '',
                     json.loads(progress.read_text()))
+
+    def test_root_helper_reload_is_preferred(self):
+        """v3.17.597: with the root helper installed, it does the reload."""
+        code, out, calls, progress = self.run_block(sudo_ok=True, root_helper='/bin/true')
+        self.assertEqual(code, 0, out)
+        self.assertIn('sudo -n /bin/true reload', calls)
+        self.assertNotIn('systemctl', calls.replace('fake_systemctl', ''))
+        self.assertIn('via root helper', out)
 
     def test_sudo_reload_is_used_when_it_works(self):
         code, out, calls, progress = self.run_block(sudo_ok=True)

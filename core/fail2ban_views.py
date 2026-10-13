@@ -11,6 +11,8 @@ import subprocess
 import re
 import logging
 
+from core import root_helper
+
 logger = logging.getLogger('core')
 
 
@@ -19,29 +21,55 @@ def is_superuser(user):
     return user.is_superuser
 
 
-def run_fail2ban_command(command):
-    """
-    Run fail2ban-client command safely.
-
-    Returns:
-        tuple: (success: bool, output: str, error: str)
-    """
+def _fail2ban_client_path():
     import os
     import shutil
-    client_path = (
+    return (
         shutil.which('fail2ban-client') or
         ('/usr/bin/fail2ban-client' if os.path.exists('/usr/bin/fail2ban-client') else None) or
         ('/usr/local/bin/fail2ban-client' if os.path.exists('/usr/local/bin/fail2ban-client') else None)
     )
-    if not client_path:
+
+
+def _helper_args(command):
+    """fail2ban-client argv -> root helper argv (v3.17.597), or None if the
+    helper does not offer that action."""
+    if command in (['ping'], ['start'], ['status']):
+        return ['fail2ban', *command]
+    if len(command) == 2 and command[0] == 'status':
+        return ['fail2ban', 'status', command[1]]
+    if len(command) == 4 and command[0] == 'set' and command[2] == 'unbanip':
+        return ['fail2ban', 'unban', command[1], command[3]]
+    return None
+
+
+def run_fail2ban_command(command):
+    """
+    Run fail2ban-client command safely.
+
+    v3.17.597: through the root helper when it is installed. The legacy path
+    needs a passwordless sudo rule for bare fail2ban-client, which can set a
+    jail's ban action and so run anything as root; the helper allows only the
+    actions this page uses and checks the jail name and IP.
+
+    Returns:
+        tuple: (success: bool, output: str, error: str)
+    """
+    if not _fail2ban_client_path():
         return False, '', 'fail2ban-client not found - is fail2ban installed?'
     try:
-        result = subprocess.run(
-            ['/usr/bin/sudo', '-n', client_path] + command,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        if root_helper.is_installed():
+            args = _helper_args(command)
+            if args is None:
+                return False, '', f'Unsupported fail2ban command: {command[:1]}'
+            result = root_helper.run(args, timeout=30)
+        else:
+            result = subprocess.run(
+                ['/usr/bin/sudo', '-n', _fail2ban_client_path()] + command,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
         return result.returncode == 0, result.stdout.strip(), result.stderr.strip()
     except subprocess.TimeoutExpired:
         return False, '', 'Command timed out'
@@ -82,12 +110,14 @@ def is_fail2ban_installed():
     sudo_configured = False
     service_running = False
     try:
-        ping_result = subprocess.run(
-            ['/usr/bin/sudo', '-n', fail2ban_client_path, 'ping'],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
+        ping_result = root_helper.run(['fail2ban', 'ping'], timeout=10)
+        if ping_result is None:
+            ping_result = subprocess.run(
+                ['/usr/bin/sudo', '-n', fail2ban_client_path, 'ping'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
         password_required = (
             'password is required' in ping_result.stderr.lower() or
             'a password is required' in ping_result.stderr.lower()
@@ -359,270 +389,66 @@ def fail2ban_start(request):
 @user_passes_test(is_superuser)
 @require_POST
 def fail2ban_install_sudoers(request):
-    """Automatically install fail2ban sudoers configuration."""
-    import os
-    import pwd
-    import tempfile
+    """Give the app access to fail2ban.
 
-    try:
-        # Set up environment with system paths
-        env = os.environ.copy()
-        system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-        env['PATH'] = system_paths
-
-        # Generate sudoers content with actual username
-        username = pwd.getpwuid(os.getuid()).pw_name
-
-        sudoers_content = f"""# Sudoers configuration for Client St0r fail2ban integration
-# Generated automatically during installation
-
-# Allow {username} user to run fail2ban-client without password.
-# Both paths are granted — fail2ban may install to either location depending on distro/method.
-{username} ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
-{username} ALL=(ALL) NOPASSWD: /usr/local/bin/fail2ban-client
-{username} ALL=(ALL) NOPASSWD: /bin/systemctl is-active fail2ban
-{username} ALL=(ALL) NOPASSWD: /bin/systemctl status fail2ban
-"""
-
-        # Write to the deploy path so the sudoers cp rule (which specifies this
-        # exact source file) matches when we run sudo cp below.
-        deploy_path = settings.BASE_DIR / 'deploy' / 'clientst0r-fail2ban-sudoers'
-        try:
-            with open(str(deploy_path), 'w') as f:
-                f.write(sudoers_content)
-        except Exception as write_err:
-            messages.error(request, f'Failed to write sudoers file: {write_err}')
-            return redirect('core:fail2ban_status')
-
-        dest_path = '/etc/sudoers.d/clientst0r-fail2ban'
-
-        # Try to install the sudoers file
-        result = subprocess.run(
-            ['/usr/bin/sudo', '/bin/cp', str(deploy_path), dest_path],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=env
-        )
-
-        if result.returncode != 0:
-            messages.error(
-                request,
-                f'Failed to install fail2ban sudoers. Make sure base install sudoers is configured: sudo cp {settings.BASE_DIR}/deploy/clientst0r-install-sudoers /etc/sudoers.d/clientst0r-install && sudo chmod 0440 /etc/sudoers.d/clientst0r-install'
-            )
-            logger.error(f"Failed to copy fail2ban sudoers: {result.stderr}")
-            return redirect('core:fail2ban_status')
-
-        # Set correct permissions
-        result = subprocess.run(
-            ['/usr/bin/sudo', '/bin/chmod', '0440', dest_path],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            env=env
-        )
-
-        if result.returncode != 0:
-            messages.error(request, f'Failed to set fail2ban sudoers permissions: {result.stderr[:200]}')
-            logger.error(f"Failed to chmod fail2ban sudoers: {result.stderr}")
-            return redirect('core:fail2ban_status')
-
-        messages.success(request, f'Fail2ban sudoers configuration installed successfully for user {username}! Refresh the page.')
-        logger.info(f"User {request.user.username} successfully installed fail2ban sudoers configuration")
-
-    except subprocess.TimeoutExpired:
-        messages.error(request, 'Installation timed out.')
-        logger.error("Fail2ban sudoers installation timed out")
-    except FileNotFoundError as e:
-        messages.error(request, f'Required system commands not found: {str(e)}')
-        logger.error(f"System commands not found: {e}")
-    except Exception as e:
-        messages.error(request, f'Installation failed: {str(e)[:200]}')
-        logger.error(f"Fail2ban sudoers installation failed: {e}")
-
-    return redirect('core:fail2ban_status')
+    v3.17.597: this used to write a sudoers file into the app directory and
+    copy it into /etc/sudoers.d with a passwordless `sudo cp` rule. The app
+    user can write that source file, so the rule let it grant itself any sudo
+    access. fail2ban access now comes from the root helper, which the one-time
+    setup on Settings → Updates installs.
+    """
+    if root_helper.is_installed():
+        messages.success(request, 'fail2ban access is provided by the root helper; nothing to install.')
+        return redirect('core:fail2ban_status')
+    messages.warning(
+        request,
+        'Install the root helper first (one-time): Settings → Updates → Install root helper, '
+        f'or run on the server: {root_helper.bootstrap_command()}'
+    )
+    return redirect('core:system_updates')
 
 
 @login_required
 @user_passes_test(is_superuser)
 @require_POST
 def fail2ban_install(request):
-    """Automatically install and configure fail2ban."""
-    import os
+    """Install fail2ban and enable it, through the root helper.
 
-    try:
-        # Set up environment with system paths for utilities
-        env = os.environ.copy()
-        system_paths = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-        env['PATH'] = system_paths
+    If the helper is not installed yet and the operator entered their sudo
+    password, the helper is installed first (the one-time setup), then used.
+    """
+    sudo_password = request.POST.get('sudo_password', '')
 
-        # Get sudo password if provided
-        sudo_password = request.POST.get('sudo_password', '').strip()
-
-        # Check if passwordless sudo is already configured
-        test_result = subprocess.run(
-            ['/usr/bin/sudo', '-n', '/usr/bin/apt-get', '--version'],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            env=env
-        )
-
-        # If passwordless sudo doesn't work and no password provided, show password form
-        if test_result.returncode != 0 and not sudo_password:
+    if not root_helper.is_installed():
+        if not sudo_password:
             messages.warning(
                 request,
                 'First-time setup requires your sudo password. Enter it below to complete automatic installation.'
             )
-            # Set a flag to show password form
             request.session['show_sudo_password_form'] = True
             return redirect('core:fail2ban_status')
-
-        # If passwordless sudo doesn't work but password was provided, set up sudoers first
-        if test_result.returncode != 0 and sudo_password:
-            logger.info("Setting up sudoers with provided password...")
-
-            # Step 0: Install sudoers files using password
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            install_sudoers_src = os.path.join(base_dir, 'deploy', 'clientst0r-install-sudoers')
-            fail2ban_sudoers_src = os.path.join(base_dir, 'deploy', 'clientst0r-fail2ban-sudoers')
-
-            # Install clientst0r-install-sudoers
-            result = subprocess.run(
-                ['/usr/bin/sudo', '-S', '/bin/cp', install_sudoers_src, '/etc/sudoers.d/clientst0r-install'],
-                input=f"{sudo_password}\n",
-                capture_output=True,
-                text=True,
-                timeout=10,
-                env=env
-            )
-
-            if result.returncode != 0:
-                messages.error(request, f'Failed to configure sudo access. Check your password and try again. Error: {result.stderr[:200]}')
-                logger.error(f"Failed to install sudoers: {result.stderr}")
-                request.session['show_sudo_password_form'] = True
-                return redirect('core:fail2ban_status')
-
-            # Set permissions on install sudoers
-            subprocess.run(
-                ['/usr/bin/sudo', '-S', '/bin/chmod', '0440', '/etc/sudoers.d/clientst0r-install'],
-                input=f"{sudo_password}\n",
-                capture_output=True,
-                text=True,
-                timeout=10,
-                env=env
-            )
-
-            logger.info("Sudoers configuration installed successfully")
-            # Clear the password form flag
-            request.session.pop('show_sudo_password_form', None)
-
-        # Step 1: Update package list
-        logger.info("Updating apt package list...")
-        if sudo_password:
-            # Use password if we have it (first-time setup)
-            result = subprocess.run(
-                ['/usr/bin/sudo', '-S', '/usr/bin/apt-get', 'update'],
-                input=f"{sudo_password}\n",
-                capture_output=True,
-                text=True,
-                timeout=60,
-                env=env
-            )
-        else:
-            # Use passwordless sudo (subsequent runs)
-            result = subprocess.run(
-                ['/usr/bin/sudo', '/usr/bin/apt-get', 'update'],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                env=env
-            )
-
-        # Step 2: Install fail2ban
-        logger.info("Installing fail2ban package...")
-        if sudo_password:
-            # Use password if we have it (first-time setup)
-            result = subprocess.run(
-                ['/usr/bin/sudo', '-S', '/usr/bin/apt-get', 'install', '-y', 'fail2ban'],
-                input=f"{sudo_password}\n",
-                capture_output=True,
-                text=True,
-                timeout=120,
-                env=env
-            )
-        else:
-            # Use passwordless sudo (subsequent runs)
-            result = subprocess.run(
-                ['/usr/bin/sudo', '/usr/bin/apt-get', 'install', '-y', 'fail2ban'],
-                capture_output=True,
-                text=True,
-                timeout=120,
-                env=env
-            )
-
-        if result.returncode != 0:
-            messages.error(request, f'Failed to install fail2ban: {result.stderr[:200]}')
-            logger.error(f"fail2ban installation failed: {result.stderr}")
+        ok, output = root_helper.bootstrap_with_password(sudo_password)
+        if not ok:
+            messages.error(request, f'One-time setup failed. Check your password and try again. {output[-300:]}')
+            logger.error('Root helper bootstrap failed from fail2ban page: %s', output)
+            request.session['show_sudo_password_form'] = True
             return redirect('core:fail2ban_status')
+        request.session.pop('show_sudo_password_form', None)
+        logger.info('User %s installed the root helper from the fail2ban page', request.user.username)
 
-        # Step 3: Enable and start service
-        logger.info("Enabling and starting fail2ban service...")
-        if sudo_password:
-            subprocess.run(['/usr/bin/sudo', '-S', '/bin/systemctl', 'enable', 'fail2ban'],
-                         input=f"{sudo_password}\n", capture_output=True, text=True, timeout=10, check=False, env=env)
-            subprocess.run(['/usr/bin/sudo', '-S', '/bin/systemctl', 'start', 'fail2ban'],
-                         input=f"{sudo_password}\n", capture_output=True, text=True, timeout=10, check=False, env=env)
-        else:
-            subprocess.run(['/usr/bin/sudo', '/bin/systemctl', 'enable', 'fail2ban'], timeout=10, check=False, env=env)
-            subprocess.run(['/usr/bin/sudo', '/bin/systemctl', 'start', 'fail2ban'], timeout=10, check=False, env=env)
-
-        # Step 4: Configure sudoers for fail2ban-client access
-        # Generate sudoers content with actual username
-        import pwd
-        username = pwd.getpwuid(os.getuid()).pw_name
-
-        sudoers_content = f"""# Sudoers configuration for Client St0r fail2ban integration
-# Generated automatically during installation
-
-# Allow {username} user to run fail2ban-client without password.
-# Both paths are granted — fail2ban may install to either location depending on distro/method.
-{username} ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
-{username} ALL=(ALL) NOPASSWD: /usr/local/bin/fail2ban-client
-{username} ALL=(ALL) NOPASSWD: /bin/systemctl is-active fail2ban
-{username} ALL=(ALL) NOPASSWD: /bin/systemctl status fail2ban
-"""
-
-        # Write to the deploy path so the sudoers cp rule matches the exact source file.
-        deploy_path = settings.BASE_DIR / 'deploy' / 'clientst0r-fail2ban-sudoers'
-        with open(str(deploy_path), 'w') as f:
-            f.write(sudoers_content)
-
-        logger.info("Installing fail2ban sudoers configuration...")
-        dest_path = '/etc/sudoers.d/clientst0r-fail2ban'
-
-        if sudo_password:
-            subprocess.run(['/usr/bin/sudo', '-S', '/bin/cp', str(deploy_path), dest_path],
-                         input=f"{sudo_password}\n", capture_output=True, text=True, timeout=10, check=True, env=env)
-            subprocess.run(['/usr/bin/sudo', '-S', '/bin/chmod', '0440', dest_path],
-                         input=f"{sudo_password}\n", capture_output=True, text=True, timeout=10, check=True, env=env)
-        else:
-            subprocess.run(['/usr/bin/sudo', '/bin/cp', str(deploy_path), dest_path], timeout=10, check=True, env=env)
-            subprocess.run(['/usr/bin/sudo', '/bin/chmod', '0440', dest_path], timeout=10, check=True, env=env)
-
-        logger.info(f"Sudoers configured for user: {username}")
-
-        messages.success(request, 'Fail2ban installed and configured successfully! Refresh the page to see the status.')
-        logger.info(f"User {request.user.username} successfully installed fail2ban automatically")
-
+    try:
+        result = root_helper.run(['fail2ban', 'install'], timeout=600)
     except subprocess.TimeoutExpired:
         messages.error(request, 'Installation timed out. The package manager may be locked by another process.')
         logger.error("Fail2ban installation timed out")
-    except FileNotFoundError as e:
-        messages.error(request, f'Required system commands not found: {str(e)}. Please ensure sudo and apt-get are available.')
-        logger.error(f"sudo or apt-get not found: {e}")
-    except Exception as e:
-        messages.error(request, f'Installation failed: {str(e)[:200]}')
-        logger.error(f"Fail2ban installation failed with exception: {e}")
+        return redirect('core:fail2ban_status')
 
+    if result is None or result.returncode != 0:
+        detail = (result.stderr or result.stdout)[-300:] if result else 'root helper unavailable'
+        messages.error(request, f'Failed to install fail2ban: {detail}')
+        logger.error('fail2ban installation failed: %s', detail)
+        return redirect('core:fail2ban_status')
+
+    messages.success(request, 'Fail2ban installed and configured successfully! Refresh the page to see the status.')
+    logger.info(f"User {request.user.username} successfully installed fail2ban automatically")
     return redirect('core:fail2ban_status')

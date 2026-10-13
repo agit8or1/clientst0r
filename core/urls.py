@@ -183,6 +183,7 @@ urlpatterns = [
     path('settings/updates/', views.system_updates, name='system_updates'),
     path('settings/updates/check/', views.check_updates_now, name='check_updates_now'),
     path('settings/updates/apply/', views.apply_update, name='apply_update'),
+    path('settings/updates/root-helper/', views.root_helper_install, name='root_helper_install'),
     path('settings/updates/force-restart/', views.force_restart_services, name='force_restart_services'),
     path('api/version-diagnostic/', views.version_diagnostic, name='version_diagnostic'),
     path('emergency-restart/', views.emergency_restart_webhook, name='emergency_restart_webhook'),

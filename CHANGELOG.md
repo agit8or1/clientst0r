@@ -5,6 +5,38 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.597] - 2026-10-13
+
+### Security: root actions go through a single root helper
+
+**Action needed once on native (non-Docker) installs:** open **Settings →
+Updates** and click **Install root helper** (it asks for the server account's
+sudo password once), or run on the server:
+
+    sudo bash <app dir>/deploy/root-helper/install-root-helper.sh
+
+Some passwordless sudo rules that earlier installs set up could be used by code
+running as the app user to gain root. This release replaces them.
+
+- New `deploy/root-helper/`: one root-owned program,
+  `/usr/local/sbin/clientst0r-root-helper`, is now the only thing the app may
+  run as root. It handles a fixed set of actions (reload/restart, the fail2ban
+  page, system package updates) and checks every argument.
+- The helper updates itself only from release tags signed with the project's
+  release key, never to an older release, and never from files in the app
+  directory. Each update then rewrites the root-owned config it manages, so
+  later root-level changes need no manual steps.
+- Installing the helper disables the old unsafe rules in
+  `/etc/sudoers.d/clientst0r-*`. Originals are kept under
+  `/var/lib/clientst0r/root-helper/sudoers-backup/`.
+- The installers no longer create those rules. `setup_gui_updates.sh`, which
+  nothing used, is removed. Two documents that suggested an unsafe rule are
+  corrected.
+- Mobile builds no longer install Node.js through sudo; if Node.js is missing,
+  the build prints the one command to install it.
+- Until the helper is installed, Settings → Security shows a high-priority
+  warning, and each update logs the setup command.
+
 ## [3.17.596] - 2026-10-13
 
 ### Fixed: current Claude models in Settings → AI (issue #149)

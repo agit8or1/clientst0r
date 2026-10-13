@@ -108,6 +108,37 @@
         </div>
     </div>
 
+    <!-- Root helper one-time setup (v3.17.597) -->
+    {% if root_helper_needed %}
+    <div class="row mb-4" id="root-helper">
+        <div class="col-12">
+            <div class="alert alert-warning" role="alert">
+                <h5 class="alert-heading"><i class="fas fa-shield-alt"></i> One-time security setup: install the root helper</h5>
+                <p>
+                    Some passwordless sudo rules that earlier versions installed can be used to gain root on this server.
+                    The root helper replaces them: it is the only thing the app may run as root, it accepts a fixed set of
+                    actions, and it updates itself only from signed releases. Installing it also disables the old rules.
+                    After this, updates handle everything automatically.
+                </p>
+                <form method="post" action="{% url 'core:root_helper_install' %}" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <div class="col-sm-6 col-md-4">
+                        <label for="root-helper-password" class="form-label">Sudo password for the server account running Client St0r</label>
+                        <input type="password" class="form-control" id="root-helper-password" name="sudo_password" autocomplete="off" required>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-warning"><i class="fas fa-tools"></i> Install root helper</button>
+                    </div>
+                </form>
+                <p class="mt-3 mb-0 small">
+                    The password goes to sudo for this one command and is not stored. Or run on the server:
+                    <code>{{ root_helper_command }}</code>
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Sudo Configuration Alert -->
     {% if not sudo_configured %}
     <div class="row mb-4">

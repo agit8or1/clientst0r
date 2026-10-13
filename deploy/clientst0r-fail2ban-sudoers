@@ -1,8 +1,7 @@
-# Sudoers configuration for Client St0r fail2ban integration
-# Install: sudo cp /home/administrator/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
-# Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
-
-# Allow administrator user to run fail2ban-client without password
-# Both paths covered — fail2ban may install to either location depending on distro/method
-administrator ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
-administrator ALL=(ALL) NOPASSWD: /usr/local/bin/fail2ban-client
+# Client St0r fail2ban integration (v3.17.597)
+#
+# Intentionally has no rules. This file used to grant passwordless
+# `fail2ban-client` with any arguments, and fail2ban-client can set a jail's ban
+# action to an arbitrary command, so it was root for the app user. The app now
+# reaches fail2ban only through the root helper (deploy/root-helper/), which
+# allows ping, status, unban and start, and checks the jail name and IP.

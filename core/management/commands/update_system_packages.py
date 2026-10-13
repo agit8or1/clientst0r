@@ -9,6 +9,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from core import root_helper
+
 # Debian/RPM/Arch package names (optionally with an :arch suffix). Must start
 # with an alphanumeric, so a value can never be read as a command-line option
 # (e.g. `-oDPkg::Pre-Invoke=...`) by the package manager running under sudo.
@@ -135,14 +137,21 @@ class Command(BaseCommand):
         try:
             # Update package cache
             self.stdout.write('Updating package cache...')
-            result = subprocess.run(
-                ['sudo', '-n', 'apt-get', '-q', 'update'],
-                capture_output=True,
-                text=True,
-                timeout=120,
-                env=apt_env,
-                stdin=subprocess.DEVNULL,
-            )
+            # v3.17.597: through the root helper when installed. The legacy
+            # sudoers rule for the upgrade below ended in a wildcard, and
+            # apt-get options can run commands, so it was root for anyone.
+            use_helper = root_helper.is_installed()
+            if use_helper:
+                result = root_helper.run(['apt', 'update'], timeout=300)
+            else:
+                result = subprocess.run(
+                    ['sudo', '-n', 'apt-get', '-q', 'update'],
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                    env=apt_env,
+                    stdin=subprocess.DEVNULL,
+                )
 
             if result.returncode != 0:
                 self.stdout.write(self.style.ERROR(f'Failed to update cache: {result.stderr}'))
@@ -191,14 +200,25 @@ class Command(BaseCommand):
                 self.stdout.write('Updating all packages...')
 
             # Execute update
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=600,
-                env=apt_env,
-                stdin=subprocess.DEVNULL,
-            )
+            if use_helper and not self.dry_run:
+                # Same action, expressed as the helper's fixed vocabulary;
+                # the helper validates every package name.
+                if cmd[-1] == 'upgrade':
+                    helper_args = ['apt', 'upgrade']
+                else:
+                    packages = cmd[cmd.index('--only-upgrade') + 1:] if '--only-upgrade' in cmd \
+                        else cmd[cmd.index('install') + 1:]
+                    helper_args = ['apt', 'upgrade-packages', *packages]
+                result = root_helper.run(helper_args, timeout=1800)
+            else:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
+                    env=apt_env,
+                    stdin=subprocess.DEVNULL,
+                )
 
             if self.dry_run:
                 self.stdout.write(result.stdout)

@@ -8,5 +8,8 @@ administrator ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y fail2ban
 administrator ALL=(ALL) NOPASSWD: /bin/systemctl enable fail2ban
 administrator ALL=(ALL) NOPASSWD: /bin/systemctl start fail2ban
 administrator ALL=(ALL) NOPASSWD: /bin/systemctl status fail2ban
-administrator ALL=(ALL) NOPASSWD: /bin/cp /home/administrator/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
-administrator ALL=(ALL) NOPASSWD: /bin/chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
+
+# v3.17.597: the `cp ... /etc/sudoers.d/clientst0r-fail2ban` and matching
+# `chmod` rules are gone. The copied file lives in the app directory, which the
+# app user can write, so the rule let it grant itself any sudo access. fail2ban
+# is now handled by the root helper (deploy/root-helper/).

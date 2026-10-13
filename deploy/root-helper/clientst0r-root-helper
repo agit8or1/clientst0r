@@ -1,0 +1,485 @@
+#!/usr/bin/python3 -I
+"""
+Client St0r root helper (v3.17.597).
+
+The ONLY thing the app user may run as root without a password:
+
+    <app user> ALL=(root) NOPASSWD: /usr/local/sbin/clientst0r-root-helper
+
+Before this, the app was given passwordless sudo on individual commands, and
+four of them were root in disguise: `cp` of a sudoers file the app user could
+rewrite, `bash /tmp/...`, `apt-get -o ... *` (apt options can run commands)
+and bare `fail2ban-client` (it can set a jail's ban action). A compromised web
+worker could use any of them to become root.
+
+This helper replaces them. It runs a fixed set of actions, checks every
+argument, and never executes, imports or copies anything from the app's own
+directory, which the app user can write. It changes itself only from a GitHub
+release tag that carries a valid signature from a key in
+/etc/clientst0r/allowed_signers, and never to an older release than the one
+it already runs. So neither the web app nor the repository alone can change
+what runs as root; that needs the release signing key.
+
+Usage (as root, normally via sudo from the app):
+    clientst0r-root-helper version
+    clientst0r-root-helper reload | restart
+    clientst0r-root-helper fail2ban ping | status [JAIL] | unban JAIL IP | start | install
+    clientst0r-root-helper apt update | upgrade | upgrade-packages PKG...
+    clientst0r-root-helper self-update vX.Y.Z
+    clientst0r-root-helper apply-system-config
+
+Files (all root-owned, none writable by the app user):
+    /etc/clientst0r/root-helper.conf      APP_USER, APP_DIR, SERVICE, REPO_URL
+    /etc/clientst0r/allowed_signers       ssh keys trusted to sign releases
+    /var/lib/clientst0r/root-helper/      mirror of signed tags, installed version
+"""
+import fcntl
+import ipaddress
+import os
+import re
+import stat
+import subprocess
+import sys
+import syslog
+import tempfile
+
+CONF_PATH = '/etc/clientst0r/root-helper.conf'
+SIGNERS_PATH = '/etc/clientst0r/allowed_signers'
+STATE_DIR = '/var/lib/clientst0r/root-helper'
+HELPER_PATH = '/usr/local/sbin/clientst0r-root-helper'
+SUDOERS_DIR = '/etc/sudoers.d'
+SYSTEMD_DIR = '/etc/systemd/system'
+LOCK_PATH = '/run/clientst0r-root-helper.lock'
+HELPER_REPO_PATH = 'deploy/root-helper/clientst0r-root-helper'
+OWN_SUDOERS = 'clientst0r-root-helper'
+
+# Tests turn this off so they can run against files they own.
+REQUIRE_ROOT_OWNED = True
+
+SAFE_PATH = '/usr/sbin:/usr/bin:/sbin:/bin'
+BASE_ENV = {
+    'PATH': SAFE_PATH,
+    'HOME': '/root',
+    'LANG': 'C.UTF-8',
+    'GIT_CONFIG_NOSYSTEM': '1',
+    'GIT_CONFIG_GLOBAL': '/dev/null',
+    'GIT_TERMINAL_PROMPT': '0',
+}
+APT_ENV = dict(BASE_ENV, DEBIAN_FRONTEND='noninteractive',
+               DEBCONF_NONINTERACTIVE_SEEN='true')
+APT_OPTS = ['-y', '-o', 'Dpkg::Options::=--force-confdef',
+            '-o', 'Dpkg::Options::=--force-confold']
+
+USER_RE = re.compile(r'^[a-z_][a-z0-9_-]{0,31}$')
+DIR_RE = re.compile(r'^/[A-Za-z0-9._/-]{1,200}$')
+SERVICE_RE = re.compile(r'^clientst0r-[a-z0-9-]{1,40}\.service$')
+REPO_RE = re.compile(r'^(https://[A-Za-z0-9.-]+/[A-Za-z0-9._/-]+|file:///[A-Za-z0-9._/-]+)$')
+TAG_RE = re.compile(r'^v(\d{1,4})\.(\d{1,4})\.(\d{1,6})$')
+JAIL_RE = re.compile(r'^[A-Za-z0-9_.-]{1,64}$')
+# Debian package names, optionally with an :arch qualifier. Cannot start with
+# '-', so nothing here can be read by apt-get as an option.
+PKG_RE = re.compile(r'^[a-z0-9][a-z0-9+.-]{0,100}(:[a-z0-9-]{1,20})?$')
+
+
+class HelperError(Exception):
+    pass
+
+
+# ---------------------------------------------------------------------------
+# plumbing
+# ---------------------------------------------------------------------------
+
+def _log(msg):
+    try:
+        syslog.openlog('clientst0r-root-helper')
+        syslog.syslog(syslog.LOG_NOTICE, f'{msg} (by {os.environ.get("SUDO_USER", "?")})')
+    except Exception:
+        pass
+
+
+def _run(argv, env=None, timeout=600, capture=False):
+    return subprocess.run(argv, env=env or BASE_ENV, timeout=timeout,
+                          stdin=subprocess.DEVNULL, text=True,
+                          capture_output=capture)
+
+
+def _check_trusted_file(path):
+    """A file we read for trust decisions must be root-owned and not writable
+    by anyone else."""
+    try:
+        st = os.stat(path)
+    except FileNotFoundError:
+        raise HelperError(f'{path} is missing; rerun install-root-helper.sh')
+    if REQUIRE_ROOT_OWNED and (st.st_uid != 0 or st.st_mode & 0o022):
+        raise HelperError(f'{path} must be owned by root and not group/world writable')
+
+
+def load_config():
+    _check_trusted_file(CONF_PATH)
+    conf = {}
+    with open(CONF_PATH, encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                conf[key.strip()] = value.strip()
+    conf.setdefault('SERVICE', 'clientst0r-gunicorn.service')
+    checks = {'APP_USER': USER_RE, 'APP_DIR': DIR_RE,
+              'SERVICE': SERVICE_RE, 'REPO_URL': REPO_RE}
+    for key, pattern in checks.items():
+        if not pattern.match(conf.get(key, '')):
+            raise HelperError(f'{CONF_PATH}: {key} is missing or invalid')
+    if conf['APP_USER'] == 'root':
+        raise HelperError(f'{CONF_PATH}: APP_USER must not be root')
+    return conf
+
+
+def _write_atomic(path, content, mode):
+    directory = os.path.dirname(path)
+    # A dot-prefixed temp name: sudo skips files containing '.' in
+    # /etc/sudoers.d, so a half-written file is never live.
+    fd, tmp = tempfile.mkstemp(prefix='.clientst0r-', dir=directory)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(content)
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
+
+
+def _version_tuple(tag):
+    m = TAG_RE.match(tag or '')
+    return tuple(int(x) for x in m.groups()) if m else None
+
+
+# ---------------------------------------------------------------------------
+# service
+# ---------------------------------------------------------------------------
+
+def cmd_reload(conf):
+    if _run(['systemctl', 'reload', conf['SERVICE']]).returncode == 0:
+        return 0
+    return _run(['systemctl', 'restart', conf['SERVICE']]).returncode
+
+
+def cmd_restart(conf):
+    return _run(['systemctl', 'restart', conf['SERVICE']]).returncode
+
+
+# ---------------------------------------------------------------------------
+# fail2ban
+# ---------------------------------------------------------------------------
+
+def _fail2ban_client():
+    for path in ('/usr/bin/fail2ban-client', '/usr/local/bin/fail2ban-client'):
+        if os.path.isfile(path):
+            st = os.stat(path)
+            if st.st_uid == 0 and not st.st_mode & 0o022:
+                return path
+    raise HelperError('fail2ban-client not found (or not root-owned)')
+
+
+def fail2ban_argv(args):
+    """Map an allowed fail2ban action to the fail2ban-client argv."""
+    if args == ['ping']:
+        return ['ping']
+    if args == ['start']:
+        return ['start']
+    if args == ['status']:
+        return ['status']
+    if len(args) == 2 and args[0] == 'status' and JAIL_RE.match(args[1]):
+        return ['status', args[1]]
+    if len(args) == 3 and args[0] == 'unban' and JAIL_RE.match(args[1]):
+        try:
+            ip = str(ipaddress.ip_address(args[2]))
+        except ValueError:
+            raise HelperError(f'not an IP address: {args[2]!r}')
+        return ['set', args[1], 'unbanip', ip]
+    raise HelperError('usage: fail2ban ping | status [JAIL] | unban JAIL IP | start | install')
+
+
+def cmd_fail2ban(args):
+    if args == ['install']:
+        for argv in (['apt-get', '-q', 'update'],
+                     ['apt-get', *APT_OPTS, 'install', 'fail2ban'],
+                     ['systemctl', 'enable', '--now', 'fail2ban']):
+            rc = _run(argv, env=APT_ENV).returncode
+            if rc != 0:
+                return rc
+        return 0
+    return _run([_fail2ban_client(), *fail2ban_argv(args)], timeout=30).returncode
+
+
+# ---------------------------------------------------------------------------
+# apt
+# ---------------------------------------------------------------------------
+
+def apt_argv(args):
+    if args == ['update']:
+        return ['apt-get', '-q', 'update']
+    if args == ['upgrade']:
+        return ['apt-get', *APT_OPTS, 'upgrade']
+    if len(args) >= 2 and args[0] == 'upgrade-packages':
+        packages = args[1:]
+        if len(packages) > 500:
+            raise HelperError('too many packages')
+        bad = [p for p in packages if not PKG_RE.match(p)]
+        if bad:
+            raise HelperError(f'invalid package name(s): {bad[:5]}')
+        return ['apt-get', *APT_OPTS, 'install', '--only-upgrade', *packages]
+    raise HelperError('usage: apt update | upgrade | upgrade-packages PKG...')
+
+
+def cmd_apt(args):
+    return _run(apt_argv(args), env=APT_ENV, timeout=1800).returncode
+
+
+# ---------------------------------------------------------------------------
+# self-update from a signed release tag
+# ---------------------------------------------------------------------------
+
+def _git(mirror, *args, timeout=120):
+    return _run(['git', '-C', mirror, *args], timeout=timeout, capture=True)
+
+
+def installed_version():
+    try:
+        with open(os.path.join(STATE_DIR, 'installed-version'), encoding='utf-8') as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return ''
+
+
+def self_update(conf, tag):
+    if not TAG_RE.match(tag):
+        raise HelperError(f'not a release tag: {tag!r}')
+    _check_trusted_file(SIGNERS_PATH)
+
+    current = installed_version()
+    if _version_tuple(current) and _version_tuple(tag) < _version_tuple(current):
+        raise HelperError(f'refusing to downgrade from {current} to {tag}')
+
+    os.makedirs(STATE_DIR, mode=0o700, exist_ok=True)
+    mirror = os.path.join(STATE_DIR, 'mirror.git')
+    if not os.path.isdir(mirror):
+        r = _run(['git', 'init', '-q', '--bare', mirror], capture=True)
+        if r.returncode != 0:
+            raise HelperError(f'git init failed: {r.stderr.strip()}')
+
+    r = _git(mirror, 'fetch', '-q', '--no-tags', '--force', conf['REPO_URL'],
+             f'refs/tags/{tag}:refs/tags/{tag}', timeout=300)
+    if r.returncode != 0:
+        raise HelperError(f'could not fetch {tag}: {r.stderr.strip()[:300]}')
+
+    r = _git(mirror, '-c', 'gpg.format=ssh',
+             '-c', f'gpg.ssh.allowedSignersFile={SIGNERS_PATH}',
+             'verify-tag', tag)
+    if r.returncode != 0:
+        raise HelperError(f'{tag} is not signed by a trusted release key; not installing')
+
+    # The signature covers the tag object, not the ref we fetched it by. Without
+    # this check, a ref named v9.9.9 could point at an older signed tag object
+    # and replay an old helper under a newer version number.
+    r = _git(mirror, 'cat-file', 'tag', tag)
+    if r.returncode != 0 or f'\ntag {tag}\n' not in '\n' + r.stdout:
+        raise HelperError(f'{tag}: the signed tag object is not named {tag}')
+
+    r = _git(mirror, 'cat-file', 'blob', f'{tag}:{HELPER_REPO_PATH}')
+    if r.returncode != 0:
+        raise HelperError(f'{tag} has no {HELPER_REPO_PATH}')
+    source = r.stdout
+    compile(source, HELPER_REPO_PATH, 'exec')   # refuse anything that won't even parse
+
+    try:
+        with open(HELPER_PATH, encoding='utf-8') as f:
+            changed = f.read() != source
+    except FileNotFoundError:
+        changed = True
+    if changed:
+        _write_atomic(HELPER_PATH, source, 0o755)
+    _write_atomic(os.path.join(STATE_DIR, 'installed-version'), tag + '\n', 0o644)
+    _log(f'self-update to {tag} ({"replaced" if changed else "unchanged"})')
+    print(f'root helper {"updated" if changed else "already current"} at {tag}')
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# system config the helper owns
+# ---------------------------------------------------------------------------
+
+# A NOPASSWD rule matching any of these is a way to root and gets commented
+# out wherever it appears in /etc/sudoers.d/clientst0r-*.
+UNSAFE_RULES = [
+    (re.compile(r'NOPASSWD:.*\s/(usr/)?bin/(cp|mv|tee|install|chmod|chown)\s'), 'writes files as root'),
+    (re.compile(r'NOPASSWD:.*\s/tmp/'), 'runs a file from /tmp'),
+    (re.compile(r'NOPASSWD:.*\s/home/'), 'runs a program from a home directory'),
+    (re.compile(r'NOPASSWD:.*\*\s*$'), 'accepts arbitrary trailing arguments'),
+    (re.compile(r'NOPASSWD:\s*\S*fail2ban-client\s*$'), 'unrestricted fail2ban-client'),
+    (re.compile(r'NOPASSWD:.*\s\S*/(bash|sh|python3?|pip3?|systemd-run)\s*(,|$)'), 'unrestricted interpreter'),
+]
+DISABLED_PREFIX = '# disabled by clientst0r-root-helper (unsafe: {}): '
+
+
+def neutralize_sudoers(text):
+    """Return (new_text, reasons) with every unsafe rule commented out."""
+    out, reasons = [], []
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped and not stripped.startswith('#'):
+            for pattern, why in UNSAFE_RULES:
+                if pattern.search(stripped):
+                    line = DISABLED_PREFIX.format(why) + line
+                    reasons.append(f'{why}: {stripped}')
+                    break
+        out.append(line)
+    return ''.join(out), reasons
+
+
+def own_sudoers_rule(conf):
+    return (
+        '# Managed by clientst0r-root-helper. The app runs root actions only\n'
+        '# through this program, which checks every argument.\n'
+        f'{conf["APP_USER"]} ALL=(root) NOPASSWD: {HELPER_PATH}\n'
+    )
+
+
+def render_auto_update_unit(conf):
+    d, u = conf['APP_DIR'], conf['APP_USER']
+    return f"""[Unit]
+Description=Client St0r Auto-Update Service
+After=network.target
+
+[Service]
+Type=oneshot
+User={u}
+Group={u}
+WorkingDirectory={d}
+ExecStart={d}/scripts/auto_update.sh
+StandardOutput=append:/var/log/clientst0r/auto-update.log
+StandardError=append:/var/log/clientst0r/auto-update.log
+Environment="PATH={d}/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Security
+PrivateTmp=true
+# No NoNewPrivileges: this unit must be able to call sudo for the root helper.
+# Written by clientst0r-root-helper apply-system-config.
+
+[Install]
+WantedBy=multi-user.target
+"""
+
+
+def _visudo_ok(path):
+    return _run(['visudo', '-c', '-q', '-f', path], capture=True).returncode == 0
+
+
+def _install_sudoers(path, content):
+    fd, tmp = tempfile.mkstemp(prefix='.clientst0r-', dir=SUDOERS_DIR)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(content)
+        os.chmod(tmp, 0o440)
+        if not _visudo_ok(tmp):
+            raise HelperError(f'refusing to write {path}: visudo rejected it')
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def apply_system_config(conf):
+    changes = []
+
+    own = os.path.join(SUDOERS_DIR, OWN_SUDOERS)
+    wanted = own_sudoers_rule(conf)
+    try:
+        with open(own, encoding='utf-8') as f:
+            current = f.read()
+    except FileNotFoundError:
+        current = None
+    if current != wanted:
+        _install_sudoers(own, wanted)
+        changes.append(f'wrote {own}')
+
+    for name in sorted(os.listdir(SUDOERS_DIR)):
+        if not name.startswith('clientst0r-') or '.' in name or name == OWN_SUDOERS:
+            continue
+        path = os.path.join(SUDOERS_DIR, name)
+        with open(path, encoding='utf-8') as f:
+            text = f.read()
+        new_text, reasons = neutralize_sudoers(text)
+        if reasons:
+            # Keep the original outside /etc/sudoers.d, in our root-only state dir.
+            backup_dir = os.path.join(STATE_DIR, 'sudoers-backup')
+            os.makedirs(backup_dir, mode=0o700, exist_ok=True)
+            backup = os.path.join(backup_dir, name)
+            if not os.path.exists(backup):
+                _write_atomic(backup, text, 0o400)
+            _install_sudoers(path, new_text)
+            changes.extend(f'{name}: disabled rule that {r}' for r in reasons)
+
+    unit = os.path.join(SYSTEMD_DIR, 'clientst0r-auto-update.service')
+    if os.path.exists(unit):
+        with open(unit, encoding='utf-8') as f:
+            current = f.read()
+        wanted = render_auto_update_unit(conf)
+        if current != wanted:
+            _write_atomic(unit, wanted, 0o644)
+            _run(['systemctl', 'daemon-reload'])
+            changes.append(f'rewrote {unit}')
+
+    for line in changes:
+        print(line)
+        _log(f'apply-system-config: {line}')
+    if not changes:
+        print('system config already current')
+    return 0
+
+
+# ---------------------------------------------------------------------------
+
+def main(argv):
+    if not argv:
+        print(__doc__.split('Usage', 1)[1].split('Files', 1)[0], file=sys.stderr)
+        return 2
+    if REQUIRE_ROOT_OWNED and os.geteuid() != 0:
+        print('clientst0r-root-helper must run as root (via sudo)', file=sys.stderr)
+        return 2
+
+    command, args = argv[0], argv[1:]
+    try:
+        if command == 'version':
+            print(installed_version() or 'unversioned (installed by install-root-helper.sh)')
+            return 0
+        conf = load_config()
+        os.makedirs(os.path.dirname(LOCK_PATH), exist_ok=True)
+        with open(LOCK_PATH, 'w') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            _log(f'{command} {" ".join(args)}'.strip())
+            if command == 'reload' and not args:
+                return cmd_reload(conf)
+            if command == 'restart' and not args:
+                return cmd_restart(conf)
+            if command == 'fail2ban':
+                return cmd_fail2ban(args)
+            if command == 'apt':
+                return cmd_apt(args)
+            if command == 'self-update' and len(args) == 1:
+                return self_update(conf, args[0])
+            if command == 'apply-system-config' and not args:
+                return apply_system_config(conf)
+        raise HelperError(f'unknown command: {command}')
+    except HelperError as exc:
+        print(f'clientst0r-root-helper: {exc}', file=sys.stderr)
+        _log(f'refused: {exc}')
+        return 1
+    except subprocess.TimeoutExpired as exc:
+        print(f'clientst0r-root-helper: timed out: {exc.cmd[0]}', file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))

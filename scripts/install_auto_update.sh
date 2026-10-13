@@ -94,12 +94,10 @@ $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-monitor.
 # is wedged and a graceful stop has not cleared it.
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/pkill -9 -f gunicorn
 
-# Patch management (core/security_views.py -> update_system_packages). Being
-# able to apply system updates is the whole feature, so this necessarily allows
-# installing from the configured repositories; the option prefix is pinned to
-# what the command actually builds.
+# Patch management (update_system_packages) goes through the root helper
+# (v3.17.597). The rule that used to sit here ended in a wildcard, and apt-get
+# options can run commands, so it was root for anything running as this user.
 $CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get -q update
-$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get -y -o Dpkg\:\:Options\:\:=--force-confdef -o Dpkg\:\:Options\:\:=--force-confold *
 
 # NOT granted, deliberately: setup_package_scanner_sudo.py (writes into
 # /etc/sudoers.d) and scripts/fix_gunicorn_env.sh (tee's the unit file). Both are

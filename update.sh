@@ -252,127 +252,21 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}Step 3.5: Regenerating Sudoers Files${NC}"
+echo -e "${YELLOW}Step 3.5: Root Helper${NC}"
 echo "-----------------------------------"
 
-info "Generating sudoers files with correct paths..."
-
-# Get current user and install directory
-CURRENT_USER="$USER"
-INSTALL_DIR="$(pwd)"
-
-# Create deploy directory if it doesn't exist
-mkdir -p "$INSTALL_DIR/deploy"
-
-# Generate clientst0r-install-sudoers
-cat > "$INSTALL_DIR/deploy/clientst0r-install-sudoers" <<SUDOEOF
-# Sudoers configuration for Client St0r automatic fail2ban installation
-# Install: sudo cp $INSTALL_DIR/deploy/clientst0r-install-sudoers /etc/sudoers.d/clientst0r-install
-# Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-install
-
-# Allow $CURRENT_USER user to install and configure fail2ban without password
-$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
-$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get install -y fail2ban
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl enable fail2ban
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl start fail2ban
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/systemctl status fail2ban
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/cp $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
-$CURRENT_USER ALL=(ALL) NOPASSWD: /bin/chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
-SUDOEOF
-
-# Generate clientst0r-fail2ban-sudoers
-cat > "$INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers" <<FBSUDOEOF
-# Sudoers configuration for Client St0r fail2ban integration
-# Install: sudo cp $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban
-# Permissions: sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban
-
-# Allow $CURRENT_USER user to run fail2ban-client without password
-$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
-FBSUDOEOF
-
-success "Sudoers files regenerated for user: $CURRENT_USER"
-info "  • $INSTALL_DIR/deploy/clientst0r-install-sudoers"
-info "  • $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers"
-
-# Automatically install sudoers files if they don't exist or have changed
-info "Checking sudoers installation..."
-INSTALL_SUDOERS=false
-FB_SUDOERS=false
-
-# Check clientst0r-install sudoers
-if [ ! -f "/etc/sudoers.d/clientst0r-install" ]; then
-    INSTALL_SUDOERS=true
-    info "  • clientst0r-install not found - will install"
-elif ! sudo diff -q "$INSTALL_DIR/deploy/clientst0r-install-sudoers" "/etc/sudoers.d/clientst0r-install" &>/dev/null; then
-    INSTALL_SUDOERS=true
-    info "  • clientst0r-install has changed - will update"
+# v3.17.597: the app runs root actions only through the root helper. This used
+# to generate and install sudoers files including a passwordless `sudo cp` of a
+# file the app user can write, which let the app grant itself any sudo access.
+if [ -x /usr/local/sbin/clientst0r-root-helper ]; then
+    success "Root helper installed (it keeps itself current on each update)"
 else
-    success "  • clientst0r-install already up to date"
-fi
-
-# Check clientst0r-fail2ban sudoers
-if [ ! -f "/etc/sudoers.d/clientst0r-fail2ban" ]; then
-    FB_SUDOERS=true
-    info "  • clientst0r-fail2ban not found - will install"
-elif ! sudo diff -q "$INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers" "/etc/sudoers.d/clientst0r-fail2ban" &>/dev/null; then
-    FB_SUDOERS=true
-    info "  • clientst0r-fail2ban has changed - will update"
-else
-    success "  • clientst0r-fail2ban already up to date"
-fi
-
-# Install/update sudoers files if needed
-if [ "$INSTALL_SUDOERS" = true ] || [ "$FB_SUDOERS" = true ]; then
-    echo ""
-    info "Installing sudoers files (requires sudo access)..."
-    echo ""
-    warning "NOTE: You may be prompted for your sudo password to install sudoers files."
-    info "These files enable passwordless sudo for specific Client St0r operations."
-    echo ""
-
-    INSTALL_SUCCESS=true
-
-    if [ "$INSTALL_SUDOERS" = true ]; then
-        echo -n "Installing clientst0r-install sudoers... "
-        # Store output and check return code properly
-        if OUTPUT=$(sudo cp "$INSTALL_DIR/deploy/clientst0r-install-sudoers" /etc/sudoers.d/clientst0r-install 2>&1) && \
-           sudo chmod 0440 /etc/sudoers.d/clientst0r-install 2>&1; then
-            success "✓ Installed"
-        else
-            INSTALL_SUCCESS=false
-            echo -e "${RED}✗ FAILED${NC}"
-            warning "Error: $OUTPUT"
-            warning "Manual installation required. Run this command:"
-            echo -e "${YELLOW}    sudo cp $INSTALL_DIR/deploy/clientst0r-install-sudoers /etc/sudoers.d/clientst0r-install && sudo chmod 0440 /etc/sudoers.d/clientst0r-install${NC}"
-        fi
-    fi
-
-    if [ "$FB_SUDOERS" = true ]; then
-        echo -n "Installing clientst0r-fail2ban sudoers... "
-        # Store output and check return code properly
-        if OUTPUT=$(sudo cp "$INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers" /etc/sudoers.d/clientst0r-fail2ban 2>&1) && \
-           sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban 2>&1; then
-            success "✓ Installed"
-        else
-            INSTALL_SUCCESS=false
-            echo -e "${RED}✗ FAILED${NC}"
-            warning "Error: $OUTPUT"
-            warning "Manual installation required. Run this command:"
-            echo -e "${YELLOW}    sudo cp $INSTALL_DIR/deploy/clientst0r-fail2ban-sudoers /etc/sudoers.d/clientst0r-fail2ban && sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban${NC}"
-        fi
-    fi
-
-    if [ "$INSTALL_SUCCESS" = false ]; then
-        echo ""
-        error "⚠ SUDOERS INSTALLATION INCOMPLETE"
-        warning "Some features like automatic fail2ban setup will require manual sudo password entry."
-        warning "To fix this, run the manual installation commands shown above."
-        echo ""
-        read -p "Continue with update anyway? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            error_exit "Update cancelled - please install sudoers files manually first"
-        fi
+    info "Installing the root helper (one-time; you may be asked for your sudo password)..."
+    if sudo bash "$(pwd)/deploy/root-helper/install-root-helper.sh"; then
+        success "Root helper installed"
+    else
+        warning "Root helper install failed. Run it later with:"
+        echo -e "${YELLOW}    sudo bash $(pwd)/deploy/root-helper/install-root-helper.sh${NC}"
     fi
 fi
 

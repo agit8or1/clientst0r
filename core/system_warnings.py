@@ -58,6 +58,7 @@ def collect_system_warnings(min_severity='low'):
     warnings.extend(_warnings_from_os_packages())
     warnings.extend(_warnings_from_python_packages())
     warnings.extend(_warnings_from_app_version())
+    warnings.extend(_warnings_from_root_helper())
     warnings.extend(_warnings_from_ssl_expiry())
     warnings.extend(_warnings_from_domain_expiry())
 
@@ -151,6 +152,29 @@ def _warnings_from_python_packages():
         'source_date': latest.scan_date,
     })
     return out
+
+
+def _warnings_from_root_helper():
+    """v3.17.597: a native install without the root helper still has the old
+    passwordless sudo rules, some of which can be used to gain root."""
+    try:
+        from core import root_helper
+        needed = root_helper.needs_bootstrap()
+    except Exception:
+        return []
+    if not needed:
+        return []
+    return [{
+        'id': 'root_helper:missing',
+        'severity': 'high',
+        'category': 'security',
+        'title': 'One-time security setup needed: install the root helper',
+        'detail': 'Older passwordless sudo rules on this server can be used to gain root. '
+                  'Install the root helper from Settings → Updates.',
+        'action_url': _safe_reverse('core:system_updates'),
+        'action_label': 'Open Updates',
+        'source_date': timezone.now(),
+    }]
 
 
 def _warnings_from_app_version():

@@ -26,6 +26,10 @@ if grep -qE '^NoNewPrivs:[[:space:]]*1' /proc/self/status 2>/dev/null; then
     NO_NEW_PRIVS=1
 fi
 
+# v3.17.597: root actions go through this one root-owned program, installed
+# once by deploy/root-helper/install-root-helper.sh. See that directory.
+ROOT_HELPER=/usr/local/sbin/clientst0r-root-helper
+
 # Trap: log exactly which command failed and on which line
 trap 'log "ERROR: command failed at line $LINENO: $BASH_COMMAND (exit $?)"' ERR
 
@@ -123,6 +127,27 @@ log ""
 log "Step 4/5: Collecting static files..."
 "$VENV_DIR/bin/python" "$BASE_DIR/manage.py" collectstatic --noinput
 log "Step 4/5: Static files collected"
+
+# v3.17.597: keep the root helper and the root-owned config it manages current.
+# self-update installs the helper from this release's tag only if the tag is
+# signed by a trusted release key; apply-system-config rewrites the units and
+# sudoers rules the helper owns. Neither ever reads files from $BASE_DIR.
+log ""
+if [ -x "$ROOT_HELPER" ]; then
+    for helper_step in "self-update v$NEW_VERSION" "apply-system-config"; do
+        # shellcheck disable=SC2086
+        if HELPER_OUT=$(sudo -n "$ROOT_HELPER" $helper_step 2>&1); then
+            while IFS= read -r line; do log "root helper: $line"; done <<< "$HELPER_OUT"
+        else
+            log "[WARN] root helper $helper_step failed (non-critical):"
+            while IFS= read -r line; do log "[WARN]   $line"; done <<< "$HELPER_OUT"
+        fi
+    done
+else
+    log "[WARN] One-time setup needed: the root helper is not installed, so this"
+    log "[WARN] install still relies on older passwordless sudo rules. Install it from"
+    log "[WARN] Settings → Updates, or run: sudo bash $BASE_DIR/deploy/root-helper/install-root-helper.sh"
+fi
 
 # =====================================================================
 # Optional extras (non-critical — failures are logged but do not abort)
@@ -398,7 +423,10 @@ RELOADED=0
 if [ -n "$SERVICE" ] && [ -n "$SYSTEMCTL" ]; then
     # Graceful reload: sends SIGHUP to the gunicorn master (ExecReload=kill -HUP $MAINPID).
     # Workers are replaced one-by-one while the master stays alive — zero downtime.
-    if sudo -n "$SYSTEMCTL" reload "$SERVICE" 2>/dev/null; then
+    if [ -x "$ROOT_HELPER" ] && sudo -n "$ROOT_HELPER" reload >/dev/null 2>&1; then
+        log "Step 5/5: Graceful reload of '$SERVICE' via root helper completed (zero downtime)"
+        RELOADED=1
+    elif sudo -n "$SYSTEMCTL" reload "$SERVICE" 2>/dev/null; then
         log "Step 5/5: Graceful reload of '$SERVICE' completed (zero downtime)"
         RELOADED=1
     else
