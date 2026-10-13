@@ -5,7 +5,6 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import render
 from django.utils.deprecation import MiddlewareMixin
 import ipaddress
-import requests
 import logging
 
 logger = logging.getLogger(__name__)
@@ -50,8 +49,11 @@ class FirewallMiddleware(MiddlewareMixin):
         if self.should_bypass(request, settings):
             return None
 
-        # Check IP firewall
-        if settings.ip_firewall_enabled:
+        # Check IP firewall. Sign-in paths are exempt from the IP rules only, so
+        # an admin whose address changed can still log in and fix an allowlist.
+        # v3.17.598: they used to skip the country check as well, which left the
+        # login and 2FA pages reachable from every blocked country.
+        if settings.ip_firewall_enabled and not self.is_auth_path(request):
             ip_blocked, ip_reason = self.check_ip_firewall(client_ip, settings)
             if ip_blocked:
                 return self.block_request(request, client_ip, '', '', ip_reason, settings)
@@ -82,20 +84,20 @@ class FirewallMiddleware(MiddlewareMixin):
         if settings.bypass_for_api and request.path.startswith('/api/'):
             return True
 
-        # Always allow all authentication paths (login, SSO/OAuth callbacks, 2FA, etc.)
-        # The firewall must not block users mid-flow during login/SSO redirect chains
-        AUTH_PREFIXES = (
-            '/accounts/login/',
-            '/accounts/logout/',
-            '/accounts/auth/',   # SSO: Azure/OAuth login + callback
-            '/auth/login/',
-            '/auth/logout/',
-            '/two_factor/',
-        )
-        if request.path.startswith(AUTH_PREFIXES):
-            return True
-
         return False
+
+    AUTH_PREFIXES = (
+        '/accounts/login/',
+        '/accounts/logout/',
+        '/accounts/auth/',   # SSO: Azure/OAuth login + callback
+        '/auth/login/',
+        '/auth/logout/',
+        '/two_factor/',
+    )
+
+    def is_auth_path(self, request):
+        """Login, logout, SSO callbacks and 2FA."""
+        return request.path.startswith(self.AUTH_PREFIXES)
 
     def check_ip_firewall(self, client_ip, settings):
         """
@@ -167,29 +169,10 @@ class FirewallMiddleware(MiddlewareMixin):
         return False, '', country_code, country_name
 
     def geoip_lookup(self, ip_address):
-        """
-        Lookup country for IP address using free GeoIP service.
-
-        Returns:
-            tuple: (country_code: str, country_name: str)
-        """
-        try:
-            # Use ip-api.com (free, no API key required, 45 requests/minute)
-            response = requests.get(
-                f'http://ip-api.com/json/{ip_address}',
-                params={'fields': 'status,countryCode,country'},
-                timeout=3
-            )
-
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('status') == 'success':
-                    return data.get('countryCode', ''), data.get('country', '')
-
-        except Exception as e:
-            logger.warning(f"GeoIP lookup failed for {ip_address}: {e}")
-
-        return '', ''
+        """(country code, country name) from the local DB-IP database, with a
+        cached remote fallback when it is missing (v3.17.598, core/geoip_db.py)."""
+        from core import geoip_db
+        return geoip_db.lookup(ip_address)
 
     def block_request(self, request, ip_address, country_code, country_name, reason, settings):
         """Block the request and log it."""

@@ -5,6 +5,26 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.598] - 2026-10-13
+
+### GeoIP firewall: local country lookups, and sign-in pages are covered
+
+- Country lookups now use a local copy of the free DB-IP country database
+  instead of asking ip-api.com about every request. The old way used plain
+  HTTP, had no caching, and was limited to 45 lookups a minute. In allow-list
+  mode a failed lookup blocks the visitor, so ordinary use could start
+  returning 403s once the limit was reached. The database is refreshed monthly
+  by `manage.py update_geoip_db`, which each update runs. If the file is
+  missing, the old lookup is still used, but each answer is cached for a day.
+  Vault entry country rules use the same lookup.
+- The country rules now also apply to the sign-in, SSO and 2FA pages, which
+  were previously reachable from blocked countries. Those pages remain exempt
+  from the IP-list firewall, so an admin whose address changed can still sign
+  in and fix an allow list.
+- New dependency: `maxminddb`.
+- The root helper setup box on Settings → Updates is now a regular card, so it
+  stays readable on every theme.
+
 ## [3.17.597] - 2026-10-13
 
 ### Security: root actions go through a single root helper

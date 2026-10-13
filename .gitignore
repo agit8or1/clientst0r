@@ -243,3 +243,6 @@ clientst0r-demo/
 frames/
 walkthrough-raw/
 .playwright/
+
+# GeoIP country database (v3.17.598), downloaded by manage.py update_geoip_db
+/data/geoip/

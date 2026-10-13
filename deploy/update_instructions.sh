@@ -155,6 +155,11 @@ fi
 log ""
 log "Running optional update steps..."
 
+# v3.17.598: local country database for the GeoIP firewall (monthly refresh).
+if "$VENV_DIR/bin/python" "$BASE_DIR/manage.py" update_geoip_db --max-age-days 25 2>&1 | tail -1 | sed "s/^/[$(date '+%Y-%m-%d %H:%M:%S')] /"; then
+    :
+fi
+
 # Gunicorn environment fix
 FIX_SCRIPT="$BASE_DIR/scripts/fix_gunicorn_env.sh"
 if [ -f "$FIX_SCRIPT" ]; then

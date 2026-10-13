@@ -24,6 +24,7 @@ whitenoise==6.6.*
 
 # PSA Integration HTTP clients
 requests>=2.33.0,<2.34  # Updated to 2.33.0+ to fix Insecure Temp File Reuse in extract_zipped_paths()
+maxminddb==2.6.2  # v3.17.598: local GeoIP country lookups for the firewall (core/geoip_db.py)
 urllib3>=2.7.0,<3.0  # v3.17.469 — bumped from 2.6.* to fix CVE-2026-44432 (GHSA-mf9v-mfxr-j63j): decompression-bomb safeguard bypass in Brotli streaming + drain_conn.
 
 # AI Integration
