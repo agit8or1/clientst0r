@@ -39,7 +39,9 @@ Environment="PATH=$PROJECT_DIR/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin
 
 # Security
 PrivateTmp=true
-NoNewPrivileges=true
+# No NoNewPrivileges here: this unit's job is to call sudo (gunicorn reload)
+# and crontab, and that flag makes both fail. The sudoers rules in
+# /etc/sudoers.d/ are what limit what it can do as root.
 
 [Install]
 WantedBy=multi-user.target

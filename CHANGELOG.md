@@ -5,6 +5,31 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.595] - 2026-10-13
+
+### Fixed: nightly auto-update never reloaded the server
+
+The 02:00 `clientst0r-auto-update.service` pulled and migrated new code, then
+left gunicorn serving the old version while logging "Update completed
+successfully!". The unit set `NoNewPrivileges=true`, which makes `sudo`
+refuse to run, so every `sudo systemctl reload` failed. The last fallback
+backgrounded a `sudo systemctl restart` that also failed, and the script
+logged it as scheduled. The same flag made each run's crontab setup fail with
+"Permission denied". Applying from **Settings → Updates** was never affected.
+
+- When `sudo` is unavailable, the update now sends `SIGHUP` straight to the
+  gunicorn master. That is all the unit's `ExecReload` does, and the master
+  runs as the same user. This fixes existing installs on the next run,
+  because the update script is fetched fresh each time.
+- If the server can't be reloaded or restarted at all, the update now exits
+  with an error that says how to fix it, and marks the in-app progress as
+  failed. It no longer reports success.
+- Removed `NoNewPrivileges=true` from `deploy/clientst0r-auto-update.service`
+  and `scripts/install_auto_update.sh`. Existing installs keep their old unit
+  until it is reinstalled; until then, crontab setup is skipped with one clear
+  warning instead of nine failures. To reinstall:
+  `sudo cp deploy/clientst0r-auto-update.service /etc/systemd/system/ && sudo systemctl daemon-reload`
+
 ## [3.17.594] - 2026-10-11
 
 ### Removed: SNMP stubs from network discovery

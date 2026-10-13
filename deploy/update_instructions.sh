@@ -17,6 +17,15 @@ SERVICE="${CLIENTST0R_SERVICE_NAME:-}"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
 
+# v3.17.595: a systemd unit with NoNewPrivileges=true (the nightly
+# clientst0r-auto-update.service shipped with it until this release) makes
+# sudo refuse to run and setgid crontab fail. Detect it once so the steps that
+# need privilege can take another route or say plainly why they are skipped.
+NO_NEW_PRIVS=0
+if grep -qE '^NoNewPrivs:[[:space:]]*1' /proc/self/status 2>/dev/null; then
+    NO_NEW_PRIVS=1
+fi
+
 # Trap: log exactly which command failed and on which line
 trap 'log "ERROR: command failed at line $LINENO: $BASH_COMMAND (exit $?)"' ERR
 
@@ -181,6 +190,12 @@ if command -v fail2ban-client >/dev/null 2>&1; then
     fi
 fi
 
+if [ "$NO_NEW_PRIVS" -eq 1 ]; then
+    log "[WARN] Skipping cron job setup: this process has no_new_privs set, so"
+    log "[WARN] crontab cannot run. Existing cron jobs are untouched. To fix, reinstall"
+    log "[WARN] the auto-update unit: sudo cp $BASE_DIR/deploy/clientst0r-auto-update.service"
+    log "[WARN]   /etc/systemd/system/ && sudo systemctl daemon-reload"
+else
 # Cron job for web GUI updates (one-time setup)
 CRON_JOB="* * * * * $BASE_DIR/scripts/check_update_trigger.sh"
 if ! crontab -l 2>/dev/null | grep -q "check_update_trigger.sh"; then
@@ -256,6 +271,7 @@ if ! crontab -l 2>/dev/null | grep -q "poll_security_alerts"; then
         && log "Cron job configured for security alert polling" ) \
         || log "[WARN] Security alert polling cron setup failed (non-critical)"
 fi
+fi  # NO_NEW_PRIVS
 
 # =====================================================================
 # Step 5: Clear Python bytecode cache + graceful reload
@@ -373,26 +389,72 @@ if [ -n "$SERVICE" ] && [ -f "$UNIT_SRC" ] && [ -f "$UNIT_DEST" ]; then
     fi
 fi
 
+# v3.17.595: if nothing below manages a reload or restart, the run must fail.
+# Before this, the last fallback backgrounded `sudo systemctl restart` and
+# logged it as scheduled; under NoNewPrivileges that sudo always failed
+# unseen, so every nightly run since at least 2026-10-03 left gunicorn on the
+# old code while reporting "Update completed successfully!".
+RELOADED=0
 if [ -n "$SERVICE" ] && [ -n "$SYSTEMCTL" ]; then
     # Graceful reload: sends SIGHUP to the gunicorn master (ExecReload=kill -HUP $MAINPID).
     # Workers are replaced one-by-one while the master stays alive — zero downtime.
-    if sudo "$SYSTEMCTL" reload "$SERVICE" 2>/dev/null; then
+    if sudo -n "$SYSTEMCTL" reload "$SERVICE" 2>/dev/null; then
         log "Step 5/5: Graceful reload of '$SERVICE' completed (zero downtime)"
+        RELOADED=1
     else
-        # Service not running or reload unsupported — fall back to a clean restart.
-        log "[WARN] reload failed — falling back to restart (brief downtime expected)"
-        RESTART_SCHEDULED=0
-        if [ -n "$SYSTEMD_RUN" ]; then
-            if sudo "$SYSTEMD_RUN" --on-active=3 --system "$SYSTEMCTL" restart "$SERVICE" 2>/dev/null; then
+        # sudo unavailable (no_new_privs, no sudoers rule). The unit's
+        # ExecReload is only `kill -HUP $MAINPID`, and the master normally runs
+        # as this same user, so send that signal ourselves. MainPID is
+        # readable without privilege.
+        MAIN_PID=$("$SYSTEMCTL" show -p MainPID --value "$SERVICE" 2>/dev/null || echo 0)
+        if [ "${MAIN_PID:-0}" -gt 0 ] 2>/dev/null \
+                && [ "$(ps -o uid= -p "$MAIN_PID" 2>/dev/null | tr -d ' ')" = "$(id -u)" ] \
+                && kill -HUP "$MAIN_PID" 2>/dev/null; then
+            log "Step 5/5: Graceful reload of '$SERVICE' via SIGHUP to master PID $MAIN_PID (zero downtime)"
+            RELOADED=1
+        elif sudo -n true 2>/dev/null; then
+            # Service not running or reload unsupported — fall back to a clean restart.
+            log "[WARN] reload failed — falling back to restart (brief downtime expected)"
+            if [ -n "$SYSTEMD_RUN" ] \
+                    && sudo -n "$SYSTEMD_RUN" --on-active=3 --system "$SYSTEMCTL" restart "$SERVICE" 2>/dev/null; then
                 log "Step 5/5: Restart of '$SERVICE' scheduled via systemd-run (3-second delay)"
-                RESTART_SCHEDULED=1
+                RELOADED=1
+            else
+                nohup sudo -n "$SYSTEMCTL" restart "$SERVICE" >/dev/null 2>&1 &
+                disown 2>/dev/null || true
+                log "Step 5/5: Restart of '$SERVICE' scheduled via nohup"
+                RELOADED=1
             fi
         fi
-        if [ "$RESTART_SCHEDULED" -eq 0 ]; then
-            nohup sudo "$SYSTEMCTL" restart "$SERVICE" >/dev/null 2>&1 &
-            disown 2>/dev/null || true
-            log "Step 5/5: Restart of '$SERVICE' scheduled via nohup"
+    fi
+    if [ "$RELOADED" -eq 0 ]; then
+        log "ERROR: could not reload or restart '$SERVICE'. The new code is on disk"
+        log "ERROR: but the running server is still serving the old version."
+        if [ "$NO_NEW_PRIVS" -eq 1 ]; then
+            log "ERROR: this process has no_new_privs set, so sudo cannot run. Reinstall"
+            log "ERROR: the auto-update unit without NoNewPrivileges:"
+            log "ERROR:   sudo cp $BASE_DIR/deploy/clientst0r-auto-update.service /etc/systemd/system/"
+            log "ERROR:   sudo systemctl daemon-reload"
         fi
+        log "ERROR: Reload by hand: sudo systemctl reload $SERVICE"
+        if [ -n "$PYTHON_BIN" ] && [ -f "$PROGRESS_FILE" ]; then
+            "$PYTHON_BIN" - <<EOF || true
+import json, os
+p = "$PROGRESS_FILE"
+try:
+    with open(p) as f:
+        d = json.load(f)
+except Exception:
+    d = {}
+d['status'] = 'failed'
+d['error'] = 'Update installed but the service could not be reloaded; reload it by hand.'
+tmp = p + '.tmp'
+with open(tmp, 'w') as f:
+    json.dump(d, f)
+os.replace(tmp, p)
+EOF
+        fi
+        exit 1
     fi
 else
     # No systemd service — send SIGHUP to gunicorn master for graceful reload.
