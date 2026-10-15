@@ -2022,21 +2022,34 @@ def service_catalog_form(request, pk=None):
         if not name:
             messages.error(request, 'Name is required.')
             return redirect(request.path)
-        try:
-            fields = _json.loads(fields_raw) if fields_raw else []
-        except Exception as e:
-            messages.error(request, f'Fields JSON is not valid: {e}')
+
+        # Guided service requests: the editor posts the form builder's
+        # schema + portal/routing settings. Older posts (no marker) keep
+        # the legacy fields_json path below.
+        from . import catalog_editor
+        guided, guided_error = catalog_editor.parse_guided_post(request.POST, item)
+        if guided_error:
+            messages.error(request, guided_error)
             return redirect(request.path)
-        if not isinstance(fields, list) or any(
-            not isinstance(f, dict) or 'key' not in f or 'label' not in f for f in fields
-        ):
-            messages.error(request, 'Fields JSON must be a list of objects with at least "key" and "label".')
-            return redirect(request.path)
-        for f in fields:
-            allowed_types = {'text', 'email', 'date', 'number', 'textarea', 'select', 'checkbox'}
-            if f.get('type', 'text') not in allowed_types:
-                messages.error(request, f'Invalid field type: {f.get("type")!r}. Allowed: {sorted(allowed_types)}')
+
+        if guided:
+            fields = guided['fields_json']
+        else:
+            try:
+                fields = _json.loads(fields_raw) if fields_raw else []
+            except Exception as e:
+                messages.error(request, f'Fields JSON is not valid: {e}')
                 return redirect(request.path)
+            if not isinstance(fields, list) or any(
+                not isinstance(f, dict) or 'key' not in f or 'label' not in f for f in fields
+            ):
+                messages.error(request, 'Fields JSON must be a list of objects with at least "key" and "label".')
+                return redirect(request.path)
+            for f in fields:
+                allowed_types = {'text', 'email', 'date', 'number', 'textarea', 'select', 'checkbox'}
+                if f.get('type', 'text') not in allowed_types:
+                    messages.error(request, f'Invalid field type: {f.get("type")!r}. Allowed: {sorted(allowed_types)}')
+                    return redirect(request.path)
 
         try:
             queue = queues.filter(pk=request.POST.get('default_queue') or 0).first()
@@ -2065,12 +2078,19 @@ def service_catalog_form(request, pk=None):
         item.default_queue = queue
         item.default_priority = priority
         item.default_type = ttype
+        if guided:
+            catalog_editor.apply_values(item, guided)
+        else:
+            from .service_requests import schema_from_legacy
+            item.form_schema = schema_from_legacy(fields)
         # Governance toggle (Phase 6.3 — v3.17.165)
         item.requires_approval = request.POST.get('requires_approval') == 'on'
         # Direct save by an admin counts as a publish.
         item.last_published_at = timezone.now()
         item.last_published_by = request.user
         item.save()
+        if guided:
+            catalog_editor.apply_m2m(item, guided)
 
         AuditLog.log(
             user=request.user, action='update' if pk else 'create',
@@ -2084,12 +2104,14 @@ def service_catalog_form(request, pk=None):
         return redirect('psa:service_catalog')
 
     import json as _json
+    from . import catalog_editor
     return render(request, 'psa/service_catalog_form.html', {
         'item': item,
         'queues': queues,
         'priorities': priorities,
         'types': types,
         'fields_json_pretty': _json.dumps(item.fields_json if item else [], indent=2),
+        **catalog_editor.editor_context(item),
     })
 
 
@@ -7690,8 +7712,13 @@ _CATALOG_GOVERNED_FIELDS = (
 
 
 def _catalog_snapshot(item):
-    """Snapshot the governed fields of a ServiceCatalogItem to a dict."""
-    return {f: getattr(item, f) for f in _CATALOG_GOVERNED_FIELDS}
+    """Snapshot the governed fields of a ServiceCatalogItem to a dict.
+    Includes the guided-request fields (form schema, portal settings,
+    routing, availability) so proposals can change them too."""
+    from . import catalog_editor
+    snap = {f: getattr(item, f) for f in _CATALOG_GOVERNED_FIELDS}
+    snap.update(catalog_editor.snapshot(item))
+    return snap
 
 
 @login_required
@@ -7725,6 +7752,12 @@ def catalog_propose_change(request, pk):
             after['sort_order'] = int(request.POST.get('sort_order') or 0)
         except ValueError:
             after['sort_order'] = item.sort_order
+        from . import catalog_editor
+        guided, guided_error = catalog_editor.parse_guided_post(request.POST, item)
+        if guided_error:
+            messages.error(request, guided_error)
+            return redirect(request.path)
+        after.update(guided)
         reason = (request.POST.get('reason') or '').strip()
 
         # Discard fields with no diff to keep the snapshot tight.
@@ -7767,8 +7800,13 @@ def catalog_propose_change(request, pk):
         )
         return redirect('psa:catalog_change_list')
 
+    from . import catalog_editor
     return render(request, 'psa/catalog_propose_change.html', {
         'item': item,
+        'queues': Queue.objects.filter(is_active=True).order_by('name'),
+        'priorities': TicketPriority.objects.all().order_by('sort_order', 'code'),
+        'types': TicketType.objects.filter(is_active=True).order_by('name'),
+        **catalog_editor.editor_context(item),
     })
 
 

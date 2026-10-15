@@ -945,6 +945,97 @@ class ServiceCatalogItem(models.Model):
         null=True, blank=True, related_name='+',
     )
 
+    # Guided service requests (portal "Request a service").
+    # `form_schema` is the canonical form definition; `fields_json` stays as
+    # the legacy shape the staff ticket form reads, and is kept in step by
+    # the catalog editor (see psa/service_requests.py).
+    APPROVAL_NONE = 'none'
+    APPROVAL_CUSTOMER = 'customer'
+    APPROVAL_POLICY_CHOICES = [
+        (APPROVAL_NONE, 'No approval'),
+        (APPROVAL_CUSTOMER, 'Customer approver must approve'),
+    ]
+    portal_visible = models.BooleanField(
+        default=False,
+        help_text='Offer this item to customers under "Request a service" in '
+                  'the portal.',
+    )
+    category = models.CharField(
+        max_length=80, blank=True,
+        help_text='Group heading in the portal catalog (e.g. "People", '
+                  '"Hardware"). Blank items group under "Other".',
+    )
+    form_schema = models.JSONField(
+        default=list, blank=True,
+        help_text='List of field definitions: {key, label, type, required, '
+                  'help, placeholder, options, show_if: {field, equals|in}}. '
+                  'Types: text, textarea, select, multiselect, date, checkbox, '
+                  'email, user.',
+    )
+    approval_policy = models.CharField(
+        max_length=20, choices=APPROVAL_POLICY_CHOICES, default=APPROVAL_NONE,
+        help_text='Customer approver: a customer org admin (other than the '
+                  'requester) approves the request in the portal before work '
+                  'starts.',
+    )
+    expected_turnaround_text = models.CharField(
+        max_length=120, blank=True,
+        help_text='Shown to the customer, e.g. "2 business days". Overrides '
+                  'the hours value for display.',
+    )
+    expected_turnaround_hours = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Expected hours from submission to completion.',
+    )
+    process_template = models.ForeignKey(
+        'processes.Process', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='service_catalog_items',
+        help_text='Workflow started automatically when the request is submitted.',
+    )
+    include_organizations = models.ManyToManyField(
+        'core.Organization', blank=True,
+        related_name='catalog_items_included',
+        help_text='When set, only these customers see the item. Empty = all customers.',
+    )
+    exclude_organizations = models.ManyToManyField(
+        'core.Organization', blank=True,
+        related_name='catalog_items_excluded',
+        help_text='These customers never see the item (wins over the include list).',
+    )
+
+    def get_form_schema(self):
+        """Canonical form definition; falls back to legacy fields_json."""
+        from psa.service_requests import schema_from_legacy
+        if self.form_schema:
+            return list(self.form_schema)
+        return schema_from_legacy(self.fields_json or [])
+
+    def is_available_to(self, organization):
+        """Organization availability: exclude wins; empty include = everyone."""
+        if organization is None:
+            return False
+        if self.exclude_organizations.filter(pk=organization.pk).exists():
+            return False
+        if self.include_organizations.exists():
+            return self.include_organizations.filter(pk=organization.pk).exists()
+        return True
+
+    @property
+    def needs_customer_approval(self):
+        return self.approval_policy == self.APPROVAL_CUSTOMER
+
+    @property
+    def turnaround_display(self):
+        if self.expected_turnaround_text:
+            return self.expected_turnaround_text
+        h = self.expected_turnaround_hours
+        if not h:
+            return ''
+        if h < 24:
+            return f'About {h} hour{"s" if h != 1 else ""}'
+        days = round(h / 24)
+        return f'About {days} day{"s" if days != 1 else ""}'
+
     @staticmethod
     def render_template(template, values):
         """{{key}} → values[key] substitution. Unfilled placeholders are stripped."""
@@ -5312,6 +5403,14 @@ class ServiceCatalogChange(models.Model):
         item.last_published_at = timezone.now()
         item.last_published_by = decided_by
         item.save()
+        # Guided-request availability lists are many-to-many, so they can't
+        # be set with setattr above; snapshots carry them as id lists.
+        for key, rel in (('include_organization_ids', 'include_organizations'),
+                         ('exclude_organization_ids', 'exclude_organizations')):
+            if key in (self.after_snapshot or {}):
+                ids = [int(i) for i in (self.after_snapshot.get(key) or [])
+                       if str(i).isdigit()]
+                getattr(item, rel).set(ids)
         self.status = 'approved'
         self.decided_by = decided_by
         self.decided_at = timezone.now()

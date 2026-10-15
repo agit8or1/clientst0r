@@ -41,17 +41,35 @@
                     <span>{{ organization.name|default:"Support Portal" }}</span>
                 {% endif %}
             </span>
-            <div>
+            <div class="d-flex flex-wrap align-items-center justify-content-end">
+                {% if request.portal_memberships and request.portal_memberships|length > 1 %}
+                {# Customer switcher — users who belong to several customers. #}
+                <form method="post" action="{% url 'portal:switch_customer' %}" class="d-inline-flex align-items-center me-2 my-0" id="portal-customer-switcher">
+                    {% csrf_token %}
+                    <label for="portal-switch-org" class="visually-hidden">Customer</label>
+                    <select name="organization_id" id="portal-switch-org" class="form-select form-select-sm" onchange="this.form.submit()" title="Switch customer">
+                        {% for pm in request.portal_memberships %}
+                        <option value="{{ pm.organization_id }}" {% if pm.organization_id == request.portal_membership.organization_id %}selected{% endif %}>{{ pm.organization.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <noscript><button type="submit" class="btn btn-sm btn-outline-secondary ms-1">Switch</button></noscript>
+                </form>
+                {% endif %}
+                {% if request.portal_psa_enabled is not False %}
                 <a href="{% url 'portal:ticket_list' %}" class="btn btn-link">My Tickets</a>
+                <a href="{% url 'portal:request_catalog' %}" class="btn btn-link"><i class="fas fa-concierge-bell"></i> Request a service</a>
+                {% endif %}
                 <a href="{% url 'portal:kb_list' %}" class="btn btn-link"><i class="fas fa-book"></i> Knowledge Base</a>
                 <a href="{% url 'portal:vault_list' %}" class="btn btn-link"><i class="fas fa-key"></i> Credentials</a>
                 {# Phase 40.5 (v3.17.543). Always linked: the view 404s when nothing is published, which is the same answer as hiding it but without a template query. #}
                 <a href="{% url 'portal:status' %}" class="btn btn-link"><i class="fas fa-heart-pulse"></i> Service Status</a>
-                {% if psa_portal_customer_approvals_enabled %}
+                {% if psa_portal_customer_approvals_enabled and request.portal_psa_enabled is not False %}
                 <a href="{% url 'portal:approvals_list' %}" class="btn btn-link" title="Approvals waiting on you"><i class="fas fa-circle-check"></i> Approvals</a>
                 {% endif %}
                 <a href="{% url 'portal:preferences' %}" class="btn btn-link" title="Notification preferences"><i class="fas fa-cog"></i></a>
+                {% if request.portal_psa_enabled is not False %}
                 <a href="{% url 'portal:ticket_create' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> New Ticket</a>
+                {% endif %}
                 <form method="post" action="{% url 'logout' %}" style="display:inline; margin:0;">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-link">Sign out</button>

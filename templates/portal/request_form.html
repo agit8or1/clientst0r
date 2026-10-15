@@ -1,0 +1,205 @@
+{% extends "portal/base.html" %}
+{% block title %}{{ item.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'portal:ticket_list' %}">My Tickets</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'portal:request_catalog' %}">Request a service</a></li>
+        <li class="breadcrumb-item active">{{ item.name }}</li>
+    </ol>
+</nav>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <h1 class="mb-1">{% if item.icon %}<i class="{{ item.icon }} me-2 text-primary"></i>{% endif %}{{ item.name }}</h1>
+        {% if item.description %}<p class="text-muted">{{ item.description|linebreaksbr }}</p>{% endif %}
+
+        {% if errors %}
+        <div class="alert alert-danger" role="alert">
+            <strong>Please check the form:</strong>
+            <ul class="mb-0">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+
+        <form method="post" class="card" id="service-request-form" novalidate>
+            {% csrf_token %}
+            <div class="card-body">
+                {% for f in fields %}
+                <div class="mb-3 js-sr-field" data-key="{{ f.key }}" data-type="{{ f.type }}" data-required="{% if f.required %}1{% endif %}">
+                    {% if f.type == 'checkbox' %}
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="id_{{ f.input_name }}" name="{{ f.input_name }}" value="on"
+                               {% if f.current %}checked{% endif %}>
+                        <label class="form-check-label" for="id_{{ f.input_name }}">{{ f.label }}{% if f.required %} <span class="text-danger">*</span>{% endif %}</label>
+                    </div>
+                    {% else %}
+                    <label class="form-label" {% if f.type != 'multiselect' %}for="id_{{ f.input_name }}"{% endif %}>{{ f.label }}{% if f.required %} <span class="text-danger js-req-mark">*</span>{% endif %}</label>
+                    {% if f.type == 'textarea' %}
+                    <textarea class="form-control js-sr-text" id="id_{{ f.input_name }}" name="{{ f.input_name }}" rows="4" maxlength="10000" placeholder="{{ f.placeholder|default:'' }}">{{ f.current }}</textarea>
+                    {% elif f.type == 'select' %}
+                    <select class="form-select" id="id_{{ f.input_name }}" name="{{ f.input_name }}">
+                        <option value="">— Choose —</option>
+                        {% for o in f.options %}<option value="{{ o }}" {% if f.current == o %}selected{% endif %}>{{ o }}</option>{% endfor %}
+                    </select>
+                    {% elif f.type == 'multiselect' %}
+                    <div>
+                        {% for o in f.options %}
+                        <div class="form-check form-check-inline">
+                            <input type="checkbox" class="form-check-input" id="id_{{ f.input_name }}_{{ forloop.counter }}" name="{{ f.input_name }}" value="{{ o }}" {% if o in f.current %}checked{% endif %}>
+                            <label class="form-check-label" for="id_{{ f.input_name }}_{{ forloop.counter }}">{{ o }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% elif f.type == 'date' %}
+                    <input type="date" class="form-control" id="id_{{ f.input_name }}" name="{{ f.input_name }}" value="{{ f.current }}">
+                    {% elif f.type == 'email' %}
+                    <input type="email" class="form-control" id="id_{{ f.input_name }}" name="{{ f.input_name }}" maxlength="254" value="{{ f.current }}" placeholder="{{ f.placeholder|default:'' }}">
+                    {% elif f.type == 'number' %}
+                    <input type="number" class="form-control" id="id_{{ f.input_name }}" name="{{ f.input_name }}" value="{{ f.current }}" step="any">
+                    {% elif f.type == 'user' %}
+                    <input type="text" class="form-control js-sr-text" id="id_{{ f.input_name }}" name="{{ f.input_name }}" maxlength="200" value="{{ f.current }}" placeholder="{{ f.placeholder|default:'Name or email address' }}" autocomplete="off">
+                    {% else %}
+                    <input type="text" class="form-control js-sr-text" id="id_{{ f.input_name }}" name="{{ f.input_name }}" maxlength="500" value="{{ f.current }}" placeholder="{{ f.placeholder|default:'' }}">
+                    {% endif %}
+                    {% endif %}
+                    {% if f.help %}<div class="form-text">{{ f.help }}</div>{% endif %}
+                </div>
+                {% empty %}
+                <p class="text-muted mb-0">No details needed — just submit and we'll get started.</p>
+                {% endfor %}
+            </div>
+            <div class="card-footer d-flex flex-wrap gap-2 align-items-center">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-1"></i>Submit request</button>
+                <a href="{% url 'portal:request_catalog' %}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-body small">
+                <h6 class="mb-2">What to expect</h6>
+                <p class="mb-2"><i class="far fa-clock me-1 text-muted"></i>
+                    {% if item.turnaround_display %}Usually done in: <strong>{{ item.turnaround_display }}</strong>{% else %}We'll confirm timing once we've reviewed it.{% endif %}
+                </p>
+                {% if item.needs_customer_approval %}
+                <p class="mb-0"><i class="fas fa-user-check me-1 text-warning"></i>
+                    <strong>Needs approval.</strong> An approver at {{ organization.name }} must approve this request before work starts.
+                </p>
+                {% else %}
+                <p class="mb-0"><i class="fas fa-check me-1 text-success"></i>No approval needed.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card" id="kb-suggestions-card" {% if not kb_suggestions %}style="display:none"{% endif %}>
+            <div class="card-body small">
+                <h6 class="mb-2"><i class="fas fa-book me-1"></i>Before you submit</h6>
+                <p class="text-muted mb-2">These articles might answer it straight away:</p>
+                <ul class="mb-0 ps-3" id="kb-suggestions">
+                    {% for d in kb_suggestions %}
+                    <li><a href="{% url 'portal:kb_detail' d.slug %}" target="_blank" rel="noopener">{{ d.title }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ schema|json_script:"sr-schema" }}
+<script>
+(function () {
+    var schema = JSON.parse(document.getElementById('sr-schema').textContent || '[]');
+    var form = document.getElementById('service-request-form');
+    if (!form) return;
+
+    function wrapper(key) { return form.querySelector('.js-sr-field[data-key="' + key + '"]'); }
+
+    function valueOf(field) {
+        var w = wrapper(field.key);
+        if (!w) return null;
+        var name = 'f_' + field.key;
+        if (field.type === 'checkbox') {
+            var cb = w.querySelector('input[name="' + name + '"]');
+            return !!(cb && cb.checked);
+        }
+        if (field.type === 'multiselect') {
+            return Array.prototype.map.call(
+                w.querySelectorAll('input[name="' + name + '"]:checked'),
+                function (i) { return i.value; });
+        }
+        var el = w.querySelector('[name="' + name + '"]');
+        return el ? el.value : '';
+    }
+
+    function matches(cond, value) {
+        var values;
+        if (Array.isArray(value)) values = value.map(String);
+        else if (typeof value === 'boolean') values = value ? ['true', 'yes'] : ['false', 'no'];
+        else if (value === null || value === '') values = [];
+        else values = [String(value)];
+        if (cond['in']) {
+            return values.some(function (v) { return cond['in'].map(String).indexOf(v) !== -1; });
+        }
+        var eq = cond.equals;
+        if (typeof eq === 'boolean') {
+            if (typeof value === 'boolean') return value === eq;
+            var lower = values.map(function (v) { return v.toLowerCase(); });
+            return lower.indexOf(String(eq)) !== -1 || lower.indexOf(eq ? 'yes' : 'no') !== -1;
+        }
+        return values.indexOf(String(eq)) !== -1;
+    }
+
+    // Mirrors psa/service_requests.py:visible_keys — the server re-checks.
+    function refresh() {
+        var visible = {};
+        var values = {};
+        schema.forEach(function (f) { values[f.key] = valueOf(f); });
+        schema.forEach(function (f) {
+            var show = !f.show_if || (visible[f.show_if.field] && matches(f.show_if, values[f.show_if.field]));
+            visible[f.key] = !!show;
+            var w = wrapper(f.key);
+            if (!w) return;
+            w.style.display = show ? '' : 'none';
+            w.querySelectorAll('input, select, textarea').forEach(function (el) {
+                el.disabled = !show;   // hidden fields aren't submitted
+            });
+        });
+    }
+    form.addEventListener('change', refresh);
+    form.addEventListener('input', refresh);
+    refresh();
+
+    // Live KB suggestions from what the customer types.
+    var list = document.getElementById('kb-suggestions');
+    var card = document.getElementById('kb-suggestions-card');
+    var url = "{% url 'portal:request_kb_suggest' item.slug %}";
+    var timer = null;
+    form.addEventListener('input', function (e) {
+        if (!e.target.classList.contains('js-sr-text')) return;
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            var q = Array.prototype.map.call(form.querySelectorAll('.js-sr-text:not([disabled])'),
+                function (el) { return el.value; }).join(' ').trim();
+            if (q.length < 4) return;
+            fetch(url + '?q=' + encodeURIComponent(q.slice(0, 500)), {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (data) {
+                    if (!data || !data.articles || !data.articles.length) return;
+                    list.textContent = '';
+                    data.articles.forEach(function (a) {
+                        var li = document.createElement('li');
+                        var link = document.createElement('a');
+                        link.href = a.url; link.target = '_blank'; link.rel = 'noopener';
+                        link.textContent = a.title;
+                        li.appendChild(link);
+                        list.appendChild(li);
+                    });
+                    card.style.display = '';
+                })
+                .catch(function () {});
+        }, 600);
+    });
+})();
+</script>
+{% endblock %}

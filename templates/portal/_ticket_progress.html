@@ -1,0 +1,35 @@
+{# Customer-friendly progress (portal/progress.py). Context: progress, pending_approvals, waiting_question, service_request, ticket #}
+<div class="border rounded p-3 mb-3 bg-light" id="ticket-progress">
+    <div class="d-flex justify-content-between flex-wrap gap-2 small text-muted mb-2" aria-hidden="true">
+        <span class="{% if progress.step >= 0 %}fw-semibold text-body{% endif %}"><i class="fas fa-inbox me-1"></i>Received</span>
+        <span class="{% if progress.step >= 1 %}fw-semibold text-body{% endif %}"><i class="fas fa-person-digging me-1"></i>In progress</span>
+        <span class="{% if progress.step >= 2 %}fw-semibold text-body{% endif %}"><i class="fas fa-circle-check me-1"></i>Resolved</span>
+    </div>
+    <div class="progress mb-2" style="height: 6px;" role="progressbar" aria-label="Request progress"
+         aria-valuenow="{{ progress.step }}" aria-valuemin="0" aria-valuemax="2">
+        <div class="progress-bar bg-{{ progress.badge }}" style="width: {% if progress.step == 0 %}15{% elif progress.step == 1 %}55{% else %}100{% endif %}%"></div>
+    </div>
+    <div><strong>{{ progress.label }}</strong> — {{ progress.description }}</div>
+
+    {% if service_request.expected_turnaround and progress.code != 'resolved' %}
+    <div class="small text-muted mt-1"><i class="far fa-clock me-1"></i>Expected turnaround: {{ service_request.expected_turnaround }}{% if service_request.expected_by %} (around <span data-utc="{{ service_request.expected_by|date:'c' }}">{{ service_request.expected_by|date:'Y-m-d H:i' }}</span>){% endif %}</div>
+    {% endif %}
+
+    {% if pending_approvals or waiting_question %}
+    <div class="mt-3">
+        <h6 class="mb-2 small text-uppercase text-muted">Waiting on your side</h6>
+        <ul class="mb-0 small ps-3">
+            {% for a in pending_approvals %}
+            <li>
+                Approval {% if a.status == 'blocked' %}(later stage){% endif %}: {{ a.object_repr|default:a.get_kind_display }}
+                {% if a.can_decide %}— <a href="{% url 'portal:approvals_list' %}">review and approve</a>
+                {% else %}— waiting for an approver at {{ organization.name }}{% endif %}
+            </li>
+            {% endfor %}
+            {% if waiting_question %}
+            <li>We asked: <em>{{ waiting_question.body|truncatechars:200 }}</em> — <a href="#reply-form">reply below</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>

@@ -1,0 +1,271 @@
+{# Guided service request settings + form-schema builder. Shared by service_catalog_form.html and catalog_propose_change.html. Context from psa/catalog_editor.py:editor_context. #}
+<input type="hidden" name="_guided" value="1">
+
+<h6 class="text-muted mt-2">Customer portal</h6>
+<div class="row g-3">
+    <div class="col-md-4 d-flex align-items-end">
+        <div class="form-check form-switch">
+            <input type="checkbox" name="portal_visible" id="portal_visible" class="form-check-input"
+                   {% if item and item.portal_visible %}checked{% endif %}>
+            <label for="portal_visible" class="form-check-label">Offer in the portal ("Request a service")</label>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Category <small class="text-muted">— portal grouping</small></label>
+        <input type="text" name="category" class="form-control" maxlength="80" placeholder="e.g. People, Hardware, Access"
+               value="{% if item %}{{ item.category }}{% endif %}">
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Approval</label>
+        <select name="approval_policy" class="form-select">
+            {% for val, label in guided_approval_choices %}
+            <option value="{{ val }}" {% if item and item.approval_policy == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        {% if not guided_customer_approvals_enabled %}
+        <div class="form-text text-warning">Portal customer approvals are switched off in Settings, so customers can't act on approval requests in the portal until it's on.</div>
+        {% endif %}
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Expected turnaround <small class="text-muted">— text</small></label>
+        <input type="text" name="expected_turnaround_text" class="form-control" maxlength="120" placeholder="e.g. 2 business days"
+               value="{% if item %}{{ item.expected_turnaround_text }}{% endif %}">
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">or hours</label>
+        <input type="number" name="expected_turnaround_hours" class="form-control" min="0"
+               value="{% if item and item.expected_turnaround_hours is not None %}{{ item.expected_turnaround_hours }}{% endif %}">
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Start workflow on submit <small class="text-muted">— optional</small></label>
+        <select name="process_template" class="form-select">
+            <option value="">— None —</option>
+            {% for p in guided_processes %}
+            <option value="{{ p.pk }}" {% if item and item.process_template_id == p.pk %}selected{% endif %}>{{ p.title }}{% if p.is_global %} (global){% endif %}</option>
+            {% endfor %}
+        </select>
+        <div class="form-text">Global and template workflows are listed. The workflow is assigned to its author.</div>
+    </div>
+</div>
+
+<div class="row g-3 mt-1">
+    <div class="col-md-6">
+        <label class="form-label">Only these customers <small class="text-muted">— leave empty for all customers</small></label>
+        <select name="include_organizations" class="form-select" multiple size="6">
+            {% for o in guided_organizations %}
+            <option value="{{ o.pk }}" {% if o.pk in guided_include_ids %}selected{% endif %}>{{ o.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Never these customers <small class="text-muted">— wins over the list on the left</small></label>
+        <select name="exclude_organizations" class="form-select" multiple size="6">
+            {% for o in guided_organizations %}
+            <option value="{{ o.pk }}" {% if o.pk in guided_exclude_ids %}selected{% endif %}>{{ o.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<hr>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h6 class="text-muted mb-0">Request form</h6>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-primary" id="sb-add"><i class="fas fa-plus me-1"></i>Add field</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="sb-toggle-json">Edit as JSON</button>
+    </div>
+</div>
+<p class="small text-muted mt-1 mb-2">
+    Field values fill <code>{% verbatim %}{{key}}{% endverbatim %}</code> placeholders in the subject and body templates.
+    "Show only if" hides a field until an earlier field has a given value; hidden fields are never required.
+</p>
+<div id="sb-fields"></div>
+<div id="sb-json-wrap" style="display:none">
+    <textarea name="form_schema_json" id="sb-json" class="form-control font-monospace small" rows="14">{{ guided_schema_json }}</textarea>
+    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="sb-json-apply">Apply JSON to builder</button>
+</div>
+<div class="small text-danger mt-2" id="sb-error" role="alert"></div>
+
+{{ guided_type_choices|json_script:"sb-types" }}
+<script>
+(function () {
+    var types = JSON.parse(document.getElementById('sb-types').textContent);
+    var jsonEl = document.getElementById('sb-json');
+    var list = document.getElementById('sb-fields');
+    var errEl = document.getElementById('sb-error');
+    var fields = [];
+    try { fields = JSON.parse(jsonEl.value || '[]'); } catch (e) { fields = []; }
+    if (!Array.isArray(fields)) fields = [];
+    var KEY_RE = /^[a-z][a-z0-9_]{0,49}$/;
+
+    function el(tag, attrs, text) {
+        var e = document.createElement(tag);
+        Object.keys(attrs || {}).forEach(function (k) {
+            if (k === 'class') e.className = attrs[k]; else e.setAttribute(k, attrs[k]);
+        });
+        if (text !== undefined) e.textContent = text;
+        return e;
+    }
+
+    function slugKey(label) {
+        var k = (label || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        if (!/^[a-z]/.test(k)) k = 'field_' + k;
+        return k.slice(0, 50);
+    }
+
+    function sync() {
+        jsonEl.value = JSON.stringify(fields, null, 2);
+        var errs = [];
+        var seen = {};
+        fields.forEach(function (f, i) {
+            if (!KEY_RE.test(f.key || '')) errs.push('Field #' + (i + 1) + ': key must be lowercase letters, digits, underscores.');
+            if (seen[f.key]) errs.push('Key "' + f.key + '" is used twice.');
+            seen[f.key] = true;
+            if (!f.label) errs.push('Field #' + (i + 1) + ' needs a label.');
+            if ((f.type === 'select' || f.type === 'multiselect') && !(f.options || []).length) errs.push('"' + (f.label || f.key) + '" needs options.');
+        });
+        errEl.textContent = errs.join(' ');
+    }
+
+    function render() {
+        list.textContent = '';
+        fields.forEach(function (f, i) {
+            var card = el('div', {'class': 'card card-body mb-2 p-2'});
+            var row = el('div', {'class': 'row g-2 align-items-end'});
+
+            function col(cls, labelText, input) {
+                var c = el('div', {'class': cls});
+                c.appendChild(el('label', {'class': 'form-label small mb-0'}, labelText));
+                c.appendChild(input);
+                row.appendChild(c);
+                return c;
+            }
+            var label = el('input', {'class': 'form-control form-control-sm', 'type': 'text', 'maxlength': '200'});
+            label.value = f.label || '';
+            label.addEventListener('input', function () {
+                var auto = !f.key || f.key === slugKey(f.label || '');
+                f.label = label.value;
+                if (auto) { f.key = slugKey(label.value); key.value = f.key; }
+                sync();
+            });
+            col('col-md-3', 'Label', label);
+
+            var key = el('input', {'class': 'form-control form-control-sm font-monospace', 'type': 'text', 'maxlength': '50'});
+            key.value = f.key || '';
+            key.addEventListener('input', function () { f.key = key.value.trim(); sync(); });
+            col('col-md-2', 'Key', key);
+
+            var type = el('select', {'class': 'form-select form-select-sm'});
+            types.forEach(function (t) {
+                var o = el('option', {value: t[0]}, t[1]);
+                if ((f.type || 'text') === t[0]) o.selected = true;
+                type.appendChild(o);
+            });
+            type.addEventListener('change', function () { f.type = type.value; if (f.type !== 'select' && f.type !== 'multiselect') delete f.options; sync(); render(); });
+            col('col-md-2', 'Type', type);
+
+            var reqWrap = el('div', {'class': 'col-md-1 form-check ms-2'});
+            var req = el('input', {'class': 'form-check-input', 'type': 'checkbox', 'id': 'sb-req-' + i});
+            req.checked = !!f.required;
+            req.addEventListener('change', function () { f.required = req.checked; sync(); });
+            reqWrap.appendChild(req);
+            reqWrap.appendChild(el('label', {'class': 'form-check-label small', 'for': 'sb-req-' + i}, 'Required'));
+            row.appendChild(reqWrap);
+
+            var btns = el('div', {'class': 'col-md-3 text-end'});
+            [['↑', -1], ['↓', 1]].forEach(function (b) {
+                var bt = el('button', {'type': 'button', 'class': 'btn btn-sm btn-outline-secondary me-1', 'title': 'Move'}, b[0]);
+                bt.addEventListener('click', function () {
+                    var j = i + b[1];
+                    if (j < 0 || j >= fields.length) return;
+                    var tmp = fields[i]; fields[i] = fields[j]; fields[j] = tmp;
+                    sync(); render();
+                });
+                btns.appendChild(bt);
+            });
+            var del = el('button', {'type': 'button', 'class': 'btn btn-sm btn-outline-danger', 'title': 'Remove'}, '✕');
+            del.addEventListener('click', function () { fields.splice(i, 1); sync(); render(); });
+            btns.appendChild(del);
+            row.appendChild(btns);
+            card.appendChild(row);
+
+            var row2 = el('div', {'class': 'row g-2 mt-1'});
+            row.parentNode.appendChild(row2);
+            function col2(cls, labelText, input) {
+                var c = el('div', {'class': cls});
+                c.appendChild(el('label', {'class': 'form-label small mb-0'}, labelText));
+                c.appendChild(input);
+                row2.appendChild(c);
+            }
+            var help = el('input', {'class': 'form-control form-control-sm', 'type': 'text', 'maxlength': '500'});
+            help.value = f.help || '';
+            help.addEventListener('input', function () { if (help.value) f.help = help.value; else delete f.help; sync(); });
+            col2('col-md-4', 'Help text', help);
+
+            if (f.type === 'select' || f.type === 'multiselect') {
+                var opts = el('textarea', {'class': 'form-control form-control-sm', 'rows': '3', 'placeholder': 'One option per line'});
+                opts.value = (f.options || []).join('\n');
+                opts.addEventListener('input', function () {
+                    f.options = opts.value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+                    sync();
+                });
+                col2('col-md-3', 'Options', opts);
+            }
+
+            // show_if: controlling field (earlier fields only) + value(s).
+            var ctrl = el('select', {'class': 'form-select form-select-sm'});
+            ctrl.appendChild(el('option', {value: ''}, 'Always show'));
+            fields.slice(0, i).forEach(function (p) {
+                var o = el('option', {value: p.key}, 'Only if "' + (p.label || p.key) + '"');
+                if (f.show_if && f.show_if.field === p.key) o.selected = true;
+                ctrl.appendChild(o);
+            });
+            var val = el('input', {'class': 'form-control form-control-sm', 'type': 'text',
+                                   'placeholder': 'is (comma = any of)'});
+            if (f.show_if) {
+                if (f.show_if['in']) val.value = f.show_if['in'].join(', ');
+                else if (f.show_if.equals !== undefined) val.value = String(f.show_if.equals);
+            }
+            function updateShowIf() {
+                if (!ctrl.value) { delete f.show_if; sync(); return; }
+                var parent = fields.filter(function (p) { return p.key === ctrl.value; })[0] || {};
+                var raw = val.value.trim();
+                if (parent.type === 'checkbox') {
+                    f.show_if = {field: ctrl.value, equals: !/^(false|no|0|unchecked)$/i.test(raw)};
+                } else if (raw.indexOf(',') !== -1) {
+                    f.show_if = {field: ctrl.value, 'in': raw.split(',').map(function (s) { return s.trim(); }).filter(Boolean)};
+                } else {
+                    f.show_if = {field: ctrl.value, equals: raw};
+                }
+                sync();
+            }
+            ctrl.addEventListener('change', updateShowIf);
+            val.addEventListener('input', updateShowIf);
+            col2('col-md-3', 'Show', ctrl);
+            col2('col-md-2', 'Value', val);
+
+            list.appendChild(card);
+        });
+        if (!fields.length) list.appendChild(el('p', {'class': 'text-muted small'}, 'No fields yet — the customer just submits the request.'));
+    }
+
+    document.getElementById('sb-add').addEventListener('click', function () {
+        var n = fields.length + 1;
+        fields.push({key: 'field_' + n, label: '', type: 'text', required: false});
+        sync(); render();
+    });
+    document.getElementById('sb-toggle-json').addEventListener('click', function () {
+        var w = document.getElementById('sb-json-wrap');
+        w.style.display = w.style.display === 'none' ? '' : 'none';
+    });
+    document.getElementById('sb-json-apply').addEventListener('click', function () {
+        try {
+            var parsed = JSON.parse(jsonEl.value || '[]');
+            if (!Array.isArray(parsed)) throw new Error('must be a list');
+            fields = parsed; render(); sync();
+        } catch (e) { errEl.textContent = 'JSON error: ' + e.message; }
+    });
+    render();
+    sync();
+})();
+</script>

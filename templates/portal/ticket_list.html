@@ -40,7 +40,10 @@
 </script>
 {% endif %}
 
-<h1 class="mb-4">My Support Tickets</h1>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <h1 class="mb-0">My Support Tickets</h1>
+    <a href="{% url 'portal:request_catalog' %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-concierge-bell me-1"></i>Request a service</a>
+</div>
 
 <div class="btn-group mb-3" role="group">
     <a href="?status=" class="btn btn-{% if not status_filter %}primary{% else %}outline-primary{% endif %} btn-sm">All</a>
@@ -60,7 +63,7 @@
                     <td><a href="{% url 'portal:ticket_detail' t.ticket_number %}"><strong>{{ t.ticket_number }}</strong></a></td>
                     <td>{{ t.subject|truncatechars:80 }}</td>
                     <td>{{ t.priority.name }}</td>
-                    <td>{{ t.status.name }}</td>
+                    <td>{% if t.portal_progress %}<span class="badge bg-{{ t.portal_progress.badge }}">{{ t.portal_progress.label }}</span>{% else %}{{ t.status.name }}{% endif %}</td>
                     <td><span data-utc="{{ t.created_at|date:'c' }}">{{ t.created_at|date:'Y-m-d H:i' }}</span></td>
                 </tr>
                 {% empty %}

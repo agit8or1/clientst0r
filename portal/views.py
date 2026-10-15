@@ -29,24 +29,45 @@ from psa.models import (
 )
 
 
+PORTAL_ORG_SESSION_KEY = 'portal_org_id'
+
+
+def _portal_memberships(user):
+    """Active memberships of `user` in portal-enabled customers, in a
+    stable order (customer name, then membership id)."""
+    if not user.is_authenticated:
+        return []
+    qs = (Membership.objects
+          .filter(user=user, is_active=True,
+                  organization__psa_settings__portal_enabled=True)
+          .select_related('organization')
+          .order_by('organization__name', 'pk'))
+    return list(qs)
+
+
 def _portal_membership(request):
     """Return the active Membership for the request's user OR None.
     Restricted to users with at least one active membership in an org
     that has portal_enabled=True. Superusers are NOT auto-granted —
     the portal is for clients, period.
+
+    Users who belong to several portal-enabled customers pick one with
+    the customer switcher; the choice lives in the session and is
+    re-checked against their memberships on every request.
     """
-    user = request.user
-    if not user.is_authenticated:
+    memberships = _portal_memberships(request.user)
+    request.portal_memberships = memberships
+    if not memberships:
         return None
-    qs = Membership.objects.filter(user=user, is_active=True).select_related('organization')
-    for m in qs:
-        try:
-            settings = m.organization.psa_settings
-            if settings.portal_enabled:
-                return m
-        except ClientPSASettings.DoesNotExist:
-            continue
-    return None
+    chosen = None
+    try:
+        chosen = int(request.session.get(PORTAL_ORG_SESSION_KEY) or 0)
+    except (TypeError, ValueError, AttributeError):
+        chosen = None
+    for m in memberships:
+        if m.organization_id == chosen:
+            return m
+    return memberships[0]
 
 
 def portal_required(view_func):
@@ -63,9 +84,57 @@ def portal_required(view_func):
         if m is None:
             raise Http404('Portal is not enabled for your account')
         request.portal_membership = m
+        # The customer's PSA opt-out (or an external PSA) switches off the
+        # ticket + request features; KB, vault and status stay available.
+        request.portal_psa_enabled = is_psa_enabled_for_client(m.organization)
         return view_func(request, *args, **kwargs)
 
     return wrapped
+
+
+def portal_psa_required(view_func):
+    """portal_required + 404 when PSA is disabled for the active customer."""
+    from functools import wraps
+
+    @wraps(view_func)
+    @portal_required
+    def wrapped(request, *args, **kwargs):
+        if not request.portal_psa_enabled:
+            raise Http404('Support tickets are not enabled for your organization')
+        return view_func(request, *args, **kwargs)
+
+    return wrapped
+
+
+@portal_required
+@require_http_methods(['POST'])
+def switch_customer(request):
+    """Switch the active customer for a user with several portal memberships.
+    Only customers the user is an active member of (with the portal on)
+    can be selected; anything else is a 404."""
+    try:
+        org_id = int(request.POST.get('organization_id') or 0)
+    except (TypeError, ValueError):
+        raise Http404()
+    target = next((m for m in request.portal_memberships
+                   if m.organization_id == org_id), None)
+    if target is None:
+        raise Http404()
+    request.session[PORTAL_ORG_SESSION_KEY] = org_id
+    messages.success(request, f'Now viewing {target.organization.name}.')
+    return redirect('portal:ticket_list')
+
+
+def portal_kb_queryset(organization):
+    """KB articles a portal user of `organization` may read: client-visible,
+    published, not archived, not a pending draft; global or this customer's."""
+    from django.db.models import Q
+    from docs.models import Document
+    return Document.objects.published().filter(
+        is_client_visible=True, is_template=False,
+    ).filter(
+        Q(is_global=True) | Q(organization=organization)
+    )
 
 
 def _portal_feature_enabled(name) -> bool:
@@ -98,6 +167,10 @@ def _active_announcements(request, organization):
 def ticket_list(request):
     """Tickets owned by the user's portal organization, client-visible only."""
     m = request.portal_membership
+    if not request.portal_psa_enabled:
+        # Portal home for a customer whose PSA is switched off: tickets are
+        # unavailable, the knowledge base is not.
+        return redirect('portal:kb_list')
     qs = Ticket.objects.filter(organization=m.organization).select_related(
         'status', 'priority', 'queue', 'ticket_type',
     )
@@ -107,8 +180,13 @@ def ticket_list(request):
         qs = qs.filter(status__is_terminal=False)
     elif status == 'closed':
         qs = qs.filter(status__is_terminal=True)
+    from .progress import progress_for_tickets
+    tickets = list(qs.order_by('-created_at')[:200])
+    progress = progress_for_tickets(tickets)
+    for t in tickets:
+        t.portal_progress = progress.get(t.pk)
     return render(request, 'portal/ticket_list.html', {
-        'tickets': qs.order_by('-created_at')[:200],
+        'tickets': tickets,
         'status_filter': status or '',
         'organization': m.organization,
         'announcements': _active_announcements(request, m.organization),
@@ -140,7 +218,7 @@ def announcement_dismiss(request, pk):
     return JsonResponse({'ok': True})
 
 
-@portal_required
+@portal_psa_required
 def ticket_detail(request, ticket_number):
     from psa.models import TicketVote
     m = request.portal_membership
@@ -170,7 +248,28 @@ def ticket_detail(request, ticket_number):
     user_voted = (TicketVote.objects.filter(ticket=ticket, user=request.user).exists()
                   if voting_enabled else False)
     escalation_enabled = _portal_feature_enabled('psa_portal_escalation_enabled')
+    # Guided service requests: plain-language progress + what's waiting on
+    # the customer.
+    from .progress import (
+        P as _Phrase, _progress_dict, pending_client_approvals, phrase_code,
+        question_waiting,
+    )
+    from .request_views import service_request_context
+    pending_approvals = pending_client_approvals(ticket)
+    progress = _progress_dict(phrase_code(
+        ticket, has_pending_approval=bool(pending_approvals)))
+    waiting_question = (question_waiting(ticket, raw_comments)
+                        if progress['code'] == _Phrase.PHRASE_WAITING_ON_CUSTOMER
+                        else None)
+    approvals_enabled = _portal_feature_enabled('psa_portal_customer_approvals_enabled')
+    for a in pending_approvals:
+        a.can_decide = (approvals_enabled and a.status == 'pending'
+                        and can_decide_client_approval(a, m, request.user))
     return render(request, 'portal/ticket_detail.html', {
+        'progress': progress,
+        'pending_approvals': pending_approvals,
+        'waiting_question': waiting_question,
+        'service_request': service_request_context(ticket),
         'ticket': ticket,
         'threads': threads,
         'attachments': attachments,
@@ -182,7 +281,7 @@ def ticket_detail(request, ticket_number):
     })
 
 
-@portal_required
+@portal_psa_required
 @require_http_methods(['POST'])
 def ticket_escalate(request, ticket_number):
     """
@@ -222,7 +321,7 @@ def ticket_escalate(request, ticket_number):
     return redirect('portal:ticket_detail', ticket_number=ticket_number)
 
 
-@portal_required
+@portal_psa_required
 @require_http_methods(['POST'])
 def ticket_vote(request, ticket_number):
     """v3.17.235: toggle a portal user's "I care about this too" vote."""
@@ -247,7 +346,7 @@ def ticket_vote(request, ticket_number):
     return redirect('portal:ticket_detail', ticket_number=ticket_number)
 
 
-@portal_required
+@portal_psa_required
 @require_http_methods(['POST'])
 def post_reply(request, ticket_number):
     m = request.portal_membership
@@ -289,7 +388,7 @@ def post_reply(request, ticket_number):
     return redirect('portal:ticket_detail', ticket_number=ticket_number)
 
 
-@portal_required
+@portal_psa_required
 @require_http_methods(['GET', 'POST'])
 def ticket_create(request):
     """Client-side ticket submission."""
@@ -456,14 +555,9 @@ def kb_list(request):
     (v3.17.234) so popular content is easy to find.
     """
     from django.db.models import Q
-    from docs.models import Document
     m = request.portal_membership
     q = (request.GET.get('q') or '').strip()
-    qs = Document.objects.published().filter(
-        is_client_visible=True, is_template=False,
-    ).filter(
-        Q(is_global=True) | Q(organization=m.organization)
-    )
+    qs = portal_kb_queryset(m.organization)
     if q:
         qs = qs.filter(Q(title__icontains=q) | Q(body__icontains=q))
         if not qs.exists():
@@ -485,14 +579,10 @@ def kb_list(request):
 @portal_required
 def kb_detail(request, slug):
     """Show a single KB article. Same visibility rule as kb_list."""
-    from django.db.models import Q, F
+    from django.db.models import F
     from docs.models import Document
     m = request.portal_membership
-    qs = Document.objects.published().filter(
-        is_client_visible=True, is_template=False,
-    ).filter(
-        Q(is_global=True) | Q(organization=m.organization)
-    )
+    qs = portal_kb_queryset(m.organization)
     article = get_object_or_404(qs, slug=slug)
     # v3.17.234: increment view counter on each portal open. F() avoids
     # a read-modify-write race when two users open the same article
@@ -687,7 +777,25 @@ def preferences(request):
     })
 
 
-@portal_required
+SERVICE_REQUEST_APPROVAL_TYPE = 'psa.ServiceCatalogItem'
+
+
+def can_decide_client_approval(approval, membership, user):
+    """Who may approve a client approval in the portal.
+
+    Service-request approvals (created by "Request a service") need a
+    customer approver: an org admin of that customer who is not the person
+    who asked. Other client approvals keep the original rule (any portal
+    user of the customer).
+    """
+    if approval.object_type != SERVICE_REQUEST_APPROVAL_TYPE:
+        return True
+    if not membership.is_org_admin:
+        return False
+    return approval.requested_by_id != user.pk
+
+
+@portal_psa_required
 def approvals_list(request):
     """
     Phase 12 v9 (v3.17.239): pending customer approvals routed to the
@@ -710,6 +818,9 @@ def approvals_list(request):
                .exclude(status='pending')
                .select_related('related_ticket', 'decided_by')
                .order_by('-decided_at')[:25])
+    pending = list(pending)
+    for a in pending:
+        a.can_decide = can_decide_client_approval(a, m, request.user)
     return render(request, 'portal/approvals_list.html', {
         'pending': pending,
         'decided': decided,
@@ -717,7 +828,7 @@ def approvals_list(request):
     })
 
 
-@portal_required
+@portal_psa_required
 @require_http_methods(['POST'])
 def approval_decide(request, pk):
     """v3.17.239: portal user approves/denies a client-side approval."""
@@ -735,8 +846,26 @@ def approval_decide(request, pk):
     if decision not in ('approve', 'deny'):
         messages.error(request, 'Pick Approve or Deny.')
         return redirect('portal:approvals_list')
+    if not can_decide_client_approval(approval, m, request.user):
+        messages.error(request, 'This request needs approval from another '
+                                'approver at your organization.')
+        return redirect('portal:approvals_list')
     approval.decide(user=request.user, approved=(decision == 'approve'),
                     comment=comment)
+    if (approval.object_type == SERVICE_REQUEST_APPROVAL_TYPE
+            and approval.related_ticket_id):
+        # Put the decision on the request's timeline where the requester
+        # and the support team both see it.
+        who = request.user.get_full_name() or request.user.username
+        verdict = 'approved' if decision == 'approve' else 'declined'
+        body = f'[Approval] {who} {verdict} this request.'
+        if comment:
+            body += f'\n\n{comment}'
+        TicketComment.objects.create(
+            ticket=approval.related_ticket, author=request.user, body=body,
+            is_internal=False, source='portal',
+            author_name=who, author_email=request.user.email or '',
+        )
     messages.success(
         request,
         f'Approval marked as {"Approved" if decision == "approve" else "Denied"}.',

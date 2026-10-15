@@ -76,19 +76,7 @@
         </div>
 
         <hr>
-        <h6 class="text-muted">Fields</h6>
-        <p class="small text-muted">
-            JSON list. Each field needs <code>key</code> + <code>label</code>. Optional: <code>type</code>
-            (one of <code>text, email, date, number, textarea, select, checkbox</code> — defaults to
-            <code>text</code>), <code>required</code>, <code>placeholder</code>, <code>options</code> (list of strings, only for <code>select</code>),
-            <code>help</code>.
-        </p>
-        <pre class="small text-muted mb-2">[
-  {"key": "full_name", "label": "Full name", "type": "text", "required": true},
-  {"key": "email", "label": "Email", "type": "email"},
-  {"key": "reason", "label": "Reason", "type": "select", "options": ["A", "B"]}
-]</pre>
-        <textarea name="fields_json" class="form-control font-monospace" rows="14" required>{{ fields_json_pretty }}</textarea>
+        {% include "psa/_catalog_guided_fields.html" %}
 
         <hr>
         <div class="row g-3">
@@ -101,6 +89,13 @@
                     <input type="checkbox" name="is_active" id="is_active" class="form-check-input"
                            {% if not item or item.is_active %}checked{% endif %}>
                     <label for="is_active" class="form-check-label">Active</label>
+                </div>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <div class="form-check form-switch">
+                    <input type="checkbox" name="requires_approval" id="requires_approval" class="form-check-input"
+                           {% if item and item.requires_approval %}checked{% endif %}>
+                    <label for="requires_approval" class="form-check-label">Changes require approval (governance)</label>
                 </div>
             </div>
         </div>

@@ -1,0 +1,12 @@
+{# Answers from a guided service request. Context: sr (portal/request_views.py:service_request_context) #}
+<h6 class="mb-2"><i class="fas fa-clipboard-list me-1"></i>{{ sr.name|default:"Request details" }}</h6>
+{% if sr.answers %}
+<dl class="row mb-0 small">
+    {% for a in sr.answers %}
+    <dt class="col-sm-4 text-muted fw-normal">{{ a.label }}</dt>
+    <dd class="col-sm-8" style="white-space: pre-wrap;">{{ a.display|default:"—" }}</dd>
+    {% endfor %}
+</dl>
+{% else %}
+<p class="text-muted small mb-0">No details were needed for this request.</p>
+{% endif %}

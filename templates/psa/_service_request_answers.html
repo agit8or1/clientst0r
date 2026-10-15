@@ -1,0 +1,27 @@
+{# Staff view of a guided service request's answers. Reads the record stored on Ticket.custom_fields["service_request"] by psa/service_requests.py:submit_request. #}
+{% with sr=ticket.custom_fields.service_request %}
+{% if sr %}
+<div class="card mb-3" id="service-request-answers">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <strong><i class="fas fa-clipboard-list me-1"></i>Service request: {{ sr.catalog_item_name }}</strong>
+        <span class="small text-muted">
+            {% if sr.expected_turnaround %}<i class="far fa-clock me-1"></i>{{ sr.expected_turnaround }}{% endif %}
+            {% if sr.approval_required %}<span class="badge bg-warning text-dark ms-2">Customer approval required</span>{% endif %}
+            {% if sr.process_execution_id %}<a class="ms-2" href="{% url 'processes:execution_detail' sr.process_execution_id %}">Workflow #{{ sr.process_execution_id }}</a>{% endif %}
+        </span>
+    </div>
+    <div class="card-body">
+        {% if sr.answers %}
+        <dl class="row mb-0 small">
+            {% for a in sr.answers %}
+            <dt class="col-sm-4 text-muted fw-normal">{{ a.label }}</dt>
+            <dd class="col-sm-8" style="white-space: pre-wrap;">{{ a.display|default:"—" }}</dd>
+            {% endfor %}
+        </dl>
+        {% else %}
+        <em class="text-muted small">No answers were required.</em>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endwith %}

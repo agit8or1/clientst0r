@@ -27,10 +27,12 @@
         <p class="text-muted mb-2 mt-2">
             <span class="badge bg-secondary">{{ ticket.ticket_number }}</span>
             <span class="badge bg-info">{{ ticket.priority.name }}</span>
-            <span class="badge bg-primary">{{ ticket.status.name }}</span>
+            {% if progress %}<span class="badge bg-{{ progress.badge }}">{{ progress.label }}</span>{% else %}<span class="badge bg-primary">{{ ticket.status.name }}</span>{% endif %}
             {% if ticket.escalated_at %}<span class="badge bg-danger"><i class="fas fa-exclamation-triangle"></i> Escalated</span>{% endif %}
             <span class="text-muted">— created <span data-utc="{{ ticket.created_at|date:'c' }}">{{ ticket.created_at|date:'Y-m-d H:i' }}</span></span>
         </p>
+
+        {% if progress %}{% include "portal/_ticket_progress.html" %}{% endif %}
 
         {% comment %} v3.17.236 — Phase 12: portal-side escalation. Gated on
            psa_portal_escalation_enabled (v3.17.243). {% endcomment %}
@@ -56,7 +58,10 @@
             </form>
         </details>
         {% endif %}
-        {% if ticket.description %}
+        {% if service_request %}
+        <hr>
+        {% include "portal/_service_request_answers.html" with sr=service_request %}
+        {% elif ticket.description %}
         <hr>
         <p>{{ ticket.description|linebreaksbr }}</p>
         {% endif %}

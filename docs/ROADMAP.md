@@ -1572,6 +1572,21 @@ Know what's missing, why it matters and who owns the fix.
 - **Per-asset-type custom fields as readiness requirements** *(planned)* —
   requirements use built-in asset fields today.
 
+## Phase 54 — Guided customer service requests **(L)** [in progress]
+
+Collect what technicians need up front and show customers where things stand.
+
+- **Guided, conditional request forms from the service catalog**
+  *(shipped v3.17.606)*.
+- **Customer approvals, process start and routing on submit**
+  *(shipped v3.17.606)*.
+- **KB suggestions before submitting, plain-language progress**
+  *(shipped v3.17.606)*.
+- **Per-customer catalog availability, PSA opt-out, customer switcher**
+  *(shipped v3.17.606)*.
+- **Named approvers per request type** *(planned)* — approval currently goes
+  to the customer's admins.
+
 ---
 
 ## Sizing
@@ -1628,6 +1643,7 @@ Know what's missing, why it matters and who owns the fix.
 | 51 — Reliability and customer-boundary hardening | M | in progress — PSA customer boundaries, token revocation and scheduler coverage v3.17.599; role view permissions, protected downloads and customer ticket visibility v3.17.600; billing correctness v3.17.601; staff technicians v3.17.602; imports v3.17.603 | none — touches PSA, docs, accounts, API, vault and the scheduler |
 | 52 — Technician workspace | L | in progress — My Work, drafts, collisions, closeout, KB drafts v3.17.604 | Phase 51 (customer ticket visibility, staff techs) |
 | 53 — Documentation readiness and lifecycle | L | in progress — standards, scoring, lifecycle, analytics v3.17.605 | docs publish rules |
+| 54 — Guided customer service requests | L | in progress — guided requests, approvals, progress v3.17.606 | Phase 53 publish rules (KB suggestions) |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

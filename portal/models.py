@@ -74,3 +74,40 @@ class PortalAnnouncement(models.Model):
         return cls.objects.filter(
             organization=organization, is_active=True,
         ).exclude(expires_at__lte=now).order_by('-created_at')
+
+
+class PortalStatusPhrase(models.Model):
+    """
+    Customer-facing progress phrase for an internal TicketStatus.
+
+    Customers see one of five plain phrases instead of the MSP's internal
+    status names. Defaults come from the status flags (see
+    portal/progress.py); a row here overrides the default for one status.
+    """
+    PHRASE_RECEIVED = 'received'
+    PHRASE_IN_PROGRESS = 'in_progress'
+    PHRASE_WAITING_ON_CUSTOMER = 'waiting_on_customer'
+    PHRASE_WAITING_APPROVAL = 'waiting_approval'
+    PHRASE_RESOLVED = 'resolved'
+    PHRASE_CHOICES = [
+        (PHRASE_RECEIVED, 'Received'),
+        (PHRASE_IN_PROGRESS, 'In progress'),
+        (PHRASE_WAITING_ON_CUSTOMER, 'Waiting for you'),
+        (PHRASE_WAITING_APPROVAL, 'Waiting for approval'),
+        (PHRASE_RESOLVED, 'Resolved'),
+    ]
+
+    status = models.OneToOneField(
+        'psa.TicketStatus', on_delete=models.CASCADE,
+        related_name='portal_phrase',
+    )
+    phrase = models.CharField(max_length=30, choices=PHRASE_CHOICES)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'portal_status_phrases'
+        verbose_name = 'Portal status phrase'
+        verbose_name_plural = 'Portal status phrases'
+
+    def __str__(self):
+        return f'{self.status} → {self.get_phrase_display()}'

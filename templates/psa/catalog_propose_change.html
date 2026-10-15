@@ -55,6 +55,36 @@
             </div>
 
             <div class="card mb-3">
+                <div class="card-header"><strong>Routing, portal + request form</strong></div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Queue</label>
+                            <select name="default_queue" class="form-select">
+                                <option value="">—</option>
+                                {% for q in queues %}<option value="{{ q.pk }}" {% if item.default_queue_id == q.pk %}selected{% endif %}>{{ q.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Priority</label>
+                            <select name="default_priority" class="form-select">
+                                <option value="">—</option>
+                                {% for p in priorities %}<option value="{{ p.pk }}" {% if item.default_priority_id == p.pk %}selected{% endif %}>{{ p.code }} — {{ p.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Type</label>
+                            <select name="default_type" class="form-select">
+                                <option value="">—</option>
+                                {% for t in types %}<option value="{{ t.pk }}" {% if item.default_type_id == t.pk %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% include "psa/_catalog_guided_fields.html" %}
+                </div>
+            </div>
+
+            <div class="card mb-3">
                 <div class="card-header"><strong>Reason for change</strong></div>
                 <div class="card-body">
                     <textarea name="reason" class="form-control" rows="3" placeholder="Why are you proposing this change?"></textarea>

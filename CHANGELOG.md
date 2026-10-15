@@ -5,6 +5,37 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.606] - 2026-10-15
+
+### Guided service requests in the customer portal
+
+- **Request a service:** customers browse the service catalog (grouped by
+  category) and fill in a guided form whose questions can appear only when
+  relevant. Forms are validated on the server too, and unknown fields are
+  rejected. Before submitting, customers see knowledge-base articles that
+  might already answer the question — only published articles they're allowed
+  to see.
+- Submitting creates a ticket the customer can see, with their answers shown
+  to both the customer and staff, routed to the item's queue, type and
+  priority. It can start a process and ask the customer's admin to approve
+  the request.
+- **Catalog editor:** per-item customer availability (include and exclude
+  lists), portal visibility (off by default for existing items), a form
+  builder with conditional fields, approval policy, expected turnaround,
+  routing and an optional process to start. The edit form now has the
+  "requires approval" checkbox; without it, saving silently turned
+  change governance off.
+- **Plain-language progress** on portal tickets: Received, In progress,
+  Waiting for you, Waiting for approval, Resolved — plus anything waiting on
+  the customer and the expected turnaround. Phrases can be overridden in the
+  admin.
+- Customers with PSA turned off no longer get portal ticket and request
+  pages. Portal users who belong to more than one customer can switch between
+  them.
+- `manage.py psa_seed_portal_requests` adds sample request types (onboarding,
+  offboarding, access request, new equipment, application change); not added
+  automatically.
+
 ## [3.17.605] - 2026-10-15
 
 ### Documentation readiness

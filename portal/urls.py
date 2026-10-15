@@ -9,6 +9,7 @@ app_name = 'portal'
 # `statuspage` with the models it reads; `portal_required` is applied here so
 # it inherits the portal's rules rather than reimplementing them.
 from statuspage.views import portal_status as _status_view  # noqa: E402
+from . import request_views as _request_views  # noqa: E402
 
 urlpatterns = [
     path('', views.ticket_list, name='ticket_list'),
@@ -39,4 +40,11 @@ urlpatterns = [
     # v3.17.239 — Phase 12 customer approval workflows.
     path('approvals/', views.approvals_list, name='approvals_list'),
     path('approvals/<int:pk>/decide/', views.approval_decide, name='approval_decide'),
+    # Guided service requests ("Request a service").
+    path('requests/', _request_views.request_catalog, name='request_catalog'),
+    path('requests/<slug:slug>/', _request_views.request_form, name='request_form'),
+    path('requests/<slug:slug>/kb/', _request_views.request_kb_suggest,
+         name='request_kb_suggest'),
+    # Customer switcher for users who belong to several customers.
+    path('switch/', views.switch_customer, name='switch_customer'),
 ]

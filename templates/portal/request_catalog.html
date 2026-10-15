@@ -1,0 +1,40 @@
+{% extends "portal/base.html" %}
+{% block title %}Request a service{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'portal:ticket_list' %}">My Tickets</a></li>
+        <li class="breadcrumb-item active">Request a service</li>
+    </ol>
+</nav>
+
+<h1 class="mb-1">Request a service</h1>
+<p class="text-muted mb-4">Pick what you need and we'll ask only the questions that matter. Something else? <a href="{% url 'portal:ticket_create' %}">Submit a general ticket</a>.</p>
+
+{% for category, items in groups %}
+<h5 class="mt-4 mb-2 text-muted text-uppercase small fw-semibold">{{ category }}</h5>
+<div class="row g-3">
+    {% for item in items %}
+    <div class="col-12 col-md-6 col-lg-4">
+        <a href="{% url 'portal:request_form' item.slug %}" class="card h-100 text-decoration-none text-reset">
+            <div class="card-body">
+                <div class="d-flex align-items-start gap-2">
+                    {% if item.icon %}<i class="{{ item.icon }} fa-lg mt-1 text-primary"></i>{% endif %}
+                    <div>
+                        <div class="fw-semibold">{{ item.name }}</div>
+                        {% if item.description %}<div class="small text-muted">{{ item.description|truncatechars:160 }}</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent small text-muted d-flex flex-wrap gap-3">
+                {% if item.turnaround_display %}<span><i class="far fa-clock me-1"></i>{{ item.turnaround_display }}</span>{% endif %}
+                {% if item.needs_customer_approval %}<span><i class="fas fa-user-check me-1"></i>Needs approval</span>{% endif %}
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% empty %}
+<div class="alert alert-info">No services are available to request online yet. <a href="{% url 'portal:ticket_create' %}">Submit a ticket</a> and we'll take care of it.</div>
+{% endfor %}
+{% endblock %}

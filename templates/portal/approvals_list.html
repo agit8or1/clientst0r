@@ -28,6 +28,9 @@
         <div class="mt-2 p-2 bg-light rounded small" style="white-space: pre-wrap;">{{ a.request_comment }}</div>
         {% endif %}
 
+        {% if not a.can_decide %}
+        <p class="small text-muted mt-3 mb-0"><i class="fas fa-hourglass-half me-1"></i>Waiting for another approver at {{ organization.name }}.</p>
+        {% else %}
         <form method="post" action="{% url 'portal:approval_decide' a.pk %}" class="mt-3">
             {% csrf_token %}
             <textarea name="comment" class="form-control form-control-sm mb-2" rows="2"
@@ -39,6 +42,7 @@
                 <i class="fas fa-times me-1"></i>Deny
             </button>
         </form>
+        {% endif %}
     </div>
 </div>
 {% endfor %}
