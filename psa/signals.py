@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import logging
 
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 
-from .models import Ticket, TicketComment
+from .models import Contract, Ticket, TicketComment, TicketTimeEntry
 
 
 logger = logging.getLogger('psa.signals')
@@ -449,3 +449,19 @@ def _auto_route_quote_for_approval(sender, instance, created, **kwargs):
         )
     except Exception:
         logger.exception('Auto-route quote for approval failed')
+
+
+@receiver(post_delete, sender=TicketTimeEntry)
+def _recompute_contract_hours_on_time_entry_delete(sender, instance, **kwargs):
+    """v3.17.600: deleting a time entry gives its minutes back to the
+    contract(s) it counted toward. `hours_used_minutes` is recomputed from
+    the remaining entries, so this is correct whether or not the deleted
+    entry qualified. When the ticket itself is being deleted the lookup in
+    `recompute_for_time_entry_scopes` may find it gone and skip; the
+    contract is then corrected on the next save/recompute."""
+    try:
+        Contract.recompute_for_time_entry_scopes(
+            [(instance.ticket_id, instance.started_at)])
+    except Exception:
+        logger.exception('contract hour recompute failed after deleting '
+                         'time entry %s', instance.pk)

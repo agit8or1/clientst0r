@@ -422,6 +422,133 @@ class Ticket(models.Model):
                                   'signoff_note', 'updated_at'])
         return True
 
+    def uninvoiced_billing_lines(self, contract=None):
+        """What a ticket invoice should bill right now, as line-item dicts.
+
+        Returns `(lines, info)`. Each line is a dict of InvoiceLineItem
+        fields. `info` summarises the split for the caller's message:
+        `{'covered_minutes', 'overage_minutes', 'rate', 'allowance'}`.
+
+        Two rules, both added after the ticket-invoice path was found billing
+        the same work twice and billing prepaid hours a second time:
+
+        1. Entries and expenses already on a live invoice are left out. "Live"
+           means not void and not a credit memo — see
+           `InvoiceLineItem.billed_source_ids`.
+
+        2. Under a contract with an hours allowance (block hours / retainer,
+           `effective_total_minutes() > 0`), time is already paid for by the
+           contract's recurring invoice (`Contract.generate_invoice` bills the
+           block; it never bills time). Only the minutes the contract has
+           consumed beyond its allowance — and not already billed as overage
+           on another invoice for this contract — are charged, at
+           `overage_rate` (or `hourly_rate` when no overage rate is set). The
+           covered remainder goes on the invoice as a zero-priced line, so the
+           customer sees the work and the entry is recorded as invoiced. When
+           only part of the work is overage, the latest entries are treated as
+           the overage — they are the ones logged after the allowance ran out.
+
+        3. Flat-fee contracts — `contract_type` in `Contract.FLAT_FEE_TYPES`
+           (managed services, retainer) with no allowance — cover all ticket
+           time: every entry goes on as a zero-priced covered line, recorded
+           as invoiced so it is never billed later. Expenses are still billed.
+
+        Other contracts without an allowance (block_hours with 0 hours,
+        per_incident) or no contract bill all time at `contract.hourly_rate`
+        (0 without a contract), as before.
+        """
+        from decimal import Decimal
+
+        def _hours(minutes):
+            return (Decimal(minutes) / Decimal(60)).quantize(Decimal('0.01'))
+
+        entries = [
+            te for te in self.time_entries.filter(is_billable=True)
+            .exclude(ended_at__isnull=True).order_by('started_at', 'pk')
+            if (te.duration_minutes or 0) > 0
+        ]
+        billed_time = InvoiceLineItem.billed_source_ids(
+            'time', [te.pk for te in entries])
+        entries = [te for te in entries if te.pk not in billed_time]
+        expenses = list(self.expenses.filter(is_billable=True)
+                        .order_by('incurred_on', 'pk'))
+        billed_exp = InvoiceLineItem.billed_source_ids(
+            'expense', [e.pk for e in expenses])
+        expenses = [e for e in expenses if e.pk not in billed_exp]
+
+        allowance = contract.effective_total_minutes() if contract else 0
+        overage_by_entry = {}
+        if contract and allowance > 0:
+            rate = Decimal(str(contract.overage_rate or contract.hourly_rate or 0))
+            over_total = max(0, (contract.hours_used_minutes or 0) - allowance)
+            over_left = max(0, over_total - contract.overage_minutes_invoiced())
+            for te in reversed(entries):
+                if over_left <= 0:
+                    break
+                take = min(over_left, te.duration_minutes)
+                overage_by_entry[te.pk] = take
+                over_left -= take
+        else:
+            rate = Decimal(str(contract.hourly_rate)) if contract else Decimal('0')
+        # Flat-fee contracts (managed services / retainer with no hours
+        # allowance) cover all ticket time: the recurring fee is the price.
+        # Product decision 2026-10-15. Expenses are still billed.
+        flat_fee = bool(contract and allowance <= 0
+                        and contract.contract_type in Contract.FLAT_FEE_TYPES)
+
+        lines = []
+        covered_total = 0
+        over_total_now = 0
+        for te in entries:
+            work = (te.notes or 'work').strip() or 'work'
+            if flat_fee:
+                covered_total += te.duration_minutes
+                lines.append({
+                    'description': f'Time (covered by {contract.name}): {work}'[:300],
+                    'quantity': _hours(te.duration_minutes),
+                    'unit_price': Decimal('0'),
+                    'source': 'time', 'source_id': str(te.pk),
+                })
+            elif contract and allowance > 0:
+                over = overage_by_entry.get(te.pk, 0)
+                covered = te.duration_minutes - over
+                if covered > 0:
+                    covered_total += covered
+                    lines.append({
+                        'description': f'Time (covered by {contract.name} prepaid hours): {work}'[:300],
+                        'quantity': _hours(covered),
+                        'unit_price': Decimal('0'),
+                        'source': 'time', 'source_id': str(te.pk),
+                    })
+                if over > 0:
+                    over_total_now += over
+                    lines.append({
+                        'description': f'Time (beyond prepaid hours): {work}'[:300],
+                        'quantity': _hours(over),
+                        'unit_price': rate,
+                        'source': 'time', 'source_id': str(te.pk),
+                    })
+            else:
+                lines.append({
+                    'description': f'Time: {work}'[:300],
+                    'quantity': _hours(te.duration_minutes),
+                    'unit_price': rate,
+                    'source': 'time', 'source_id': str(te.pk),
+                })
+        for e in expenses:
+            lines.append({
+                'description': f'Expense: {e.description}'[:300],
+                'quantity': Decimal('1'),
+                'unit_price': Decimal(str(e.amount)),
+                'source': 'expense', 'source_id': str(e.pk),
+            })
+        return lines, {
+            'covered_minutes': covered_total,
+            'overage_minutes': over_total_now,
+            'rate': rate,
+            'allowance': allowance,
+        }
+
     @staticmethod
     def _generate_ticket_number():
         """
@@ -660,6 +787,15 @@ class TicketTimeEntry(models.Model):
     duration_minutes = models.PositiveIntegerField(default=0,
         help_text='Computed on save when ended_at is set')
     is_billable = models.BooleanField(default=True)
+    # Role/tier tag for contract role gates (`Contract.billable_role_codes`
+    # / `excluded_role_codes`), e.g. "T1", "T2", "project". Free text on
+    # purpose — the contract fields are free text too. Blank = untagged;
+    # see `Contract.qualifying_time_entries` for how untagged entries count.
+    role_code = models.CharField(
+        max_length=40, blank=True, default='',
+        help_text='Role / tier tag matched against the contract\'s billable '
+                  'and excluded role codes. Blank = untagged.',
+    )
     notes = models.TextField(blank=True)
 
     # Phase 21 v6 (v3.17.315): GPS time tracking — coords captured by
@@ -708,15 +844,17 @@ class TicketTimeEntry(models.Model):
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
-        was_running = False
-        prior_duration = 0
+        prior_scope = None
         if not is_new:
             prior = TicketTimeEntry.objects.filter(pk=self.pk).only(
                 'duration_minutes', 'ended_at', 'submission_id',
+                'ticket_id', 'started_at',
             ).first()
             if prior:
-                was_running = prior.ended_at is None
-                prior_duration = prior.duration_minutes or 0
+                # Where the entry counted before this save, so an edit that
+                # moves it (other ticket/client, other date) also corrects
+                # the contract it moved out of.
+                prior_scope = (prior.ticket_id, prior.started_at)
                 # Phase 25 v2 (v3.17.249): lock entries attached to an
                 # approved TimesheetSubmission. Caller can pass
                 # `_force_unlock=True` for admin overrides; otherwise the
@@ -737,20 +875,18 @@ class TicketTimeEntry(models.Model):
             self.duration_minutes = max(0, int(delta.total_seconds() // 60))
         super().save(*args, **kwargs)
 
-        # Contract hour accounting: only on transitions from running→stopped
-        # or on initial create with a duration. Skip while still running.
-        if self.duration_minutes and self.ended_at:
-            from django.db.models import F
-            try:
-                contract = Contract.for_ticket(self.ticket)
-            except (NameError, AttributeError):
-                contract = None
-            if contract:
-                delta_min = self.duration_minutes - (prior_duration if not was_running else 0)
-                if delta_min > 0:
-                    Contract.objects.filter(pk=contract.pk).update(
-                        hours_used_minutes=F('hours_used_minutes') + delta_min,
-                    )
+        # Contract hour accounting (v3.17.600). This used to add
+        # `duration_minutes` to the active contract's `hours_used_minutes` on
+        # every save: it ignored `is_billable` and the contract's role gates,
+        # added the full duration again whenever a stopped entry was re-saved,
+        # and nothing subtracted on delete. The counter is now recomputed
+        # from the entries themselves (`Contract.recompute_hours_used`) for
+        # every contract the entry falls in, before and after this save.
+        # Deletes are handled by a post_delete signal in psa/signals.py.
+        scopes = [(self.ticket_id, self.started_at)]
+        if prior_scope and prior_scope != scopes[0]:
+            scopes.append(prior_scope)
+        Contract.recompute_for_time_entry_scopes(scopes)
 
     @property
     def is_running(self):
@@ -1638,8 +1774,10 @@ class Contract(models.Model):
     a ticket's organization before falling back to the global queue
     SLA defaults.
 
-    The `hours_used_minutes` field is incremented by `TicketTimeEntry.save()`
-    when an entry's ticket belongs to a client_org with an active contract.
+    `hours_used_minutes` is derived data: the sum of the qualifying time
+    entries in the contract's window (see `qualifying_time_entries`),
+    recomputed by `TicketTimeEntry.save()` / delete and by
+    `manage.py psa_recompute_contract_hours`.
     """
     CONTRACT_TYPES = [
         ('block_hours', 'Block of Hours'),
@@ -1675,7 +1813,8 @@ class Contract(models.Model):
     total_hours = models.DecimalField(max_digits=10, decimal_places=2, default=0,
         help_text='Allowance for block_hours / retainer; 0 for unlimited')
     hours_used_minutes = models.PositiveIntegerField(default=0,
-        help_text='Auto-incremented by TicketTimeEntry; minutes for precision')
+        help_text='Minutes of qualifying time logged in this contract\'s '
+                  'window. Recomputed from time entries; do not edit by hand.')
     hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, default=0,
         help_text='Effective rate when consuming or overaging')
     overage_rate = models.DecimalField(max_digits=10, decimal_places=2, default=0,
@@ -1756,8 +1895,9 @@ class Contract(models.Model):
     )
     cancel_at_period_end = models.BooleanField(
         default=False,
-        help_text='When True, the lifecycle cron transitions the '
-                  'contract to `cancelled` after the next billing date.',
+        help_text='When True, the contract is not billed again and the '
+                  'lifecycle cron transitions it to `cancelled` on the next '
+                  'billing date (the end of the paid-up period).',
     )
     proration_enabled = models.BooleanField(
         default=False,
@@ -1929,6 +2069,14 @@ class Contract(models.Model):
         if existing is not None:
             return existing
 
+        # v3.17.600 — a contract flagged cancel-at-period-end is paid up to
+        # `next_billing_date` and is cancelled on that date by
+        # `psa_advance_subscription_lifecycle`; nothing from that date on is
+        # billed, whoever the caller is.
+        if (self.cancel_at_period_end and self.next_billing_date
+                and on_date >= self.next_billing_date):
+            return None
+
         amount = self.effective_recurring_amount
         usage = self.usage_line_items()
         if amount <= 0 and not usage:
@@ -2071,6 +2219,29 @@ class Contract(models.Model):
             rolled = 0
         return base + rolled
 
+    # Contract types whose recurring fee covers ticket time outright when no
+    # hours allowance is set (see Ticket.uninvoiced_billing_lines).
+    FLAT_FEE_TYPES = ('managed_services', 'retainer')
+
+    def overage_minutes_invoiced(self):
+        """Minutes of time already billed as overage against this contract.
+
+        Counts priced `source='time'` lines on live (not void, not credit
+        memo) invoices raised against this contract. Zero-priced lines are
+        time the allowance covered, so they are not overage. Used by
+        `Ticket.uninvoiced_billing_lines` so overage billed on one ticket's
+        invoice is not billed again on the next.
+        """
+        from decimal import Decimal
+        qtys = (InvoiceLineItem.objects
+                .filter(invoice__source_contract=self, source='time',
+                        unit_price__gt=0)
+                .exclude(invoice__status='void')
+                .exclude(invoice__is_credit_memo=True)
+                .values_list('quantity', flat=True))
+        hours = sum((Decimal(str(q or 0)) for q in qtys), Decimal('0'))
+        return int((hours * 60).to_integral_value())
+
     def effective_hours_remaining(self):
         """Hours remaining after considering rollover + expiry. None=unlimited."""
         if not self.total_hours and not self.rolled_over_minutes:
@@ -2094,6 +2265,98 @@ class Contract(models.Model):
         if not included:
             return True
         return role_code in included
+
+    # ----- hour usage (v3.17.600) -----------------------------------------
+
+    def qualifying_time_entries(self):
+        """Time entries that consume this contract's allowance.
+
+        An entry qualifies when it is:
+          - on a ticket of this contract's client (`ticket.organization`),
+          - stopped (`ended_at` set) with a positive duration,
+          - billable (`is_billable=True`),
+          - started inside the contract window (`start_date`..`end_date`,
+            open-ended when `end_date` is blank; dates in the active
+            timezone), and
+          - allowed by the role gates (`is_role_billable`): an entry whose
+            `role_code` is in `excluded_role_codes` never counts; when
+            `billable_role_codes` is non-empty, a tagged entry counts only
+            if its code is listed.
+
+        Untagged entries (blank `role_code`) count. Role codes were added to
+        time entries in v3.17.600; before that no entry carried one, so
+        excluding untagged entries whenever a billable list is set would zero
+        the usage of every contract that already has one.
+        """
+        qs = TicketTimeEntry.objects.filter(
+            ticket__organization_id=self.client_org_id,
+            ended_at__isnull=False,
+            duration_minutes__gt=0,
+            is_billable=True,
+        )
+        if self.start_date:
+            qs = qs.filter(started_at__date__gte=self.start_date)
+        if self.end_date:
+            qs = qs.filter(started_at__date__lte=self.end_date)
+        excluded = [c for c in (self.excluded_role_codes or []) if c]
+        if excluded:
+            qs = qs.exclude(role_code__in=excluded)
+        included = [c for c in (self.billable_role_codes or []) if c]
+        if included:
+            qs = qs.filter(models.Q(role_code='') | models.Q(role_code__in=included))
+        return qs
+
+    def compute_hours_used_minutes(self) -> int:
+        total = self.qualifying_time_entries().aggregate(
+            m=models.Sum('duration_minutes'))['m']
+        return int(total or 0)
+
+    def recompute_hours_used(self) -> int:
+        """Recompute `hours_used_minutes` from the time entries and store it.
+
+        Written with a queryset update so it cannot clobber (or be clobbered
+        by) a concurrent save of the contract's other fields. Returns the
+        new value."""
+        minutes = self.compute_hours_used_minutes()
+        Contract.objects.filter(pk=self.pk).update(hours_used_minutes=minutes)
+        self.hours_used_minutes = minutes
+        return minutes
+
+    @classmethod
+    def contracts_covering(cls, client_org_id, on_date):
+        """Contracts (any status) for this client whose window contains
+        `on_date` — the ones a time entry on that date can count toward."""
+        return cls.objects.filter(
+            client_org_id=client_org_id, start_date__lte=on_date,
+        ).filter(models.Q(end_date__isnull=True) | models.Q(end_date__gte=on_date))
+
+    @classmethod
+    def recompute_for_time_entry_scopes(cls, scopes):
+        """Recompute every contract a time entry at `(ticket_id, started_at)`
+        could count toward, for each scope given. Unknown tickets (e.g.
+        mid-cascade delete) are skipped."""
+        seen = set()
+        for ticket_id, started_at in scopes:
+            if not ticket_id or not started_at:
+                continue
+            org_id = (Ticket.objects.filter(pk=ticket_id)
+                      .values_list('organization_id', flat=True).first())
+            if not org_id:
+                continue
+            # started_at may arrive as a plain date from callers that
+            # haven't been through the DateTimeField's conversion yet.
+            from datetime import datetime as _datetime
+            if not isinstance(started_at, _datetime):
+                on_date = started_at
+            elif timezone.is_aware(started_at):
+                on_date = timezone.localtime(started_at).date()
+            else:
+                on_date = started_at.date()
+            for contract in cls.contracts_covering(org_id, on_date):
+                if contract.pk in seen:
+                    continue
+                seen.add(contract.pk)
+                contract.recompute_hours_used()
 
     def bundled_subtotal(self):
         """Sum of `quantity * unit_price` across all bundle line items."""
@@ -3784,6 +4047,31 @@ class InvoiceLineItem(models.Model):
     class Meta:
         db_table = 'psa_invoice_line_items'
         ordering = ['sort_order', 'pk']
+
+    @classmethod
+    def billed_source_ids(cls, source, ids=None):
+        """Integer ids of `source` rows (e.g. 'time', 'expense') that already
+        sit on a live invoice — one that is neither void nor a credit memo.
+
+        `source_id` is the loose pointer every generator writes; reading it
+        keeps a single record of what has been billed (the same choice
+        `Project.invoiced_time_entry_ids` made). Voiding an invoice releases
+        its entries to be billed again. Pass `ids` to check only those rows.
+        """
+        qs = cls.objects.filter(source=source)
+        if ids is not None:
+            qs = qs.filter(source_id__in=[str(i) for i in ids])
+        ids = (qs.exclude(source_id='')
+               .exclude(invoice__status='void')
+               .exclude(invoice__is_credit_memo=True)
+               .values_list('source_id', flat=True))
+        out = set()
+        for raw in ids:
+            try:
+                out.add(int(raw))
+            except (TypeError, ValueError):
+                continue
+        return out
 
     @property
     def line_total(self):

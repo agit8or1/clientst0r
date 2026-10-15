@@ -5,6 +5,48 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.601] - 2026-10-15
+
+### Billing fixes
+
+- **Renewed contracts keep billing.** Auto-renewal created the new contract
+  without its billing schedule, recurring amount or meters, so recurring
+  invoicing silently stopped after the first renewal. Renewals now carry the
+  billing terms, meters (with their unbilled usage) and bundle items over, and
+  continue the billing cadence without re-billing a period. Contracts marked
+  cancel-at-period-end are no longer auto-renewed.
+- **Contract hours used are accurate.** Hours used counted non-billable time,
+  ignored the contract's billable/excluded role lists, never went down when an
+  entry was deleted, and double-counted edits. It is now computed from the
+  billable time entries that started inside the contract's dates. The update
+  recalculates every contract once, which lowers hours used on contracts that
+  had non-billable or double-counted time; this changes overage flags, the
+  agreement reconciliation report and future rollover accordingly.
+  `manage.py psa_recompute_contract_hours` does the same on demand. Time
+  entries can now carry a role code; entries without one still count.
+- **Cancel-at-period-end works.** Flagged contracts are no longer billed past
+  their paid period on any path, and are cancelled on their next billing date.
+- **Ticket invoices don't re-bill time.** Creating an invoice from a ticket
+  billed every billable entry again, including ones already invoiced. It now
+  skips time and expenses already on a live invoice (voiding an invoice frees
+  them), and does nothing if there's nothing new to bill.
+- **Ticket invoices respect contracts.** Under a contract with an hours
+  allowance, covered time appears as a zero-price line and only time beyond the
+  allowance is billed, at the overage rate. Managed Services and Monthly
+  Retainer contracts with no hours allowance cover all ticket time (expenses
+  are still billed). Block-of-hours contracts with no allowance and Per-Incident
+  contracts bill time hourly as before.
+- **The invoice approval gate holds.** An invoice needing approval can no
+  longer be marked sent or paid from the edit form, emailed, or pushed to
+  accounting by the recurring job. An approved invoice whose total changes goes
+  back for approval. Sent, paid and void invoices are locked except for status
+  and notes, and those changes are audited with before/after values.
+- **Editing an invoice keeps its lines' sources.** Saving the form used to
+  rebuild every line as a manual line, losing which time entry, contract or
+  quote it came from.
+- Emailing an invoice failed every time (a missing import); it works again.
+- The "rolled N charges into an invoice" message now shows the real count.
+
 ## [3.17.600] - 2026-10-15
 
 ### Security: role view permissions are enforced

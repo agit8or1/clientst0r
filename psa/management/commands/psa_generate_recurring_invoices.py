@@ -28,11 +28,12 @@ invoiced at all. It is logged, and the run ends with a CommandError naming
 every such contract, so the scheduled task shows `failed` with the list in its
 last error until someone decides: move the contract's next billing date to
 the current period (skip the missed periods), or run this command by hand
-without the flag to bill them. Contracts flagged cancel-at-period-end are also
-left alone on that path: their next billing date is the end of the period the
-client has paid for, and `psa_advance_subscription_lifecycle` cancels them.
+without the flag to bill them.
 
-Manual runs without the flag behave exactly as before.
+Contracts flagged cancel-at-period-end are never billed, with or without the
+flag (v3.17.600; before that only the scheduled path skipped them): their next
+billing date is the end of the period the client has paid for, and
+`psa_advance_subscription_lifecycle` cancels them on that date.
 """
 from __future__ import annotations
 
@@ -107,14 +108,17 @@ class Command(BaseCommand):
         ).filter(
             models.Q(end_date__isnull=True) | models.Q(end_date__gte=today)
         ).exclude(billing_frequency='none')
-        if no_catch_up:
-            # The next billing date of a cancel-at-period-end contract is the
-            # end of its paid-up period: bill nothing, let the lifecycle job
-            # cancel it.
-            qs = qs.exclude(cancel_at_period_end=True)
+        # The next billing date of a cancel-at-period-end contract is the end
+        # of its paid-up period: bill nothing, let the lifecycle job cancel
+        # it. v3.17.600 — on every path. This used to apply only under
+        # --no-catch-up, so a manual run billed the next period anyway and
+        # advanced the cursor, and because the lifecycle job keys off that
+        # cursor the contract was never cancelled.
+        qs = qs.exclude(cancel_at_period_end=True)
 
         spawned = 0
         behind = []  # (contract, periods due) skipped under --no-catch-up
+        held = []  # invoices not auto-pushed because approval is pending
         for contract in qs:
             if no_catch_up:
                 due = self._periods_due(contract, today)
@@ -193,17 +197,38 @@ class Command(BaseCommand):
                     # can undo, so it must not be able to roll back the
                     # invoice either.
                     if auto_push:
-                        try:
-                            self._auto_push(inv)
-                        except Exception as exc:
+                        # The approval gate applies here exactly as it does
+                        # to the manual push button: an invoice the
+                        # thresholds flagged stays local until approved.
+                        # Re-read: the flag is written by a post_save signal.
+                        inv.refresh_from_db()
+                        if inv.requires_approval:
+                            held.append(inv)
+                            logger.warning(
+                                'Recurring invoices: %s not auto-pushed; '
+                                'approval required (%s).',
+                                inv.invoice_number, inv.approval_reason)
                             self.stdout.write(self.style.WARNING(
-                                f'auto-push failed for {inv.invoice_number}: {exc}'))
+                                f'  {inv.invoice_number} requires approval '
+                                f'({inv.approval_reason or "no reason given"}); '
+                                f'not pushed to accounting.'))
+                        else:
+                            try:
+                                self._auto_push(inv)
+                            except Exception as exc:
+                                self.stdout.write(self.style.WARNING(
+                                    f'auto-push failed for {inv.invoice_number}: {exc}'))
                 cycles += 1
 
         self.stdout.write(self.style.SUCCESS(
             f'{"[dry] " if dry else ""}Processed {qs.count()} contract(s); '
             f'{spawned} invoice(s) generated.'
         ))
+        if held:
+            self.stdout.write(self.style.WARNING(
+                f'{len(held)} invoice(s) held for approval and not pushed to '
+                f'accounting: ' + ', '.join(i.invoice_number for i in held)
+                + '. Approve each, then push it from the invoice page.'))
 
         if behind and dry:
             self.stdout.write(self.style.WARNING(

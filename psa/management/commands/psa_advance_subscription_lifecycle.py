@@ -5,7 +5,8 @@ Daily cron. Three jobs:
   1. **Auto-resume** — contracts with `paused_until` <= today get
      `paused_at` cleared.
   2. **Cancel-at-period-end** — contracts with `cancel_at_period_end=True`
-     whose next_billing_date is past get transitioned to `status='cancelled'`.
+     whose next_billing_date (end of the paid-up period) has arrived get
+     transitioned to `status='cancelled'`.
   3. **Expire** — contracts whose `end_date` has passed and which are not
      going to renew get `status='expired'` (v3.17.581).
 
@@ -57,12 +58,20 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(
                     f'Resumed {c.name}'))
 
-        # Cancel-at-period-end
+        # Cancel-at-period-end.
+        #
+        # Billing is in advance: the invoice dated `next_billing_date` would
+        # cover the period starting that day, so the paid-up period ends the
+        # day before and the contract is cancelled ON `next_billing_date`
+        # (v3.17.600; this used to wait until the day after, which left a
+        # window in which the recurring generator — whose candidates are
+        # `next_billing_date <= today` — could bill the next period, advance
+        # the cursor, and so keep the contract from ever being cancelled).
         cancel_qs = Contract.objects.filter(
             cancel_at_period_end=True,
             status='active',
             next_billing_date__isnull=False,
-            next_billing_date__lt=today,
+            next_billing_date__lte=today,
         )
         for c in cancel_qs:
             if dry:

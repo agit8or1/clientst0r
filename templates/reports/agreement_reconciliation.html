@@ -121,9 +121,9 @@
 
 <p class="text-muted small mt-3">
     <strong>Methodology:</strong> consumed hours come from
-    <code>Contract.hours_used_minutes</code>, which is auto-incremented by
-    <code>TicketTimeEntry.save()</code> when a time entry's ticket belongs to a
-    client with an active contract. Overage cost = (consumed − allowance) × the
+    <code>Contract.hours_used_minutes</code>: the billable, stopped time entries
+    on the client's tickets that started inside the contract's dates and pass
+    its role gates, recomputed whenever an entry is saved or deleted. Overage cost = (consumed − allowance) × the
     contract's <code>overage_rate</code> (or <code>hourly_rate</code> when overage_rate is 0).
     Status thresholds: <strong>under-served</strong> if &lt; 30% used,
     <strong>over-served</strong> if &ge; 110% used, otherwise <strong>on track</strong>.

@@ -1655,9 +1655,11 @@ def timer_start(request, ticket_number):
         messages.info(request, 'Timer already running.')
         return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
     is_billable = (request.POST.get('is_billable') or '').lower() in ('1', 'true', 'on', 'yes')
+    role_code = (request.POST.get('role_code') or '').strip()[:40]
     entry = TicketTimeEntry.objects.create(
         ticket=ticket, user=request.user,
         started_at=timezone.now(), is_billable=is_billable,
+        role_code=role_code,
     )
     AuditLog.log(
         user=request.user, action='create', organization=ticket.organization,
@@ -1714,12 +1716,13 @@ def time_entry_manual(request, ticket_number):
         return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
     is_billable = (request.POST.get('is_billable') or '').lower() in ('1', 'true', 'on', 'yes')
     notes = (request.POST.get('notes') or '').strip()[:2000]
+    role_code = (request.POST.get('role_code') or '').strip()[:40]
     now = timezone.now()
     entry = TicketTimeEntry.objects.create(
         ticket=ticket, user=request.user,
         started_at=now - timezone.timedelta(minutes=minutes),
         ended_at=now, duration_minutes=minutes,
-        is_billable=is_billable, notes=notes,
+        is_billable=is_billable, notes=notes, role_code=role_code,
     )
     AuditLog.log(
         user=request.user, action='create', organization=ticket.organization,
@@ -2662,6 +2665,9 @@ def contract_form(request, pk=None):
                 matrix[p.code] = entry
         item.sla_matrix = matrix
         item.save()
+        # Window, client and role gates all decide which time entries count
+        # against the allowance, and any of them may have just changed.
+        item.recompute_hours_used()
 
         # Bundle items — JSON payload from the dynamic editor on the form.
         # Reconcile by pk: update existing rows, create new ones, delete
@@ -3958,6 +3964,151 @@ def invoice_detail(request, pk):
     })
 
 
+# Statuses in which an invoice has left draft: its amounts are fixed and
+# change only through a credit memo or a payment.
+_INVOICE_LOCKED_STATUSES = ('sent', 'partial', 'paid', 'overdue', 'void')
+
+
+def _parse_decimal(raw, default):
+    from decimal import Decimal, InvalidOperation
+    try:
+        return Decimal(str(raw).strip()) if str(raw or '').strip() else Decimal(default)
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal(default)
+
+
+def _sync_invoice_lines(invoice, descs, qtys, prices, ids):
+    """Apply the invoice form's line rows to `invoice` by line id.
+
+    A row carrying the id of one of this invoice's lines updates that line in
+    place (source, source_id, is_taxable and gl_account_code untouched). A row
+    with no id — or an id that is not this invoice's — becomes a new manual
+    line. Lines whose id no row carries, or whose row was blanked, are
+    deleted.
+    """
+    from .models import InvoiceLineItem
+    existing = {li.pk: li for li in invoice.line_items.all()}
+    kept = set()
+    n = len(descs)
+    qtys = list(qtys) + [''] * (n - len(qtys))
+    prices = list(prices) + [''] * (n - len(prices))
+    ids = list(ids) + [''] * (n - len(ids))
+    for i, (d, q, p, raw_id) in enumerate(zip(descs, qtys, prices, ids)):
+        d = (d or '').strip()
+        if not d:
+            continue
+        qty = _parse_decimal(q, '1')
+        price = _parse_decimal(p, '0')
+        try:
+            line_id = int(raw_id)
+        except (TypeError, ValueError):
+            line_id = None
+        line = existing.get(line_id)
+        if line is not None and line_id not in kept:
+            line.sort_order = i
+            line.description = d[:300]
+            line.quantity = qty
+            line.unit_price = price
+            line.save(update_fields=['sort_order', 'description',
+                                     'quantity', 'unit_price'])
+            kept.add(line_id)
+        else:
+            InvoiceLineItem.objects.create(
+                invoice=invoice, sort_order=i, description=d[:300],
+                quantity=qty, unit_price=price, source='manual')
+    stale = [pk for pk in existing if pk not in kept]
+    if stale:
+        InvoiceLineItem.objects.filter(invoice=invoice, pk__in=stale).delete()
+
+
+def _invoice_form_locked_post(request, item, render_form):
+    """POST to the invoice form for an invoice no longer in draft.
+
+    Accepts a status change and internal notes; refuses everything else
+    (client, title, dates, currency, tax, line items) so a sent or paid
+    invoice cannot be rewritten after the customer has it. Fields the form
+    renders read-only are simply not posted; a field that *is* posted with a
+    different value is an attempted change and the whole save is refused.
+    Every accepted change is audit-logged with before and after values.
+    """
+    from decimal import Decimal
+    post = request.POST
+    attempted = []
+
+    def _differs(name, current):
+        if name not in post:
+            return False
+        return (post.get(name) or '').strip() != (current or '').strip()
+
+    checks = [
+        ('client_org_id', str(item.organization_id)),
+        ('client_org', str(item.client_org_id)),
+        ('title', item.title),
+        ('description', item.description),
+        ('invoice_date', item.invoice_date.isoformat() if item.invoice_date else ''),
+        ('due_date', item.due_date.isoformat() if item.due_date else ''),
+        ('currency', item.currency),
+    ]
+    attempted += [name for name, cur in checks if _differs(name, cur)]
+    if 'tax_rate' in post and _parse_decimal(post.get('tax_rate'), '0') != Decimal(str(item.tax_rate or 0)):
+        attempted.append('tax_rate')
+    if 'li_description' in post:
+        posted = [
+            ((d or '').strip()[:300], _parse_decimal(q, '1'), _parse_decimal(p, '0'))
+            for d, q, p in zip(post.getlist('li_description'),
+                               post.getlist('li_quantity'),
+                               post.getlist('li_unit_price'))
+            if (d or '').strip()
+        ]
+        current = [(li.description, Decimal(str(li.quantity)), Decimal(str(li.unit_price)))
+                   for li in item.line_items.all()]
+        if posted != current:
+            attempted.append('line items')
+
+    if attempted:
+        messages.error(
+            request,
+            f'{item.invoice_number} is {item.get_status_display().lower()}; '
+            f'{", ".join(attempted)} can no longer be changed. Issue a credit '
+            f'memo or record a payment instead.')
+        return render_form()
+
+    new_status = post.get('status') or item.status
+    if new_status not in dict(item.STATUS_CHOICES):
+        new_status = item.status
+    if new_status != item.status:
+        if new_status == 'draft':
+            messages.error(request, f'{item.invoice_number} has left draft and cannot be moved back to it.')
+            return render_form()
+        if item.status == 'void':
+            messages.error(request, f'{item.invoice_number} is void; its status cannot be changed.')
+            return render_form()
+
+    new_notes = (post.get('notes') or '').strip() if 'notes' in post else item.notes
+    changes = []
+    if new_status != item.status:
+        changes.append(f'status {item.status} → {new_status}')
+    if new_notes != (item.notes or ''):
+        changes.append(f'notes {item.notes!r} → {new_notes!r}')
+    if changes:
+        before = {'status': item.status, 'notes': item.notes}
+        item.status = new_status
+        item.notes = new_notes
+        item.save(update_fields=['status', 'notes', 'updated_at'])
+        AuditLog.log(
+            user=request.user, action='update',
+            organization=item.organization,
+            object_type='psa.Invoice', object_id=item.pk,
+            object_repr=item.invoice_number,
+            description=f'Updated invoice {item.invoice_number}: ' + '; '.join(changes),
+            ip_address=_client_ip(request), path=request.path,
+            extra_data={'before': before,
+                        'after': {'status': item.status, 'notes': item.notes}},
+        )
+    messages.success(request, f'Saved {item.invoice_number}.')
+    return redirect('psa:invoice_detail', pk=item.pk)
+
+
 @login_required
 @require_write
 @require_psa_enabled
@@ -3975,12 +4126,19 @@ def invoice_form(request, pk=None):
 
     client_orgs = _customer_orgs(request).filter(is_active=True).order_by('name')
 
+    # An invoice that has gone to the customer (or been voided) is a record,
+    # not a draft: its amounts and details change only through a credit memo
+    # or a payment. The form still accepts a status change (marking it paid
+    # by hand, voiding it) and internal notes, each audit-logged.
+    locked = item is not None and item.status in _INVOICE_LOCKED_STATUSES
+
     def _render(selected_org_id=None):
         settings = SystemSetting.get_settings()
         default_tax_rate = settings.psa_default_tax_rate if not item else item.tax_rate
         default_currency = settings.psa_default_currency if not item else item.currency
         return render(request, 'psa/invoice_form.html', {
             'item': item,
+            'locked': locked,
             'client_orgs': client_orgs,
             'status_choices': Invoice.STATUS_CHOICES,
             'line_items': item.line_items.all() if item else [],
@@ -3989,6 +4147,9 @@ def invoice_form(request, pk=None):
             'selected_client_org_id': selected_org_id if selected_org_id is not None
                                        else (item.organization_id if item else (org.pk if org else None)),
         })
+
+    if request.method == 'POST' and locked:
+        return _invoice_form_locked_post(request, item, _render)
 
     if request.method == 'POST':
         posted_org_id = (request.POST.get('client_org_id') or '').strip()
@@ -4024,7 +4185,13 @@ def invoice_form(request, pk=None):
             item.client_org = client_org
             item.title = title
         item.description = (request.POST.get('description') or '').strip()
-        item.status = request.POST.get('status') or 'draft'
+        # Only drafts reach this path (see `locked` above). The invoice is
+        # saved as a draft first and moved to the requested status only after
+        # its totals — and so the approval gate — have been re-evaluated.
+        requested_status = request.POST.get('status') or 'draft'
+        if requested_status not in dict(Invoice.STATUS_CHOICES):
+            requested_status = 'draft'
+        item.status = 'draft'
         item.invoice_date = request.POST.get('invoice_date') or item.invoice_date
         item.due_date = request.POST.get('due_date') or None
         item.currency = (request.POST.get('currency') or 'USD')[:8]
@@ -4033,33 +4200,57 @@ def invoice_form(request, pk=None):
         except (TypeError, ValueError):
             item.tax_rate = 0
         item.notes = (request.POST.get('notes') or '').strip()
+        total_before = item.total if pk else None
         item.save()
 
-        # Replace line items
+        # Sync line items by id. Lines the form carries back keep their
+        # source/source_id (time entry, expense, contract period...), so an
+        # edit does not make billed work look unbilled; new rows are manual;
+        # rows removed from the form are deleted.
         descs = request.POST.getlist('li_description')
-        qtys = request.POST.getlist('li_quantity')
-        prices = request.POST.getlist('li_unit_price')
         if descs:
-            item.line_items.all().delete()
-            for i, (d, q, p) in enumerate(zip(descs, qtys, prices)):
-                if not (d or '').strip():
-                    continue
-                try:
-                    qf = float(q or 1)
-                    pf = float(p or 0)
-                except ValueError:
-                    qf, pf = 1, 0
-                InvoiceLineItem.objects.create(
-                    invoice=item, sort_order=i,
-                    description=d.strip()[:300], quantity=qf, unit_price=pf,
-                )
+            _sync_invoice_lines(item, descs,
+                                request.POST.getlist('li_quantity'),
+                                request.POST.getlist('li_unit_price'),
+                                request.POST.getlist('li_id'))
         item.recompute_totals()
+
+        # An approval covers the amount that was approved. If the total moves
+        # afterwards, the invoice goes back on hold.
+        if (pk and item.approved_at and total_before is not None
+                and item.total != total_before):
+            item.requires_approval = True
+            item.approval_reason = (
+                f'Edited after approval (total {total_before} → {item.total})')[:200]
+            item.approved_at = None
+            item.approved_by = None
+            item.save(update_fields=['requires_approval', 'approval_reason',
+                                     'approved_at', 'approved_by', 'updated_at'])
+
+        status_note = ''
+        if requested_status != 'draft':
+            # Voiding never needs approval; anything that bills does.
+            if item.requires_approval and requested_status != 'void':
+                messages.error(
+                    request,
+                    f'{item.invoice_number} requires approval before it can be '
+                    f'marked {requested_status} '
+                    f'({item.approval_reason or "no reason given"}); saved as draft.')
+                status_note = f'; status change to {requested_status} refused (approval pending)'
+            else:
+                item.status = requested_status
+                fields = ['status', 'updated_at']
+                if requested_status == 'sent' and not item.sent_at:
+                    item.sent_at = timezone.now()
+                    fields.append('sent_at')
+                item.save(update_fields=fields)
+                status_note = f'; status draft → {requested_status}'
         AuditLog.log(
             user=request.user, action='update' if pk else 'create',
             organization=item_org,
             object_type='psa.Invoice', object_id=item.pk,
             object_repr=item.invoice_number,
-            description=f'{"Updated" if pk else "Created"} invoice {item.invoice_number}',
+            description=f'{"Updated" if pk else "Created"} invoice {item.invoice_number}{status_note}',
             ip_address=_client_ip(request), path=request.path,
         )
         messages.success(request, f'Saved {item.invoice_number}.')
@@ -4073,50 +4264,53 @@ def invoice_form(request, pk=None):
 @require_psa_enabled
 @require_http_methods(['POST'])
 def invoice_from_ticket(request, ticket_number):
-    """Generate a draft invoice from a ticket's billable time + expenses."""
+    """Generate a draft invoice from a ticket's billable time + expenses.
+
+    Bills only work not already on a live invoice, and under a contract with
+    an hours allowance bills only the overage — see
+    `Ticket.uninvoiced_billing_lines` for the rules.
+    """
     from .models import Invoice, InvoiceLineItem
     from datetime import date as _date
+    from django.db import transaction
     org = get_request_organization(request)
     qs = Ticket.objects.select_related('organization')
     if org is not None:
         qs = qs.filter(organization=org)
     ticket = get_object_or_404(qs, ticket_number=ticket_number)
 
-    # Default rate from contract, fallback to 0
-    contract = Contract.for_ticket(ticket)
-    rate = float(contract.hourly_rate) if contract else 0.0
+    with transaction.atomic():
+        # Serialise concurrent clicks on the same ticket so both cannot read
+        # the same entries as unbilled.
+        Ticket.objects.select_for_update().filter(pk=ticket.pk).first()
+        contract = Contract.for_ticket(ticket)
+        lines, info = ticket.uninvoiced_billing_lines(contract)
+        if not lines:
+            messages.info(
+                request,
+                f'Nothing to invoice on {ticket.ticket_number}: all billable '
+                f'time and expenses are already on an invoice.')
+            return redirect('psa:ticket_detail', ticket_number=ticket.ticket_number)
 
-    invoice = Invoice.objects.create(
-        organization=org or ticket.organization,
-        client_org=ticket.organization,
-        title=f'Invoice for {ticket.ticket_number} — {ticket.subject}'[:300],
-        description=f'Billable time + expenses for ticket {ticket.ticket_number}',
-        invoice_date=_date.today(),
-        source_ticket=ticket,
-        source_contract=contract,
-        created_by=request.user,
-    )
-    sort_order = 0
-    for te in ticket.time_entries.filter(is_billable=True):
-        if not te.duration_minutes:
-            continue
-        InvoiceLineItem.objects.create(
-            invoice=invoice, sort_order=sort_order,
-            description=f'Time: {te.notes or "work"}'[:300],
-            quantity=round(te.duration_minutes / 60.0, 2),
-            unit_price=rate,
-            source='time', source_id=str(te.pk),
+        invoice = Invoice.objects.create(
+            organization=org or ticket.organization,
+            client_org=ticket.organization,
+            title=f'Invoice for {ticket.ticket_number} — {ticket.subject}'[:300],
+            description=f'Billable time + expenses for ticket {ticket.ticket_number}',
+            invoice_date=_date.today(),
+            source_ticket=ticket,
+            source_contract=contract,
+            created_by=request.user,
         )
-        sort_order += 1
-    for e in ticket.expenses.filter(is_billable=True):
-        InvoiceLineItem.objects.create(
-            invoice=invoice, sort_order=sort_order,
-            description=f'Expense: {e.description}'[:300],
-            quantity=1, unit_price=float(e.amount),
-            source='expense', source_id=str(e.pk),
-        )
-        sort_order += 1
-    invoice.recompute_totals()
+        for sort_order, line in enumerate(lines):
+            InvoiceLineItem.objects.create(invoice=invoice, sort_order=sort_order, **line)
+        invoice.recompute_totals()
+    if info['covered_minutes']:
+        messages.info(
+            request,
+            f'{info["covered_minutes"] / 60:.2f}h covered by {contract.name} '
+            f'(shown at no charge); '
+            f'{info["overage_minutes"] / 60:.2f}h billed as overage.')
     messages.success(request, f'Draft invoice {invoice.invoice_number} created from {ticket.ticket_number}.')
     return redirect('psa:invoice_detail', pk=invoice.pk)
 
@@ -4449,6 +4643,9 @@ def quote_email(request, pk):
 @require_psa_enabled
 @require_http_methods(['POST'])
 def invoice_email(request, pk):
+    # `Invoice` is not in the module-level import list; without this the view
+    # raised NameError on every call.
+    from .models import Invoice
     from .pdf import email_invoice
     org = get_request_organization(request)
     qs = Invoice.objects.all()
@@ -4460,6 +4657,14 @@ def invoice_email(request, pk):
     body = (request.POST.get('body') or '').strip()
     if not recipient or '@' not in recipient:
         messages.error(request, 'Provide a valid recipient email.')
+        return redirect('psa:invoice_detail', pk=invoice.pk)
+    # The approval gate covers sending, not only the accounting push: an
+    # invoice held for approval must not reach the customer by email either.
+    if invoice.requires_approval:
+        messages.error(
+            request,
+            f'Invoice {invoice.invoice_number} requires approval before it can '
+            f'be sent ({invoice.approval_reason or "no reason given"}).')
         return redirect('psa:invoice_detail', pk=invoice.pk)
     try:
         ok = email_invoice(invoice, recipient=recipient, subject=subject, body=body)
@@ -4623,7 +4828,11 @@ def charge_invoice(request, org_id):
         invoice_date=_date.today(),
         created_by=request.user,
     )
-    for i, c in enumerate(qs.order_by('charge_date')):
+    # Materialise the charges once: the queryset filters on invoiced=False,
+    # so re-evaluating it after the update below matches nothing (the
+    # success message used to report "Bundled 0 item(s)" every time).
+    charges = list(qs.order_by('charge_date'))
+    for i, c in enumerate(charges):
         # Credits come through as negative-priced line items.
         sign = -1 if c.is_credit else 1
         InvoiceLineItem.objects.create(
@@ -4634,9 +4843,10 @@ def charge_invoice(request, org_id):
             source='manual',
             source_id=str(c.pk),
         )
-    qs.update(invoiced=True, invoice=invoice)
+    bundled = Charge.objects.filter(pk__in=[c.pk for c in charges]).update(
+        invoiced=True, invoice=invoice)
     invoice.recompute_totals()
-    messages.success(request, f'Bundled {qs.count()} item(s) into invoice {invoice.invoice_number}.')
+    messages.success(request, f'Bundled {bundled} item(s) into invoice {invoice.invoice_number}.')
     return redirect('psa:invoice_detail', pk=invoice.pk)
 
 

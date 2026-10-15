@@ -2792,8 +2792,8 @@ class MobileTicketBillingRollupTests(TestCase):
             organization=self.org, subject='Billable work',
             status=status_new, priority=p3, ticket_type=ttype, queue=queue,
         )
-        # Active block-hours contract — must exist BEFORE time entries so
-        # the TicketTimeEntry.save() post-hook can deduct via Contract.for_ticket().
+        # Active block-hours contract covering the entries below; its
+        # hours_used_minutes is recomputed from them on each save.
         Contract.objects.create(
             organization=self.org, client_org=self.org, name='Test Block',
             contract_type='block_hours', status='active',
@@ -2839,11 +2839,12 @@ class MobileTicketBillingRollupTests(TestCase):
         self.assertEqual(c['type'], 'block_hours')
         # 5h allowance = 300 minutes.
         self.assertEqual(c['total_minutes'], 300)
-        # All three entries (45 + 30 + 15) auto-deducted via the post_save
-        # hook. Note: Contract.hours_used_minutes does NOT filter on
-        # is_billable today — every TicketTimeEntry consumes the bucket.
-        self.assertEqual(c['used_minutes'], 90)
-        self.assertEqual(c['remaining_minutes'], 210)
+        # Only the two billable entries (45 + 30) consume the bucket. Until
+        # v3.17.600 this asserted 90: the save hook counted the 15m
+        # non-billable entry too, which over-consumed the allowance (and
+        # brought overage billing forward) for time the MSP chose not to bill.
+        self.assertEqual(c['used_minutes'], 75)
+        self.assertEqual(c['remaining_minutes'], 225)
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,

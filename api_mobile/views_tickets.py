@@ -506,6 +506,7 @@ def ticket_time_view(request, pk: int):
 
     is_billable = bool(data.get('is_billable', True))
     notes = (data.get('notes') or '').strip()[:2000]
+    role_code = str(data.get('role_code') or '').strip()[:40]
 
     entry = TicketTimeEntry.objects.create(
         ticket=ticket,
@@ -515,6 +516,7 @@ def ticket_time_view(request, pk: int):
         duration_minutes=duration_minutes,
         is_billable=is_billable,
         notes=notes,
+        role_code=role_code,
     )
     return Response(_serialize_time_entry(entry), status=201)
 
@@ -528,5 +530,6 @@ def _serialize_time_entry(t):
         'ended_at': t.ended_at.isoformat() if t.ended_at else None,
         'duration_minutes': t.duration_minutes,
         'is_billable': t.is_billable,
+        'role_code': t.role_code,
         'notes': t.notes,
     }

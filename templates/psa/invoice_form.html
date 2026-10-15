@@ -11,12 +11,19 @@
 
 <h4 class="mb-2">{% if item %}Edit Invoice {{ item.invoice_number }}{% else %}New Invoice{% endif %}</h4>
 
+{% if locked %}
+<div class="alert alert-warning py-2 small">
+    This invoice is {{ item.get_status_display|lower }}. Its client, dates, tax and line items can no longer be edited &mdash;
+    issue a credit memo or record a payment from the invoice page. Only the status and internal notes can be changed here.
+</div>
+{% endif %}
+
 <form method="post" class="card invoice-form">
     {% csrf_token %}
     <div class="card-body py-2">
         <div class="mb-2 small">
             <label class="form-label">Client</label>
-            <select name="client_org_id" class="form-select form-select-sm" {% if not item %}required{% endif %}>
+            <select name="client_org_id" class="form-select form-select-sm" {% if not item %}required{% endif %}{% if locked %} disabled{% endif %}>
                 <option value="">-- Select client --</option>
                 {% for o in client_orgs %}
                 <option value="{{ o.pk }}"
@@ -30,11 +37,11 @@
         <div class="row g-2 small">
             <div class="col-md-5">
                 <label class="form-label">Title</label>
-                <input type="text" name="title" class="form-control form-control-sm" required value="{{ item.title|default:'' }}">
+                <input type="text" name="title" class="form-control form-control-sm" required value="{{ item.title|default:'' }}"{% if locked %} disabled{% endif %}>
             </div>
             <div class="col-md-4">
                 <label class="form-label">Client</label>
-                <select name="client_org" class="form-select form-select-sm" required>
+                <select name="client_org" class="form-select form-select-sm" required{% if locked %} disabled{% endif %}>
                     {% for o in client_orgs %}
                     <option value="{{ o.pk }}" {% if item.client_org_id == o.pk %}selected{% endif %}>{{ o.name }}</option>
                     {% endfor %}
@@ -50,29 +57,29 @@
             </div>
             <div class="col-md-3">
                 <label class="form-label">Invoice date</label>
-                <input type="date" name="invoice_date" class="form-control form-control-sm" required value="{{ item.invoice_date|date:'Y-m-d' }}">
+                <input type="date" name="invoice_date" class="form-control form-control-sm" required value="{{ item.invoice_date|date:'Y-m-d' }}"{% if locked %} disabled{% endif %}>
             </div>
             <div class="col-md-3">
                 <label class="form-label">Due date</label>
-                <input type="date" name="due_date" class="form-control form-control-sm" value="{{ item.due_date|date:'Y-m-d'|default:'' }}">
+                <input type="date" name="due_date" class="form-control form-control-sm" value="{{ item.due_date|date:'Y-m-d'|default:'' }}"{% if locked %} disabled{% endif %}>
             </div>
             <div class="col-md-2">
                 <label class="form-label">Currency</label>
-                <input type="text" name="currency" class="form-control form-control-sm" maxlength="8" value="{{ default_currency|default:'USD' }}">
+                <input type="text" name="currency" class="form-control form-control-sm" maxlength="8" value="{{ default_currency|default:'USD' }}"{% if locked %} disabled{% endif %}>
             </div>
             <div class="col-md-2">
                 <label class="form-label">Tax rate</label>
-                <input type="number" step="0.0001" name="tax_rate" class="form-control form-control-sm" value="{{ default_tax_rate|default:0 }}">
+                <input type="number" step="0.0001" name="tax_rate" class="form-control form-control-sm" value="{{ default_tax_rate|default:0 }}"{% if locked %} disabled{% endif %}>
                 {% if not item %}<small class="text-muted">From <a href="{% url 'psa:settings' %}">PSA settings</a></small>{% endif %}
             </div>
             <div class="col-md-6">
                 <label class="form-label">Description (optional)</label>
-                <input type="text" name="description" class="form-control form-control-sm" value="{{ item.description|default:'' }}">
+                <input type="text" name="description" class="form-control form-control-sm" value="{{ item.description|default:'' }}"{% if locked %} disabled{% endif %}>
             </div>
 
             <div class="col-12 mt-2 d-flex justify-content-between align-items-baseline">
                 <h6 class="mb-0">Line items</h6>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="add-line">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="add-line"{% if locked %} disabled{% endif %}>
                     <i class="fas fa-plus"></i> Add line
                 </button>
             </div>
@@ -90,15 +97,16 @@
                     <tbody id="line-items-tbody">
                         {% for li in line_items %}
                         <tr class="li-row">
-                            <td><input type="text" name="li_description" class="form-control form-control-sm" value="{{ li.description }}"></td>
-                            <td><input type="number" step="0.01" name="li_quantity" class="form-control form-control-sm li-qty" value="{{ li.quantity }}"></td>
-                            <td><input type="number" step="0.01" name="li_unit_price" class="form-control form-control-sm li-price" value="{{ li.unit_price }}"></td>
+                            {# li_id carries the line back so an edit keeps its source (time entry, expense, contract period). #}
+                            <td><input type="hidden" name="li_id" value="{{ li.pk }}"{% if locked %} disabled{% endif %}><input type="text" name="li_description" class="form-control form-control-sm" value="{{ li.description }}"{% if locked %} disabled{% endif %}></td>
+                            <td><input type="number" step="0.01" name="li_quantity" class="form-control form-control-sm li-qty" value="{{ li.quantity }}"{% if locked %} disabled{% endif %}></td>
+                            <td><input type="number" step="0.01" name="li_unit_price" class="form-control form-control-sm li-price" value="{{ li.unit_price }}"{% if locked %} disabled{% endif %}></td>
                             <td class="li-total text-end small">{{ li.line_total }}</td>
-                            <td><button type="button" class="btn btn-sm btn-link text-danger li-remove" tabindex="-1" title="Remove"><i class="fas fa-times"></i></button></td>
+                            <td>{% if not locked %}<button type="button" class="btn btn-sm btn-link text-danger li-remove" tabindex="-1" title="Remove"><i class="fas fa-times"></i></button>{% endif %}</td>
                         </tr>
                         {% empty %}
                         <tr class="li-row">
-                            <td><input type="text" name="li_description" class="form-control form-control-sm"></td>
+                            <td><input type="hidden" name="li_id" value=""><input type="text" name="li_description" class="form-control form-control-sm"></td>
                             <td><input type="number" step="0.01" name="li_quantity" class="form-control form-control-sm li-qty" value="1"></td>
                             <td><input type="number" step="0.01" name="li_unit_price" class="form-control form-control-sm li-price" value="0"></td>
                             <td class="li-total text-end small">0.00</td>
@@ -139,7 +147,7 @@
 
 <template id="line-row-template">
     <tr class="li-row">
-        <td><input type="text" name="li_description" class="form-control form-control-sm"></td>
+        <td><input type="hidden" name="li_id" value=""><input type="text" name="li_description" class="form-control form-control-sm"></td>
         <td><input type="number" step="0.01" name="li_quantity" class="form-control form-control-sm li-qty" value="1"></td>
         <td><input type="number" step="0.01" name="li_unit_price" class="form-control form-control-sm li-price" value="0"></td>
         <td class="li-total text-end small">0.00</td>
