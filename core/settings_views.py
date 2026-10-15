@@ -484,21 +484,18 @@ def settings_directory(request):
 
     if request.method == 'POST':
         # LDAP Settings
-        settings.ldap_enabled = request.POST.get('ldap_enabled') == 'on'
-        settings.ldap_server_uri = request.POST.get('ldap_server_uri', settings.ldap_server_uri)
-        settings.ldap_bind_dn = request.POST.get('ldap_bind_dn', settings.ldap_bind_dn)
-
-        # Only update password if provided
-        ldap_password = request.POST.get('ldap_bind_password', '').strip()
-        if ldap_password:
-            # EncryptedTextField encrypts on save.
-            settings.ldap_bind_password = ldap_password
-
-        settings.ldap_user_search_base = request.POST.get('ldap_user_search_base', settings.ldap_user_search_base)
-        settings.ldap_user_search_filter = request.POST.get('ldap_user_search_filter', settings.ldap_user_search_filter)
-        settings.ldap_group_search_base = request.POST.get('ldap_group_search_base', settings.ldap_group_search_base)
-        settings.ldap_require_group = request.POST.get('ldap_require_group', settings.ldap_require_group)
-        settings.ldap_start_tls = request.POST.get('ldap_start_tls') == 'on'
+        _apply_ldap_post(settings, request.POST)
+        ldap_errors, ldap_warnings = [], []
+        if settings.ldap_enabled:
+            from accounts.ldap_backend import (
+                LDAP_AVAILABLE, LDAP_MISSING_MESSAGE, config_from_settings,
+            )
+            ldap_errors, ldap_warnings = config_from_settings(settings).validate()
+            if not LDAP_AVAILABLE:
+                ldap_errors.insert(0, LDAP_MISSING_MESSAGE)
+            if ldap_errors:
+                # Keep what was typed, but never switch on a broken config.
+                settings.ldap_enabled = False
 
         # Azure AD Settings
         settings.azure_ad_enabled = request.POST.get('azure_ad_enabled') == 'on'
@@ -518,13 +515,78 @@ def settings_directory(request):
         settings.updated_by = request.user
         settings.save()
 
-        messages.success(request, 'Directory services settings updated successfully.')
+        if ldap_errors:
+            messages.error(request, 'Settings saved, but LDAP sign-in was left OFF: '
+                                    + ' '.join(ldap_errors))
+        else:
+            messages.success(request, 'Directory services settings updated successfully.')
+        for warning in ldap_warnings:
+            messages.warning(request, 'LDAP: ' + warning)
         return redirect('core:settings_directory')
 
+    from accounts.ldap_backend import LDAP_AVAILABLE, LDAP_MISSING_MESSAGE
     return render(request, 'core/settings_directory.html', {
         'settings': settings,
         'current_tab': 'directory',
+        'ldap_available': LDAP_AVAILABLE,
+        'ldap_missing_message': LDAP_MISSING_MESSAGE,
+        'ldap_group_type_choices': SystemSetting._meta.get_field('ldap_group_type').choices,
     })
+
+
+_LDAP_TEXT_FIELDS = (
+    'ldap_server_uri', 'ldap_bind_dn', 'ldap_user_search_base', 'ldap_user_search_filter',
+    'ldap_require_group', 'ldap_staff_group', 'ldap_ca_cert_file', 'ldap_attr_username',
+    'ldap_attr_email', 'ldap_attr_first_name', 'ldap_attr_last_name', 'ldap_group_type',
+)
+
+
+def _apply_ldap_post(settings, post):
+    """Copy the LDAP form fields onto a SystemSetting instance (not saved)."""
+    settings.ldap_enabled = post.get('ldap_enabled') == 'on'
+    for name in _LDAP_TEXT_FIELDS:
+        if name in post:
+            setattr(settings, name, post.get(name, '').strip())
+    settings.ldap_start_tls = post.get('ldap_start_tls') == 'on'
+    settings.ldap_verify_cert = post.get('ldap_verify_cert') == 'on'
+    # Only replace the bind password when a new one is typed; an explicit
+    # "clear" checkbox removes it (anonymous bind).
+    if post.get('ldap_clear_bind_password') == 'on':
+        settings.ldap_bind_password = ''
+    else:
+        ldap_password = post.get('ldap_bind_password', '').strip()
+        if ldap_password:
+            # EncryptedTextField encrypts on save.
+            settings.ldap_bind_password = ldap_password
+
+
+@login_required
+@user_passes_test(is_superuser)
+@require_POST
+def settings_directory_ldap_test(request):
+    """
+    Test the LDAP settings currently in the form (falling back to the saved
+    bind password when the field is blank): connect, bind, optionally look up
+    a user. Never returns the bind password and never asks for a user password.
+    """
+    from django.http import JsonResponse
+    from accounts.ldap_backend import config_from_settings, check_ldap_connection
+    saved = SystemSetting.get_settings()
+    # Work on an unsaved copy so testing never changes stored settings.
+    draft = SystemSetting.objects.get(pk=saved.pk)
+    _apply_ldap_post(draft, request.POST)
+    cfg = config_from_settings(draft)
+    result = check_ldap_connection(cfg, username=request.POST.get('test_username', ''))
+    try:
+        from audit.models import AuditLog
+        AuditLog.objects.create(
+            user=request.user, username=request.user.username, action='update',
+            description='LDAP connection test: ' + ('succeeded' if result['ok'] else 'failed'),
+            ip_address=request.META.get('REMOTE_ADDR'),
+        )
+    except Exception:
+        pass
+    return JsonResponse(result)
 
 
 @login_required

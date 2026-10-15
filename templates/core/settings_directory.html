@@ -37,28 +37,74 @@
                         </label>
                     </div>
 
+                    {% if not ldap_available %}
+                    <div class="alert alert-warning" id="ldapUnavailable">
+                        <i class="fas fa-exclamation-triangle"></i> {{ ldap_missing_message }}
+                    </div>
+                    {% endif %}
+
                     <div id="ldapSettings" {% if not settings.ldap_enabled %}style="display:none"{% endif %}>
-                        <div class="mb-3">
-                            <label for="ldap_server_uri" class="form-label">Server URI *</label>
-                            <input type="text" class="form-control" id="ldap_server_uri" name="ldap_server_uri"
-                                   value="{{ settings.ldap_server_uri }}"
-                                   placeholder="ldap://dc.example.com:389">
-                            <div class="form-text">LDAP server URI (ldap:// or ldaps://)</div>
+                        <div class="alert alert-info small">
+                            <i class="fas fa-info-circle"></i>
+                            Directory users sign in on the normal login page with their directory username and password.
+                            A local account is created on first sign-in and refreshed every time; it has no local password.
+                            Local accounts keep working (and are tried first), so keep a local superuser as a break-glass login.
+                            Directory users go through the same two-factor rules as local users.
+                            A local account that was not created by LDAP is never taken over by a directory user with the same name.
                         </div>
 
                         <div class="mb-3">
-                            <label for="ldap_bind_dn" class="form-label">Bind DN *</label>
+                            <label for="ldap_server_uri" class="form-label">Server URI(s) *</label>
+                            <input type="text" class="form-control" id="ldap_server_uri" name="ldap_server_uri"
+                                   value="{{ settings.ldap_server_uri }}"
+                                   placeholder="ldaps://dc1.example.com ldaps://dc2.example.com">
+                            <div class="form-text">ldap:// or ldaps://. Separate several domain controllers with spaces; they are tried in order.</div>
+                        </div>
+
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="ldap_start_tls" name="ldap_start_tls"
+                                   {% if settings.ldap_start_tls %}checked{% endif %}>
+                            <label class="form-check-label" for="ldap_start_tls">
+                                Use StartTLS (for ldap:// URIs; ignored for ldaps://)
+                            </label>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="ldap_verify_cert" name="ldap_verify_cert"
+                                   {% if settings.ldap_verify_cert %}checked{% endif %}>
+                            <label class="form-check-label" for="ldap_verify_cert">
+                                Verify the server certificate (recommended)
+                            </label>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="ldap_ca_cert_file" class="form-label">CA Certificate File (Optional)</label>
+                            <input type="text" class="form-control" id="ldap_ca_cert_file" name="ldap_ca_cert_file"
+                                   value="{{ settings.ldap_ca_cert_file }}"
+                                   placeholder="/etc/ssl/certs/corp-root-ca.pem">
+                            <div class="form-text">Path on this server to a PEM CA bundle, if your directory uses a private CA.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="ldap_bind_dn" class="form-label">Bind DN</label>
                             <input type="text" class="form-control" id="ldap_bind_dn" name="ldap_bind_dn"
                                    value="{{ settings.ldap_bind_dn }}"
                                    placeholder="CN=ServiceAccount,OU=Users,DC=example,DC=com">
-                            <div class="form-text">Service account DN for LDAP queries</div>
+                            <div class="form-text">Service account used to look users up. Leave blank for an anonymous bind.</div>
                         </div>
 
                         <div class="mb-3">
                             <label for="ldap_bind_password" class="form-label">Bind Password</label>
                             <input type="password" class="form-control" id="ldap_bind_password" name="ldap_bind_password"
-                                   placeholder="Leave blank to keep current password">
-                            <div class="form-text">Password for bind DN (stored encrypted)</div>
+                                   autocomplete="new-password"
+                                   placeholder="{% if settings.ldap_bind_password %}Saved - leave blank to keep{% else %}Not set{% endif %}">
+                            <div class="form-text">Stored encrypted and never shown again.</div>
+                            {% if settings.ldap_bind_password %}
+                            <div class="form-check mt-1">
+                                <input class="form-check-input" type="checkbox" id="ldap_clear_bind_password" name="ldap_clear_bind_password">
+                                <label class="form-check-label small" for="ldap_clear_bind_password">Remove the saved bind password</label>
+                            </div>
+                            {% endif %}
                         </div>
 
                         <div class="mb-3">
@@ -66,38 +112,84 @@
                             <input type="text" class="form-control" id="ldap_user_search_base" name="ldap_user_search_base"
                                    value="{{ settings.ldap_user_search_base }}"
                                    placeholder="OU=Users,DC=example,DC=com">
-                            <div class="form-text">Base DN for user searches</div>
+                            <div class="form-text">Base DN for user searches (subtree)</div>
                         </div>
 
                         <div class="mb-3">
-                            <label for="ldap_user_search_filter" class="form-label">User Search Filter</label>
+                            <label for="ldap_user_search_filter" class="form-label">User Search Filter *</label>
                             <input type="text" class="form-control" id="ldap_user_search_filter" name="ldap_user_search_filter"
                                    value="{{ settings.ldap_user_search_filter }}">
-                            <div class="form-text">LDAP filter for user lookups (use %(user)s for username)</div>
+                            <div class="form-text">Must match exactly one user; %(user)s is replaced by the (escaped) login name.
+                                Active Directory: <code>(sAMAccountName=%(user)s)</code>; OpenLDAP: <code>(uid=%(user)s)</code>.</div>
                         </div>
 
+                        <h6 class="mt-4">Attribute Mapping</h6>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-3">
+                                <label for="ldap_attr_username" class="form-label small">Username</label>
+                                <input type="text" class="form-control form-control-sm" id="ldap_attr_username" name="ldap_attr_username"
+                                       value="{{ settings.ldap_attr_username }}" placeholder="sAMAccountName">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="ldap_attr_email" class="form-label small">Email</label>
+                                <input type="text" class="form-control form-control-sm" id="ldap_attr_email" name="ldap_attr_email"
+                                       value="{{ settings.ldap_attr_email }}" placeholder="mail">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="ldap_attr_first_name" class="form-label small">First name</label>
+                                <input type="text" class="form-control form-control-sm" id="ldap_attr_first_name" name="ldap_attr_first_name"
+                                       value="{{ settings.ldap_attr_first_name }}" placeholder="givenName">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="ldap_attr_last_name" class="form-label small">Last name</label>
+                                <input type="text" class="form-control form-control-sm" id="ldap_attr_last_name" name="ldap_attr_last_name"
+                                       value="{{ settings.ldap_attr_last_name }}" placeholder="sn">
+                            </div>
+                            <div class="form-text">The username attribute becomes the local username (lower-cased); if it is empty the typed login name is used.</div>
+                        </div>
+
+                        <h6 class="mt-4">Groups</h6>
                         <div class="mb-3">
-                            <label for="ldap_group_search_base" class="form-label">Group Search Base (Optional)</label>
-                            <input type="text" class="form-control" id="ldap_group_search_base" name="ldap_group_search_base"
-                                   value="{{ settings.ldap_group_search_base }}"
-                                   placeholder="OU=Groups,DC=example,DC=com">
-                            <div class="form-text">Base DN for group searches</div>
+                            <label for="ldap_group_type" class="form-label">Group Type</label>
+                            <select class="form-select" id="ldap_group_type" name="ldap_group_type">
+                                {% for value, label in ldap_group_type_choices %}
+                                <option value="{{ value }}" {% if settings.ldap_group_type == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Active Directory checks nested group membership.</div>
                         </div>
 
                         <div class="mb-3">
                             <label for="ldap_require_group" class="form-label">Require Group (Optional)</label>
                             <input type="text" class="form-control" id="ldap_require_group" name="ldap_require_group"
                                    value="{{ settings.ldap_require_group }}"
-                                   placeholder="CN=Client St0rUsers,OU=Groups,DC=example,DC=com">
-                            <div class="form-text">Only allow login if user is member of this group (full DN)</div>
+                                   placeholder="CN=Client St0r Users,OU=Groups,DC=example,DC=com">
+                            <div class="form-text">Only members of this group (full DN) may sign in.</div>
                         </div>
 
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="ldap_start_tls" name="ldap_start_tls"
-                                   {% if settings.ldap_start_tls %}checked{% endif %}>
-                            <label class="form-check-label" for="ldap_start_tls">
-                                Use StartTLS for secure connection
-                            </label>
+                        <div class="mb-3">
+                            <label for="ldap_staff_group" class="form-label">MSP Staff Group (Optional)</label>
+                            <input type="text" class="form-control" id="ldap_staff_group" name="ldap_staff_group"
+                                   value="{{ settings.ldap_staff_group }}"
+                                   placeholder="CN=MSP Techs,OU=Groups,DC=example,DC=com">
+                            <div class="form-text">When set, members sign in as MSP staff and everyone else as organization users
+                                (checked on every sign-in). When blank, the user type is managed in Client St0r.
+                                Organization memberships and roles are always assigned in Client St0r.</div>
+                        </div>
+
+                        <div class="card bg-body-tertiary mb-3">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-plug"></i> Test Connection</h6>
+                                <p class="small text-muted mb-2">Uses the values in this form (the saved bind password if the field is blank).
+                                    Binds as the service account and, if you enter a username, looks that user up. No user password is needed or sent.</p>
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control" id="ldap_test_username" placeholder="Username to look up (optional)" autocomplete="off">
+                                    <button type="button" class="btn btn-outline-secondary" id="ldapTestBtn">
+                                        <i class="fas fa-vial"></i> Test connection
+                                    </button>
+                                </div>
+                                <div id="ldapTestResult" class="small" role="status" aria-live="polite"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -214,10 +306,6 @@
 
                     <hr class="my-4">
 
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i> <strong>Directory Services Ready:</strong> All required Python packages (python-ldap, django-auth-ldap, msal, requests-oauthlib) are included in requirements.txt and automatically installed during setup.
-                    </div>
-
                     <div class="d-flex justify-content-between align-items-center">
                         <small class="text-muted">
                             {% if settings.updated_at %}
@@ -244,6 +332,46 @@
 document.getElementById('ldap_enabled').addEventListener('change', function() {
     document.getElementById('ldapSettings').style.display = this.checked ? 'block' : 'none';
 });
+
+// LDAP "Test connection": posts the current form values, shows the result.
+(function() {
+    var btn = document.getElementById('ldapTestBtn');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+        var form = btn.closest('form');
+        var out = document.getElementById('ldapTestResult');
+        var data = new FormData(form);
+        data.set('test_username', document.getElementById('ldap_test_username').value);
+        out.className = 'small text-muted';
+        out.textContent = 'Testing...';
+        btn.disabled = true;
+        fetch('{% url "core:settings_directory_ldap_test" %}', {
+            method: 'POST',
+            body: data,
+            headers: {'X-CSRFToken': data.get('csrfmiddlewaretoken')},
+            credentials: 'same-origin'
+        }).then(function(r) { return r.json(); }).then(function(res) {
+            out.className = 'small';
+            out.textContent = '';
+            var head = document.createElement('div');
+            head.className = res.ok ? 'text-success fw-semibold' : 'text-danger fw-semibold';
+            head.textContent = (res.ok ? 'Success: ' : 'Failed: ') + res.message;
+            out.appendChild(head);
+            var list = document.createElement('ul');
+            list.className = 'mb-0 mt-1';
+            (res.steps || []).concat((res.warnings || []).map(function(w) { return 'Warning: ' + w; }))
+                .forEach(function(line) {
+                    var li = document.createElement('li');
+                    li.textContent = line;
+                    list.appendChild(li);
+                });
+            if (list.children.length) out.appendChild(list);
+        }).catch(function() {
+            out.className = 'small text-danger';
+            out.textContent = 'The test request failed.';
+        }).finally(function() { btn.disabled = false; });
+    });
+})();
 
 // Toggle Azure AD settings visibility
 document.getElementById('azure_ad_enabled').addEventListener('change', function() {

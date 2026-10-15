@@ -764,6 +764,35 @@ class SystemSetting(models.Model):
     ldap_group_search_base = models.CharField(max_length=500, blank=True, help_text='Base DN for group searches (optional)')
     ldap_require_group = models.CharField(max_length=500, blank=True, help_text='Require membership in this group (DN, optional)')
     ldap_start_tls = models.BooleanField(default=True, help_text='Use StartTLS for secure connection')
+    ldap_verify_cert = models.BooleanField(
+        default=True,
+        help_text='Verify the LDAP server TLS certificate (StartTLS / ldaps://). '
+                  'Only turn off for lab servers with self-signed certificates.')
+    ldap_ca_cert_file = models.CharField(
+        max_length=500, blank=True, default='',
+        help_text='Optional path to a CA bundle (PEM) used to verify the LDAP server certificate')
+    ldap_attr_username = models.CharField(
+        max_length=100, blank=True, default='sAMAccountName',
+        help_text='Directory attribute used as the local username (falls back to what the user typed)')
+    ldap_attr_email = models.CharField(max_length=100, blank=True, default='mail',
+                                       help_text='Directory attribute mapped to email')
+    ldap_attr_first_name = models.CharField(max_length=100, blank=True, default='givenName',
+                                            help_text='Directory attribute mapped to first name')
+    ldap_attr_last_name = models.CharField(max_length=100, blank=True, default='sn',
+                                           help_text='Directory attribute mapped to last name')
+    ldap_group_type = models.CharField(
+        max_length=30,
+        choices=[
+            ('active_directory', 'Active Directory (member, nested groups)'),
+            ('group_of_names', 'groupOfNames (member)'),
+            ('group_of_unique_names', 'groupOfUniqueNames (uniqueMember)'),
+            ('posix', 'posixGroup (memberUid)'),
+        ],
+        default='active_directory',
+        help_text='How group membership is checked for the required / staff groups')
+    ldap_staff_group = models.CharField(
+        max_length=500, blank=True, default='',
+        help_text='Members of this group (DN) sign in as MSP staff; everyone else as organization users')
 
     # Azure AD / Microsoft Entra ID Settings
     azure_ad_enabled = models.BooleanField(default=False, help_text='Enable Azure AD / Microsoft Entra ID authentication')

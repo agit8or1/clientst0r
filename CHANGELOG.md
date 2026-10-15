@@ -5,6 +5,27 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.608] - 2026-10-15
+
+### LDAP / Active Directory sign-in
+
+- LDAP sign-in now works (Settings → Directory). It was previously only a
+  settings page with nothing behind it. It is off until you enable it, and it
+  won't switch on with missing or invalid settings.
+- Supports several servers, LDAPS or StartTLS with certificate checking (on by
+  default, optional CA file), a user search with attribute mapping, a required
+  group (nested Active Directory groups included), and an optional MSP staff
+  group that decides whether a user is Staff or a customer user at each
+  sign-in.
+- **Test connection** checks the bind and an optional user lookup without
+  saving anything or showing secrets.
+- Local accounts keep working, and a local superuser can always sign in if the
+  directory is down. LDAP users get the same 2FA rules and lockout as local
+  users. LDAP never makes anyone a superuser and never takes over an existing
+  local account with the same username.
+- Requires `django-auth-ldap` and `python-ldap` (`requirements-optional.txt`);
+  the settings page says so if they're missing.
+
 ## [3.17.607] - 2026-10-15
 
 ### Secrets are encrypted at rest

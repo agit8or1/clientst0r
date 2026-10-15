@@ -230,6 +230,13 @@ AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',
     'accounts.azure_auth.AzureADBackend',  # Azure AD SSO
     'django.contrib.auth.backends.ModelBackend',
+    # LDAP / Active Directory sign-in. Optional and off by default; configured
+    # in Settings -> Directory Services (core.SystemSetting), re-read on every
+    # attempt. Stays after ModelBackend so local accounts (incl. a break-glass
+    # superuser) never depend on the directory. Axes stays first so lockouts
+    # apply to LDAP attempts too. Needs python-ldap + django-auth-ldap
+    # (requirements-optional.txt); without them it is a no-op.
+    'accounts.ldap_backend.ClientSt0rLDAPBackend',
 ]
 
 # Internationalization
