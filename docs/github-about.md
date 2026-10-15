@@ -60,6 +60,7 @@ asset-management
 password-vault
 knowledge-base
 multi-tenant
+ldap
 sla
 helpdesk
 django
@@ -68,7 +69,7 @@ docker
 open-source
 ```
 
-GitHub allows up to 20 topics; this is 16, leaving room.
+GitHub allows up to 20 topics; this is 17, leaving room.
 
 ### Changes from the current topic set
 
@@ -77,6 +78,7 @@ GitHub allows up to 20 topics; this is 16, leaving room.
 | `multi-tenant` | **add** | Per-organization scoping is the core data model, and it is what MSP buyers search for. |
 | `sla` | **add** | SLA timers with pause logic are implemented in the ticket engine. |
 | `helpdesk` | **add** | Common search term for the service-desk half of the product. |
+| `ldap` | **add** | LDAP / Active Directory sign-in ships (v3.17.608). |
 | `docker` | **add** | First-class install path with a published image at `ghcr.io/agit8or1/clientst0r`. |
 | `it-glue-alternative` | **remove** | Competitor name in project metadata; the comparison pages under `docs/` still exist for anyone searching. |
 | `hudu-alternative` | **remove** | Same. |
@@ -89,9 +91,10 @@ Existing topics kept as-is: `msp`, `self-hosted`, `it-documentation`, `service-d
 
 ## Other repository settings worth checking
 
-- **Releases are behind the code.** The newest published GitHub Release is `v3.17.495`
-  while `config/version.py` reads `3.17.558`. The README's release badge reflects what is
-  published, so it will read `v3.17.495` until releases are cut for the newer tags.
+- **Check that Releases keep up with the code.** Every version bump creates a tag, but a
+  GitHub Release is only published when one is cut for that tag. The README's release
+  badge shows the newest *published Release*, not the newest tag, so compare it with
+  `config/version.py` and cut Releases for recent tags when the two drift apart.
 - **Social preview image** — not set. `docs/images/github/walkthrough-poster.png` is
   1920×1080 and crops cleanly to the 1280×640 GitHub wants.
 
@@ -101,9 +104,10 @@ ClientSt0r is built by the people behind **[MSP Reboot](https://mspreboot.com)**
 consulting practice. The README carries a link in its top navigation and a short section
 near the bottom; the screenshot gallery carries one in its footer.
 
-Keep that description accurate. MSP Reboot sells **consulting** — pricing, operations,
-margins, service delivery and technology strategy — and also offers **managed hosting and
-commercial support for ClientSt0r** for teams that would rather not self-host.
+Keep that description accurate. ClientSt0r is self-hosted software. MSP Reboot sells
+**consulting** — pricing, operations, margins, service delivery and technology strategy —
+and separately offers **optional managed hosting and commercial support for ClientSt0r**
+for teams that would rather not run it themselves.
 
 What must not drift is the line between the two: the software itself is MIT-licensed and
 every first-party feature works, unrestricted, on a self-hosted install. Hosting and

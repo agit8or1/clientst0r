@@ -21,7 +21,7 @@ What it does per entry
 Usage
 -----
     DEMO_DIR=/path/to/demo \\
-    DJANGO_SETTINGS_MODULE=demo_settings_wt \\
+    DJANGO_SETTINGS_MODULE=demo_settings PYTHONPATH=scripts/demo:. \\
     python scripts/capture_screenshots.py --out docs/images/github
 
     # a subset while iterating
@@ -44,8 +44,11 @@ DEFAULT_MANIFEST = pathlib.Path(__file__).resolve().parent / 'screenshot_manifes
 def _bootstrap_django() -> None:
     root = os.environ.get('DEMO_ROOT') or str(pathlib.Path(__file__).resolve().parent.parent)
     sys.path.insert(0, root)
+    sys.path.insert(0, os.path.join(root, 'scripts', 'demo'))
     os.chdir(root)
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+    # The isolated demo settings by default; guard_not_production() still
+    # refuses anything that is not a demo SQLite database.
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'demo_settings')
     import django
     django.setup()
 
@@ -161,6 +164,18 @@ def capture(entry, page, base, out_dir) -> pathlib.Path:
     ensure_theme(page, base, entry.get('theme', 'light'))
     page.add_style_tag(content=CAPTURE_CSS)
 
+    # Optional form input before capture, e.g. to show a conditional field.
+    # Nothing is submitted.
+    for action in entry.get('actions', []):
+        if 'fill' in action:
+            page.fill(action['fill'], action['value'])
+        elif 'check' in action:
+            page.check(action['check'])
+        elif 'select' in action:
+            page.select_option(action['select'], action['value'])
+    if entry.get('actions'):
+        page.evaluate('() => document.activeElement && document.activeElement.blur()')
+
     for text in entry.get('wait_for_text', []):
         try:
             page.wait_for_selector(f'text={text}', timeout=20000)
@@ -174,14 +189,31 @@ def capture(entry, page, base, out_dir) -> pathlib.Path:
         pass
     page.wait_for_timeout(entry.get('settle_ms', 1600))
 
+    path = out_dir / f"{entry['name']}.png"
+    width = entry.get('width', 1440)
+
+    if entry.get('selector'):
+        # Crop to one region of a long page (e.g. the reply composer), with the
+        # full width kept so the shot still reads as the application.
+        el = page.locator(entry['selector']).first
+        el.scroll_into_view_if_needed()
+        page.wait_for_timeout(300)
+        box = el.bounding_box()
+        scroll_y = page.evaluate('window.scrollY')
+        pad = entry.get('pad', 24)
+        top = max(0, box['y'] + scroll_y - pad - entry.get('extend_up', 0))
+        height = min(box['height'] + 2 * pad + entry.get('extend_up', 0), entry.get('max_h', 1400))
+        page.screenshot(path=str(path), full_page=True,
+                        clip={'x': 0, 'y': top, 'width': width, 'height': height})
+        return path
+
     height = int(page.evaluate(CONTENT_HEIGHT_JS)) + 28
     height = max(entry.get('min_h', 640), min(height, entry.get('max_h', 1400)))
-    page.set_viewport_size({'width': entry.get('width', 1440), 'height': height})
+    page.set_viewport_size({'width': width, 'height': height})
     page.wait_for_timeout(600)
 
-    path = out_dir / f"{entry['name']}.png"
     page.screenshot(path=str(path),
-                    clip={'x': 0, 'y': 0, 'width': entry.get('width', 1440), 'height': height})
+                    clip={'x': 0, 'y': 0, 'width': width, 'height': height})
     return path
 
 

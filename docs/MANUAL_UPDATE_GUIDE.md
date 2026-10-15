@@ -1,599 +1,370 @@
-# 🔄 How to Manually Update Client St0r from CLI
+# How to Manually Update Client St0r from the CLI
 
-This guide explains how to manually update your Client St0r installation when automatic updates fail or when you need to pull specific commits.
+The normal way to update a native install is the web UI: **Settings → Updates**
+(`/core/settings/updates/`), *Check for Updates*, then *Apply*. Use this guide when that
+path is unavailable or fails, or when you need to pull specific commits.
+
+Docker installs update with `docker compose pull && docker compose up -d`; see
+[docker.md](docker.md).
+
+In the commands below, `/path/to/clientst0r` is your install directory (the one holding
+`manage.py`) and `clientst0r-gunicorn.service` is the web service installed by
+`install.sh`.
 
 ---
 
 ## Table of Contents
 
 - [Quick Update](#quick-update)
-- [Troubleshooting Version Mismatch](#troubleshooting-version-mismatch)
 - [Full Manual Update Process](#full-manual-update-process)
+- [Troubleshooting Version Mismatch](#troubleshooting-version-mismatch)
 - [Common Issues](#common-issues)
 - [Verifying the Update](#verifying-the-update)
+- [Rolling Back](#rolling-back)
 
 ---
 
 ## Quick Update
 
-For most cases, these commands will update your installation:
+Back up first (see [Step 1](#step-1-back-up-first)), then:
 
 ```bash
-cd /home/administrator  # Or your Client St0r directory
+cd /path/to/clientst0r
 git pull origin main
 source venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py collectstatic --noinput
-sudo systemctl restart clientst0r-gunicorn.service
-python manage.py shell -c "from django.core.cache import cache; cache.clear()"
+sudo systemctl reload clientst0r-gunicorn.service
 ```
+
+`reload` replaces the Gunicorn workers gracefully without dropping requests. Use
+`sudo systemctl restart clientst0r-gunicorn.service` instead if the service is not running
+or the reload has no effect.
 
 **Verify the update:**
 ```bash
 python manage.py shell -c "from config.version import VERSION; print(f'Version: {VERSION}')"
 ```
 
----
-
-## Troubleshooting Version Mismatch
-
-### Symptom: UI shows old version after update
-
-**Example:** You updated to v2.21.0 but the UI still shows v2.14.29
-
-### Diagnosis Steps
-
-1. **Check what version is in the code:**
-   ```bash
-   cd /home/administrator
-   grep "VERSION =" config/version.py
-   ```
-
-2. **Check if Gunicorn is running the updated code:**
-   ```bash
-   sudo systemctl status clientst0r-gunicorn.service
-   ps aux | grep gunicorn
-   ```
-
-3. **Check browser cache:**
-   - Hard refresh: `Ctrl + Shift + R` (Chrome/Firefox) or `Cmd + Shift + R` (Mac)
-   - Clear browser cache entirely
-
-4. **Check Django cache:**
-   ```bash
-   python manage.py shell -c "from django.core.cache import cache; cache.clear(); print('Cache cleared')"
-   ```
-
-### Solution: Force Full Reload
-
-```bash
-# 1. Stop services
-sudo systemctl stop clientst0r-gunicorn.service
-sudo systemctl stop nginx
-
-# 2. Pull latest code
-cd /home/administrator
-git fetch --all
-git reset --hard origin/main
-
-# 3. Update dependencies
-source venv/bin/activate
-pip install -r requirements.txt --upgrade
-
-# 4. Run migrations
-python manage.py migrate
-
-# 5. Collect static files
-python manage.py collectstatic --noinput --clear
-
-# 6. Clear cache
-python manage.py shell -c "from django.core.cache import cache; cache.clear()"
-
-# 7. Restart services
-sudo systemctl start nginx
-sudo systemctl start clientst0r-gunicorn.service
-
-# 8. Verify
-sleep 3
-python manage.py shell -c "from config.version import VERSION; print(f'Version: {VERSION}')"
-curl -I http://localhost:8000 2>&1 | grep "HTTP"
-```
+> **Updating from a release older than 3.17.599?** Periodic jobs (recurring invoices,
+> email-to-ticket polling, recurring tickets, contract renewals and others) now run from the
+> built-in scheduler — **Settings → Scheduler** (`/core/settings/scheduler/`) — driven by
+> `clientst0r-scheduler.timer`. The web and automatic updaters remove the old crontab lines
+> for these jobs. A manual update does not, so remove them yourself or each job runs twice:
+>
+> ```bash
+> crontab -l | grep -E 'manage\.py[[:space:]]+(psa_run_recurring_tickets|psa_poll_email|psa_send_outbound|psa_auto_renew_contracts|psa_auto_replenish_suggestions|sync_distributors|run_scheduled_reports|poll_security_alerts)'
+> crontab -e   # delete the lines listed above
+> ```
+>
+> Leave the `check_update_trigger.sh` line in place; the web UI's update button uses it.
 
 ---
 
 ## Full Manual Update Process
 
-### Step 1: Backup First! 🛡️
-
-Always backup before updating:
+### Step 1: Back Up First
 
 ```bash
-# Backup database
-sudo mysqldump -u clientst0r -p clientst0r > ~/clientst0r_backup_$(date +%Y%m%d).sql
+cd /path/to/clientst0r
+source venv/bin/activate
 
-# Backup media files
-tar -czf ~/clientst0r_media_backup_$(date +%Y%m%d).tar.gz /home/administrator/media/
+# Database and uploaded files, encrypted, in one archive
+python manage.py backup --output-dir /var/backups/clientst0r --encrypt --retention-days 30
 
-# Backup configuration
-cp /home/administrator/config/settings.py ~/settings_backup_$(date +%Y%m%d).py
-cp /home/administrator/.env ~/env_backup_$(date +%Y%m%d)
+# Configuration (holds APP_MASTER_KEY; store it securely and separately)
+cp .env ~/clientst0r_env_backup_$(date +%Y%m%d)
+```
+
+Keep a copy of `APP_MASTER_KEY` somewhere other than the server. Without it, encrypted
+vault entries and stored credentials in a restored database cannot be decrypted.
+
+A plain database dump also works:
+
+```bash
+mysqldump -u clientst0r -p clientst0r > ~/clientst0r_backup_$(date +%Y%m%d).sql
 ```
 
 ### Step 2: Check Current State
 
 ```bash
-cd /home/administrator
-
-# Check current version
 python manage.py shell -c "from config.version import VERSION; print(f'Current: {VERSION}')"
-
-# Check git status
 git status
 git log -1 --oneline
-
-# Check for uncommitted changes
-git diff
+git diff   # local modifications to tracked files
 ```
 
-### Step 3: Stash Local Changes (if any)
+### Step 3: Keep Local Changes Aside (if any)
 
-If you have local modifications:
+The web and automatic updaters run `git reset --hard origin/main` and **discard** local
+changes to tracked files. If you update by hand and have local modifications:
 
 ```bash
-git stash
-# After update, restore with: git stash pop
+git stash push -m "local changes before update"
+# after updating: git stash pop
 ```
 
 ### Step 4: Pull Updates
 
 ```bash
-# Fetch latest
 git fetch origin main
-
-# See what's new
-git log HEAD..origin/main --oneline
-
-# Pull updates
+git log HEAD..origin/main --oneline   # what's new
 git pull origin main
 ```
 
-**If pull fails:**
+To install a specific release instead of the tip of `main`:
+
 ```bash
-# Reset to remote version (⚠️ DESTROYS local changes)
-git reset --hard origin/main
+git fetch --tags
+git checkout v3.17.NNN
 ```
 
 ### Step 5: Update Dependencies
 
 ```bash
 source venv/bin/activate
-
-# Upgrade pip first
-pip install --upgrade pip
-
-# Install/update requirements
-pip install -r requirements.txt --upgrade
+pip install -r requirements.txt
 ```
 
 ### Step 6: Run Migrations
 
 ```bash
-# Check for pending migrations
-python manage.py showmigrations | grep "\\[ \\]"
-
-# Run migrations
+python manage.py showmigrations | grep "\[ \]"   # pending migrations
 python manage.py migrate
-
-# Verify
-python manage.py showmigrations | tail -20
 ```
 
 ### Step 7: Collect Static Files
 
 ```bash
-# Clear old static files
-rm -rf /home/administrator/static_collected/*
-
-# Collect new ones
 python manage.py collectstatic --noinput
-
-# Verify
-ls -la /home/administrator/static_collected/css/themes.css
 ```
 
-### Step 8: Clear Caches
+### Step 8: Reload the Web Service
 
 ```bash
-# Django cache
-python manage.py shell -c "from django.core.cache import cache; cache.clear(); print('✓ Django cache cleared')"
-
-# Browser cache (tell users to do this)
-# Ctrl + Shift + R (or Cmd + Shift + R on Mac)
-```
-
-### Step 9: Restart Services
-
-```bash
-# Restart Gunicorn
-sudo systemctl restart clientst0r-gunicorn.service
-
-# Check status
+sudo systemctl reload clientst0r-gunicorn.service
 sudo systemctl status clientst0r-gunicorn.service
-
-# Restart Nginx (if needed)
-sudo systemctl restart nginx
 ```
 
-### Step 10: Verify Update
+The scheduler, monitor and sync units are timer-driven one-shot jobs; they run the new code
+on their next run without a restart.
+
+### Step 9: Verify
 
 ```bash
-# Check version
 python manage.py shell -c "from config.version import VERSION; print(f'Updated to: {VERSION}')"
-
-# Test web server
-curl -I http://localhost:8000 2>&1 | grep "HTTP"
-
-# Check logs for errors
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8000/health/
 sudo journalctl -u clientst0r-gunicorn.service -n 50 --no-pager
-tail -f /home/administrator/logs/django.log
+```
+
+---
+
+## Troubleshooting Version Mismatch
+
+### Symptom: UI shows the old version after an update
+
+1. **Check the version in the code:**
+   ```bash
+   grep "VERSION =" config/version.py
+   ```
+2. **Check Gunicorn picked up the new code:**
+   ```bash
+   sudo systemctl status clientst0r-gunicorn.service
+   ```
+   If the code is new but the UI is not, reload or restart the service.
+3. **Check the browser cache:** hard refresh with `Ctrl + Shift + R` (`Cmd + Shift + R` on
+   Mac).
+4. **Clear the Django cache:**
+   ```bash
+   python manage.py shell -c "from django.core.cache import cache; cache.clear(); print('Cache cleared')"
+   ```
+
+### Solution: Force a full reset to `main`
+
+This discards local changes to tracked files.
+
+```bash
+cd /path/to/clientst0r
+git fetch origin main
+git reset --hard origin/main
+source venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+python manage.py shell -c "from django.core.cache import cache; cache.clear()"
+sudo systemctl restart clientst0r-gunicorn.service
 ```
 
 ---
 
 ## Common Issues
 
-### Issue 1: "Already up to date" but version is old
+### "Already up to date" but the version is old
 
-**Cause:** You're on a different branch or have local commits
+You are on a different branch or have local commits.
 
 ```bash
-# Check current branch
 git branch
-
-# Check if local is behind remote
 git fetch origin
 git log HEAD..origin/main --oneline
-
-# If behind, pull
-git pull origin main
-
-# If on wrong branch
-git checkout main
-git pull origin main
+git checkout main && git pull origin main
 ```
 
----
+### Local changes block the pull
 
-### Issue 2: Merge conflicts during pull
-
-**Symptoms:**
 ```
 error: Your local changes to the following files would be overwritten by merge
 ```
 
-**Solution:**
 ```bash
-# Option A: Stash changes
-git stash
-git pull origin main
-git stash pop  # Reapply your changes
+# Keep them
+git stash push -m "local changes" && git pull origin main && git stash pop
 
-# Option B: Discard local changes (⚠️ DESTRUCTIVE)
+# Or discard them (destructive)
 git reset --hard origin/main
 ```
 
----
+### Static files not updating
 
-### Issue 3: Static files not updating
-
-**Symptoms:** CSS/JS changes don't appear in browser
-
-**Solution:**
 ```bash
-# Clear and recollect
-rm -rf /home/administrator/static_collected/*
 python manage.py collectstatic --noinput --clear
-
-# Restart Gunicorn
-sudo systemctl restart clientst0r-gunicorn.service
-
-# Check file timestamps
-ls -lt /home/administrator/static_collected/css/ | head -10
-
-# Force browser hard refresh
-# Ctrl + Shift + R
+sudo systemctl reload clientst0r-gunicorn.service
 ```
 
----
+Then hard refresh the browser.
 
-### Issue 4: Database migrations fail
+### Database migrations fail
 
-**Symptoms:**
 ```
 django.db.utils.OperationalError: (1054, "Unknown column...")
 ```
 
-**Solution:**
+1. Read the full error and note which app and migration failed:
+   `python manage.py showmigrations <app>`.
+2. Fix the cause the error names (missing dependency, database permissions, disk space)
+   and run `python manage.py migrate` again.
+3. If you cannot resolve it, restore the backup from Step 1 (see
+   [Rolling Back](#rolling-back)) and open an issue with the error output.
+
+Do **not** run `migrate <app> zero` to "re-run" migrations: it drops that app's tables and
+the data in them. Only use `migrate --fake` if you have confirmed by hand that the schema
+already matches the migration.
+
+### Gunicorn won't start after the update
+
 ```bash
-# Check migration status
-python manage.py showmigrations
-
-# Try fake migration (if schema already correct)
-python manage.py migrate --fake appname migration_name
-
-# OR rollback and re-run
-python manage.py migrate appname zero
-python manage.py migrate appname
-
-# Last resort: Check manual schema fix
-mysql -u clientst0r -p clientst0r
-# Run manual ALTER TABLE commands if needed
-```
-
----
-
-### Issue 5: Gunicorn won't start after update
-
-**Symptoms:**
-```
-sudo systemctl status clientst0r-gunicorn.service
-● clientst0r-gunicorn.service - Client St0r Gunicorn
-   Active: failed (Result: exit-code)
-```
-
-**Diagnosis:**
-```bash
-# Check logs
 sudo journalctl -u clientst0r-gunicorn.service -n 100 --no-pager
-
-# Try running Gunicorn manually
-cd /home/administrator
 source venv/bin/activate
-gunicorn config.wsgi:application --bind 0.0.0.0:8000
-
-# Common causes:
-# - Missing dependency: pip install -r requirements.txt
-# - Syntax error: python manage.py check
-# - Permission issue: check file ownership
+python manage.py check          # configuration or import errors
+pip install -r requirements.txt # missing dependency
 ```
 
-**Fix:**
+If files are owned by the wrong user (for example after running `manage.py` under `sudo`),
+fix ownership of the install directory only:
+
 ```bash
-# Reinstall dependencies
-pip install -r requirements.txt --force-reinstall
-
-# Check syntax
-python manage.py check
-
-# Fix permissions
-sudo chown -R administrator:administrator /home/administrator
-sudo chmod -R 755 /home/administrator
-
-# Restart
-sudo systemctl restart clientst0r-gunicorn.service
+sudo chown -R "$(whoami)": /path/to/clientst0r
 ```
 
----
+Then `sudo systemctl restart clientst0r-gunicorn.service`.
 
-### Issue 6: 502 Bad Gateway after update
+### 502 Bad Gateway after the update
 
-**Cause:** Gunicorn socket/port mismatch with Nginx
+Nginx cannot reach Gunicorn.
 
-**Solution:**
 ```bash
-# Check Gunicorn binding
-ps aux | grep gunicorn
-# Should show: --bind unix:/home/administrator/gunicorn.sock --bind 0.0.0.0:8000
-
-# Check Nginx config
+sudo systemctl status clientst0r-gunicorn.service
 sudo nginx -t
-sudo cat /etc/nginx/sites-enabled/clientst0r | grep "upstream"
-
-# Ensure www-data can access socket
-sudo usermod -a -G administrator www-data
-sudo chmod 755 /home/administrator
-
-# Restart both
-sudo systemctl restart clientst0r-gunicorn.service
-sudo systemctl restart nginx
+sudo journalctl -u clientst0r-gunicorn.service -n 50 --no-pager
 ```
+
+Check the bind address in `/etc/systemd/system/clientst0r-gunicorn.service` matches the
+upstream in your Nginx site, then restart both services.
 
 ---
 
 ## Verifying the Update
 
-### Check Version in Multiple Places
-
 ```bash
-# 1. Python code
+# Code version
 python manage.py shell -c "from config.version import VERSION; print(f'Code version: {VERSION}')"
-
-# 2. Web UI (after logging in)
-# Navigate to: Settings → About or Profile
-# Should show: "Client St0r v2.XX.X"
-
-# 3. Git commit
 git log -1 --oneline
 
-# 4. CHANGELOG
-grep "##" CHANGELOG.md | head -5
+# Services
+sudo systemctl status clientst0r-gunicorn.service | grep Active
+sudo systemctl list-timers 'clientst0r-*'
 ```
 
-### Check Services Status
-
-```bash
-# Gunicorn
-sudo systemctl status clientst0r-gunicorn.service | grep "Active"
-
-# Nginx
-sudo systemctl status nginx | grep "Active"
-
-# Database
-sudo systemctl status mariadb | grep "Active"
-```
-
-### Check Recent Logs
-
-```bash
-# Gunicorn logs (last 50 lines)
-sudo journalctl -u clientst0r-gunicorn.service -n 50 --no-pager
-
-# Django logs
-tail -50 /home/administrator/logs/django.log
-
-# Nginx error logs
-sudo tail -50 /var/log/nginx/error.log
-```
-
-### Test Key Features
+In the web UI, **Settings → Updates** shows the running version, and **Settings →
+Scheduler** shows each periodic job's last run and last error.
 
 After updating, test:
-- ✅ Login works
-- ✅ Dashboard loads
-- ✅ Assets page loads (check dark mode!)
-- ✅ Create a test item (asset/password/doc)
-- ✅ Theme switcher works (Profile → Preferences)
-- ✅ Search works
-- ✅ No JavaScript errors in browser console (F12)
+- Login works
+- Dashboard loads
+- Assets, vault and documents pages load
+- Search works
+- No JavaScript errors in the browser console (F12)
 
 ---
 
 ## Update Checklist
 
-Use this checklist for updates:
-
 ```
-[ ] Backup database
-[ ] Backup media files
-[ ] Check current version: python manage.py shell -c "from config.version import VERSION; print(VERSION)"
+[ ] Back up database and media (manage.py backup) and keep APP_MASTER_KEY safe
+[ ] Check current version
 [ ] Pull updates: git pull origin main
-[ ] Update dependencies: pip install -r requirements.txt --upgrade
+[ ] Update dependencies: pip install -r requirements.txt
 [ ] Run migrations: python manage.py migrate
 [ ] Collect static files: python manage.py collectstatic --noinput
-[ ] Clear Django cache
-[ ] Restart Gunicorn: sudo systemctl restart clientst0r-gunicorn.service
-[ ] Hard refresh browser: Ctrl + Shift + R
-[ ] Verify version matches in UI
-[ ] Test key features
+[ ] Reload Gunicorn: sudo systemctl reload clientst0r-gunicorn.service
+[ ] (Upgrading from before 3.17.599) remove legacy psa_* crontab lines
+[ ] (Upgrading from before 3.17.610) review Settings → Security first — saved values become live
+[ ] (Using LDAP) pip install -r requirements-optional.txt
+[ ] Hard refresh browser
+[ ] Verify version in Settings → Updates
+[ ] Check Settings → Scheduler for job errors
 [ ] Check logs for errors
 ```
 
 ---
 
-## Automated Update Script
+## Rolling Back
 
-Save this as `~/update_clientst0r.sh`:
+There is no one-step rollback. To return to the previous version:
 
 ```bash
-#!/bin/bash
-set -e
+cd /path/to/clientst0r
+source venv/bin/activate
 
-echo "🔄 Client St0r Update Script"
-echo "=========================="
+# 1. Restore the database (and media) taken before the update
+python manage.py restore /var/backups/clientst0r/<backup file> --force
+#    or, from a SQL dump: mysql -u clientst0r -p clientst0r < ~/clientst0r_backup_YYYYMMDD.sql
 
-# Variables
-INSTALL_DIR="/home/administrator"
-VENV_DIR="$INSTALL_DIR/venv"
-BACKUP_DIR="$HOME/clientst0r_backups"
+# 2. Return the code to the previous release
+git fetch --tags
+git checkout v3.17.NNN
+pip install -r requirements.txt
+python manage.py collectstatic --noinput
 
-# Create backup directory
-mkdir -p "$BACKUP_DIR"
-
-# 1. Backup
-echo "📦 Creating backup..."
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-mysqldump -u clientst0r -p clientst0r > "$BACKUP_DIR/db_$TIMESTAMP.sql"
-echo "✓ Database backed up"
-
-# 2. Pull updates
-echo "⬇️  Pulling updates..."
-cd "$INSTALL_DIR"
-git fetch origin
-git pull origin main
-echo "✓ Code updated"
-
-# 3. Update dependencies
-echo "📦 Installing dependencies..."
-source "$VENV_DIR/bin/activate"
-pip install -r requirements.txt --upgrade --quiet
-echo "✓ Dependencies updated"
-
-# 4. Run migrations
-echo "🗄️  Running migrations..."
-python manage.py migrate
-echo "✓ Migrations complete"
-
-# 5. Collect static files
-echo "📁 Collecting static files..."
-python manage.py collectstatic --noinput --clear
-echo "✓ Static files collected"
-
-# 6. Clear cache
-echo "🧹 Clearing cache..."
-python manage.py shell -c "from django.core.cache import cache; cache.clear()"
-echo "✓ Cache cleared"
-
-# 7. Restart services
-echo "🔄 Restarting services..."
+# 3. Restart
 sudo systemctl restart clientst0r-gunicorn.service
-sudo systemctl restart nginx
-sleep 2
-echo "✓ Services restarted"
-
-# 8. Verify
-echo ""
-echo "✅ Update complete!"
-echo "📌 New version:"
-python manage.py shell -c "from config.version import VERSION; print(f'  {VERSION}')"
-echo ""
-echo "📋 Next steps:"
-echo "  1. Hard refresh your browser (Ctrl + Shift + R)"
-echo "  2. Check /admin for any errors"
-echo "  3. Test key features"
-echo ""
-echo "💾 Backup saved to: $BACKUP_DIR/db_$TIMESTAMP.sql"
 ```
 
-Make it executable:
-```bash
-chmod +x ~/update_clientst0r.sh
-```
-
-Run it:
-```bash
-~/update_clientst0r.sh
-```
+Restore the database whenever the release you are leaving added migrations: older code
+does not run against a newer schema reliably.
+Rolling back across 3.17.607 always needs the database backup: that release converted stored
+secrets to encrypted or hashed storage, which older code cannot read.
 
 ---
 
 ## Need Help?
 
-If you're still having issues after following this guide:
-
 1. **Check the logs:**
    ```bash
    sudo journalctl -u clientst0r-gunicorn.service -n 100
-   tail -100 /home/administrator/logs/django.log
+   tail -100 /var/log/clientst0r/auto-update.log
    ```
-
 2. **Ask for help:**
-   - 💬 [GitHub Discussions → Q&A](https://github.com/agit8or1/clientst0r/discussions/categories/q-a)
-   - 🐛 [Report a Bug](https://github.com/agit8or1/clientst0r/issues/new?template=bug_report.yml)
-   - 📧 Email: [your-support-email]
-
-3. **Emergency rollback:**
-   ```bash
-   # Restore database from backup
-   mysql -u clientst0r -p clientst0r < ~/clientst0r_backup_YYYYMMDD.sql
-
-   # Revert code to previous version
-   cd /home/administrator
-   git log --oneline | head -10  # Find previous commit
-   git checkout <commit-hash>
-   sudo systemctl restart clientst0r-gunicorn.service
-   ```
-
----
-
-**Remember:** Always backup before updating! 💾
+   - [GitHub Discussions → Q&A](https://github.com/agit8or1/clientst0r/discussions/categories/q-a)
+   - [Report a Bug](https://github.com/agit8or1/clientst0r/issues/new?template=bug_report.yml)

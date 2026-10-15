@@ -22,7 +22,24 @@ See scripts/demo/README.md.
 import os
 from pathlib import Path
 
-from config.settings import *  # noqa: F401,F403
+# config.settings calls load_dotenv(), which walks up from config/ and would
+# pick up the deployment's .env (database credentials, the real encryption key,
+# AI provider keys). The demo must never read it: neutralise load_dotenv before
+# config.settings is imported and supply throwaway values for what it requires.
+import dotenv
+
+dotenv.load_dotenv = lambda *args, **kwargs: False
+for _name in [n for n in os.environ if n.startswith(('DB_', 'ANTHROPIC_', 'OPENAI_', 'MINIMAX_',
+                                                      'MOONSHOT_', 'OLLAMA_', 'HIBP_'))]:
+    del os.environ[_name]
+os.environ['DEBUG'] = 'False'
+# Not secrets: this instance holds only invented data and is never exposed.
+os.environ['SECRET_KEY'] = 'demo-media-capture-key-not-used-anywhere-else'
+os.environ['API_KEY_SECRET'] = 'demo-media-capture-api-key-secret-not-used-elsewhere'
+os.environ['APP_MASTER_KEY'] = 'ZGVtby1vbmx5LWtleS1mb3ItZG9jcy1zY3JlZW5zISE='  # 32 bytes
+os.environ.pop('APP_MASTER_KEY_PREVIOUS', None)
+
+from config.settings import *  # noqa: F401,F403,E402
 
 DEMO_DIR = Path(os.environ['DEMO_DIR'])
 DEMO_DIR.mkdir(parents=True, exist_ok=True)
@@ -43,6 +60,15 @@ DATABASES = {
 
 MEDIA_ROOT = str(DEMO_DIR / 'media')
 STATIC_ROOT = str(DEMO_DIR / 'static')
+UPLOAD_ROOT = DEMO_DIR / 'uploads'
+
+# The project's LOGGING writes to /var/log/itdocs; the demo logs to the console only.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'root': {'handlers': ['console'], 'level': 'WARNING'},
+}
 
 # Serve static straight from the source tree: the hashed manifest is read once
 # at startup, so a CSS edit would otherwise need a restart to appear.

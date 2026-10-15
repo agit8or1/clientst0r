@@ -26,7 +26,7 @@ Host: your-server.example.com
 Authorization: Bearer itdocs_live_xK9mPL3t8n...
 ```
 
-Generate keys at **Profile → API Keys**. Keys inherit your organization access and role permissions.
+Generate keys at **Profile → API Keys** (`/api/keys/`). Keys inherit your organization access and role permissions: a role without **View passwords**, **View documents** or **View assets** gets no results from those endpoints. A key stops working when its user is deactivated, or when a customer user no longer belongs to the key's organization. Keys don't expire on their own.
 
 ---
 
@@ -102,40 +102,54 @@ Field-specific filters vary by endpoint — see the browsable API at `/api/` for
 
 ## Webhooks
 
-Configure webhooks at *Settings → Webhooks*. Events trigger a POST to your configured URL.
+Configure webhooks at *Settings → Webhooks* (`/core/webhooks/`). Each webhook belongs to one
+organization and receives a POST for the events you tick. Since v3.17.609 every event offered
+in the form fires, from the data layer, so changes made through the API, the mobile app and
+integration syncs count too.
 
-### Available Events
+### Events
 
 | Event | Trigger |
 |-------|---------|
-| `asset.created` | New asset added |
-| `asset.updated` | Asset record changed |
-| `asset.deleted` | Asset removed |
-| `monitor.down` | WAN monitor fails |
-| `monitor.up` | WAN monitor recovers |
-| `vulnerability.found` | New CVE detected |
-| `vault.breach` | Vault entry flagged as breached |
+| `asset.created` / `asset.updated` / `asset.deleted` | Asset added, changed, removed |
+| `document.created` / `document.updated` / `document.deleted` | Document added, changed, removed |
+| `password.created` / `password.updated` / `password.deleted` | Vault entry added, changed, removed — metadata only, never the secret |
+| `password.accessed` | A password was revealed |
+| `location.created` / `location.updated` / `location.deleted` | Location added, changed, removed |
+| `organization.updated` | Organization details changed |
+| `monitor.down` / `monitor.up` | A website monitor is declared down (after two failed checks in a row) or recovers |
+| `monitor.check_failed` | A single website check failed |
+| `workflow.started` / `workflow.completed` / `workflow.failed` | Workflow run events |
+| `integration.synced` / `integration.failed` | Integration sync finished or failed |
+| `user.login` / `user.logout` / `user.login_failed` / `user.password_changed` | Sign-in events for customer users |
+
+MSP staff activity is never sent to a customer's webhooks.
 
 ### Webhook Payload Structure
 
 ```json
 {
   "event": "monitor.down",
-  "timestamp": "2025-11-15T14:32:00Z",
-  "organization": {
-    "id": 42,
-    "name": "Acme Corp"
-  },
+  "timestamp": 1760538720,
   "data": {
     "monitor_id": 7,
     "name": "Main Website",
-    "url": "https://example.com",
-    "error": "Connection timed out"
-  }
+    "url": "https://www.example.com",
+    "status": "down",
+    "status_code": null,
+    "response_time_ms": null,
+    "consecutive_failures": 2,
+    "error": "Connection timed out",
+    "checked_at": "2026-10-15T14:32:00+00:00"
+  },
+  "webhook_id": 3,
+  "organization": "acme-corp"
 }
 ```
 
-Webhook deliveries are logged with the response status. Failed deliveries can be retried from *Settings → Webhooks → Delivery Log*.
+If the webhook has a secret, each request carries an `X-Webhook-Signature` header. Secrets and
+custom header values are stored encrypted; header values show as `********` on the form.
+Deliveries are logged with the response status.
 
 ---
 
@@ -145,12 +159,13 @@ ClientSt0r can sync devices from Remote Monitoring & Management platforms:
 
 | Platform | Features |
 |----------|---------|
-| **ConnectWise Automate** | Sync devices, GPS, status |
-| **Datto RMM** | Sync devices, alerts |
-| **NinjaRMM** | Sync devices |
-| **Syncro** | Sync devices |
+| **Tactical RMM** | Devices, alerts, software, sites; device coordinates for the map |
+| **NinjaOne** | Devices, alerts, software |
+| **Datto RMM** | Devices, alerts, software |
+| **Atera** | Devices, alerts, software |
+| **ConnectWise Automate** | Devices, alerts, software |
 
-Configure at *Settings → Integrations → RMM*. Sync runs on a schedule and can be triggered manually.
+Configure at *Integrations → RMM* (`/integrations/rmm/create/`). Sync can be triggered manually, and runs on a schedule from the built-in scheduler's `rmm_sync` task (off by default; turn it on in *Settings → Scheduler*) or the `clientst0r-rmm-sync` timer on native installs.
 
 ---
 

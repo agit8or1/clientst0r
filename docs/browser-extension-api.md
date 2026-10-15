@@ -1,12 +1,22 @@
 # Browser Extension API Contract
 
-This document describes the server-side API surface that the Client St0r
-browser extension binary calls. The extension itself (Chrome / Firefox /
-Edge `.crx` / `.xpi` package, store submission, content-script injection)
-lives in a separate codebase. **All endpoints documented here are
-server-side scaffolding shipped under Phase 28.**
+This document describes the server-side API under `/vault/api/extension/` that a browser
+extension can call. The API shipped server-side in Phase 28 (v3.17.327 through v3.17.331).
 
-Phase 28 was shipped server-side across v3.17.327 through v3.17.331.
+## Current status
+
+| Piece | Status |
+|---|---|
+| Server API on this page | **Available.** Token-authenticated autofill lookup, TOTP, reveal (with approval gate), password generator, audited. |
+| Token issuance | **Limited.** The endpoints below exist, but there is no button in the web UI yet; tokens can only be issued by calling `POST /vault/api/extension/tokens/issue/` from a signed-in browser session. |
+| Browser extension | **Separate component, development build.** The extension lives in this repository under [`clientst0r-extension/`](../clientst0r-extension/README.md) (Manifest V3, Chrome/Edge 88+, Firefox 109+). It is unsigned and loads only in developer mode ("Load unpacked" / "Load Temporary Add-on"); it is not published to any browser store. A ZIP of it can be downloaded from `/core/download-browser-extension/`. |
+| Extension ↔ this API | **Planned.** The shipped extension does not call this API yet. It authenticates with a regular REST API key and uses `/api/passwords/`, `/api/assets/` and `/api/organizations/`. Moving it onto these endpoints is planned. |
+| Master-password lock | **Planned.** `verify-master` is a stub (see below); the extension has no lock or idle timeout. |
+| Offline vault | **Planned / undecided.** `sync` returns ciphertext encrypted with the server's key, which the extension cannot decrypt; there is no client-side key design yet. |
+
+Role view permissions apply to this API: since v3.17.600 a role without **View passwords**
+gets no credentials from these endpoints, and since v3.17.599 tokens stop working when
+their user is deactivated.
 
 ---
 
@@ -18,8 +28,9 @@ the app.
 
 ### Token issuance — session-authed
 
-The user's first action is to log into the app (`https://your-instance/`)
-and click "Issue extension token" in Settings. That triggers:
+The token is issued from a signed-in browser session (the session cookie and CSRF token
+authenticate the call). There is no "Issue extension token" button in the web UI yet, so
+for now this endpoint has to be called directly:
 
 ```
 POST /vault/api/extension/tokens/issue/
@@ -47,7 +58,11 @@ Returns 201:
 ```
 
 The `token` field is returned **exactly once**. The user copies it into
-the extension's options page; the server never surfaces it again.
+the extension's options page; the server never surfaces it again. Since
+v3.17.607 the server stores only an HMAC-SHA256 hash of the token (keyed by
+`API_KEY_SECRET`) plus a short prefix for identification, so a database read
+does not yield a working token. Tokens issued before that release were
+converted in place and keep working.
 
 Audit-logs as `create` on `vault.WebExtensionAuthToken`.
 
@@ -91,12 +106,13 @@ Authorization: Bearer <token>
 
 The `extension_auth_required` decorator:
 
-* validates the token (404 if not found, 401 if revoked / expired)
+* validates the token (401 if missing, unknown, revoked or expired, or if the token's
+  user has been deactivated)
 * attaches `request.user` and `request.extension_token`
 * resolves `request.current_organization` from:
-  1. `X-Organization-Id` header (if set, must be an active org)
-  2. token's pinned `organization` (if set)
-  3. None (global view — only superusers / staff can see anything)
+  1. the token's pinned `organization` (if set) — the header is ignored
+  2. otherwise the `X-Organization-Id` header (must be an active org the user can access)
+  3. otherwise None (global view — only MSP staff see anything)
 * bumps `last_used_at`
 
 ---
@@ -110,9 +126,11 @@ X-Organization-Id: 7
 ```
 
 Tokens pinned to a single org ignore the header — they always resolve to
-the pinned org. Tokens NOT pinned honor the header per call. If neither
+the pinned org (enforced since v3.17.599; earlier releases let the header
+override the pin). Tokens NOT pinned honor the header per call. If neither
 the header nor the pin is set, the request is in "global view" and only
-returns rows the user can see across all orgs (superusers / staff users).
+returns rows the user can see across all orgs (MSP staff: superusers,
+Django staff, or users whose User Type is Staff).
 
 ---
 
@@ -217,8 +235,10 @@ Response:
 }
 ```
 
-The server **never** decrypts on this endpoint. The extension decrypts
-client-side using the master-derived key.
+The server **never** decrypts on this endpoint. Note that the blob is the
+server-side ciphertext (encrypted with the install's `APP_MASTER_KEY`), so no
+client can decrypt it today. A client-side key design for an offline cache is
+planned but not built; treat this endpoint as reserved.
 
 Errors:
 
@@ -276,8 +296,10 @@ Errors:
 
 ### Master-password verify (proof-of-knowledge)
 
-This is intentionally a minimal stub — drop-in-replaceable to a stronger
-KDF (PBKDF2 / Argon2) without changing the API shape.
+**Stub — not a security control.** This endpoint is a placeholder for a
+future extension lock; nothing in the shipped extension calls it. It is
+intended to be replaced with a proper KDF (PBKDF2 / Argon2) without changing
+the API shape.
 
 #### Step 1: get a nonce
 
@@ -415,7 +437,8 @@ AuditLog.objects.filter(
 
 ## Versioning + change policy
 
-This contract is **stable** as of v3.17.331. Future changes will be
+The endpoint shapes have been stable since v3.17.331 (the `verify-master`
+and `sync` endpoints excepted, as noted above). Future changes will be
 additive (new optional query params, new optional response fields).
 Breaking changes will require a new versioned URL prefix
 (`/vault/api/extension/v2/...`).

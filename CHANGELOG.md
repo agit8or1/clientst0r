@@ -5,6 +5,27 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.611] - 2026-10-15
+
+### Documentation and screenshots match the product
+
+- README, the feature list, SECURITY.md, the update guides, the FAQ, the
+  migration pages and the user guide now describe what the software actually
+  does as of this release. Every capability in FEATURES.md is labelled
+  Available, Limited, Planned or Separate component, with where to find it.
+  Claims that didn't hold up were removed or corrected; new features from
+  3.17.599–3.17.610 are documented.
+- Hosting wording: Clientst0r is self-hosted software; optional managed
+  hosting and support are offered separately by MSP Reboot.
+- The comparison and "alternative" pages are now migration guides focused on
+  what Clientst0r and its importers do.
+- The screenshot gallery was recaptured on this release (40 views, including
+  My Work, the ticket composer, documentation readiness, guided portal
+  requests, version compare, KB analytics, Scheduler and Security settings).
+- The demo instance used for screenshots is fully isolated from a real
+  installation's settings, database and files, and can be rebuilt with
+  `scripts/demo/setup_demo.py`.
+
 ## [3.17.610] - 2026-10-15
 
 ### Security settings take effect, and a Content-Security-Policy

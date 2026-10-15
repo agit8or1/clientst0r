@@ -7,8 +7,9 @@ Isolated demo database only. Every note and evidence link is invented.
 import os, random, sys
 from datetime import timedelta
 
-sys.path.insert(0, os.environ['DEMO_ROOT']); os.chdir(os.environ['DEMO_ROOT'])
-os.environ['DJANGO_SETTINGS_MODULE'] = 'demo_settings_wt'
+_ROOT = os.environ.get('DEMO_ROOT') or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, _ROOT); sys.path.insert(0, os.path.join(_ROOT, 'scripts', 'demo')); os.chdir(_ROOT)
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'demo_settings')
 import django; django.setup()
 
 from django.contrib.auth import get_user_model

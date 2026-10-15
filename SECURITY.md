@@ -51,11 +51,11 @@ line is always the latest one — update rather than pinning an older release.
 
 ## Security Documentation
 
-**Version:** 2.24.148
-**Last Updated:** 2026-01-18
-**Architecture:** Django 6.0.1 + DRF + Gunicorn + MariaDB + Anthropic AI
+**Applies to:** the current 3.17.x line
+**Last reviewed:** 2026-10-15
+**Architecture:** Django 6 + DRF + Gunicorn + MariaDB; AI providers optional
 
-Client St0r implements defense-in-depth security with multiple layers of protection based on OWASP best practices, Django security guidelines, and enterprise SaaS security requirements.
+Client St0r implements defense-in-depth security with multiple layers of protection based on OWASP best practices and Django security guidelines. Where a control is partial or not yet implemented, this document says so; [FEATURES.md](FEATURES.md#security) labels each capability Available / Limited / Planned.
 
 ---
 
@@ -80,22 +80,27 @@ Client St0r implements defense-in-depth security with multiple layers of protect
 
 ## Security Features
 
-### ✅ Implemented Security Controls (v2.20.0)
+### Security Controls
 
 #### Authentication & Authorization
 - **Password Hashing**: Argon2 (OWASP recommended, resists GPU attacks)
 - **2FA**: Mandatory TOTP via django-otp (Google Authenticator, Authy, etc.)
 - **SSO**: Azure AD / Microsoft Entra ID OAuth integration
-- **Brute Force Protection**: django-axes (5 attempts, 1-hour lockout)
-- **Multi-Tenancy**: Organization-based with automated isolation tests
-- **Session Management**: Secure cookies with HttpOnly, Secure, SameSite=Lax
+- **LDAP / Active Directory**: sign-in via `django-auth-ldap` (optional packages in `requirements-optional.txt`), LDAPS or StartTLS with certificate checking on by default, required group, optional MSP staff group; never creates superusers or takes over an existing local account; same 2FA and lockout rules as local users (v3.17.608)
+- **Brute Force Protection**: django-axes, by username + IP (defaults: 5 attempts, 30-minute lockout, set in Settings → Security)
+- **Multi-Tenancy**: Organization-based with automated isolation tests. MSP staff (superusers, or User Type = Staff) work across all organizations; customer users are limited to their own organizations, see only tickets shared with the client, and never see internal comments or attachments (v3.17.599–600)
+- **Role view permissions**: View passwords / documents / assets are enforced in the web UI, search, dashboards, REST and GraphQL APIs, mobile app and browser extension (v3.17.600). View files / monitors / integrations are not enforced yet
+- **Session Management**: Secure cookies with HttpOnly, Secure, SameSite=Lax; idle timeout (default 60 minutes) and a real maximum session length (default 8 hours) set in Settings → Security
+- **Security settings precedence** (v3.17.610): the saved Settings → Security values (idle timeout, maximum session length, require 2FA, password minimum length and special-character rule, failed-login limit, lockout duration) take effect. An environment variable, if set, wins — `SESSION_IDLE_TIMEOUT` and `SESSION_COOKIE_AGE` (seconds), `REQUIRE_2FA`, `PASSWORD_MIN_LENGTH`, `PASSWORD_REQUIRE_SPECIAL`, `AXES_FAILURE_LIMIT`, `AXES_COOLOFF_TIME` (hours) — and the field shows "set by environment" and can't be changed in the UI. **Before updating an older install, check Settings → Security**: without `AXES_COOLOFF_TIME` the lockout becomes the saved value (default 30 minutes), and an install with "Require 2FA" unticked and no `REQUIRE_2FA` variable stops requiring 2FA
 
 #### Data Protection
-- **Encryption**: AES-256-GCM via Fernet for all secrets
-- **Key Derivation**: PBKDF2-SHA256 with 100,000 iterations
-- **Encrypted Fields**: Passwords, API keys, OAuth tokens, credentials
-- **Key Rotation**: Automated utilities for re-encrypting all secrets
-- **Separate Keys**: Different keys per environment (dev/staging/prod)
+- **Vault encryption**: AES-256-GCM; per-purpose keys derived from `APP_MASTER_KEY` with HKDF-SHA256, with the record's context bound as associated data (vault passwords, TOTP secrets, personal vault)
+- **Other stored secrets** (v3.17.607): every stored secret is encrypted or, for tokens the app only needs to compare, stored as a hash — integration and connection credentials, SMTP and SMS passwords, the LDAP bind password and Azure AD client secret, warranty and security-scanner API keys, partner secrets, webhook secrets and custom headers, import API keys, push-notification secrets, license keys, security-vendor and SIEM credentials, and browser-extension and inbound webhook tokens. Secrets use AES-256-GCM with an HKDF-derived key, bound to the field they belong to. A few session and share-link tokens are being moved to hashed storage
+- **No secret echo**: forms never show a stored secret back; leave a secret field blank to keep it. Webhook header values show as `********`; inbound webhook URLs and tokens are shown once
+- **Key rotation**: `manage.py rotate_encryption_key`, with `APP_MASTER_KEY_PREVIOUS` for old keys (see [Key Rotation](#key-rotation)); `manage.py check_secrets_storage` reports anything stored unprotected
+- **API keys**: stored as HMAC-SHA256 hashes (only a prefix in plaintext); stop working when the owning user is deactivated
+- **Backups**: `manage.py backup` encrypts archives with a key derived from `APP_MASTER_KEY` (Fernet)
+- **Uploaded files**: every `/media/` request is permission-checked against the record the file belongs to (v3.17.600)
 
 #### API Security (DRF)
 - **Production Mode**: Browsable API disabled, JSON-only renderers
@@ -105,21 +110,21 @@ Client St0r implements defense-in-depth security with multiple layers of protect
 - **Schema/Docs**: Require authentication
 
 #### Web Security
-- **CSP**: Strict Content Security Policy with 10+ directives
+- **CSP**: Content-Security-Policy on every page with a per-request nonce on inline scripts; report-only by default (v3.17.610) — see [CSP](#csp-content-security-policy)
 - **HSTS**: 1-year max-age (31536000 seconds) in production
 - **Clickjacking**: X-Frame-Options: DENY
 - **MIME Sniffing**: X-Content-Type-Options: nosniff
 - **Referrer Policy**: strict-origin-when-cross-origin
 - **Permissions-Policy**: Disables geolocation, camera, microphone, payment, USB, FLoC
 - **CSRF**: Multi-domain support with trusted origins
-- **XSS Protection**: CSP + secure cookies + template escaping
+- **XSS Protection**: template auto-escaping, HTML sanitisation of documents, secure cookies, CSP
 
-#### AI Protection (Anthropic)
+#### AI Protection (OPTIONAL AI)
 - **Request Limits**: Per-user (100/day) and per-org (1000/day)
 - **Spend Caps**: Per-user ($10/day) and per-org ($100/day)
 - **Burst Protection**: 10 requests/minute
 - **Size Limits**: 10,000 characters per prompt
-- **PII Redaction**: Emails, phones, SSNs, credit cards, API keys
+- **PII Redaction**: implemented (`core/ai_abuse_control.py`) but not yet called by the AI features, so `AI_PII_REDACTION_ENABLED` currently has no effect — planned
 - **Usage Tracking**: Redis-backed counters with 24-hour TTL
 - **Audit Logging**: All AI requests logged
 
@@ -159,7 +164,10 @@ SECURE_SSL_REDIRECT=True
 SECURE_HSTS_SECONDS=31536000
 SESSION_COOKIE_SECURE=True
 CSRF_COOKIE_SECURE=True
+# Optional. If set, overrides Settings → Security and locks the field there.
 REQUIRE_2FA=True
+# Content-Security-Policy: report-only by default; set False to enforce
+CSP_REPORT_ONLY=True
 
 # ===== ALLOWED HOSTS =====
 ALLOWED_HOSTS=clientst0r.example.com,www.clientst0r.example.com
@@ -172,8 +180,10 @@ AI_MAX_DAILY_SPEND_PER_USER=10.00
 AI_MAX_DAILY_SPEND_PER_ORG=100.00
 
 # ===== BRUTE FORCE PROTECTION =====
-AXES_FAILURE_LIMIT=5
-AXES_COOLOFF_TIME=1
+# Optional. Leave unset to manage these in Settings → Security.
+# If set, they win and the fields there become read-only.
+# AXES_FAILURE_LIMIT=5
+# AXES_COOLOFF_TIME=1   # hours
 ```
 
 #### 2. Generate Secrets
@@ -181,8 +191,8 @@ AXES_COOLOFF_TIME=1
 # SECRET_KEY (Django)
 python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 
-# APP_MASTER_KEY (encryption)
-python manage.py secrets generate-key
+# APP_MASTER_KEY (encryption) — base64 of 32 random bytes
+python3 -c "import base64, os; print(base64.b64encode(os.urandom(32)).decode())"
 
 # API_KEY_SECRET (must differ from SECRET_KEY)
 python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -190,10 +200,11 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 #### 3. Validate Configuration
 ```bash
-# Check all secrets are configured correctly
-python manage.py secrets validate
+# Django's deployment checks
+python manage.py check --deploy
 
-# Expected output: "All secrets configured correctly"
+# Confirm APP_MASTER_KEY can encrypt and decrypt
+python manage.py shell -c "from vault.encryption import encrypt, decrypt; assert decrypt(encrypt('ok')) == 'ok'; print('APP_MASTER_KEY OK')"
 ```
 
 #### 4. Run Security Tests
@@ -217,7 +228,9 @@ python manage.py test core.tests.test_tenant_isolation -v 2
 
 #### 6. Application Checklist
 - [ ] Admin username changed from default
-- [ ] All users have 2FA enabled (enforce via REQUIRE_2FA=True)
+- [ ] All users have 2FA enabled (Settings → Security → Require 2FA, or REQUIRE_2FA=True)
+- [ ] Settings → Security reviewed (session, lockout and password-policy values are live)
+- [ ] `python manage.py check_secrets_storage` reports nothing unprotected
 - [ ] Unnecessary endpoints disabled
 - [ ] Rate limits appropriate for traffic patterns
 - [ ] AI spend limits appropriate for budget
@@ -256,18 +269,12 @@ https://securityheaders.com/?q=your-domain.com
 
 Expected headers:
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
-- `Content-Security-Policy: default-src 'self'; ...`
 - `X-Frame-Options: DENY`
 - `X-Content-Type-Options: nosniff`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy: geolocation=(), microphone=(), camera=(), ...`
 
-#### 2. CSP Validation
-- Open browser DevTools → Console
-- No CSP violations should appear
-- If violations occur, adjust CSP in settings.py
-
-#### 3. SSL/TLS Configuration
+#### 2. SSL/TLS Configuration
 ```bash
 # Test SSL configuration (should be A or A+)
 https://www.ssllabs.com/ssltest/analyze.html?d=your-domain.com
@@ -346,8 +353,20 @@ REQUIRE_2FA=True
 # ========================================
 # BRUTE FORCE PROTECTION (django-axes)
 # ========================================
-AXES_FAILURE_LIMIT=5
-AXES_COOLOFF_TIME=1  # hours
+# Optional overrides of Settings → Security (the field shows "set by environment")
+# AXES_FAILURE_LIMIT=5
+# AXES_COOLOFF_TIME=1  # hours
+
+# ========================================
+# CONTENT-SECURITY-POLICY
+# ========================================
+CSP_ENABLED=True       # False turns the header off entirely
+CSP_REPORT_ONLY=True   # False enforces; check the security.csp log first
+
+# ========================================
+# KEY ROTATION (only while rotating, or to restore older backups)
+# ========================================
+# APP_MASTER_KEY_PREVIOUS=<old key>[,<older key>]
 
 # ========================================
 # AI (Anthropic)
@@ -441,11 +460,23 @@ Client St0r uses **single-database multi-tenancy** with `organization_id` filter
 - See audit logs from other organizations
 - Make API requests for other organizations' data
 
+✅ **Customer users additionally CANNOT** (v3.17.599–600):
+- Open or edit another customer's contracts, invoices, projects, quotes, recurring schedules, purchase records, email-to-ticket configs, canned replies or client account by changing an ID, or create records for another customer by changing the client in a form
+- See tickets not marked as visible to the client, internal comments, or internal attachments (staff pages, portal and mobile app)
+- Open the global dashboard, edit global document templates, or read the MSP's global knowledge base through the APIs
+- Download an uploaded file attached to a record they cannot see
+
+MSP staff — superusers, users with Django's staff flag, and users whose **User Type** is *Staff* — work across every organization.
+
 ✅ **Enforced By**:
 - Database-level filtering (OrganizationManager)
-- View-level permissions (organization check)
+- View-level permissions (organization check, customer-user scoping)
+- Role view permissions (View passwords / documents / assets)
 - API-level filtering (DRF permissions)
-- Automated test suite (11 test cases)
+- A permission-checked view for every `/media/` download
+- Automated test suite
+
+⚠️ **Known gaps**: some role checks pass when a permission is set on *any* of the user's memberships rather than the record's organization; View files / monitors / integrations are not enforced; financial reports cover every organization (grant **View financial reports** to MSP staff only). These are tracked in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ### Testing Tenant Isolation
 
@@ -539,19 +570,19 @@ class FloorplanGenerateView(APIView):
 # Generate API key for user
 from api.models import APIKey
 
-api_key = APIKey.objects.create(
-    user=request.user,
+api_key, plaintext = APIKey.create_key(
+    organization=organization,
+    user=user,
     name='My API Key',
-    organization=request.organization
 )
-print(f'Key: {api_key.key}')  # Only shown once
+print(f'Key: {plaintext}')  # Only shown once; only the HMAC hash is stored
 
 # Use API key
-curl -H "Authorization: Api-Key YOUR_KEY_HERE" https://api.example.com/passwords/
+curl -H "Authorization: Bearer itdocs_live_YOUR_KEY" https://clientst0r.example.com/api/passwords/
 ```
 
 **Security Notes:**
-- API keys signed with `API_KEY_SECRET` (separate from `SECRET_KEY`)
+- API keys hashed with HMAC-SHA256 using `API_KEY_SECRET` (separate from `SECRET_KEY`)
 - Keys can be revoked without changing user password
 - Rate-limited via DRF throttles
 - Audit logged
@@ -679,102 +710,96 @@ Add your AI endpoints to this list to enable protection.
 ### Encryption Architecture
 
 ```
-Environment Variable
-    ↓
-APP_MASTER_KEY (plaintext in env)
-    ↓
-PBKDF2-SHA256 (100,000 iterations)
-    ↓
-Derived 32-byte Key
-    ↓
-Fernet Cipher (AES-256-GCM)
-    ↓
-Encrypted Secrets (database)
+APP_MASTER_KEY (environment, base64 of 32 bytes)
+  [+ APP_MASTER_KEY_PREVIOUS: older keys, decrypt only]
+    │
+    ├── HKDF-SHA256 (per purpose) ──► AES-256-GCM + associated data
+    │       vault passwords, TOTP secrets, personal vault (bound to the record)
+    │
+    ├── HKDF-SHA256 ("field secrets") ──► AES-256-GCM, bound to "<app>.<Model>.<field>"
+    │       stored as enc2$…: integration credentials, SMTP / SMS / LDAP passwords,
+    │       secure notes, API keys and client secrets, webhook secrets and headers, …
+    │
+    └── Fernet (derived from the master key)
+            encrypted backup archives
+
+API_KEY_SECRET ──► HMAC-SHA256 hashes (never reversible)
+        REST API keys, browser-extension tokens, inbound webhook tokens
 ```
+
+Older values written in earlier formats are still decrypted, and the v3.17.607 update
+converted existing plaintext and older-format values in place.
 
 ### What Gets Encrypted
 
-- ✅ Vault passwords (vault.Password.encrypted_password)
-- ✅ PSA connection credentials (integrations.PSAConnection.encrypted_credentials)
-- ✅ RMM connection credentials (integrations.RMMConnection.encrypted_credentials)
-- ✅ OAuth tokens (stored in credentials JSON)
-- ✅ API keys from external services (stored in credentials JSON)
-- ✅ Webhook secrets (if configured)
+- ✅ Vault passwords and TOTP secrets (`vault.Password`) — AES-256-GCM with per-purpose keys
+- ✅ Personal vault entries — same, bound to the owning user. Encrypted with the server's master key, not a per-user key
+- ✅ PSA, RMM, accounting, distributor and network-controller connection credentials, including OAuth tokens
+- ✅ SMTP password, SMS provider token, email-to-ticket mailbox passwords
+- ✅ LDAP bind password, Azure AD client secret
+- ✅ Warranty and security-scanner API keys, security-vendor and SIEM credentials, partner secrets, license keys, push-notification secrets, import API keys
+- ✅ Webhook signing secrets and custom header values
+- ✅ Hashed, not encrypted: REST API keys (only a prefix in plaintext), browser-extension tokens, inbound webhook tokens. Installed extensions and webhook URLs already configured at vendors kept working through the conversion
+- A few session and share-link tokens are being moved to hashed storage
+
+Run `python manage.py check_secrets_storage` to confirm nothing is stored unprotected. It
+prints table, column and primary key only — never values — and exits non-zero on any finding
+(`--strict` also fails on accepted exceptions; `--schema-only` skips the data scan, so it
+works in CI on an empty database).
 
 ### Key Generation
 
 ```bash
-# Generate new master key
-python manage.py secrets generate-key
+# Generate a new master key (base64 of 32 random bytes)
+python3 -c "import base64, os; print(base64.b64encode(os.urandom(32)).decode())"
 
-# Output: Base64-encoded 256-bit key
-# Example: gAAAAABhkj3KLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123456=
-
-# Set as environment variable
-export APP_MASTER_KEY='gAAAAABhkj3...'
+# Set it in .env (native) or the compose .env file (Docker)
+APP_MASTER_KEY=<the generated value>
 ```
+
+Back the key up somewhere other than the server. Without it, encrypted data in the database
+and in backups cannot be recovered.
 
 ### Key Rotation
 
-**When to Rotate:**
-- Annually (scheduled maintenance)
-- After suspected key compromise
-- When employee with key access leaves
-- After security incident
+`python manage.py rotate_encryption_key` re-encrypts every encrypted value under a new master
+key in one transaction. Each value is decrypted with the old key(s), encrypted with the new
+key and decrypted again with only the new key before anything is written; any failure rolls
+the whole run back and the command exits non-zero. `--dry-run` does the full round trip and
+rolls back.
 
-**How to Rotate:**
+Zero-downtime rotation (recommended):
 
 ```bash
-# Step 1: Generate new key
-NEW_KEY=$(python manage.py secrets generate-key)
-echo "New key: $NEW_KEY"
+# 1. Generate a new key
+python3 -c "import base64, os; print(base64.b64encode(os.urandom(32)).decode())"
 
-# Step 2: Rotate all secrets (re-encrypt with new key)
-python manage.py secrets rotate \
-    --old-key "$APP_MASTER_KEY" \
-    --new-key "$NEW_KEY"
+# 2. In .env: APP_MASTER_KEY=<new>, APP_MASTER_KEY_PREVIOUS=<old>; reload the app.
+#    It now writes with the new key and reads with both.
 
-# Output:
-# Rotating secrets...
-# Rotation complete: 156 secrets updated
-# PSAConnections: 12 updated
-# RMMConnections: 8 updated
-# Passwords: 136 updated
+# 3. Re-encrypt everything to APP_MASTER_KEY
+python manage.py rotate_encryption_key
 
-# Step 3: Update environment variable
-export APP_MASTER_KEY="$NEW_KEY"
-
-# Step 4: Update .env file or secret manager
-echo "APP_MASTER_KEY=$NEW_KEY" >> .env.prod
-
-# Step 5: Restart application
-systemctl restart clientst0r-gunicorn
-
-# Step 6: Verify
-python manage.py secrets validate
-# Output: All secrets configured correctly
+# 4. Remove APP_MASTER_KEY_PREVIOUS (or keep it while you may restore older backups) and reload.
 ```
+
+Offline alternative: stop the app, run
+`python manage.py rotate_encryption_key --new-key-file /root/new.key`, then set
+`APP_MASTER_KEY` to the new key and start it again.
+
+Not covered by rotation: hashed tokens (keyed by `API_KEY_SECRET`, not the master key) and
+backup archives already on disk — restore reads those while the old key is listed in
+`APP_MASTER_KEY_PREVIOUS`.
+
+If the key may be compromised, rotate it as above and also rotate the credentials stored in
+ClientSt0r at their source (integration API keys, vault passwords).
 
 ### Validation
 
 ```bash
-# Check configuration
-python manage.py secrets validate
-
-# Checks:
-# ✓ APP_MASTER_KEY is set
-# ✓ APP_MASTER_KEY can encrypt/decrypt
-# ✓ API_KEY_SECRET is set and differs from SECRET_KEY
-# ✓ SECRET_KEY is not using insecure default
-# ✓ ANTHROPIC_API_KEY is set (if using AI)
-
-# Example output (healthy):
-All secrets configured correctly
-
-# Example output (errors):
-Validation failed:
-  - APP_MASTER_KEY not set in production
-  - SECRET_KEY and API_KEY_SECRET must be different
+python manage.py check --deploy
+python manage.py shell -c "from vault.encryption import encrypt, decrypt; assert decrypt(encrypt('ok')) == 'ok'; print('APP_MASTER_KEY OK')"
+python manage.py check_secrets_storage
 ```
 
 ### Log Sanitization
@@ -853,38 +878,38 @@ SECURE_HSTS_SECONDS=31536000  # 1 year
 
 **Purpose**: Prevent XSS, clickjacking, code injection
 
-**Configuration:**
-```python
-# config/settings.py
-CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net")
-CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net")
-CSP_FONT_SRC = ("'self'", "data:", "cdn.jsdelivr.net")
-CSP_FRAME_SRC = ("'self'", "https://embed.diagrams.net")
-CSP_FRAME_ANCESTORS = ("'none'",)  # Clickjacking protection
-CSP_CONNECT_SRC = ("'self'", "https://embed.diagrams.net")
-CSP_IMG_SRC = ("'self'", "data:", "https://api.qrserver.com")
-CSP_OBJECT_SRC = ("'none'",)  # Block plugins
-CSP_BASE_URI = ("'self'",)
-CSP_FORM_ACTION = ("'self'",)
-CSP_UPGRADE_INSECURE_REQUESTS = True  # Upgrade HTTP → HTTPS
+Since v3.17.610 a Content-Security-Policy is sent on every HTML page by
+`core.csp_middleware.ContentSecurityPolicyMiddleware`, with a per-request nonce on inline
+`<script>` blocks (templates use `nonce="{{ csp_nonce }}"`).
+
+**Rollout:** it starts in **report-only** mode (`Content-Security-Policy-Report-Only`).
+Violations are reported to `CSP_REPORT_URI` (default `/csp-report/`, rate limited) and logged
+to the `security.csp` logger; nothing is blocked. Once the log is quiet, enforce it:
+
+```bash
+# .env
+CSP_REPORT_ONLY=False   # enforce (default True = report only)
+CSP_ENABLED=False       # emergency switch: send no CSP header at all
+CSP_REPORT_URI=         # empty = no report directive
 ```
 
-**Response Header:**
+**Policy** (`CSP_POLICY` in `config/settings.py`, summarised):
+
 ```
-Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; ...
+default-src 'self'
+script-src 'self' 'nonce-…' + the CDNs the templates load from
+script-src-attr 'unsafe-inline'      # remaining inline event handlers
+style-src 'self' 'unsafe-inline' + CDNs
+img-src 'self' data: blob: https:
+connect-src 'self' https://api.pwnedpasswords.com https://embed.diagrams.net
+frame-src 'self' https://embed.diagrams.net
+object-src 'none'; base-uri 'self'; form-action 'self'
+frame-ancestors 'none'               # 'self' on views that allow same-site framing
 ```
 
-**Future Improvement (Remove unsafe-inline):**
-```python
-# Use nonces for inline scripts
-CSP_SCRIPT_SRC = ("'self'", "'nonce-{nonce}'", "cdn.jsdelivr.net")
-
-# In template:
-<script nonce="{{ request.csp_nonce }}">
-    // Inline JS
-</script>
-```
+Inline `<script>` blocks need the nonce; inline event handlers and inline styles are still
+allowed while they are migrated. The in-app PDF preview, which allows same-site framing,
+gets `frame-ancestors 'self'`.
 
 ### Permissions-Policy (formerly Feature-Policy)
 
@@ -998,17 +1023,19 @@ class AIRequestThrottle(UserRateThrottle):
 
 ### Brute Force Protection (django-axes)
 
+The failed-login limit (default 5) and lockout duration (default 30 minutes) are set in
+**Settings → Security**. `AXES_FAILURE_LIMIT` and `AXES_COOLOFF_TIME` (hours), if set in the
+environment, override them and lock the fields.
+
 ```python
 # config/settings.py
-AXES_FAILURE_LIMIT = 5  # Lock after 5 failed attempts
-AXES_COOLOFF_TIME = 1   # Lock for 1 hour
 AXES_LOCK_OUT_BY_COMBINATION_USER_AND_IP = True
 AXES_RESET_ON_SUCCESS = True
 ```
 
 **How It Works:**
-- Tracks failed login attempts per username + IP combo
-- Locks account for 1 hour after 5 failures
+- Tracks failed login attempts per username + IP combo (LDAP users included)
+- Locks the account for the lockout duration after the failure limit
 - Resets counter on successful login
 - Stored in database (persistent across restarts)
 
@@ -1037,7 +1064,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ```
 
 **Requirements:**
-- ✅ Minimum 12 characters
+- ✅ Minimum length — 12 by default, set in Settings → Security (`PASSWORD_MIN_LENGTH` overrides)
+- ✅ Special-character rule — Settings → Security (`PASSWORD_REQUIRE_SPECIAL` overrides)
 - ✅ Not similar to username/email/first name/last name
 - ✅ Not in common password list (10,000+ passwords)
 - ✅ Not entirely numeric
@@ -1046,8 +1074,10 @@ AUTH_PASSWORD_VALIDATORS = [
 ### 2FA (Two-Factor Authentication)
 
 **Configuration:**
+**Require 2FA** is set in Settings → Security (on by default). The `REQUIRE_2FA` environment
+variable, if set, overrides it and locks the field. LDAP users follow the same rule.
+
 ```python
-REQUIRE_2FA = True  # Enforce for all users
 TWO_FACTOR_PATCH_ADMIN = False
 LOGIN_URL = 'two_factor:login'
 ```
@@ -1074,26 +1104,29 @@ Device.objects.filter(user=user).delete()
 **Features:**
 - Separate from user passwords
 - Can be revoked without changing password
+- Stop working when the owning user is deactivated, or when a customer user no longer belongs to the key's organization
+- No expiry date — delete keys you no longer use
 - Rate-limited via DRF throttles
 - Audit logged
 - Named (e.g., "Mobile App", "CI/CD")
+- Created from the web UI at `/api/keys/`
 
 **Generate:**
 ```python
 from api.models import APIKey
 
-api_key = APIKey.objects.create(
-    user=request.user,
+api_key, plaintext = APIKey.create_key(
+    organization=organization,
+    user=user,
     name='My App',
-    organization=request.organization
 )
-print(f'Key: {api_key.key}')  # Only shown once, hash stored
+print(f'Key: {plaintext}')  # Only shown once, hash stored
 ```
 
 **Use:**
 ```bash
-curl -H "Authorization: Api-Key YOUR_KEY_HERE" \
-    https://api.example.com/passwords/
+curl -H "Authorization: Bearer itdocs_live_YOUR_KEY" \
+    https://clientst0r.example.com/api/passwords/
 ```
 
 **Revoke:**
@@ -1129,6 +1162,25 @@ AZURE_AD_AUTO_CREATE_USERS=True  # Auto-create on first login
 - Updates user info on each login
 - Audit logged
 
+### LDAP / Active Directory
+
+Since v3.17.608, configured at **Settings → Directory** (`/core/settings/directory/`). Off
+until enabled, and it won't switch on with missing or invalid settings.
+
+- Requires the optional packages `django-auth-ldap` and `python-ldap`
+  (`pip install -r requirements-optional.txt`; `python-ldap` needs the system packages
+  listed in that file). The settings page says if they're missing.
+- Several servers; LDAPS or StartTLS with certificate checking (on by default, optional CA
+  file).
+- User search with attribute mapping; a required group (nested Active Directory groups
+  included); an optional MSP staff group that decides at each sign-in whether a user is
+  Staff or a customer user.
+- **Test connection** checks the bind and an optional user lookup without saving anything or
+  showing secrets. The bind password is stored encrypted.
+- Local accounts keep working, and a local superuser can always sign in if the directory is
+  down. LDAP users get the same 2FA rules and lockout as local users. LDAP never makes anyone
+  a superuser and never takes over an existing local account with the same username.
+
 ---
 
 ## Monitoring & Auditing
@@ -1136,6 +1188,11 @@ AZURE_AD_AUTO_CREATE_USERS=True  # Auto-create on first login
 ### Audit Logging
 
 **What Gets Logged:**
+
+Entries come from two sources: explicit audit events, and a request log that records every
+POST/PUT/DELETE and detail-page view (method, path, status, redacted form fields). Items
+below may be covered by either. Most changes are stored without before/after values.
+
 - ✅ Login/logout (success and failure)
 - ✅ Password changes
 - ✅ 2FA setup/changes
@@ -1247,10 +1304,7 @@ python manage.py run_snyk_scan
 python manage.py run_snyk_scan --severity-threshold high --json
 
 # Or via Web UI
-# Admin → Settings → Snyk Security → Run Scan Now button
-
-# Check status
-python manage.py check_snyk_status
+# Admin → Settings → Snyk Security → Run Scan Now button (/core/settings/snyk/)
 ```
 
 **Integration with CI/CD:**
@@ -1357,14 +1411,10 @@ git pull origin snyk-fix-<vuln-id>
 
 2. **Rotate Secrets:**
 ```bash
-# Rotate encryption key
-python manage.py secrets rotate --old-key $OLD --new-key $NEW
-
-# Update environment variable
-export APP_MASTER_KEY=$NEW_KEY
-
-# Restart
-systemctl restart clientst0r-gunicorn
+# Rotate the affected credentials at their source and re-enter them,
+# revoke API keys and browser-extension tokens, and reset user passwords.
+# If APP_MASTER_KEY may be exposed, rotate it (see Key Rotation):
+python manage.py rotate_encryption_key
 ```
 
 3. **Reset 2FA:**
@@ -1452,13 +1502,13 @@ See separate section below for copy/paste implementation guide.
 
 ---
 
-**Last Updated:** 2026-01-18
-**Version:** 2.24.148
+**Last reviewed:** 2026-10-15
+**Applies to:** the current 3.17.x line
 **Maintainer:** Client St0r Security Team
 
 ---
 
-## Implemented Controls (v2.20.0)
+## Implemented Controls
 
 ### Tier 1 — DRF Production Hardening
 - Browsable API disabled automatically in production (JSON-only when DEBUG=False)
@@ -1475,7 +1525,7 @@ See separate section below for copy/paste implementation guide.
 - SSL redirect enabled in production
 - Proxy SSL header configured
 - Referrer-Policy: strict-origin-when-cross-origin
-- CSP hardening: frame-ancestors 'none', object-src 'none', base-uri 'self', form-action 'self'
+- Content-Security-Policy with per-request script nonces, report-only by default (`CSP_REPORT_ONLY`, `CSP_ENABLED`); frame-ancestors 'none', object-src 'none', base-uri 'self', form-action 'self'
 - Permissions-Policy defaults deny sensitive browser capabilities
 - Custom header middleware: `core/security_headers_middleware.py`
 
@@ -1488,17 +1538,16 @@ See separate section below for copy/paste implementation guide.
   - manager filtering and foreign key constraints
 
 ### Tier 4 — Secrets Management & Rotation
-- Centralized encryption/decryption utilities: `core/secrets_management.py`
-- Key derivation: PBKDF2-SHA256
-- Rotation command re-encrypts all encrypted fields:
-  - vault passwords, PSA/RMM credentials, encrypted fields
-- Log sanitization utilities included
+- Encryption utilities: `vault/encryption_v2.py` (vault, HKDF + AES-256-GCM), `vault/secret_fields.py` (encrypted model fields and token hashing for every other stored secret) and `vault/encryption.py` (key handling, older formats)
+- Key rotation: `manage.py rotate_encryption_key` with `APP_MASTER_KEY_PREVIOUS`
+- Storage audit: `manage.py check_secrets_storage`
+- Log sanitization utilities: `core/secrets_management.py`
 
 ### Tier 5 — AI Endpoint Abuse Controls
 - Per-user and per-org request limits + burst control
 - Per-user and per-org spend caps (budget protection)
 - Prompt size limits
-- PII redaction (email/phone/SSN/card/key patterns)
+- PII redaction (email/phone/SSN/card/key patterns) — implemented but not yet wired into the AI features
 - Standard 429 response payload includes reset window info
 
 ---
@@ -1506,21 +1555,20 @@ See separate section below for copy/paste implementation guide.
 ## Operational Runbook
 
 ### Secrets
-- Validate: `python manage.py secrets validate`
-- Generate key: `python manage.py secrets generate-key`
-- Rotate: `python manage.py secrets rotate --old-key ... --new-key ...`
+- Validate: `python manage.py check --deploy`, plus the encrypt/decrypt check under [Validation](#validation)
+- Generate key: `python3 -c "import base64, os; print(base64.b64encode(os.urandom(32)).decode())"`
+- Rotate: `python manage.py rotate_encryption_key` — see [Key Rotation](#key-rotation)
+- Audit: `python manage.py check_secrets_storage`
 
 ### Tenant Boundary Verification
 - Run isolation tests: `python manage.py test core.tests.test_tenant_isolation -v 2`
 
 ### Header Verification
-- Validate response headers and CSP after deployment (CSP changes require careful rollout)
+- Validate response headers after deployment. CSP ships in report-only mode: watch the `security.csp` log, then set `CSP_REPORT_ONLY=False` to enforce
 
 ---
 
 ## Phase 2 Roadmap (Configuration Committed, Requires Activation)
-
-**See:** `docs/PHASE2_SECURITY.md` for full implementation guide
 
 ### CI Security Pipeline
 - ✅ Semgrep (SAST with OWASP Top 10 + Python rules)
@@ -1537,13 +1585,13 @@ See separate section below for copy/paste implementation guide.
 ### Database Hardening
 - ⏳ Least-privilege DB users (requires manual SQL)
 - ⏳ TLS to database (if remote, requires CA cert)
-- ⏳ Encrypted backups + restore tests (ops task)
+- ✅ Encrypted backups (`manage.py backup`); ⏳ scheduled backups and restore tests
 
 ### Attack Surface Polish
-- ⏳ CSP reporting endpoint (Report-Only rollout)
+- ✅ CSP reporting endpoint (`/csp-report/`) and report-only rollout; ⏳ enforcing by default
 - ⏳ Per-endpoint request body limits
-- ⏳ Upload validation (MIME + magic bytes)
-- ⏳ API key hashing (store only hashed keys)
+- ⏳ Upload validation (MIME + magic bytes) — done for the files app and ticket attachments; not yet for document bulk upload
+- ✅ API key hashing (HMAC-SHA256; only a prefix stored in plaintext)
 
-**Activation:** Most Phase 2 features activate automatically on next push. See Phase 2 docs for manual steps.
+**Activation:** CI checks run on push; the database items are manual operator steps.
 

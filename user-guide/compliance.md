@@ -75,23 +75,23 @@ The **Recertification** card at the top of the checklist controls reminder caden
 
 | Field | Default | Notes |
 |---|---|---|
-| **Send email reminders** | ON | Toggle off to silence the cron for this enrollment |
+| **Send email reminders** | ON | Toggle off to silence reminders for this enrollment |
 | **Interval** | 365 days (annual) | Choose Monthly / Bi-monthly / Quarterly / Semi-annual / Annual |
 | **Notify email override** | blank | If blank, falls back to org owner/admin Membership email, then `DEFAULT_FROM_EMAIL` |
 | **Mark Recertified Now** | — | Stamps `last_recertified_at = now`; the next reminder fires `interval_days` from today |
 
 Click **Save settings** to persist the toggle / interval / email override.
 
-### How the cron runs
+### How reminders are sent
 
-Reminders are sent by the `send_compliance_recertifications` management command, scheduled daily:
+Reminders are sent by the `send_compliance_recertifications` task, which the built-in scheduler runs daily (*Settings → Scheduler*, `/core/settings/scheduler/`; no crontab needed). You can also run it by hand:
 
 ```bash
 python manage.py send_compliance_recertifications        # send due reminders
 python manage.py send_compliance_recertifications --dry-run   # preview only
 ```
 
-**Idempotent + 7-day dedup:** the command writes a `RecertificationReminder` row each time it sends. If the cron fires twice for the same enrollment within 7 days, the second send is suppressed.
+**Idempotent + 7-day dedup:** the command writes a `RecertificationReminder` row each time it sends. If the task runs twice for the same enrollment within 7 days, the second send is suppressed.
 
 ---
 
@@ -140,5 +140,5 @@ Each control row carries the full subsection ref (e.g., `164.308(a)(1)(ii)(A)`).
 
 ## Related
 
-- **[Phase 39 — Compliance Evidence Packs](../docs/ROADMAP.md)** — single-ZIP audit bundle for SOC2 / ISO27001 / due-diligence requests.
+- **[Phase 39 — Compliance Evidence Packs](../docs/ROADMAP.md)** — a single ZIP of supporting evidence (2FA status, user access, password history, assets, SLA, certificate and uptime summaries, vulnerabilities) for audits and customer due-diligence requests. It does not include the attestation answers or evidence links; download the PDF report for those. Only PCI-DSS and HIPAA control catalogs are seeded.
 - **[Reports & Analytics](reports.md)** — the same `reports.pdf_export` helper renders branded PDFs for invoices, quotes, and compliance reports.

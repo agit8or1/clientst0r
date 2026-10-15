@@ -40,11 +40,16 @@ narration track. [Transcript](docs/media/walkthrough.txt) ·
 contract, the asset it concerns, the runbook that covers it and the vault entries the
 technician will need — without leaving the ticket or opening a second product. Secrets are
 never rendered into the ticket page; opening one goes through the vault's own permissions
-and is logged.
+and is logged. Documentation readiness standards score every client against what should be
+documented, explain each gap and queue the fixes; documents have owners, review dates,
+drafts, version compare and restore.
 
 **A service desk you own, not one you rent.** Queues, SLA timers with pause logic, time
 entries, quotes, invoices, contracts, projects, approvals and workflow rules are built in
-and run on your server. Your ticket history and your client data stay in your database, on
+and run on your server. Each technician starts from **My Work** — their tickets in SLA
+order, running timers, customer replies and approvals — and customers request services
+through guided portal forms that route, ask for approval and track progress in plain
+language. Your ticket history and your client data stay in your database, on
 your hardware, under your backup policy.
 
 **One tenant per client, from day one.** Every asset, document, credential, location and
@@ -92,7 +97,7 @@ apart from client replies, and the credentials the job needs, listed but never r
 </tr>
 </table>
 
-**[See all 28 screenshots →](docs/screenshots.md)** — light and dark, across documentation,
+**[See all screenshots →](docs/screenshots.md)** — light and dark, across documentation,
 the service desk, dispatch, projects, reporting and administration.
 
 ## Quick Start
@@ -140,8 +145,14 @@ Full guide: **[INSTALL.md](INSTALL.md)**.
 
 1. Sign in and enrol 2FA — it is enforced for every account by default.
 2. Create your first client organization under **Admin → Organizations**.
-3. Turn the service desk on under **Admin → System → Settings → Feature Toggles** (`psa_enabled` is off by
+3. Add your technicians under **Admin → Access Management** and set their **User Type** to
+   **Staff**. Staff users work across every client; everyone else is treated as a customer
+   user and sees only their own organizations, only tickets shared with them, and no
+   internal notes.
+4. Turn the service desk on under **Admin → System → Settings → Feature Toggles** (`psa_enabled` is off by
    default, so the PSA menu stays hidden until you switch it on).
+5. Check **Settings → Scheduler**. Recurring invoices, email-to-ticket, SLA checks and the
+   other periodic jobs run from this built-in scheduler; no crontab is needed.
 
 ## Updating and backups
 
@@ -154,7 +165,9 @@ CLI fallback:
 git pull && python manage.py migrate && sudo systemctl restart clientst0r-gunicorn.service
 ```
 
-Under Docker, `docker compose pull && docker compose up -d`.
+Under Docker, `docker compose pull && docker compose up -d`. There is no automatic rollback;
+see [AUTO_UPDATE.md](AUTO_UPDATE.md) for what an update does and
+[the manual update guide](docs/MANUAL_UPDATE_GUIDE.md) for recovery.
 
 **Back up before every upgrade.** The bundled command writes the database and media to a
 single archive:
@@ -163,27 +176,43 @@ single archive:
 python manage.py backup --output-dir /var/backups/clientst0r --encrypt --retention-days 30
 ```
 
-Docker users: see [Backups](docs/docker.md#backups) for the volume-level equivalent.
+Keep a copy of `APP_MASTER_KEY` (from `.env`) somewhere other than the server: without it,
+the vault entries and stored credentials in a backup cannot be decrypted. Docker users: see
+[Backups](docs/docker.md#backups) for the volume-level equivalent.
 
 ## Supported versions and limitations
 
 - Security fixes land on the current **3.17.x** line. See [SECURITY.md](SECURITY.md).
 - **Single-server by design.** There is no clustered or multi-node deployment story; it
   targets one VM or one container host per MSP.
-- **Self-hosted only.** There is no hosted service and no public demo instance — you run it.
+- **Self-hosted software.** You run it on your own server, and there is no public demo
+  instance. Optional managed hosting and support are offered separately by
+  [MSP Reboot](#msp-reboot).
 - **The service desk is opt-in.** `psa_enabled` is off until an administrator turns it on.
-- **AI-assisted features are optional** and gated behind `psa_ai_enabled`. Nothing calls an
-  external model unless you enable it and supply a key.
+- **AI-assisted features are optional.** Nothing calls an AI provider until you configure
+  one; the documentation and service desk AI features are also gated behind
+  `psa_ai_enabled`, which is off by default. Documentation AI can use a local Ollama model.
 - Third-party PSA and RMM integrations (ConnectWise, Autotask, HaloPSA, NinjaOne, Datto RMM,
   Syncro, Atera and others) are supported for teams that already run one — but the service
   desk here is native, not a front end for someone else's.
 
 ## Security
 
-- Enforced TOTP 2FA, Argon2 password hashing, brute-force lockout, session timeouts.
-- AES-GCM encryption at rest for vault entries, integration credentials and API keys.
+- Enforced TOTP 2FA, Argon2 password hashing, brute-force lockout, idle and maximum
+  session length — all set in Settings → Security, with environment variables taking
+  precedence when set.
+- AES-256-GCM encryption at rest for vault entries and every other stored secret
+  (integration, SMTP/SMS, directory and webhook credentials); tokens the app only compares
+  are stored as hashes. `manage.py rotate_encryption_key` rotates the master key and
+  `manage.py check_secrets_storage` audits storage.
 - Per-entry vault access rules, approval and break-glass flows, audited reveals.
-- Optional Azure AD / Entra ID SSO and LDAP / Active Directory authentication.
+- Role permissions for viewing passwords, documents and assets are enforced across the web
+  UI, search, the APIs and the mobile app. Customer users see only their own organizations
+  and only the tickets you share with them.
+- Uploaded files are served only after a permission check on the record they belong to.
+- Optional Azure AD / Entra ID single sign-on and LDAP / Active Directory sign-in.
+- Content-Security-Policy with per-request nonces, in report-only mode by default
+  (`CSP_REPORT_ONLY=False` to enforce).
 - CodeQL and dependency scanning run on every push to `main` and weekly.
 
 **Found a vulnerability?** Please report it privately via
@@ -230,8 +259,8 @@ ClientSt0r is built by the people behind **[MSP Reboot](https://mspreboot.com)**
 consulting practice run by a former 25-year MSP owner, working with owners on pricing,
 operations, margins, service delivery and technology strategy.
 
-**Managed hosting and commercial support are available** through MSP Reboot for teams
-that would rather not run it themselves, or want someone on the hook when something
+ClientSt0r is self-hosted software. **Optional managed hosting and commercial support**
+are offered separately by MSP Reboot for teams that would rather not run it themselves, or want someone on the hook when something
 breaks. [Get in touch](https://mspreboot.com) for scope and pricing.
 
 None of that is required to use ClientSt0r. The software is MIT-licensed and every

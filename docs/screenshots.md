@@ -1,6 +1,6 @@
 # ClientSt0r — screenshot gallery
 
-30 views of the running application — 16 in the light theme, 14 in dark. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
+40 views of the running application — 22 in the light theme, 18 in dark. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
 
 All organizations, people, hostnames, addresses and credentials below are invented. Domains use the reserved `.example` TLD and addresses are RFC 1918. Nothing is masked after the fact because nothing needed masking — the application never renders a secret into a list, a ticket or a report.
 
@@ -10,11 +10,11 @@ All organizations, people, hostnames, addresses and credentials below are invent
 
 ## Contents
 
-- [Overview and dashboards](#overview-and-dashboards) — 3 views
-- [Visual insights and monitoring](#visual-insights-and-monitoring) — 11 views
-- [Everyday workflows](#everyday-workflows) — 11 views
+- [Overview and dashboards](#overview-and-dashboards) — 4 views
+- [Visual insights and monitoring](#visual-insights-and-monitoring) — 15 views
+- [Everyday workflows](#everyday-workflows) — 14 views
 - [Management and configuration](#management-and-configuration) — 3 views
-- [Access and administration](#access-and-administration) — 2 views
+- [Access and administration](#access-and-administration) — 4 views
 
 ---
 
@@ -29,6 +29,14 @@ Where a technician starts the day, and where an owner looks at the whole book of
 [![Client dashboard in light theme with quick actions, record counts, a seven-day schedule, outstanding tasks, monitor status and a site map](images/github/client-dashboard-light.png)](images/github/client-dashboard-light.png)
 
 Open a client and see the week ahead: scheduled tickets, maintenance falling due, monitor status, and where their sites are.
+
+### My Work
+
+**Light theme**
+
+[![My Work page in light theme with a running timer, open tickets sorted by SLA, a customer-replied list, waiting-on-us and waiting-on-customer tabs, pending approvals and upcoming appointments](images/github/my-work-light.png)](images/github/my-work-light.png)
+
+Everything waiting on one technician: a running timer with a stop button, open tickets in SLA order, tickets where the customer has replied, the waiting-on-us and waiting-on-customer queues, pending approvals and the week's appointments. Each count matches the list its link opens.
 
 ### Every client at once
 
@@ -140,6 +148,38 @@ Which frameworks a client is enrolled in, how far through the attestation they a
 
 Per-control status, notes and an evidence link, with who last reviewed it and when — the record you hand an auditor.
 
+### Documentation readiness
+
+**Light theme**
+
+[![Documentation readiness overview in light theme listing customers with readiness scores and unmet requirement counts](images/github/readiness-overview-light.png)](images/github/readiness-overview-light.png)
+
+Each customer scored against the documentation standards in force, worst first, with a count of unmet requirements.
+
+### Readiness for one customer
+
+**Dark theme**
+
+[![Readiness page for one customer in dark theme showing a Microsoft 365 documentation standard with met and unmet requirements and fix buttons](images/github/readiness-customer-dark.png)](images/github/readiness-customer-dark.png)
+
+Every requirement in a standard, met or unmet, with a plain explanation of what is missing, why it matters, the records that satisfy it and a link to fix it.
+
+### Readiness repair queue
+
+**Light theme**
+
+[![Readiness repair queue in light theme listing unmet requirements per customer with what is missing, the owner and a fix action](images/github/readiness-repair-light.png)](images/github/readiness-repair-light.png)
+
+Everything unmet across customers in one list, filterable by customer, standard and owner. Excepted items are left out.
+
+### KB analytics
+
+**Light theme**
+
+[![KB analytics page in light theme with most viewed, past review date and never viewed tables and a list of top zero-result searches](images/github/kb-analytics-light.png)](images/github/kb-analytics-light.png)
+
+Most viewed and never viewed articles, articles past their review date with their owner, and searches that found nothing. Only zero-result searches are kept, for 90 days, and vault searches are never recorded.
+
 ---
 
 ## Everyday workflows
@@ -161,6 +201,14 @@ Every client in one queue. Filter by status, priority, queue or technician; the 
 [![Ticket detail in light theme showing the client's active contract, SLA countdown, internal and client-visible activity, the linked asset, vault context with secrets hidden, and logged time](images/github/ticket-detail-light.png)](images/github/ticket-detail-light.png)
 
 Contract and hours used, the SLA countdown, internal notes kept apart from client replies, the linked asset, and the credentials this job needs — listed, never revealed.
+
+### Internal note composer
+
+**Dark theme**
+
+[![Ticket reply composer in dark theme switched to Internal note, with an amber box labelled staff only and a restored draft](images/github/ticket-composer-dark.png)](images/github/ticket-composer-dark.png)
+
+Public reply and internal note are separate modes. An internal note gets an amber composer that says it is never sent to the client, and an unsent reply is saved as a draft only its author can see.
 
 ### Client documentation
 
@@ -234,6 +282,22 @@ Block hours with rollover rules, auto-renewal, and a profitability snapshot for 
 
 Tasks, milestones and assignees with budget consumption and profitability rolled up from the work already logged.
 
+### Request a service (customer portal)
+
+**Light theme**
+
+[![Customer portal Employee onboarding request form in light theme with filled-in fields, a conditional laptop type question and a what-to-expect panel](images/github/portal-request-form-light.png)](images/github/portal-request-form-light.png)
+
+A customer fills in a guided form from the service catalog. Questions can appear only when relevant (the laptop type appears once "Needs a laptop" is ticked), and the side panel says how long it usually takes and whether approval is needed.
+
+### Document version compare
+
+**Dark theme**
+
+[![Document version comparison in dark theme showing removed and added lines between version 1 and the current runbook, with a restore button](images/github/document-version-diff-dark.png)](images/github/document-version-diff-dark.png)
+
+Compare any stored version of a document with the current one, line by line, and restore it if needed. A restore is audited and keeps the replaced content as a version.
+
 ---
 
 ## Management and configuration
@@ -285,6 +349,22 @@ Every client is its own tenant. Membership decides who sees what; switching clie
 [![Feature toggle settings in light theme showing switches for optional modules including the native PSA service desk](images/github/feature-toggles-light.png)](images/github/feature-toggles-light.png)
 
 The service desk, AI assistance and other modules are opt-in — off until an administrator turns them on.
+
+### Scheduler
+
+**Dark theme**
+
+[![Task scheduler settings in dark theme listing periodic jobs with run history, one failed recurring-invoice job showing its error message, and late fees switched off](images/github/settings-scheduler-dark.png)](images/github/settings-scheduler-dark.png)
+
+The built-in scheduler's periodic jobs with their interval, last and next run, status and run count. A job that reports a problem shows its error here, such as recurring invoicing skipping a contract that is more than one period behind. Late fees are off until you turn them on.
+
+### Security settings
+
+**Light theme**
+
+[![Security settings page in light theme with session, 2FA, password policy and brute-force fields, two of them marked Set by environment](images/github/settings-security-light.png)](images/github/settings-security-light.png)
+
+Session limits, 2FA, password rules and lockout are set here and take effect when saved. A value fixed by an environment variable is marked "Set by environment" and can only be changed on the server.
 
 ---
 
