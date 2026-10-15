@@ -281,8 +281,10 @@ def post_reply(request, ticket_number):
         author_email=request.user.email or '',
         parent_comment=parent,
     )
-    ticket.last_client_response_at = timezone.now()
-    ticket.save(update_fields=['last_client_response_at'])
+    # Same bookkeeping as an inbound customer email (psa/my_work.py): stamp
+    # the reply and take the ticket out of any waiting-on-client status.
+    from psa.my_work import record_customer_reply
+    record_customer_reply(ticket, via='portal')
     messages.success(request, 'Reply added.')
     return redirect('portal:ticket_detail', ticket_number=ticket_number)
 

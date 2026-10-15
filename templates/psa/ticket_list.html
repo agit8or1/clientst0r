@@ -13,7 +13,8 @@
         </p>
     </div>
     <div class="ui-page-head__actions">
-        <a href="{% url 'psa:ticket_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New ticket</a>
+        <a href="{% url 'psa:my_work' %}" class="btn btn-outline-primary"><i class="fas fa-user-check"></i> My Work</a>
+        <a href="{% url 'psa:ticket_create' %}"class="btn btn-primary"><i class="fas fa-plus"></i> New ticket</a>
     </div>
 </div>
 
@@ -59,9 +60,16 @@ Bootstrap columns that collapse awkwardly between breakpoints.
         <label class="ui-field__label" for="tkQueue">Queue</label>
         <select id="tkQueue" name="queue" class="form-select">
             <option value="">Any queue</option>
+            <optgroup label="Work queues">
+                {% for key, label in work_queues.items %}
+                <option value="{{ key }}" {% if work_queue == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </optgroup>
+            <optgroup label="Queues">
             {% for q in available_queues %}
             <option value="{{ q.id }}" {% if filter_values.queue == q.id|stringformat:"s" %}selected{% endif %}>{{ q.name }}</option>
             {% endfor %}
+            </optgroup>
         </select>
     </div>
     <div class="ui-field">
@@ -90,6 +98,7 @@ Bootstrap columns that collapse awkwardly between breakpoints.
     {% for s in available_statuses %}{% if filter_values.status == s.id|stringformat:"s" %}<span class="ui-chip">{{ s.name }}</span>{% endif %}{% endfor %}
     {% for p in available_priorities %}{% if filter_values.priority == p.id|stringformat:"s" %}<span class="ui-chip">{{ p.name }}</span>{% endif %}{% endfor %}
     {% for q in available_queues %}{% if filter_values.queue == q.id|stringformat:"s" %}<span class="ui-chip">{{ q.name }}</span>{% endif %}{% endfor %}
+    {% if work_queue %}{% for key, label in work_queues.items %}{% if key == work_queue %}<span class="ui-chip"><i class="fas fa-inbox"></i> {{ label }}</span>{% endif %}{% endfor %}{% endif %}
     {% if filter_values.assigned == "me" %}<span class="ui-chip">Assigned to me</span>{% endif %}
     {% if filter_values.assigned == "unassigned" %}<span class="ui-chip">Unassigned</span>{% endif %}
     <a href="{% url 'psa:ticket_list' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times"></i> Clear all</a>

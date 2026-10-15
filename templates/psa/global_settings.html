@@ -71,6 +71,13 @@
                             <small class="text-muted d-block">Monitoring webhooks → tickets.</small>
                         </label>
                     </div>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="psa_closeout_require_time" name="psa_closeout_require_time" {% if settings.psa_closeout_require_time %}checked{% endif %}>
+                        <label class="form-check-label" for="psa_closeout_require_time">
+                            <strong>Require time logged to close</strong>
+                            <small class="text-muted d-block">A ticket can't be resolved or closed until someone has logged time on it.</small>
+                        </label>
+                    </div>
 
                     <hr>
 

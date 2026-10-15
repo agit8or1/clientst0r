@@ -229,6 +229,18 @@ def _route_for_sender(sender_email: str, msp_org):
     return None
 
 
+def _is_staff_sender(sender_email: str) -> bool:
+    """True when the From address belongs to an active MSP staff user — a tech
+    replying from their mailbox is not the customer answering."""
+    if not sender_email:
+        return False
+    from django.contrib.auth import get_user_model
+    from psa.visibility import is_msp_staff
+    users = get_user_model().objects.filter(
+        email__iexact=sender_email, is_active=True)
+    return any(is_msp_staff(u) for u in users[:5])
+
+
 def _thread_target(msg, organization) -> Ticket | None:
     """
     Header-based threading. Returns the matching Ticket or None.
@@ -507,6 +519,17 @@ class Command(BaseCommand):
                 source='email',
             )
             result = 'replied'
+            # A reply from the customer (not from one of our own staff
+            # addresses) puts the ticket back in the technician's court:
+            # stamp last_client_response_at and leave any waiting-on-client
+            # status — the same bookkeeping the portal reply path does.
+            if not _is_staff_sender(from_email):
+                try:
+                    from psa.my_work import record_customer_reply
+                    record_customer_reply(target, via='email')
+                except Exception:
+                    logger.exception('customer-reply bookkeeping failed for %s',
+                                     target.ticket_number)
         else:
             # New tickets keep the full body so context (quoted screenshots /
             # FYI) isn't lost.

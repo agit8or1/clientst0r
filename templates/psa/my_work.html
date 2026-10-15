@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% load psa_ui %}
+{% block title %}My Work{% endblock %}
+{% block content %}
+{% comment %}
+Technician workspace. Queue definitions (open / customer replied / waiting on
+us / waiting on customer) live in psa/my_work.py and are shared with the ticket
+list's ?queue= filter, so every count below equals the list its link opens.
+{% endcomment %}
+
+<div class="ui-page-head">
+    <div class="ui-page-head__main">
+        <h1 class="ui-page-title"><i class="fas fa-user-check"></i> My Work</h1>
+        <p class="ui-page-sub">
+            {{ open_sec.count }} open · {{ replied_sec.count }} customer repl{{ replied_sec.count|pluralize:"y,ies" }} · {{ timers|length }} running timer{{ timers|length|pluralize }}{% if is_staff_view %} · {{ approvals_total }} pending approval{{ approvals_total|pluralize }}{% endif %}
+        </p>
+    </div>
+    <div class="ui-page-head__actions">
+        <a href="{% url 'psa:ticket_list' %}" class="btn btn-outline-secondary"><i class="fas fa-list"></i> All tickets</a>
+        <a href="{% url 'psa:ticket_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New ticket</a>
+    </div>
+</div>
+
+{% if timers %}
+<div class="card mb-3 border-warning" id="mw-timers">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <h2 class="h6 mb-0"><i class="fas fa-stopwatch"></i> Running timers <span class="badge bg-warning text-dark">{{ timers|length }}</span></h2>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for t in timers %}
+        <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="ui-wrap">
+                <a class="ui-primary-cell" href="{% url 'psa:ticket_detail' t.entry.ticket.ticket_number %}">{{ t.entry.ticket.subject }}</a>
+                <div class="ui-ref">{{ t.entry.ticket.ticket_number }} · {{ t.entry.ticket.organization.name }}{% if t.entry.is_billable %} · billable{% endif %}</div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="font-monospace fw-semibold mw-elapsed" data-elapsed="{{ t.elapsed_seconds }}" title="Started {{ t.entry.started_at }}">{{ t.elapsed }}</span>
+                <form method="post" action="{% url 'psa:timer_stop' t.entry.ticket.ticket_number %}" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'psa:my_work' %}">
+                    <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-stop"></i> Stop</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-lg-8">
+
+        {# 1. My open tickets, soonest SLA first #}
+        <div class="card mb-3" id="mw-open">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0"><i class="fas fa-ticket-alt"></i> My open tickets <span class="badge bg-primary">{{ open_sec.count }}</span></h2>
+                <a href="{{ open_sec.url }}" class="small text-decoration-none">View all</a>
+            </div>
+            {% include "psa/_my_work_tickets.html" with sec=open_sec empty="Nothing assigned to you is open." %}
+        </div>
+
+        {# 3. Customer replied #}
+        <div class="card mb-3" id="mw-replied">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0"><i class="fas fa-reply"></i> Customer replied <span class="badge bg-danger">{{ replied_sec.count }}</span></h2>
+                <a href="{{ replied_sec.url }}" class="small text-decoration-none">View all</a>
+            </div>
+            {% include "psa/_my_work_tickets.html" with sec=replied_sec empty="No customer is waiting on a reply from you." %}
+        </div>
+
+        {# 4. Waiting on us / waiting on customer #}
+        <div class="card mb-3" id="mw-waiting">
+            <div class="card-header py-2">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <ul class="nav nav-tabs card-header-tabs">
+                        <li class="nav-item">
+                            <a class="nav-link {% if tab == 'waiting_us' %}active{% endif %}" href="?tab=waiting_us{% if scope_all %}&scope=all{% endif %}">
+                                Waiting on us <span class="badge bg-secondary">{{ waiting_us.count }}</span></a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if tab == 'waiting_customer' %}active{% endif %}" href="?tab=waiting_customer{% if scope_all %}&scope=all{% endif %}">
+                                Waiting on customer <span class="badge bg-secondary">{{ waiting_customer.count }}</span></a>
+                        </li>
+                    </ul>
+                    {% if is_staff_view %}
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Scope">
+                        <a href="?tab={{ tab }}" class="btn {% if not scope_all %}btn-primary{% else %}btn-outline-primary{% endif %}">My tickets</a>
+                        <a href="?tab={{ tab }}&scope=all" class="btn {% if scope_all %}btn-primary{% else %}btn-outline-primary{% endif %}">All tickets</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% if tab == 'waiting_customer' %}
+                {% include "psa/_my_work_tickets.html" with sec=waiting_customer empty="Nothing is waiting on a customer." show_assignee=scope_all %}
+                <div class="card-footer py-1 small"><a href="{{ waiting_customer.url }}" class="text-decoration-none">View all waiting on customer</a></div>
+            {% else %}
+                {% include "psa/_my_work_tickets.html" with sec=waiting_us empty="Nothing is waiting on us." show_assignee=scope_all %}
+                <div class="card-footer py-1 small"><a href="{{ waiting_us.url }}" class="text-decoration-none">View all waiting on us</a></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        {# 6. Appointments #}
+        <div class="card mb-3" id="mw-appointments">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0"><i class="fas fa-calendar-days"></i> Appointments <span class="badge bg-info text-dark">{{ appointments|length }}</span></h2>
+                <a href="{% url 'scheduling:my_tasks' %}" class="small text-decoration-none">View all</a>
+            </div>
+            {% if appointments %}
+            <div class="list-group list-group-flush">
+                {% for a in appointments %}
+                <a href="{% url 'scheduling:task_detail' a.task.pk %}" class="list-group-item list-group-item-action py-2">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="me-2 ui-wrap">
+                            <span class="small">{{ a.task.title }}</span>
+                            {% if a.task.organization_id %}<div class="text-muted" style="font-size:.75rem;">{{ a.task.organization.name }}</div>{% endif %}
+                        </div>
+                        <small class="text-nowrap {% if a.bucket == 'overdue' %}text-danger fw-semibold{% else %}text-muted{% endif %}">
+                            {% if a.bucket == 'overdue' %}Overdue{% elif a.bucket == 'today' %}Today {{ a.due|date:"H:i" }}{% else %}{{ a.due|date:"D j M H:i" }}{% endif %}
+                        </small>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-3 small">Nothing scheduled for you in the next 7 days.</div>
+            {% endif %}
+        </div>
+
+        {# 5. Approvals (MSP staff) #}
+        {% if is_staff_view %}
+        <div class="card mb-3" id="mw-approvals">
+            <div class="card-header py-2">
+                <h2 class="h6 mb-0"><i class="fas fa-circle-check"></i> Pending approvals <span class="badge bg-success">{{ approvals_total }}</span></h2>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for q in approvals %}
+                <div class="list-group-item py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small fw-semibold"><i class="fas {{ q.icon }} text-muted"></i> {{ q.label }} <span class="badge bg-secondary">{{ q.count }}</span></span>
+                        <a href="{{ q.url }}" class="small text-decoration-none">Open queue</a>
+                    </div>
+                    {% for item in q.items %}
+                    <div class="small ms-3 mt-1 ui-wrap"><a href="{{ item.url }}" class="text-decoration-none">{{ item.title }}</a>{% if item.context %} <span class="text-muted">· {{ item.context }}</span>{% endif %}</div>
+                    {% endfor %}
+                </div>
+                {% empty %}
+                <div class="list-group-item text-muted small">No approval queues apply to you.</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Tick the running-timer clocks once a minute; the server value is the truth
+// on every reload.
+(function () {
+    var els = document.querySelectorAll('.mw-elapsed');
+    if (!els.length) return;
+    var t0 = Date.now();
+    setInterval(function () {
+        var extra = Math.floor((Date.now() - t0) / 1000);
+        els.forEach(function (el) {
+            var s = parseInt(el.getAttribute('data-elapsed'), 10) + extra;
+            var m = Math.floor((s % 3600) / 60);
+            el.textContent = Math.floor(s / 3600) + ':' + (m < 10 ? '0' : '') + m;
+        });
+    }, 30000);
+})();
+</script>
+{% endblock %}

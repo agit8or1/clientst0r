@@ -5,6 +5,39 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.604] - 2026-10-15
+
+### Technician workspace
+
+- **My Work** (`/psa/my-work/`, first item in the PSA menu and a button on the
+  dashboard): your open tickets in SLA order, your running timers on every
+  ticket with a stop button, tickets where the customer has replied,
+  "waiting on customer" and "waiting on us" queues, your pending approvals, and
+  today's and upcoming appointments. Every count matches the list its link
+  opens; the ticket list gains the same queue filters.
+- **Reply drafts** save as you type and come back when you return to the
+  ticket. Only you can see your drafts.
+- **Collision warnings:** the ticket shows who else is viewing or replying, and
+  a reply isn't posted over activity you haven't seen — your text is kept and
+  the new activity is highlighted so you can confirm.
+- **Public vs internal is unmistakable:** an explicit Public reply / Internal
+  note toggle, an amber internal composer, and a confirmation listing the
+  recipient before a public reply is emailed.
+- **Keyboard shortcuts** on the ticket page: `a` assign to me, `r` reply,
+  `n` internal note, `t` log time, `x` close, `?` help.
+- **One closeout rule:** every route to a resolved or closed status checks the
+  resolution summary, category, required checklist items and sign-off (and,
+  optionally, that time was logged — PSA settings). Changing the status
+  directly used to skip these, and the checklist gate could show a server
+  error. A closeout checklist card lets you add, tick and remove items.
+- **Draft a KB article from a resolution:** creates an unpublished draft (owner:
+  you) from the resolution and public replies, linked to the ticket, which then
+  goes through KB review.
+- Customer email replies now record the reply time and move a ticket out of
+  "Waiting on Client"; portal replies do the same.
+- Dashboard schedule links to tickets work again (they returned 404), and the
+  schedule hides unshared tickets from customer users.
+
 ## [3.17.603] - 2026-10-15
 
 ### Imports you can trust

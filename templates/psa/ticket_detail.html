@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}PSA — {{ ticket.ticket_number }}{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -84,7 +85,7 @@
             <ul class="dropdown-menu dropdown-menu-end">
                 {% if not is_closed %}
                 <li>
-                    <form method="post" action="{% url 'psa:ticket_quick_action' ticket.ticket_number %}" class="dropdown-item p-0">
+                    <form method="post" action="{% url 'psa:ticket_quick_action' ticket.ticket_number %}" class="dropdown-item p-0" id="assignMeForm">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="assign_me">
                         <button class="btn btn-link dropdown-item m-0" type="submit"><i class="fas fa-user-check me-1"></i>Assign to me</button>
@@ -121,19 +122,26 @@
                 {% for s in available_statuses %}
                 {% if s.id != ticket.status_id %}
                 <li>
+                    {% if s.is_terminal %}
+                    {# Resolved/closed statuses go through the closeout panel (same checks as Close). #}
+                    <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#closeTicketModal"
+                            data-closeout-status="{{ s.id }}">→ {{ s.name }}…</button>
+                    {% else %}
                     <form method="post" action="{% url 'psa:ticket_quick_action' ticket.ticket_number %}" class="dropdown-item p-0">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="set_status">
                         <input type="hidden" name="status" value="{{ s.id }}">
                         <button class="btn btn-link dropdown-item m-0" type="submit">→ {{ s.name }}</button>
                     </form>
+                    {% endif %}
                 </li>
                 {% endif %}
                 {% endfor %}
                 <li><hr class="dropdown-divider"></li>
                 <li>
-                    <button type="button" class="dropdown-item text-success" data-bs-toggle="modal" data-bs-target="#closeTicketModal">
-                        <i class="fas fa-check-circle me-1"></i>Close with resolution…
+                    <button type="button" class="dropdown-item text-success" data-bs-toggle="modal" data-bs-target="#closeTicketModal"
+                            data-closeout-status="{{ closeout_default_status_id }}">
+                        <i class="fas fa-check-circle me-1"></i>Close with resolution… <kbd class="ms-1 small">x</kbd>
                     </button>
                 </li>
                 {% else %}
@@ -149,6 +157,14 @@
         </div>
     </div>
 </div>
+
+{# Collision warning — other MSP staff with this ticket open (heartbeat-driven). #}
+{% if is_msp_staff %}
+<div id="presenceBanner" class="alert alert-warning py-2 mb-3{% if not presence_others %} d-none{% endif %}" role="status" aria-live="polite">
+    <i class="fas fa-user-group me-1"></i>
+    <span id="presenceText">{% for p in presence_others %}<strong>{{ p.name }}</strong> is {% if p.mode == 'replying' %}replying{% else %}viewing{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</span>
+</div>
+{% endif %}
 
 {% if is_closed and ticket.resolution_summary %}
 <div class="alert alert-success mb-3">
@@ -283,9 +299,10 @@
             </div>
             <div class="list-group list-group-flush">
                 {% for c in comments %}
-                <div class="list-group-item {% if c.is_internal %}bg-warning bg-opacity-10{% endif %}">
+                <div class="list-group-item {% if c.is_internal %}bg-warning bg-opacity-10{% endif %}{% if c.id in stale_comment_ids %} border-start border-4 border-danger{% endif %}" id="c{{ c.id }}">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
+                            {% if c.id in stale_comment_ids %}<span class="badge bg-danger me-1">new since you started writing</span>{% endif %}
                             <strong>{{ c.author.username|default:"system" }}</strong>
                             {% if c.is_internal %}<span class="badge bg-warning text-dark ms-1"><i class="fas fa-lock me-1"></i>internal</span>{% endif %}
                             {% if c.is_system %}<span class="badge bg-secondary ms-1">system</span>{% endif %}
@@ -299,11 +316,38 @@
                 {% endfor %}
             </div>
 
-            {# Reply / internal note form #}
+            {% comment %}Reply / internal note composer — drafts autosave, posts carry the
+               newest activity id so a stale reply is held for confirmation.{% endcomment %}
             {% if not is_closed %}
-            <div class="card-body border-top">
-                <form method="post" action="{% url 'psa:ticket_post_comment' ticket.ticket_number %}">
+            <div class="card-body border-top" id="composer">
+                {% if stale_since %}
+                <div class="alert alert-danger py-2" role="alert">
+                    <i class="fas fa-triangle-exclamation me-1"></i>
+                    <strong>{{ stale_comment_ids|length }} new entr{{ stale_comment_ids|length|pluralize:"y,ies" }}</strong>
+                    arrived while you were writing (highlighted above). Your text below was <strong>not posted</strong> —
+                    re-read, adjust if needed, then post again to confirm.
+                </div>
+                {% endif %}
+                <form method="post" action="{% url 'psa:ticket_post_comment' ticket.ticket_number %}" id="composerForm"
+                      data-draft-url="{% url 'psa:ticket_draft' ticket.ticket_number %}"
+                      data-requester-email="{{ ticket.requester_email|default:'' }}">
                     {% csrf_token %}
+                    <input type="hidden" name="last_seen_comment_id" value="{{ last_comment_id }}">
+                    <input type="hidden" name="is_internal" id="composerIsInternal" value="{% if draft.is_internal %}1{% else %}0{% endif %}">
+
+                    {% if is_msp_staff %}
+                    <div class="btn-group btn-group-sm mb-2" role="group" aria-label="Reply type">
+                        <input type="radio" class="btn-check" name="composer_mode" id="modePublic" value="public" autocomplete="off" {% if not draft.is_internal %}checked{% endif %}>
+                        <label class="btn btn-outline-primary" for="modePublic"><i class="fas fa-globe me-1"></i>Public reply <kbd class="small">r</kbd></label>
+                        <input type="radio" class="btn-check" name="composer_mode" id="modeInternal" value="internal" autocomplete="off" {% if draft.is_internal %}checked{% endif %}>
+                        <label class="btn btn-outline-warning" for="modeInternal"><i class="fas fa-lock me-1"></i>Internal note <kbd class="small">n</kbd></label>
+                    </div>
+                    {% endif %}
+
+                    <div id="composerBox" class="rounded p-2 border {% if draft.is_internal %}bg-warning bg-opacity-25 border-warning{% else %}border-primary-subtle{% endif %}">
+                        <div id="composerLabel" class="small fw-bold mb-1 {% if draft.is_internal %}text-warning-emphasis{% else %}text-primary-emphasis{% endif %}">
+                            {% if draft.is_internal %}<i class="fas fa-lock me-1"></i>INTERNAL NOTE — staff only, never sent to the client{% else %}<i class="fas fa-globe me-1"></i>PUBLIC REPLY — visible to the client{% endif %}
+                        </div>
 
                     {% if canned_replies %}
                     <div class="mb-2 d-flex align-items-center gap-2">
@@ -320,63 +364,50 @@
                     </div>
                     {# Pre-rendered body for each canned reply, keyed by id, embedded as JSON. #}
                     {{ canned_replies|json_script:"cannedReplies" }}
-                    <script>
-                    (function() {
-                        var picker = document.getElementById('cannedPicker');
-                        var raw = document.getElementById('cannedReplies');
-                        if (!picker || !raw) return;
-                        var data = JSON.parse(raw.textContent);
-                        var byId = {};
-                        data.forEach(function(r) { byId[r.id] = r.rendered; });
-                        picker.addEventListener('change', function() {
-                            if (!picker.value) return;
-                            var ta = document.querySelector('textarea[name="body"]');
-                            if (!ta) return;
-                            ta.value = byId[picker.value] || '';
-                            ta.focus();
-                            picker.value = '';  // reset selection
-                        });
-                    })();
-                    </script>
                     {% endif %}
 
-                    <textarea name="body" class="form-control mb-2" rows="3" placeholder="Add a reply or internal note…" required></textarea>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex gap-3 flex-wrap">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="comment_is_internal" name="is_internal" value="1">
-                                <label class="form-check-label small" for="comment_is_internal">
-                                    <i class="fas fa-lock me-1"></i>Internal note (staff-only, never sent to client)
-                                </label>
-                            </div>
+                    <textarea name="body" id="composerBody" class="form-control mb-2" rows="4" placeholder="Write a reply…" required>{{ draft.body|default:'' }}</textarea>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="d-flex gap-3 flex-wrap align-items-center">
                             {# Issue #142 — opt-in outbound email; off by default. #}
                             {% if ticket.requester_email %}
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="comment_send_email" name="send_email" value="1">
+                            <div class="form-check" id="sendEmailWrap">
+                                <input class="form-check-input" type="checkbox" id="comment_send_email" name="send_email" value="1" {% if send_email_prefill and not draft.is_internal %}checked{% endif %} {% if draft.is_internal %}disabled{% endif %}>
                                 <label class="form-check-label small" for="comment_send_email">
                                     <i class="fas fa-paper-plane me-1"></i>Email this reply to {{ ticket.requester_email }}
                                 </label>
                             </div>
                             {% endif %}
+                            <small class="text-muted" id="draftStatus" aria-live="polite">{% if draft %}Draft restored (saved {{ draft.updated_at|timesince }} ago){% endif %}</small>
+                            <button type="button" class="btn btn-sm btn-link text-muted p-0{% if not draft %} d-none{% endif %}" id="draftDiscard">Discard draft</button>
                         </div>
-                        <button type="submit" class="btn btn-sm btn-primary">Post</button>
+                        <button type="submit" class="btn btn-sm btn-primary" id="composerSubmit">{% if draft.is_internal %}Add internal note{% else %}Post reply{% endif %}</button>
                     </div>
-                    {% if ticket.requester_email %}
-                    <script>
-                    (function() {
-                        // An internal note is never emailed — keep the UI honest about that.
-                        var internal = document.getElementById('comment_is_internal');
-                        var sendEmail = document.getElementById('comment_send_email');
-                        if (!internal || !sendEmail) return;
-                        internal.addEventListener('change', function() {
-                            sendEmail.disabled = internal.checked;
-                            if (internal.checked) sendEmail.checked = false;
-                        });
-                    })();
-                    </script>
-                    {% endif %}
+                    </div>
                 </form>
             </div>
+
+            {# Confirmation before a public reply is emailed to the customer. #}
+            {% if ticket.requester_email %}
+            <div class="modal fade" id="emailConfirmModal" tabindex="-1" aria-labelledby="emailConfirmTitle" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="emailConfirmTitle"><i class="fas fa-paper-plane me-1"></i>Email this reply?</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-2">This public reply will be posted on the ticket <strong>and emailed</strong> to:</p>
+                            <ul class="mb-0"><li><code>{{ ticket.requester_email }}</code> (requester)</li></ul>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Go back</button>
+                            <button type="button" class="btn btn-primary" id="emailConfirmSend">Post &amp; email</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             {% endif %}
         </div>
 
@@ -418,6 +449,94 @@
     </div>
 
     <div class="col-lg-4">
+        {% if is_msp_staff %}
+        {# Closeout checklist + operational sign-off (gate in psa/signals.py). #}
+        <div class="card mb-3" id="closeout-checklist">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong><i class="fas fa-list-check me-1"></i>Closeout checklist</strong>
+                {% if checklist_outstanding %}
+                <span class="badge bg-warning text-dark">{{ checklist_outstanding }} required open</span>
+                {% elif checklist_items %}
+                <span class="badge bg-success">ready</span>
+                {% endif %}
+            </div>
+            {% if checklist_items %}
+            <ul class="list-group list-group-flush small">
+                {% for item in checklist_items %}
+                <li class="list-group-item d-flex justify-content-between align-items-start py-2">
+                    <div class="d-flex align-items-start gap-2">
+                        <form method="post" action="{% url 'psa:ticket_checklist_toggle' ticket.ticket_number item.pk %}">
+                            {% csrf_token %}
+                            <button class="btn btn-sm p-0 border-0 bg-transparent" title="{% if item.is_completed %}Mark not done{% else %}Mark done{% endif %}" aria-label="{% if item.is_completed %}Mark {{ item.label }} not done{% else %}Mark {{ item.label }} done{% endif %}">
+                                <i class="{% if item.is_completed %}fas fa-square-check text-success{% else %}far fa-square text-muted{% endif %}"></i>
+                            </button>
+                        </form>
+                        <div>
+                            <span class="{% if item.is_completed %}text-decoration-line-through text-muted{% endif %}">{{ item.label }}</span>
+                            {% if item.is_required %}<span class="badge text-bg-light border ms-1">required</span>{% endif %}
+                            {% if item.is_completed and item.completed_by %}<div class="text-muted">done by {{ item.completed_by.username }} · {{ item.completed_at|timesince }} ago</div>{% endif %}
+                        </div>
+                    </div>
+                    <form method="post" action="{% url 'psa:ticket_checklist_delete' ticket.ticket_number item.pk %}">
+                        {% csrf_token %}
+                        <button class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('Remove this checklist item?')">Remove</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            <div class="card-body small">
+                {% if not is_closed %}
+                <form method="post" action="{% url 'psa:ticket_checklist_add' ticket.ticket_number %}" class="d-flex gap-2 align-items-center mb-2">
+                    {% csrf_token %}
+                    <label class="visually-hidden" for="checklistLabel">New checklist item</label>
+                    <input type="text" name="label" id="checklistLabel" class="form-control form-control-sm" placeholder="Add a step to finish before closing" maxlength="300" required>
+                    <div class="form-check text-nowrap">
+                        <input class="form-check-input" type="checkbox" id="checklistRequired" name="is_required" value="1" checked>
+                        <label class="form-check-label" for="checklistRequired">required</label>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Add</button>
+                </form>
+                {% endif %}
+                {% if ticket.signed_off_at %}
+                <div class="text-success"><i class="fas fa-signature me-1"></i>Signed off by {{ ticket.signed_off_by.username|default:"—" }} {{ ticket.signed_off_at|timesince }} ago{% if ticket.signoff_note %} — {{ ticket.signoff_note }}{% endif %}</div>
+                {% else %}
+                <form method="post" action="{% url 'psa:ticket_sign_off' ticket.ticket_number %}" class="d-flex gap-2 align-items-center">
+                    {% csrf_token %}
+                    <label class="visually-hidden" for="signoffNote">Sign-off note</label>
+                    <input type="text" name="note" id="signoffNote" class="form-control form-control-sm" placeholder="Sign-off note (optional)" maxlength="500">
+                    <button type="submit" class="btn btn-sm btn-outline-success text-nowrap"><i class="fas fa-signature me-1"></i>Sign off</button>
+                </form>
+                {% if requires_signoff_statuses %}<div class="text-muted mt-1">Needed before: {{ requires_signoff_statuses|join:", " }}</div>{% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        {# Draft a KB article from the resolution — goes through KB review, never auto-published. #}
+        {% if is_closed and ticket.resolution_summary %}
+        <div class="card mb-3">
+            <div class="card-header"><strong><i class="fas fa-book me-1"></i>Knowledge base</strong></div>
+            <div class="card-body small">
+                {% for link in kb_links %}
+                <div class="mb-1">
+                    <a href="{% url 'docs:document_detail' link.article.slug %}">{{ link.article.title }}</a>
+                    {% if link.article.is_draft %}<span class="badge bg-secondary ms-1">draft — awaiting review</span>{% endif %}
+                </div>
+                {% endfor %}
+                <form method="post" action="{% url 'psa:ticket_kb_draft' ticket.ticket_number %}" class="mt-2">
+                    {% csrf_token %}
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="kbIncludeInternal" name="include_internal" value="1">
+                        <label class="form-check-label" for="kbIncludeInternal">Include internal notes</label>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-pen me-1"></i>Draft KB article from resolution</button>
+                    <div class="form-text">Creates an unpublished draft from the resolution and public replies. It goes through the KB approval queue before anyone can see it.</div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+
         <div class="card">
             <div class="card-header"><strong>Details</strong></div>
             <div class="card-body">
@@ -607,7 +726,7 @@
                 {% endif %}
                 <form method="post" action="{% url 'psa:time_entry_manual' ticket.ticket_number %}" class="d-flex gap-1 align-items-center">
                     {% csrf_token %}
-                    <input type="number" name="minutes" class="form-control form-control-sm" placeholder="min" min="1" max="1440" style="width:80px;" required>
+                    <input type="number" name="minutes" id="timeManualMinutes" class="form-control form-control-sm" placeholder="min" min="1" max="1440" style="width:80px;" required>
                     <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes (manual entry)" maxlength="200">
                     <input type="text" name="role_code" class="form-control form-control-sm" placeholder="Role" maxlength="40" style="width:80px;" title="Optional role / tier code, matched against the contract's billable and excluded role codes">
                     <div class="form-check">
@@ -1110,30 +1229,49 @@
     </div>
 </div>
 
-{# Close-ticket modal — required resolution_summary + closure category #}
+{% comment %}Closeout panel — every move to a resolved/closed status goes through here
+   (and through the same server-side checks: psa/views.py _closeout_errors).{% endcomment %}
 {% if not is_closed %}
-<div class="modal fade" id="closeTicketModal" tabindex="-1">
+<div class="modal fade" id="closeTicketModal" tabindex="-1" aria-labelledby="closeTicketTitle" aria-hidden="true"
+     data-open-status="{{ closeout_open_status_id }}">
     <div class="modal-dialog">
         <form method="post" action="{% url 'psa:ticket_quick_action' ticket.ticket_number %}" class="modal-content">
             {% csrf_token %}
             <input type="hidden" name="action" value="close">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-check-circle me-1 text-success"></i>Close ticket</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="closeTicketTitle"><i class="fas fa-check-circle me-1 text-success"></i>Close out ticket</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                {% if checklist_outstanding or closeout_require_time and not has_time_logged %}
+                <div class="alert alert-warning small py-2">
+                    <strong>Before this ticket can close:</strong>
+                    <ul class="mb-0">
+                        {% if checklist_outstanding %}<li>{{ checklist_outstanding }} required checklist item{{ checklist_outstanding|pluralize }} still open — <a href="#closeout-checklist" data-bs-dismiss="modal">closeout checklist</a></li>{% endif %}
+                        {% if closeout_require_time and not has_time_logged %}<li>Log time on this ticket (required by PSA settings)</li>{% endif %}
+                    </ul>
+                </div>
+                {% endif %}
                 <div class="mb-3">
-                    <label class="form-label">Closure category <span class="text-danger">*</span></label>
-                    <select name="closure_category" class="form-select" required>
-                        <option value="">Pick one…</option>
-                        {% for key, label in closure_categories %}
-                        <option value="{{ key }}">{{ label }}</option>
+                    <label class="form-label" for="closeoutStatus">Status</label>
+                    <select name="status" id="closeoutStatus" class="form-select">
+                        {% for s in terminal_statuses %}
+                        <option value="{{ s.id }}" {% if s.id|stringformat:"s" == closeout_open_status_id or not closeout_open_status_id and s.id == closeout_default_status_id %}selected{% endif %}>{{ s.name }}{% if s.requires_signoff and not ticket.signed_off_at %} (needs sign-off){% endif %}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Resolution summary <span class="text-danger">*</span></label>
-                    <textarea name="resolution_summary" class="form-control" rows="5" required placeholder="What was the fix? This is visible to the client."></textarea>
+                    <label class="form-label" for="closeoutCategory">Closure category <span class="text-danger">*</span></label>
+                    <select name="closure_category" id="closeoutCategory" class="form-select" required>
+                        <option value="">Pick one…</option>
+                        {% for key, label in closure_categories %}
+                        <option value="{{ key }}" {% if key == closeout_prefill.closure_category or not closeout_prefill.closure_category and key == ticket.closure_category %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="closeoutSummary">Resolution summary <span class="text-danger">*</span></label>
+                    <textarea name="resolution_summary" id="closeoutSummary" class="form-control" rows="5" required placeholder="What was the fix? This is visible to the client.">{% if closeout_prefill.resolution_summary %}{{ closeout_prefill.resolution_summary }}{% else %}{{ ticket.resolution_summary }}{% endif %}</textarea>
                     <div class="form-text">Required — short, clear, action-oriented. Will appear on the ticket and any client-facing email.</div>
                 </div>
             </div>
@@ -1145,6 +1283,29 @@
     </div>
 </div>
 {% endif %}
+
+{# Keyboard shortcut help (press ?). #}
+<div class="modal fade" id="shortcutHelpModal" tabindex="-1" aria-labelledby="shortcutHelpTitle" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shortcutHelpTitle"><i class="fas fa-keyboard me-1"></i>Keyboard shortcuts</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <dl class="row mb-0 small">
+                    {% if is_msp_staff %}<dt class="col-3"><kbd>a</kbd></dt><dd class="col-9">Assign to me</dd>{% endif %}
+                    <dt class="col-3"><kbd>r</kbd></dt><dd class="col-9">Reply (public)</dd>
+                    {% if is_msp_staff %}<dt class="col-3"><kbd>n</kbd></dt><dd class="col-9">Internal note</dd>{% endif %}
+                    <dt class="col-3"><kbd>t</kbd></dt><dd class="col-9">Log time</dd>
+                    <dt class="col-3"><kbd>x</kbd></dt><dd class="col-9">Resolve / close</dd>
+                    <dt class="col-3"><kbd>?</kbd></dt><dd class="col-9">This help</dd>
+                </dl>
+                <p class="text-muted small mt-2 mb-0">Shortcuts are ignored while you're typing in a field. Press <kbd>Esc</kbd> to leave a field.</p>
+            </div>
+        </div>
+    </div>
+</div>
 
 {# Workflow stage toggle — AJAX checkbox handling for inline workflow checklists #}
 <script>
@@ -1212,6 +1373,8 @@
 {% endblock %}
 
 {% block extra_js %}{{ block.super }}
+{{ workspace_config|json_script:"ticketWorkspaceConfig" }}
+<script src="{% static 'js/psa_ticket_workspace.js' %}" defer></script>
 <script>
 (function () {
     var kind = document.getElementById('kit_kind');

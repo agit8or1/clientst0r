@@ -227,4 +227,17 @@ urlpatterns = [
     path('catalog/<int:pk>/propose/', views.catalog_propose_change, name='catalog_propose_change'),
     path('catalog-changes/', views.catalog_change_list, name='catalog_change_list'),
     path('catalog-changes/<int:pk>/decide/', views.catalog_change_decide, name='catalog_change_decide'),
+    # Technician workspace: my tickets, timers, waiting queues, approvals.
+    path('my-work/', views.my_work, name='my_work'),
+
+    # Ticket workspace — reply drafts, presence, closeout checklist, KB draft.
+    path('t/<str:ticket_number>/draft/', views.ticket_draft, name='ticket_draft'),
+    path('t/<str:ticket_number>/presence/', views.ticket_presence, name='ticket_presence'),
+    path('t/<str:ticket_number>/checklist/add/', views.ticket_checklist_add, name='ticket_checklist_add'),
+    path('t/<str:ticket_number>/checklist/<int:item_pk>/toggle/', views.ticket_checklist_toggle,
+         name='ticket_checklist_toggle'),
+    path('t/<str:ticket_number>/checklist/<int:item_pk>/delete/', views.ticket_checklist_delete,
+         name='ticket_checklist_delete'),
+    path('t/<str:ticket_number>/sign-off/', views.ticket_sign_off, name='ticket_sign_off'),
+    path('t/<str:ticket_number>/kb-draft/', views.ticket_kb_draft, name='ticket_kb_draft'),
 ]

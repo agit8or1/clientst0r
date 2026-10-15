@@ -558,7 +558,11 @@ class Phase2aTicketActionsTests(TestCase):
 
     def test_set_status_to_terminal_sets_resolved_at(self):
         terminal = TicketStatus.objects.filter(is_terminal=True).first()
-        self.client.post(self._url('action/'), {'action': 'set_status', 'status': terminal.id})
+        # A terminal status goes through the closeout checks, so it needs a
+        # resolution + category like the Close button does.
+        self.client.post(self._url('action/'), {
+            'action': 'set_status', 'status': terminal.id,
+            'resolution_summary': 'Fixed it', 'closure_category': 'fixed'})
         self.ticket.refresh_from_db()
         self.assertEqual(self.ticket.status, terminal)
         self.assertIsNotNone(self.ticket.resolved_at)

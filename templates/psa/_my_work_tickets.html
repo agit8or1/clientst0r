@@ -1,0 +1,46 @@
+{% load psa_ui %}
+{% comment %}
+One My Work ticket section. Expects `sec` ({count, tickets, url}) and `empty`;
+`show_assignee` adds the assignee column for the all-tickets scope. Renders no
+comment text, so nothing internal can surface here.
+{% endcomment %}
+{% if sec.tickets %}
+<div class="ui-table-wrap">
+    <table class="table table-hover align-middle mb-0 small">
+        <thead>
+            <tr>
+                <th style="width: 45%">Subject</th>
+                <th>Client</th>
+                <th>Priority</th>
+                <th>Status</th>
+                {% if show_assignee %}<th>Assignee</th>{% endif %}
+                <th>SLA due</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in sec.tickets %}
+            <tr>
+                <td class="ui-wrap">
+                    <a class="ui-primary-cell" href="{% url 'psa:ticket_detail' t.ticket_number %}">{{ t.subject }}</a>
+                    <div class="ui-ref">{{ t.ticket_number }}</div>
+                </td>
+                <td class="ui-wrap"><span class="ui-org">{{ t.organization.name|default:"—" }}</span></td>
+                <td><span class="ui-badge ui-badge--{{ t.priority|priority_tone }}">{{ t.priority|priority_label }}</span></td>
+                <td><span class="ui-badge ui-badge--{{ t.status|status_tone }}">{{ t.status.name }}</span></td>
+                {% if show_assignee %}<td class="ui-wrap">{% if t.assigned_to %}{{ t.assigned_to.get_full_name|default:t.assigned_to.username }}{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>{% endif %}
+                <td class="text-nowrap">
+                    {% if t.sla_due_at %}
+                    <time datetime="{{ t.sla_due_at|date:'c' }}" title="{{ t.sla_due_at }}" class="{% if now and t.sla_due_at < now %}text-danger fw-semibold{% endif %}">{{ t.sla_due_at|date:"D j M H:i" }}</time>
+                    {% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% if sec.count > sec.tickets|length %}
+<div class="small text-muted px-3 py-1">Showing {{ sec.tickets|length }} of {{ sec.count }} — <a href="{{ sec.url }}">view all</a></div>
+{% endif %}
+{% else %}
+<div class="text-center text-muted py-3 small">{{ empty }}</div>
+{% endif %}

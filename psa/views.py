@@ -154,8 +154,17 @@ def ticket_list(request):
         qs = qs.filter(status_id=status_id)
     if priority_id:
         qs = qs.filter(priority_id=priority_id)
-    if queue_id:
+    # `queue` is either a Queue id or one of the My Work work queues
+    # (open / waiting_us / waiting_customer / customer_replied), defined in
+    # psa/my_work.py so these lists match the counts on My Work.
+    from .my_work import WORK_QUEUES, apply_work_queue
+    work_queue = queue_id if queue_id in WORK_QUEUES else ''
+    if work_queue:
+        qs = apply_work_queue(qs, work_queue)
+    elif queue_id.isdigit():
         qs = qs.filter(queue_id=queue_id)
+    elif queue_id:
+        queue_id = ''
     if assigned == 'me':
         qs = qs.filter(assigned_to=request.user)
     elif assigned == 'unassigned':
@@ -166,8 +175,13 @@ def ticket_list(request):
         from django.db.models import Q
         qs = qs.filter(Q(ticket_number__icontains=search) | Q(subject__icontains=search))
 
-    # Bound the page; full pagination is Phase 2 polish
-    tickets = qs.order_by('-created_at')[:200]
+    # Bound the page; full pagination is Phase 2 polish. Work queues read
+    # soonest-SLA-first, like My Work.
+    if work_queue:
+        from .my_work import order_by_sla
+        tickets = order_by_sla(qs)[:200]
+    else:
+        tickets = qs.order_by('-created_at')[:200]
 
     # Filter dropdown options — limited to what makes sense for the user.
     # For org-bound users, the client filter only shows their member orgs.
@@ -186,6 +200,8 @@ def ticket_list(request):
         'available_statuses': TicketStatus.objects.all(),
         'available_priorities': TicketPriority.objects.all(),
         'available_queues': Queue.objects.filter(is_active=True),
+        'work_queues': WORK_QUEUES,
+        'work_queue': work_queue,
         'filter_values': {
             'client': client_id, 'status': status_id, 'priority': priority_id,
             'queue': queue_id, 'assigned': assigned, 'q': search,
@@ -336,7 +352,10 @@ def ticket_detail(request, ticket_number):
     kit_items = list(ticket.kit_items.select_related(
         'tool', 'inventory_item', 'packed_by').all())
 
+    workspace = _ticket_workspace_context(request, ticket)
+
     return render(request, 'psa/ticket_detail.html', {
+        **workspace,
         'ticket': ticket,
         'workflow_executions': workflow_executions,
         'comments': visible_comments(ticket, request.user).select_related('author').order_by('created_at'),
@@ -708,6 +727,7 @@ def psa_global_settings_view(request):
             'psa_sms_notifications_enabled': settings.psa_sms_notifications_enabled,
             'psa_desktop_alerts_enabled': settings.psa_desktop_alerts_enabled,
             'psa_external_alert_ingest_enabled': settings.psa_external_alert_ingest_enabled,
+            'psa_closeout_require_time': settings.psa_closeout_require_time,
             'psa_ai_enabled': settings.psa_ai_enabled,
             'psa_ai_voice': settings.psa_ai_voice,
             'psa_ai_min_confidence': str(settings.psa_ai_min_confidence),
@@ -719,6 +739,7 @@ def psa_global_settings_view(request):
         settings.psa_sms_notifications_enabled = request.POST.get('psa_sms_notifications_enabled') == 'on'
         settings.psa_desktop_alerts_enabled = request.POST.get('psa_desktop_alerts_enabled') == 'on'
         settings.psa_external_alert_ingest_enabled = request.POST.get('psa_external_alert_ingest_enabled') == 'on'
+        settings.psa_closeout_require_time = request.POST.get('psa_closeout_require_time') == 'on'
 
         settings.psa_ai_enabled = request.POST.get('psa_ai_enabled') == 'on'
         settings.psa_ai_voice = (request.POST.get('psa_ai_voice') or '').strip()[:1000]
@@ -843,14 +864,55 @@ def _scoped_ticket_for_write(request, ticket_number):
 @require_psa_enabled
 @require_http_methods(['POST'])
 def ticket_post_comment(request, ticket_number):
-    """Add a reply or internal note. POST: body, is_internal."""
+    """Add a reply or internal note.
+
+    POST: body, is_internal, send_email, and from the ticket page's composer
+    ``last_seen_comment_id`` (newest activity id it rendered) +
+    ``confirm_stale``. When someone else added activity after that id the
+    post is held: the text is kept as the user's draft and the ticket page
+    re-renders with the new entries highlighted so they can re-read and
+    confirm. Clients that don't send ``last_seen_comment_id`` skip the check.
+    """
+    from .models import TicketDraft
+    from .visibility import is_msp_staff
+
     ticket = _scoped_ticket_for_write(request, ticket_number)
+    detail_url = reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number})
     body = (request.POST.get('body') or '').strip()
     if not body:
         messages.error(request, 'Comment cannot be empty.')
-        return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
+        return redirect(detail_url)
 
     is_internal = (request.POST.get('is_internal') or '').lower() in ('1', 'true', 'on', 'yes')
+    if is_internal and not is_msp_staff(request.user):
+        # Customer users only ever post public replies (portal rule).
+        is_internal = False
+    send_email = (request.POST.get('send_email') or '').lower() in ('1', 'true', 'on', 'yes')
+
+    # Optimistic concurrency — don't talk over activity the user hasn't seen.
+    last_seen_raw = (request.POST.get('last_seen_comment_id') or '').strip()
+    confirm_stale = (request.POST.get('confirm_stale') or '') == '1'
+    if last_seen_raw.isdigit() and not confirm_stale:
+        last_seen_id = int(last_seen_raw)
+        newer = (visible_comments(ticket, request.user)
+                 .filter(pk__gt=last_seen_id)
+                 .exclude(author=request.user))
+        newer_count = newer.count()
+        if newer_count:
+            TicketDraft.objects.update_or_create(
+                user=request.user, ticket=ticket,
+                defaults={'body': body, 'is_internal': is_internal},
+            )
+            messages.warning(
+                request,
+                f'{newer_count} new entr{"y" if newer_count == 1 else "ies"} arrived on this '
+                f'ticket while you were writing — your text was NOT posted yet. Review the '
+                f'highlighted activity, then post again to confirm.')
+            qs = f'?stale_since={last_seen_id}'
+            if send_email and not is_internal:
+                qs += '&send_email=1'
+            return redirect(detail_url + qs + '#composer')
+
     comment = TicketComment.objects.create(
         ticket=ticket, author=request.user,
         body=body, is_internal=is_internal, is_system=False,
@@ -878,16 +940,17 @@ def ticket_post_comment(request, ticket_number):
     # Parse @mentions, auto-add as watcher + notify.
     _process_mentions(ticket, comment, request.user)
     messages.success(request, 'Comment added.')
+    # Posted — the autosaved draft has served its purpose.
+    TicketDraft.objects.filter(user=request.user, ticket=ticket).delete()
 
     # Issue #142 — opt-in: also send this reply to the requester as email,
     # via whichever transport the mailbox is configured for (SMTP or Graph).
     # Internal notes are never emailed. Send failures surface as a message but
     # never discard the comment that was already saved.
-    send_email = (request.POST.get('send_email') or '').lower() in ('1', 'true', 'on', 'yes')
     if send_email and not is_internal:
         _email_reply_to_requester(request, ticket, comment)
 
-    return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
+    return redirect(detail_url)
 
 
 def _email_reply_to_requester(request, ticket, comment):
@@ -1238,12 +1301,150 @@ def ticket_attach(request, ticket_number):
     return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
 
 
+# ---------------------------------------------------------------------------
+# Unified closeout — every transition into a terminal status runs these checks
+# ---------------------------------------------------------------------------
+
+def _closeout_errors(ticket, target_status, summary, category, *, show_labels=True):
+    """Why `ticket` may not move to the terminal `target_status` yet.
+
+    One list for every path (Close button, status menu, keyboard shortcut) so
+    no route skips the resolution, the sign-off gate, the required checklist
+    or the optional "time logged" rule. Empty list = OK to close.
+    """
+    errors = []
+    if not summary:
+        errors.append('A resolution summary is required to close a ticket.')
+    if category not in {key for key, _ in Ticket.CLOSURE_CATEGORIES}:
+        errors.append('Pick a valid closure category.')
+    if getattr(target_status, 'requires_signoff', False) and not ticket.signed_off_at:
+        errors.append(
+            f'"{target_status.name}" needs an operational sign-off first — '
+            f'use Sign off in the closeout checklist panel.')
+    outstanding = list(
+        ticket.checklist_items.filter(is_required=True, is_completed=False)
+        .values_list('label', flat=True)[:5]
+    )
+    if outstanding:
+        errors.append('Required checklist items are incomplete'
+                      + (': ' + '; '.join(outstanding) if show_labels else '.'))
+    if _closeout_requires_time() and not ticket.time_entries.filter(
+            ended_at__isnull=False, duration_minutes__gt=0).exists():
+        errors.append('Log time on this ticket before closing it.')
+    return errors
+
+
+def _closeout_requires_time():
+    try:
+        from core.models import SystemSetting
+        return bool(SystemSetting.get_settings().psa_closeout_require_time)
+    except Exception:
+        return False
+
+
+def _closeout_transition(request, ticket, target_status, *, mark_closed):
+    """Validate + apply a move into a terminal status.
+
+    Returns ``(description, audit_extra)`` on success, or ``None`` after
+    queueing error messages. Never raises for a business-rule refusal: the
+    pre_save sign-off/checklist gate (psa/signals.py) raises ValidationError,
+    which becomes a message instead of an HTTP 500.
+    """
+    from django.core.exceptions import ValidationError
+
+    posted_summary = (request.POST.get('resolution_summary') or '').strip()
+    posted_category = (request.POST.get('closure_category') or '').strip()
+    # A ticket that already carries a resolution (e.g. Resolved → Closed)
+    # keeps it unless the form supplies a new one.
+    summary = posted_summary or (ticket.resolution_summary or '').strip()
+    category = posted_category or (ticket.closure_category or '')
+
+    from .visibility import is_msp_staff
+    errors = _closeout_errors(ticket, target_status, summary, category,
+                              show_labels=is_msp_staff(request.user))
+    if errors:
+        for msg in errors:
+            messages.error(request, msg)
+        return None
+
+    now = timezone.now()
+    prev = ticket.status.name if ticket.status_id else '—'
+    resolution_changed = (summary != (ticket.resolution_summary or '').strip()
+                          or category != (ticket.closure_category or ''))
+    ticket.status = target_status
+    ticket.closure_category = category
+    ticket.resolution_summary = summary
+    if not ticket.resolved_at:
+        ticket.resolved_at = now
+    update_fields = ['status', 'closure_category', 'resolution_summary',
+                     'resolved_at', 'updated_by', 'updated_at']
+    if mark_closed:
+        ticket.closed_at = now
+        update_fields.append('closed_at')
+    ticket.updated_by = request.user
+    try:
+        ticket.save(update_fields=update_fields)
+    except ValidationError as exc:
+        for msg in exc.messages:
+            messages.error(request, msg)
+        return None
+
+    label = dict(Ticket.CLOSURE_CATEGORIES).get(category, category)
+    if mark_closed or resolution_changed:
+        TicketComment.objects.create(
+            ticket=ticket, author=request.user,
+            body=(f'{"Closed" if mark_closed else target_status.name} ({label}). '
+                  f'Resolution: {summary}'),
+            is_internal=False, is_system=True,
+        )
+    if not mark_closed:
+        TicketComment.objects.create(
+            ticket=ticket, author=request.user,
+            body=f'Status changed: {prev} → {target_status.name}',
+            is_internal=True, is_system=True,
+        )
+    request.session.pop(f'psa_closeout_prefill_{ticket.pk}', None)
+    if mark_closed:
+        description = f'Closed {ticket.ticket_number} ({category})'
+    else:
+        description = f'Status of {ticket.ticket_number}: {prev} → {target_status.name}'
+    return description, {
+        'from': prev, 'to': target_status.name,
+        'closure_category': category, 'summary_length': len(summary),
+    }
+
+
+def _closeout_refused_redirect(request, ticket, target_status):
+    """Back to the ticket with the closeout panel re-opened and what the user
+    typed preserved (summary + category ride in the session for one view)."""
+    request.session[f'psa_closeout_prefill_{ticket.pk}'] = {
+        'resolution_summary': (request.POST.get('resolution_summary') or '')[:10000],
+        'closure_category': (request.POST.get('closure_category') or '')[:30],
+    }
+    url = reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number})
+    return redirect(f'{url}?closeout={target_status.pk}')
+
+
 @login_required
 @require_write
 @require_psa_enabled
 @require_http_methods(['POST'])
 def ticket_quick_action(request, ticket_number):
-    """One-button actions: assign_me, set_status, reopen, close."""
+    """One-button actions: assign_me, set_status, reopen, close.
+
+    A business-rule refusal raised from a model signal (ValidationError —
+    the sign-off / checklist gate) is shown as a message, never a 500.
+    """
+    from django.core.exceptions import ValidationError
+    try:
+        return _ticket_quick_action(request, ticket_number)
+    except ValidationError as exc:
+        for msg in exc.messages:
+            messages.error(request, msg)
+        return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket_number}))
+
+
+def _ticket_quick_action(request, ticket_number):
     ticket = _scoped_ticket_for_write(request, ticket_number)
     action = request.POST.get('action') or ''
     now = timezone.now()
@@ -1306,25 +1507,37 @@ def ticket_quick_action(request, ticket_number):
     elif action == 'set_status':
         try:
             new_status = TicketStatus.objects.get(pk=request.POST.get('status') or '')
-        except TicketStatus.DoesNotExist:
+        except (TicketStatus.DoesNotExist, ValueError):
             messages.error(request, 'Invalid status.')
             return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
-        prev = ticket.status.name if ticket.status_id else '—'
-        ticket.status = new_status
-        ticket.updated_by = request.user
-        update_fields = ['status', 'updated_by', 'updated_at']
-        if new_status.is_terminal and not ticket.resolved_at:
-            ticket.resolved_at = now
-            update_fields.append('resolved_at')
-        ticket.save(update_fields=update_fields)
-        TicketComment.objects.create(
-            ticket=ticket, author=request.user,
-            body=f'Status changed: {prev} → {new_status.name}',
-            is_internal=True, is_system=True,
-        )
-        description = f'Status of {ticket.ticket_number}: {prev} → {new_status.name}'
-        audit_extra['from'] = prev
-        audit_extra['to'] = new_status.name
+        if new_status.is_terminal:
+            # Every way into a resolved/closed status goes through the same
+            # closeout checks as the Close button.
+            result = _closeout_transition(request, ticket, new_status, mark_closed=False)
+            if result is None:
+                return _closeout_refused_redirect(request, ticket, new_status)
+            description, extra = result
+            audit_extra.update(extra)
+        else:
+            from django.core.exceptions import ValidationError
+            prev = ticket.status.name if ticket.status_id else '—'
+            ticket.status = new_status
+            ticket.updated_by = request.user
+            try:
+                ticket.save(update_fields=['status', 'updated_by', 'updated_at'])
+            except ValidationError as exc:
+                # e.g. the status requires an operational sign-off.
+                for msg in exc.messages:
+                    messages.error(request, msg)
+                return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
+            TicketComment.objects.create(
+                ticket=ticket, author=request.user,
+                body=f'Status changed: {prev} → {new_status.name}',
+                is_internal=True, is_system=True,
+            )
+            description = f'Status of {ticket.ticket_number}: {prev} → {new_status.name}'
+            audit_extra['from'] = prev
+            audit_extra['to'] = new_status.name
 
     elif action == 'reopen':
         target = (
@@ -1349,41 +1562,26 @@ def ticket_quick_action(request, ticket_number):
         description = f'Reopened {ticket.ticket_number}'
 
     elif action == 'close':
-        category = request.POST.get('closure_category') or ''
-        summary = (request.POST.get('resolution_summary') or '').strip()
-        if not summary:
-            messages.error(request, 'A resolution summary is required to close a ticket.')
-            return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
-        valid_categories = {key for key, _ in Ticket.CLOSURE_CATEGORIES}
-        if category not in valid_categories:
-            messages.error(request, 'Pick a valid closure category.')
-            return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
-        closed_status = (
-            TicketStatus.objects.filter(slug='closed').first()
-            or TicketStatus.objects.filter(is_terminal=True).order_by('sort_order').first()
-        )
-        if not closed_status:
+        status_id = (request.POST.get('status') or '').strip()
+        if status_id:
+            target = (TicketStatus.objects.filter(pk=status_id, is_terminal=True).first()
+                      if status_id.isdigit() else None)
+            if target is None:
+                messages.error(request, 'Pick a resolved/closed status.')
+                return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
+        else:
+            target = (
+                TicketStatus.objects.filter(slug='closed').first()
+                or TicketStatus.objects.filter(is_terminal=True).order_by('sort_order').first()
+            )
+        if not target:
             messages.error(request, 'No terminal status defined.')
             return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
-        ticket.status = closed_status
-        ticket.closure_category = category
-        ticket.resolution_summary = summary
-        ticket.closed_at = now
-        if not ticket.resolved_at:
-            ticket.resolved_at = now
-        ticket.updated_by = request.user
-        ticket.save(update_fields=[
-            'status', 'closure_category', 'resolution_summary', 'closed_at',
-            'resolved_at', 'updated_by', 'updated_at',
-        ])
-        TicketComment.objects.create(
-            ticket=ticket, author=request.user,
-            body=f'Closed ({dict(Ticket.CLOSURE_CATEGORIES).get(category, category)}). Resolution: {summary}',
-            is_internal=False, is_system=True,
-        )
-        description = f'Closed {ticket.ticket_number} ({category})'
-        audit_extra['closure_category'] = category
-        audit_extra['summary_length'] = len(summary)
+        result = _closeout_transition(request, ticket, target, mark_closed=True)
+        if result is None:
+            return _closeout_refused_redirect(request, ticket, target)
+        description, extra = result
+        audit_extra.update(extra)
 
     else:
         messages.error(request, 'Unknown action.')
@@ -1698,6 +1896,13 @@ def timer_stop(request, ticket_number):
         extra_data={'minutes': entry.duration_minutes, 'billable': entry.is_billable},
     )
     messages.success(request, f'Timer stopped — {entry.duration_minutes}m logged.')
+    # My Work posts here too and wants to land back on itself.
+    from django.utils.http import url_has_allowed_host_and_scheme
+    next_url = request.POST.get('next') or ''
+    if next_url and url_has_allowed_host_and_scheme(
+            next_url, allowed_hosts={request.get_host()},
+            require_https=request.is_secure()):
+        return redirect(next_url)
     return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
 
 
@@ -8731,3 +8936,587 @@ def project_generate_invoice(request, pk):
     )
     messages.success(request, f'{message} It is a draft — nothing has been sent.')
     return redirect('psa:invoice_detail', pk=invoice.pk)
+
+
+# ---------------------------------------------------------------------------
+# My Work — technician workspace (/psa/my-work/)
+# ---------------------------------------------------------------------------
+
+MY_WORK_LIMIT = 25
+
+
+def _my_work_approvals(request):
+    """Pending approval queues this user can act on. MSP staff only.
+
+    Each entry reuses the scoping of the page its link opens, so a count here
+    matches what that page lists:
+      * PSA approvals — approval_list (current customer if one is selected,
+        else every customer for MSP staff), status pending.
+      * Timesheets   — timesheet_approval_queue (superuser / Staff profile).
+      * Change CAB   — pending_cab changes where this user is a required
+        approver and has not voted yet (needs change_approve_cab). The linked
+        list shows every pending_cab change, not only the ones awaiting you.
+      * Invoices     — invoice_list scoping, requires_approval set; shown to
+        whoever invoice_approve admits (superuser / is_staff / customer admin).
+    """
+    from accounts.permission_utils import user_has_perm
+    from core.decorators import get_user_membership
+    from .models import Invoice, TimesheetSubmission
+
+    org = get_request_organization(request)
+    staff_flag = request.user.is_superuser or getattr(request, 'is_staff_user', False)
+    queues = []
+
+    approvals = PSAApproval.objects.select_related('related_ticket', 'requested_by')
+    if org is not None:
+        approvals = approvals.filter(organization=org)
+    elif not staff_flag:
+        approvals = approvals.none()
+    approvals = approvals.filter(status='pending').order_by('-requested_at')
+    approvals_url = reverse('psa:approval_list') + '?status=pending'
+    queues.append({
+        'key': 'psa', 'label': 'Approvals', 'icon': 'fa-circle-check',
+        'count': approvals.count(),
+        'url': approvals_url,
+        'items': [{
+            'title': a.object_repr or f'{a.get_kind_display()} #{a.pk}',
+            'context': (a.get_kind_display()
+                        + (' · customer sign-off' if a.is_client_approval else '')),
+            'when': a.requested_at,
+            'url': approvals_url,
+        } for a in approvals[:5]],
+    })
+
+    if staff_flag:
+        sheets = (TimesheetSubmission.objects.filter(status='pending')
+                  .select_related('user').order_by('-submitted_at'))
+        sheets_url = reverse('psa:timesheet_approval_queue')
+        queues.append({
+            'key': 'timesheets', 'label': 'Timesheets', 'icon': 'fa-clock',
+            'count': sheets.count(),
+            'url': sheets_url,
+            'items': [{
+                'title': (f'{s.user.get_full_name() or s.user.username} '
+                          f'— week of {s.period_start}'),
+                'context': '', 'when': s.submitted_at, 'url': sheets_url,
+            } for s in sheets[:5]],
+        })
+
+    if user_has_perm(request.user, 'change_approve_cab'):
+        changes = (_scoped_change_request_qs(request)
+                   .filter(implementation_status='pending_cab',
+                           required_approvers=request.user)
+                   .exclude(cab_votes__user=request.user)
+                   .distinct().order_by('-created_at'))
+        queues.append({
+            'key': 'cab', 'label': 'Change votes', 'icon': 'fa-code-branch',
+            'count': changes.count(),
+            'url': reverse('psa:change_request_list') + '?status=pending_cab',
+            'items': [{
+                'title': f'{c.ticket.ticket_number} {c.ticket.subject}',
+                'context': f'{c.get_risk_display()} risk', 'when': c.created_at,
+                'url': reverse('psa:change_request_detail',
+                               args=[c.ticket.ticket_number]),
+            } for c in changes[:5]],
+        })
+
+    membership = get_user_membership(request)
+    if (request.user.is_superuser or request.user.is_staff
+            or (membership is not None and membership.can_admin())):
+        invoices = Invoice.objects.select_related('client_org')
+        if org is not None:
+            invoices = invoices.filter(organization=org)
+        elif not staff_flag:
+            invoices = invoices.none()
+        invoices = invoices.filter(requires_approval=True).order_by('-created_at')
+        queues.append({
+            'key': 'invoices', 'label': 'Invoices on hold', 'icon': 'fa-file-invoice',
+            'count': invoices.count(),
+            'url': reverse('psa:invoice_list'),
+            'items': [{
+                'title': i.invoice_number,
+                'context': (i.approval_reason
+                            or (i.client_org.name if i.client_org_id else '')),
+                'when': i.created_at,
+                'url': reverse('psa:invoice_detail', args=[i.pk]),
+            } for i in invoices[:5]],
+        })
+    return queues
+
+
+def _my_work_appointments(user):
+    """Scheduled tasks assigned to this user — the TaskAssignment rows the
+    mobile dispatch board and calendar read. Still-open overdue tasks plus
+    today and the next 7 days, soonest first."""
+    from datetime import datetime, time, timedelta
+    from scheduling.models import TaskAssignment
+    now = timezone.now()
+    today = timezone.localdate()
+    today_start = timezone.make_aware(datetime.combine(today, time.min))
+    window_end = today_start + timedelta(days=8)
+    qs = (TaskAssignment.objects
+          .filter(user=user,
+                  task__status__in=['pending', 'in_progress', 'overdue'],
+                  task__due_date__isnull=False,
+                  task__due_date__lt=window_end)
+          .select_related('task', 'task__organization')
+          .order_by('task__due_date'))
+    rows = []
+    for a in qs[:50]:
+        due = a.task.due_date
+        local_day = timezone.localtime(due).date()
+        if due < now:
+            bucket = 'overdue'
+        elif local_day == today:
+            bucket = 'today'
+        else:
+            bucket = 'upcoming'
+        rows.append({'assignment': a, 'task': a.task, 'due': due,
+                     'bucket': bucket, 'is_today': local_day == today})
+    return rows
+
+
+@login_required
+@require_psa_enabled
+def my_work(request):
+    """Technician workspace: everything waiting on the signed-in user.
+
+    Queue definitions live in psa/my_work.py and are shared with the ticket
+    list's ?queue= filters, so each count here equals the list it links to.
+    Tickets come from `_scoped_ticket_qs`, so a customer user sees only
+    `client_can_view` tickets, and the queues read public comments only.
+    ?scope=all (MSP staff only) widens the two waiting queues to every ticket.
+    """
+    from .my_work import apply_work_queue, order_by_sla
+    from .visibility import is_msp_staff
+
+    staff = is_msp_staff(request.user)
+    scope_all = staff and request.GET.get('scope') == 'all'
+    tab = request.GET.get('tab')
+    if tab not in ('waiting_us', 'waiting_customer'):
+        tab = 'waiting_us'
+
+    base = _scoped_ticket_qs(request)
+    mine = base.filter(assigned_to=request.user)
+    list_url = reverse('psa:ticket_list')
+
+    def section(qs, queue, assigned_me=True):
+        qs = order_by_sla(apply_work_queue(qs, queue))
+        prefix = 'assigned=me&' if assigned_me else ''
+        return {
+            'count': qs.count(),
+            'tickets': list(qs[:MY_WORK_LIMIT]),
+            'url': f'{list_url}?{prefix}queue={queue}',
+        }
+
+    open_sec = section(mine, 'open')
+    replied_sec = section(mine, 'customer_replied')
+    wait_src = base if scope_all else mine
+    waiting_us = section(wait_src, 'waiting_us', assigned_me=not scope_all)
+    waiting_customer = section(wait_src, 'waiting_customer', assigned_me=not scope_all)
+
+    now = timezone.now()
+    timers = []
+    for te in (TicketTimeEntry.objects
+               .filter(user=request.user, ended_at__isnull=True,
+                       ticket__in=base.values('pk'))
+               .select_related('ticket', 'ticket__organization')
+               .order_by('started_at')):
+        secs = max(0, int((now - te.started_at).total_seconds()))
+        timers.append({'entry': te, 'elapsed_seconds': secs,
+                       'elapsed': f'{secs // 3600}:{(secs % 3600) // 60:02d}'})
+
+    approvals = _my_work_approvals(request) if staff else []
+    appointments = _my_work_appointments(request.user)
+
+    return render(request, 'psa/my_work.html', {
+        'is_staff_view': staff,
+        'scope_all': scope_all,
+        'tab': tab,
+        'open_sec': open_sec,
+        'replied_sec': replied_sec,
+        'waiting_us': waiting_us,
+        'waiting_customer': waiting_customer,
+        'timers': timers,
+        'approvals': approvals,
+        'approvals_total': sum(q['count'] for q in approvals),
+        'appointments': appointments,
+        'appointments_today': sum(1 for a in appointments if a['is_today']),
+        'limit': MY_WORK_LIMIT,
+        'now': now,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Ticket workspace — drafts, presence, closeout checklist, KB draft
+# ---------------------------------------------------------------------------
+
+_DRAFT_MAX_CHARS = 100_000
+
+
+def _display_name(user):
+    return (user.get_full_name() or user.username) if user else ''
+
+
+def _ticket_workspace_context(request, ticket):
+    """Extra ticket-page context: the user's own draft, concurrency marker,
+    who else has the ticket open, and the closeout panel's state."""
+    from django.db.models import Max
+    from .models import TicketDraft, TicketPresence
+    from .visibility import is_msp_staff
+
+    staff = is_msp_staff(request.user)
+    visible = visible_comments(ticket, request.user)
+    last_comment_id = visible.aggregate(m=Max('pk'))['m'] or 0
+
+    stale_ids = []
+    stale_since = (request.GET.get('stale_since') or '').strip()
+    if stale_since.isdigit():
+        stale_ids = list(
+            visible.filter(pk__gt=int(stale_since))
+            .exclude(author=request.user).values_list('pk', flat=True)
+        )
+
+    draft = TicketDraft.objects.filter(user=request.user, ticket=ticket).first()
+    if draft and draft.is_internal and not staff:
+        draft.is_internal = False
+
+    presence_others = []
+    checklist_items = []
+    kb_links = []
+    if staff:
+        presence_others = [
+            {'name': _display_name(p.user), 'mode': p.mode}
+            for p in TicketPresence.active_for(ticket, exclude_user=request.user)
+        ]
+        checklist_items = list(ticket.checklist_items.select_related('completed_by'))
+        kb_links = list(ticket.kb_links.select_related('article'))
+
+    closeout_status_id = (request.GET.get('closeout') or '').strip()
+    terminal_statuses = list(TicketStatus.objects.filter(is_terminal=True))
+    default_close = next((s for s in terminal_statuses if s.slug == 'closed'),
+                         terminal_statuses[0] if terminal_statuses else None)
+    prefill = request.session.pop(f'psa_closeout_prefill_{ticket.pk}', None) or {}
+
+    return {
+        'is_msp_staff': staff,
+        'last_comment_id': last_comment_id,
+        'stale_comment_ids': stale_ids,
+        'stale_since': stale_since if stale_ids else '',
+        'draft': draft,
+        'send_email_prefill': request.GET.get('send_email') == '1',
+        'presence_others': presence_others,
+        'presence_stale_after': TicketPresence.STALE_AFTER_SECONDS,
+        'checklist_items': checklist_items,
+        'checklist_outstanding': sum(
+            1 for i in checklist_items if i.is_required and not i.is_completed),
+        'kb_links': kb_links,
+        'terminal_statuses': terminal_statuses,
+        'closeout_default_status_id': getattr(default_close, 'pk', ''),
+        'closeout_open_status_id': closeout_status_id if closeout_status_id.isdigit() else '',
+        'closeout_prefill': prefill,
+        'closeout_require_time': _closeout_requires_time(),
+        'has_time_logged': ticket.time_entries.filter(
+            ended_at__isnull=False, duration_minutes__gt=0).exists(),
+        'requires_signoff_statuses': [s.name for s in terminal_statuses if s.requires_signoff],
+        # Read by static/js/psa_ticket_workspace.js (json_script, not executed).
+        'workspace_config': {
+            'isStaff': staff,
+            'presenceUrl': (reverse('psa:ticket_presence',
+                                    kwargs={'ticket_number': ticket.ticket_number})
+                            if staff else ''),
+            'heartbeatSeconds': 20,
+        },
+    }
+
+
+def _staff_or_403(request):
+    from django.core.exceptions import PermissionDenied
+    from .visibility import is_msp_staff
+    if not is_msp_staff(request.user):
+        raise PermissionDenied('MSP staff only.')
+
+
+@login_required
+@require_psa_enabled
+@require_http_methods(['GET', 'POST'])
+def ticket_draft(request, ticket_number):
+    """The current user's unsent reply on this ticket (autosave target).
+
+    GET  → {"body", "is_internal", "updated_at"} (empty body when none).
+    POST → body, is_internal, action=save|discard. Saving an empty body
+           discards. Always keyed on request.user, so nobody can read or
+           overwrite another user's draft, and the ticket is resolved through
+           the caller's ticket scope (404 outside it).
+    """
+    from .models import TicketDraft
+    from .visibility import is_msp_staff
+
+    ticket = get_object_or_404(_scoped_ticket_qs(request), ticket_number=ticket_number)
+    if request.method == 'GET':
+        draft = TicketDraft.objects.filter(user=request.user, ticket=ticket).first()
+        return JsonResponse({
+            'body': draft.body if draft else '',
+            'is_internal': bool(draft and draft.is_internal and is_msp_staff(request.user)),
+            'updated_at': draft.updated_at.isoformat() if draft else None,
+        })
+
+    action = request.POST.get('action') or 'save'
+    body = request.POST.get('body') or ''
+    if action == 'discard' or not body.strip():
+        TicketDraft.objects.filter(user=request.user, ticket=ticket).delete()
+        return JsonResponse({'ok': True, 'saved': False})
+    if len(body) > _DRAFT_MAX_CHARS:
+        return JsonResponse({'ok': False, 'error': 'Draft too long.'}, status=400)
+    is_internal = ((request.POST.get('is_internal') or '').lower() in ('1', 'true', 'on', 'yes')
+                   and is_msp_staff(request.user))
+    draft, _ = TicketDraft.objects.update_or_create(
+        user=request.user, ticket=ticket,
+        defaults={'body': body, 'is_internal': is_internal},
+    )
+    return JsonResponse({'ok': True, 'saved': True, 'updated_at': draft.updated_at.isoformat()})
+
+
+@login_required
+@require_psa_enabled
+@require_http_methods(['POST'])
+def ticket_presence(request, ticket_number):
+    """Heartbeat (~20s) from an open ticket page. MSP staff only.
+
+    POST mode=viewing|replying records this user; mode=left removes them.
+    Returns the other staff currently on the ticket.
+    """
+    from .models import TicketPresence
+    from .visibility import is_msp_staff
+
+    if not is_msp_staff(request.user):
+        return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
+    ticket = get_object_or_404(_scoped_ticket_qs(request), ticket_number=ticket_number)
+    mode = request.POST.get('mode') or TicketPresence.MODE_VIEWING
+    now = timezone.now()
+    if mode == 'left':
+        TicketPresence.objects.filter(user=request.user, ticket=ticket).delete()
+    else:
+        if mode not in dict(TicketPresence.MODE_CHOICES):
+            mode = TicketPresence.MODE_VIEWING
+        TicketPresence.objects.update_or_create(
+            user=request.user, ticket=ticket,
+            defaults={'mode': mode, 'last_seen': now},
+        )
+    # Lazy prune so the table stays small without a cron job.
+    TicketPresence.objects.filter(
+        ticket=ticket, last_seen__lt=now - timezone.timedelta(hours=1)).delete()
+    others = [
+        {'name': _display_name(p.user), 'mode': p.mode}
+        for p in TicketPresence.active_for(ticket, exclude_user=request.user)
+    ]
+    return JsonResponse({'ok': True, 'others': others})
+
+
+@login_required
+@require_write
+@require_psa_enabled
+@require_http_methods(['POST'])
+def ticket_checklist_add(request, ticket_number):
+    """Add a closeout checklist item. MSP staff only."""
+    from .models import TicketChecklistItem
+    _staff_or_403(request)
+    ticket = _scoped_ticket_for_write(request, ticket_number)
+    label = (request.POST.get('label') or '').strip()[:300]
+    if not label:
+        messages.error(request, 'Checklist item needs a label.')
+    else:
+        is_required = (request.POST.get('is_required') or '').lower() in ('1', 'true', 'on', 'yes')
+        nxt = (ticket.checklist_items.aggregate(m=models.Max('sort_order'))['m'] or 0) + 1
+        item = TicketChecklistItem.objects.create(
+            ticket=ticket, label=label, is_required=is_required, sort_order=nxt)
+        AuditLog.log(
+            user=request.user, action='create', organization=ticket.organization,
+            object_type='psa.TicketChecklistItem', object_id=item.pk,
+            object_repr=label[:100],
+            description=f'Added checklist item to {ticket.ticket_number}',
+            ip_address=_client_ip(request), path=request.path,
+            extra_data={'is_required': is_required},
+        )
+    return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}) + '#closeout-checklist')
+
+
+@login_required
+@require_write
+@require_psa_enabled
+@require_http_methods(['POST'])
+def ticket_checklist_toggle(request, ticket_number, item_pk):
+    """Tick / untick a checklist item. MSP staff only."""
+    _staff_or_403(request)
+    ticket = _scoped_ticket_for_write(request, ticket_number)
+    item = get_object_or_404(ticket.checklist_items, pk=item_pk)
+    if item.is_completed:
+        item.is_completed = False
+        item.completed_at = None
+        item.completed_by = None
+        item.save(update_fields=['is_completed', 'completed_at', 'completed_by'])
+    else:
+        item.complete(user=request.user)
+    AuditLog.log(
+        user=request.user, action='update', organization=ticket.organization,
+        object_type='psa.TicketChecklistItem', object_id=item.pk,
+        object_repr=item.label[:100],
+        description=(f'{"Completed" if item.is_completed else "Reopened"} checklist item '
+                     f'on {ticket.ticket_number}'),
+        ip_address=_client_ip(request), path=request.path,
+    )
+    return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}) + '#closeout-checklist')
+
+
+@login_required
+@require_write
+@require_psa_enabled
+@require_http_methods(['POST'])
+def ticket_checklist_delete(request, ticket_number, item_pk):
+    """Remove a checklist item. MSP staff only."""
+    _staff_or_403(request)
+    ticket = _scoped_ticket_for_write(request, ticket_number)
+    item = get_object_or_404(ticket.checklist_items, pk=item_pk)
+    label, pk = item.label, item.pk
+    item.delete()
+    AuditLog.log(
+        user=request.user, action='delete', organization=ticket.organization,
+        object_type='psa.TicketChecklistItem', object_id=pk,
+        object_repr=label[:100],
+        description=f'Removed checklist item from {ticket.ticket_number}',
+        ip_address=_client_ip(request), path=request.path,
+    )
+    return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}) + '#closeout-checklist')
+
+
+@login_required
+@require_write
+@require_psa_enabled
+@require_http_methods(['POST'])
+def ticket_sign_off(request, ticket_number):
+    """Record the operational sign-off (Ticket.sign_off). MSP staff only."""
+    _staff_or_403(request)
+    ticket = _scoped_ticket_for_write(request, ticket_number)
+    note = (request.POST.get('note') or '').strip()
+    if ticket.sign_off(by_user=request.user, note=note):
+        TicketComment.objects.create(
+            ticket=ticket, author=request.user,
+            body=f'Signed off by {_display_name(request.user)}.' + (f' Note: {note}' if note else ''),
+            is_internal=True, is_system=True,
+        )
+        AuditLog.log(
+            user=request.user, action='update', organization=ticket.organization,
+            object_type='psa.Ticket', object_id=ticket.pk,
+            object_repr=ticket.ticket_number,
+            description=f'Signed off {ticket.ticket_number}',
+            ip_address=_client_ip(request), path=request.path,
+        )
+        messages.success(request, 'Ticket signed off.')
+    else:
+        messages.info(request, 'This ticket was already signed off.')
+    return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}) + '#closeout-checklist')
+
+
+def _unique_document_slug(title):
+    """Document slugs are unique per organization, but the docs views look
+    articles up by slug alone, so keep KB-draft slugs globally unique."""
+    from django.utils.text import slugify
+    from docs.models import Document
+    base = (slugify(title) or 'kb-draft')[:200]
+    slug, n = base, 2
+    while Document.objects.filter(slug=slug).exists():
+        slug = f'{base}-{n}'
+        n += 1
+    return slug
+
+
+def _kb_draft_body(ticket, include_internal):
+    """Markdown body for a KB draft: the resolution plus the public
+    conversation. Internal notes only when explicitly requested. Authors are
+    labelled by role, not name, so no customer identities land in the KB."""
+    from .visibility import is_msp_staff
+
+    def role(c):
+        return 'Technician' if (c.author and is_msp_staff(c.author)) else 'Requester'
+
+    lines = [
+        f'# {ticket.subject}', '',
+        f'_Draft generated from ticket {ticket.ticket_number}. Review, edit and '
+        f'submit through the KB approval queue before publishing._', '',
+        '## Resolution', '',
+        ticket.resolution_summary.strip() or '_No resolution summary recorded._', '',
+    ]
+    comments = (ticket.comments.filter(is_system=False)
+                .select_related('author').order_by('created_at'))
+    public = [c for c in comments if not c.is_internal]
+    if public:
+        lines += ['## Conversation', '']
+        for c in public:
+            lines += [f'**{role(c)}** — {c.created_at:%Y-%m-%d}', '', c.body.strip(), '']
+    if include_internal:
+        internal = [c for c in comments if c.is_internal]
+        if internal:
+            lines += ['## Internal notes', '']
+            for c in internal:
+                lines += [f'**Technician** — {c.created_at:%Y-%m-%d}', '', c.body.strip(), '']
+    return '\n'.join(lines).strip() + '\n'
+
+
+@login_required
+@require_write
+@require_psa_enabled
+@require_http_methods(['POST'])
+def ticket_kb_draft(request, ticket_number):
+    """Draft a KB article from a resolved ticket. MSP staff only.
+
+    Creates an unpublished docs.Document (is_draft=True, requires_approval)
+    owned by the current user in the ticket's organization, links it to the
+    ticket, and opens the editor. Publishing still goes through the KB
+    approval queue (docs:kb_approve) — nothing is published here.
+    """
+    from docs.models import Document
+
+    _staff_or_403(request)
+    ticket = _scoped_ticket_for_write(request, ticket_number)
+    detail_url = reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number})
+    resolved = bool(ticket.resolved_at or ticket.closed_at
+                    or (ticket.status_id and ticket.status.is_terminal))
+    if not resolved or not (ticket.resolution_summary or '').strip():
+        messages.error(request, 'Resolve the ticket with a resolution summary before drafting a KB article.')
+        return redirect(detail_url)
+
+    existing = (ticket.kb_links.select_related('article')
+                .filter(article__is_draft=True, article__created_by=request.user).first())
+    if existing:
+        messages.info(request, 'You already have a KB draft from this ticket — opening it.')
+        return redirect('docs:document_edit', slug=existing.article.slug)
+
+    include_internal = (request.POST.get('include_internal') or '').lower() in ('1', 'true', 'on', 'yes')
+    title = (ticket.subject or ticket.ticket_number)[:255]
+    doc = Document.objects.create(
+        organization=ticket.organization,
+        title=title,
+        slug=_unique_document_slug(title),
+        body=_kb_draft_body(ticket, include_internal),
+        content_type='markdown',
+        is_published=False,
+        is_draft=True,
+        requires_approval=True,
+        is_client_visible=False,
+        owner=request.user,
+        created_by=request.user,
+        last_modified_by=request.user,
+    )
+    TicketKBLink.objects.get_or_create(
+        ticket=ticket, article=doc,
+        defaults={'linked_by': request.user, 'note': 'KB draft created from resolution'},
+    )
+    AuditLog.log(
+        user=request.user, action='create', organization=ticket.organization,
+        object_type='docs.Document', object_id=doc.pk, object_repr=doc.title,
+        description=f'Drafted KB article from {ticket.ticket_number}',
+        ip_address=_client_ip(request), path=request.path,
+        extra_data={'include_internal': include_internal, 'ticket': ticket.ticket_number},
+    )
+    messages.success(request, 'KB draft created. Edit it, then submit it for review — it is not published.')
+    return redirect('docs:document_edit', slug=doc.slug)

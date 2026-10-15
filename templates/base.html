@@ -106,6 +106,7 @@
                             <i class="fas fa-ticket-alt"></i> {% trans "PSA" %}
                         </a>
                         <ul class="dropdown-menu">
+                            <li><a class="dropdown-item fw-semibold" href="{% url 'psa:my_work' %}"><i class="fas fa-user-check"></i> {% trans "My Work" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'psa:ticket_list' %}"><i class="fas fa-list"></i> {% trans "Tickets" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'psa:ticket_create' %}"><i class="fas fa-plus"></i> {% trans "New Ticket" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'accounts:organization_list' %}"><i class="fas fa-building"></i> {% trans "Clients" %}</a></li>

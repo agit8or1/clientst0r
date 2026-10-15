@@ -75,7 +75,7 @@ def panel_url(name: str, *args) -> str:
     """Resolve a route by name, never by a hand-written path.
 
     Hand-written paths in this module were wrong for three of the five links:
-    tickets live at /psa/t/<pk>/ (not /psa/tickets/), expirations under
+    tickets live at /psa/t/<ticket_number>/ (not /psa/tickets/), expirations under
     monitoring (not core), and /monitoring/ has no route at all. A url of '' is
     rendered as a non-link rather than a dead one.
     """
@@ -144,16 +144,25 @@ def get_schedule(user, organization, days: int = SCHEDULE_DAYS) -> list[Schedule
         ).exclude(status__is_terminal=True)
         if organization is not None:
             tickets = tickets.filter(organization=organization)
-        for ticket in tickets.select_related('organization').order_by(
+        if user is not None and getattr(user, 'is_authenticated', False):
+            # Customer users get the portal rule here too: shared tickets only.
+            from psa.visibility import customer_visible_tickets
+            tickets = customer_visible_tickets(tickets, user)
+        for ticket in tickets.select_related('organization', 'priority').order_by(
                 'resolution_due_at')[:60]:
             bucket_for(ticket.resolution_due_at.date()).items.append({
                 'kind': 'ticket',
-                'title': f'#{ticket.pk} {ticket.subject}'[:90],
+                'title': f'{ticket.ticket_number} {ticket.subject}'[:90],
                 'when': ticket.resolution_due_at,
-                'priority': getattr(ticket, 'priority', 'normal'),
+                # A plain string like the task rows carry, not the
+                # TicketPriority object.
+                'priority': (ticket.priority.code if ticket.priority_id
+                             else 'normal'),
                 'context': ticket.organization.name if ticket.organization_id else '',
                 'icon': 'fa-ticket',
-                'url': panel_url('psa:ticket_detail', ticket.pk),
+                # The detail route takes the ticket number, not the pk:
+                # /psa/t/<pk>/ resolves but 404s.
+                'url': panel_url('psa:ticket_detail', ticket.ticket_number),
             })
     except (ImportError, LookupError):
         # PSA is optional in some deployments; a genuinely absent app is fine.

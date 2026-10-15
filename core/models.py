@@ -878,6 +878,13 @@ class SystemSetting(models.Model):
         help_text='Show pending PSAApproval rows flagged is_client_approval '
                   'to portal users + accept their decisions.',
     )
+    # Ticket closeout: when on, a ticket can't move to a resolved/closed
+    # status until at least one finished time entry is logged on it.
+    psa_closeout_require_time = models.BooleanField(
+        default=False,
+        help_text='Refuse to resolve/close a PSA ticket that has no time '
+                  'logged against it.',
+    )
     # Phase 20 v2 (v3.17.259) — financial approval thresholds. When set,
     # a post-save signal auto-flags `Invoice.requires_approval=True` for
     # any invoice that crosses either threshold. 0 = disabled.

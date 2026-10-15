@@ -6400,3 +6400,80 @@ class ProjectTemplateTask(models.Model):
 
     def __str__(self):
         return self.title
+
+
+# ---------------------------------------------------------------------------
+# Ticket workspace — reply drafts + presence (collision warning).
+# ---------------------------------------------------------------------------
+
+class TicketDraft(models.Model):
+    """An unsent reply / internal note, autosaved from the ticket composer.
+
+    Private to its author: every read and write is keyed on
+    ``(request.user, ticket)``, and the ticket itself is resolved through the
+    caller's ticket scope, so a draft never reaches another user.
+    """
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='psa_ticket_drafts',
+    )
+    ticket = models.ForeignKey(
+        Ticket, on_delete=models.CASCADE, related_name='drafts',
+    )
+    body = models.TextField(blank=True)
+    is_internal = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_ticket_drafts'
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'ticket'],
+                                    name='psa_ticket_draft_user_ticket_uniq'),
+        ]
+
+    def __str__(self):
+        return f'draft by {self.user_id} on {self.ticket_id}'
+
+
+class TicketPresence(models.Model):
+    """Who has a ticket open right now, refreshed by a ~20s heartbeat.
+
+    A table rather than the cache: the configured cache is per-process
+    LocMem, so gunicorn workers would not see each other's heartbeats.
+    Rows older than ``STALE_AFTER_SECONDS`` are ignored and pruned lazily.
+    """
+    MODE_VIEWING = 'viewing'
+    MODE_REPLYING = 'replying'
+    MODE_CHOICES = [
+        (MODE_VIEWING, 'Viewing'),
+        (MODE_REPLYING, 'Replying'),
+    ]
+    STALE_AFTER_SECONDS = 60
+
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='psa_ticket_presence',
+    )
+    ticket = models.ForeignKey(
+        Ticket, on_delete=models.CASCADE, related_name='presence',
+    )
+    mode = models.CharField(max_length=10, choices=MODE_CHOICES, default=MODE_VIEWING)
+    last_seen = models.DateTimeField(db_index=True)
+
+    class Meta:
+        db_table = 'psa_ticket_presence'
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'ticket'],
+                                    name='psa_ticket_presence_user_ticket_uniq'),
+        ]
+
+    def __str__(self):
+        return f'{self.user_id} {self.mode} {self.ticket_id}'
+
+    @classmethod
+    def active_for(cls, ticket, *, exclude_user=None):
+        cutoff = timezone.now() - timezone.timedelta(seconds=cls.STALE_AFTER_SECONDS)
+        qs = cls.objects.filter(ticket=ticket, last_seen__gte=cutoff).select_related('user')
+        if exclude_user is not None:
+            qs = qs.exclude(user=exclude_user)
+        return qs.order_by('user__username')
