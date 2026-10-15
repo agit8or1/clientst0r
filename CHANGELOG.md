@@ -5,6 +5,17 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.602] - 2026-10-15
+
+### Staff technicians work across every customer
+
+- A user whose User Type is Staff can now be assigned tickets, projects and
+  recurring work for any customer, not only customers they are a member of.
+- Permissions checked against memberships (change approvals, problem links,
+  ticket sharing, procurement and similar) now also honour a Staff user's
+  global role. A global role only adds capabilities; anything a membership
+  grants still applies.
+
 ## [3.17.601] - 2026-10-15
 
 ### Billing fixes

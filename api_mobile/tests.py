@@ -56,11 +56,8 @@ def _make_msp_tech(user):
     """Mark `user` as MSP staff (a technician). Users who are only members
     of a customer are customer users and get the portal ticket rule: only
     tickets shared with the client, no internal comments."""
-    from accounts.models import UserProfile, UserType
-    profile, _ = UserProfile.objects.get_or_create(user=user)
-    profile.user_type = UserType.STAFF
-    profile.save()
-    return user
+    from psa.tests._base import _make_msp_tech as _shared
+    return _shared(user)
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)

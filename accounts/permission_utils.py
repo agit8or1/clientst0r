@@ -23,6 +23,14 @@ def user_has_perm(user, perm_name) -> bool:
         return False
     if user.is_superuser:
         return True
+    # MSP staff with a global role get that role's capabilities without
+    # needing a membership in a customer. Without a global role, behaviour
+    # is unchanged: memberships decide.
+    profile = getattr(user, 'profile', None)
+    if profile is not None and getattr(profile, 'is_staff_user', lambda: False)():
+        global_permissions = profile.get_global_permissions()
+        if global_permissions is not None and getattr(global_permissions, perm_name, False):
+            return True
     from accounts.models import Membership
     qs = Membership.objects.filter(
         user=user, is_active=True

@@ -1054,7 +1054,8 @@ def _eligible_assignees(org):
     """
     from django.contrib.auth.models import User
     org_id = getattr(org, 'id', None) or getattr(org, 'pk', None) or org if org else None
-    q = models.Q(is_staff=True) | models.Q(is_superuser=True)
+    q = (models.Q(is_staff=True) | models.Q(is_superuser=True)
+         | models.Q(profile__user_type='staff'))
     if org_id:
         q = q | models.Q(memberships__organization_id=org_id, memberships__is_active=True)
     return (
