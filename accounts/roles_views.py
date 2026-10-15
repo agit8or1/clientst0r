@@ -5,6 +5,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.db.models import Q
 from core.middleware import get_request_organization
 from .models import RoleTemplate, Membership
 
@@ -314,7 +315,11 @@ def member_role_assign(request, user_id):
     if request.method == 'POST':
         role_template_id = request.POST.get('role_template_id')
         if role_template_id:
-            role_template = get_object_or_404(RoleTemplate, pk=role_template_id)
+            # Only system-wide templates or this customer's own custom ones.
+            role_template = get_object_or_404(
+                RoleTemplate.objects.filter(Q(organization=org) | Q(organization__isnull=True)),
+                pk=role_template_id,
+            )
             user_membership.role_template = role_template
             user_membership.save()
             messages.success(request, f'Assigned role "{role_template.name}" to {user.username}.')

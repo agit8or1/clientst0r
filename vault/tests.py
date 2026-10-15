@@ -675,9 +675,10 @@ class ExtensionAuthDecoratorTests(TestCase):
         resp = view(req)
         self.assertEqual(resp.status_code, 401)
 
-    def test_org_id_header_overrides_token_pin(self):
+    def test_token_pin_wins_over_org_id_header(self):
+        # A token pinned to a customer never acts for another one, even when
+        # the user is also a member there and the header asks for it.
         other_org = Organization.objects.create(name='OtherCo', slug='ext-co-other')
-        # Give the user membership in the other org so access is allowed.
         from accounts.models import Membership, Role
         Membership.objects.create(
             user=self.user, organization=other_org, role=Role.READONLY, is_active=True,
@@ -690,7 +691,7 @@ class ExtensionAuthDecoratorTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         import json as _json
         data = _json.loads(resp.content)
-        self.assertEqual(data['org'], other_org.id)
+        self.assertEqual(data['org'], self.org.id)
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -1256,6 +1257,46 @@ class ExtensionPerOrgIsolationTests(TestCase):
         matches = r.json()['matches']
         self.assertEqual(len(matches), 1)
         self.assertIn(self.org_a.slug, matches[0]['title'])
+
+    def test_token_pinned_to_org_a_ignores_header_for_org_b(self):
+        # A pinned token never acts for another customer, whatever the
+        # X-Organization-Id header says.
+        from vault.models import WebExtensionAuthToken
+        secret_a, _ = WebExtensionAuthToken.issue(
+            user=self.user, organization=self.org_a,
+        )
+        r = self.c.get(
+            '/vault/api/extension/autofill/?url=https://shared.test/login',
+            HTTP_AUTHORIZATION=f'Bearer {secret_a}',
+            HTTP_X_ORGANIZATION_ID=str(self.org_b.id),
+        )
+        self.assertEqual(r.status_code, 200)
+        matches = r.json()['matches']
+        self.assertEqual(len(matches), 1)
+        self.assertIn(self.org_a.slug, matches[0]['title'])
+        self.assertNotIn(self.org_b.slug, matches[0]['title'])
+
+    def test_unpinned_token_still_honours_header(self):
+        r = self.c.get(
+            '/vault/api/extension/autofill/?url=https://shared.test/login',
+            HTTP_AUTHORIZATION=f'Bearer {self.secret}',
+            HTTP_X_ORGANIZATION_ID=str(self.org_b.id),
+        )
+        self.assertEqual(r.status_code, 200)
+        matches = r.json()['matches']
+        self.assertEqual(len(matches), 1)
+        self.assertIn(self.org_b.slug, matches[0]['title'])
+
+    def test_token_rejected_when_user_deactivated(self):
+        url = '/vault/api/extension/autofill/?url=https://shared.test/login'
+        headers = {
+            'HTTP_AUTHORIZATION': f'Bearer {self.secret}',
+            'HTTP_X_ORGANIZATION_ID': str(self.org_a.id),
+        }
+        self.assertEqual(self.c.get(url, **headers).status_code, 200)
+        self.user.is_active = False
+        self.user.save()
+        self.assertEqual(self.c.get(url, **headers).status_code, 401)
 
 
 class LegacyFernetDecryptTests(TestCase):

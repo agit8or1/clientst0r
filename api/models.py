@@ -129,7 +129,8 @@ class APIKey(BaseModel):
         try:
             api_key = cls.objects.select_related('organization', 'user').get(
                 key_hash=key_hash,
-                is_active=True
+                is_active=True,
+                user__is_active=True,
             )
             return api_key
         except cls.DoesNotExist:

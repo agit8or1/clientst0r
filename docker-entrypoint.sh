@@ -9,6 +9,9 @@
 #   3. Collect static files into the shared volume.
 #   4. Bootstrap a superuser if env vars are provided (idempotent).
 #   5. Exec the CMD (gunicorn by default).
+#
+# With CLIENTST0R_SKIP_SETUP=1 (the `scheduler` service) steps 2-4 are
+# skipped: the `app` container owns them.
 
 set -e
 
@@ -24,6 +27,15 @@ if [ "${DB_ENGINE:-mysql}" != "sqlite3" ]; then
         sleep 2
     done
     echo "Database is up."
+fi
+
+# The `scheduler` service in docker-compose.yml shares this image and starts
+# after `app` is healthy; it sets CLIENTST0R_SKIP_SETUP=1 so two containers
+# never race each other through migrate/collectstatic.
+if [ "${CLIENTST0R_SKIP_SETUP:-0}" = "1" ]; then
+    echo "Skipping migrations/static/superuser setup (CLIENTST0R_SKIP_SETUP=1)"
+    echo "Starting: $*"
+    exec "$@"
 fi
 
 echo "Running migrations..."

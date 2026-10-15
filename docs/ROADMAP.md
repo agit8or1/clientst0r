@@ -1485,6 +1485,44 @@ views or URLs.
 - Marketplace/app store
 - White-label tenant branding beyond per-org logo
 
+## Phase 51 — Reliability and customer-boundary hardening **(M · quality)** [in progress]
+
+A code audit in October 2026 found work that the product described as finished
+but that did not hold up in use: periodic jobs that nothing ran, edit forms that
+let a customer's own users reach other customers' records, and role switches
+that were stored but never checked. This phase fixes those before new features
+are built on top of them.
+
+- **Customer boundaries on PSA forms** *(shipped v3.17.599)* — customer users
+  can no longer open, edit or create contracts, invoices, projects, quotes,
+  recurring schedules, requisitions, purchase orders, email configs or canned
+  replies for a customer they don't belong to, by URL or by form field. The
+  client account, charge and portal-invite pages are scoped the same way. MSP
+  staff still work across every customer.
+- **Shared templates and roles** *(shipped v3.17.599)* — only MSP staff can edit
+  or delete global document templates; role assignment accepts only system
+  roles or the customer's own custom roles.
+- **Access ends with the account** *(shipped v3.17.599)* — API keys and browser
+  extension tokens stop working when their user is deactivated, a customer
+  user's key stops working when they leave that customer, and an extension
+  token pinned to a customer can't be pointed at another one.
+- **Every periodic job runs from the scheduler** *(shipped v3.17.599)* —
+  recurring invoices, SLA workflow ticks, KB review reminders, approval
+  escalation and more than twenty other jobs that no timer or cron entry ran
+  are now scheduler tasks, visible with their last result on Settings →
+  Scheduler. The crontab lines older updates added are removed. Scheduled
+  invoicing bills only the current period: a contract more than one period
+  behind is reported, never back-billed. Late fees are scheduled but off by
+  default.
+- **Role view permissions enforced** *(planned)* — `vault_view`, `docs_view`
+  and `assets_view` checked on every page, search, the REST and GraphQL APIs,
+  the mobile API and the browser extension; the ticket sidebar's credential
+  card follows the same rule.
+- **Protected file downloads** *(planned)* — uploaded files served through an
+  authenticated view that checks the record each file belongs to, so native
+  installs can download attachments and Docker installs stop serving uploads
+  publicly.
+
 ---
 
 ## Sizing
@@ -1538,6 +1576,7 @@ views or URLs.
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
 | 49 — Interface consistency + tenant-boundary hardening | M | **complete — 49.1 (v3.17.559); 49.2 (v3.17.559–581) — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, vault-export permission v3.17.574, AI data access v3.17.575–576, credit memos v3.17.577, late fees v3.17.578, late-fee audit v3.17.579, navbar overflow v3.17.580, expired contracts v3.17.581, sync status honesty v3.17.582, scheduler failure reporting v3.17.583, bundled services #147 v3.17.584, utility toolbar v3.17.585** | none — touches every app |
 | 50 — "Help Us Grow" call to action | S | shipped v3.17.586 | none — `config/support_links.py` + `templates/core/_help_us_grow_*.html`; reuses the existing GitHub Sponsors link |
+| 51 — Reliability and customer-boundary hardening | M | in progress — PSA customer boundaries, token revocation and scheduler coverage v3.17.599 | none — touches PSA, docs, accounts, API, vault and the scheduler |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

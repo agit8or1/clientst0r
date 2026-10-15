@@ -74,6 +74,36 @@ ATTACHMENT_ALLOWED_MIMES = {
 }
 
 
+def _is_msp_staff(request):
+    """MSP techs work across every customer; customer users don't."""
+    return (request.user.is_superuser or request.user.is_staff
+            or getattr(request, 'is_staff_user', False))
+
+
+def _member_org_ids(request):
+    return list(
+        request.user.memberships.filter(is_active=True).values_list('organization_id', flat=True)
+    )
+
+
+def _customer_orgs(request):
+    """Customers this user may act for: every customer for MSP staff, only
+    their own memberships for customer users."""
+    from core.models import Organization
+    qs = Organization.objects.all()
+    if _is_msp_staff(request):
+        return qs
+    return qs.filter(id__in=_member_org_ids(request))
+
+
+def _for_customer(request, qs):
+    """Restrict a queryset of customer-owned records (`organization` FK) to
+    the customers this user may act for."""
+    if _is_msp_staff(request):
+        return qs
+    return qs.filter(organization_id__in=_member_org_ids(request))
+
+
 def _scoped_ticket_qs(request):
     """
     Tickets visible to the current request — PSA is now a global tool.
@@ -1533,6 +1563,8 @@ def canned_reply_edit(request, pk):
     if not (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
         if reply.organization_id is None and reply.created_by_id != request.user.id:
             raise Http404()
+        if reply.organization_id is not None and reply.organization_id not in _member_org_ids(request):
+            raise Http404()
         if reply.organization_id is not None:
             if not request.user.memberships.filter(
                 organization_id=reply.organization_id, is_active=True
@@ -1869,13 +1901,13 @@ def project_list(request):
 def project_form(request, pk=None):
     from core.models import Organization
     if pk:
-        item = get_object_or_404(Project, pk=pk)
+        item = get_object_or_404(_for_customer(request, Project.objects.all()), pk=pk)
         org = item.organization
     else:
         item = None
         org = get_request_organization(request)
 
-    client_orgs = Organization.objects.filter(is_active=True).order_by('name')
+    client_orgs = _customer_orgs(request).filter(is_active=True).order_by('name')
 
     def _render(selected_org_id=None):
         # v3.17.129 — admin-only Owner picker. Show eligible techs for
@@ -1885,7 +1917,7 @@ def project_form(request, pk=None):
                         else (item.organization_id if item else (org.pk if org else None)))
         scope_org = None
         if scope_org_id:
-            scope_org = Organization.objects.filter(pk=scope_org_id).first()
+            scope_org = _customer_orgs(request).filter(pk=scope_org_id).first()
         can_assign = _can_assign(request, scope_org) if scope_org else (
             request.user.is_superuser or getattr(request, 'is_staff_user', False)
         )
@@ -1903,7 +1935,7 @@ def project_form(request, pk=None):
         posted_org_id = (request.POST.get('client_org_id') or '').strip()
         if posted_org_id:
             try:
-                item_org = Organization.objects.get(pk=int(posted_org_id), is_active=True)
+                item_org = _customer_orgs(request).get(pk=int(posted_org_id), is_active=True)
             except (Organization.DoesNotExist, ValueError, TypeError):
                 messages.error(request, 'Invalid client.')
                 return _render()
@@ -1957,7 +1989,7 @@ def project_form(request, pk=None):
             item.budget_warn_at_percent = 80
         client_org_id = request.POST.get('client_org') or ''
         if client_org_id:
-            item.client_org = Organization.objects.filter(pk=client_org_id).first()
+            item.client_org = _customer_orgs(request).filter(pk=client_org_id).first()
         else:
             item.client_org = None
         # v3.17.129 — admins can choose an owner; otherwise default to creator.
@@ -2048,7 +2080,7 @@ def recurring_list(request):
 def recurring_form(request, pk=None):
     from core.models import Organization
     if pk:
-        item = get_object_or_404(RecurringTicketSchedule, pk=pk)
+        item = get_object_or_404(_for_customer(request, RecurringTicketSchedule.objects.all()), pk=pk)
         org = item.organization
     else:
         item = None
@@ -2057,7 +2089,7 @@ def recurring_form(request, pk=None):
     queues = Queue.objects.filter(is_active=True)
     priorities = TicketPriority.objects.all()
     types = TicketType.objects.all()
-    client_orgs = Organization.objects.filter(is_active=True).order_by('name')
+    client_orgs = _customer_orgs(request).filter(is_active=True).order_by('name')
 
     def _render(selected_org_id=None):
         # v3.17.129 — admins can pre-pick a default assignee for the schedule.
@@ -2065,7 +2097,7 @@ def recurring_form(request, pk=None):
                         else (item.organization_id if item else (org.pk if org else None)))
         scope_org = None
         if scope_org_id:
-            scope_org = Organization.objects.filter(pk=scope_org_id).first()
+            scope_org = _customer_orgs(request).filter(pk=scope_org_id).first()
         can_assign = _can_assign(request, scope_org) if scope_org else (
             request.user.is_superuser or getattr(request, 'is_staff_user', False)
         )
@@ -2084,7 +2116,7 @@ def recurring_form(request, pk=None):
         posted_org_id = (request.POST.get('client_org_id') or '').strip()
         if posted_org_id:
             try:
-                item_org = Organization.objects.get(pk=int(posted_org_id), is_active=True)
+                item_org = _customer_orgs(request).get(pk=int(posted_org_id), is_active=True)
             except (Organization.DoesNotExist, ValueError, TypeError):
                 messages.error(request, 'Invalid client.')
                 return _render()
@@ -2143,7 +2175,7 @@ def recurring_form(request, pk=None):
 
         client_org_id = request.POST.get('client_org') or ''
         if client_org_id:
-            item.client_org = Organization.objects.filter(pk=client_org_id).first()
+            item.client_org = _customer_orgs(request).filter(pk=client_org_id).first()
         else:
             item.client_org = None
 
@@ -2494,13 +2526,13 @@ def contract_list(request):
 def contract_form(request, pk=None):
     from core.models import Organization
     if pk:
-        item = get_object_or_404(Contract, pk=pk)
+        item = get_object_or_404(_for_customer(request, Contract.objects.all()), pk=pk)
         org = item.organization
     else:
         item = None
         org = get_request_organization(request)
 
-    client_orgs = Organization.objects.filter(is_active=True).order_by('name')
+    client_orgs = _customer_orgs(request).filter(is_active=True).order_by('name')
 
     def _render(selected_org_id=None):
         return render(request, 'psa/contract_form.html', {
@@ -2517,7 +2549,7 @@ def contract_form(request, pk=None):
         posted_org_id = (request.POST.get('client_org_id') or '').strip()
         if posted_org_id:
             try:
-                item_org = Organization.objects.get(pk=int(posted_org_id), is_active=True)
+                item_org = _customer_orgs(request).get(pk=int(posted_org_id), is_active=True)
             except (Organization.DoesNotExist, ValueError, TypeError):
                 messages.error(request, 'Invalid client.')
                 return _render()
@@ -2534,7 +2566,7 @@ def contract_form(request, pk=None):
             messages.error(request, 'Name and client are required.')
             return _render(selected_org_id=item_org.pk)
         try:
-            client_org = Organization.objects.get(pk=client_org_id)
+            client_org = _customer_orgs(request).get(pk=client_org_id)
         except Organization.DoesNotExist:
             messages.error(request, 'Client not found.')
             return _render(selected_org_id=item_org.pk)
@@ -2760,7 +2792,7 @@ def email_config_form(request, pk=None):
     from core.models import Organization
     from integrations.models import M365Connection
     if pk:
-        item = get_object_or_404(EmailIngestionConfig, pk=pk)
+        item = get_object_or_404(_for_customer(request, EmailIngestionConfig.objects.all()), pk=pk)
         org = item.organization
     else:
         item = None
@@ -2769,7 +2801,7 @@ def email_config_form(request, pk=None):
     queues = Queue.objects.filter(is_active=True)
     priorities = TicketPriority.objects.all()
     types = TicketType.objects.all()
-    client_orgs = Organization.objects.filter(is_active=True).order_by('name')
+    client_orgs = _customer_orgs(request).filter(is_active=True).order_by('name')
     # Issue #142 — M365 Graph mailbox source reuses an existing M365 connection's
     # app-registration credentials.
     m365_connections = M365Connection.objects.filter(is_active=True).select_related(
@@ -2789,7 +2821,7 @@ def email_config_form(request, pk=None):
         posted_org_id = (request.POST.get('client_org_id') or '').strip()
         if posted_org_id:
             try:
-                item_org = Organization.objects.get(pk=int(posted_org_id), is_active=True)
+                item_org = _customer_orgs(request).get(pk=int(posted_org_id), is_active=True)
             except (Organization.DoesNotExist, ValueError, TypeError):
                 messages.error(request, 'Invalid client.')
                 return _render()
@@ -2897,7 +2929,7 @@ def email_graph_readiness(request, pk):
     separate inbound (Mail.Read) and outbound (Mail.Send) status. Never returns
     tokens, secrets, or raw auth headers — only Graph error messages."""
     from django.http import JsonResponse
-    config = get_object_or_404(EmailIngestionConfig, pk=pk)
+    config = get_object_or_404(_for_customer(request, EmailIngestionConfig.objects.all()), pk=pk)
     conn = config.m365_connection
     result = {
         'connection_active': bool(conn and conn.is_active),
@@ -2957,7 +2989,7 @@ def email_graph_test_send(request, pk):
     from django.http import JsonResponse
     from django.utils import timezone
     import json
-    config = get_object_or_404(EmailIngestionConfig, pk=pk)
+    config = get_object_or_404(_for_customer(request, EmailIngestionConfig.objects.all()), pk=pk)
 
     try:
         data = json.loads(request.body or '{}')
@@ -3045,13 +3077,13 @@ def quote_list(request):
 def quote_form(request, pk=None):
     from core.models import Organization, SystemSetting
     if pk:
-        item = get_object_or_404(Quote, pk=pk)
+        item = get_object_or_404(_for_customer(request, Quote.objects.all()), pk=pk)
         org = item.organization
     else:
         item = None
         org = get_request_organization(request)
 
-    client_orgs = Organization.objects.filter(is_active=True).order_by('name')
+    client_orgs = _customer_orgs(request).filter(is_active=True).order_by('name')
 
     def _render(selected_org_id=None):
         settings = SystemSetting.get_settings()
@@ -3070,7 +3102,7 @@ def quote_form(request, pk=None):
         posted_org_id = (request.POST.get('client_org_id') or '').strip()
         if posted_org_id:
             try:
-                item_org = Organization.objects.get(pk=int(posted_org_id), is_active=True)
+                item_org = _customer_orgs(request).get(pk=int(posted_org_id), is_active=True)
             except (Organization.DoesNotExist, ValueError, TypeError):
                 messages.error(request, 'Invalid client.')
                 return _render()
@@ -3087,7 +3119,7 @@ def quote_form(request, pk=None):
             messages.error(request, 'Title and client are required.')
             return _render(selected_org_id=item_org.pk)
         try:
-            client_org = Organization.objects.get(pk=client_org_id)
+            client_org = _customer_orgs(request).get(pk=client_org_id)
         except Organization.DoesNotExist:
             messages.error(request, 'Client not found.')
             return _render(selected_org_id=item_org.pk)
@@ -3921,13 +3953,13 @@ def invoice_form(request, pk=None):
     from core.models import Organization, SystemSetting
     from datetime import date as _date
     if pk:
-        item = get_object_or_404(Invoice, pk=pk)
+        item = get_object_or_404(_for_customer(request, Invoice.objects.all()), pk=pk)
         org = item.organization
     else:
         item = None
         org = get_request_organization(request)
 
-    client_orgs = Organization.objects.filter(is_active=True).order_by('name')
+    client_orgs = _customer_orgs(request).filter(is_active=True).order_by('name')
 
     def _render(selected_org_id=None):
         settings = SystemSetting.get_settings()
@@ -3948,7 +3980,7 @@ def invoice_form(request, pk=None):
         posted_org_id = (request.POST.get('client_org_id') or '').strip()
         if posted_org_id:
             try:
-                item_org = Organization.objects.get(pk=int(posted_org_id), is_active=True)
+                item_org = _customer_orgs(request).get(pk=int(posted_org_id), is_active=True)
             except (Organization.DoesNotExist, ValueError, TypeError):
                 messages.error(request, 'Invalid client.')
                 return _render()
@@ -3965,7 +3997,7 @@ def invoice_form(request, pk=None):
             messages.error(request, 'Title and client are required.')
             return _render(selected_org_id=item_org.pk)
         try:
-            client_org = Organization.objects.get(pk=client_org_id)
+            client_org = _customer_orgs(request).get(pk=client_org_id)
         except Organization.DoesNotExist:
             messages.error(request, 'Client not found.')
             return _render(selected_org_id=item_org.pk)
@@ -4468,7 +4500,7 @@ def client_account(request, org_id):
     payments, unbilled time + expenses ready to invoice."""
     from .models import Charge, Invoice, Payment, get_psa_balance
     from core.models import Organization
-    client = get_object_or_404(Organization, pk=org_id)
+    client = get_object_or_404(_customer_orgs(request), pk=org_id)
 
     org = get_request_organization(request)
     summary = get_psa_balance(client, msp_org=org)
@@ -4512,7 +4544,7 @@ def charge_add(request, org_id):
     from core.models import Organization
     from datetime import date as _date
     org = get_request_organization(request)
-    client = get_object_or_404(Organization, pk=org_id)
+    client = get_object_or_404(_customer_orgs(request), pk=org_id)
 
     description = (request.POST.get('description') or '').strip()
     if not description:
@@ -4562,7 +4594,7 @@ def charge_invoice(request, org_id):
     from core.models import Organization
     from datetime import date as _date
     org = get_request_organization(request)
-    client = get_object_or_404(Organization, pk=org_id)
+    client = get_object_or_404(_customer_orgs(request), pk=org_id)
     qs = Charge.objects.filter(client_org=client, invoiced=False)
     if org is not None:
         qs = qs.filter(organization=org)
@@ -4733,7 +4765,7 @@ def portal_invite(request, org_id):
     from core.models import Organization
     from psa.models import ClientPSASettings
 
-    org = get_object_or_404(Organization, pk=org_id)
+    org = get_object_or_404(_customer_orgs(request), pk=org_id)
 
     if request.method == 'POST':
         email = (request.POST.get('email') or '').strip().lower()
@@ -5068,13 +5100,13 @@ def requisition_form(request, pk=None):
     from .models import PurchaseRequisition, PurchaseRequisitionLineItem
     from core.models import Organization
     if pk:
-        item = get_object_or_404(PurchaseRequisition, pk=pk)
+        item = get_object_or_404(_for_customer(request, PurchaseRequisition.objects.all()), pk=pk)
         org = item.organization
     else:
         item = None
         org = get_request_organization(request)
 
-    client_orgs = Organization.objects.filter(is_active=True).order_by('name')
+    client_orgs = _customer_orgs(request).filter(is_active=True).order_by('name')
 
     def _render():
         return render(request, 'psa/requisition_form.html', {
@@ -5089,7 +5121,7 @@ def requisition_form(request, pk=None):
         posted_org_id = (request.POST.get('organization_id') or '').strip()
         if posted_org_id:
             try:
-                item_org = Organization.objects.get(pk=int(posted_org_id), is_active=True)
+                item_org = _customer_orgs(request).get(pk=int(posted_org_id), is_active=True)
             except (Organization.DoesNotExist, ValueError, TypeError):
                 messages.error(request, 'Invalid organization.')
                 return _render()
@@ -5109,7 +5141,7 @@ def requisition_form(request, pk=None):
         client_org_id = (request.POST.get('client_org') or '').strip()
         if client_org_id:
             try:
-                client_org = Organization.objects.get(pk=int(client_org_id))
+                client_org = _customer_orgs(request).get(pk=int(client_org_id))
             except (Organization.DoesNotExist, ValueError, TypeError):
                 client_org = None
 
@@ -5349,13 +5381,13 @@ def po_form(request, pk=None):
     from .models import PurchaseOrder, PurchaseOrderLineItem
     from core.models import Organization
     if pk:
-        item = get_object_or_404(PurchaseOrder, pk=pk)
+        item = get_object_or_404(_for_customer(request, PurchaseOrder.objects.all()), pk=pk)
         org = item.organization
     else:
         item = None
         org = get_request_organization(request)
 
-    client_orgs = Organization.objects.filter(is_active=True).order_by('name')
+    client_orgs = _customer_orgs(request).filter(is_active=True).order_by('name')
 
     # Phase 4.3: list of selectable vendors for the FK dropdown
     from assets.models import Vendor as ProcurementVendor
@@ -5375,7 +5407,7 @@ def po_form(request, pk=None):
         posted_org_id = (request.POST.get('organization_id') or '').strip()
         if posted_org_id:
             try:
-                item_org = Organization.objects.get(pk=int(posted_org_id), is_active=True)
+                item_org = _customer_orgs(request).get(pk=int(posted_org_id), is_active=True)
             except (Organization.DoesNotExist, ValueError, TypeError):
                 messages.error(request, 'Invalid organization.')
                 return _render()
@@ -5409,7 +5441,7 @@ def po_form(request, pk=None):
         client_org_id = (request.POST.get('client_org') or '').strip()
         if client_org_id:
             try:
-                client_org = Organization.objects.get(pk=int(client_org_id))
+                client_org = _customer_orgs(request).get(pk=int(client_org_id))
             except (Organization.DoesNotExist, ValueError, TypeError):
                 client_org = None
 

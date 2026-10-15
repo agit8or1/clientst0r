@@ -33,6 +33,17 @@ class APIKeyAuthentication(authentication.BaseAuthentication):
         if not api_key:
             raise exceptions.AuthenticationFailed('Invalid API key')
 
+        # A customer user's key stops working for a customer they no longer
+        # belong to. MSP staff work across every customer.
+        user = api_key.user
+        profile = getattr(user, 'profile', None)
+        is_msp_staff = (user.is_superuser or user.is_staff
+                        or (profile is not None and profile.is_staff_user()))
+        if (api_key.organization_id and not is_msp_staff
+                and not user.memberships.filter(
+                    organization_id=api_key.organization_id, is_active=True).exists()):
+            raise exceptions.AuthenticationFailed('Invalid API key')
+
         # Update last used
         api_key.last_used_at = timezone.now()
         api_key.last_used_ip = self.get_client_ip(request)

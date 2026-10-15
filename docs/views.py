@@ -888,20 +888,29 @@ def template_create(request):
     })
 
 
+def _editable_templates(request):
+    """Templates this user may edit or delete. Shared (global) templates
+    belong to the MSP, so only MSP staff may change them; customer users
+    manage their own customer's templates."""
+    from django.db.models import Q
+    org = get_request_organization(request)
+    qs = Document.objects.filter(is_template=True)
+    if (request.user.is_superuser or request.user.is_staff
+            or getattr(request, 'is_staff_user', False)):
+        return qs.filter(Q(organization=org) | Q(organization=None, is_global=True))
+    if org is None:
+        return qs.none()
+    return qs.filter(organization=org)
+
+
 @login_required
 @require_write
 def template_edit(request, pk):
     """
     Edit document template.
     """
-    from django.db.models import Q
     org = get_request_organization(request)
-    template = get_object_or_404(
-        Document,
-        Q(organization=org) | Q(organization=None, is_global=True),
-        pk=pk,
-        is_template=True,
-    )
+    template = get_object_or_404(_editable_templates(request), pk=pk)
 
     if request.method == 'POST':
         form = DocumentForm(request.POST, instance=template, organization=org)
@@ -929,14 +938,7 @@ def template_delete(request, pk):
     """
     Delete document template.
     """
-    from django.db.models import Q
-    org = get_request_organization(request)
-    template = get_object_or_404(
-        Document,
-        Q(organization=org) | Q(organization=None, is_global=True),
-        pk=pk,
-        is_template=True,
-    )
+    template = get_object_or_404(_editable_templates(request), pk=pk)
 
     if request.method == 'POST':
         title = template.title

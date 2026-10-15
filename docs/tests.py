@@ -1214,3 +1214,105 @@ class DocumentExportViewTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, f'/docs/{self.doc.slug}/export/pdf/')
         self.assertContains(r, f'/docs/{self.doc.slug}/export/docx/')
+
+
+# ---------------------------------------------------------------------------
+# Template edit/delete boundary — global templates are MSP-owned
+# ---------------------------------------------------------------------------
+
+@override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class TemplateEditBoundaryTests(TestCase):
+    """Shared (global) templates belong to the MSP: only MSP staff may edit
+    or delete them. Customer users with write access manage only their
+    current customer's templates."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from accounts.models import Membership, Role, UserType
+        cls.org_a = Organization.objects.create(name='TplCustA', slug='tpl-cust-a')
+        cls.org_b = Organization.objects.create(name='TplCustB', slug='tpl-cust-b')
+        cls.customer = User.objects.create_user('tpl-cust', 'tc@x.com', 'pw')
+        Membership.objects.create(
+            user=cls.customer, organization=cls.org_a,
+            role=Role.EDITOR, is_active=True,
+        )
+        cls.superuser = User.objects.create_user(
+            'tpl-su', 'tsu@x.com', 'pw', is_staff=True, is_superuser=True,
+        )
+        cls.tech = User.objects.create_user('tpl-tech', 'tt@x.com', 'pw')
+        cls.tech.profile.user_type = UserType.STAFF
+        cls.tech.profile.save()
+        Membership.objects.create(
+            user=cls.tech, organization=cls.org_a,
+            role=Role.EDITOR, is_active=True,
+        )
+
+    def setUp(self):
+        self.global_tpl = Document.objects.create(
+            organization=None, is_global=True, is_template=True,
+            title='Global Template', body='shared',
+        )
+        self.own_tpl = Document.objects.create(
+            organization=self.org_a, is_template=True,
+            title='Cust A Template', body='a',
+        )
+        self.other_tpl = Document.objects.create(
+            organization=self.org_b, is_template=True,
+            title='Cust B Template', body='b',
+        )
+
+    def _client(self, user, org=None):
+        c = Client()
+        c.force_login(user)
+        s = c.session
+        s['2fa_prompted'] = True
+        s['current_organization_id'] = (org or self.org_a).id
+        s.save()
+        return c
+
+    # ---- customer user ---------------------------------------------------
+    def test_customer_cannot_edit_global_template(self):
+        c = self._client(self.customer)
+        r = c.get(f'/docs/templates/{self.global_tpl.pk}/edit/')
+        self.assertEqual(r.status_code, 404)
+        r = c.post(f'/docs/templates/{self.global_tpl.pk}/edit/',
+                   {'title': 'Hijacked', 'body': 'x'})
+        self.assertEqual(r.status_code, 404)
+        self.global_tpl.refresh_from_db()
+        self.assertEqual(self.global_tpl.title, 'Global Template')
+
+    def test_customer_cannot_delete_global_template(self):
+        c = self._client(self.customer)
+        r = c.post(f'/docs/templates/{self.global_tpl.pk}/delete/')
+        self.assertEqual(r.status_code, 404)
+        self.assertTrue(Document.objects.filter(pk=self.global_tpl.pk).exists())
+
+    def test_customer_cannot_touch_other_customers_template(self):
+        c = self._client(self.customer)
+        self.assertEqual(
+            c.get(f'/docs/templates/{self.other_tpl.pk}/edit/').status_code, 404)
+        self.assertEqual(
+            c.post(f'/docs/templates/{self.other_tpl.pk}/delete/').status_code, 404)
+        self.assertTrue(Document.objects.filter(pk=self.other_tpl.pk).exists())
+
+    def test_customer_can_edit_and_delete_own_template(self):
+        c = self._client(self.customer)
+        r = c.get(f'/docs/templates/{self.own_tpl.pk}/edit/')
+        self.assertEqual(r.status_code, 200)
+        r = c.post(f'/docs/templates/{self.own_tpl.pk}/delete/')
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(Document.objects.filter(pk=self.own_tpl.pk).exists())
+
+    # ---- MSP staff -------------------------------------------------------
+    def test_superuser_can_edit_and_delete_global_template(self):
+        c = self._client(self.superuser)
+        r = c.get(f'/docs/templates/{self.global_tpl.pk}/edit/')
+        self.assertEqual(r.status_code, 200)
+        r = c.post(f'/docs/templates/{self.global_tpl.pk}/delete/')
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(Document.objects.filter(pk=self.global_tpl.pk).exists())
+
+    def test_profile_staff_user_can_edit_global_template(self):
+        c = self._client(self.tech)
+        r = c.get(f'/docs/templates/{self.global_tpl.pk}/edit/')
+        self.assertEqual(r.status_code, 200)

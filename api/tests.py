@@ -398,3 +398,58 @@ class OrganizationViewSetTests(TestCase):
     def test_get_organizations_list_returns_200(self):
         resp = self.client.get('/api/organizations/')
         self.assertEqual(resp.status_code, 200)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class APIKeyRevocationOnOffboardTests(TestCase):
+    """An API key dies with its owner's access: a deactivated user's key is
+    rejected, and a customer user's org-pinned key is rejected once they no
+    longer have an active Membership in the key's customer. MSP staff are
+    exempt from the membership check."""
+
+    def setUp(self):
+        self.org = Organization.objects.create(name='KeyCust', slug='key-cust')
+        Asset.objects.create(organization=self.org, name='kc-asset', asset_type='server')
+        self.user = User.objects.create_user('key-user', password='pw', email='ku@x.com')
+        self.membership = Membership.objects.create(
+            user=self.user, organization=self.org, role=Role.OWNER, is_active=True,
+        )
+
+    def _key_for(self, user):
+        _, plaintext = APIKey.create_key(
+            organization=self.org, user=user, name='offboard-key', role=Role.OWNER,
+        )
+        return plaintext
+
+    def _get(self, key):
+        return Client().get('/api/assets/', HTTP_AUTHORIZATION=f'Bearer {key}')
+
+    def test_active_member_key_works(self):
+        resp = self._get(self._key_for(self.user))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_inactive_user_key_rejected(self):
+        key = self._key_for(self.user)
+        self.user.is_active = False
+        self.user.save()
+        self.assertIsNone(APIKey.verify_key(key))
+        self.assertEqual(self._get(key).status_code, 401)
+
+    def test_key_rejected_after_membership_deactivated(self):
+        key = self._key_for(self.user)
+        self.membership.is_active = False
+        self.membership.save()
+        self.assertEqual(self._get(key).status_code, 401)
+
+    def test_key_rejected_after_membership_removed(self):
+        key = self._key_for(self.user)
+        self.membership.delete()
+        self.assertEqual(self._get(key).status_code, 401)
+
+    def test_msp_staff_key_not_tied_to_membership(self):
+        from accounts.models import UserType
+        tech = User.objects.create_user('key-tech', password='pw', email='kt@x.com')
+        tech.profile.user_type = UserType.STAFF
+        tech.profile.save()
+        resp = self._get(self._key_for(tech))
+        self.assertNotEqual(resp.status_code, 401)

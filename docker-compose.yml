@@ -4,8 +4,8 @@
 #   cp .env.example .env
 #   docker compose up -d
 #
-# By default this starts two services: `app` (Django + gunicorn) and
-# `db` (MariaDB 10.11). That's the minimal install for self-hosted
+# By default this starts three services: `app` (Django + gunicorn),
+# `scheduler` (periodic jobs, same image) and `db` (MariaDB 10.11). That's the minimal install for self-hosted
 # MSPs — no Redis, no Celery, no Nginx unless you opt in.
 #
 # Optional services (enable with --profile):
@@ -95,6 +95,45 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  # ────────────────────────────────────────────────────────────────────
+  # Scheduler — runs every periodic job (recurring tickets and invoices,
+  # email-to-ticket, SLA ticks, monitoring, breach scans, ...) once a
+  # minute via `manage.py run_scheduler`, the same command the native
+  # install's clientst0r-scheduler.timer runs. Jobs and intervals are
+  # managed in Settings > Scheduler. No cron is needed in either install.
+  # ────────────────────────────────────────────────────────────────────
+  scheduler:
+    image: ${CLIENTST0R_IMAGE:-ghcr.io/agit8or1/clientst0r:latest}
+    container_name: clientst0r-scheduler
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_ENGINE: mysql
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-clientst0r}
+      DB_USER: ${DB_USER:-clientst0r}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # `app` runs migrations and collectstatic; this container must not.
+      CLIENTST0R_SKIP_SETUP: "1"
+    volumes:
+      - media_files:/app/media
+      - uploads:/var/lib/itdocs/uploads
+      - ./logs:/app/logs
+    networks:
+      - clientst0r-net
+    depends_on:
+      app:
+        condition: service_healthy
+    command: >
+      sh -c 'while true; do
+      python manage.py run_scheduler || echo "run_scheduler exited with an error";
+      sleep 60;
+      done'
+    healthcheck:
+      disable: true
 
   # ────────────────────────────────────────────────────────────────────
   # Nginx — optional reverse proxy. Enable with --profile proxy.

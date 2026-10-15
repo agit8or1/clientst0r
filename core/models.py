@@ -1061,6 +1061,37 @@ class ScheduledTask(models.Model):
         ('update_check', 'System Update Check'),
         ('warranty_check', 'Warranty Expiry Check'),
         ('website_monitoring', 'Website Monitoring Checks'),
+        # v3.17.599: periodic management commands that were scheduled only by
+        # a crontab the update script installed (or by nothing at all). Each
+        # one is dispatched by name through run_scheduler.COMMAND_TASKS, so
+        # every install type — native, Docker, updated — runs them from this
+        # one scheduler with no crontab.
+        ('psa_generate_recurring_invoices', 'PSA Recurring Invoices (current period only)'),
+        ('psa_advance_subscription_lifecycle', 'PSA Contract Lifecycle (resume / cancel / expire)'),
+        ('psa_auto_renew_contracts', 'PSA Contract Auto-Renewal'),
+        ('psa_sla_workflow_tick', 'PSA SLA Workflow Tick'),
+        ('psa_escalate_idle_approvals', 'PSA Idle Approval Escalation'),
+        ('psa_run_recurring_purchases', 'PSA Recurring Purchase Requisitions'),
+        ('psa_generate_workflow_suggestions', 'PSA Workflow Suggestions (optional AI)'),
+        ('psa_run_recurring_tickets', 'PSA Recurring Tickets'),
+        ('psa_poll_email', 'PSA Email-to-Ticket Polling'),
+        ('psa_send_outbound', 'PSA Outbound Email Retry Worker'),
+        ('psa_auto_replenish_suggestions', 'Stock Minimum Scan'),
+        ('psa_apply_late_fees', 'PSA Late Fees'),
+        ('kb_review_reminders', 'KB Review Reminders'),
+        ('auto_document_field_visits', 'Field Visit Auto-Documentation (GPS)'),
+        ('prune_technician_locations', 'Prune Technician Location History'),
+        ('sync_distributors', 'Distributor Health Probe'),
+        ('run_scheduled_reports', 'Scheduled Reports'),
+        ('poll_security_alerts', 'Security Alert Polling'),
+        ('check_incident_sla_breaches', 'Security Incident SLA Breach Check'),
+        ('recompute_exposure_scores', 'Security Exposure Score Recompute'),
+        ('assets_warranty_alerts', 'Asset Warranty Expiry Emails'),
+        ('assets_capture_baselines', 'Asset Configuration Baselines'),
+        ('assets_generate_remediation_suggestions', 'Asset Remediation Suggestions (optional AI)'),
+        ('send_compliance_recertifications', 'Compliance Recertification Reminders'),
+        ('sync_network_assets', 'Network Device Asset Sync'),
+        ('update_geoip_db', 'GeoIP Country Database Refresh'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1147,9 +1178,12 @@ class ScheduledTask(models.Model):
         from django.utils import timezone
         now = timezone.now()
 
-        # If never run, should run
+        # Never run: due now, unless a first run was deliberately put in the
+        # future. Rows seeded by get_or_create_defaults() get a first run one
+        # interval out, so a newly shipped task appears on Settings > Scheduler
+        # (where it can be switched off) before it does anything.
         if not self.last_run_at:
-            return True
+            return self.next_run_at is None or now >= self.next_run_at
 
         # Check if next_run_at is in the past
         if self.next_run_at and now >= self.next_run_at:
@@ -1295,15 +1329,240 @@ class ScheduledTask(models.Model):
                 'interval_minutes': 1440,  # Once per day
                 'enabled': False,  # Opt-in (requires SMTP)
             },
-        ]
+            # Dispatched by run_scheduler for a long time but never seeded, so
+            # none of them ran unless someone created the row by hand. Each is
+            # a no-op until its feature is configured.
+            {
+                'task_type': 'prune_monitor_checks',
+                'description': 'Trim website check history to the configured retention window',
+                'interval_minutes': 1440,
+                'enabled': True,
+            },
+            {
+                'task_type': 'network_config_backup',
+                'description': 'Collect network device configs that are due (per-device cadence applies)',
+                'interval_minutes': 60,
+                'enabled': True,
+            },
+            {
+                'task_type': 'asset_age_check',
+                'description': 'Evaluate asset age warnings (only when asset age warnings are enabled)',
+                'interval_minutes': 1440,
+                'enabled': True,
+            },
+            {
+                'task_type': 'firmware_check',
+                'description': 'Check network devices for firmware updates (only when firmware checks are enabled)',
+                'interval_minutes': 1440,
+                'enabled': True,
+            },
+            {
+                'task_type': 'warranty_check',
+                'description': 'Look up warranty expiry via vendor APIs (only when warranty checks are enabled)',
+                'interval_minutes': 1440,
+                'enabled': True,
+            },
+            {
+                # clientst0r-rmm-sync.timer is the usual route; this row lets
+                # installs without it (Docker) run the sync from here.
+                'task_type': 'rmm_sync',
+                'description': 'Synchronize devices from RMM integrations',
+                'interval_minutes': 60,
+                'enabled': False,
+            },
+        ] + cls.PERIODIC_COMMAND_DEFAULTS
 
+        # One query to find what is missing, instead of a get_or_create per
+        # row: run_scheduler calls this every minute.
+        existing = set(cls.objects.values_list('task_type', flat=True))
+        from django.db import IntegrityError, transaction
         for task_data in defaults:
-            task, created = cls.objects.get_or_create(
-                task_type=task_data['task_type'],
-                defaults=task_data
-            )
-            if created:
-                task.calculate_next_run()
+            if task_data['task_type'] in existing:
+                continue
+            task = cls(**task_data)
+            # Saved, not just computed: an unsaved next_run_at left the first
+            # run at "now" for every newly seeded task.
+            task.calculate_next_run()
+            try:
+                with transaction.atomic():
+                    task.save()
+            except IntegrityError:
+                # Another scheduler process or a settings page view seeded it
+                # between our read and our write.
+                pass
+
+    # v3.17.599: periodic management commands owned by the scheduler. The
+    # command each one runs (and its arguments) is in
+    # run_scheduler.COMMAND_TASKS; intervals follow the crontab cadences these
+    # used to have, or the cadence the command's own docstring asks for.
+    PERIODIC_COMMAND_DEFAULTS = [
+        {
+            'task_type': 'psa_generate_recurring_invoices',
+            'description': 'Create draft invoices for contracts whose billing date has come. '
+                           'Bills the current period only: a contract more than one period '
+                           'behind is skipped and reported here, never back-billed.',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            'task_type': 'psa_advance_subscription_lifecycle',
+            'description': 'Resume paused contracts, cancel cancel-at-period-end contracts, '
+                           'expire contracts past their end date',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            'task_type': 'psa_auto_renew_contracts',
+            'description': 'Renew ended contracts that have auto-renew on (applies rollover)',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            'task_type': 'psa_sla_workflow_tick',
+            'description': 'Fire SLA-threshold workflow rules against open tickets',
+            'interval_minutes': 5,
+            'enabled': True,
+        },
+        {
+            'task_type': 'psa_escalate_idle_approvals',
+            'description': 'Email superusers about approvals pending past their escalation threshold',
+            'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            'task_type': 'psa_run_recurring_purchases',
+            'description': 'Create draft purchase requisitions from recurring purchase templates',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            'task_type': 'psa_generate_workflow_suggestions',
+            'description': 'Suggest workflow rules from recurring ticket patterns (only when AI features are enabled)',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            'task_type': 'psa_run_recurring_tickets',
+            'description': 'Create tickets from recurring ticket schedules',
+            'interval_minutes': 15,
+            'enabled': True,
+        },
+        {
+            'task_type': 'psa_poll_email',
+            'description': 'Turn inbound email into tickets and replies',
+            'interval_minutes': 5,
+            'enabled': True,
+        },
+        {
+            'task_type': 'psa_send_outbound',
+            'description': 'Retry Microsoft Graph outbound emails left queued by a transient failure',
+            'interval_minutes': 5,
+            'enabled': True,
+        },
+        {
+            'task_type': 'psa_auto_replenish_suggestions',
+            'description': 'Log inventory items at or below their minimum stock level',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            # Opt-in. It has never run on most installs, and switching it on
+            # charges a fee on every invoice already past the threshold in one
+            # go. That should be an operator's decision, made on this page.
+            'task_type': 'psa_apply_late_fees',
+            'description': 'Apply late fees to overdue invoices (off by default: the first run '
+                           'charges every invoice already past the threshold)',
+            'interval_minutes': 1440,
+            'enabled': False,
+        },
+        {
+            # Weekly: the command has no per-article de-duplication, so it
+            # mails every owner of an overdue article on every run.
+            'task_type': 'kb_review_reminders',
+            'description': 'Email KB article owners a digest of articles overdue for review',
+            'interval_minutes': 10080,
+            'enabled': True,
+        },
+        {
+            'task_type': 'auto_document_field_visits',
+            'description': 'Start/stop technician time entries from geofence enter/exit',
+            'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            'task_type': 'prune_technician_locations',
+            'description': 'Delete technician GPS pings past their retention date',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            'task_type': 'sync_distributors',
+            'description': 'Probe distributor connections and record their health',
+            'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            'task_type': 'run_scheduled_reports',
+            'description': 'Generate and email scheduled reports that are due',
+            'interval_minutes': 15,
+            'enabled': True,
+        },
+        {
+            'task_type': 'poll_security_alerts',
+            'description': 'Poll security vendor connections for new alerts',
+            'interval_minutes': 5,
+            'enabled': True,
+        },
+        {
+            'task_type': 'check_incident_sla_breaches',
+            'description': 'Record SLA breaches on open security incidents',
+            'interval_minutes': 15,
+            'enabled': True,
+        },
+        {
+            'task_type': 'recompute_exposure_scores',
+            'description': 'Recompute each organization\'s security exposure score',
+            'interval_minutes': 60,
+            'enabled': True,
+        },
+        {
+            'task_type': 'assets_warranty_alerts',
+            'description': 'Email org owners about assets whose warranty expires soon',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            'task_type': 'assets_capture_baselines',
+            'description': 'Snapshot a configuration baseline for every config-monitored asset',
+            'interval_minutes': 10080,
+            'enabled': True,
+        },
+        {
+            'task_type': 'assets_generate_remediation_suggestions',
+            'description': 'Suggest asset remediations (only when AI features are enabled)',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            'task_type': 'send_compliance_recertifications',
+            'description': 'Email compliance recertification reminders that are due',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            'task_type': 'sync_network_assets',
+            'description': 'Import devices from network controllers set to auto-sync '
+                           '(per-connection interval applies)',
+            'interval_minutes': 30,
+            'enabled': True,
+        },
+        {
+            'task_type': 'update_geoip_db',
+            'description': 'Refresh the GeoIP country database when it is over 25 days old',
+            'interval_minutes': 1440,
+            'enabled': True,
+        },
+    ]
 
 
 class SnykScan(models.Model):

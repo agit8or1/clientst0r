@@ -5,6 +5,49 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.599] - 2026-10-15
+
+### Security: customers stay inside their own records
+
+- Customer users (people with a login for one of your customers) could open
+  and edit another customer's contracts, invoices, projects, quotes, recurring
+  ticket schedules, purchase requisitions, purchase orders, email-to-ticket
+  configs and canned replies by changing the ID in the URL, and could create
+  records for another customer by changing the client in the form. They could
+  also open another customer's account page, add charges to it, roll its
+  charges into an invoice and send portal invites for it. All of these are now
+  limited to the customers the user belongs to. MSP staff are unaffected.
+- Only MSP staff can edit or delete global document templates. Customer users
+  with edit rights manage their own customer's templates.
+- Assigning a role accepts only system roles or the customer's own custom
+  roles, not another customer's.
+- API keys stop working when their user is deactivated. A customer user's key
+  also stops working once they no longer belong to the key's customer.
+- Browser extension tokens stop working when their user is deactivated, and a
+  token pinned to a customer now ignores the `X-Organization-Id` header instead
+  of letting it pick a different customer.
+
+### Scheduled jobs that never ran now run
+
+- Recurring contract invoices, the SLA workflow tick, KB review reminders,
+  idle-approval escalation, recurring purchases, subscription lifecycle and
+  about twenty other periodic jobs were not run by any timer or cron entry.
+  They are now tasks in the built-in scheduler (Settings → Scheduler), which
+  shows each one's last run and error. New tasks first run one interval after
+  the update, so daily jobs start about a day later; any of them can be turned
+  off there before it runs.
+- The five PSA jobs older updates added to the crontab now run from the
+  scheduler too, and the update removes those crontab lines so nothing runs
+  twice. Docker installs get a `scheduler` service.
+- Scheduled recurring invoicing bills only the current period. A contract more
+  than one billing period behind is skipped and listed on the task as an
+  error rather than back-billed; move its next billing date, or run
+  `manage.py psa_generate_recurring_invoices` by hand to catch it up as
+  before.
+- Late fees are scheduled but off by default, because the first run would
+  charge every invoice already past the threshold.
+- KB review reminders run weekly, since they email owners on every run.
+
 ## [3.17.598] - 2026-10-13
 
 ### GeoIP firewall: local country lookups, and sign-in pages are covered

@@ -51,7 +51,7 @@
                                         <br><small class="text-muted">{{ task.description }}</small>
                                         {% endif %}
                                         {% if task.last_error %}
-                                        <br><small class="text-danger"><i class="fas fa-exclamation-circle"></i> {{ task.last_error|truncatewords:15 }}</small>
+                                        <br><small class="text-danger" title="{{ task.last_error }}"><i class="fas fa-exclamation-circle"></i> {{ task.last_error|truncatewords:40 }}</small>
                                         {% endif %}
                                     </td>
                                     <td>

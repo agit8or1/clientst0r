@@ -54,6 +54,8 @@ def resolve_extension_token(request):
         return None, JsonResponse({'error': 'Token has been revoked.'}, status=401)
     if row.expires_at and row.expires_at <= timezone.now():
         return None, JsonResponse({'error': 'Token has expired.'}, status=401)
+    if not row.user.is_active:
+        return None, JsonResponse({'error': 'Invalid token.'}, status=401)
     return row, None
 
 
@@ -62,14 +64,17 @@ def _resolve_organization_from_request(request, token_row):
     Determine the organization for this extension call.
 
     Precedence:
-      1. `X-Organization-Id` header (extension explicitly chose an org).
-      2. The token's pinned `organization` (if any).
+      1. The token's pinned `organization` — a pinned token never acts for
+         another customer, whatever the header says.
+      2. `X-Organization-Id` header (extension explicitly chose an org).
       3. None (caller is in global view).
 
     Returns the Organization or None.
     """
     from core.models import Organization
 
+    if token_row.organization_id:
+        return token_row.organization
     header_val = request.META.get('HTTP_X_ORGANIZATION_ID')
     if header_val:
         try:

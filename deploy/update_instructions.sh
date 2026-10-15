@@ -222,7 +222,9 @@ fi
 
 if [ "$NO_NEW_PRIVS" -eq 1 ]; then
     log "[WARN] Skipping cron job setup: this process has no_new_privs set, so"
-    log "[WARN] crontab cannot run. Existing cron jobs are untouched. To fix, reinstall"
+    log "[WARN] crontab cannot run. Existing cron jobs are untouched — including any"
+    log "[WARN] legacy manage.py psa_* lines, which now duplicate the in-app scheduler"
+    log "[WARN] and should be removed with crontab -e. To fix, reinstall"
     log "[WARN] the auto-update unit: sudo cp $BASE_DIR/deploy/clientst0r-auto-update.service"
     log "[WARN]   /etc/systemd/system/ && sudo systemctl daemon-reload"
 else
@@ -234,73 +236,27 @@ if ! crontab -l 2>/dev/null | grep -q "check_update_trigger.sh"; then
         || log "[WARN] Cron job setup failed (non-critical)"
 fi
 
-# PSA recurring tickets — every 15 minutes
-PSA_RECURRING="*/15 * * * * $VENV_DIR/bin/python $BASE_DIR/manage.py psa_run_recurring_tickets >/dev/null 2>&1"
-if ! crontab -l 2>/dev/null | grep -q "psa_run_recurring_tickets"; then
-    ( (crontab -l 2>/dev/null; echo "$PSA_RECURRING") | crontab - \
-        && log "Cron job configured for PSA recurring tickets" ) \
-        || log "[WARN] PSA recurring-tickets cron setup failed (non-critical)"
+# v3.17.599: periodic jobs belong to the in-app scheduler (run_scheduler,
+# clientst0r-scheduler.timer; Settings > Scheduler), not to cron. Earlier
+# releases of this script appended crontab lines for them; remove those, or
+# every job would run twice — once from cron, once from the scheduler.
+# Idempotent: when none are present the crontab is not rewritten at all, and
+# any other line (yours, or check_update_trigger.sh above) is kept as is.
+# BEGIN legacy-cron-cleanup
+LEGACY_CRON_RE='manage\.py[[:space:]]+(psa_run_recurring_tickets|psa_poll_email|psa_send_outbound|psa_auto_renew_contracts|psa_auto_replenish_suggestions|sync_distributors|run_scheduled_reports|poll_security_alerts)([[:space:]]|$)'
+if CURRENT_CRON=$(crontab -l 2>/dev/null); then
+    LEGACY_COUNT=$(printf '%s\n' "$CURRENT_CRON" | grep -cE "$LEGACY_CRON_RE" || true)
+    if [ "${LEGACY_COUNT:-0}" -gt 0 ]; then
+        if printf '%s\n' "$CURRENT_CRON" | { grep -vE "$LEGACY_CRON_RE" || true; } | crontab -; then
+            log "Removed $LEGACY_COUNT legacy cron line(s); those jobs now run from the in-app scheduler"
+        else
+            log "[WARN] Could not remove legacy cron lines — they will run alongside the scheduler."
+            log "[WARN] Remove the manage.py psa_* / sync_distributors / run_scheduled_reports /"
+            log "[WARN] poll_security_alerts lines by hand: crontab -e"
+        fi
+    fi
 fi
-
-# PSA email-to-ticket — every 5 minutes
-PSA_EMAIL="*/5 * * * * $VENV_DIR/bin/python $BASE_DIR/manage.py psa_poll_email >/dev/null 2>&1"
-if ! crontab -l 2>/dev/null | grep -q "psa_poll_email"; then
-    ( (crontab -l 2>/dev/null; echo "$PSA_EMAIL") | crontab - \
-        && log "Cron job configured for PSA email-to-ticket polling" ) \
-        || log "[WARN] PSA email-poll cron setup failed (non-critical)"
-fi
-
-# PSA Graph outbound retry worker — every 5 minutes (issue #142). Retries any
-# outbound Graph sends left queued by a transient failure; inline sends already
-# happen at request time, so this is a safety net (jobs are lock-claimed, so no
-# double-send).
-PSA_OUTBOUND="*/5 * * * * $VENV_DIR/bin/python $BASE_DIR/manage.py psa_send_outbound >/dev/null 2>&1"
-if ! crontab -l 2>/dev/null | grep -q "psa_send_outbound"; then
-    ( (crontab -l 2>/dev/null; echo "$PSA_OUTBOUND") | crontab - \
-        && log "Cron job configured for PSA Graph outbound worker" ) \
-        || log "[WARN] PSA outbound cron setup failed (non-critical)"
-fi
-
-# Contract auto-renewal — daily at 02:30
-PSA_RENEW="30 2 * * * $VENV_DIR/bin/python $BASE_DIR/manage.py psa_auto_renew_contracts >/dev/null 2>&1"
-if ! crontab -l 2>/dev/null | grep -q "psa_auto_renew_contracts"; then
-    ( (crontab -l 2>/dev/null; echo "$PSA_RENEW") | crontab - \
-        && log "Cron job configured for PSA contract auto-renewal" ) \
-        || log "[WARN] PSA contract auto-renewal cron setup failed (non-critical)"
-fi
-
-# Distributors health probe — hourly
-PSA_DIST="0 * * * * $VENV_DIR/bin/python $BASE_DIR/manage.py sync_distributors >/dev/null 2>&1"
-if ! crontab -l 2>/dev/null | grep -q "sync_distributors"; then
-    ( (crontab -l 2>/dev/null; echo "$PSA_DIST") | crontab - \
-        && log "Cron job configured for distributor health probe" ) \
-        || log "[WARN] Distributor cron setup failed (non-critical)"
-fi
-
-# Scheduled reports — every 15 minutes (v3.17.147 — Phase 3.6 wave B)
-PSA_REPORTS="*/15 * * * * $VENV_DIR/bin/python $BASE_DIR/manage.py run_scheduled_reports >/dev/null 2>&1"
-if ! crontab -l 2>/dev/null | grep -q "run_scheduled_reports"; then
-    ( (crontab -l 2>/dev/null; echo "$PSA_REPORTS") | crontab - \
-        && log "Cron job configured for scheduled reports runner" ) \
-        || log "[WARN] Scheduled reports cron setup failed (non-critical)"
-fi
-
-# Auto-replenish scan — daily at 06:00, log only (no auto-PR creation)
-# (v3.17.150 — Phase 4.3) PR creation via --create-prs is admin-triggered.
-PSA_REPLENISH="0 6 * * * $VENV_DIR/bin/python $BASE_DIR/manage.py psa_auto_replenish_suggestions >/dev/null 2>&1"
-if ! crontab -l 2>/dev/null | grep -q "psa_auto_replenish_suggestions"; then
-    ( (crontab -l 2>/dev/null; echo "$PSA_REPLENISH") | crontab - \
-        && log "Cron job configured for stock-minimum scan" ) \
-        || log "[WARN] Stock-minimum scan cron setup failed (non-critical)"
-fi
-
-# Security alert polling — every 5 minutes (v3.17.168 — Phase 9.2)
-PSA_SEC="*/5 * * * * $VENV_DIR/bin/python $BASE_DIR/manage.py poll_security_alerts >/dev/null 2>&1"
-if ! crontab -l 2>/dev/null | grep -q "poll_security_alerts"; then
-    ( (crontab -l 2>/dev/null; echo "$PSA_SEC") | crontab - \
-        && log "Cron job configured for security alert polling" ) \
-        || log "[WARN] Security alert polling cron setup failed (non-critical)"
-fi
+# END legacy-cron-cleanup
 fi  # NO_NEW_PRIVS
 
 # =====================================================================

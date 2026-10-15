@@ -295,3 +295,64 @@ class MemberWelcomeEmailTests(TestCase):
         self.assertIn(r.status_code, [200, 302])
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('WelcomeOrg', mail.outbox[0].subject)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class MemberRoleAssignBoundaryTests(TestCase):
+    """member_role_assign only accepts a system-wide RoleTemplate or one
+    owned by the current customer — never another customer's custom role."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from accounts.models import Membership, Role, RoleTemplate
+        from core.models import Organization
+        cls.org_a = Organization.objects.create(name='RoleCustA', slug='role-cust-a')
+        cls.org_b = Organization.objects.create(name='RoleCustB', slug='role-cust-b')
+        cls.owner = User.objects.create_user('role-owner', 'ro@x.com', 'pw')
+        Membership.objects.create(
+            user=cls.owner, organization=cls.org_a, role=Role.OWNER, is_active=True,
+        )
+        cls.member = User.objects.create_user('role-member', 'rm@x.com', 'pw')
+        cls.member_ms = Membership.objects.create(
+            user=cls.member, organization=cls.org_a, role=Role.READONLY, is_active=True,
+        )
+        cls.system_tpl = RoleTemplate.objects.create(
+            name='Sys Role', organization=None, is_system_template=True,
+        )
+        cls.own_tpl = RoleTemplate.objects.create(
+            name='Cust A Role', organization=cls.org_a,
+        )
+        cls.foreign_tpl = RoleTemplate.objects.create(
+            name='Cust B Role', organization=cls.org_b,
+        )
+
+    def setUp(self):
+        self.client.force_login(self.owner)
+        s = self.client.session
+        s['2fa_prompted'] = True
+        s['current_organization_id'] = self.org_a.id
+        s.save()
+
+    def _assign(self, tpl):
+        return self.client.post(
+            f'/accounts/members/{self.member.id}/assign-role/',
+            {'role_template_id': tpl.id},
+        )
+
+    def test_other_customers_role_template_rejected(self):
+        r = self._assign(self.foreign_tpl)
+        self.assertEqual(r.status_code, 404)
+        self.member_ms.refresh_from_db()
+        self.assertIsNone(self.member_ms.role_template_id)
+
+    def test_system_role_template_accepted(self):
+        r = self._assign(self.system_tpl)
+        self.assertEqual(r.status_code, 302)
+        self.member_ms.refresh_from_db()
+        self.assertEqual(self.member_ms.role_template_id, self.system_tpl.id)
+
+    def test_own_customer_role_template_accepted(self):
+        r = self._assign(self.own_tpl)
+        self.assertEqual(r.status_code, 302)
+        self.member_ms.refresh_from_db()
+        self.assertEqual(self.member_ms.role_template_id, self.own_tpl.id)

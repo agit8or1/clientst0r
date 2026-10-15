@@ -7,8 +7,9 @@ time; this worker retries any that were left queued by a transient failure
 claimed with an atomic status transition before submission, so running this on
 a cron alongside the inline attempt can never double-send.
 
-Cron (installed by deploy/update_instructions.sh):
-    */5 * * * * manage.py psa_send_outbound
+Scheduled every 5 minutes by the in-app scheduler (task type
+`psa_send_outbound`, v3.17.599). Until then a crontab line installed by
+deploy/update_instructions.sh ran it; the update script now removes that line.
 """
 from django.core.management.base import BaseCommand
 from django.db.models import Q

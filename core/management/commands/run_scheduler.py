@@ -8,11 +8,63 @@ from django.utils import timezone
 from core.models import ScheduledTask
 
 
+# v3.17.599: periodic management commands run by this scheduler, keyed by
+# ScheduledTask.task_type: (command name, positional args).
+#
+# Until this release these ran from a crontab that deploy/update_instructions.sh
+# appended to (install.sh and Docker installed none), or from nothing at all —
+# psa_generate_recurring_invoices, psa_sla_workflow_tick, kb_review_reminders
+# and others were written "for cron" and never scheduled anywhere. The update
+# script now removes those crontab lines, so this table is the one place they
+# are scheduled. Default intervals live in ScheduledTask.PERIODIC_COMMAND_DEFAULTS.
+COMMAND_TASKS = {
+    # --no-catch-up: bill the current period only. This job had never run on
+    # most installs, so contracts can be months behind; a scheduled run must
+    # not back-bill those. They are skipped and the run fails with the list,
+    # which the Scheduled Tasks page shows. See the command's docstring.
+    'psa_generate_recurring_invoices': ('psa_generate_recurring_invoices', ['--no-catch-up']),
+    'psa_advance_subscription_lifecycle': ('psa_advance_subscription_lifecycle', []),
+    'psa_auto_renew_contracts': ('psa_auto_renew_contracts', []),
+    'psa_sla_workflow_tick': ('psa_sla_workflow_tick', []),
+    'psa_escalate_idle_approvals': ('psa_escalate_idle_approvals', []),
+    'psa_run_recurring_purchases': ('psa_run_recurring_purchases', []),
+    'psa_generate_workflow_suggestions': ('psa_generate_workflow_suggestions', []),
+    'psa_run_recurring_tickets': ('psa_run_recurring_tickets', []),
+    'psa_poll_email': ('psa_poll_email', []),
+    'psa_send_outbound': ('psa_send_outbound', []),
+    'psa_auto_replenish_suggestions': ('psa_auto_replenish_suggestions', []),
+    'psa_apply_late_fees': ('psa_apply_late_fees', []),
+    'kb_review_reminders': ('kb_review_reminders', []),
+    'auto_document_field_visits': ('auto_document_field_visits', []),
+    'prune_technician_locations': ('prune_technician_locations', []),
+    'sync_distributors': ('sync_distributors', []),
+    'run_scheduled_reports': ('run_scheduled_reports', []),
+    'poll_security_alerts': ('poll_security_alerts', []),
+    'check_incident_sla_breaches': ('check_incident_sla_breaches', []),
+    'recompute_exposure_scores': ('recompute_exposure_scores', []),
+    'assets_warranty_alerts': ('assets_warranty_alerts', []),
+    'assets_capture_baselines': ('assets_capture_baselines', []),
+    'assets_generate_remediation_suggestions': ('assets_generate_remediation_suggestions', []),
+    'send_compliance_recertifications': ('send_compliance_recertifications', []),
+    'sync_network_assets': ('sync_network_assets', []),
+    # Only downloads when the file is missing or older than 25 days; the
+    # update script runs the same check, but Docker installs never run that.
+    'update_geoip_db': ('update_geoip_db', ['--max-age-days', '25']),
+    'rmm_sync': ('sync_rmm', []),
+}
+
+
 class Command(BaseCommand):
     help = 'Run the task scheduler - checks and executes due scheduled tasks'
 
     def handle(self, *args, **options):
         self.stdout.write(f"[{timezone.now()}] Task Scheduler starting...")
+
+        # Seed rows for task types added since this install last ran: a new
+        # periodic job must not depend on someone opening Settings > Scheduler
+        # first. Idempotent and one query when nothing is missing; new rows get
+        # their first run one interval out, so they are never due right here.
+        ScheduledTask.get_or_create_defaults()
 
         # Get all tasks that should run
         tasks = ScheduledTask.objects.all()
@@ -129,8 +181,20 @@ class Command(BaseCommand):
             self.run_prune_monitor_checks()
         elif task.task_type == 'network_config_backup':
             self.run_network_config_backup()
+        elif task.task_type in COMMAND_TASKS:
+            self.run_command_task(task.task_type)
         else:
             raise ValueError(f"Unknown task type: {task.task_type}")
+
+    def run_command_task(self, task_type):
+        """Run one of the COMMAND_TASKS management commands.
+
+        Exceptions propagate (see run_task): a CommandError or crash is
+        recorded on the task as `failed` with its message in `last_error`.
+        """
+        from django.core.management import call_command
+        command, args = COMMAND_TASKS[task_type]
+        call_command(command, *args, verbosity=0)
 
     def run_website_monitoring(self):
         """Run website monitoring checks."""
