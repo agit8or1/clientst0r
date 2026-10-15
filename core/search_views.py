@@ -6,6 +6,7 @@ import logging
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from accounts.permission_utils import filter_by_org_perm, orgs_with_perm
 from core.middleware import get_request_organization
 from assets.models import Asset, Contact
 from vault.models import Password
@@ -57,6 +58,9 @@ def global_search(request):
         'psa_companies': [],
         'psa_contacts': [],
         'total_count': 0,
+        # Real match counts per category, before the RESULT_LIMIT slice, so
+        # the page can say "showing 10 of 37" instead of implying 10 is all.
+        'counts': {},
         'in_global_view': in_global_view,
         # A result set can now span organizations — the whole install in
         # global view, or an org plus its subsidiaries — so each row says
@@ -75,84 +79,94 @@ def global_search(request):
             return model.objects.none()
         return model.objects.for_organization(org)
 
+    user = request.user
+
+    def permitted(model, perm):
+        """`scoped()` narrowed to the customers whose role grants `perm`.
+
+        Role flags vault_view / docs_view / assets_view are enforced here the
+        same way the section middleware enforces them on /vault/, /docs/ and
+        /assets/ — search must not list titles a user can't open.
+        """
+        return filter_by_org_perm(scoped(model), user, perm)
+
+    def take(key, qs):
+        """Record the real count, then keep the first RESULT_LIMIT rows."""
+        results['counts'][key] = qs.count()
+        results[key] = list(qs[:RESULT_LIMIT])
+
     if query and len(query) >= 2:
         # Search Assets
-        results['assets'] = scoped(Asset).filter(
+        take('assets', permitted(Asset, 'assets_view').filter(
             Q(name__icontains=query) |
             Q(asset_tag__icontains=query) |
             Q(serial_number__icontains=query) |
             Q(manufacturer__icontains=query) |
             Q(model__icontains=query) |
             Q(notes__icontains=query)
-        ).select_related('organization')[:RESULT_LIMIT]
+        ).select_related('organization'))
 
-        # Search Contacts
-        results['contacts'] = scoped(Contact).filter(
+        # Search Contacts (they live under /assets/contacts/ — assets_view)
+        take('contacts', permitted(Contact, 'assets_view').filter(
             Q(first_name__icontains=query) |
             Q(last_name__icontains=query) |
             Q(email__icontains=query) |
             Q(phone__icontains=query) |
             Q(title__icontains=query)
-        ).select_related('organization')[:RESULT_LIMIT]
+        ).select_related('organization'))
 
         # Search Documents (org-specific only)
-        results['documents'] = scoped(Document).filter(
+        take('documents', permitted(Document, 'docs_view').filter(
             is_published=True,
             is_archived=False,
             is_global=False,
         ).filter(
             Q(title__icontains=query) |
             Q(body__icontains=query)
-        ).select_related('organization')[:RESULT_LIMIT]
+        ).select_related('organization'))
 
-        # Search Global KB (staff users and superusers only). Not org-scoped
-        # by definition — a global article belongs to no client.
-        if is_staff or request.user.is_superuser:
-            results['global_kb'] = Document.objects.filter(
+        # Search Global KB. Not org-scoped by definition — a global article
+        # belongs to no client — so it needs docs_view across every customer,
+        # which only superusers and MSP staff can hold (same reach as the old
+        # staff-only rule, minus staff whose global role drops docs_view).
+        if orgs_with_perm(user, 'docs_view') is None:
+            take('global_kb', Document.objects.filter(
                 is_global=True,
                 is_published=True,
                 is_archived=False
             ).filter(
                 Q(title__icontains=query) |
                 Q(body__icontains=query)
-            )[:RESULT_LIMIT]
+            ))
 
         # Search Passwords (title and username only, not actual passwords)
-        results['passwords'] = scoped(Password).filter(
+        take('passwords', permitted(Password, 'vault_view').filter(
             is_personal=False,
         ).filter(
             Q(title__icontains=query) |
             Q(username__icontains=query) |
             Q(url__icontains=query) |
             Q(notes__icontains=query)
-        ).select_related('organization')[:RESULT_LIMIT]
+        ).select_related('organization'))
 
         # Search PSA Companies / Contacts. Scoped by their own organization
         # the way `integrations.views` does, not via the connection — same
         # rows, and it picks up descendants like everything else here.
         try:
-            results['psa_companies'] = scoped(PSACompany).filter(
+            take('psa_companies', scoped(PSACompany).filter(
                 Q(name__icontains=query)
-            )[:RESULT_LIMIT]
+            ))
 
-            results['psa_contacts'] = scoped(PSAContact).filter(
+            take('psa_contacts', scoped(PSAContact).filter(
                 Q(name__icontains=query) |
                 Q(email__icontains=query)
-            )[:RESULT_LIMIT]
+            ))
         except Exception:
             # The PSA tables are optional on an install that has never had an
             # integration configured; a search must not 500 over that.
             logger.debug('PSA search skipped', exc_info=True)
 
-        # Calculate total
-        results['total_count'] = (
-            len(results['assets']) +
-            len(results['contacts']) +
-            len(results['documents']) +
-            len(results['global_kb']) +
-            len(results['passwords']) +
-            len(results['psa_companies']) +
-            len(results['psa_contacts'])
-        )
+        # Real total across categories, not the sum of the sliced lists.
+        results['total_count'] = sum(results['counts'].values())
 
     return render(request, 'core/search_results.html', results)

@@ -1,5 +1,5 @@
 """
-Files views - Private file serving with X-Accel-Redirect
+Files views - private attachment upload / serving
 """
 import os
 import mimetypes
@@ -7,11 +7,9 @@ from io import BytesIO
 from PIL import Image
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.shortcuts import get_object_or_404
-from django.http import HttpResponse, FileResponse, Http404, JsonResponse
+from django.http import HttpResponse, Http404, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
-from django.conf import settings
-from django.utils.http import content_disposition_header
 from core.middleware import get_request_organization
 from .models import Attachment
 
@@ -34,53 +32,29 @@ def _delivery_type(filename):
 
 
 @login_required
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "HEAD"])
 def serve_attachment(request, pk):
     """
-    Serve attachment via X-Accel-Redirect for Nginx.
-    Falls back to direct file serving in development.
+    Stream an attachment of the selected organization.
+
+    Shares core.media_views with /media/: same permission rule, same
+    MEDIA_ROOT containment check, same safe headers. (This used to hand off to
+    an nginx X-Accel location aliased to a directory files are never stored
+    in, so it 404'd on every production install.)
     """
-    from pathlib import Path
+    from core.media_views import (
+        MEDIA_REGISTRY, resolve_under_media_root, stream_file,
+    )
 
     org = get_request_organization(request)
     attachment = get_object_or_404(Attachment, pk=pk, organization=org)
-
-    # Security: Validate file path to prevent path traversal attacks
-    try:
-        # Get absolute paths
-        upload_root = Path(settings.MEDIA_ROOT).resolve()
-        file_path = Path(attachment.file.path).resolve()
-
-        # Ensure file is within upload directory
-        file_path.relative_to(upload_root)
-    except (ValueError, AttributeError):
-        # ValueError: file is not relative to upload_root (path traversal attempt)
-        # AttributeError: attachment.file.path doesn't exist
-        raise Http404("Invalid file path")
-
-    # Verify file exists
-    if not file_path.exists():
+    rule = next(r for r in MEDIA_REGISTRY
+                if r.model == 'files.Attachment' and r.field == 'file')
+    if not attachment.file or not rule.authorize(request.user, attachment):
         raise Http404("File not found")
-
-    # Use X-Accel-Redirect if not in debug mode
-    if not settings.DEBUG:
-        from django.core.exceptions import SuspiciousFileOperation
-        if '..' in attachment.file.name or attachment.file.name.startswith('/'):
-            raise SuspiciousFileOperation("Invalid file path")
-        # Nginx internal location: /internal_uploads/
-        internal_path = f"/internal_uploads/{attachment.file.name}"
-        response = HttpResponse()
-        response['X-Accel-Redirect'] = internal_path
-    else:
-        # Development: serve directly using validated file_path
-        # NOTE: FileResponse automatically closes the file handle when response completes
-        response = FileResponse(open(file_path, 'rb'))
-    content_type, inline = _delivery_type(attachment.original_filename)
-    response['Content-Type'] = content_type
-    response['Content-Disposition'] = content_disposition_header(
-        not inline, attachment.original_filename)
-    response['X-Content-Type-Options'] = 'nosniff'
-    return response
+    full_path = resolve_under_media_root(attachment.file.name)
+    return stream_file(request, full_path, attachment.file.name,
+                       attachment.original_filename)
 
 
 @login_required

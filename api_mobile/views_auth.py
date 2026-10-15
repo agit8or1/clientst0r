@@ -70,8 +70,17 @@ def _user_payload(user):
             'vault_view_password',
             # Assets (v3.17.480) — gate mobile Edit / Link-vault UI.
             'assets_view', 'assets_create', 'assets_edit', 'assets_delete',
+            # KB / docs
+            'docs_view',
         ):
             permissions[perm] = user_has_perm(user, perm)
+        # The *_view flags are enforced per customer server-side; report
+        # them through the same resolver the endpoints use (which also
+        # honours an MSP staff member's global role) so the app's tab
+        # gating agrees with what the list endpoints will return.
+        from .scoping import has_any_perm
+        for perm in ('vault_view', 'docs_view', 'assets_view'):
+            permissions[perm] = has_any_perm(user, perm)
     except Exception:
         permissions = {}
     return {

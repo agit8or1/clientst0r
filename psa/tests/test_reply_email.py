@@ -19,7 +19,7 @@ from psa.models import (
     EmailIngestionConfig, EmailMessage, EmailOutboundJob, Queue, Ticket,
     TicketComment, TicketPriority, TicketStatus, TicketType,
 )
-from psa.tests._base import TEST_MIDDLEWARE, _setup_seed
+from psa.tests._base import TEST_MIDDLEWARE, _make_msp_tech, _setup_seed
 from psa.tests.test_graph_outbound import ACCEPTED, graph_provider
 
 
@@ -32,7 +32,9 @@ class TicketReplyEmailTests(TestCase):
         _setup_seed()
         s = SystemSetting.get_settings(); s.psa_enabled = True; s.save()
         self.org = Organization.objects.create(name='ACME', slug='acme')
-        self.alice = User.objects.create_user('alice', password='pw', email='a@x.com')
+        # The replying technician is MSP staff.
+        self.alice = _make_msp_tech(
+            User.objects.create_user('alice', password='pw', email='a@x.com'))
         Membership.objects.update_or_create(
             user=self.alice, organization=self.org,
             defaults={'role': Role.OWNER, 'is_active': True},

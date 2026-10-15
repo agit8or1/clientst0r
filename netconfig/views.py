@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from accounts.permission_utils import filter_by_org_perm
 from assets.models import Asset
 from core.middleware import get_request_organization
 
@@ -28,6 +29,8 @@ def _accessible_assets(request):
     qs = Asset.objects.filter(asset_type__in=NETWORK_ASSET_TYPES)
     if org is not None:
         qs = qs.filter(organization=org)
+    # Devices are assets: same assets_view rule as the /assets/ section.
+    qs = filter_by_org_perm(qs, request.user, 'assets_view')
     return qs.select_related('organization')
 
 
@@ -222,8 +225,9 @@ def target_edit(request, asset_id):
         if credential_id:
             # Scoped to the asset's own organization: a switch in one client's
             # rack must not be reachable with another client's credential.
-            cred = Password.objects.filter(
-                pk=credential_id, organization_id=asset.organization_id).first()
+            cred = filter_by_org_perm(Password.objects.filter(
+                pk=credential_id, organization_id=asset.organization_id),
+                request.user, 'vault_view').first()
             if cred is None:
                 messages.error(
                     request,
@@ -241,8 +245,9 @@ def target_edit(request, asset_id):
         messages.success(request, 'Connection settings saved.')
         return redirect('netconfig:device_detail', asset_id=asset.pk)
 
-    credentials = Password.objects.filter(
-        organization_id=asset.organization_id).order_by('title')
+    # Vault titles only for users whose role grants vault_view here.
+    credentials = filter_by_org_perm(Password.objects.filter(
+        organization_id=asset.organization_id), request.user, 'vault_view').order_by('title')
 
     return render(request, 'netconfig/target_edit.html', {
         'asset': asset,

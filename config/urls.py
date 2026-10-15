@@ -3,10 +3,9 @@ URL Configuration for Client St0r
 """
 from django.contrib import admin
 from django.contrib.auth.views import LogoutView
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.views.generic import RedirectView, TemplateView
 from django.conf import settings
-from django.conf.urls.static import static
 from two_factor.urls import urlpatterns as tf_urls
 
 from core.views import privacy_policy as core_privacy_policy
@@ -99,9 +98,15 @@ try:
 except ImportError:
     pass
 
-# Serve media files in development and production
-if settings.DEBUG or True:  # Allow media serving
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Uploaded files. Every /media/ request goes through an authorization check
+# (core.media_views): static() is a no-op with DEBUG=False and, where it did
+# work, served every upload to anyone who could guess the path.
+import re as _re
+from core.media_views import serve_media as _serve_media
+urlpatterns.append(re_path(
+    r'^%s(?P<path>.+)$' % _re.escape(settings.MEDIA_URL.lstrip('/')),
+    _serve_media, name='serve_media',
+))
 
 
 # ---------------------------------------------------------------------------

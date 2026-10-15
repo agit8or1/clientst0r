@@ -13,11 +13,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.permission_utils import user_has_perm
+from psa.visibility import customer_visible_tickets, is_msp_staff, visible_comments
 
 from .scoping import accessible_org_ids
 
 
-def _serialize_ticket(t, *, detail=False):
+def _serialize_ticket(t, *, detail=False, viewer=None):
     # v3.17.477 — surface organization_name / assigned_to_name / number /
     # updated_at so the mobile list rows render without extra round trips.
     org_name = None
@@ -106,7 +107,8 @@ def _serialize_ticket(t, *, detail=False):
                     'author_name': c.author_name,
                     'created_at': c.created_at.isoformat() if c.created_at else None,
                 }
-                for c in t.comments.order_by('created_at')
+                for c in (visible_comments(t, viewer) if viewer is not None
+                          else t.comments.all()).order_by('created_at')
             ],
         })
     return out
@@ -175,7 +177,7 @@ def ticket_list_view(request):
             requester_name=data.get('requester_name', ''),
             requester_email=data.get('requester_email', ''),
         )
-        return Response(_serialize_ticket(ticket, detail=True), status=201)
+        return Response(_serialize_ticket(ticket, detail=True, viewer=request.user), status=201)
 
     # GET
     qs = Ticket.objects.select_related(
@@ -183,8 +185,11 @@ def ticket_list_view(request):
     )
     # v3.17.477 — tickets_view_all unlocks cross-org reads. Without it
     # we keep the membership scope.
-    if not user_has_perm(request.user, 'tickets_view_all'):
+    # tickets_view_all is an MSP-staff capability; customer users stay in
+    # their own customers and see only tickets shared with the client.
+    if not (is_msp_staff(request.user) and user_has_perm(request.user, 'tickets_view_all')):
         qs = qs.filter(organization_id__in=org_ids)
+    qs = customer_visible_tickets(qs, request.user)
 
     status_filter = request.query_params.get('status')
     if status_filter:
@@ -270,15 +275,16 @@ def ticket_detail_view(request, pk: int):
     base_qs = Ticket.objects.select_related(
         'status', 'priority', 'organization', 'assigned_to',
     )
-    if not user_has_perm(request.user, 'tickets_view_all'):
+    if not (is_msp_staff(request.user) and user_has_perm(request.user, 'tickets_view_all')):
         base_qs = base_qs.filter(organization_id__in=org_ids)
+    base_qs = customer_visible_tickets(base_qs, request.user)
     try:
         ticket = base_qs.get(pk=pk)
     except Ticket.DoesNotExist:
         return Response({'detail': 'Not found'}, status=404)
 
     if request.method == 'GET':
-        return Response(_serialize_ticket(ticket, detail=True))
+        return Response(_serialize_ticket(ticket, detail=True, viewer=request.user))
 
     # PATCH
     data = request.data or {}
@@ -384,7 +390,7 @@ def ticket_detail_view(request, pk: int):
             except User.DoesNotExist:
                 return Response({'detail': 'invalid assigned_to_id'}, status=400)
     ticket.save()
-    return Response(_serialize_ticket(ticket, detail=True))
+    return Response(_serialize_ticket(ticket, detail=True, viewer=request.user))
 
 
 @api_view(['POST'])
@@ -396,7 +402,8 @@ def ticket_comment_view(request, pk: int):
 
     org_ids = accessible_org_ids(request.user)
     try:
-        ticket = Ticket.objects.get(pk=pk, organization_id__in=org_ids)
+        ticket = customer_visible_tickets(
+            Ticket.objects.filter(organization_id__in=org_ids), request.user).get(pk=pk)
     except Ticket.DoesNotExist:
         return Response({'detail': 'Not found'}, status=404)
 
@@ -441,7 +448,8 @@ def ticket_time_view(request, pk: int):
 
     org_ids = accessible_org_ids(request.user)
     try:
-        ticket = Ticket.objects.get(pk=pk, organization_id__in=org_ids)
+        ticket = customer_visible_tickets(
+            Ticket.objects.filter(organization_id__in=org_ids), request.user).get(pk=pk)
     except Ticket.DoesNotExist:
         return Response({'detail': 'Not found'}, status=404)
 

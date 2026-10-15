@@ -127,6 +127,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'axes.middleware.AxesMiddleware',
     'core.middleware.CurrentOrganizationMiddleware',
+    'accounts.middleware.SectionPermissionMiddleware',  # vault_view / docs_view / assets_view by URL prefix
     'accounts.middleware.SessionIdleTimeoutMiddleware',
     'accounts.middleware.Enforce2FAMiddleware',
     'accounts.middleware.UserLanguageMiddleware',

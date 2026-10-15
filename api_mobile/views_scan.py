@@ -15,7 +15,7 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .scoping import accessible_org_ids
+from .scoping import accessible_org_ids, perm_org_ids
 
 
 @api_view(['GET'])
@@ -62,13 +62,15 @@ def scan_resolve_view(request):
     # 2. Asset by asset_tag
     try:
         from assets.models import Asset
+        asset_org_ids = perm_org_ids(request.user, 'assets_view')
         asset = (Asset.objects
-                 .filter(asset_tag__iexact=code, organization_id__in=org_ids)
+                 .filter(asset_tag__iexact=code, organization_id__in=asset_org_ids)
                  .select_related('organization')
                  .first())
         if not asset:
             asset = (Asset.objects
-                     .filter(serial_number__iexact=code, organization_id__in=org_ids)
+                     .filter(serial_number__iexact=code,
+                             organization_id__in=asset_org_ids)
                      .select_related('organization')
                      .first())
         if asset:

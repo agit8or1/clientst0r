@@ -12,9 +12,9 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permission_utils import user_has_perm
+from accounts.permission_utils import has_perm_for_org, user_has_perm
 
-from .scoping import accessible_org_ids
+from .scoping import accessible_org_ids, perm_org_ids
 
 
 # Whitelist of fields the mobile create endpoint accepts. Anything not
@@ -127,10 +127,10 @@ def _vault_entries_for_asset(asset, request_user):
     )
     if not rel_ids:
         return []
-    org_ids = accessible_org_ids(request_user)
+    from .views_vault import _visible_passwords
     pw_qs = (
-        Password.objects
-        .filter(id__in=rel_ids, organization_id__in=org_ids)
+        _visible_passwords(request_user)
+        .filter(id__in=rel_ids)
         .order_by('title')
     )
     return [{
@@ -163,7 +163,7 @@ def asset_list_view(request):
     if request.method == 'POST':
         return _create_asset(request)
 
-    org_ids = accessible_org_ids(request.user)
+    org_ids = perm_org_ids(request.user, 'assets_view')
     qs = Asset.objects.filter(organization_id__in=org_ids)
 
     search = (request.query_params.get('search') or '').strip()
@@ -241,7 +241,7 @@ def asset_detail_view(request, pk: int):
     """
     from assets.models import Asset
 
-    org_ids = accessible_org_ids(request.user)
+    org_ids = perm_org_ids(request.user, 'assets_view')
     try:
         asset = Asset.objects.select_related(
             'organization', 'primary_contact', 'created_by',
@@ -313,9 +313,9 @@ def asset_vault_link_view(request, pk: int):
     from assets.models import Asset
     from vault.models import Password, PasswordRelation
 
-    org_ids = list(accessible_org_ids(request.user))
     try:
-        asset = Asset.objects.get(pk=pk, organization_id__in=org_ids)
+        asset = Asset.objects.get(
+            pk=pk, organization_id__in=perm_org_ids(request.user, 'assets_view'))
     except Asset.DoesNotExist:
         return Response({'detail': 'Not found'},
                         status=drf_status.HTTP_404_NOT_FOUND)
@@ -339,8 +339,9 @@ def asset_vault_link_view(request, pk: int):
         return Response({'detail': 'password_id is required'},
                         status=drf_status.HTTP_400_BAD_REQUEST)
 
+    from .views_vault import _visible_passwords
     try:
-        password = Password.objects.get(pk=pwd_id, organization_id__in=org_ids)
+        password = _visible_passwords(request.user).get(pk=pwd_id)
     except Password.DoesNotExist:
         return Response({'detail': 'password not found / not accessible'},
                         status=drf_status.HTTP_404_NOT_FOUND)
@@ -395,6 +396,9 @@ def _create_asset(request):
                         status=drf_status.HTTP_400_BAD_REQUEST)
     if org_id not in org_ids:
         return Response({'detail': 'organization not accessible'},
+                        status=drf_status.HTTP_403_FORBIDDEN)
+    if not has_perm_for_org(request.user, org_id, 'assets_view'):
+        return Response({'detail': 'Asset view permission required'},
                         status=drf_status.HTTP_403_FORBIDDEN)
 
     # name required

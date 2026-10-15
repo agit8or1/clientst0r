@@ -79,7 +79,6 @@ class Enforce2FAMiddleware:
         '/account/two_factor/',
         '/admin/login/',
         '/static/',
-        '/media/',
     ]
     # What an authenticated-but-unverified session (user has a device, the
     # session never passed OTP) may still reach. Deliberately excludes
@@ -164,3 +163,88 @@ class Enforce2FAMiddleware:
 
         response = self.get_response(request)
         return response
+
+
+class SectionPermissionMiddleware:
+    """
+    Enforce the role flags `vault_view`, `docs_view` and `assets_view` on the
+    staff UI, by URL prefix.
+
+    Those flags were stored and editable on every role template but nothing
+    read them. Gating the whole section here covers every list, detail, edit
+    and JSON view under the prefix at once, instead of trusting each of the
+    ~150 views to remember a decorator.
+
+    The rule, with `allowed = orgs_with_perm(user, flag)`:
+      * None (every customer: superusers, MSP staff whose global role grants
+        the flag or who have no global role) — pass;
+      * empty — the user holds the flag nowhere: 403, *unless* they are a
+        customer-side user with no active membership at all. Such a user has
+        no role to consult; they are left to the views' own scoping, which
+        already shows them nothing org-owned (only e.g. KB articles they
+        own), exactly as before this gate existed;
+      * a customer is selected and isn't in `allowed` — 403;
+      * otherwise pass. With no customer selected the views already scope to
+        nothing / the selected org, so there is nothing more to gate.
+
+    Runs after CurrentOrganizationMiddleware (needs request.current_organization).
+    Raises PermissionDenied so Django renders the normal 403 response.
+    """
+
+    SECTIONS = (
+        ('/vault/', 'vault_view'),
+        ('/docs/', 'docs_view'),
+        ('/assets/', 'assets_view'),
+    )
+
+    EXEMPT_PREFIXES = (
+        '/vault/personal/',        # the user's own personal vault
+        '/vault/api/extension/',   # token-authenticated browser extension
+        '/vault/api/generate/',    # password generator utility
+        '/vault/api/strength/',    # password strength utility
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, 'user', None)
+        if user is not None and user.is_authenticated:
+            perm = self._required_perm(request.path)
+            if perm is not None:
+                self._check(request, user, perm)
+        return self.get_response(request)
+
+    def _required_perm(self, path):
+        if path.startswith(self.EXEMPT_PREFIXES):
+            return None
+        for prefix, perm in self.SECTIONS:
+            if path.startswith(prefix):
+                return perm
+        return None
+
+    @staticmethod
+    def _has_role_anywhere(user):
+        """True when some role decides this user's access: MSP staff (their
+        global role) or a customer user with an active membership."""
+        profile = getattr(user, 'profile', None)
+        if profile is not None and getattr(profile, 'is_staff_user', lambda: False)():
+            return True
+        return user.memberships.filter(
+            is_active=True, organization__is_active=True).exists()
+
+    def _check(self, request, user, perm):
+        from django.core.exceptions import PermissionDenied
+        from accounts.permission_utils import orgs_with_perm
+
+        allowed = orgs_with_perm(user, perm)
+        if allowed is None:
+            return
+        if not allowed:
+            if not self._has_role_anywhere(user):
+                return
+            raise PermissionDenied(f"Your role does not include the '{perm}' permission.")
+        org = getattr(request, 'current_organization', None)
+        if org is not None and org.pk not in allowed:
+            raise PermissionDenied(
+                f"Your role does not include the '{perm}' permission for this customer.")

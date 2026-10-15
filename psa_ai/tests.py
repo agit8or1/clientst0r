@@ -205,7 +205,10 @@ class GenerateReplyEndpointTests(TestCase):
         _seed()
         _enable_ai()
         self.org = Organization.objects.create(name='ACME', slug='acme')
-        self.user = User.objects.create_user('tech', password='pw', email='tech@x.com')
+        # Drafting a reply is a technician action: the user is MSP staff.
+        from psa.tests._base import _make_msp_tech
+        self.user = _make_msp_tech(
+            User.objects.create_user('tech', password='pw', email='tech@x.com'))
         Membership.objects.update_or_create(
             user=self.user, organization=self.org,
             defaults={'role': Role.OWNER, 'is_active': True},

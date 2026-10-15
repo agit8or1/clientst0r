@@ -12,7 +12,9 @@ from django.shortcuts import get_object_or_404
 
 from rest_framework.exceptions import PermissionDenied
 
-from accounts.permission_utils import user_has_org_perm
+from accounts.permission_utils import (
+    filter_by_org_perm, has_perm_for_org, orgs_with_perm, user_has_org_perm,
+)
 from audit.models import AuditLog
 from core.client_ip import get_client_ip
 from assets.models import Asset, Contact
@@ -42,8 +44,16 @@ class OrganizationScopedViewSet(viewsets.ModelViewSet):
     with a broader `scope` (issue #134), and any caller passing
     ``?organization=<id|slug|all>``, can read/write across multiple client
     organizations. See `api.scoping` for the resolution rules.
+
+    `view_perm` names the role flag (RoleTemplate / simple-role default) that
+    gates reading this resource. It is applied on top of the key/session org
+    scoping: a row is reachable only when its customer is both in scope AND a
+    customer where the user holds `view_perm`. Every detail route and custom
+    action goes through `get_object()` -> `get_queryset()`, so a row the user
+    may not view answers 404 everywhere, not just on the list.
     """
     permission_classes = [IsAuthenticated]
+    view_perm = None
 
     def get_queryset(self):
         """Filter queryset to the org(s) resolved for this request."""
@@ -51,7 +61,26 @@ class OrganizationScopedViewSet(viewsets.ModelViewSet):
         if not hasattr(base_queryset.model, 'organization'):
             return base_queryset
         org_ids = resolve_scope_org_ids(self.request)
-        return base_queryset.filter(organization_id__in=org_ids)
+        return self.filter_view_perm(
+            base_queryset.filter(organization_id__in=org_ids)
+        )
+
+    def filter_view_perm(self, queryset):
+        """Narrow to customers where the user holds `view_perm`."""
+        if not self.view_perm:
+            return queryset
+        return filter_by_org_perm(queryset, self.request.user, self.view_perm)
+
+    def require_view_perm(self, organization):
+        """403 unless the user holds `view_perm` in `organization`. Used on
+        create / move so nobody writes rows into a customer they cannot read."""
+        if self.view_perm and not has_perm_for_org(
+            self.request.user, organization, self.view_perm
+        ):
+            raise PermissionDenied(
+                "You do not have permission to view this module for the "
+                "target organization."
+            )
 
     def perform_create(self, serializer):
         """Set organization (param > body > primary, access-checked) + created_by."""
@@ -59,6 +88,7 @@ class OrganizationScopedViewSet(viewsets.ModelViewSet):
         model = serializer.Meta.model
         if hasattr(model, 'organization'):
             kwargs['organization'] = resolve_create_org(self.request, serializer)
+            self.require_view_perm(kwargs['organization'])
         if hasattr(model, 'created_by'):
             kwargs['created_by'] = self.request.user
         serializer.save(**kwargs)
@@ -73,6 +103,8 @@ class OrganizationScopedViewSet(viewsets.ModelViewSet):
             raise PermissionDenied(
                 "You do not have access to the target organization for this object."
             )
+        if target_org is not None:
+            self.require_view_perm(target_org)
         if hasattr(serializer.Meta.model, 'last_modified_by'):
             kwargs['last_modified_by'] = self.request.user
         serializer.save(**kwargs)
@@ -93,6 +125,7 @@ class AssetViewSet(OrganizationScopedViewSet):
     """
     queryset = Asset.objects.all()
     serializer_class = AssetSerializer
+    view_perm = 'assets_view'
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     # Asset doesn't have `is_active` or `location` columns — those were
     # carried over from an old model spec and crashed every list request
@@ -111,9 +144,11 @@ class AssetViewSet(OrganizationScopedViewSet):
 
 class ContactViewSet(OrganizationScopedViewSet):
     """
-    API endpoint for contacts.
+    API endpoint for contacts. Contacts live in the assets module, so they
+    are governed by `assets_view`.
     """
     queryset = Contact.objects.all()
+    view_perm = 'assets_view'
     serializer_class = ContactSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['first_name', 'last_name', 'email', 'phone']
@@ -130,6 +165,7 @@ class DocumentViewSet(OrganizationScopedViewSet):
     """
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer
+    view_perm = 'docs_view'
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_published', 'is_template', 'is_archived', 'category', 'content_type']
     search_fields = ['title', 'body']
@@ -166,6 +202,7 @@ class PasswordViewSet(OrganizationScopedViewSet):
     Search: ?search=github
     """
     queryset = Password.objects.all()
+    view_perm = 'vault_view'
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['password_type']
     search_fields = ['title', 'username', 'url']
@@ -178,11 +215,18 @@ class PasswordViewSet(OrganizationScopedViewSet):
             return PasswordListSerializer
         return PasswordDetailSerializer
 
-    def get_queryset(self):
-        """Org-scoped, minus other users' personal (My Vault) entries."""
-        return super().get_queryset().filter(
-            Q(is_personal=False) | Q(personal_owner=self.request.user)
-        )
+    def filter_view_perm(self, queryset):
+        """Org-scoped shared entries need `vault_view` in their customer; the
+        caller's own personal (My Vault) entries stay visible regardless.
+        Other users' personal entries are never visible."""
+        user = self.request.user
+        own_personal = Q(is_personal=True, personal_owner=user)
+        allowed = orgs_with_perm(user, self.view_perm)
+        if allowed is None:
+            shared = Q(is_personal=False)
+        else:
+            shared = Q(is_personal=False, organization_id__in=allowed)
+        return queryset.filter(shared | own_personal)
 
     def _denied(self, password, denial, channel):
         AuditLog.objects.create(

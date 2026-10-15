@@ -20,6 +20,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.permission_utils import user_has_perm
+from psa.visibility import is_msp_staff
 
 
 def _serialize_user(u) -> dict:
@@ -51,7 +52,8 @@ def assignable_users_view(request):
         # Self-claim only — no picker. Mobile UI hides the control
         # entirely when this returns a single row that's the caller.
         rows = [request.user]
-    elif request.user.is_superuser or user_has_perm(request.user, 'tickets_view_all'):
+    elif request.user.is_superuser or (
+            is_msp_staff(request.user) and user_has_perm(request.user, 'tickets_view_all')):
         rows = list(
             User.objects.filter(is_active=True).order_by('username')[:200]
         )

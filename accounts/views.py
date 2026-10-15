@@ -971,6 +971,16 @@ def organization_service_info(request, org_id, service_slug):
     asset_q = kw_q(['name', 'notes', 'asset_type', 'tags__name'])
     assets = Asset.objects.filter(organization=org).filter(asset_q).distinct().order_by('name')
 
+    # Each section only for users whose role grants its view flag here —
+    # the same rule the /vault/, /docs/ and /assets/ section gate applies.
+    from accounts.permission_utils import has_perm_for_org
+    if not has_perm_for_org(request.user, org, 'vault_view'):
+        passwords = passwords.none()
+    if not has_perm_for_org(request.user, org, 'docs_view'):
+        documents = documents.none()
+    if not has_perm_for_org(request.user, org, 'assets_view'):
+        assets = assets.none()
+
     SERVICES = [
         {'slug': 'voip',       'label': 'VoIP',       'icon': 'fa-phone'},
         {'slug': 'email',      'label': 'Email',       'icon': 'fa-envelope'},

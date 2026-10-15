@@ -17,6 +17,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .scoping import accessible_org_ids
+from psa.visibility import customer_visible_tickets
 
 
 def _serialize_assignment(a) -> dict:
@@ -105,7 +106,7 @@ def dispatch_board_view(request):
         from psa.models import Ticket
         from .views_tickets import _serialize_ticket
         org_ids = accessible_org_ids(request.user)
-        ticket_qs = (Ticket.objects
+        ticket_qs = (customer_visible_tickets(Ticket.objects.all(), request.user)
                      .filter(organization_id__in=org_ids,
                              assigned_to=request.user,
                              status__is_terminal=False)
@@ -187,7 +188,7 @@ def dispatch_calendar_view(request):
         # OR they have tickets_view_all. Membership-scoped reads aren't
         # filtered here because the calendar payload is per-user noise,
         # not cross-org leakage.
-        ticket_qs = (Ticket.objects
+        ticket_qs = (customer_visible_tickets(Ticket.objects.all(), request.user)
                      .filter(resolution_due_at__gte=datetime.combine(start, dtime.min),
                              resolution_due_at__lt=datetime.combine(end, dtime.min))
                      .filter(Q(assigned_to=request.user)
@@ -361,7 +362,7 @@ def dispatch_upcoming_view(request):
     try:
         from psa.models import Ticket
         from django.db.models import Q
-        ticket_qs = (Ticket.objects
+        ticket_qs = (customer_visible_tickets(Ticket.objects.all(), request.user)
                      .filter(resolution_due_at__gte=datetime.combine(today, dtime.min),
                              resolution_due_at__lt=datetime.combine(end, dtime.min))
                      .filter(Q(assigned_to=request.user)

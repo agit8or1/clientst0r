@@ -31,6 +31,7 @@ from psa.tests._base import (
     _setup_seed,
     _enable_psa_global,
     _enable_psa_for,
+    _make_msp_tech,
 )
 
 
@@ -842,8 +843,11 @@ class ChangeRequestPermissionTests(TestCase):
             change_approve_cab=False, change_implement=False,
             **common_write,
         )
-        self.tech = User.objects.create_user(
-            username='ch_tech', password='pw', email='ct@x.com')
+        # All three play MSP technicians (UserType.STAFF) so they can open
+        # the change ticket at all; the change_* gates under test still come
+        # from their membership role templates.
+        self.tech = _make_msp_tech(User.objects.create_user(
+            username='ch_tech', password='pw', email='ct@x.com'))
         Membership.objects.create(
             user=self.tech, organization=self.org,
             role=Role.EDITOR, role_template=self.tech_role,
@@ -856,8 +860,8 @@ class ChangeRequestPermissionTests(TestCase):
             change_approve_cab=True, change_implement=False,
             **common_write,
         )
-        self.cab_member = User.objects.create_user(
-            username='ch_cab', password='pw', email='cab@x.com')
+        self.cab_member = _make_msp_tech(User.objects.create_user(
+            username='ch_cab', password='pw', email='cab@x.com'))
         Membership.objects.create(
             user=self.cab_member, organization=self.org,
             role=Role.ADMIN, role_template=self.cab_role,
@@ -870,8 +874,8 @@ class ChangeRequestPermissionTests(TestCase):
             change_approve_cab=False, change_implement=True,
             **common_write,
         )
-        self.implementer = User.objects.create_user(
-            username='ch_impl', password='pw', email='impl@x.com')
+        self.implementer = _make_msp_tech(User.objects.create_user(
+            username='ch_impl', password='pw', email='impl@x.com'))
         Membership.objects.create(
             user=self.implementer, organization=self.org,
             role=Role.ADMIN, role_template=self.impl_role,
@@ -1027,8 +1031,8 @@ class ProblemTicketLinkTests(TestCase):
             problem_assign=False, problem_resolve=False,
             assets_create=True,
         )
-        self.user = User.objects.create_user(
-            username='ptech', password='pw', email='ptech@x.com')
+        self.user = _make_msp_tech(User.objects.create_user(
+            username='ptech', password='pw', email='ptech@x.com'))
         Membership.objects.create(
             user=self.user, organization=self.org,
             role=Role.EDITOR, role_template=self.role,
@@ -1450,8 +1454,8 @@ class TicketShareTests(TestCase):
             outsourcing_share_tickets=True,
             assets_create=True,
         )
-        self.user = User.objects.create_user(
-            username='sharer', password='pw', email='s@x.com')
+        self.user = _make_msp_tech(User.objects.create_user(
+            username='sharer', password='pw', email='s@x.com'))
         Membership.objects.create(
             user=self.user, organization=self.org,
             role=Role.ADMIN, role_template=self.share_role, is_active=True,

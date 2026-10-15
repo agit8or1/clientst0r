@@ -3181,10 +3181,11 @@ def multi_location_report(request):
     parent_rows.sort(key=lambda r: -r['tree_size'])
 
     # Section 3: shared services mapping
-    shared_assets = (Asset.objects.filter(
+    from accounts.permission_utils import filter_by_org_perm
+    shared_assets = (filter_by_org_perm(Asset.objects.filter(
         is_shared_with_descendants=True,
         organization__in=org_qs,
-    ).select_related('organization').order_by('organization__name', 'name'))
+    ), request.user, 'assets_view').select_related('organization').order_by('organization__name', 'name'))
     shared_rows = []
     for a in shared_assets:
         from core.utils import descendant_org_ids
@@ -3838,6 +3839,9 @@ def asset_lifecycle_report(request):
             raise Http404('Pick an organization')
     else:
         qs = Asset.objects.for_organization(org)
+    # Asset names are listed: same assets_view rule as /assets/.
+    from accounts.permission_utils import filter_by_org_perm
+    qs = filter_by_org_perm(qs, request.user, 'assets_view')
 
     # Limit candidate set to assets that COULD plausibly score — must
     # have at least one of purchase_date / warranty_expiry / firmware

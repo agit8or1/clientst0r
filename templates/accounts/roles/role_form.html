@@ -163,7 +163,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="files_view" id="files_view"
                                        {% if role %}{% if role.files_view %}checked{% endif %}{% elif copy_from %}{% if copy_from.files_view %}checked{% endif %}{% else %}checked{% endif %}>
-                                <label class="form-check-label" for="files_view">View files</label>
+                                <label class="form-check-label" for="files_view">View files <small class="text-muted fst-italic" title="This flag is saved but no page checks it yet.">(not enforced yet)</small></label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="files_upload" id="files_upload"
@@ -189,7 +189,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="monitoring_view" id="monitoring_view"
                                        {% if role %}{% if role.monitoring_view %}checked{% endif %}{% elif copy_from %}{% if copy_from.monitoring_view %}checked{% endif %}{% else %}checked{% endif %}>
-                                <label class="form-check-label" for="monitoring_view">View monitors</label>
+                                <label class="form-check-label" for="monitoring_view">View monitors <small class="text-muted fst-italic" title="This flag is saved but no page checks it yet.">(not enforced yet)</small></label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="monitoring_create" id="monitoring_create"
@@ -225,7 +225,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="integrations_view" id="integrations_view"
                                        {% if role %}{% if role.integrations_view %}checked{% endif %}{% elif copy_from %}{% if copy_from.integrations_view %}checked{% endif %}{% endif %}>
-                                <label class="form-check-label" for="integrations_view">View integrations</label>
+                                <label class="form-check-label" for="integrations_view">View integrations <small class="text-muted fst-italic" title="This flag is saved but no page checks it yet.">(not enforced yet)</small></label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="integrations_configure" id="integrations_configure"

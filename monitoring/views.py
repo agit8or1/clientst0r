@@ -385,15 +385,18 @@ def rack_detail(request, pk):
 
     # Get available rack-mountable assets not yet in this rack
     existing_asset_ids = devices.filter(asset__isnull=False).values_list('asset_id', flat=True)
-    available_rack_assets = Asset.objects.filter(
+    from accounts.permission_utils import filter_by_org_perm
+    available_rack_assets = filter_by_org_perm(Asset.objects.filter(
         organization=org,
         is_rackmount=True
-    ).exclude(
+    ), request.user, 'assets_view').exclude(
         id__in=existing_asset_ids
     ).order_by('name')
 
     # All org assets for the inline edit modal asset selector
-    all_org_assets = Asset.objects.filter(organization=org).order_by('name').values('id', 'name') if org else Asset.objects.none()
+    all_org_assets = filter_by_org_perm(
+        Asset.objects.filter(organization=org), request.user, 'assets_view',
+    ).order_by('name').values('id', 'name') if org else Asset.objects.none()
 
     # Query rack images
     from files.models import Attachment
@@ -895,7 +898,10 @@ def network_closet_detail(request, pk):
     } for pp in patch_panels])
 
     from assets.models import Asset
-    all_org_assets = Asset.objects.filter(organization=closet.organization).order_by('name').values(
+    from accounts.permission_utils import filter_by_org_perm
+    all_org_assets = filter_by_org_perm(
+        Asset.objects.filter(organization=closet.organization), request.user, 'assets_view',
+    ).order_by('name').values(
         'id', 'name', 'asset_type', 'rack_units', 'port_count'
     )
 

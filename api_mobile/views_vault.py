@@ -5,7 +5,9 @@ Backs the `mobile/app/vault/` screens. Mirrors the security guarantees
 of the web vault:
 
   * Org-scoped via `accessible_org_ids` — users can only list / read
-    passwords for organizations they belong to.
+    passwords for organizations they belong to — and narrowed to the
+    customers where their role grants `vault_view`. Other users'
+    personal-vault rows are never returned.
   * Per-user reveal rate limit (30/hour) via `MobileVaultRevealRateThrottle`.
   * Per-credential approval gate honored — a `Password.requires_reveal_approval`
     entry returns 202 + `request_url` so the mobile UI can deep-link
@@ -31,8 +33,22 @@ from rest_framework.response import Response
 from accounts.permission_utils import user_has_org_perm
 from vault.permissions import can_access_password
 
-from .scoping import accessible_org_ids
+from .scoping import accessible_org_ids, perm_org_ids
 from .throttles import MobileVaultRevealRateThrottle
+
+
+def _visible_passwords(user):
+    """Password rows `user` may see on mobile.
+
+    Customer rows need an active membership AND `vault_view` in that
+    customer. Personal-vault rows are visible only to their owner (and to
+    nobody else, whatever their customer role).
+    """
+    from vault.models import Password
+    return Password.objects.filter(
+        Q(is_personal=False, organization_id__in=perm_org_ids(user, 'vault_view'))
+        | Q(is_personal=True, personal_owner=user)
+    )
 
 
 def _serialize_entry(p):
@@ -84,7 +100,8 @@ def vault_list_view(request):
                 {'detail': 'organization_id required and must be accessible'},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if not user_has_org_perm(request.user, org_id, 'vault_create'):
+        if not (user_has_org_perm(request.user, org_id, 'vault_view')
+                and user_has_org_perm(request.user, org_id, 'vault_create')):
             return Response({'detail': 'Vault create permission required'},
                             status=status.HTTP_403_FORBIDDEN)
         title = (data.get('title') or '').strip()
@@ -120,7 +137,7 @@ def vault_list_view(request):
         return Response(_serialize_entry(entry),
                         status=status.HTTP_201_CREATED)
 
-    qs = Password.objects.filter(organization_id__in=org_ids).select_related('organization')
+    qs = _visible_passwords(request.user).select_related('organization')
 
     search = (request.query_params.get('search') or '').strip()
     if search:
@@ -202,11 +219,9 @@ def vault_detail_view(request, pk: int):
     """
     from vault.models import Password
 
-    org_ids = list(accessible_org_ids(request.user))
     try:
-        password = Password.objects.select_related('organization').get(
-            pk=pk, organization_id__in=org_ids,
-        )
+        password = _visible_passwords(request.user).select_related(
+            'organization').get(pk=pk)
     except Password.DoesNotExist:
         return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -307,11 +322,9 @@ def vault_reveal_view(request, pk: int):
     from vault.models import Password
     from audit.models import AuditLog
 
-    org_ids = list(accessible_org_ids(request.user))
     try:
-        password = Password.objects.select_related('organization').get(
-            pk=pk, organization_id__in=org_ids,
-        )
+        password = _visible_passwords(request.user).select_related(
+            'organization').get(pk=pk)
     except Password.DoesNotExist:
         return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 

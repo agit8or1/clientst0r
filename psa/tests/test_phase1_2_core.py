@@ -31,6 +31,7 @@ from psa.tests._base import (
     _setup_seed,
     _enable_psa_global,
     _enable_psa_for,
+    _make_msp_tech,
 )
 
 
@@ -343,7 +344,10 @@ class VaultContextTests(TestCase):
         self.pw_b.set_password('plaintext-B-do-not-leak')
         self.pw_b.save()
 
-        self.user_a = User.objects.create_user(username='ua', password='pw', email='ua@x.com')
+        # user_a is the MSP technician working the ticket; user_b is a
+        # customer user of a different client.
+        self.user_a = _make_msp_tech(
+            User.objects.create_user(username='ua', password='pw', email='ua@x.com'))
         Membership.objects.update_or_create(
             user=self.user_a, organization=self.org_a,
             defaults={'role': Role.OWNER, 'is_active': True},
@@ -360,6 +364,9 @@ class VaultContextTests(TestCase):
         self.ticket = Ticket.objects.create(
             organization=self.org_a,
             subject='vault-context ticket',
+            # Shared with the client so the cross-tenant test proves the
+            # membership boundary, not just the portal (client_can_view) rule.
+            client_can_view=True,
             queue=Queue.objects.first(),
             status=TicketStatus.objects.first(),
             priority=TicketPriority.objects.first(),
@@ -438,7 +445,8 @@ class Phase2aTicketActionsTests(TestCase):
         _enable_psa_global()
         _setup_seed()
         self.org = Organization.objects.create(name='ACME', slug='acme')
-        self.user = User.objects.create_user(username='tech1', password='pw', email='tech1@x.com')
+        self.user = _make_msp_tech(
+            User.objects.create_user(username='tech1', password='pw', email='tech1@x.com'))
         Membership.objects.update_or_create(
             user=self.user, organization=self.org,
             defaults={'role': Role.OWNER, 'is_active': True},
@@ -637,7 +645,8 @@ class Phase2bTests(TestCase):
         _enable_psa_global()
         _setup_seed()
         self.org = Organization.objects.create(name='ACME', slug='acme')
-        self.user = User.objects.create_user(username='tech', password='pw', email='t@x.com')
+        self.user = _make_msp_tech(
+            User.objects.create_user(username='tech', password='pw', email='t@x.com'))
         Membership.objects.update_or_create(
             user=self.user, organization=self.org,
             defaults={'role': Role.OWNER, 'is_active': True},
@@ -830,7 +839,7 @@ class TimeTrackingTests(TestCase):
     def setUp(self):
         _setup_seed()
         self.org = Organization.objects.create(name='ACME', slug='acme')
-        self.user = User.objects.create_user('tech', password='pw', email='t@x.com')
+        self.user = _make_msp_tech(User.objects.create_user('tech', password='pw', email='t@x.com'))
         Membership.objects.update_or_create(
             user=self.user, organization=self.org,
             defaults={'role': Role.OWNER, 'is_active': True},
@@ -1121,7 +1130,7 @@ class Phase2cRemainderTests(TestCase):
         _setup_seed()
         s = SystemSetting.get_settings(); s.psa_enabled = True; s.save()
         self.org = Organization.objects.create(name='ACME', slug='acme')
-        self.alice = User.objects.create_user('alice', password='pw', email='a@x.com')
+        self.alice = _make_msp_tech(User.objects.create_user('alice', password='pw', email='a@x.com'))
         self.bob = User.objects.create_user('bob', password='pw', email='b@x.com')
         Membership.objects.update_or_create(
             user=self.alice, organization=self.org,

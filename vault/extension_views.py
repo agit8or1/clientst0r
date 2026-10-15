@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
+from accounts.permission_utils import filter_by_org_perm
 from audit.models import AuditLog
 from core.middleware import get_request_organization
 from core.client_ip import get_client_ip
@@ -200,18 +201,25 @@ def _visible_password_qs(user, organization):
     QuerySet of Password rows visible to `user` in `organization`. The
     extension never sees personal-vault entries; those are session-scoped
     only. When organization is None the caller is in global view.
+
+    Rows are further narrowed to customers where the user's role grants
+    `vault_view` — `vault_extension_use` lets the extension talk to the
+    vault, it does not by itself grant sight of a customer's passwords.
     """
     if organization is None:
         if user.is_superuser:
-            return Password.objects.filter(is_personal=False)
+            qs = Password.objects.filter(is_personal=False)
         # Staff users without a chosen org -> all orgs they can see
-        if hasattr(user, 'profile') and getattr(user.profile, 'is_staff_user', lambda: False)():
-            return Password.objects.filter(is_personal=False)
-        # Org users without an org pinned -> nothing
-        return Password.objects.none()
-    return Password.objects.filter(
-        organization=organization, is_personal=False,
-    )
+        elif hasattr(user, 'profile') and getattr(user.profile, 'is_staff_user', lambda: False)():
+            qs = Password.objects.filter(is_personal=False)
+        else:
+            # Org users without an org pinned -> nothing
+            return Password.objects.none()
+    else:
+        qs = Password.objects.filter(
+            organization=organization, is_personal=False,
+        )
+    return filter_by_org_perm(qs, user, 'vault_view')
 
 
 def _gate(request, password, event):

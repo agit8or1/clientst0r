@@ -21,7 +21,7 @@ from rest_framework.response import Response
 
 from accounts.permission_utils import user_has_perm
 
-from .scoping import accessible_org_ids
+from .scoping import perm_org_ids
 
 # Same set the web device list uses. A config backup of a laptop is not a thing.
 NETWORK_ASSET_TYPES = [
@@ -68,7 +68,7 @@ def device_list_view(request):
     from django.db.models import Count, Max
     from assets.models import Asset
 
-    org_ids = accessible_org_ids(request.user)
+    org_ids = perm_org_ids(request.user, 'assets_view')
     qs = (Asset.objects
           .filter(organization_id__in=org_ids,
                   asset_type__in=NETWORK_ASSET_TYPES)
@@ -118,7 +118,7 @@ def device_detail_view(request, pk: int):
     from assets.models import Asset
     from netconfig.models import BackupTarget, ConfigBackup
 
-    org_ids = accessible_org_ids(request.user)
+    org_ids = perm_org_ids(request.user, 'assets_view')
     try:
         asset = Asset.objects.select_related('organization').get(
             pk=pk, organization_id__in=org_ids,
@@ -154,7 +154,7 @@ def backup_detail_view(request, pk: int):
     """GET /api/mobile/v1/netconfig/backups/<id>/ — the stored config text."""
     from netconfig.models import ConfigBackup
 
-    org_ids = accessible_org_ids(request.user)
+    org_ids = perm_org_ids(request.user, 'assets_view')
     try:
         backup = ConfigBackup.objects.select_related('asset').get(
             pk=pk, organization_id__in=org_ids)
@@ -182,7 +182,7 @@ def collect_view(request, pk: int):
     from netconfig.collector import collect_target
     from netconfig.models import BackupTarget
 
-    org_ids = accessible_org_ids(request.user)
+    org_ids = perm_org_ids(request.user, 'assets_view')
     try:
         asset = Asset.objects.get(pk=pk, organization_id__in=org_ids,
                                   asset_type__in=NETWORK_ASSET_TYPES)

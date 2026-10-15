@@ -2101,8 +2101,12 @@ class AdminCanAssignTests(TestCase):
             priority=TicketPriority.objects.first(),
             ticket_type=TicketType.objects.first(),
         )
+        # These tests exercise the customer-side org-admin vs editor rule in
+        # _can_assign, so the actors stay customer users (making them MSP
+        # staff would let every one of them assign). Customer users only see
+        # tickets shared with the client, so share this one.
         self.ticket_a = Ticket.objects.create(
-            organization=self.org_a, subject='Assign me', **kw
+            organization=self.org_a, subject='Assign me', client_can_view=True, **kw
         )
 
     def _login(self, user, org=None):

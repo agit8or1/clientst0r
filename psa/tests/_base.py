@@ -42,3 +42,24 @@ def _enable_psa_for(org):
     cps.enabled = True
     cps.save()
     return cps
+
+
+def _make_msp_tech(user):
+    """Mark `user` as MSP staff (a technician, profile user_type=Staff).
+
+    Users who only hold customer memberships are customer users and get the
+    portal ticket rule (psa/visibility.py): only `client_can_view` tickets, no
+    internal comments. Tests whose acting user plays a technician — assigning,
+    replying, internal notes, time, closing, merging — must mark them staff.
+    """
+    from accounts.models import UserProfile, UserType
+    # Update the profile cached on `user` (the post_save signal attaches it),
+    # not a fresh copy: force_login() saves the user, and a save_user_profile
+    # signal then re-saves that cached profile, which would undo the change.
+    try:
+        profile = user.profile
+    except UserProfile.DoesNotExist:
+        profile = UserProfile.objects.create(user=user)
+    profile.user_type = UserType.STAFF
+    profile.save()
+    return user

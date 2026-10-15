@@ -52,6 +52,17 @@ def _auth_post(client, path, token, payload=None):
     )
 
 
+def _make_msp_tech(user):
+    """Mark `user` as MSP staff (a technician). Users who are only members
+    of a customer are customer users and get the portal ticket rule: only
+    tickets shared with the client, no internal comments."""
+    from accounts.models import UserProfile, UserType
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    profile.user_type = UserType.STAFF
+    profile.save()
+    return user
+
+
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileAuthLoginTests(TestCase):
     """Verifies happy-path login + wrong-password rejection + missing fields."""
@@ -565,21 +576,44 @@ class MobileTicketsTests(TestCase):
         self.priority_p1 = TicketPriority.objects.create(code='P1', name='Critical')
         self.ttype = TicketType.objects.create(name='Incident', slug='incident')
         self.queue = Queue.objects.create(name='Default', slug='default')
+        # Both tickets are shared with the client, so for the customer user
+        # (`user_a`) the only thing hiding ticket_b is membership scoping.
         self.ticket_a = Ticket.objects.create(
             organization=self.org_a, subject='OrgA ticket',
             status=self.status_new, priority=self.priority,
-            ticket_type=self.ttype, queue=self.queue,
+            ticket_type=self.ttype, queue=self.queue, client_can_view=True,
         )
         self.ticket_b = Ticket.objects.create(
             organization=self.org_b, subject='OrgB ticket',
             status=self.status_new, priority=self.priority,
-            ticket_type=self.ttype, queue=self.queue,
+            ticket_type=self.ttype, queue=self.queue, client_can_view=True,
         )
+        # Not shared with the client: MSP-internal.
+        self.ticket_unshared = Ticket.objects.create(
+            organization=self.org_a, subject='OrgA internal ticket',
+            status=self.status_new, priority=self.priority,
+            ticket_type=self.ttype, queue=self.queue, client_can_view=False,
+        )
+        from psa.models import TicketComment
+        TicketComment.objects.create(ticket=self.ticket_a, body='Public note',
+                                     is_internal=False)
+        TicketComment.objects.create(ticket=self.ticket_a, body='Tech-only note',
+                                     is_internal=True)
         self.client = Client()
         resp = _post(self.client, '/api/mobile/v1/auth/login/', {
             'username': 'tkuser', 'password': 'hunter2',
         })
         self.token = resp.json()['token']
+        # MSP technician who works org_a's tickets (status changes,
+        # priority, internal comments). EDITOR => no tickets_view_all, so
+        # the tech is still membership-scoped.
+        self.tech = _make_msp_tech(User.objects.create_user('tktech', password='hunter2'))
+        Membership.objects.create(
+            user=self.tech, organization=self.org_a, role=Role.EDITOR, is_active=True,
+        )
+        self.tech_token = _post(self.client, '/api/mobile/v1/auth/login/', {
+            'username': 'tktech', 'password': 'hunter2',
+        }).json()['token']
 
     def test_ticket_list_scoped_to_user_orgs(self):
         resp = _auth_get(self.client, '/api/mobile/v1/tickets/', self.token)
@@ -594,7 +628,25 @@ class MobileTicketsTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         body = resp.json()
         self.assertEqual(body['subject'], 'OrgA ticket')
-        self.assertIn('comments', body)
+        # Customer user: public comments only.
+        self.assertEqual([c['body'] for c in body['comments']], ['Public note'])
+        # MSP tech: internal comments too.
+        body = _auth_get(self.client, url, self.tech_token).json()
+        self.assertEqual(sorted(c['body'] for c in body['comments']),
+                         ['Public note', 'Tech-only note'])
+
+    def test_customer_cannot_reach_unshared_ticket_actions(self):
+        # Detail/list on unshared tickets are covered in
+        # psa/tests/test_internal_ticket_visibility.py; this pins down the
+        # write-side sub-resources (comment + time) on mobile.
+        base = f'/api/mobile/v1/tickets/{self.ticket_unshared.id}'
+        self.assertEqual(
+            _auth_post(self.client, f'{base}/comments/', self.token,
+                       {'body': 'hello'}).status_code, 404)
+        self.assertEqual(
+            _auth_post(self.client, f'{base}/time/', self.token,
+                       {'duration_minutes': 5}).status_code, 404)
+        self.assertEqual(_auth_get(self.client, f'{base}/', self.tech_token).status_code, 200)
 
     def test_ticket_detail_cross_org_blocked(self):
         url = f'/api/mobile/v1/tickets/{self.ticket_b.id}/'
@@ -622,7 +674,7 @@ class MobileTicketsTests(TestCase):
         resp = self.client.patch(
             url, data=json.dumps({'status_id': self.status_closed.id}),
             content_type='application/json',
-            HTTP_AUTHORIZATION=f'Token {self.token}',
+            HTTP_AUTHORIZATION=f'Token {self.tech_token}',
         )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['status'], 'Closed')
@@ -633,7 +685,7 @@ class MobileTicketsTests(TestCase):
         resp = self.client.patch(
             url, data=json.dumps({'status': 'closed'}),
             content_type='application/json',
-            HTTP_AUTHORIZATION=f'Token {self.token}',
+            HTTP_AUTHORIZATION=f'Token {self.tech_token}',
         )
         self.assertEqual(resp.status_code, 200, resp.content)
         self.assertEqual(resp.json()['status'], 'Closed')
@@ -643,7 +695,7 @@ class MobileTicketsTests(TestCase):
         resp = self.client.patch(
             url, data=json.dumps({'status': 'no-such-status'}),
             content_type='application/json',
-            HTTP_AUTHORIZATION=f'Token {self.token}',
+            HTTP_AUTHORIZATION=f'Token {self.tech_token}',
         )
         self.assertEqual(resp.status_code, 400)
 
@@ -653,7 +705,7 @@ class MobileTicketsTests(TestCase):
         resp = self.client.patch(
             url, data=json.dumps({'priority': 'critical'}),
             content_type='application/json',
-            HTTP_AUTHORIZATION=f'Token {self.token}',
+            HTTP_AUTHORIZATION=f'Token {self.tech_token}',
         )
         self.assertEqual(resp.status_code, 200, resp.content)
         # Backend's _serialize_ticket returns the P-code, not the label,
@@ -662,7 +714,7 @@ class MobileTicketsTests(TestCase):
 
     def test_ticket_add_comment(self):
         url = f'/api/mobile/v1/tickets/{self.ticket_a.id}/comments/'
-        resp = _auth_post(self.client, url, self.token, {
+        resp = _auth_post(self.client, url, self.tech_token, {
             'body': 'On site now', 'is_internal': True,
         })
         self.assertEqual(resp.status_code, 201)
@@ -695,7 +747,8 @@ class MobileKBTests(TestCase):
         )
         self.org_a_doc = Document.objects.create(
             organization=self.org_a, title='OrgA Runbook', slug='orga-runbook',
-            body='Org A specific.', content_type='markdown', is_published=True,
+            body='# OrgA runbook\n\nOrg A specific.', content_type='markdown',
+            is_published=True,
         )
         self.org_b_doc = Document.objects.create(
             organization=self.org_b, title='OrgB Internal', slug='orgb-internal',
@@ -711,11 +764,13 @@ class MobileKBTests(TestCase):
         c = Client()
         self.assertIn(c.get('/api/mobile/v1/kb/').status_code, (401, 403))
 
-    def test_kb_list_returns_global_and_my_org(self):
+    def test_kb_list_returns_my_org_not_global(self):
+        # Global articles are MSP-internal (staff-only on the web); a
+        # customer OWNER sees their own customer's docs only.
         resp = _auth_get(self.client, '/api/mobile/v1/kb/', self.token)
         self.assertEqual(resp.status_code, 200)
         ids = [d['id'] for d in resp.json()['results']]
-        self.assertIn(self.global_doc.id, ids)
+        self.assertNotIn(self.global_doc.id, ids)
         self.assertIn(self.org_a_doc.id, ids)
         self.assertNotIn(self.org_b_doc.id, ids)
 
@@ -726,12 +781,16 @@ class MobileKBTests(TestCase):
         self.assertEqual(ids, [self.org_a_doc.id])
 
     def test_kb_detail_returns_body_and_html(self):
-        url = f'/api/mobile/v1/kb/{self.global_doc.id}/'
+        url = f'/api/mobile/v1/kb/{self.org_a_doc.id}/'
         resp = _auth_get(self.client, url, self.token)
         self.assertEqual(resp.status_code, 200)
         body = resp.json()
-        self.assertEqual(body['body'], '# Global content\n\nUseful for all.')
-        self.assertIn('Global content</h1>', body['body_html'])
+        self.assertEqual(body['body'], '# OrgA runbook\n\nOrg A specific.')
+        self.assertIn('OrgA runbook</h1>', body['body_html'])
+
+    def test_kb_detail_global_hidden_from_customer(self):
+        url = f'/api/mobile/v1/kb/{self.global_doc.id}/'
+        self.assertEqual(_auth_get(self.client, url, self.token).status_code, 404)
 
     def test_kb_detail_cross_org_blocked(self):
         url = f'/api/mobile/v1/kb/{self.org_b_doc.id}/'
@@ -1012,7 +1071,8 @@ class MobileTicketTimeEntryTests(TestCase):
         from psa.models import Queue, Ticket, TicketPriority, TicketStatus, TicketType
         _clear_throttle_cache()
         self.org = Organization.objects.create(name='OrgT-Time', slug='orgt-time')
-        self.user = User.objects.create_user('tuser', password='hunter2')
+        # Logging time is technician work: an MSP staff user.
+        self.user = _make_msp_tech(User.objects.create_user('tuser', password='hunter2'))
         Membership.objects.create(
             user=self.user, organization=self.org, role=Role.OWNER, is_active=True,
         )
@@ -2195,6 +2255,9 @@ class MobileTicketAssignPermTests(TestCase):
         self.tech = User.objects.create_user('tech1', password='hunter2')
         self.tech_other = User.objects.create_user('tech2', password='hunter2')
         self.manager = User.objects.create_user('mgr1', password='hunter2')
+        # Assignment is MSP-side work: all three are technicians.
+        for u in (self.tech, self.tech_other, self.manager):
+            _make_msp_tech(u)
         # Tech: no tickets_assign perm. Manager: has tickets_assign.
         tech_tpl = RoleTemplate.objects.create(
             name='Tech-NoAssign', is_system_template=False,
@@ -2460,6 +2523,8 @@ class MobileTicketSerializerFieldsTests(TestCase):
             'seruser', password='hunter2',
             first_name='Sara', last_name='Reuser',
         )
+        # Assignee viewing their own queue: an MSP technician.
+        _make_msp_tech(self.user)
         Membership.objects.create(
             user=self.user, organization=self.org, role=Role.OWNER, is_active=True,
         )
@@ -2504,7 +2569,8 @@ class MobileDispatchCalendarMixedTests(TestCase):
         from scheduling.models import ScheduledTask, TaskAssignment
         _clear_throttle_cache()
         self.org = Organization.objects.create(name='CalMixOrg', slug='calmix')
-        self.user = User.objects.create_user('caluser', password='hunter2')
+        # Dispatch calendar belongs to an MSP technician.
+        self.user = _make_msp_tech(User.objects.create_user('caluser', password='hunter2'))
         Membership.objects.create(
             user=self.user, organization=self.org, role=Role.OWNER, is_active=True,
         )
@@ -2716,7 +2782,8 @@ class MobileTicketBillingRollupTests(TestCase):
         )
         _clear_throttle_cache()
         self.org = Organization.objects.create(name='BillOrg', slug='billorg')
-        self.user = User.objects.create_user('billuser', password='hunter2')
+        # Time/billing rollups are technician data: an MSP staff user.
+        self.user = _make_msp_tech(User.objects.create_user('billuser', password='hunter2'))
         Membership.objects.create(
             user=self.user, organization=self.org, role=Role.OWNER, is_active=True,
         )
@@ -2788,7 +2855,8 @@ class MobileScheduleTaskTests(TestCase):
     def setUp(self):
         _clear_throttle_cache()
         self.org = Organization.objects.create(name='SchOrg', slug='schorg')
-        self.user = User.objects.create_user('schuser', password='hunter2')
+        # Scheduling ticket work is technician work: an MSP staff user.
+        self.user = _make_msp_tech(User.objects.create_user('schuser', password='hunter2'))
         Membership.objects.create(
             user=self.user, organization=self.org, role=Role.OWNER, is_active=True,
         )

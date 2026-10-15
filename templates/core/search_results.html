@@ -26,8 +26,9 @@
 <!-- Assets -->
 {% if assets %}
 <div class="card mb-3">
-    <div class="card-header">
-        <h4 class="mb-0"><i class="fas fa-server"></i> Assets ({{ assets|length }})</h4>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-server"></i> Assets ({{ counts.assets }})</h4>
+        {% if counts.assets > assets|length %}<small class="text-muted">Showing {{ assets|length }} of {{ counts.assets }}</small>{% endif %}
     </div>
     <div class="list-group list-group-flush">
         {% for asset in assets %}
@@ -48,8 +49,9 @@
 <!-- Documents -->
 {% if documents %}
 <div class="card mb-3">
-    <div class="card-header">
-        <h4 class="mb-0"><i class="fas fa-file-alt"></i> Documents ({{ documents|length }})</h4>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-file-alt"></i> Documents ({{ counts.documents }})</h4>
+        {% if counts.documents > documents|length %}<small class="text-muted">Showing {{ documents|length }} of {{ counts.documents }}</small>{% endif %}
     </div>
     <div class="list-group list-group-flush">
         {% for doc in documents %}
@@ -67,8 +69,9 @@
 <!-- Global KB -->
 {% if global_kb %}
 <div class="card mb-3">
-    <div class="card-header bg-primary text-white">
-        <h4 class="mb-0"><i class="fas fa-book"></i> Global KB ({{ global_kb|length }})</h4>
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-book"></i> Global KB ({{ counts.global_kb }})</h4>
+        {% if counts.global_kb > global_kb|length %}<small class="text-white-50">Showing {{ global_kb|length }} of {{ counts.global_kb }}</small>{% endif %}
     </div>
     <div class="list-group list-group-flush">
         {% for doc in global_kb %}
@@ -89,8 +92,9 @@
 <!-- Passwords -->
 {% if passwords %}
 <div class="card mb-3">
-    <div class="card-header">
-        <h4 class="mb-0"><i class="fas fa-key"></i> Passwords ({{ passwords|length }})</h4>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-key"></i> Passwords ({{ counts.passwords }})</h4>
+        {% if counts.passwords > passwords|length %}<small class="text-muted">Showing {{ passwords|length }} of {{ counts.passwords }}</small>{% endif %}
     </div>
     <div class="list-group list-group-flush">
         {% for password in passwords %}
@@ -110,8 +114,9 @@
 <!-- Contacts -->
 {% if contacts %}
 <div class="card mb-3">
-    <div class="card-header">
-        <h4 class="mb-0"><i class="fas fa-users"></i> Contacts ({{ contacts|length }})</h4>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-users"></i> Contacts ({{ counts.contacts }})</h4>
+        {% if counts.contacts > contacts|length %}<small class="text-muted">Showing {{ contacts|length }} of {{ counts.contacts }}</small>{% endif %}
     </div>
     <div class="list-group list-group-flush">
         {% for contact in contacts %}
@@ -131,8 +136,9 @@
 <!-- PSA Companies -->
 {% if psa_companies %}
 <div class="card mb-3">
-    <div class="card-header">
-        <h4 class="mb-0"><i class="fas fa-building"></i> PSA Companies ({{ psa_companies|length }})</h4>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-building"></i> PSA Companies ({{ counts.psa_companies }})</h4>
+        {% if counts.psa_companies > psa_companies|length %}<small class="text-muted">Showing {{ psa_companies|length }} of {{ counts.psa_companies }}</small>{% endif %}
     </div>
     <div class="list-group list-group-flush">
         {% for company in psa_companies %}
@@ -148,8 +154,9 @@
 <!-- PSA Contacts -->
 {% if psa_contacts %}
 <div class="card mb-3">
-    <div class="card-header">
-        <h4 class="mb-0"><i class="fas fa-address-card"></i> PSA Contacts ({{ psa_contacts|length }})</h4>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-address-card"></i> PSA Contacts ({{ counts.psa_contacts }})</h4>
+        {% if counts.psa_contacts > psa_contacts|length %}<small class="text-muted">Showing {{ psa_contacts|length }} of {{ counts.psa_contacts }}</small>{% endif %}
     </div>
     <div class="list-group list-group-flush">
         {% for contact in psa_contacts %}

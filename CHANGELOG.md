@@ -5,6 +5,64 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.600] - 2026-10-15
+
+### Security: role view permissions are enforced
+
+- The **View passwords**, **View documents** and **View assets** switches in a
+  role were saved but never checked. They now apply everywhere those records
+  appear: the vault, documents and assets pages, global search, dashboards,
+  the REST and GraphQL APIs, the mobile app and the browser extension. Contacts
+  follow **View assets**. A user's own personal vault is unaffected.
+- Global search counts are now real totals, with "Showing 10 of N" when a
+  category has more.
+- The ticket sidebar's credential card follows **View passwords** and shows
+  titles only; usernames stay on the audited "View all" page, which now also
+  requires the permission.
+- **View files**, **View monitors** and **View integrations** are still not
+  enforced; the role editor now says so next to each.
+- The MSP's global knowledge-base documents and diagrams are no longer returned
+  to customer users by the APIs or the mobile app, matching the web UI.
+
+### Security: customer users see what the portal shows them
+
+- Customer users (people who log in for one of your customers) now get the
+  portal's rule on the staff ticket pages and in the mobile app: only tickets
+  marked as visible to the client, no internal comments, no internal
+  attachments. MSP staff see everything as before. Tickets aren't shared with
+  the client by default, so share the ones customer users should see.
+- **Action needed if your technicians aren't Staff users:** MSP staff means a
+  superuser or a user whose **User Type** is Staff (Access Management → Users
+  → Edit). A
+  technician set up as an ordinary member of customer organizations is now
+  treated as a customer user: in the web UI and the mobile app they see only
+  shared tickets, no internal notes, and only their own customers. Change
+  their user type to Staff to restore full access.
+- The mobile app let a customer's Owner or Admin read every customer's tickets
+  and list every user, because those roles carry "view all tickets". That
+  capability now only applies to MSP staff.
+- The global dashboard, which shows every customer's name, record counts and
+  the install-wide activity log, is now MSP-staff only.
+
+### Uploaded files download again, and only for people allowed to see them
+
+- On native installs no uploaded file could be downloaded (document files and
+  previews, diagrams, location images, logos, ticket attachments), because
+  `/media/` was only served in debug mode. On Docker installs every upload was
+  served to anyone. Every `/media/` request now goes through a view that finds
+  the record the file belongs to and applies that record's permissions; files
+  no record claims return 404. Only the branding logo and background are
+  public.
+- File-app attachment downloads used a server path that doesn't exist and now
+  use the same view.
+- `/media/` is no longer exempt from 2FA enrolment.
+- Docker: the nginx container no longer serves `/media/` itself.
+
+### Fixes
+
+- Vault reveal-approval and break-glass requests now email admins; a missing
+  import meant those emails were never sent.
+
 ## [3.17.599] - 2026-10-15
 
 ### Security: customers stay inside their own records

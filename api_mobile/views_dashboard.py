@@ -12,7 +12,7 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .scoping import accessible_org_ids
+from .scoping import accessible_org_ids, perm_org_ids
 
 
 def _safe_count(model_path, **filters):
@@ -78,8 +78,9 @@ def dashboard_view(request):
     try:
         from assets.models import Asset  # noqa: WPS433 — soft import
         from .views_assets import _serialize_asset
+        asset_org_ids = perm_org_ids(request.user, 'assets_view')
         for a in (Asset.objects
-                  .filter(organization_id__in=org_ids)
+                  .filter(organization_id__in=asset_org_ids)
                   .order_by('-created_at')[:5]):
             recent_assets.append(_serialize_asset(a))
     except Exception:
@@ -201,11 +202,16 @@ def organization_detail_view(request, pk: int):
     except Organization.DoesNotExist:
         return Response({'detail': 'Not found'}, status=404)
 
-    asset_count = _safe_count('assets.models.Asset', organization_id=pk)
+    # Assets and contacts are both gated by `assets_view` in this customer;
+    # without it the counts read as zero rather than leaking the volume.
+    can_view_assets = pk in perm_org_ids(request.user, 'assets_view')
+    asset_count = (_safe_count('assets.models.Asset', organization_id=pk)
+                   if can_view_assets else 0)
     ticket_count = _safe_count(
         'psa.models.Ticket', organization_id=pk, status__is_terminal=False,
     )
-    contact_count = _safe_count('assets.models.Contact', organization_id=pk)
+    contact_count = (_safe_count('assets.models.Contact', organization_id=pk)
+                     if can_view_assets else 0)
 
     return Response({
         'id': org.id,

@@ -73,3 +73,48 @@ def user_has_org_perm(user, organization, perm_name) -> bool:
             if getattr(membership.get_permissions(), perm_name, False):
                 return True
     return False
+
+
+def orgs_with_perm(user, perm_name):
+    """Customers in which `user` holds `perm_name`.
+
+    Returns None for "every customer" (superusers, and MSP staff whose global
+    role grants it — or who have no global role, which has always meant full
+    reach), otherwise a set of organization ids. A membership in a parent
+    customer covers its subsidiaries, matching `user_has_org_perm`.
+    """
+    if not user or not user.is_authenticated or not user.is_active:
+        return set()
+    if user.is_superuser:
+        return None
+    profile = getattr(user, 'profile', None)
+    if profile is not None and getattr(profile, 'is_staff_user', lambda: False)():
+        global_permissions = profile.get_global_permissions()
+        if global_permissions is None:
+            return None
+        return None if getattr(global_permissions, perm_name, False) else set()
+    from core.utils import descendant_org_ids
+    allowed = set()
+    for membership in user.memberships.filter(
+            is_active=True, organization__is_active=True).select_related('role_template'):
+        if getattr(membership.get_permissions(), perm_name, False):
+            allowed |= descendant_org_ids(membership.organization_id)
+    return allowed
+
+
+def filter_by_org_perm(qs, user, perm_name, field='organization'):
+    """Narrow `qs` to rows whose customer (`field`) the user holds `perm_name` in."""
+    allowed = orgs_with_perm(user, perm_name)
+    if allowed is None:
+        return qs
+    return qs.filter(**{f'{field}_id__in': allowed})
+
+
+def has_perm_for_org(user, organization, perm_name):
+    """`orgs_with_perm` for a single customer. `organization=None` is global
+    view, which only users with every-customer reach hold."""
+    allowed = orgs_with_perm(user, perm_name)
+    if allowed is None:
+        return True
+    org_id = getattr(organization, 'pk', organization)
+    return org_id is not None and org_id in allowed

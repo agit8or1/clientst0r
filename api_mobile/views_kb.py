@@ -5,6 +5,11 @@ KB articles are stored in `docs.Document`. Visibility rules:
 - `is_global=True` and `is_published=True` → visible to all logged-in users.
 - Org-scoped (`organization_id` set) → visible to members of that org.
 - `is_archived=True` → hidden.
+- Org-scoped docs additionally need `docs_view` in that customer.
+- Global (MSP-wide) articles follow the web rule (`global_kb_list` /
+  `global_kb_detail` are staff-only): visible only with every-customer
+  `docs_view` reach — superusers and MSP staff whose global role grants it
+  (or who have none). Customer users never see them.
 """
 from __future__ import annotations
 
@@ -16,18 +21,21 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .scoping import accessible_org_ids
+from accounts.permission_utils import orgs_with_perm
+
+from .scoping import accessible_org_ids, perm_org_ids
 
 
 def _kb_queryset(user):
     """Articles the user is allowed to see."""
     from docs.models import Document
-    org_ids = accessible_org_ids(user)
+    org_ids = perm_org_ids(user, 'docs_view')
+    visible = Q(organization_id__in=org_ids)
+    if orgs_with_perm(user, 'docs_view') is None:
+        visible |= Q(is_global=True)
     return Document.objects.filter(
         is_published=True, is_archived=False,
-    ).filter(
-        Q(is_global=True) | Q(organization_id__in=org_ids)
-    )
+    ).filter(visible)
 
 
 def _serialize_kb(doc, *, detail=False):

@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.db.models import Count, Q
 from django.conf import settings
 from datetime import timedelta
+from accounts.permission_utils import filter_by_org_perm
 from core.middleware import get_request_organization
 from core.models import SystemSetting
 from vault.models import Password
@@ -57,9 +58,14 @@ def dashboard(request):
 
     # Stats cards
     stats = {
-        'passwords': Password.objects.for_organization(org).count(),
-        'assets': Asset.objects.for_organization(org).count(),
-        'documents': Document.objects.filter(organization=org, is_published=True).count(),
+        # Gated by the same role flags as /vault/, /assets/ and /docs/.
+        'passwords': filter_by_org_perm(
+            Password.objects.for_organization(org), request.user, 'vault_view').count(),
+        'assets': filter_by_org_perm(
+            Asset.objects.for_organization(org), request.user, 'assets_view').count(),
+        'documents': filter_by_org_perm(
+            Document.objects.filter(organization=org, is_published=True),
+            request.user, 'docs_view').count(),
         'monitors': WebsiteMonitor.objects.filter(organization=org).count(),
         'psa_companies': 0,
         'psa_tickets': 0,
@@ -114,11 +120,14 @@ def dashboard(request):
 @login_required
 def global_dashboard(request):
     """
-    Global system dashboard - accessible to all authenticated users.
-    Shows system-wide statistics across all organizations.
+    Global system dashboard for MSP staff: system-wide statistics across all
+    customers, including every customer's name and the install-wide audit
+    log, so customer users don't get it.
     """
-    # Accessible to all authenticated users
-    # Previously restricted to superusers and staff only
+    from django.core.exceptions import PermissionDenied
+    if not (request.user.is_superuser or request.user.is_staff
+            or getattr(request, 'is_staff_user', False)):
+        raise PermissionDenied("MSP staff only")
 
     from core.models import Organization
     from accounts.models import Membership
@@ -129,9 +138,13 @@ def global_dashboard(request):
     stats = {
         'organizations': Organization.objects.filter(is_active=True).count(),
         'users': User.objects.filter(is_active=True).count(),
-        'total_passwords': Password.objects.count(),
-        'total_assets': Asset.objects.count(),
-        'total_documents': Document.objects.filter(is_published=True, is_archived=False).count(),
+        'total_passwords': filter_by_org_perm(
+            Password.objects.all(), request.user, 'vault_view').count(),
+        'total_assets': filter_by_org_perm(
+            Asset.objects.all(), request.user, 'assets_view').count(),
+        'total_documents': filter_by_org_perm(
+            Document.objects.filter(is_published=True, is_archived=False),
+            request.user, 'docs_view').count(),
         'total_processes': Process.objects.count(),
         'total_monitors': WebsiteMonitor.objects.count(),
     }

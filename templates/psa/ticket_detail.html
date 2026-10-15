@@ -560,12 +560,11 @@
                         <a href="{% url 'vault:password_detail' v.id %}" target="_blank" rel="noopener">
                             {{ v.title }} <i class="fas fa-external-link-alt"></i>
                         </a>
-                        {% if v.username %}
-                        <div class="text-muted small">{{ v.username }}</div>
-                        {% endif %}
                     </li>
                     {% endfor %}
                 </ul>
+                {% elif not can_view_vault %}
+                <div class="small text-muted">Your role doesn't include vault access for this client.</div>
                 {% else %}
                 <div class="small text-muted">No vault entries for this client.</div>
                 {% endif %}

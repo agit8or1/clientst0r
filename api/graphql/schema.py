@@ -43,11 +43,16 @@ class OrganizationType(DjangoObjectType):
             'created_at', 'updated_at', 'is_active',
         )
 
+    # Nested under assets/passwords/documents, so the counts honor the same
+    # module view flags as the top-level resolvers. (They previously read
+    # `asset_set` / `password_set`, which do not exist, and always gave 0.)
     def resolve_asset_count(self, info):
-        return self.asset_set.count() if hasattr(self, 'asset_set') else 0
+        if not has_perm_for_org(info.context.user, self.pk, 'assets_view'):
+            return 0
+        return Asset.objects.filter(organization_id=self.pk).count()
 
     def resolve_password_count(self, info):
-        return self.password_set.count() if hasattr(self, 'password_set') else 0
+        return _visible_passwords(info).filter(organization_id=self.pk).count()
 
 
 class AssetTypeType(DjangoObjectType):
@@ -165,7 +170,9 @@ class DashboardStatsType(graphene.ObjectType):
 from django.db.models import Q
 from graphql import GraphQLError
 
-from accounts.permission_utils import user_has_org_perm
+from accounts.permission_utils import (
+    has_perm_for_org, orgs_with_perm, user_has_org_perm,
+)
 from api.scoping import _is_staff_user, _user_reach_ids
 
 
@@ -173,8 +180,20 @@ def _org_ids(info):
     return _user_reach_ids(info.context.user)
 
 
-def _scoped(queryset, info, organization_id=None):
+def _perm_org_ids(info, perm_name):
+    """Reachable org ids where the user also holds `perm_name` (a role
+    module-view flag such as `assets_view`). Intersection of reach and perm."""
     org_ids = _org_ids(info)
+    if perm_name is None:
+        return org_ids
+    allowed = orgs_with_perm(info.context.user, perm_name)
+    if allowed is None:
+        return org_ids
+    return [org_id for org_id in org_ids if org_id in allowed]
+
+
+def _scoped(queryset, info, organization_id=None, perm=None):
+    org_ids = _perm_org_ids(info, perm)
     if organization_id is not None:
         if organization_id not in org_ids:
             return queryset.none()
@@ -182,20 +201,48 @@ def _scoped(queryset, info, organization_id=None):
     return queryset.filter(organization_id__in=org_ids)
 
 
-def _scoped_global(queryset, info, organization_id=None):
-    """Org-scoped, plus published global (KB-wide) rows when no org is named."""
-    scoped = Q(organization_id__in=_org_ids(info))
+def _scoped_global(queryset, info, organization_id=None, perm=None):
+    """Org-scoped, plus published global (KB-wide) rows when no org is named.
+
+    Global rows follow the web UI, where the global KB is staff-only: they are
+    shown only with every-customer reach for `perm` (superusers, and MSP staff
+    whose global role grants it or who have none). Customer users never see
+    them, even when they hold `perm` in their own customer."""
+    org_ids = _perm_org_ids(info, perm)
     if organization_id is not None:
-        if organization_id not in _org_ids(info):
+        if organization_id not in org_ids:
             return queryset.none()
         return queryset.filter(organization_id=organization_id)
-    return queryset.filter(scoped | Q(is_global=True, is_published=True))
+    visible = Q(organization_id__in=org_ids)
+    if perm is None or orgs_with_perm(info.context.user, perm) is None:
+        visible |= Q(is_global=True, is_published=True)
+    return queryset.filter(visible)
 
 
 def _visible_passwords(info, organization_id=None):
+    """Shared entries need `vault_view` in their customer; the caller's own
+    personal (My Vault) entries stay visible regardless, as in the REST API."""
     user = info.context.user
-    queryset = _scoped(Password.objects.all(), info, organization_id)
-    return queryset.filter(Q(is_personal=False) | Q(personal_owner=user))
+    shared = _scoped(Password.objects.filter(is_personal=False), info,
+                     organization_id, perm='vault_view')
+    own = _scoped(Password.objects.filter(is_personal=True, personal_owner=user),
+                  info, organization_id)
+    return shared | own
+
+
+def _visible_assets(info, organization_id=None):
+    return _scoped(Asset.objects.all(), info, organization_id, perm='assets_view')
+
+
+def _visible_documents(info, organization_id=None):
+    return _scoped_global(Document.objects.all(), info, organization_id,
+                          perm='docs_view')
+
+
+def _visible_diagrams(info, organization_id=None):
+    # Diagrams live under /docs/ in the web app, so `docs_view` governs them.
+    return _scoped_global(Diagram.objects.all(), info, organization_id,
+                          perm='docs_view')
 
 
 def _get_or_none(queryset, pk):
@@ -286,11 +333,11 @@ class Query(graphene.ObjectType):
 
     @login_required
     def resolve_asset(self, info, id):
-        return _get_or_none(_scoped(Asset.objects.all(), info), id)
+        return _get_or_none(_visible_assets(info), id)
 
     @login_required
     def resolve_assets(self, info, organization_id=None):
-        return _scoped(Asset.objects.all(), info, organization_id)
+        return _visible_assets(info, organization_id)
 
     @login_required
     def resolve_asset_types(self, info):
@@ -306,19 +353,19 @@ class Query(graphene.ObjectType):
 
     @login_required
     def resolve_document(self, info, id):
-        return _get_or_none(_scoped_global(Document.objects.all(), info), id)
+        return _get_or_none(_visible_documents(info), id)
 
     @login_required
     def resolve_documents(self, info, organization_id=None):
-        return _scoped_global(Document.objects.all(), info, organization_id)
+        return _visible_documents(info, organization_id)
 
     @login_required
     def resolve_diagram(self, info, id):
-        return _get_or_none(_scoped_global(Diagram.objects.all(), info), id)
+        return _get_or_none(_visible_diagrams(info), id)
 
     @login_required
     def resolve_diagrams(self, info, organization_id=None):
-        return _scoped_global(Diagram.objects.all(), info, organization_id)
+        return _visible_diagrams(info, organization_id)
 
     @login_required
     def resolve_location(self, info, id):
@@ -355,10 +402,12 @@ class Query(graphene.ObjectType):
         org_ids = _org_ids(info)
         return DashboardStatsType(
             total_organizations=len(org_ids),
-            total_assets=Asset.objects.filter(organization_id__in=org_ids).count(),
+            total_assets=_visible_assets(info).count(),
             total_passwords=_visible_passwords(info).count(),
-            total_documents=Document.objects.filter(organization_id__in=org_ids).count(),
-            total_diagrams=Diagram.objects.filter(organization_id__in=org_ids).count(),
+            total_documents=Document.objects.filter(
+                organization_id__in=_perm_org_ids(info, 'docs_view')).count(),
+            total_diagrams=Diagram.objects.filter(
+                organization_id__in=_perm_org_ids(info, 'docs_view')).count(),
             active_monitors=WebsiteMonitor.objects.filter(
                 organization_id__in=org_ids, is_enabled=True,
             ).count(),
@@ -382,6 +431,8 @@ class CreateAsset(graphene.Mutation):
 
     @login_required
     def mutate(self, info, name, organization_id, asset_type='other', **kwargs):
+        if not has_perm_for_org(info.context.user, organization_id, 'assets_view'):
+            raise GraphQLError('Permission denied')
         _require_org_perm(info, organization_id, 'assets_create')
         if asset_type not in dict(Asset.ASSET_TYPES):
             return CreateAsset(asset=None, success=False, errors=['Unknown asset type'])
@@ -409,7 +460,7 @@ class UpdateAsset(graphene.Mutation):
 
     @login_required
     def mutate(self, info, id, **kwargs):
-        asset = _get_or_none(_scoped(Asset.objects.all(), info), id)
+        asset = _get_or_none(_visible_assets(info), id)
         if asset is None:
             return UpdateAsset(asset=None, success=False, errors=['Not found'])
         _require_org_perm(info, asset.organization_id, 'assets_edit')
@@ -429,7 +480,7 @@ class DeleteAsset(graphene.Mutation):
 
     @login_required
     def mutate(self, info, id):
-        asset = _get_or_none(_scoped(Asset.objects.all(), info), id)
+        asset = _get_or_none(_visible_assets(info), id)
         if asset is None:
             return DeleteAsset(success=False, errors=['Not found'])
         _require_org_perm(info, asset.organization_id, 'assets_delete')
@@ -449,6 +500,8 @@ class CreateDocument(graphene.Mutation):
 
     @login_required
     def mutate(self, info, title, content, organization_id):
+        if not has_perm_for_org(info.context.user, organization_id, 'docs_view'):
+            raise GraphQLError('Permission denied')
         _require_org_perm(info, organization_id, 'docs_create')
         document = Document.objects.create(
             title=title,

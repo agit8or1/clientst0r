@@ -99,7 +99,11 @@ def location_detail(request, location_id):
     # Get associated assets (if assets app has location FK)
     try:
         from assets.models import Asset
-        assets = Asset.objects.filter(location=location)
+        from accounts.permission_utils import filter_by_org_perm
+        # A location can be shared across customers; only list assets from
+        # customers whose role grants assets_view (the /assets/ rule).
+        assets = filter_by_org_perm(
+            Asset.objects.filter(location=location), request.user, 'assets_view')
     except Exception:
         assets = []
 

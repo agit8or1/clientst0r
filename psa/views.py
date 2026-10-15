@@ -74,6 +74,9 @@ ATTACHMENT_ALLOWED_MIMES = {
 }
 
 
+from .visibility import visible_attachments, visible_comments
+
+
 def _is_msp_staff(request):
     """MSP techs work across every customer; customer users don't."""
     return (request.user.is_superuser or request.user.is_staff
@@ -122,7 +125,8 @@ def _scoped_ticket_qs(request):
         org_ids = list(
             request.user.memberships.filter(is_active=True).values_list('organization_id', flat=True)
         )
-        return qs.filter(organization_id__in=org_ids)
+        # Customer users see what the portal shows them: shared tickets only.
+        return qs.filter(organization_id__in=org_ids, client_can_view=True)
     return qs.none()
 
 
@@ -202,11 +206,15 @@ def ticket_detail(request, ticket_number):
         if ticket.organization_id != getattr(org, 'id', None):
             raise Http404("Ticket not found")
 
+    # Titles only: this card renders on every ticket view without an audit
+    # entry, so usernames stay on the audited "View all" page.
+    from accounts.permission_utils import has_perm_for_org
+    can_view_vault = has_perm_for_org(request.user, ticket.organization_id, 'vault_view')
     vault_qs = Password.objects.filter(
         organization=ticket.organization,
         is_personal=False,
-    )
-    vault_entries = vault_qs.only('id', 'title', 'username', 'updated_at')[:5]
+    ) if can_view_vault else Password.objects.none()
+    vault_entries = vault_qs.only('id', 'title', 'updated_at')[:5]
     vault_count = vault_qs.count()
 
     is_closed = bool(ticket.closed_at) or (ticket.status_id and ticket.status.is_terminal)
@@ -331,10 +339,11 @@ def ticket_detail(request, ticket_number):
     return render(request, 'psa/ticket_detail.html', {
         'ticket': ticket,
         'workflow_executions': workflow_executions,
-        'comments': ticket.comments.select_related('author').order_by('created_at'),
-        'attachments': ticket.attachments.select_related('uploaded_by').order_by('-created_at'),
+        'comments': visible_comments(ticket, request.user).select_related('author').order_by('created_at'),
+        'attachments': visible_attachments(ticket, request.user).select_related('uploaded_by').order_by('-created_at'),
         'vault_entries': vault_entries,
         'vault_count': vault_count,
+        'can_view_vault': can_view_vault,
         'available_statuses': TicketStatus.objects.all(),
         'closure_categories': Ticket.CLOSURE_CATEGORIES,
         'is_closed': is_closed,
@@ -783,6 +792,11 @@ def ticket_vault_context(request, ticket_number):
     if not (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
         if ticket.organization_id != getattr(org, 'id', None):
             raise Http404("Ticket not found")
+
+    from accounts.permission_utils import has_perm_for_org
+    from django.core.exceptions import PermissionDenied
+    if not has_perm_for_org(request.user, ticket.organization_id, 'vault_view'):
+        raise PermissionDenied("Vault access required")
 
     vault_entries = (
         Password.objects

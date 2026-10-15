@@ -193,7 +193,7 @@ def get_tasks(user, organization, limit: int = TASK_LIMIT) -> list[TaskRow]:
             url=panel_url('scheduling:task_detail', task.pk),
         ))
 
-    rows.extend(_expiring_rows(organization))
+    rows.extend(_expiring_rows(organization, user))
 
     def sort_key(row: TaskRow):
         if row.due is None:
@@ -207,7 +207,7 @@ def get_tasks(user, organization, limit: int = TASK_LIMIT) -> list[TaskRow]:
     return rows[:limit]
 
 
-def _expiring_rows(organization) -> list[TaskRow]:
+def _expiring_rows(organization, user=None) -> list[TaskRow]:
     """Expiring passwords / tracked expirations / SSL certs as task rows.
 
     Each queryset is explicitly ordered by its own expiry field before slicing.
@@ -241,6 +241,11 @@ def _expiring_rows(organization) -> list[TaskRow]:
             expires_at__gte=floor, expires_at__lte=cutoff)
         if organization is not None:
             qs = qs.filter(organization=organization)
+        if user is not None and getattr(user, 'is_authenticated', False):
+            # Password titles are vault content: only customers whose role
+            # grants vault_view (same rule as the /vault/ section gate).
+            from accounts.permission_utils import filter_by_org_perm
+            qs = filter_by_org_perm(qs, user, 'vault_view')
         for pwd in qs.order_by('expires_at')[:10]:
             rows.append(TaskRow(
                 kind='password', title=f'Password expires: {pwd.title}',
