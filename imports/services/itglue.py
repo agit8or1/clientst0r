@@ -72,70 +72,67 @@ class ITGlueImportService(BaseImportService):
             logger.error(f"Failed to list organizations: {e}")
             raise
 
+    def _paged(self, endpoint):
+        """Yield every item of a paginated IT Glue collection."""
+        page = 1
+        while True:
+            response = self._make_request(
+                'GET',
+                endpoint,
+                params={'page[number]': page, 'page[size]': 50}
+            )
+            data = response.json()
+
+            items = data.get('data', [])
+            if not items:
+                break
+            yield from items
+
+            # Check for next page
+            if not data.get('links', {}).get('next'):
+                break
+            page += 1
+
+    def _record_org(self, item):
+        """Organization for an IT Glue record (its ``organization-id``)."""
+        attrs = item.get('attributes', {}) or {}
+        return self.resolve_record_organization(
+            attrs.get('organization-id'), attrs.get('organization-name', ''))
+
+    def _import_collection(self, endpoint, source_type, noun, create):
+        self.job.add_log(f"Importing {noun}...")
+        count = 0
+        for item in self._paged(endpoint):
+            result = self.process_record(
+                source_type, item.get('id'),
+                create_fn=lambda item=item: create(item, self._record_org(item)),
+                validate_fn=lambda item=item: self._record_org(item),
+                label=f"{source_type} {item.get('id')}",
+            )
+            if result == 'imported':
+                count += 1
+        self.job.add_log(f"Imported {count} {noun}")
+        self.job.save()
+        return count
+
     def import_assets(self):
         """
         Import configuration items from IT Glue.
 
         Endpoint: GET /configurations
         """
-        from assets.models import Asset
+        return self._import_collection(
+            '/configurations', 'asset', 'assets (configuration items)',
+            self._create_asset_from_itglue)
 
-        self.job.add_log("Importing assets (configuration items)...")
-        count = 0
-        page = 1
-
-        try:
-            while True:
-                response = self._make_request(
-                    'GET',
-                    '/configurations',
-                    params={'page[number]': page, 'page[size]': 50}
-                )
-                data = response.json()
-
-                items = data.get('data', [])
-                if not items:
-                    break
-
-                for item in items:
-                    try:
-                        # Check if already imported
-                        if self.get_existing_mapping('asset', item['id']):
-                            self.job.items_skipped += 1
-                            continue
-
-                        if not self.job.dry_run:
-                            asset = self._create_asset_from_itglue(item)
-                            self.create_mapping('asset', item['id'], 'Asset', asset.id)
-
-                        count += 1
-                        self.job.items_imported += 1
-
-                    except Exception as e:
-                        logger.error(f"Failed to import asset {item.get('id')}: {e}")
-                        self.job.items_failed += 1
-
-                # Check for next page
-                if not data.get('links', {}).get('next'):
-                    break
-                page += 1
-
-            self.job.add_log(f"Imported {count} assets")
-            self.job.save()
-            return count
-
-        except Exception as e:
-            logger.error(f"Asset import failed: {e}")
-            raise
-
-    def _create_asset_from_itglue(self, item):
+    def _create_asset_from_itglue(self, item, organization):
         """Create Asset from IT Glue configuration item."""
         from assets.models import Asset
 
         attrs = item.get('attributes', {})
 
         # Map IT Glue configuration type to asset type
-        config_type = attrs.get('configuration-type-name', '').lower()
+        config_type = (attrs.get('configuration-type-name') or '').lower()
         asset_type_map = {
             'computer': 'computer',
             'server': 'server',
@@ -156,23 +153,26 @@ class ITGlueImportService(BaseImportService):
                 asset_type = value
                 break
 
-        return Asset.objects.create(
-            organization=self.organization,
-            name=attrs.get('name', 'Imported Asset'),
+        fields = dict(
+            organization=organization,
+            name=attrs.get('name') or 'Imported Asset',
             asset_type=asset_type,
-            serial_number=attrs.get('serial-number', ''),
-            manufacturer=attrs.get('manufacturer-name', ''),
-            model=attrs.get('model-name', ''),
-            hostname=attrs.get('hostname', ''),
-            ip_address=attrs.get('primary-ip', ''),
-            mac_address=attrs.get('mac-address', ''),
-            notes=attrs.get('notes', ''),
+            serial_number=attrs.get('serial-number') or '',
+            manufacturer=attrs.get('manufacturer-name') or '',
+            model=attrs.get('model-name') or '',
+            hostname=attrs.get('hostname') or '',
+            mac_address=attrs.get('mac-address') or '',
+            notes=attrs.get('notes') or '',
             custom_fields={
                 'imported_from': 'itglue',
                 'itglue_id': item['id'],
                 'configuration_type': attrs.get('configuration-type-name', ''),
             }
         )
+        ip = self.clean_ip(attrs.get('primary-ip'))
+        if ip:
+            fields['ip_address'] = ip
+        return Asset.objects.create(**fields)
 
     def import_passwords(self):
         """
@@ -180,72 +180,26 @@ class ITGlueImportService(BaseImportService):
 
         Endpoint: GET /passwords
         """
-        from vault.models import Password
+        return self._import_collection(
+            '/passwords', 'password', 'passwords', self._create_password_from_itglue)
 
-        self.job.add_log("Importing passwords...")
-        count = 0
-        page = 1
-
-        try:
-            while True:
-                response = self._make_request(
-                    'GET',
-                    '/passwords',
-                    params={'page[number]': page, 'page[size]': 50}
-                )
-                data = response.json()
-
-                items = data.get('data', [])
-                if not items:
-                    break
-
-                for item in items:
-                    try:
-                        # Check if already imported
-                        if self.get_existing_mapping('password', item['id']):
-                            self.job.items_skipped += 1
-                            continue
-
-                        if not self.job.dry_run:
-                            password = self._create_password_from_itglue(item)
-                            self.create_mapping('password', item['id'], 'Password', password.id)
-
-                        count += 1
-                        self.job.items_imported += 1
-
-                    except Exception as e:
-                        logger.error(f"Failed to import password {item.get('id')}: {e}")
-                        self.job.items_failed += 1
-
-                # Check for next page
-                if not data.get('links', {}).get('next'):
-                    break
-                page += 1
-
-            self.job.add_log(f"Imported {count} passwords")
-            self.job.save()
-            return count
-
-        except Exception as e:
-            logger.error(f"Password import failed: {e}")
-            raise
-
-    def _create_password_from_itglue(self, item):
-        """Create Password from IT Glue password."""
+    def _create_password_from_itglue(self, item, organization):
+        """Create Password from IT Glue password (encrypted via set_password)."""
         from vault.models import Password
 
         attrs = item.get('attributes', {})
 
-        password = Password.objects.create(
-            organization=self.organization,
-            title=attrs.get('name', 'Imported Password'),
-            username=attrs.get('username', ''),
-            url=attrs.get('url', ''),
-            notes=attrs.get('notes', ''),
+        password = Password(
+            organization=organization,
+            title=attrs.get('name') or 'Imported Password',
+            username=attrs.get('username') or '',
+            url=attrs.get('url') or '',
+            notes=attrs.get('notes') or '',
+            created_by=self.job.started_by,
         )
 
         # Set encrypted password
-        plaintext = attrs.get('password', '')
+        plaintext = attrs.get('password') or ''
         if plaintext:
             password.set_password(plaintext)
 
@@ -258,68 +212,23 @@ class ITGlueImportService(BaseImportService):
 
         Endpoint: GET /documents
         """
-        from docs.models import Document
+        return self._import_collection(
+            '/documents', 'document', 'documents', self._create_document_from_itglue)
 
-        self.job.add_log("Importing documents...")
-        count = 0
-        page = 1
-
-        try:
-            while True:
-                response = self._make_request(
-                    'GET',
-                    '/documents',
-                    params={'page[number]': page, 'page[size]': 50}
-                )
-                data = response.json()
-
-                items = data.get('data', [])
-                if not items:
-                    break
-
-                for item in items:
-                    try:
-                        # Check if already imported
-                        if self.get_existing_mapping('document', item['id']):
-                            self.job.items_skipped += 1
-                            continue
-
-                        if not self.job.dry_run:
-                            document = self._create_document_from_itglue(item)
-                            self.create_mapping('document', item['id'], 'Document', document.id)
-
-                        count += 1
-                        self.job.items_imported += 1
-
-                    except Exception as e:
-                        logger.error(f"Failed to import document {item.get('id')}: {e}")
-                        self.job.items_failed += 1
-
-                # Check for next page
-                if not data.get('links', {}).get('next'):
-                    break
-                page += 1
-
-            self.job.add_log(f"Imported {count} documents")
-            self.job.save()
-            return count
-
-        except Exception as e:
-            logger.error(f"Document import failed: {e}")
-            raise
-
-    def _create_document_from_itglue(self, item):
+    def _create_document_from_itglue(self, item, organization):
         """Create Document from IT Glue document."""
         from docs.models import Document
 
         attrs = item.get('attributes', {})
+        title = attrs.get('name') or 'Imported Document'
 
         return Document.objects.create(
-            organization=self.organization,
-            title=attrs.get('name', 'Imported Document'),
-            body=attrs.get('body', ''),
+            organization=organization,
+            title=title,
+            slug=self.unique_document_slug(organization, title),
+            body=attrs.get('body') or '',
             content_type='markdown',  # ITGlue documents are typically Markdown
-            created_by=None,  # Will be set to import user
+            created_by=self.job.started_by,
         )
 
     def import_contacts(self):

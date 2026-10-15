@@ -5,6 +5,36 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.603] - 2026-10-15
+
+### Imports you can trust
+
+- **IT Glue and Hudu imports put records in the right customer.** In an
+  "all organizations" IT Glue import every record used the job's (empty)
+  target organization, so assets and passwords failed and documents were
+  created with no organization. Hudu documents had the same problem. Each
+  record now goes to the customer its source record belongs to.
+- **CSV password and contact imports work.** Both used field names the models
+  don't have, so every row failed. Passwords are encrypted on import.
+- **An import only says "Completed" when nothing failed.** New statuses:
+  "Completed with errors" and "Failed", with real imported / skipped / failed
+  counts that always add up to the source total. The import page and the CLI
+  say what happened.
+- **Dry runs write nothing.** Multi-organization dry runs used to write broken
+  organization mappings.
+- **Rollback is safe.** It runs in one transaction, keeps (and lists) any
+  record edited after the import, removes organizations the import created
+  only when nothing else uses them, handles every record type the importers
+  create (including inventory, locations and floor plans), and reports
+  "Partially rolled back" instead of claiming success when something was kept.
+  Failed imports that created records can now be rolled back too.
+- **Re-running a CSV import doesn't duplicate rows.** Rows are matched on a
+  natural key (for example title + username + URL for passwords, serial
+  number or asset tag for assets, email for contacts). This applies to
+  imports made from this version on.
+- The import log now shows on the import page, and the CLI no longer crashes
+  on all-organizations jobs.
+
 ## [3.17.602] - 2026-10-15
 
 ### Staff technicians work across every customer

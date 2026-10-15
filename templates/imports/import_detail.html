@@ -21,7 +21,7 @@
                 <i class="fas fa-play"></i> Start Import
             </a>
             {% endif %}
-            {% if job.status == 'completed' and job.dry_run %}
+            {% if job.dry_run and job.status == 'completed' or job.dry_run and job.status == 'completed_with_errors' %}
             <form method="post" action="{% url 'imports:import_promote' job.pk %}" class="d-inline">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-primary">
@@ -34,7 +34,7 @@
                 <i class="fas fa-edit"></i> Edit
             </a>
             {% endif %}
-            {% if job.status == 'completed' and not job.rolled_back_at and not job.dry_run %}
+            {% if job.can_rollback %}
             <a href="{% url 'imports:import_rollback' job.pk %}" class="btn btn-warning">
                 <i class="fas fa-undo"></i> Rollback
             </a>
@@ -62,6 +62,10 @@
                                     <span class="badge bg-primary">Running</span>
                                 {% elif job.status == 'completed' %}
                                     <span class="badge bg-success">Completed</span>
+                                {% elif job.status == 'completed_with_errors' %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-exclamation-triangle"></i> Completed with errors
+                                    </span>
                                 {% elif job.status == 'failed' %}
                                     <span class="badge bg-danger">Failed</span>
                                 {% elif job.status == 'cancelled' %}
@@ -70,14 +74,36 @@
                                     <span class="badge bg-warning text-dark">
                                         <i class="fas fa-undo"></i> Rolled Back
                                     </span>
+                                {% elif job.status == 'partially_rolled_back' %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-undo"></i> Partially rolled back
+                                    </span>
                                 {% endif %}
                             </p>
+                            {% if job.status == 'completed_with_errors' %}
+                            <div class="alert alert-warning py-2">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                {{ job.items_failed }} of {{ job.total_items }} record(s) failed{% if job.dry_run %} in this preview{% endif %}.
+                                The full log lists each failure.
+                            </div>
+                            {% elif job.status == 'failed' and job.error_message %}
+                            <div class="alert alert-danger py-2">
+                                <i class="fas fa-times-circle me-1"></i> {{ job.error_message }}
+                            </div>
+                            {% elif job.status == 'partially_rolled_back' %}
+                            <div class="alert alert-warning py-2">
+                                <i class="fas fa-undo me-1"></i> <strong>Partially rolled back</strong>
+                                {% if job.rolled_back_by %}by {{ job.rolled_back_by.username }}{% endif %}.<br>
+                                <small>Some records were kept because they were edited after the import, are
+                                still in use, or could not be handled. The log lists each one.</small>
+                            </div>
+                            {% endif %}
                             {% if job.rolled_back_at %}
                             <div class="alert alert-warning">
                                 <i class="fas fa-undo"></i> <strong>Import Rolled Back</strong><br>
                                 <small>
                                     On {{ job.rolled_back_at|date:"Y-m-d H:i:s" }} by {{ job.rolled_back_by.username }}<br>
-                                    All imported objects have been deleted.
+                                    All imported objects have been deleted; see the log for details.
                                 </small>
                             </div>
                             {% endif %}
@@ -95,7 +121,7 @@
                                     <span class="badge bg-secondary">No</span>
                                 {% endif %}
                             </p>
-                            {% if job.status == 'completed' and job.dry_run %}
+                            {% if job.dry_run and job.status == 'completed' or job.dry_run and job.status == 'completed_with_errors' %}
                             <div class="alert alert-info mt-2 mb-0 py-2">
                                 <i class="fas fa-info-circle me-1"></i>
                                 This was a preview run. Click <strong>Run Actual Import</strong> to import the data.
@@ -240,9 +266,9 @@
                     </a>
                 </div>
                 <div class="card-body">
-                    {% if job.log_messages %}
+                    {% if job.import_log %}
                     <div style="max-height: 400px; overflow-y: auto;">
-                        <pre class="mb-0" style="white-space: pre-wrap;">{{ job.log_messages }}</pre>
+                        <pre class="mb-0" style="white-space: pre-wrap;">{{ job.import_log }}</pre>
                     </div>
                     {% else %}
                     <p class="text-muted mb-0">No log messages yet.</p>

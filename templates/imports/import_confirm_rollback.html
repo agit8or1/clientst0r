@@ -48,13 +48,12 @@
 
                     <h5>What Will Be Deleted</h5>
                     <div class="alert alert-info">
-                        <p><strong>{{ mapping_count }}</strong> imported objects will be permanently deleted:</p>
+                        <p>Up to <strong>{{ mapping_count }}</strong> imported objects will be permanently deleted:</p>
                         <ul class="mb-0">
-                            <li>Assets: <strong>{{ job.items_imported }}</strong> total items imported</li>
+                            <li><strong>{{ job.items_imported }}</strong> records imported by this job (assets, passwords, documents, contacts, etc.)</li>
                             {% if org_count > 0 %}
-                            <li>Organizations: <strong>{{ org_count }}</strong> created during import</li>
+                            <li>Organizations created by this import (of <strong>{{ org_count }}</strong> mapped) - only if nothing else uses them</li>
                             {% endif %}
-                            <li>All associated passwords, documents, contacts, etc.</li>
                         </ul>
                     </div>
 
@@ -62,9 +61,9 @@
                         <i class="fas fa-exclamation-circle"></i>
                         <strong>Important:</strong>
                         <ul class="mb-0">
-                            <li>All imported data will be <strong>permanently deleted</strong></li>
-                            <li>This includes any edits made after the import</li>
-                            <li>External mappings will be removed</li>
+                            <li>Imported data will be <strong>permanently deleted</strong></li>
+                            <li>Records edited after the import, or that other data now depends on, are <strong>kept</strong> and listed in the log (the job then shows "Partially rolled back")</li>
+                            <li>Organizations that existed before the import are never deleted</li>
                             <li>This operation cannot be reversed</li>
                         </ul>
                     </div>
@@ -75,7 +74,7 @@
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" id="confirmRollback" required>
                             <label class="form-check-label" for="confirmRollback">
-                                I understand that this will permanently delete <strong>{{ mapping_count }} objects</strong> and cannot be undone
+                                I understand that this will permanently delete up to <strong>{{ mapping_count }} objects</strong> and cannot be undone
                             </label>
                         </div>
 

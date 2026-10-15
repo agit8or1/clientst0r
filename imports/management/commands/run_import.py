@@ -32,11 +32,12 @@ class Command(BaseCommand):
             return
 
         # Check if already completed
-        if job.status == 'completed' and not force:
+        if job.status in ImportJob.SUCCESS_STATUSES and not force:
             self.stdout.write(self.style.WARNING(f'Job {job_id} already completed. Use --force to re-run.'))
             return
 
-        self.stdout.write(f'Starting import job {job_id}: {job.get_source_type_display()} -> {job.target_organization.name}')
+        target = job.target_organization.name if job.target_organization else 'All Organizations'
+        self.stdout.write(f'Starting import job {job_id}: {job.get_source_type_display()} -> {target}')
         if job.dry_run:
             self.stdout.write(self.style.WARNING('  DRY RUN MODE - No data will be saved'))
 
@@ -44,7 +45,15 @@ class Command(BaseCommand):
             service = get_import_service(job)
             stats = service.run_import()
 
-            self.stdout.write(self.style.SUCCESS('\nImport completed successfully!'))
+            job.refresh_from_db()
+            if job.status == 'completed':
+                self.stdout.write(self.style.SUCCESS('\nImport completed successfully!'))
+            elif job.status == 'completed_with_errors':
+                self.stdout.write(self.style.WARNING(
+                    f'\nImport completed with errors: {job.items_failed} record(s) failed (see the job log).'))
+            else:
+                self.stdout.write(self.style.ERROR(
+                    f'\nImport failed: {job.error_message or "see the job log"}'))
             self.stdout.write(f'  Assets: {stats.get("assets", 0)}')
             self.stdout.write(f'  Passwords: {stats.get("passwords", 0)}')
             self.stdout.write(f'  Documents: {stats.get("documents", 0)}')

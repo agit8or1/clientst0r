@@ -18,6 +18,47 @@ def is_staff_or_superuser(user):
     return user.is_superuser or (hasattr(user, 'is_staff_user') and user.is_staff_user)
 
 
+def report_import_outcome(request, job):
+    """Flash a message that says what actually happened - never an
+    unqualified success when records failed."""
+    counts = (f'Imported: {job.items_imported}, Skipped: {job.items_skipped}, '
+              f'Failed: {job.items_failed} (of {job.total_items})')
+    prefix = 'Dry run ' if job.dry_run else 'Import '
+    if job.status == 'completed':
+        messages.success(request, f'{prefix}completed. {counts}')
+    elif job.status == 'completed_with_errors':
+        messages.warning(
+            request,
+            f'{prefix}completed with errors - {job.items_failed} record(s) failed. '
+            f'{counts}. See the log for details.')
+    else:
+        messages.error(
+            request,
+            f'{prefix}failed - nothing was imported. {counts}. See the log for details.')
+
+
+def report_rollback_outcome(request, stats):
+    deleted_summary = ', '.join(
+        f"{count} {model_name}" for model_name, count in stats['by_type'].items()) or 'nothing'
+    if stats.get('complete'):
+        messages.success(
+            request,
+            f"Rolled back the import. Deleted: {deleted_summary}. "
+            f"Total: {stats['total_deleted']} objects removed.")
+        return
+    kept = (stats.get('kept_modified', []) + stats.get('kept_referenced', [])
+            + stats.get('kept_organizations', []))
+    messages.warning(
+        request,
+        f"Partial rollback: {stats['total_deleted']} objects removed ({deleted_summary}); "
+        f"{len(kept)} kept and {len(stats['errors'])} could not be handled. "
+        f"The import log lists every record that was kept and why.")
+    for line in kept[:10]:
+        messages.info(request, f"Kept: {line}")
+    for error in stats['errors'][:10]:
+        messages.error(request, f"Not rolled back: {error}")
+
+
 @login_required
 @user_passes_test(is_staff_or_superuser)
 def import_list(request):
@@ -128,8 +169,8 @@ def import_rollback(request, pk):
             messages.error(request, f'Import already rolled back on {job.rolled_back_at} by {job.rolled_back_by}.')
         elif job.dry_run:
             messages.error(request, 'Cannot rollback a dry-run import (no data was created).')
-        elif job.status != 'completed':
-            messages.error(request, f'Can only rollback completed imports. Current status: {job.get_status_display()}')
+        elif job.status not in ImportJob.ROLLBACK_STATUSES:
+            messages.error(request, f'Cannot roll back an import with status: {job.get_status_display()}')
         else:
             messages.error(request, 'Cannot rollback this import.')
         return redirect('imports:import_detail', pk=job.pk)
@@ -140,22 +181,9 @@ def import_rollback(request, pk):
 
     if request.method == 'POST':
         try:
-            # Perform rollback
+            # Perform rollback (atomic; partial outcomes are reported)
             stats = job.rollback(request.user)
-
-            # Show success message with statistics
-            deleted_summary = ', '.join([f"{count} {model_name.lower()}s" for model_name, count in stats['by_type'].items()])
-            messages.success(
-                request,
-                f"Successfully rolled back import! Deleted: {deleted_summary}. "
-                f"Total: {stats['total_deleted']} objects removed."
-            )
-
-            # Show any errors
-            if stats['errors']:
-                for error in stats['errors']:
-                    messages.warning(request, f"Warning: {error}")
-
+            report_rollback_outcome(request, stats)
             return redirect('imports:import_detail', pk=job.pk)
 
         except Exception as e:
@@ -186,15 +214,9 @@ def import_start(request, pk):
         try:
             # Run import in the background (or could use Celery/background task)
             service = get_import_service(job)
-            stats = service.run_import()
-
-            messages.success(
-                request,
-                f'Import completed! '
-                f'Imported: {job.items_imported}, '
-                f'Skipped: {job.items_skipped}, '
-                f'Failed: {job.items_failed}'
-            )
+            service.run_import()
+            job.refresh_from_db()
+            report_import_outcome(request, job)
 
         except Exception as e:
             messages.error(request, f'Import failed: {str(e)}')
@@ -217,7 +239,7 @@ def import_promote(request, pk):
     """
     job = get_object_or_404(ImportJob, pk=pk)
 
-    if not (job.status == 'completed' and job.dry_run):
+    if not (job.status in ImportJob.SUCCESS_STATUSES and job.dry_run):
         messages.error(request, 'Only completed dry-run jobs can be promoted to an actual import.')
         return redirect('imports:import_detail', pk=job.pk)
 

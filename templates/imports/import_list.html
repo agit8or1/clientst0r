@@ -62,6 +62,10 @@
                                     <span class="badge bg-success">
                                         <i class="fas fa-check"></i> Completed
                                     </span>
+                                {% elif job.status == 'completed_with_errors' %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-exclamation-triangle"></i> Completed with errors
+                                    </span>
                                 {% elif job.status == 'failed' %}
                                     <span class="badge bg-danger">
                                         <i class="fas fa-times"></i> Failed
@@ -69,6 +73,14 @@
                                 {% elif job.status == 'cancelled' %}
                                     <span class="badge bg-warning">
                                         <i class="fas fa-ban"></i> Cancelled
+                                    </span>
+                                {% elif job.status == 'rolled_back' %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-undo"></i> Rolled back
+                                    </span>
+                                {% elif job.status == 'partially_rolled_back' %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-undo"></i> Partially rolled back
                                     </span>
                                 {% endif %}
                             </td>

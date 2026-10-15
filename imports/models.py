@@ -34,10 +34,19 @@ class ImportJob(BaseModel):
         ('pending', 'Pending'),
         ('running', 'Running'),
         ('completed', 'Completed'),
+        ('completed_with_errors', 'Completed with errors'),
         ('failed', 'Failed'),
         ('cancelled', 'Cancelled'),
         ('rolled_back', 'Rolled Back'),
+        ('partially_rolled_back', 'Partially rolled back'),
     ]
+
+    # A run that finished and wrote what it could.
+    SUCCESS_STATUSES = ('completed', 'completed_with_errors')
+    # Runs whose surviving ImportMappings point at real imported records -
+    # used for duplicate detection and to decide whether rollback is offered.
+    ROLLBACK_STATUSES = ('completed', 'completed_with_errors', 'partially_rolled_back')
+    DEDUPE_STATUSES = ROLLBACK_STATUSES
 
     # Source configuration
     source_type = models.CharField(max_length=20, choices=SOURCE_CHOICES)
@@ -125,7 +134,7 @@ class ImportJob(BaseModel):
     started_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='import_jobs_started')
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
 
     # Rollback tracking
     rolled_back_at = models.DateTimeField(null=True, blank=True, help_text="When this import was rolled back")
@@ -192,116 +201,108 @@ class ImportJob(BaseModel):
         self.error_message = error_message
         self.save(update_fields=['status', 'completed_at', 'error_message'])
 
+    def reset_counters(self):
+        """Zero the per-run counters so a re-run (e.g. of a failed job)
+        reports its own numbers instead of adding to the previous attempt's."""
+        self.total_items = 0
+        self.items_imported = 0
+        self.items_skipped = 0
+        self.items_failed = 0
+        self.error_message = ''
+        self.save(update_fields=['total_items', 'items_imported', 'items_skipped',
+                                 'items_failed', 'error_message'])
+
+    def finish(self, extra_errors=0):
+        """Record the outcome of a run from its real counts.
+
+        * nothing failed                      -> ``completed``
+        * some records failed, some got in    -> ``completed_with_errors``
+        * records failed and none imported or
+          already present (skipped)           -> ``failed``
+
+        ``total_items`` is always imported + skipped + failed, so the numbers on
+        the detail page add up. ``extra_errors`` counts problems that are not
+        per-record (e.g. an organization that could not be created); they
+        downgrade ``completed`` to ``completed_with_errors``.
+        """
+        from django.utils import timezone
+        self.total_items = self.items_imported + self.items_skipped + self.items_failed
+        if self.items_failed == 0 and not extra_errors:
+            self.status = 'completed'
+        elif self.items_failed and self.items_imported == 0 and self.items_skipped == 0:
+            self.status = 'failed'
+            self.error_message = (
+                f"All {self.items_failed} record(s) failed to import - see the log for details."
+            )
+        else:
+            self.status = 'completed_with_errors'
+        self.completed_at = timezone.now()
+        self.save(update_fields=['status', 'completed_at', 'error_message', 'total_items',
+                                 'items_imported', 'items_skipped', 'items_failed'])
+        return self.status
+
+    @property
+    def is_finished_successfully(self):
+        return self.status in self.SUCCESS_STATUSES
+
     def can_rollback(self):
-        """Check if this import can be rolled back."""
-        return self.status == 'completed' and not self.rolled_back_at and not self.dry_run
+        """Check if this import can be rolled back.
+
+        Allowed for any real (non-dry-run) run that may have written data:
+        completed, completed with errors, a previous partial rollback, or a
+        failed run that nonetheless created some records.
+        """
+        if self.rolled_back_at or self.dry_run:
+            return False
+        if self.status in self.ROLLBACK_STATUSES:
+            return True
+        if self.status == 'failed' and self.pk:
+            return self.mappings.exists()
+        return False
 
     def rollback(self, user):
         """
-        Rollback this import by deleting all imported objects.
-
-        Args:
-            user: User performing the rollback
+        Roll back this import. See ``imports.rollback.rollback_import`` for the
+        rules (records edited after the import are kept and reported, created
+        organizations are removed only when nothing else references them, and
+        the job is marked ``rolled_back`` only when everything was handled).
 
         Returns:
-            dict: Statistics about the rollback (deleted counts per type)
+            dict: rollback report
         """
-        from django.utils import timezone
-        from django.apps import apps
-        import logging
-
-        logger = logging.getLogger('imports')
-
         if not self.can_rollback():
             raise ValueError(f"Cannot rollback import {self.id}: status={self.status}, rolled_back={bool(self.rolled_back_at)}, dry_run={self.dry_run}")
+        from imports.rollback import rollback_import
+        return rollback_import(self, user)
 
-        stats = {
-            'total_deleted': 0,
-            'by_type': {},
-            'errors': []
-        }
 
-        # Get all mappings for this import
-        mappings = self.mappings.all().select_related('target_organization')
+# Every model an importer can create, keyed by the ``target_model`` string stored
+# on ImportMapping. Rollback and duplicate detection resolve through this.
+IMPORT_TARGET_MODELS = {
+    'Asset': ('assets', 'Asset'),
+    'Contact': ('assets', 'Contact'),
+    'Password': ('vault', 'Password'),
+    'Document': ('docs', 'Document'),
+    'Organization': ('core', 'Organization'),
+    'Location': ('locations', 'Location'),
+    'LocationFloorPlan': ('locations', 'LocationFloorPlan'),
+    # Legacy alias: older rollback code referred to floor plans as 'FloorPlan'.
+    'FloorPlan': ('locations', 'LocationFloorPlan'),
+    'ShopInventoryItem': ('vehicles', 'ShopInventoryItem'),
+    'VehicleInventoryItem': ('vehicles', 'VehicleInventoryItem'),
+}
 
-        logger.info(f"Starting rollback of import {self.id} ({mappings.count()} mappings)")
-        self.add_log(f"Starting rollback - {mappings.count()} objects to delete")
 
-        # Group by model type for efficient deletion
-        objects_by_model = {}
-        for mapping in mappings:
-            model_name = mapping.target_model
-            if model_name not in objects_by_model:
-                objects_by_model[model_name] = []
-            objects_by_model[model_name].append(mapping.target_id)
-
-        # Delete objects for each model type
-        for model_name, object_ids in objects_by_model.items():
-            try:
-                # Get the model class
-                if model_name == 'Asset':
-                    Model = apps.get_model('assets', 'Asset')
-                elif model_name == 'Password':
-                    Model = apps.get_model('vault', 'Password')
-                elif model_name == 'Document':
-                    Model = apps.get_model('docs', 'Document')
-                elif model_name == 'Contact':
-                    Model = apps.get_model('assets', 'Contact')
-                elif model_name == 'Organization':
-                    Model = apps.get_model('core', 'Organization')
-                    # Special handling: only delete orgs that were created during import
-                    org_mappings = self.organization_mappings.filter(organization_id__in=object_ids)
-                    created_org_ids = [m.organization_id for m in org_mappings if m.was_created]
-                    matched_org_ids = [m.organization_id for m in org_mappings if not m.was_created]
-
-                    if created_org_ids:
-                        deleted_count, _ = Model.objects.filter(id__in=created_org_ids).delete()
-                        stats['by_type']['Organization (created)'] = deleted_count
-                        stats['total_deleted'] += deleted_count
-                        logger.info(f"Deleted {deleted_count} Organization objects (created during import)")
-                        self.add_log(f"Deleted {deleted_count} Organization objects (created during import)")
-
-                    if matched_org_ids:
-                        skipped_count = len(matched_org_ids)
-                        stats['by_type']['Organization (skipped)'] = skipped_count
-                        logger.info(f"Skipped {skipped_count} Organization objects (existed before import)")
-                        self.add_log(f"Skipped {skipped_count} Organization objects (existed before import)")
-
-                    continue  # Skip the normal deletion logic below
-
-                elif model_name == 'Location':
-                    Model = apps.get_model('locations', 'Location')
-                elif model_name == 'FloorPlan':
-                    Model = apps.get_model('locations', 'FloorPlan')
-                else:
-                    logger.warning(f"Unknown model type: {model_name}")
-                    stats['errors'].append(f"Unknown model type: {model_name}")
-                    continue
-
-                # Delete all objects of this type
-                deleted_count, _ = Model.objects.filter(id__in=object_ids).delete()
-                stats['by_type'][model_name] = deleted_count
-                stats['total_deleted'] += deleted_count
-
-                logger.info(f"Deleted {deleted_count} {model_name} objects")
-                self.add_log(f"Deleted {deleted_count} {model_name} objects")
-
-            except Exception as e:
-                error_msg = f"Error deleting {model_name} objects: {str(e)}"
-                logger.error(error_msg)
-                stats['errors'].append(error_msg)
-                self.add_log(f"ERROR: {error_msg}")
-
-        # Mark import as rolled back
-        self.status = 'rolled_back'
-        self.rolled_back_at = timezone.now()
-        self.rolled_back_by = user
-        self.save(update_fields=['status', 'rolled_back_at', 'rolled_back_by'])
-
-        logger.info(f"Rollback complete: {stats['total_deleted']} objects deleted")
-        self.add_log(f"Rollback complete: {stats['total_deleted']} objects deleted")
-
-        return stats
+def resolve_target_model(name):
+    """Return the model class for an ImportMapping.target_model, or None."""
+    from django.apps import apps
+    spec = IMPORT_TARGET_MODELS.get(name)
+    if not spec:
+        return None
+    try:
+        return apps.get_model(*spec)
+    except LookupError:
+        return None
 
 
 class OrganizationMapping(BaseModel):
@@ -370,6 +371,12 @@ class ImportMapping(BaseModel):
         blank=True,
         help_text="Organization this object belongs to"
     )
+    target_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Target's updated_at right after the import wrote it. Rollback keeps "
+                  "records modified after this instead of deleting them.",
+    )
 
     class Meta:
         db_table = 'import_mappings'
@@ -382,3 +389,9 @@ class ImportMapping(BaseModel):
 
     def __str__(self):
         return f"{self.source_type} {self.source_id} -> {self.target_model} {self.target_id}"
+
+    def target_exists(self):
+        Model = resolve_target_model(self.target_model)
+        if Model is None:
+            return True  # unknown type: assume it is still there (conservative)
+        return Model._base_manager.filter(pk=self.target_id).exists()

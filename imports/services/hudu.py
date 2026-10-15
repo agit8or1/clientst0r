@@ -68,83 +68,66 @@ class HuduImportService(BaseImportService):
             logger.error(f"Failed to list organizations: {e}")
             raise
 
+    def _paged(self, endpoint, key):
+        """Yield every item of a paginated Hudu collection."""
+        page = 1
+        while True:
+            response = self._make_request(
+                'GET',
+                endpoint,
+                params={'page': page, 'page_size': 100}
+            )
+            data = response.json()
+
+            items = data.get(key, [])
+            if not items:
+                break
+            yield from items
+
+            # Hudu pagination: a short page is the last one
+            page += 1
+            if len(items) < 100:
+                break
+
+    def _record_org(self, item):
+        """Organization for a Hudu record (its ``company_id``)."""
+        company_id = item.get('company_id')
+        name = item.get('company_name') or ''
+        if company_id not in (None, '') and not name:
+            name = self.source_org_names.get(str(company_id), '') or f"Company {company_id}"
+        return self.resolve_record_organization(company_id, name)
+
+    def _import_collection(self, endpoint, key, source_type, noun, create):
+        self.job.add_log(f"Importing {noun}...")
+        count = 0
+        for item in self._paged(endpoint, key):
+            result = self.process_record(
+                source_type, item.get('id'),
+                create_fn=lambda item=item: create(item, self._record_org(item)),
+                validate_fn=lambda item=item: self._record_org(item),
+                label=f"{source_type} {item.get('id')}",
+            )
+            if result == 'imported':
+                count += 1
+        self.job.add_log(f"Imported {count} {noun}")
+        self.job.save()
+        return count
+
     def import_assets(self):
         """
         Import assets from Hudu.
 
         Endpoint: GET /api/v1/assets
         """
-        from assets.models import Asset
+        return self._import_collection(
+            '/api/v1/assets', 'assets', 'asset', 'assets', self._create_asset_from_hudu)
 
-        self.job.add_log("Importing assets...")
-        count = 0
-        page = 1
-
-        try:
-            while True:
-                response = self._make_request(
-                    'GET',
-                    '/api/v1/assets',
-                    params={'page': page, 'page_size': 100}
-                )
-                data = response.json()
-
-                items = data.get('assets', [])
-                if not items:
-                    break
-
-                for item in items:
-                    try:
-                        # Check if already imported
-                        if self.get_existing_mapping('asset', item['id']):
-                            self.job.items_skipped += 1
-                            continue
-
-                        if not self.job.dry_run:
-                            asset = self._create_asset_from_hudu(item)
-                            self.create_mapping('asset', item['id'], 'Asset', asset.id)
-
-                        count += 1
-                        self.job.items_imported += 1
-
-                    except Exception as e:
-                        error_msg = f"Failed to import asset {item.get('id')}: {str(e)}"
-                        logger.error(error_msg)
-                        self.job.add_log(f"ERROR: {error_msg}")
-                        self.job.items_failed += 1
-
-                # Hudu pagination
-                page += 1
-                if len(items) < 100:
-                    break
-
-            self.job.add_log(f"Imported {count} assets")
-            self.job.save()
-            return count
-
-        except Exception as e:
-            logger.error(f"Asset import failed: {e}")
-            raise
-
-    def _create_asset_from_hudu(self, item):
+    def _create_asset_from_hudu(self, item, organization):
         """Create Asset from Hudu asset."""
         from assets.models import Asset
 
-        # Get organization for this asset
-        # In multi-org imports, look up by company_id
-        # In single-org imports, use target organization
-        organization = self.organization
-        if not organization and item.get('company_id'):
-            organization = self.get_or_create_organization(
-                source_org_id=item['company_id'],
-                source_org_name=item.get('company_name', f"Company {item['company_id']}")
-            )
-
-        if not organization:
-            raise ValueError(f"Cannot determine organization for asset {item.get('id')}. company_id: {item.get('company_id')}")
-
         # Map Hudu asset layout name to asset type
-        layout_name = item.get('asset_layout_name', '').lower()
+        layout_name = (item.get('asset_layout_name') or '').lower()
         asset_type_map = {
             'computer': 'computer',
             'server': 'server',
@@ -165,20 +148,19 @@ class HuduImportService(BaseImportService):
                 break
 
         # Extract fields from asset_fields
-        fields = item.get('asset_fields', [])
-        field_dict = {f.get('label', '').lower(): f.get('value', '') for f in fields}
+        fields = item.get('asset_fields', []) or []
+        field_dict = {(f.get('label') or '').lower(): f.get('value') or '' for f in fields}
 
-        return Asset.objects.create(
+        data = dict(
             organization=organization,
-            name=item.get('name', 'Imported Asset'),
+            name=item.get('name') or 'Imported Asset',
             asset_type=asset_type,
-            serial_number=field_dict.get('serial number', ''),
-            manufacturer=field_dict.get('manufacturer', ''),
-            model=field_dict.get('model', ''),
-            hostname=field_dict.get('hostname', ''),
-            ip_address=field_dict.get('ip address', ''),
-            mac_address=field_dict.get('mac address', ''),
-            notes=item.get('notes', ''),
+            serial_number=str(field_dict.get('serial number', '')),
+            manufacturer=str(field_dict.get('manufacturer', '')),
+            model=str(field_dict.get('model', '')),
+            hostname=str(field_dict.get('hostname', '')),
+            mac_address=str(field_dict.get('mac address', '')),
+            notes=item.get('notes') or '',
             custom_fields={
                 'imported_from': 'hudu',
                 'hudu_id': item['id'],
@@ -186,6 +168,10 @@ class HuduImportService(BaseImportService):
                 'all_fields': field_dict,
             }
         )
+        ip = self.clean_ip(field_dict.get('ip address'))
+        if ip:
+            data['ip_address'] = ip
+        return Asset.objects.create(**data)
 
     def import_passwords(self):
         """
@@ -193,85 +179,25 @@ class HuduImportService(BaseImportService):
 
         Endpoint: GET /api/v1/asset_passwords
         """
+        return self._import_collection(
+            '/api/v1/asset_passwords', 'asset_passwords', 'password', 'passwords',
+            self._create_password_from_hudu)
+
+    def _create_password_from_hudu(self, item, organization):
+        """Create Password from Hudu password (encrypted via set_password)."""
         from vault.models import Password
 
-        self.job.add_log("Importing passwords...")
-        count = 0
-        page = 1
-
-        try:
-            while True:
-                response = self._make_request(
-                    'GET',
-                    '/api/v1/asset_passwords',
-                    params={'page': page, 'page_size': 100}
-                )
-                data = response.json()
-
-                items = data.get('asset_passwords', [])
-                if not items:
-                    break
-
-                for item in items:
-                    try:
-                        # Check if already imported
-                        if self.get_existing_mapping('password', item['id']):
-                            self.job.items_skipped += 1
-                            continue
-
-                        if not self.job.dry_run:
-                            password = self._create_password_from_hudu(item)
-                            self.create_mapping('password', item['id'], 'Password', password.id)
-
-                        count += 1
-                        self.job.items_imported += 1
-
-                    except Exception as e:
-                        error_msg = f"Failed to import password {item.get('id')}: {str(e)}"
-                        logger.error(error_msg)
-                        self.job.add_log(f"ERROR: {error_msg}")
-                        self.job.items_failed += 1
-
-                # Hudu pagination
-                page += 1
-                if len(items) < 100:
-                    break
-
-            self.job.add_log(f"Imported {count} passwords")
-            self.job.save()
-            return count
-
-        except Exception as e:
-            logger.error(f"Password import failed: {e}")
-            raise
-
-    def _create_password_from_hudu(self, item):
-        """Create Password from Hudu password."""
-        from vault.models import Password
-
-        # Get organization for this password
-        # In multi-org imports, look up by company_id
-        # In single-org imports, use target organization
-        organization = self.organization
-        if not organization and item.get('company_id'):
-            organization = self.get_or_create_organization(
-                source_org_id=item['company_id'],
-                source_org_name=item.get('company_name', f"Company {item['company_id']}")
-            )
-
-        if not organization:
-            raise ValueError(f"Cannot determine organization for password {item.get('id')}. company_id: {item.get('company_id')}")
-
-        password = Password.objects.create(
+        password = Password(
             organization=organization,
-            title=item.get('name', 'Imported Password'),
-            username=item.get('username', ''),
-            url=item.get('url', ''),
-            notes=item.get('description', ''),
+            title=item.get('name') or 'Imported Password',
+            username=item.get('username') or '',
+            url=item.get('url') or '',
+            notes=item.get('description') or '',
+            created_by=self.job.started_by,
         )
 
         # Set encrypted password
-        plaintext = item.get('password', '')
+        plaintext = item.get('password') or ''
         if plaintext:
             password.set_password(plaintext)
 
@@ -283,69 +209,27 @@ class HuduImportService(BaseImportService):
         Import articles from Hudu.
 
         Endpoint: GET /api/v1/articles
+
+        In an all-organizations import, articles without a company (Hudu's
+        global knowledge base) fail with a clear message rather than being
+        created with no organization.
         """
-        from docs.models import Document
+        return self._import_collection(
+            '/api/v1/articles', 'articles', 'document', 'documents (articles)',
+            self._create_document_from_hudu)
 
-        self.job.add_log("Importing documents (articles)...")
-        count = 0
-        page = 1
-
-        try:
-            while True:
-                response = self._make_request(
-                    'GET',
-                    '/api/v1/articles',
-                    params={'page': page, 'page_size': 100}
-                )
-                data = response.json()
-
-                items = data.get('articles', [])
-                if not items:
-                    break
-
-                for item in items:
-                    try:
-                        # Check if already imported
-                        if self.get_existing_mapping('document', item['id']):
-                            self.job.items_skipped += 1
-                            continue
-
-                        if not self.job.dry_run:
-                            document = self._create_document_from_hudu(item)
-                            self.create_mapping('document', item['id'], 'Document', document.id)
-
-                        count += 1
-                        self.job.items_imported += 1
-
-                    except Exception as e:
-                        error_msg = f"Failed to import document {item.get('id')}: {str(e)}"
-                        logger.error(error_msg)
-                        self.job.add_log(f"ERROR: {error_msg}")
-                        self.job.items_failed += 1
-
-                # Hudu pagination
-                page += 1
-                if len(items) < 100:
-                    break
-
-            self.job.add_log(f"Imported {count} documents")
-            self.job.save()
-            return count
-
-        except Exception as e:
-            logger.error(f"Document import failed: {e}")
-            raise
-
-    def _create_document_from_hudu(self, item):
+    def _create_document_from_hudu(self, item, organization):
         """Create Document from Hudu article."""
         from docs.models import Document
 
+        title = item.get('name') or 'Imported Document'
         return Document.objects.create(
-            organization=self.organization,
-            title=item.get('name', 'Imported Document'),
-            body=item.get('content', ''),
+            organization=organization,
+            title=title,
+            slug=self.unique_document_slug(organization, title),
+            body=item.get('content') or '',
             content_type='markdown',  # Hudu articles are typically Markdown
-            created_by=None,  # Will be set to import user
+            created_by=self.job.started_by,
         )
 
     def import_contacts(self):

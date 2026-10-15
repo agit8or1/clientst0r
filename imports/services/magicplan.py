@@ -31,6 +31,9 @@ class MagicPlanImportService(BaseImportService):
         self.organization = import_job.target_organization
         self.org_matcher = None
         self.org_map = {}
+        self.source_org_names = {}
+        self.errors = []
+        self._plan_seq = 0
 
     def _get_auth_headers(self):
         """MagicPlan doesn't use API - reads from uploaded file."""
@@ -67,6 +70,7 @@ class MagicPlanImportService(BaseImportService):
         """
         try:
             self.job.mark_running()
+            self.job.reset_counters()
             self.job.add_log(f"Starting MagicPlan import")
 
             stats = {
@@ -83,14 +87,16 @@ class MagicPlanImportService(BaseImportService):
             if self.job.import_floor_plans:
                 stats['floor_plans'] = self.import_floor_plans(magicplan_data)
 
-            # Update job statistics
-            self.job.total_items = stats['floor_plans']
+            # Update job statistics (items_failed is counted per plan)
             self.job.items_imported = stats['floor_plans']
             self.job.floor_plans_imported = stats['floor_plans']
+            self.job.save(update_fields=['floor_plans_imported'])
 
-            self.job.add_log(f"Import completed successfully")
-            self.job.add_log(f"Total floor plans imported: {stats['floor_plans']}")
-            self.job.mark_completed()
+            self.job.finish()
+            self.job.add_log(
+                f"Import finished: {self.job.get_status_display()} - "
+                f"{stats['floor_plans']} floor plan(s) imported, "
+                f"{self.job.items_failed} failed")
 
             return stats
 
@@ -131,7 +137,8 @@ class MagicPlanImportService(BaseImportService):
 
         for plan_data in plans:
             try:
-                floor_plan = self._create_floor_plan(location, plan_data)
+                with transaction.atomic():
+                    floor_plan = self._create_floor_plan(location, plan_data)
                 count += 1
                 self.job.add_log(f"Imported floor plan: {floor_plan.floor_name}")
             except Exception as e:
@@ -206,6 +213,9 @@ class MagicPlanImportService(BaseImportService):
                 country=country,
                 notes=f"Imported from MagicPlan: {project_data.get('description', '')}"
             )
+            # Recorded so rollback can remove it.
+            self.create_mapping('location', f"magicplan:{project_name}", location,
+                                organization=self.organization)
             self.job.add_log(f"Created new location: {location.name}")
             return location
 
@@ -271,6 +281,10 @@ class MagicPlanImportService(BaseImportService):
                     'import_source': 'magicplan_json'
                 }
             )
+            # Recorded so rollback can remove it.
+            self._plan_seq += 1
+            self.create_mapping('floor_plan', f"{location.pk}:{self._plan_seq}:{floor_name}"[:100],
+                                floor_plan, organization=self.organization)
 
             return floor_plan
 
