@@ -68,6 +68,23 @@ def apply_sync_outcome(connection, stats, sync_start):
     return error_summary
 
 
+def fire_sync_webhook(connection, kind, status, stats=None):
+    """integration.synced / integration.failed for the connection's org.
+
+    'partial' is a completed sync that dropped records — reported as synced
+    with that status. Never raises.
+    """
+    try:
+        from core import webhook_events
+        event = 'integration.failed' if status == 'error' else 'integration.synced'
+        webhook_events.fire(
+            event, connection.organization_id,
+            webhook_events.integration_data(connection, kind, status, stats),
+        )
+    except Exception:
+        logger.exception('integration webhook failed for %s', connection)
+
+
 class PSASync:
     """
     Synchronizes data from a PSA connection to local database.
@@ -122,6 +139,8 @@ class PSASync:
                              if error_summary else f"PSA sync completed: {self.stats}"),
                 success=not error_summary
             )
+            fire_sync_webhook(self.connection, 'psa',
+                              self.connection.last_sync_status, self.stats)
 
             if error_summary:
                 logger.warning(f"Sync completed with errors — {error_summary}: {self.stats}")
@@ -137,6 +156,7 @@ class PSASync:
             self.connection.last_sync_status = 'error'
             self.connection.last_error = error_msg[:500]
             self.connection.save()
+            fire_sync_webhook(self.connection, 'psa', 'error', self.stats)
 
             AuditLog.log(
                 user=None,
@@ -503,6 +523,8 @@ class RMMSync:
                              if error_summary else f"RMM sync completed: {self.stats}"),
                 success=not error_summary
             )
+            fire_sync_webhook(self.connection, 'rmm',
+                              self.connection.last_sync_status, self.stats)
 
             if error_summary:
                 logger.warning(f"RMM sync completed with errors — {error_summary}: {self.stats}")
@@ -518,6 +540,7 @@ class RMMSync:
             self.connection.last_sync_status = 'error'
             self.connection.last_error = error_msg[:500]
             self.connection.save()
+            fire_sync_webhook(self.connection, 'rmm', 'error', self.stats)
 
             AuditLog.log(
                 user=None,

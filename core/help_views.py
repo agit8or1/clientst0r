@@ -1452,14 +1452,19 @@ def help_api(request):
 
     <h5 class="mt-4" id="webhooks"><i class="fas fa-bell"></i> Webhooks</h5>
     <p>Configure webhooks at <strong>Settings → Webhooks → Create Webhook</strong>.</p>
-    <p>Supported events:</p>
+    <p>Supported events (fired from web, REST API, mobile and sync jobs alike):</p>
     <ul>
         <li><code>asset.created</code> / <code>asset.updated</code> / <code>asset.deleted</code></li>
-        <li><code>password.created</code> / <code>password.breached</code></li>
-        <li><code>monitor.down</code> / <code>monitor.up</code></li>
-        <li><code>vulnerability.found</code></li>
-        <li><code>vehicle.maintenance_due</code></li>
+        <li><code>document.created</code> / <code>document.updated</code> / <code>document.deleted</code></li>
+        <li><code>password.created</code> / <code>password.updated</code> / <code>password.deleted</code> / <code>password.accessed</code> &mdash; metadata only, never the secret</li>
+        <li><code>location.created</code> / <code>location.updated</code> / <code>location.deleted</code></li>
+        <li><code>organization.updated</code></li>
+        <li><code>user.login</code> / <code>user.logout</code> / <code>user.login_failed</code> / <code>user.password_changed</code> &mdash; customer users only, sent to the organizations they belong to (MSP staff activity is never sent)</li>
+        <li><code>monitor.down</code> / <code>monitor.up</code> / <code>monitor.check_failed</code></li>
+        <li><code>workflow.started</code> / <code>workflow.completed</code> / <code>workflow.failed</code></li>
+        <li><code>integration.synced</code> / <code>integration.failed</code></li>
     </ul>
+    <p>Each POST body is <code>{"event", "timestamp", "organization", "webhook_id", "data"}</code>. When a secret is set, the body is signed with HMAC-SHA256 in the <code>X-Webhook-Signature</code> header (<code>sha256=&lt;hex&gt;</code>). Deliveries are sent after the change is saved and are logged under the webhook's delivery history.</p>
 
     <div class="help-screenshot mt-3 mb-4">
       <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
@@ -1482,7 +1487,7 @@ def help_api(request):
         <rect x="428" y="62" width="74" height="14" rx="7" fill="#1f6feb44"/>
         <text x="465" y="73" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">monitor.up</text>
         <rect x="508" y="62" width="104" height="14" rx="7" fill="#da363344"/>
-        <text x="560" y="73" fill="#f85149" font-size="9" font-family="sans-serif" text-anchor="middle">password.breached</text>
+        <text x="560" y="73" fill="#f85149" font-size="9" font-family="sans-serif" text-anchor="middle">monitor.check_failed</text>
         <text x="54" y="100" fill="#3fb950" font-size="10" font-family="sans-serif">✓ Active  |  Last delivery: 12m ago (200 OK)</text>
         <rect x="630" y="58" width="50" height="16" rx="4" fill="#21262d" stroke="#30363d"/>
         <text x="655" y="70" fill="#8b949e" font-size="9" font-family="sans-serif" text-anchor="middle">Test</text>

@@ -36,12 +36,14 @@ def send_webhook(event_type, payload_data, organization=None):
         logger.error(f"Error checking webhook settings: {e}")
         return 0
 
-    # Find active webhooks for this event
-    webhooks = Webhook.objects.filter(is_active=True)
+    # Webhooks always belong to one organization. Without one there is no
+    # scope, and this used to fall through to *every* organization's
+    # webhooks — an event about one customer delivered to all of them.
+    if not organization:
+        logger.debug(f"No organization for {event_type}; webhooks are per-organization, skipping")
+        return 0
 
-    # Filter by organization if provided
-    if organization:
-        webhooks = webhooks.filter(organization=organization)
+    webhooks = Webhook.objects.filter(is_active=True, organization=organization)
 
     # Filter by event type
     webhooks = [w for w in webhooks if event_type in w.events]

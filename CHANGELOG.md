@@ -5,6 +5,26 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.609] - 2026-10-15
+
+### Alerts and webhooks that actually fire
+
+- **Website-down alerts are sent.** "Notify on down" was saved but never used.
+  A monitor now emails superusers and the customer's admins once when it has
+  failed two checks in a row, and once when it recovers — not on every failed
+  check. The same transitions fire `monitor.down` / `monitor.up` webhooks.
+- **Every webhook event offered in the form now fires**, from the data layer so
+  API, mobile and sync changes count too: documents, passwords (metadata only —
+  never the secret), password reveals, locations, organization changes,
+  workflows, monitors and integration syncs, plus sign-in events for customer
+  users. MSP staff activity is never sent to a customer's webhooks. Events with
+  nothing behind them were removed from the form.
+- Fixed: sending a webhook with no organization delivered it to every
+  organization's webhooks.
+- **Receipt AI extraction respects the AI switch.** With AI features off the
+  "AI Extract" button is hidden and the endpoint refuses; mobile receipt
+  uploads still save but skip AI extraction.
+
 ## [3.17.608] - 2026-10-15
 
 ### LDAP / Active Directory sign-in

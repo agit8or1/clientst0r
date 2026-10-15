@@ -8,8 +8,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from core.middleware import get_request_organization
 from core.decorators import require_write, require_organization_context
-from core.webhook_sender import send_webhook
-from core.models import Webhook
 from core.tenancy import get_org_object_or_404
 from .models import Asset, Contact, Relationship, ContactRating, ContactNote
 from .forms import AssetForm, ContactForm
@@ -207,18 +205,8 @@ def asset_create(request):
             asset.save()
             form.save_m2m()
 
-            # Trigger webhook
-            send_webhook(
-                Webhook.EVENT_ASSET_CREATED,
-                {
-                    'asset_id': asset.id,
-                    'asset_name': asset.name,
-                    'asset_type': asset.asset_type,
-                    'serial_number': asset.serial_number,
-                    'created_by': request.user.username,
-                },
-                organization=org
-            )
+            # asset.created / asset.updated webhooks fire from the model
+            # signal (core.webhook_signals), so API/mobile/sync paths fire too.
 
             if port_count and asset.has_ports():
                 messages.success(request, f"Asset '{asset.name}' created successfully with {port_count} ports.")
@@ -278,18 +266,8 @@ def asset_edit(request, pk):
             asset.save()
             form.save_m2m()
 
-            # Trigger webhook
-            send_webhook(
-                Webhook.EVENT_ASSET_UPDATED,
-                {
-                    'asset_id': asset.id,
-                    'asset_name': asset.name,
-                    'asset_type': asset.asset_type,
-                    'serial_number': asset.serial_number,
-                    'updated_by': request.user.username,
-                },
-                organization=org
-            )
+            # asset.created / asset.updated webhooks fire from the model
+            # signal (core.webhook_signals), so API/mobile/sync paths fire too.
 
             messages.success(request, f"Asset '{asset.name}' updated successfully.")
             return redirect('assets:asset_detail', pk=asset.pk)

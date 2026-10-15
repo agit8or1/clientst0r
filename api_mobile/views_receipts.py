@@ -73,12 +73,19 @@ def _extract_with_llm(image_bytes, image_mime='image/jpeg', hint=None):
     have to care which path produced them. Both empty on failure /
     no-LLM-configured.
     """
-    try:
-        from docs.services.llm_providers import get_configured_provider
-        provider = get_configured_provider()
-    except Exception as exc:
-        logger.warning('LLM provider load failed: %s', exc)
-        return ('', {})
+    # The master AI switch (Settings -> PSA (AI)) governs every LLM call.
+    # With it off, the receipt is still stored; the LLM extraction is skipped
+    # and only the env-configured, non-LLM OCR fallback below may run.
+    from core.ai_gate import ai_features_enabled
+    if not ai_features_enabled():
+        provider = None
+    else:
+        try:
+            from docs.services.llm_providers import get_configured_provider
+            provider = get_configured_provider()
+        except Exception as exc:
+            logger.warning('LLM provider load failed: %s', exc)
+            return ('', {})
 
     if provider is None:
         # Fall back to legacy Cloud Vision path (OCR_PROVIDER env) so
@@ -346,11 +353,14 @@ def receipt_list_view(request):
         except Exception as exc:
             logger.warning('maintenance record auto-create failed: %s', exc)
 
+    from core.ai_gate import ai_features_enabled
     return Response({
         'receipt': _serialize_receipt(receipt),
         'fuel_log_id': fuel_log_id,
         'maintenance_record_id': maintenance_record_id,
         'duplicate': False,
+        # Lets the app explain empty fields: AI extraction is switched off.
+        'ai_extraction_enabled': ai_features_enabled(),
     }, status=drf_status.HTTP_201_CREATED)
 
 

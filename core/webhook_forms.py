@@ -6,17 +6,26 @@ import json
 from django import forms
 from core.models import Webhook
 from vault.secret_fields import SecretInput
+from core.webhook_events import SUPPORTED_EVENTS
 
 # Shown in place of each stored header value. Submitting it back unchanged
 # keeps that header's stored value.
 HEADER_VALUE_MASK = '********'
+
+# Only event types that actually fire (core.webhook_events). The model still
+# lists every historical constant; offering ones with no source made the form
+# promise deliveries that could never happen.
+OFFERED_EVENT_CHOICES = [
+    (value, label) for value, label in Webhook.EVENT_CHOICES
+    if value in SUPPORTED_EVENTS
+]
 
 
 class WebhookForm(forms.ModelForm):
     """Form for creating and editing webhooks."""
 
     events = forms.MultipleChoiceField(
-        choices=Webhook.EVENT_CHOICES,
+        choices=OFFERED_EVENT_CHOICES,
         widget=forms.CheckboxSelectMultiple,
         help_text='Select which events should trigger this webhook'
     )
@@ -67,7 +76,9 @@ class WebhookForm(forms.ModelForm):
 
         # If editing existing webhook, convert events list to selected choices
         if self.instance and self.instance.pk:
-            self.initial['events'] = self.instance.events
+            self.initial['events'] = [
+                e for e in (self.instance.events or []) if e in SUPPORTED_EVENTS
+            ]
             headers = self.instance.custom_headers
             if isinstance(headers, dict) and headers:
                 self.initial['custom_headers'] = json.dumps(
@@ -109,7 +120,7 @@ class WebhookTestForm(forms.Form):
     """Form for testing webhook delivery."""
 
     test_event = forms.ChoiceField(
-        choices=Webhook.EVENT_CHOICES,
+        choices=OFFERED_EVENT_CHOICES,
         widget=forms.Select(attrs={'class': 'form-select'}),
         help_text='Select an event type to test'
     )

@@ -10,6 +10,7 @@ from django.views.decorators.http import require_http_methods
 from django.core.exceptions import PermissionDenied
 from datetime import timedelta
 
+from core.ai_gate import require_ai_enabled_json
 from files.models import Attachment
 from .models import (
     ServiceVehicle, VehicleInventoryItem, VehicleDamageReport,
@@ -1604,6 +1605,7 @@ def receipt_delete(request, pk):
 
 @login_required
 @require_http_methods(['POST'])
+@require_ai_enabled_json
 def receipt_ocr_extract(request, vehicle_id):
     """AJAX: Extract receipt data from uploaded image using Claude vision.
     Returns duplicate warning if the same image has already been OCR-imported.

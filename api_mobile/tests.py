@@ -2074,6 +2074,11 @@ class MobilePushSignalsTests(TestCase):
             'username': 'assignee', 'password': 'x',
         }).json()['token']
 
+        from core.models import SystemSetting
+        ss = SystemSetting.get_settings()
+        ss.psa_ai_enabled = True
+        ss.save()
+
         fake_provider = MagicMock()
         fake_provider.extract_receipt_fields.return_value = {
             'success': True,
@@ -3104,3 +3109,82 @@ class MobileAssetVaultLinkTests(TestCase):
             tok, {'password_id': self.password_same_org.id},
         )
         self.assertEqual(resp.status_code, 403)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False, REST_FRAMEWORK=NO_THROTTLE_REST)
+class ReceiptScanAiSwitchTests(TestCase):
+    """Receipt extraction obeys the master AI switch (psa_ai_enabled).
+
+    The mobile upload went straight to the configured LLM provider whether or
+    not AI features were switched on. With the switch off the receipt is still
+    stored, but no LLM call is made.
+    """
+
+    def setUp(self):
+        from datetime import date
+        from vehicles.models import ServiceVehicle, VehicleAssignment
+        _clear_throttle_cache()
+        self.org = Organization.objects.create(name='OrgAI', slug='orgai')
+        self.user = User.objects.create_user(username='tech', password='x')
+        Membership.objects.create(user=self.user, organization=self.org, role='admin')
+        self.vehicle = ServiceVehicle.objects.create(
+            name='Van AI', vehicle_type='van', make='Ford', model='Transit',
+            year=2024, license_plate='AI1', current_mileage=10000,
+        )
+        VehicleAssignment.objects.create(
+            vehicle=self.vehicle, user=self.user,
+            start_date=date.today(), starting_mileage=9900,
+        )
+        self.token = _post(Client(), '/api/mobile/v1/auth/login/', {
+            'username': 'tech', 'password': 'x',
+        }).json()['token']
+
+    def _set_ai(self, on):
+        from core.models import SystemSetting
+        ss = SystemSetting.get_settings()
+        ss.psa_ai_enabled = on
+        ss.save()
+
+    def _upload(self, provider):
+        from unittest.mock import patch
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        with patch('docs.services.llm_providers.get_configured_provider',
+                   return_value=provider), \
+             patch('api_mobile.views_ocr._ocr_provider', return_value=''):
+            return Client().post(
+                '/api/mobile/v1/receipts/',
+                data={
+                    'photo': SimpleUploadedFile('r.jpg', b'\xff\xd8\xffAI', 'image/jpeg'),
+                    'vehicle_id': str(self.vehicle.id),
+                    'category': 'other',
+                },
+                HTTP_AUTHORIZATION=f'Token {self.token}',
+            )
+
+    def _provider(self):
+        from unittest.mock import MagicMock
+        p = MagicMock()
+        p.extract_receipt_fields.return_value = {
+            'success': True, 'extracted': {'vendor': 'Shell', 'amount_total': 10},
+        }
+        return p
+
+    def test_ai_off_skips_llm_but_saves_receipt(self):
+        self._set_ai(False)
+        provider = self._provider()
+        resp = self._upload(provider)
+        self.assertEqual(resp.status_code, 201, resp.content)
+        provider.extract_receipt_fields.assert_not_called()
+        body = resp.json()
+        self.assertFalse(body['ai_extraction_enabled'])
+        self.assertEqual(body['receipt']['vendor'], '')
+
+    def test_ai_on_uses_llm(self):
+        self._set_ai(True)
+        provider = self._provider()
+        resp = self._upload(provider)
+        self.assertEqual(resp.status_code, 201, resp.content)
+        provider.extract_receipt_fields.assert_called_once()
+        body = resp.json()
+        self.assertTrue(body['ai_extraction_enabled'])
+        self.assertEqual(body['receipt']['vendor'], 'Shell')

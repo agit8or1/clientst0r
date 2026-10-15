@@ -66,6 +66,13 @@ class WebsiteMonitor(BaseModel):
     ssl_expiry_notified_key = models.CharField(max_length=64, blank=True, default='')
     domain_expiry_notified_key = models.CharField(max_length=64, blank=True, default='')
 
+    # Down/recovery alerting (monitoring.down_notifications). The failure
+    # streak debounces a single dropped check; alert_state is the declared
+    # state, so an outage alerts once and its recovery alerts once.
+    ALERT_STATE_CHOICES = [('up', 'Up'), ('down', 'Down')]
+    consecutive_failures = models.PositiveIntegerField(default=0)
+    alert_state = models.CharField(max_length=10, choices=ALERT_STATE_CHOICES, default='up')
+
     # Last error
     last_error = models.TextField(blank=True)
 
@@ -251,6 +258,10 @@ class WebsiteMonitor(BaseModel):
             )
         except Exception:
             logger.exception('Could not record MonitorCheck for monitor %s', self.pk)
+
+        # Down / recovery email on state transitions (never raises).
+        from monitoring.down_notifications import process_check_result
+        process_check_result(self)
 
     # --- Phase 40.1 (v3.17.538): uptime, computed from MonitorCheck ---
 

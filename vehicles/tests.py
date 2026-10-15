@@ -168,3 +168,71 @@ class VehicleInventoryItemTests(TestCase):
         # is missing — accept either falsy form rather than asserting a
         # specific representation.
         self.assertFalse(bool(i.total_value))
+
+
+from django.test import override_settings  # noqa: E402
+from django.conf import settings as _dj_settings  # noqa: E402
+
+_TEST_MIDDLEWARE = [
+    m for m in _dj_settings.MIDDLEWARE
+    if 'Enforce2FAMiddleware' not in m and 'AxesMiddleware' not in m
+]
+
+
+@override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class ReceiptOcrAiSwitchTests(TestCase):
+    """Web receipt "AI Extract" obeys the master AI switch (psa_ai_enabled)."""
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        from core.models import SystemSetting
+        self.user = User.objects.create_superuser('boss', 'b@x.test', 'pw')
+        self.client.force_login(self.user)
+        self.vehicle = ServiceVehicle.objects.create(
+            name='Van', vehicle_type='van', make='Ford', model='T',
+            year=2024, license_plate='W1', current_mileage=1,
+        )
+        self.ss = SystemSetting.get_settings()
+
+    def _set_ai(self, on):
+        self.ss.psa_ai_enabled = on
+        self.ss.save()
+
+    def _post(self):
+        from unittest import mock
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        with mock.patch('vehicles.services.receipt_ocr.extract_receipt_data',
+                        return_value={'success': True, 'data': {'vendor': 'Shell'}}) as m:
+            resp = self.client.post(
+                f'/vehicles/vehicles/{self.vehicle.pk}/receipts/ocr-extract/',
+                {'image': SimpleUploadedFile('r.jpg', b'img', content_type='image/jpeg')},
+            )
+        return resp, m
+
+    def test_ai_off_refuses_and_never_calls_provider(self):
+        self._set_ai(False)
+        resp, m = self._post()
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(resp.json()['success'])
+        self.assertIn('AI features are turned off', resp.json()['error'])
+        m.assert_not_called()
+
+    def test_ai_on_extracts(self):
+        self._set_ai(True)
+        resp, m = self._post()
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['success'])
+        m.assert_called_once()
+
+    def test_form_hides_extract_button_when_ai_off(self):
+        self._set_ai(False)
+        resp = self.client.get(f'/vehicles/vehicles/{self.vehicle.pk}/receipts/create/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'id="aiExtractBtn"')
+        self.assertContains(resp, 'aiDisabledNote')
+
+    def test_form_shows_extract_button_when_ai_on(self):
+        self._set_ai(True)
+        resp = self.client.get(f'/vehicles/vehicles/{self.vehicle.pk}/receipts/create/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="aiExtractBtn"')
