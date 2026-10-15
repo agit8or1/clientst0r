@@ -1138,11 +1138,8 @@ def _send_mention_email(ticket, comment, actor, recipient):
     s = SystemSetting.get_settings()
     if not s.smtp_enabled or not s.smtp_host:
         return
-    try:
-        from vault.encryption import decrypt
-        smtp_password = decrypt(s.smtp_password) if s.smtp_password else ''
-    except Exception:
-        smtp_password = s.smtp_password or ''
+    # EncryptedTextField: the attribute is already the plaintext.
+    smtp_password = s.smtp_password or ''
     try:
         connection = get_connection(
             backend='django.core.mail.backends.smtp.EmailBackend',
@@ -1624,11 +1621,8 @@ def _notify_watchers(ticket, comment, actor):
     if not recipients:
         return 0
 
-    try:
-        from vault.encryption import decrypt
-        smtp_password = decrypt(settings.smtp_password) if settings.smtp_password else ''
-    except Exception:
-        smtp_password = settings.smtp_password or ''
+    # EncryptedTextField: the attribute is already the plaintext.
+    smtp_password = settings.smtp_password or ''
 
     try:
         connection = get_connection(

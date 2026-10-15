@@ -304,9 +304,12 @@ def settings_smtp(request):
         # Only update password if provided
         smtp_password = request.POST.get('smtp_password', '').strip()
         if smtp_password:
-            from vault.encryption import encrypt, EncryptionError
+            from vault.encryption import get_master_key, EncryptionError
             try:
-                settings.smtp_password = encrypt(smtp_password)
+                # The field encrypts on save; check the key now so a bad key
+                # gives this message rather than a 500 from save().
+                get_master_key()
+                settings.smtp_password = smtp_password
             except EncryptionError:
                 messages.error(
                     request,
@@ -366,16 +369,8 @@ def test_smtp_email(request):
         messages.error(request, 'SMTP is not enabled. Please enable and configure SMTP settings first.')
         return redirect('core:settings_smtp')
 
-    # Decrypt password if set
-    smtp_password = ''
-    if settings.smtp_password:
-        try:
-            from vault.encryption import decrypt
-            smtp_password = decrypt(settings.smtp_password)
-        except Exception as e:
-            logger.error(f"Failed to decrypt SMTP password: {e}")
-            messages.error(request, 'Failed to decrypt SMTP password.')
-            return redirect('core:settings_smtp')
+    # EncryptedTextField: the attribute is already the plaintext.
+    smtp_password = settings.smtp_password or ''
 
     try:
         # Configure email backend
@@ -496,9 +491,8 @@ def settings_directory(request):
         # Only update password if provided
         ldap_password = request.POST.get('ldap_bind_password', '').strip()
         if ldap_password:
-            # FIX: Encrypt password before storing
-            from vault.encryption_v2 import encrypt_api_credentials
-            settings.ldap_bind_password = encrypt_api_credentials(ldap_password, org_id=0)
+            # EncryptedTextField encrypts on save.
+            settings.ldap_bind_password = ldap_password
 
         settings.ldap_user_search_base = request.POST.get('ldap_user_search_base', settings.ldap_user_search_base)
         settings.ldap_user_search_filter = request.POST.get('ldap_user_search_filter', settings.ldap_user_search_filter)
@@ -514,9 +508,8 @@ def settings_directory(request):
         # Only update client secret if provided
         azure_secret = request.POST.get('azure_ad_client_secret', '').strip()
         if azure_secret:
-            # FIX: Encrypt secret before storing
-            from vault.encryption_v2 import encrypt_api_credentials
-            settings.azure_ad_client_secret = encrypt_api_credentials(azure_secret, org_id=0)
+            # EncryptedTextField encrypts on save.
+            settings.azure_ad_client_secret = azure_secret
 
         settings.azure_ad_redirect_uri = request.POST.get('azure_ad_redirect_uri', settings.azure_ad_redirect_uri)
         settings.azure_ad_auto_create_users = request.POST.get('azure_ad_auto_create_users') == 'on'
@@ -3137,9 +3130,10 @@ def settings_sms(request):
         # Only update auth token if provided
         sms_auth_token = request.POST.get('sms_auth_token', '').strip()
         if sms_auth_token:
-            from vault.encryption import encrypt, EncryptionError
+            from vault.encryption import get_master_key, EncryptionError
             try:
-                settings_obj.sms_auth_token = encrypt(sms_auth_token)
+                get_master_key()  # the field encrypts on save
+                settings_obj.sms_auth_token = sms_auth_token
             except EncryptionError:
                 messages.error(
                     request,

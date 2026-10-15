@@ -1,8 +1,15 @@
 """
 Forms for webhook management.
 """
+import json
+
 from django import forms
 from core.models import Webhook
+from vault.secret_fields import SecretInput
+
+# Shown in place of each stored header value. Submitting it back unchanged
+# keeps that header's stored value.
+HEADER_VALUE_MASK = '********'
 
 
 class WebhookForm(forms.ModelForm):
@@ -12,6 +19,19 @@ class WebhookForm(forms.ModelForm):
         choices=Webhook.EVENT_CHOICES,
         widget=forms.CheckboxSelectMultiple,
         help_text='Select which events should trigger this webhook'
+    )
+    # Header values are often credentials (Authorization: Bearer ...). They
+    # are stored encrypted and rendered back masked — names only.
+    custom_headers = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': '{"Authorization": "Bearer your-token-here"}'
+        }),
+        help_text='JSON object of custom HTTP headers (optional). Stored values '
+                  f'are shown as {HEADER_VALUE_MASK}; leave a value as '
+                  f'{HEADER_VALUE_MASK} to keep it.',
     )
 
     class Meta:
@@ -26,17 +46,13 @@ class WebhookForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'https://your-api.com/webhooks/clientst0r'
             }),
-            'secret': forms.TextInput(attrs={
+            # Never rendered back; blank keeps the stored secret.
+            'secret': SecretInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Optional: Secret key for signing payloads'
+                'placeholder': 'Optional: Secret key for signing payloads (blank keeps the current one)'
             }),
             'is_active': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
-            }),
-            'custom_headers': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': '{"Authorization": "Bearer your-token-here"}'
             }),
         }
         help_texts = {
@@ -44,7 +60,6 @@ class WebhookForm(forms.ModelForm):
             'url': 'Destination URL for webhook POST requests',
             'secret': 'Secret key for HMAC-SHA256 signature in X-Webhook-Signature header (optional)',
             'is_active': 'Enable or disable this webhook',
-            'custom_headers': 'JSON object of custom HTTP headers (optional)',
         }
 
     def __init__(self, *args, **kwargs):
@@ -53,10 +68,15 @@ class WebhookForm(forms.ModelForm):
         # If editing existing webhook, convert events list to selected choices
         if self.instance and self.instance.pk:
             self.initial['events'] = self.instance.events
+            headers = self.instance.custom_headers
+            if isinstance(headers, dict) and headers:
+                self.initial['custom_headers'] = json.dumps(
+                    {k: HEADER_VALUE_MASK for k in headers}, indent=2)
+            else:
+                self.initial['custom_headers'] = ''
 
     def clean_custom_headers(self):
-        """Validate custom headers JSON."""
-        import json
+        """Validate custom headers JSON; masked values keep the stored value."""
         custom_headers = self.cleaned_data.get('custom_headers', '')
 
         if not custom_headers:
@@ -64,11 +84,20 @@ class WebhookForm(forms.ModelForm):
 
         try:
             headers = json.loads(custom_headers)
-            if not isinstance(headers, dict):
-                raise forms.ValidationError('Custom headers must be a JSON object (dictionary).')
-            return headers
         except json.JSONDecodeError as e:
             raise forms.ValidationError(f'Invalid JSON: {str(e)}')
+        if not isinstance(headers, dict):
+            raise forms.ValidationError('Custom headers must be a JSON object (dictionary).')
+        existing = {}
+        if self.instance and self.instance.pk and isinstance(self.instance.custom_headers, dict):
+            existing = self.instance.custom_headers
+        for key, value in list(headers.items()):
+            if value == HEADER_VALUE_MASK:
+                if key not in existing:
+                    raise forms.ValidationError(
+                        f'Header "{key}" has no stored value; enter one.')
+                headers[key] = existing[key]
+        return headers
 
     def clean_events(self):
         """Convert selected events to list for JSONField."""

@@ -107,6 +107,7 @@ def token_list(request):
             {
                 'id': r.pk,
                 'label': r.label,
+                'token_prefix': r.token_prefix,  # display only; the token is never stored
                 'organization_id': r.organization_id,
                 'created_at': r.created_at.isoformat(),
                 'last_used_at': r.last_used_at.isoformat() if r.last_used_at else None,

@@ -17,7 +17,7 @@
         </div>
         <p class="text-muted">Generic CEF / Syslog / JSON inbound webhook. Point any SIEM at the URL below — events flow into the standard alert triage queue.</p>
 
-        <form method="post" novalidate>
+        <form method="post" novalidate{% if instance.pk %} action="{% url 'security_alerts:siem_endpoint_edit' instance.pk %}"{% endif %}>
             {% csrf_token %}
             {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -65,15 +65,25 @@
             <div class="card mb-3 border-info">
                 <div class="card-header bg-info-subtle"><h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Webhook</h5></div>
                 <div class="card-body">
+                    {% if issued_token %}
+                    <div class="alert alert-warning small py-2">Copy these now. The URL token is stored hashed and the secret encrypted; neither is shown again.</div>
                     <div class="mb-2">
                         <label class="form-label small">Webhook URL</label>
-                        <input type="text" class="form-control font-monospace" readonly value="{{ request.scheme }}://{{ request.get_host }}/security/siem/webhook/{{ instance.token }}/">
+                        <input type="text" class="form-control font-monospace" readonly value="{{ request.scheme }}://{{ request.get_host }}/security/siem/webhook/{{ issued_token }}/">
                     </div>
                     <div>
                         <label class="form-label small">HMAC secret</label>
-                        <input type="text" class="form-control font-monospace" readonly value="{{ instance.hmac_secret }}">
+                        <input type="text" class="form-control font-monospace" readonly value="{{ issued_hmac_secret }}">
                         <div class="form-text">Hex-encode HMAC-SHA256(secret, body) into <code>X-Cst0r-Signature</code>.</div>
                     </div>
+                    {% else %}
+                    <p class="small mb-2">Webhook URL and HMAC secret are configured. They are stored hashed / encrypted and cannot be displayed.</p>
+                    <button type="submit" name="regenerate_webhook" value="1" class="btn btn-sm btn-outline-warning"
+                            formnovalidate
+                            onclick="return confirm('Issue a new webhook URL and HMAC secret? The current ones stop working immediately.');">
+                        <i class="fas fa-sync me-1"></i>Issue new URL and secret
+                    </button>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}

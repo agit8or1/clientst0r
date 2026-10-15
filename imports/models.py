@@ -4,6 +4,7 @@ Import models for IT Glue and Hudu data migration
 from django.db import models
 from django.contrib.auth import get_user_model
 from core.models import BaseModel, Organization
+from vault.secret_fields import EncryptedTextField
 
 User = get_user_model()
 
@@ -54,10 +55,9 @@ class ImportJob(BaseModel):
         blank=True,
         help_text="API endpoint URL (e.g., https://api.itglue.com or https://demo.hudu.com) - not needed for MagicPlan"
     )
-    source_api_key = models.CharField(
-        max_length=500,
+    source_api_key = EncryptedTextField(
         blank=True,
-        help_text="API key for authentication - not needed for MagicPlan"
+        help_text="API key for authentication - not needed for MagicPlan (encrypted at rest)"
     )
 
     # File upload (MagicPlan JSON or CSV)

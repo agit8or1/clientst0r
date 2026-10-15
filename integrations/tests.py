@@ -48,11 +48,19 @@ class DistributorConnectionModelTests(TestCase):
             organization=self.org, provider_type='ingram_xvantage', name='A')
         c2 = DistributorConnection.objects.create(
             organization=self.org, provider_type='ingram_xvantage', name='B')
-        self.assertTrue(c1.webhook_token)
-        self.assertTrue(c2.webhook_token)
-        self.assertNotEqual(c1.webhook_token, c2.webhook_token)
+        # The raw token is available once, on the instance that issued it.
+        self.assertTrue(c1.issued_webhook_token)
+        self.assertTrue(c2.issued_webhook_token)
+        self.assertNotEqual(c1.issued_webhook_token, c2.issued_webhook_token)
         # token_urlsafe(32) → ~43 chars, base64url-safe alphabet
-        self.assertGreaterEqual(len(c1.webhook_token), 32)
+        self.assertGreaterEqual(len(c1.issued_webhook_token), 32)
+        # Only its HMAC is stored, and lookup goes through the hash.
+        r1 = DistributorConnection.objects.get(pk=c1.pk)
+        self.assertNotEqual(r1.webhook_token_hash, c1.issued_webhook_token)
+        self.assertNotIn(c1.issued_webhook_token, r1.webhook_token_hash)
+        self.assertEqual(
+            DistributorConnection.lookup_by_webhook_token(c1.issued_webhook_token).pk, c1.pk)
+        self.assertIsNone(DistributorConnection.lookup_by_webhook_token('nope'))
 
     def test_webhook_secret_round_trips(self):
         conn = DistributorConnection.objects.create(
@@ -215,7 +223,7 @@ class DistributorWebhookEndpointTests(TestCase):
     def test_valid_signature_records_event(self):
         body = json.dumps({'eventType': 'order.delivered'}).encode()
         sig = hmac.new(b'topsecret', body, hashlib.sha256).hexdigest()
-        url = f'/integrations/distributors/webhooks/{self.conn.webhook_token}/'
+        url = f'/integrations/distributors/webhooks/{self.conn.issued_webhook_token}/'
         resp = self.client.post(
             url, data=body, content_type='application/json',
             HTTP_X_INGRAM_SIGNATURE=f'sha256={sig}',
@@ -228,7 +236,7 @@ class DistributorWebhookEndpointTests(TestCase):
 
     def test_invalid_signature_recorded_but_processed_true(self):
         # The webhook endpoint always records — signature_valid false flags it.
-        url = f'/integrations/distributors/webhooks/{self.conn.webhook_token}/'
+        url = f'/integrations/distributors/webhooks/{self.conn.issued_webhook_token}/'
         resp = self.client.post(
             url, data=b'{"eventType":"x"}', content_type='application/json',
             HTTP_X_INGRAM_SIGNATURE='sha256=00',

@@ -172,6 +172,11 @@ class SecretRotationPlan:
         Returns:
             dict with rotation results
         """
+        # This helper used its own PBKDF2/Fernet scheme, which is not how any
+        # column is encrypted; running it would have corrupted credentials.
+        raise NotImplementedError(
+            'Use `manage.py rotate_encryption_key` (re-encrypts every encrypted '
+            'column and verifies each value with the new key).')
         from integrations.models import PSAConnection, RMMConnection
         from vault.models import Password
 

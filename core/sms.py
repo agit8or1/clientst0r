@@ -158,12 +158,8 @@ def get_sms_client():
     if not settings.sms_enabled:
         return None
 
-    # Decrypt auth token
-    try:
-        from vault.encryption import decrypt
-        auth_token = decrypt(settings.sms_auth_token) if settings.sms_auth_token else ''
-    except Exception:
-        auth_token = settings.sms_auth_token
+    # EncryptedTextField: the attribute is already the plaintext.
+    auth_token = settings.sms_auth_token or ''
 
     provider_map = {
         'twilio': TwilioProvider,

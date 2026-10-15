@@ -234,6 +234,17 @@ def connection_form(request, pk=None):
         instance = get_object_or_404(
             SecurityVendorConnection, pk=pk, organization__in=orgs,
         )
+    if request.method == 'POST' and instance and request.POST.get('regenerate_webhook'):
+        # Token is stored hashed and the secret encrypted, so the only way
+        # to hand them out again is to mint new ones.
+        instance.issue_webhook_credentials()
+        instance.save(update_fields=['webhook_token_hash', 'webhook_secret', 'updated_at'])
+        messages.warning(request, 'New webhook URL and secret issued. The previous ones no longer work.')
+        return render(request, 'security_alerts/connection_form.html', {
+            'form': SecurityVendorConnectionForm(instance=instance), 'instance': instance,
+            'issued_webhook_token': instance.issued_webhook_token,
+            'issued_webhook_secret': instance.issued_webhook_secret,
+        })
     if request.method == 'POST':
         form = SecurityVendorConnectionForm(request.POST, instance=instance)
         if form.is_valid():
@@ -242,6 +253,15 @@ def connection_form(request, pk=None):
                 obj.organization = _primary_org(request.user) or orgs.first()
                 obj.created_by = request.user
             obj.save()
+            issued = getattr(obj, 'issued_webhook_token', None)
+            if issued:
+                # Shown in this response only — never stored in the session.
+                messages.success(request, 'Connection saved. Copy the webhook URL and secret now; they are not shown again.')
+                return render(request, 'security_alerts/connection_form.html', {
+                    'form': SecurityVendorConnectionForm(instance=obj), 'instance': obj,
+                    'issued_webhook_token': issued,
+                    'issued_webhook_secret': obj.issued_webhook_secret,
+                })
             messages.success(request, 'Connection saved.')
             return redirect('security_alerts:connection_list')
     else:
@@ -338,9 +358,7 @@ def webhook_receive(request, token):
     if request.method != 'POST':
         return HttpResponseBadRequest('POST only')
 
-    conn = SecurityVendorConnection.objects.filter(
-        webhook_token=token, is_active=True,
-    ).first()
+    conn = SecurityVendorConnection.lookup_by_webhook_token(token, is_active=True)
     if not conn:
         raise Http404('Unknown webhook token')
 
@@ -440,6 +458,25 @@ def siem_endpoint_form(request, pk=None):
         instance = get_object_or_404(
             SIEMWebhookEndpoint, pk=pk, organization__in=orgs,
         )
+    if request.method == 'POST' and instance and request.POST.get('regenerate_webhook'):
+        instance.issue_webhook_credentials()
+        instance.save(update_fields=['token_hash', 'hmac_secret', 'updated_at'])
+        from audit.models import AuditLog
+        AuditLog.log(
+            user=request.user,
+            action='siem_endpoint_saved',
+            organization=instance.organization,
+            object_type='security_alerts.SIEMWebhookEndpoint',
+            object_id=instance.pk,
+            object_repr=instance.name,
+            description=f'Issued new webhook URL token and HMAC secret for {instance.name}',
+        )
+        messages.warning(request, 'New webhook URL and HMAC secret issued. The previous ones no longer work.')
+        return render(request, 'security_alerts/siem_endpoint_form.html', {
+            'form': SIEMWebhookEndpointForm(instance=instance), 'instance': instance,
+            'issued_token': instance.issued_token,
+            'issued_hmac_secret': instance.issued_hmac_secret,
+        })
     if request.method == 'POST':
         form = SIEMWebhookEndpointForm(request.POST, instance=instance)
         if form.is_valid():
@@ -458,6 +495,14 @@ def siem_endpoint_form(request, pk=None):
                 object_repr=obj.name,
                 description=f'Saved SIEM webhook endpoint {obj.name}',
             )
+            issued = getattr(obj, 'issued_token', None)
+            if issued:
+                messages.success(request, 'SIEM webhook endpoint saved. Copy the URL and HMAC secret now; they are not shown again.')
+                return render(request, 'security_alerts/siem_endpoint_form.html', {
+                    'form': SIEMWebhookEndpointForm(instance=obj), 'instance': obj,
+                    'issued_token': issued,
+                    'issued_hmac_secret': obj.issued_hmac_secret,
+                })
             messages.success(request, 'SIEM webhook endpoint saved.')
             return redirect('security_alerts:siem_endpoint_list')
     else:
@@ -481,9 +526,7 @@ def siem_webhook_receive(request, token):
     if request.method != 'POST':
         return HttpResponseBadRequest('POST only')
 
-    endpoint = SIEMWebhookEndpoint.objects.filter(
-        token=token, is_active=True,
-    ).select_related('organization', 'client_org').first()
+    endpoint = SIEMWebhookEndpoint.lookup_by_token(token, is_active=True)
     if not endpoint:
         raise Http404('Unknown SIEM webhook token')
 

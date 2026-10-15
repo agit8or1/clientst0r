@@ -43,7 +43,7 @@
                     <td>{% if e.require_hmac %}<span class="badge bg-warning text-dark">Required</span>{% else %}<span class="badge bg-light text-dark border">Optional</span>{% endif %}</td>
                     <td>{{ e.received_count }}</td>
                     <td><span class="text-muted small">{% if e.last_seen_at %}{{ e.last_seen_at|timesince }} ago{% else %}—{% endif %}</span></td>
-                    <td><code class="small">/security/siem/webhook/{{ e.token|truncatechars:24 }}/</code></td>
+                    <td><code class="small">/security/siem/webhook/&lt;hidden&gt;/</code></td>
                     {% if can_manage %}
                     <td><a href="{% url 'security_alerts:siem_endpoint_edit' e.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a></td>
                     {% endif %}

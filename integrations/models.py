@@ -8,7 +8,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from core.models import Organization, BaseModel
 from core.utils import OrganizationManager
-from vault.encryption import encrypt, decrypt, encrypt_dict, decrypt_dict
+from vault.secret_fields import SealedTextField, hash_token
 
 
 class PSAConnection(BaseModel):
@@ -37,7 +37,7 @@ class PSAConnection(BaseModel):
     base_url = models.URLField(max_length=500)
 
     # Encrypted credentials (stored as JSON)
-    encrypted_credentials = models.TextField(help_text="Encrypted JSON with API keys, secrets, tokens")
+    encrypted_credentials = SealedTextField(legacy='v1_json', help_text="Encrypted (enc2$ envelope) JSON with API keys, secrets, tokens")
 
     # Sync settings
     sync_enabled = models.BooleanField(default=True)
@@ -77,8 +77,8 @@ class PSAConnection(BaseModel):
         Encrypt and store credentials.
         credentials_dict: dict with keys like 'api_key', 'client_id', 'client_secret', 'oauth_token', etc.
         """
-        encrypted = encrypt_dict(credentials_dict)
-        self.encrypted_credentials = json.dumps(encrypted)
+        self.encrypted_credentials = self._meta.get_field(
+            'encrypted_credentials').seal_json(credentials_dict or {})
 
     def get_credentials(self):
         """
@@ -86,8 +86,8 @@ class PSAConnection(BaseModel):
         """
         if not self.encrypted_credentials:
             return {}
-        encrypted = json.loads(self.encrypted_credentials)
-        return decrypt_dict(encrypted)
+        return self._meta.get_field('encrypted_credentials').unseal_json(
+            self.encrypted_credentials)
 
     def delete(self, *args, **kwargs):
         """
@@ -315,7 +315,7 @@ class RMMConnection(BaseModel):
     base_url = models.URLField(max_length=500)
 
     # Encrypted credentials (stored as JSON)
-    encrypted_credentials = models.TextField(help_text="Encrypted JSON with API keys, secrets, tokens")
+    encrypted_credentials = SealedTextField(legacy='v1_json', help_text="Encrypted (enc2$ envelope) JSON with API keys, secrets, tokens")
 
     # Sync settings
     sync_enabled = models.BooleanField(default=True)
@@ -357,8 +357,8 @@ class RMMConnection(BaseModel):
         Encrypt and store credentials.
         credentials_dict: dict with keys like 'api_key', 'client_id', 'client_secret', 'access_token', etc.
         """
-        encrypted = encrypt_dict(credentials_dict)
-        self.encrypted_credentials = json.dumps(encrypted)
+        self.encrypted_credentials = self._meta.get_field(
+            'encrypted_credentials').seal_json(credentials_dict or {})
 
     def get_credentials(self):
         """
@@ -366,8 +366,8 @@ class RMMConnection(BaseModel):
         """
         if not self.encrypted_credentials:
             return {}
-        encrypted = json.loads(self.encrypted_credentials)
-        return decrypt_dict(encrypted)
+        return self._meta.get_field('encrypted_credentials').unseal_json(
+            self.encrypted_credentials)
 
     def delete(self, *args, **kwargs):
         """
@@ -632,7 +632,7 @@ class UnifiConnection(BaseModel):
     verify_ssl = models.BooleanField(default=False, help_text="Verify SSL certificate (disable for self-signed)")
 
     # Encrypted API key
-    encrypted_credentials = models.TextField(blank=True, help_text="Encrypted JSON with api_key")
+    encrypted_credentials = SealedTextField(legacy='v1_json', blank=True, help_text="Encrypted JSON with api_key")
 
     is_active = models.BooleanField(default=True)
     last_sync_at = models.DateTimeField(null=True, blank=True)
@@ -663,14 +663,14 @@ class UnifiConnection(BaseModel):
         return f"{self.organization.slug}:{self.name}"
 
     def set_credentials(self, credentials_dict):
-        encrypted = encrypt_dict(credentials_dict)
-        self.encrypted_credentials = json.dumps(encrypted)
+        self.encrypted_credentials = self._meta.get_field(
+            'encrypted_credentials').seal_json(credentials_dict or {})
 
     def get_credentials(self):
         if not self.encrypted_credentials:
             return {}
-        encrypted = json.loads(self.encrypted_credentials)
-        return decrypt_dict(encrypted)
+        return self._meta.get_field('encrypted_credentials').unseal_json(
+            self.encrypted_credentials)
 
 
 # ============================================================================
@@ -688,7 +688,7 @@ class OmadaConnection(models.Model):
     verify_ssl = models.BooleanField(default=False)
 
     # Encrypted credentials: {username, password}
-    encrypted_credentials = models.TextField(blank=True)
+    encrypted_credentials = SealedTextField(legacy='v1_json', blank=True)
 
     is_active = models.BooleanField(default=True)
     last_sync_at = models.DateTimeField(null=True, blank=True)
@@ -715,14 +715,14 @@ class OmadaConnection(models.Model):
         return f"{self.organization.slug}:{self.name}"
 
     def set_credentials(self, credentials_dict):
-        encrypted = encrypt_dict(credentials_dict)
-        self.encrypted_credentials = json.dumps(encrypted)
+        self.encrypted_credentials = self._meta.get_field(
+            'encrypted_credentials').seal_json(credentials_dict or {})
 
     def get_credentials(self):
         if not self.encrypted_credentials:
             return {}
-        encrypted = json.loads(self.encrypted_credentials)
-        return decrypt_dict(encrypted)
+        return self._meta.get_field('encrypted_credentials').unseal_json(
+            self.encrypted_credentials)
 
 
 # ============================================================================
@@ -740,7 +740,7 @@ class GrandstreamConnection(models.Model):
     verify_ssl = models.BooleanField(default=False)
 
     # Encrypted credentials: {api_key}
-    encrypted_credentials = models.TextField(blank=True)
+    encrypted_credentials = SealedTextField(legacy='v1_json', blank=True)
 
     is_active = models.BooleanField(default=True)
     last_sync_at = models.DateTimeField(null=True, blank=True)
@@ -767,14 +767,14 @@ class GrandstreamConnection(models.Model):
         return f"{self.organization.slug}:{self.name}"
 
     def set_credentials(self, credentials_dict):
-        encrypted = encrypt_dict(credentials_dict)
-        self.encrypted_credentials = json.dumps(encrypted)
+        self.encrypted_credentials = self._meta.get_field(
+            'encrypted_credentials').seal_json(credentials_dict or {})
 
     def get_credentials(self):
         if not self.encrypted_credentials:
             return {}
-        encrypted = json.loads(self.encrypted_credentials)
-        return decrypt_dict(encrypted)
+        return self._meta.get_field('encrypted_credentials').unseal_json(
+            self.encrypted_credentials)
 
 
 # ============================================================================
@@ -792,7 +792,7 @@ class M365Connection(BaseModel):
     tenant_id = models.CharField(max_length=255, help_text="Azure AD tenant ID (Directory ID)")
 
     # Encrypted credentials: client_id, client_secret
-    encrypted_credentials = models.TextField(blank=True, help_text="Encrypted JSON with client_id and client_secret")
+    encrypted_credentials = SealedTextField(legacy='v1_json', blank=True, help_text="Encrypted JSON with client_id and client_secret")
 
     is_active = models.BooleanField(default=True)
     last_sync_at = models.DateTimeField(null=True, blank=True)
@@ -814,14 +814,14 @@ class M365Connection(BaseModel):
         return f"{self.organization.slug}:{self.name}"
 
     def set_credentials(self, credentials_dict):
-        encrypted = encrypt_dict(credentials_dict)
-        self.encrypted_credentials = json.dumps(encrypted)
+        self.encrypted_credentials = self._meta.get_field(
+            'encrypted_credentials').seal_json(credentials_dict or {})
 
     def get_credentials(self):
         if not self.encrypted_credentials:
             return {}
-        encrypted = json.loads(self.encrypted_credentials)
-        return decrypt_dict(encrypted)
+        return self._meta.get_field('encrypted_credentials').unseal_json(
+            self.encrypted_credentials)
 
 
 # ---------------------------------------------------------------------------
@@ -851,14 +851,16 @@ class DistributorConnection(BaseModel):
 
     base_url = models.URLField(max_length=500, blank=True,
         help_text='Optional — defaults to the provider\'s production endpoint')
-    encrypted_credentials = models.TextField(blank=True,
+    encrypted_credentials = SealedTextField(legacy='v1_json', blank=True,
         help_text='Encrypted JSON with API keys, customer IDs, etc.')
 
     # Webhook signing secret (separate from credentials so admins can rotate
     # without re-issuing API keys). Encrypted.
-    encrypted_webhook_secret = models.TextField(blank=True)
-    webhook_token = models.CharField(max_length=64, blank=True, db_index=True,
-        help_text='Random token in the webhook URL — first defence-in-depth check before signature validation')
+    encrypted_webhook_secret = SealedTextField(blank=True, legacy='v1_json_key:s')
+    # HMAC of the inbound webhook URL token. The token is shown once, when
+    # issued; only this hash is stored. See issue_webhook_token().
+    webhook_token_hash = models.CharField(max_length=64, blank=True, db_index=True,
+        help_text='HMAC-SHA256 of the per-connection webhook URL token.')
 
     sync_enabled = models.BooleanField(default=True)
     sync_catalog = models.BooleanField(default=False,
@@ -884,35 +886,55 @@ class DistributorConnection(BaseModel):
         return f'{self.organization.slug}:{self.name} ({self.get_provider_type_display()})'
 
     def set_credentials(self, credentials_dict):
-        encrypted = encrypt_dict(credentials_dict)
-        self.encrypted_credentials = json.dumps(encrypted)
+        self.encrypted_credentials = self._meta.get_field(
+            'encrypted_credentials').seal_json(credentials_dict or {})
 
     def get_credentials(self):
         if not self.encrypted_credentials:
             return {}
-        encrypted = json.loads(self.encrypted_credentials)
-        return decrypt_dict(encrypted)
+        return self._meta.get_field('encrypted_credentials').unseal_json(
+            self.encrypted_credentials)
 
     def set_webhook_secret(self, secret: str):
         if not secret:
             self.encrypted_webhook_secret = ''
             return
-        encrypted = encrypt_dict({'s': secret})
-        self.encrypted_webhook_secret = json.dumps(encrypted)
+        self.encrypted_webhook_secret = self._meta.get_field(
+            'encrypted_webhook_secret').seal(secret)
 
     def get_webhook_secret(self) -> str:
         if not self.encrypted_webhook_secret:
             return ''
         try:
-            d = decrypt_dict(json.loads(self.encrypted_webhook_secret))
-            return d.get('s', '') or ''
+            return self._meta.get_field('encrypted_webhook_secret').unseal_text(
+                self.encrypted_webhook_secret)
         except Exception:
             return ''
 
+    WEBHOOK_TOKEN_PURPOSE = 'integrations.distributor.webhook'
+
+    @classmethod
+    def hash_webhook_token(cls, raw_token: str) -> str:
+        return hash_token(raw_token, cls.WEBHOOK_TOKEN_PURPOSE)
+
+    @classmethod
+    def lookup_by_webhook_token(cls, raw_token: str, **filters):
+        if not raw_token:
+            return None
+        return cls.objects.filter(
+            webhook_token_hash=cls.hash_webhook_token(raw_token), **filters).first()
+
+    def issue_webhook_token(self) -> str:
+        """Mint a new URL token, store its hash, return it (shown once)."""
+        import secrets as _secrets
+        raw = _secrets.token_urlsafe(32)
+        self.webhook_token_hash = self.hash_webhook_token(raw)
+        self.issued_webhook_token = raw
+        return raw
+
     def save(self, *args, **kwargs):
-        if not self.webhook_token:
-            import secrets as _secrets
-            self.webhook_token = _secrets.token_urlsafe(32)
+        if not self.webhook_token_hash:
+            self.issue_webhook_token()
         super().save(*args, **kwargs)
 
 
@@ -977,7 +999,7 @@ class AccountingConnection(BaseModel):
     # All credentials (client_id, client_secret, refresh_token, access_token,
     # expires_at, realm_id for QBO, tenant_id for Xero, etc.) encrypted as
     # a single JSON blob.
-    encrypted_credentials = models.TextField(blank=True)
+    encrypted_credentials = SealedTextField(legacy='v1_json', blank=True)
 
     # Default tax rate to apply when creating invoices on the provider side
     # (when our line items don't have an explicit tax rate already mapped).
@@ -1001,14 +1023,15 @@ class AccountingConnection(BaseModel):
         return f'{self.organization.slug}:{self.name} ({self.get_provider_type_display()})'
 
     def set_credentials(self, credentials_dict):
-        encrypted = encrypt_dict(credentials_dict)
-        self.encrypted_credentials = json.dumps(encrypted)
+        self.encrypted_credentials = self._meta.get_field(
+            'encrypted_credentials').seal_json(credentials_dict or {})
 
     def get_credentials(self):
         if not self.encrypted_credentials:
             return {}
         try:
-            return decrypt_dict(json.loads(self.encrypted_credentials))
+            return self._meta.get_field('encrypted_credentials').unseal_json(
+                self.encrypted_credentials)
         except Exception:
             return {}
 
@@ -1168,7 +1191,7 @@ class PaymentConnection(BaseModel):
                                       default='manual')
     name = models.CharField(max_length=200)
     base_url = models.URLField(max_length=500, blank=True)
-    encrypted_credentials = models.TextField(blank=True)
+    encrypted_credentials = SealedTextField(legacy='v1_json', blank=True)
     is_active = models.BooleanField(default=True)
     sync_enabled = models.BooleanField(default=False,
         help_text='Allow live charges (off by default — sandbox first).')
@@ -1186,14 +1209,15 @@ class PaymentConnection(BaseModel):
         return f'{self.organization.slug}:{self.name} ({self.get_provider_type_display()})'
 
     def set_credentials(self, credentials_dict):
-        encrypted = encrypt_dict(credentials_dict)
-        self.encrypted_credentials = json.dumps(encrypted)
+        self.encrypted_credentials = self._meta.get_field(
+            'encrypted_credentials').seal_json(credentials_dict or {})
 
     def get_credentials(self):
         if not self.encrypted_credentials:
             return {}
         try:
-            return decrypt_dict(json.loads(self.encrypted_credentials))
+            return self._meta.get_field('encrypted_credentials').unseal_json(
+                self.encrypted_credentials)
         except Exception:
             return {}
 
@@ -1227,7 +1251,7 @@ class WarrantyConnection(BaseModel):
                                       default='manual')
     name = models.CharField(max_length=200)
     base_url = models.URLField(max_length=500, blank=True)
-    encrypted_credentials = models.TextField(blank=True)
+    encrypted_credentials = SealedTextField(legacy='v1_json', blank=True)
     is_active = models.BooleanField(default=True)
     last_lookup_at = models.DateTimeField(null=True, blank=True)
     last_error = models.TextField(blank=True)
@@ -1243,14 +1267,15 @@ class WarrantyConnection(BaseModel):
         return f'{self.organization.slug}:{self.name} ({self.get_provider_type_display()})'
 
     def set_credentials(self, credentials_dict):
-        encrypted = encrypt_dict(credentials_dict)
-        self.encrypted_credentials = json.dumps(encrypted)
+        self.encrypted_credentials = self._meta.get_field(
+            'encrypted_credentials').seal_json(credentials_dict or {})
 
     def get_credentials(self):
         if not self.encrypted_credentials:
             return {}
         try:
-            return decrypt_dict(json.loads(self.encrypted_credentials))
+            return self._meta.get_field('encrypted_credentials').unseal_json(
+                self.encrypted_credentials)
         except Exception:
             return {}
 
@@ -1282,7 +1307,7 @@ class TaxConnection(BaseModel):
                                       default='manual')
     name = models.CharField(max_length=200)
     base_url = models.URLField(max_length=500, blank=True)
-    encrypted_credentials = models.TextField(blank=True)
+    encrypted_credentials = SealedTextField(legacy='v1_json', blank=True)
     is_active = models.BooleanField(default=True)
     last_lookup_at = models.DateTimeField(null=True, blank=True)
     last_error = models.TextField(blank=True)
@@ -1298,14 +1323,15 @@ class TaxConnection(BaseModel):
         return f'{self.organization.slug}:{self.name} ({self.get_provider_type_display()})'
 
     def set_credentials(self, credentials_dict):
-        encrypted = encrypt_dict(credentials_dict)
-        self.encrypted_credentials = json.dumps(encrypted)
+        self.encrypted_credentials = self._meta.get_field(
+            'encrypted_credentials').seal_json(credentials_dict or {})
 
     def get_credentials(self):
         if not self.encrypted_credentials:
             return {}
         try:
-            return decrypt_dict(json.loads(self.encrypted_credentials))
+            return self._meta.get_field('encrypted_credentials').unseal_json(
+                self.encrypted_credentials)
         except Exception:
             return {}
 

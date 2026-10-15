@@ -3086,6 +3086,11 @@ def _distributor_form(request, pk):
         if webhook_secret:
             item.set_webhook_secret(webhook_secret)
 
+        # The URL token is stored hashed, so it can only be shown when it is
+        # minted: on create, or when the admin asks for a new one.
+        if request.POST.get('regenerate_webhook_token') == 'on':
+            item.issue_webhook_token()
+
         item.save()
         from audit.models import AuditLog
         AuditLog.log(
@@ -3096,6 +3101,17 @@ def _distributor_form(request, pk):
             description=f'{"Updated" if pk else "Created"} distributor connection {item.name} ({provider_type})',
             path=request.path,
         )
+        issued = getattr(item, 'issued_webhook_token', None)
+        if issued:
+            # Render instead of redirecting so the new URL is shown exactly
+            # once and never round-trips through the session store.
+            messages.success(request, f'Saved "{item.name}". Copy the webhook URL now — it is not shown again.')
+            return render(request, 'integrations/distributor_form.html', {
+                'item': item,
+                'issued_webhook_token': issued,
+                'organizations': Organization.objects.filter(is_active=True).order_by('name'),
+                'provider_types': DistributorConnection.PROVIDER_TYPES,
+            })
         messages.success(request, f'Saved "{item.name}".')
         return redirect('integrations:distributor_list')
 
@@ -3244,7 +3260,8 @@ def distributor_webhook(request, token):
     """
     from .models import DistributorConnection, DistributorWebhookEvent
     from .providers.distributors import get_distributor_provider
-    conn = DistributorConnection.objects.filter(webhook_token=token, is_active=True).first()
+    # Only the token's HMAC is stored.
+    conn = DistributorConnection.lookup_by_webhook_token(token, is_active=True)
     if conn is None:
         return JsonResponse({'ok': False, 'error': 'unknown token'}, status=404)
     raw_body = request.body or b''

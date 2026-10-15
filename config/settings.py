@@ -566,6 +566,11 @@ REST_FRAMEWORK = {
 APP_MASTER_KEY = os.getenv('APP_MASTER_KEY', '')
 if not APP_MASTER_KEY and not DEBUG:
     raise ValueError("APP_MASTER_KEY must be set in production")
+# Key rotation: previous master key(s), comma-separated. Decryption tries
+# APP_MASTER_KEY first, then these; new ciphertext always uses APP_MASTER_KEY.
+# Set this to the old key while `manage.py rotate_encryption_key` re-encrypts,
+# then remove it.
+APP_MASTER_KEY_PREVIOUS = os.getenv('APP_MASTER_KEY_PREVIOUS', '')
 
 # API Key settings - must be separate from SECRET_KEY for security
 API_KEY_SECRET = os.getenv('API_KEY_SECRET')

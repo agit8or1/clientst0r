@@ -15,6 +15,7 @@ Foreign keys reference existing models discovered in INTEGRATION_MAP.md:
 from django.conf import settings as django_settings
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
+from vault.secret_fields import EncryptedTextField, SealedTextField
 
 
 # ---------------------------------------------------------------------------
@@ -2630,7 +2631,7 @@ class EmailIngestionConfig(models.Model):
     imap_port = models.PositiveIntegerField(default=993)
     use_ssl = models.BooleanField(default=True)
     username = models.CharField(max_length=255, blank=True)
-    encrypted_password = models.TextField(blank=True)
+    encrypted_password = SealedTextField(blank=True, legacy='v1_json_key:p')
     folder = models.CharField(max_length=100, default='INBOX')
 
     # Graph fields (used when source='graph').
@@ -2706,20 +2707,16 @@ class EmailIngestionConfig(models.Model):
         return f'{self.name} ({self.username}@{self.imap_host})'
 
     def set_password(self, password: str):
-        from vault.encryption import encrypt_dict
-        import json as _json
         if not password:
             self.encrypted_password = ''
             return
-        self.encrypted_password = _json.dumps(encrypt_dict({'p': password}))
+        self.encrypted_password = self._meta.get_field('encrypted_password').seal(password)
 
     def get_password(self) -> str:
-        from vault.encryption import decrypt_dict
-        import json as _json
         if not self.encrypted_password:
             return ''
         try:
-            return decrypt_dict(_json.loads(self.encrypted_password)).get('p', '')
+            return self._meta.get_field('encrypted_password').unseal_text(self.encrypted_password)
         except Exception:
             return ''
 
@@ -6203,9 +6200,8 @@ class WebPushSubscription(models.Model):
         max_length=200,
         help_text='Public key from the browser (base64).',
     )
-    auth_secret = models.CharField(
-        max_length=100,
-        help_text='Auth secret from the browser (base64).',
+    auth_secret = EncryptedTextField(
+        help_text='Auth secret from the browser (base64). Encrypted at rest.',
     )
     user_agent = models.CharField(max_length=400, blank=True)
     is_active = models.BooleanField(default=True)

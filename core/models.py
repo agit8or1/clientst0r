@@ -2,6 +2,7 @@
 Core models - Organization and Tags
 """
 from django.db import models
+from vault.secret_fields import EncryptedTextField, EncryptedJSONField, SealedTextField
 
 from core.backgrounds import (
     DEFAULT_COLOR as DEFAULT_BACKGROUND_COLOR,
@@ -91,8 +92,8 @@ class Organization(models.Model):
         help_text='When true, this org can receive outsourced tickets via the '
                   'share-ticket-to-partner endpoint. Requires partner_secret.',
     )
-    partner_secret = models.CharField(
-        max_length=64, blank=True,
+    partner_secret = EncryptedTextField(
+        blank=True,
         help_text='HMAC shared secret for verifying inbound webhook payloads. '
                   'Auto-generated when is_outsourcing_partner flips to True.',
     )
@@ -548,7 +549,7 @@ class SecureNote(BaseModel):
 
     # Content
     title = models.CharField(max_length=255)
-    encrypted_content = models.TextField()  # Encrypted message body
+    encrypted_content = SealedTextField(legacy='v1')  # Encrypted message body (enc2$ envelope)
     label = models.CharField(max_length=255, blank=True, help_text='Optional label for tracking/organizing secret links')
 
     # Link-only mode (Issue #47)
@@ -582,15 +583,14 @@ class SecureNote(BaseModel):
 
     def set_content(self, plaintext_content):
         """Encrypt and store content."""
-        from vault.encryption import encrypt
-        self.encrypted_content = encrypt(plaintext_content)
+        field = self._meta.get_field('encrypted_content')
+        self.encrypted_content = field.seal(plaintext_content) if plaintext_content else ''
 
     def get_content(self):
-        """Decrypt and return content."""
-        from vault.encryption import decrypt
+        """Decrypt and return content (pre-envelope v1 values still read)."""
         if not self.encrypted_content:
             return ''
-        return decrypt(self.encrypted_content)
+        return self._meta.get_field('encrypted_content').unseal_text(self.encrypted_content)
 
     def generate_access_token(self):
         """Generate a unique cryptographically secure access token for link-only mode."""
@@ -739,7 +739,7 @@ class SystemSetting(models.Model):
     smtp_host = models.CharField(max_length=255, blank=True, help_text='SMTP server hostname')
     smtp_port = models.PositiveIntegerField(default=587, help_text='SMTP server port')
     smtp_username = models.CharField(max_length=255, blank=True, help_text='SMTP username')
-    smtp_password = models.CharField(max_length=255, blank=True, help_text='SMTP password (encrypted)')
+    smtp_password = EncryptedTextField(blank=True, legacy='auto', help_text='SMTP password (encrypted)')
     smtp_use_tls = models.BooleanField(default=True, help_text='Use TLS for SMTP')
     smtp_use_ssl = models.BooleanField(default=False, help_text='Use SSL for SMTP')
     smtp_from_email = models.EmailField(blank=True, help_text='From email address')
@@ -758,7 +758,7 @@ class SystemSetting(models.Model):
     ldap_enabled = models.BooleanField(default=False, help_text='Enable LDAP/Active Directory authentication')
     ldap_server_uri = models.CharField(max_length=500, blank=True, help_text='LDAP server URI (e.g., ldap://dc.example.com:389)')
     ldap_bind_dn = models.CharField(max_length=500, blank=True, help_text='Bind DN for LDAP queries (e.g., CN=ServiceAccount,OU=Users,DC=example,DC=com)')
-    ldap_bind_password = models.CharField(max_length=255, blank=True, help_text='Password for bind DN (encrypted)')
+    ldap_bind_password = EncryptedTextField(blank=True, legacy='auto', help_text='Password for bind DN (encrypted)')
     ldap_user_search_base = models.CharField(max_length=500, blank=True, help_text='Base DN for user searches (e.g., OU=Users,DC=example,DC=com)')
     ldap_user_search_filter = models.CharField(max_length=255, default='(sAMAccountName=%(user)s)', help_text='LDAP filter for user lookups')
     ldap_group_search_base = models.CharField(max_length=500, blank=True, help_text='Base DN for group searches (optional)')
@@ -769,14 +769,14 @@ class SystemSetting(models.Model):
     azure_ad_enabled = models.BooleanField(default=False, help_text='Enable Azure AD / Microsoft Entra ID authentication')
     azure_ad_tenant_id = models.CharField(max_length=255, blank=True, help_text='Azure AD Tenant ID (GUID)')
     azure_ad_client_id = models.CharField(max_length=255, blank=True, help_text='Application (client) ID from Azure portal')
-    azure_ad_client_secret = models.CharField(max_length=500, blank=True, help_text='Client secret (encrypted)')
+    azure_ad_client_secret = EncryptedTextField(blank=True, legacy='auto', help_text='Client secret (encrypted)')
     azure_ad_redirect_uri = models.CharField(max_length=500, blank=True, help_text='Redirect URI configured in Azure (e.g., https://yourapp.com/auth/callback)')
     azure_ad_auto_create_users = models.BooleanField(default=True, help_text='Automatically create users on first Azure AD login')
     azure_ad_sync_groups = models.BooleanField(default=False, help_text='Sync Azure AD groups to roles')
 
     # Snyk Security Scanning Settings
     snyk_enabled = models.BooleanField(default=False, help_text='Enable Snyk security scanning')
-    snyk_api_token = models.CharField(max_length=500, blank=True, help_text='Snyk API token for vulnerability scanning')
+    snyk_api_token = EncryptedTextField(blank=True, help_text='Snyk API token for vulnerability scanning (encrypted)')
     snyk_org_id = models.CharField(max_length=255, blank=True, help_text='Snyk organization ID (optional)')
     snyk_severity_threshold = models.CharField(
         max_length=20,
@@ -809,7 +809,7 @@ class SystemSetting(models.Model):
     snyk_test_iac = models.BooleanField(default=False, help_text='Scan IaC files with Snyk IaC (snyk iac test)')
 
     # Bug Reporting
-    github_pat = models.CharField(max_length=500, blank=True, help_text='GitHub Personal Access Token for bug reporting (encrypted)')
+    github_pat = EncryptedTextField(blank=True, legacy='auto', help_text='GitHub Personal Access Token for bug reporting (encrypted)')
 
     # SMS Provider Settings
     sms_provider = models.CharField(
@@ -827,7 +827,7 @@ class SystemSetting(models.Model):
     )
     sms_enabled = models.BooleanField(default=False, help_text='Enable SMS functionality')
     sms_account_sid = models.CharField(max_length=255, blank=True, help_text='SMS provider account SID/API key')
-    sms_auth_token = models.CharField(max_length=500, blank=True, help_text='SMS provider auth token (encrypted)')
+    sms_auth_token = EncryptedTextField(blank=True, legacy='auto', help_text='SMS provider auth token (encrypted)')
     sms_from_number = models.CharField(max_length=20, blank=True, help_text='From phone number (E.164 format, e.g., +15551234567)')
 
     # Feature Toggles
@@ -960,11 +960,11 @@ class SystemSetting(models.Model):
     asset_age_critical_years = models.PositiveIntegerField(default=5, help_text='Age (years) at which to show a red critical warning for assets without a lifespan set')
     firmware_checks_enabled = models.BooleanField(default=False, help_text='Enable automatic firmware update checks for network devices (Ubiquiti, TP-Link, Grandstream, etc.)')
     warranty_checks_enabled = models.BooleanField(default=False, help_text='Enable warranty expiry lookups for PCs and servers via vendor APIs (Dell, HP, Lenovo)')
-    dell_api_key = models.CharField(max_length=255, blank=True, help_text='Dell TechDirect API key for warranty lookups')
+    dell_api_key = EncryptedTextField(blank=True, help_text='Dell TechDirect API key for warranty lookups (encrypted)')
     hp_client_id = models.CharField(max_length=255, blank=True, help_text='HP API client ID for warranty lookups')
-    hp_client_secret = models.CharField(max_length=255, blank=True, help_text='HP API client secret for warranty lookups')
+    hp_client_secret = EncryptedTextField(blank=True, help_text='HP API client secret for warranty lookups (encrypted)')
     lenovo_client_id = models.CharField(max_length=255, blank=True, help_text='Lenovo warranty API client ID')
-    lenovo_client_secret = models.CharField(max_length=255, blank=True, help_text='Lenovo warranty API client secret')
+    lenovo_client_secret = EncryptedTextField(blank=True, help_text='Lenovo warranty API client secret (encrypted)')
 
     # UI/UX Settings
     stay_on_page_after_org_switch = models.BooleanField(default=True, help_text='Stay on current page when switching organizations instead of redirecting to dashboard')
@@ -997,38 +997,19 @@ class SystemSetting(models.Model):
         self.pk = 1
         super().save(*args, **kwargs)
 
+    # The secret fields above are EncryptedTextField: the attribute already
+    # holds the plaintext. These accessors remain for existing callers.
     def get_smtp_password_decrypted(self):
-        """Get decrypted SMTP password."""
-        if not self.smtp_password:
-            return ''
-        try:
-            from vault.encryption import decrypt
-            return decrypt(self.smtp_password)
-        except Exception:
-            # If decryption fails, assume it's not encrypted (backward compatibility)
-            return self.smtp_password
+        """SMTP password (plaintext)."""
+        return self.smtp_password or ''
 
     def get_ldap_bind_password_decrypted(self):
-        """Get decrypted LDAP bind password."""
-        if not self.ldap_bind_password:
-            return ''
-        try:
-            from vault.encryption_v2 import decrypt_api_credentials
-            return decrypt_api_credentials(self.ldap_bind_password, org_id=0)
-        except Exception:
-            # If decryption fails, assume it's not encrypted (backward compatibility)
-            return self.ldap_bind_password
+        """LDAP bind password (plaintext)."""
+        return self.ldap_bind_password or ''
 
     def get_azure_ad_client_secret_decrypted(self):
-        """Get decrypted Azure AD client secret."""
-        if not self.azure_ad_client_secret:
-            return ''
-        try:
-            from vault.encryption_v2 import decrypt_api_credentials
-            return decrypt_api_credentials(self.azure_ad_client_secret, org_id=0)
-        except Exception:
-            # If decryption fails, assume it's not encrypted (backward compatibility)
-            return self.azure_ad_client_secret
+        """Azure AD client secret (plaintext)."""
+        return self.azure_ad_client_secret or ''
 
     def delete(self, *args, **kwargs):
         """Prevent deletion of settings."""
@@ -2205,16 +2186,15 @@ class Webhook(models.Model):
         default=list,
         help_text='List of event types to trigger this webhook'
     )
-    secret = models.CharField(
-        max_length=255,
+    secret = EncryptedTextField(
         blank=True,
-        help_text='Secret key for signing webhook payloads (optional)'
+        help_text='Secret key for signing webhook payloads (optional, encrypted)'
     )
     is_active = models.BooleanField(default=True, help_text='Enable/disable this webhook')
-    custom_headers = models.JSONField(
+    custom_headers = EncryptedJSONField(
         default=dict,
         blank=True,
-        help_text='Custom HTTP headers to include in requests (e.g., Authorization)'
+        help_text='Custom HTTP headers to include in requests (e.g., Authorization). Encrypted at rest.'
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

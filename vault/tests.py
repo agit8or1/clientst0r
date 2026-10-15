@@ -591,7 +591,10 @@ class WebExtensionAuthTokenModelTests(TestCase):
         secret, row = WebExtensionAuthToken.issue(
             user=self.user, label='Chrome on Mac',
         )
-        self.assertEqual(row.token, secret)
+        # Stored hashed: the row carries the HMAC, never the token.
+        self.assertNotEqual(row.token_hash, secret)
+        self.assertEqual(row.token_hash, WebExtensionAuthToken.hash(secret))
+        self.assertEqual(WebExtensionAuthToken.lookup(secret).pk, row.pk)
         self.assertGreater(len(secret), 30)
         self.assertEqual(row.label, 'Chrome on Mac')
         self.assertTrue(row.is_active)

@@ -2,10 +2,65 @@
 Integrations forms
 """
 from django import forms
+from vault.secret_fields import SecretInput
 from .models import PSAConnection, RMMConnection, UnifiConnection, M365Connection, OmadaConnection, GrandstreamConnection
 
 
-class PSAConnectionForm(forms.ModelForm):
+class KeepStoredSecretsMixin:
+    """Never echo stored secrets into the form; blank keeps the stored value.
+
+    `SECRET_FIELDS` maps form field -> (provider_type, credential key). On an
+    edit the inputs render empty; in clean() a blank secret for the
+    connection's current provider is filled from the stored credentials, so
+    the provider's required-field checks and save() see the existing value.
+    """
+    SECRET_FIELDS = {}
+
+    def _protect_secret_fields(self):
+        editing = bool(self.instance and self.instance.pk)
+        for name in self.SECRET_FIELDS:
+            field = self.fields.get(name)
+            if field is None:
+                continue
+            field.initial = None
+            attrs = dict(field.widget.attrs)
+            attrs.pop('value', None)
+            if editing:
+                attrs['placeholder'] = 'Stored encrypted — leave blank to keep'
+            field.widget = SecretInput(attrs=attrs)
+
+    def _fill_blank_secrets_from_storage(self, cleaned_data):
+        if not (self.instance and self.instance.pk):
+            return
+        provider_type = cleaned_data.get('provider_type')
+        if provider_type != self.instance.provider_type:
+            return  # switching provider: the old secrets do not apply
+        stored = None
+        for name, (provider, key) in self.SECRET_FIELDS.items():
+            if provider != provider_type or cleaned_data.get(name):
+                continue
+            if stored is None:
+                stored = self.instance.get_credentials() or {}
+            if stored.get(key):
+                cleaned_data[name] = stored[key]
+                self.errors.pop(name, None)
+
+
+class PSAConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
+    SECRET_FIELDS = {
+        'cw_private_key': ('connectwise_manage', 'private_key'),
+        'at_secret': ('autotask', 'secret'),
+        'halo_client_secret': ('halo_psa', 'client_secret'),
+        'kaseya_api_key': ('kaseya_bms', 'api_key'),
+        'kaseya_api_secret': ('kaseya_bms', 'api_secret'),
+        'syncro_api_key': ('syncro', 'api_key'),
+        'fresh_api_key': ('freshservice', 'api_key'),
+        'zendesk_api_token': ('zendesk', 'api_token'),
+        'itflow_api_key': ('itflow', 'api_key'),
+        'ranger_api_key': ('rangermsp', 'api_key'),
+        'alga_api_key': ('alga_psa', 'api_key'),
+    }
+
     # ConnectWise Manage credentials
     cw_company_id = forms.CharField(
         label='Company ID',
@@ -209,6 +264,8 @@ class PSAConnectionForm(forms.ModelForm):
                 self.fields['alga_api_key'].initial = creds.get('api_key', '')
                 self.fields['alga_tenant_id'].initial = creds.get('tenant_id', '')
 
+        self._protect_secret_fields()
+
     def clean_base_url(self):
         """Validate and normalize base URL with provider-specific checks."""
         base_url = self.cleaned_data.get('base_url', '').strip()
@@ -246,6 +303,7 @@ class PSAConnectionForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         provider_type = cleaned_data.get('provider_type')
+        self._fill_blank_secrets_from_storage(cleaned_data)
 
         # Validate that required credentials are provided for selected provider
         if provider_type == 'connectwise_manage':
@@ -371,8 +429,17 @@ class PSAConnectionForm(forms.ModelForm):
         return connection
 
 
-class RMMConnectionForm(forms.ModelForm):
+class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
     """Form for creating/editing RMM connections."""
+    SECRET_FIELDS = {
+        'ninja_client_secret': ('ninjaone', 'client_secret'),
+        'ninja_refresh_token': ('ninjaone', 'refresh_token'),
+        'datto_api_key': ('datto_rmm', 'api_key'),
+        'datto_api_secret': ('datto_rmm', 'api_secret'),
+        'cwa_password': ('connectwise_automate', 'password'),
+        'atera_api_key': ('atera', 'api_key'),
+        'tactical_api_key': ('tactical_rmm', 'api_key'),
+    }
 
     # NinjaOne credentials
     ninja_client_id = forms.CharField(
@@ -483,9 +550,12 @@ class RMMConnectionForm(forms.ModelForm):
             elif provider == 'tactical_rmm':
                 self.fields['tactical_api_key'].initial = creds.get('api_key', '')
 
+        self._protect_secret_fields()
+
     def clean(self):
         cleaned_data = super().clean()
         provider_type = cleaned_data.get('provider_type')
+        self._fill_blank_secrets_from_storage(cleaned_data)
 
         # Validate that organization is provided (required for RMM connections)
         if not self.organization:

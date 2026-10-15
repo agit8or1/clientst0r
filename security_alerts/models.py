@@ -7,6 +7,7 @@ PSA dashboard, and lets techs triage from one screen.
 """
 from django.conf import settings as django_settings
 from django.db import models
+from vault.secret_fields import EncryptedTextField, hash_token
 
 
 class SecurityVendorConnection(models.Model):
@@ -55,16 +56,20 @@ class SecurityVendorConnection(models.Model):
     provider = models.CharField(max_length=40, choices=PROVIDER_CHOICES)
     category = models.CharField(max_length=20, choices=PROVIDER_CATEGORIES)
 
-    # Encrypted credentials — store as JSON blob using existing AES-GCM helper if available
-    credentials_encrypted = models.TextField(blank=True,
-        help_text='AES-GCM-encrypted JSON blob of provider-specific creds '
+    # Provider credentials. Until v3.17.602 this column held whatever was
+    # typed into the form, in plaintext, despite its name; it is now an
+    # EncryptedTextField (enc2$ envelope), and the form never echoes it.
+    credentials_encrypted = EncryptedTextField(blank=True,
+        help_text='Encrypted blob of provider-specific creds '
                   '(API key / token / username+password / etc).')
     base_url = models.URLField(blank=True,
         help_text='Provider tenant URL (e.g. https://api.crowdstrike.com).')
-    webhook_token = models.CharField(max_length=64, blank=True,
-        help_text='Random token for the inbound webhook URL path.')
-    webhook_secret = models.CharField(max_length=64, blank=True,
-        help_text='HMAC shared secret for verifying inbound webhook payloads.')
+    # The URL token is stored as an HMAC and the shared secret encrypted;
+    # both are shown once, when issued (issue_webhook_credentials()).
+    webhook_token_hash = models.CharField(max_length=64, blank=True, db_index=True,
+        help_text='HMAC-SHA256 of the inbound webhook URL token.')
+    webhook_secret = EncryptedTextField(blank=True,
+        help_text='HMAC shared secret for verifying inbound webhook payloads (encrypted).')
 
     # Polling
     poll_interval_minutes = models.PositiveIntegerField(default=5)
@@ -95,13 +100,34 @@ class SecurityVendorConnection(models.Model):
     def __str__(self):
         return f'{self.name} ({self.get_provider_display()})'
 
+    WEBHOOK_TOKEN_PURPOSE = 'security_alerts.vendor.webhook'
+
+    @classmethod
+    def hash_webhook_token(cls, raw):
+        return hash_token(raw, cls.WEBHOOK_TOKEN_PURPOSE)
+
+    @classmethod
+    def lookup_by_webhook_token(cls, raw, **filters):
+        if not raw:
+            return None
+        return cls.objects.filter(
+            webhook_token_hash=cls.hash_webhook_token(raw), **filters).first()
+
+    def issue_webhook_credentials(self):
+        """Mint a new URL token and HMAC secret. Returns (token, secret);
+        the caller shows them once. Only the hash / ciphertext persist."""
+        import secrets
+        token = secrets.token_urlsafe(32)
+        secret = secrets.token_hex(32)
+        self.webhook_token_hash = self.hash_webhook_token(token)
+        self.webhook_secret = secret
+        self.issued_webhook_token = token
+        self.issued_webhook_secret = secret
+        return token, secret
+
     def save(self, *args, **kwargs):
-        if not self.webhook_token:
-            import secrets
-            self.webhook_token = secrets.token_urlsafe(32)[:64]
-        if not self.webhook_secret:
-            import secrets
-            self.webhook_secret = secrets.token_hex(32)
+        if not self.webhook_token_hash or not self.webhook_secret:
+            self.issue_webhook_credentials()
         super().save(*args, **kwargs)
 
 
@@ -283,11 +309,14 @@ class SIEMWebhookEndpoint(models.Model):
     expected_format = models.CharField(
         max_length=20, choices=FORMAT_CHOICES, default='cef',
     )
-    token = models.CharField(max_length=64, unique=True,
-        help_text='Per-endpoint token used in the URL path. Auto-generated.')
-    hmac_secret = models.CharField(max_length=64, blank=True,
+    # HMAC of the per-endpoint URL token (the token is shown once, when
+    # issued). Only the hash is stored.
+    token_hash = models.CharField(max_length=64, unique=True,
+        help_text='HMAC-SHA256 of the per-endpoint URL token. Auto-generated.')
+    hmac_secret = EncryptedTextField(blank=True,
         help_text='If set, inbound POSTs MUST send an X-Cst0r-Signature '
-                  'header containing hex-encoded HMAC-SHA256(secret, body).')
+                  'header containing hex-encoded HMAC-SHA256(secret, body). '
+                  'Encrypted at rest.')
     require_hmac = models.BooleanField(
         default=False,
         help_text='When True, requests without a valid signature are rejected '
@@ -318,19 +347,39 @@ class SIEMWebhookEndpoint(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['organization', 'is_active']),
-            models.Index(fields=['token']),
+            models.Index(fields=['token_hash']),
         ]
 
     def __str__(self):
         return f'{self.name} ({self.get_expected_format_display()})'
 
+    TOKEN_PURPOSE = 'security_alerts.siem.webhook'
+
+    @classmethod
+    def hash_token(cls, raw):
+        return hash_token(raw, cls.TOKEN_PURPOSE)
+
+    @classmethod
+    def lookup_by_token(cls, raw, **filters):
+        if not raw:
+            return None
+        return cls.objects.filter(token_hash=cls.hash_token(raw), **filters).first()
+
+    def issue_webhook_credentials(self):
+        """Mint a new URL token and HMAC secret; returns (token, secret)
+        for one-time display."""
+        import secrets
+        token = secrets.token_urlsafe(32)
+        secret = secrets.token_hex(32)
+        self.token_hash = self.hash_token(token)
+        self.hmac_secret = secret
+        self.issued_token = token
+        self.issued_hmac_secret = secret
+        return token, secret
+
     def save(self, *args, **kwargs):
-        if not self.token:
-            import secrets
-            self.token = secrets.token_urlsafe(32)[:64]
-        if not self.hmac_secret:
-            import secrets
-            self.hmac_secret = secrets.token_hex(32)
+        if not self.token_hash or not self.hmac_secret:
+            self.issue_webhook_credentials()
         super().save(*args, **kwargs)
 
 

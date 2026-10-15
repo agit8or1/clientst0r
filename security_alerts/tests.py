@@ -170,7 +170,7 @@ class WebhookReceiverTests(TestCase):
     def test_invalid_hmac_returns_403(self):
         c = Client()
         r = c.post(
-            f'/security/webhook/{self.conn.webhook_token}/',
+            f'/security/webhook/{self.conn.issued_webhook_token}/',
             data='{"id":"1","title":"x"}',
             content_type='application/json',
             HTTP_X_CST0R_SIGNATURE='deadbeef-not-valid',
@@ -181,7 +181,7 @@ class WebhookReceiverTests(TestCase):
         # No signature header — accepted (auth via token only).
         c = Client()
         r = c.post(
-            f'/security/webhook/{self.conn.webhook_token}/',
+            f'/security/webhook/{self.conn.issued_webhook_token}/',
             data='{"id":"evt-77","title":"web hook test","severity":"high"}',
             content_type='application/json',
         )
@@ -247,7 +247,7 @@ class SIEMWebhookReceiverTests(TestCase):
         c = Client()
         body = b'CEF:0|Vendor|Prod|1|sig-1|test|5|src=1.2.3.4'
         r = c.post(
-            f'/security/siem/webhook/{self.endpoint.token}/',
+            f'/security/siem/webhook/{self.endpoint.issued_token}/',
             data=body, content_type='text/plain',
             HTTP_X_CST0R_SIGNATURE='deadbeef-not-valid',
         )
@@ -260,7 +260,7 @@ class SIEMWebhookReceiverTests(TestCase):
             'src=10.0.0.5 dvchost=mail-server msg=multiple failed logins'
         )
         r = c.post(
-            f'/security/siem/webhook/{self.endpoint.token}/',
+            f'/security/siem/webhook/{self.endpoint.issued_token}/',
             data=body, content_type='text/plain',
         )
         self.assertEqual(r.status_code, 200)
@@ -276,9 +276,9 @@ class SIEMWebhookReceiverTests(TestCase):
             'CEF:0|Vendor|Prod|1.0|sig-dedupe|Repeat Event|6|'
             'externalId=EVT-7777 dvchost=db-host'
         )
-        c.post(f'/security/siem/webhook/{self.endpoint.token}/',
+        c.post(f'/security/siem/webhook/{self.endpoint.issued_token}/',
                data=body, content_type='text/plain')
-        c.post(f'/security/siem/webhook/{self.endpoint.token}/',
+        c.post(f'/security/siem/webhook/{self.endpoint.issued_token}/',
                data=body, content_type='text/plain')
         # Should be one row, not two.
         self.assertEqual(SecurityAlert.objects.filter(siem_endpoint=self.endpoint).count(), 1)
@@ -289,7 +289,7 @@ class SIEMWebhookReceiverTests(TestCase):
         sig = hmac.new(self.endpoint.hmac_secret.encode('utf-8'), body, hashlib.sha256).hexdigest()
         c = Client()
         r = c.post(
-            f'/security/siem/webhook/{self.endpoint.token}/',
+            f'/security/siem/webhook/{self.endpoint.issued_token}/',
             data=body, content_type='text/plain',
             HTTP_X_CST0R_SIGNATURE=sig,
         )
@@ -301,7 +301,7 @@ class SIEMWebhookReceiverTests(TestCase):
         self.endpoint.save(update_fields=['require_hmac'])
         c = Client()
         r = c.post(
-            f'/security/siem/webhook/{self.endpoint.token}/',
+            f'/security/siem/webhook/{self.endpoint.issued_token}/',
             data='CEF:0|v|p|1|x|t|5|', content_type='text/plain',
         )
         self.assertEqual(r.status_code, 403)
@@ -312,7 +312,7 @@ class SIEMWebhookReceiverTests(TestCase):
         c = Client()
         body = '{"id": "abc-9", "title": "JSON event", "severity": "high", "host": "web-01"}'
         r = c.post(
-            f'/security/siem/webhook/{self.endpoint.token}/',
+            f'/security/siem/webhook/{self.endpoint.issued_token}/',
             data=body, content_type='application/json',
         )
         self.assertEqual(r.status_code, 200)

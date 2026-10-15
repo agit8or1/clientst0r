@@ -30,7 +30,7 @@
             queue. Connections can be MSP-wide or scoped to one client org. Credentials are encrypted at rest.
         </p>
 
-        <form method="post" novalidate>
+        <form method="post" novalidate{% if instance.pk %} action="{% url 'security_alerts:connection_edit' instance.pk %}"{% endif %}>
             {% csrf_token %}
 
             {% if form.non_field_errors %}
@@ -147,11 +147,13 @@
                 <div class="card-body">
                     <p class="small text-muted mb-2">For vendors that push alerts. POST a JSON body to the URL below; sign with HMAC-SHA256 using the secret, send the result in the <code>X-CST0R-Signature</code> header.</p>
 
+                    {% if issued_webhook_token %}
+                    <div class="alert alert-warning small py-2">Copy these now. The URL token is stored hashed and the secret encrypted; neither is shown again.</div>
                     <div class="mb-2">
                         <label class="form-label small">Webhook URL</label>
                         <div class="input-group input-group-sm">
                             <input type="text" class="form-control font-monospace" readonly
-                                   value="{{ request.scheme }}://{{ request.get_host }}/security/webhook/{{ instance.webhook_token }}/"
+                                   value="{{ request.scheme }}://{{ request.get_host }}/security/webhook/{{ issued_webhook_token }}/"
                                    id="webhook-url-input">
                             <button type="button" class="btn btn-outline-secondary" data-copy-target="#webhook-url-input">
                                 <i class="fas fa-copy"></i>
@@ -162,13 +164,21 @@
                         <label class="form-label small">Webhook secret</label>
                         <div class="input-group input-group-sm">
                             <input type="text" class="form-control font-monospace" readonly
-                                   value="{{ instance.webhook_secret }}"
+                                   value="{{ issued_webhook_secret }}"
                                    id="webhook-secret-input">
                             <button type="button" class="btn btn-outline-secondary" data-copy-target="#webhook-secret-input">
                                 <i class="fas fa-copy"></i>
                             </button>
                         </div>
                     </div>
+                    {% else %}
+                    <p class="small mb-2">Webhook URL and secret are configured. They are stored hashed / encrypted and cannot be displayed.</p>
+                    <button type="submit" name="regenerate_webhook" value="1" class="btn btn-sm btn-outline-warning"
+                            formnovalidate
+                            onclick="return confirm('Issue a new webhook URL and secret? The current ones stop working immediately.');">
+                        <i class="fas fa-sync me-1"></i>Issue new URL and secret
+                    </button>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}

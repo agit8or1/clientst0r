@@ -1527,6 +1527,9 @@ are built on top of them.
 - **Import correctness** *(shipped v3.17.603)* — imports land in the right
   customer, report real outcomes, never write during dry runs, roll back
   safely and don't duplicate CSV rows on re-run.
+- **Secrets encrypted at rest, key rotation** *(shipped v3.17.607)* — every
+  stored secret encrypted or hashed, forms never echo secrets,
+  `rotate_encryption_key` and `check_secrets_storage` commands.
 - **Staff technicians as first-class users** *(shipped v3.17.602)* — Staff
   user-type techs are assignable on any customer's work, and their global role
   applies to membership-checked permissions.
@@ -1640,7 +1643,7 @@ Collect what technicians need up front and show customers where things stand.
 | 8 — Mobile apps + GPS auto-time + Timeclock | L | **shipped v3.17.354–417 (extends Phase 2 + 18 + 21)** | Phase 2 (WorkingHours); positioned last as the largest single undertaking |
 | 49 — Interface consistency + tenant-boundary hardening | M | **complete — 49.1 (v3.17.559); 49.2 (v3.17.559–581) — views v3.17.559, backup/restore v3.17.560, invoice tax v3.17.561, update progress v3.17.562, SLA v3.17.563, invoice duplicates v3.17.564, scheduler locks v3.17.565, expiry notifications v3.17.566, PSA ticket notes v3.17.567, dashboard widget scoping v3.17.568, AI gating v3.17.569, search scoping v3.17.570, org-hierarchy detail views v3.17.571, abuse-middleware hotfix v3.17.572, data export v3.17.573, vault-export permission v3.17.574, AI data access v3.17.575–576, credit memos v3.17.577, late fees v3.17.578, late-fee audit v3.17.579, navbar overflow v3.17.580, expired contracts v3.17.581, sync status honesty v3.17.582, scheduler failure reporting v3.17.583, bundled services #147 v3.17.584, utility toolbar v3.17.585** | none — touches every app |
 | 50 — "Help Us Grow" call to action | S | shipped v3.17.586 | none — `config/support_links.py` + `templates/core/_help_us_grow_*.html`; reuses the existing GitHub Sponsors link |
-| 51 — Reliability and customer-boundary hardening | M | in progress — PSA customer boundaries, token revocation and scheduler coverage v3.17.599; role view permissions, protected downloads and customer ticket visibility v3.17.600; billing correctness v3.17.601; staff technicians v3.17.602; imports v3.17.603 | none — touches PSA, docs, accounts, API, vault and the scheduler |
+| 51 — Reliability and customer-boundary hardening | M | in progress — PSA customer boundaries, token revocation and scheduler coverage v3.17.599; role view permissions, protected downloads and customer ticket visibility v3.17.600; billing correctness v3.17.601; staff technicians v3.17.602; imports v3.17.603; encrypted secrets v3.17.607 | none — touches PSA, docs, accounts, API, vault and the scheduler |
 | 52 — Technician workspace | L | in progress — My Work, drafts, collisions, closeout, KB drafts v3.17.604 | Phase 51 (customer ticket visibility, staff techs) |
 | 53 — Documentation readiness and lifecycle | L | in progress — standards, scoring, lifecycle, analytics v3.17.605 | docs publish rules |
 | 54 — Guided customer service requests | L | in progress — guided requests, approvals, progress v3.17.606 | Phase 53 publish rules (KB suggestions) |

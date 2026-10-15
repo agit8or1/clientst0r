@@ -106,9 +106,11 @@ class Command(BaseCommand):
         """Decrypt backup file"""
         # Normalised the same way the vault normalises it, so a key shape the
         # application accepts cannot fail at restore time. See
-        # vault.encryption.get_fernet.
-        from vault.encryption import get_fernet
-        fernet = get_fernet()
+        # vault.encryption.get_fernet. MultiFernet also tries
+        # APP_MASTER_KEY_PREVIOUS, so archives taken before a key rotation
+        # still restore during the transition.
+        from vault.encryption import get_multi_fernet
+        fernet = get_multi_fernet()
 
         # Read encrypted file
         with open(encrypted_file, 'rb') as f:

@@ -3,6 +3,8 @@ Encryption utilities using AES-GCM for vault secrets and PSA credentials.
 Master key is loaded from APP_MASTER_KEY environment variable (base64-encoded 32 bytes).
 """
 import base64
+import contextlib
+import contextvars
 import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -14,15 +16,19 @@ class EncryptionError(Exception):
     pass
 
 
-def get_master_key():
-    """
-    Get the master encryption key from settings.
-    Validates it's properly formatted (base64-encoded 32 bytes).
-    """
-    key_b64 = settings.APP_MASTER_KEY
-    if not key_b64:
-        raise EncryptionError("APP_MASTER_KEY not configured")
+def decode_master_key(key_b64, *, label='APP_MASTER_KEY'):
+    """Normalise and decode a base64 master key to its 32 raw bytes.
 
+    Accepts standard or URL-safe base64, padded or not. Raises
+    EncryptionError (never echoing the key) when it is not 32 bytes.
+    """
+    if isinstance(key_b64, bytes) and len(key_b64) == 32:
+        return key_b64
+    if not key_b64:
+        raise EncryptionError(f"{label} not configured")
+    if isinstance(key_b64, bytes):
+        key_b64 = key_b64.decode('ascii', 'replace')
+    raw_len = len(key_b64)
     key_b64 = key_b64.strip()  # Remove any whitespace/newlines
 
     # Normalise URL-safe base64 → standard base64.
@@ -40,20 +46,94 @@ def get_master_key():
     except Exception as e:
         # Provide helpful error message without exposing the actual key
         raise EncryptionError(
-            f"Invalid APP_MASTER_KEY format: {e}\n"
-            f"Key length: {len(settings.APP_MASTER_KEY)} characters\n"
-            f"The APP_MASTER_KEY must be a valid base64-encoded 32-byte key.\n"
+            f"Invalid {label} format: {e}\n"
+            f"Key length: {raw_len} characters\n"
+            f"The {label} must be a valid base64-encoded 32-byte key.\n"
             f"To regenerate: python3 -c \"import base64, os; print(base64.b64encode(os.urandom(32)).decode())\""
         )
 
     if len(key) != 32:
         raise EncryptionError(
-            f"APP_MASTER_KEY must decode to 32 bytes, got {len(key)} bytes.\n"
-            f"Current key length: {len(settings.APP_MASTER_KEY)} characters\n"
+            f"{label} must decode to 32 bytes, got {len(key)} bytes.\n"
+            f"Current key length: {raw_len} characters\n"
             f"To regenerate: python3 -c \"import base64, os; print(base64.b64encode(os.urandom(32)).decode())\""
         )
 
     return key
+
+
+# ---------------------------------------------------------------------------
+# Key selection.
+#
+# Normally the current key is settings.APP_MASTER_KEY and decryption also
+# tries every key in settings.APP_MASTER_KEY_PREVIOUS (comma-separated), so a
+# key can be rotated without downtime: deploy the new key with the old one
+# listed as previous, run `manage.py rotate_encryption_key`, then drop the
+# previous key.
+#
+# `using_master_keys()` pins the keys for a block of code. The rotation
+# command uses it to decrypt with the old key and encrypt with the new one in
+# the same process without touching settings.
+# ---------------------------------------------------------------------------
+
+_key_override = contextvars.ContextVar('vault_master_key_override', default=None)
+
+
+@contextlib.contextmanager
+def using_master_keys(encrypt_key, decrypt_keys=None):
+    """Pin the master key(s) used inside the block.
+
+    encrypt_key: base64 string or 32 raw bytes; new ciphertext uses it.
+    decrypt_keys: iterable of keys tried, in order, when decrypting.
+        Defaults to [encrypt_key] only — no fallback to configured keys.
+    """
+    enc = decode_master_key(encrypt_key, label='encryption key')
+    decs = [decode_master_key(k, label='decryption key')
+            for k in (decrypt_keys if decrypt_keys is not None else [encrypt_key])]
+    token = _key_override.set((enc, decs))
+    try:
+        yield
+    finally:
+        _key_override.reset(token)
+
+
+def get_master_key():
+    """
+    The key new ciphertext is written with: the pinned key inside
+    `using_master_keys()`, else settings.APP_MASTER_KEY.
+    Validates it's properly formatted (base64-encoded 32 bytes).
+    """
+    override = _key_override.get()
+    if override is not None:
+        return override[0]
+    return decode_master_key(getattr(settings, 'APP_MASTER_KEY', ''))
+
+
+def get_previous_master_keys():
+    """Configured previous keys (APP_MASTER_KEY_PREVIOUS), decoded.
+
+    Accepts a list/tuple or a comma-separated string. Invalid entries raise:
+    a typo here should fail loudly at the first decrypt, not silently drop
+    the key a rotation depends on.
+    """
+    raw = getattr(settings, 'APP_MASTER_KEY_PREVIOUS', '') or ''
+    if isinstance(raw, str):
+        items = [k.strip() for k in raw.split(',') if k.strip()]
+    else:
+        items = [k for k in raw if k]
+    return [decode_master_key(k, label='APP_MASTER_KEY_PREVIOUS entry') for k in items]
+
+
+def get_decryption_keys():
+    """Keys to try when decrypting, current key first."""
+    override = _key_override.get()
+    if override is not None:
+        return list(override[1])
+    keys = [get_master_key()]
+    for k in get_previous_master_keys():
+        if k not in keys:
+            keys.append(k)
+    return keys
 
 
 def encrypt(plaintext: str) -> str:
@@ -99,25 +179,28 @@ def decrypt(encrypted: str) -> str:
     if not encrypted:
         return ""
 
+    last_error = None
     try:
-        key = get_master_key()
-
-        # Legacy Fernet path
-        if isinstance(encrypted, str) and encrypted.startswith('gAAAAA'):
-            from cryptography.fernet import Fernet
-            fernet = Fernet(base64.urlsafe_b64encode(key))
-            return fernet.decrypt(encrypted.encode('ascii')).decode('utf-8')
-
-        # Current AES-GCM path
-        aesgcm = AESGCM(key)
-        combined = base64.b64decode(encrypted)
-        nonce = combined[:12]
-        ciphertext = combined[12:]
-        plaintext_bytes = aesgcm.decrypt(nonce, ciphertext, None)
-        return plaintext_bytes.decode('utf-8')
-
+        keys = get_decryption_keys()
     except Exception as e:
         raise EncryptionError(f"Decryption failed: {e}")
+    for key in keys:
+        try:
+            # Legacy Fernet path
+            if isinstance(encrypted, str) and encrypted.startswith('gAAAAA'):
+                fernet = Fernet(base64.urlsafe_b64encode(key))
+                return fernet.decrypt(encrypted.encode('ascii')).decode('utf-8')
+
+            # Current AES-GCM path
+            aesgcm = AESGCM(key)
+            combined = base64.b64decode(encrypted)
+            nonce = combined[:12]
+            ciphertext = combined[12:]
+            plaintext_bytes = aesgcm.decrypt(nonce, ciphertext, None)
+            return plaintext_bytes.decode('utf-8')
+        except Exception as e:
+            last_error = e
+    raise EncryptionError(f"Decryption failed: {last_error!r}")
 
 
 def encrypt_dict(data: dict) -> dict:
@@ -171,3 +254,13 @@ def get_fernet():
     backups written before this change still decrypt.
     """
     return Fernet(base64.urlsafe_b64encode(get_master_key()))
+
+
+def get_multi_fernet():
+    """MultiFernet over the current key and APP_MASTER_KEY_PREVIOUS.
+
+    Encrypts with the current key and decrypts with any of them, so a backup
+    taken before a key rotation can still be restored during the transition.
+    """
+    from cryptography.fernet import MultiFernet
+    return MultiFernet([Fernet(base64.urlsafe_b64encode(k)) for k in get_decryption_keys()])

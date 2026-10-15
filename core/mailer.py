@@ -27,12 +27,8 @@ def get_smtp_connection(settings):
     if not settings.smtp_enabled or not settings.smtp_host:
         return None
 
-    try:
-        from vault.encryption import decrypt
-        password = decrypt(settings.smtp_password) if settings.smtp_password else ''
-    except Exception:
-        # Pre-encryption rows store the password in the clear.
-        password = settings.smtp_password or ''
+    # EncryptedTextField: the attribute is already the plaintext.
+    password = settings.smtp_password or ''
 
     try:
         return get_connection(

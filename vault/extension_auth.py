@@ -44,11 +44,9 @@ def resolve_extension_token(request):
             {'error': 'Missing bearer token in Authorization header.'},
             status=401,
         )
-    try:
-        row = WebExtensionAuthToken.objects.select_related(
-            'user', 'organization',
-        ).get(token=raw)
-    except WebExtensionAuthToken.DoesNotExist:
+    # Stored hashed: look up by HMAC of the presented token.
+    row = WebExtensionAuthToken.lookup(raw)
+    if row is None:
         return None, JsonResponse({'error': 'Invalid token.'}, status=401)
     if row.revoked_at is not None:
         return None, JsonResponse({'error': 'Token has been revoked.'}, status=401)

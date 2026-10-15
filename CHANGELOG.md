@@ -5,6 +5,34 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.607] - 2026-10-15
+
+### Secrets are encrypted at rest
+
+- Every stored secret is now encrypted or, for tokens the app only needs to
+  compare, stored as a hash: integration and connection credentials, SMTP and
+  SMS passwords, the LDAP bind password and Azure AD client secret, warranty
+  and security-scanner API keys, partner secrets, webhook secrets and custom
+  headers, import API keys, push-notification secrets, license keys,
+  security-vendor and SIEM credentials, and browser-extension and inbound
+  webhook tokens. Existing values are converted by the update; installed
+  browser extensions and webhook URLs already configured at vendors keep
+  working.
+- Integration credentials, SMTP/SMS passwords and secure notes move to the
+  current encryption format, bound to the field they belong to. Older values
+  still decrypt.
+- Forms never show a stored secret back to you. Leave a secret field blank to
+  keep the stored value. Webhook header values show as `********`. Inbound
+  webhook URLs and tokens are shown once, when created or regenerated.
+- **Key rotation:** `manage.py rotate_encryption_key` re-encrypts everything
+  with a new master key in one transaction and checks every value before
+  committing; `APP_MASTER_KEY_PREVIOUS` lets old keys keep decrypting during a
+  rotation and for restoring older backups.
+- `manage.py check_secrets_storage` reports any secret stored unprotected
+  (exits non-zero; usable in CI).
+- Fixed: a small fraction of older encrypted vault values could not be
+  decrypted.
+
 ## [3.17.606] - 2026-10-15
 
 ### Guided service requests in the customer portal

@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from core.models import Organization, Tag, BaseModel
 from core.utils import OrganizationManager
+from .secret_fields import EncryptedTextField, hash_token
 from .encryption_v2 import (
     encrypt_password, decrypt_password,
     encrypt_totp_secret, decrypt_totp_secret,
@@ -108,7 +109,7 @@ class Password(BaseModel):
     ssh_host = models.CharField(max_length=255, blank=True, help_text='SSH hostname/IP')
     ssh_port = models.CharField(max_length=10, blank=True, default='22', help_text='SSH port')
 
-    license_key = models.TextField(blank=True, help_text='Software license key')
+    license_key = EncryptedTextField(blank=True, help_text='Software license key (encrypted at rest)')
 
     # OTP/TOTP fields
     otp_secret = models.TextField(blank=True, help_text='Encrypted TOTP secret')
@@ -263,7 +264,6 @@ class Password(BaseModel):
             # Handle otpauth:// URI format from Bitwarden
             if secret.startswith('otpauth://'):
                 logger.debug(f"Password {self.id}: TOTP secret is otpauth:// URI, parsing...")
-                logger.debug(f"Password {self.id}: Full URI: {secret[:100]}...")  # Log first 100 chars
                 try:
                     parsed = urllib.parse.urlparse(secret)
                     params = urllib.parse.parse_qs(parsed.query)
@@ -298,7 +298,8 @@ class Password(BaseModel):
                     logger.warning(f"Password {self.id}: URL decode failed: {e}")
 
             # Log secret characteristics (without exposing the full secret)
-            logger.debug(f"Password {self.id}: Secret length={len(secret)}, starts_with={secret[:4]}..., ends_with=...{secret[-4:]}")
+            # Length only: any slice of a TOTP seed is part of the secret.
+            logger.debug(f"Password {self.id}: Secret length={len(secret)}")
 
             # Add base32 padding if needed (must be multiple of 8)
             padding_needed = len(secret) % 8
@@ -883,10 +884,11 @@ class WebExtensionAuthToken(models.Model):
                           (or is omitted, in which case the pinned org is
                           used). When None, the extension can switch orgs
                           freely (still constrained by user memberships).
-      * token           — opaque secret (`secrets.token_urlsafe(32)`). The
-                          stored value IS the bearer token; we don't hash
-                          because the token is single-use-revocable, has a
-                          short TTL, and is returned only at issue time.
+      * token_hash      — HMAC-SHA256 of the bearer token (see
+                          `vault.secret_fields.hash_token`). The token itself
+                          is returned once at issue and never stored, so a
+                          database read does not yield working credentials.
+      * token_prefix    — first characters of the token, for display only.
       * label           — user-supplied free text ("Chrome on Mac"). Helps
                           the user identify which extension to revoke.
       * created_at      — issue timestamp.
@@ -909,9 +911,14 @@ class WebExtensionAuthToken(models.Model):
         help_text='Optional organization pin. NULL = token honours the '
                   'X-Organization-Id header per request.',
     )
-    token = models.CharField(
+    token_hash = models.CharField(
         max_length=64, unique=True, db_index=True,
-        help_text='Opaque bearer secret returned to the extension at issue.',
+        help_text='HMAC-SHA256 of the bearer token. The token itself is '
+                  'returned to the extension once and never stored.',
+    )
+    token_prefix = models.CharField(
+        max_length=12, blank=True,
+        help_text='First characters of the token, for identification only.',
     )
     label = models.CharField(
         max_length=120, blank=True,
@@ -948,11 +955,26 @@ class WebExtensionAuthToken(models.Model):
         row = cls.objects.create(
             user=user,
             organization=organization,
-            token=token_str,
+            token_hash=cls.hash(token_str),
+            token_prefix=token_str[:8],
             label=(label or '')[:120],
             expires_at=timezone.now() + _td(days=ttl),
         )
         return token_str, row
+
+    HASH_PURPOSE = 'vault.webextension'
+
+    @classmethod
+    def hash(cls, raw_token):
+        return hash_token(raw_token, cls.HASH_PURPOSE)
+
+    @classmethod
+    def lookup(cls, raw_token):
+        """Row for a presented bearer token, or None."""
+        if not raw_token:
+            return None
+        return (cls.objects.select_related('user', 'organization')
+                .filter(token_hash=cls.hash(raw_token)).first())
 
     def revoke(self):
         if self.revoked_at is None:

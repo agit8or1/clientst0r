@@ -32,11 +32,8 @@ def _get_smtp_connection(settings):
     """Return a configured SMTP connection or None if SMTP not set up."""
     if not settings.smtp_enabled or not settings.smtp_host:
         return None
-    try:
-        from vault.encryption import decrypt
-        password = decrypt(settings.smtp_password) if settings.smtp_password else ''
-    except Exception:
-        password = settings.smtp_password or ''
+    # EncryptedTextField: the attribute is already the plaintext.
+    password = settings.smtp_password or ''
 
     return get_connection(
         backend='django.core.mail.backends.smtp.EmailBackend',

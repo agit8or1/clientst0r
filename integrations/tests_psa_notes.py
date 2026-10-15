@@ -60,11 +60,11 @@ class CredentialDecryptionTests(TestCase):
             public_key='pub',
             private_key='priv',
         )
-        # The stored column is a JSON object of ciphertexts, which is exactly
-        # what the old decrypt_v2(whole-column) call could not handle.
-        stored = json.loads(PSAConnection.objects.get(pk=conn.pk).encrypted_credentials)
-        self.assertIn('private_key', stored)
-        self.assertNotIn('priv', stored['private_key'])
+        # The stored column is one enc2$ envelope over the JSON object; the
+        # provider layer must go through get_credentials() to read it.
+        stored = PSAConnection.objects.get(pk=conn.pk).encrypted_credentials
+        self.assertTrue(stored.startswith('enc2$'))
+        self.assertNotIn('priv', stored)
 
         creds = PSAConnection.objects.get(pk=conn.pk).get_credentials()
         self.assertEqual(creds['private_key'], 'priv')

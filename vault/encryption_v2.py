@@ -39,48 +39,33 @@ KEY_CONTEXT_GENERIC = b"generic_data_v1"
 
 def get_master_key() -> bytes:
     """
-    Get the master encryption key from settings.
-    Validates it's properly formatted (base64-encoded 32 bytes).
+    The current 32-byte master key.
 
-    Returns:
-        32-byte master key
+    Delegates to `vault.encryption.get_master_key` so both layers normalise
+    the configured key identically (URL-safe base64, missing padding) and
+    honour `using_master_keys()` during key rotation. An earlier copy here
+    did not normalise URL-safe keys, so a key containing `-` or `_` worked
+    for v1 and failed for v2.
 
     Raises:
         EncryptionError: If key is missing or invalid
     """
-    key_b64 = settings.APP_MASTER_KEY
-    if not key_b64:
-        raise EncryptionError("APP_MASTER_KEY not configured")
-
-    # Add padding if needed for base64 decoding
-    # Base64 strings must be a multiple of 4 characters
-    key_b64 = key_b64.strip()  # Remove any whitespace
-    padding_needed = len(key_b64) % 4
-    if padding_needed:
-        key_b64 += '=' * (4 - padding_needed)
-
+    from . import encryption as _v1
     try:
-        key = base64.b64decode(key_b64)
-    except Exception as e:
-        # Provide helpful error message without exposing the actual key
-        raise EncryptionError(
-            f"Invalid APP_MASTER_KEY format: {e}\n"
-            f"Key length: {len(settings.APP_MASTER_KEY)} characters\n"
-            f"The APP_MASTER_KEY must be a valid base64-encoded string.\n"
-            f"To regenerate: python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
-        )
-
-    if len(key) != 32:
-        raise EncryptionError(
-            f"APP_MASTER_KEY must decode to 32 bytes, got {len(key)} bytes.\n"
-            f"Current key length: {len(settings.APP_MASTER_KEY)} characters\n"
-            f"To regenerate: python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
-        )
-
-    return key
+        return _v1.get_master_key()
+    except _v1.EncryptionError as e:
+        raise EncryptionError(str(e))
 
 
-def derive_key(context: bytes) -> bytes:
+def _decryption_keys():
+    from . import encryption as _v1
+    try:
+        return _v1.get_decryption_keys()
+    except _v1.EncryptionError as e:
+        raise EncryptionError(str(e))
+
+
+def derive_key(context: bytes, master_key: Optional[bytes] = None) -> bytes:
     """
     Derive a purpose-specific key from the master key using HKDF.
 
@@ -95,7 +80,8 @@ def derive_key(context: bytes) -> bytes:
     Returns:
         32-byte derived key
     """
-    master_key = get_master_key()
+    if master_key is None:
+        master_key = get_master_key()
 
     try:
         hkdf = HKDF(
@@ -289,22 +275,23 @@ def decrypt_v2(
                 logger.debug(f"Decryption: Using v2 decryption with context={context}, org_id={org_id}, record_type={record_type}")
                 nonce = combined[1:13]
                 ciphertext = combined[13:]
+                aad = build_aad(org_id, record_type, record_id)
 
-                try:
-                    # Derive key and build AAD (must match encryption)
-                    key = derive_key(context)
-                    aesgcm = AESGCM(key)
-                    aad = build_aad(org_id, record_type, record_id)
-                    logger.debug(f"Decryption: AAD={aad}")
-
-                    # Decrypt with AAD verification
-                    plaintext_bytes = aesgcm.decrypt(nonce, ciphertext, aad if aad else None)
-                    result = plaintext_bytes.decode('utf-8')
-                    logger.debug(f"Decryption: v2 successful, plaintext length={len(result)}")
-                    return result
-                except Exception as e:
-                    logger.error(f"Decryption: v2 decrypt failed: {e}")
-                    raise
+                # Try the current key, then any APP_MASTER_KEY_PREVIOUS.
+                for master in _decryption_keys():
+                    try:
+                        key = derive_key(context, master)
+                        aesgcm = AESGCM(key)
+                        plaintext_bytes = aesgcm.decrypt(nonce, ciphertext, aad if aad else None)
+                        result = plaintext_bytes.decode('utf-8')
+                        logger.debug(f"Decryption: v2 successful, plaintext length={len(result)}")
+                        return result
+                    except Exception:
+                        continue
+                # Not raised: a v1 ciphertext whose random nonce happens to
+                # start with 0x02 (1 in 256) looks versioned. Before this
+                # fallback those values could never be decrypted here.
+                logger.debug("Decryption: v2 failed; trying v1 in case the version byte was a nonce byte")
 
         # Fall back to legacy v1 decryption (no version byte)
         logger.debug(f"Decryption: Falling back to v1 decryption")

@@ -139,11 +139,8 @@ class Command(BaseCommand):
             return 0
 
         # Build SMTP connection
-        try:
-            from vault.encryption import decrypt
-            password = decrypt(settings.smtp_password) if settings.smtp_password else ''
-        except Exception:
-            password = settings.smtp_password or ''
+        # EncryptedTextField: the attribute is already the plaintext.
+        password = settings.smtp_password or ''
 
         try:
             connection = get_connection(
