@@ -107,7 +107,7 @@
 </div>
 
 {{ schema|json_script:"sr-schema" }}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
     var schema = JSON.parse(document.getElementById('sr-schema').textContent || '[]');
     var form = document.getElementById('service-request-form');

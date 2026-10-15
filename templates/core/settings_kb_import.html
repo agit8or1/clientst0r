@@ -3,7 +3,7 @@
 {% block title %}Demo Data Import - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
 {% block content %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Make CSRF token available globally
 const CSRF_TOKEN = '{{ csrf_token }}';
 </script>
@@ -213,7 +213,7 @@ const CSRF_TOKEN = '{{ csrf_token }}';
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {

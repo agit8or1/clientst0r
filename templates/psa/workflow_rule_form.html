@@ -137,7 +137,7 @@
     </div>
 </template>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     const PRIORITIES = [{% for p in priorities %}{value:'{{ p.code|escapejs }}', label:'{{ p.code|escapejs }} — {{ p.name|escapejs }}'},{% endfor %}];
     const QUEUES     = [{% for q in queues %}{value:'{{ q.name|escapejs }}', label:'{{ q.name|escapejs }}'},{% endfor %}];

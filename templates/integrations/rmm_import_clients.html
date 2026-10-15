@@ -148,7 +148,7 @@
     {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function toggleAll(source) {
     const checkboxes = document.querySelectorAll('.client-checkbox');
     checkboxes.forEach(function(checkbox) {

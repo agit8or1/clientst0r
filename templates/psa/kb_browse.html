@@ -158,7 +158,7 @@
 </div>
 
 {% if can_move_kb %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var selectAll = document.getElementById('kb-select-all');
     var rows = document.querySelectorAll('.kb-row-check');

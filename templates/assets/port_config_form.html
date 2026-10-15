@@ -248,7 +248,7 @@
 
 {{ config.ports|json_script:"port-data-ports" }}
 {{ config.vlans|json_script:"port-data-vlans" }}
-<script>
+<script nonce="{{ csp_nonce }}">
 let ports = JSON.parse(document.getElementById('port-data-ports').textContent) || [];
 let vlans = JSON.parse(document.getElementById('port-data-vlans').textContent) || [];
 let currentJSONType = 'ports';

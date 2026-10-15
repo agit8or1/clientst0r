@@ -217,7 +217,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.getElementById('testConnection').addEventListener('click', async function() {
     const btn = this;
     const url = btn.dataset.url;

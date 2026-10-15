@@ -112,7 +112,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const targetSelect = document.getElementById('target_org');
     const sourceCheckboxes = document.querySelectorAll('.source-org-checkbox');

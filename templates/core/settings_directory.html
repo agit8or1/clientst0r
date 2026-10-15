@@ -327,7 +327,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Toggle LDAP settings visibility
 document.getElementById('ldap_enabled').addEventListener('change', function() {
     document.getElementById('ldapSettings').style.display = this.checked ? 'block' : 'none';

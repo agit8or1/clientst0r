@@ -1418,6 +1418,10 @@ def download_mobile_app(request, app_type):
     from django.http import FileResponse, Http404, HttpResponse
     from django.shortcuts import redirect, render
 
+    # CSP nonce for the inline <script> blocks in the hand-built pages below.
+    _nonce = getattr(request, '_csp_nonce', None)
+    csp_nonce = str(_nonce) if _nonce is not None else ''
+
     # Define mobile app paths
     MOBILE_APP_DIR = os.path.join(settings.BASE_DIR, 'mobile-app', 'builds')
     os.makedirs(MOBILE_APP_DIR, exist_ok=True)
@@ -1592,7 +1596,7 @@ def download_mobile_app(request, app_type):
                             </div>
                         </div>
 
-                        <script>
+                        <script nonce="{csp_nonce}">
                             (function() {{
                                 var progressUrl = '{progress_url}';
                                 var pollInterval = 1500;
@@ -1699,8 +1703,8 @@ def download_mobile_app(request, app_type):
                                     <li>Refresh this page to download</li>
                                 </ol>
                                 <hr>
-                                <a href="javascript:history.back()" class="btn btn-secondary">&larr; Go Back</a>
-                                <a href="javascript:location.reload()" class="btn btn-primary">Refresh Page</a>
+                                <a href="#" onclick="history.back(); return false;" class="btn btn-secondary">&larr; Go Back</a>
+                                <a href="#" onclick="location.reload(); return false;" class="btn btn-primary">Refresh Page</a>
                             </div>
                         </div>
                     </body>
@@ -1764,7 +1768,7 @@ def download_mobile_app(request, app_type):
                                 .log-container {{ background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 18px; max-height: 520px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12.5px; line-height: 1.45; color: #c9d1d9; white-space: pre-wrap; word-break: break-word; }}
                                 .err-msg {{ background: #2d1010; border-left: 4px solid #f85149; padding: 12px 16px; margin: 15px 0; border-radius: 4px; color: #ffa198; }}
                             </style>
-                            <script>
+                            <script nonce="{csp_nonce}">
                                 // Auto-scroll log to bottom on load
                                 window.addEventListener('load', function() {{
                                     var c = document.getElementById('log-container');
@@ -1858,7 +1862,7 @@ def download_mobile_app(request, app_type):
                     .progress-bar {{ height: 100%; background: linear-gradient(90deg, #58a6ff, #79c0ff, #58a6ff); background-size: 200% 100%; animation: progressSlide 2s linear infinite; }}
                     @keyframes progressSlide {{ 0% {{ background-position: 100% 0; }} 100% {{ background-position: -100% 0; }} }}
                 </style>
-                <script>
+                <script nonce="{csp_nonce}">
                     window.onload = function() {{
                         var logContainer = document.getElementById('log-container');
                         if (logContainer) {{
@@ -2011,7 +2015,7 @@ def download_mobile_app(request, app_type):
                             .progress-bar {{ height: 100%; background: linear-gradient(90deg, #58a6ff, #79c0ff, #58a6ff); background-size: 200% 100%; animation: progressSlide 2s linear infinite; }}
                             @keyframes progressSlide {{ 0% {{ background-position: 100% 0; }} 100% {{ background-position: -100% 0; }} }}
                         </style>
-                        <script>
+                        <script nonce="{csp_nonce}">
                             // Auto-scroll to bottom of log
                             window.onload = function() {{
                                 var logContainer = document.getElementById('log-container');
@@ -2085,8 +2089,8 @@ def download_mobile_app(request, app_type):
                                 </ol>
                                 <p class="alert alert-warning">IPA files require TestFlight, enterprise distribution, or App Store for installation.</p>
                                 <hr>
-                                <a href="javascript:history.back()" class="btn btn-secondary">&larr; Go Back</a>
-                                <a href="javascript:location.reload()" class="btn btn-primary">Refresh Page</a>
+                                <a href="#" onclick="history.back(); return false;" class="btn btn-secondary">&larr; Go Back</a>
+                                <a href="#" onclick="location.reload(); return false;" class="btn btn-primary">Refresh Page</a>
                             </div>
                         </div>
                     </body>
@@ -2135,7 +2139,7 @@ def download_mobile_app(request, app_type):
                                 <p class="lead">iOS app builds are not currently supported.</p>
                                 <p class="text-muted">Building iOS apps requires a macOS system with Xcode. Consider using the Android app or web interface instead.</p>
                                 <div class="mt-4">
-                                    <a href="javascript:history.back()" class="btn-secondary">Go Back</a>
+                                    <a href="#" onclick="history.back(); return false;" class="btn-secondary">Go Back</a>
                                 </div>
                             </div>
                         </div>
@@ -2178,7 +2182,7 @@ def download_mobile_app(request, app_type):
                         <p class="text-muted">Building iOS apps requires a macOS system with Xcode installed. This Linux server cannot build iOS apps.</p>
                         <p class="text-muted">Consider using the Android app or accessing Client St0r through your web browser instead.</p>
                         <div class="mt-4">
-                            <a href="javascript:history.back()" class="btn-secondary">Go Back</a>
+                            <a href="#" onclick="history.back(); return false;" class="btn-secondary">Go Back</a>
                         </div>
                     </div>
                 </div>
@@ -2221,7 +2225,7 @@ def download_mobile_app(request, app_type):
                     .log-container::-webkit-scrollbar-thumb { background: #30363d; border-radius: 5px; }
                     .status-header { display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
                 </style>
-                <script>
+                <script nonce="__CSP_NONCE__">
                     window.onload = function() {{
                         var logContainer = document.getElementById('log-container');
                         if (logContainer) {{
@@ -2282,7 +2286,7 @@ def download_mobile_app(request, app_type):
                 </div>
             </body>
             </html>
-        """, content_type='text/html; charset=utf-8')
+        """.replace('__CSP_NONCE__', csp_nonce), content_type='text/html; charset=utf-8')
 
     else:
         raise Http404("Invalid app type")

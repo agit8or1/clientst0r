@@ -118,7 +118,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Enable delete button only when checkbox is checked
 document.getElementById('confirmDelete').addEventListener('change', function() {
     document.getElementById('deleteButton').disabled = !this.checked;

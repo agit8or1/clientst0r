@@ -546,7 +546,7 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
         // Initialize Select2 for tags fields
         $(document).ready(function() {
             $('select[id*="tags"]').select2({
@@ -643,7 +643,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
         // Detect browser info
         document.addEventListener('DOMContentLoaded', function() {
             const browserInfo = navigator.userAgent;
@@ -735,7 +735,7 @@
     {% endif %}
 
     <!-- Global Tooltip Initialization -->
-    <script>
+    <script nonce="{{ csp_nonce }}">
         {% if tooltips_enabled %}
         // Initialize Bootstrap tooltips with a small delay to ensure all page elements are ready
         function initTooltips() {
@@ -781,7 +781,7 @@
     </script>
 
     <!-- Service Worker Registration -->
-    <script>
+    <script nonce="{{ csp_nonce }}">
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 // Unregister any old/duplicate service workers (e.g. legacy service-worker.js)
@@ -934,7 +934,7 @@
     </script>
 
     {% block extra_js %}{% endblock %}
-    <script>
+    <script nonce="{{ csp_nonce }}">
     // Convert all elements with data-utc attribute to local browser time
     document.querySelectorAll('[data-utc]').forEach(function(el) {
         var utc = el.getAttribute('data-utc');

@@ -36,7 +36,11 @@ class SecurityHeadersMiddleware:
 
         # Additional explicit headers (defensive in depth)
         response['X-Content-Type-Options'] = 'nosniff'
-        response['X-Frame-Options'] = 'DENY'
+        # DENY unless a view explicitly opted into same-origin framing with
+        # @xframe_options_sameorigin (the in-app PDF preview); overwriting that
+        # made the decorator a no-op. The CSP frame-ancestors follows suit.
+        if response.get('X-Frame-Options', '').upper() != 'SAMEORIGIN':
+            response['X-Frame-Options'] = 'DENY'
 
         # Referrer-Policy
         if hasattr(settings, 'SECURE_REFERRER_POLICY'):

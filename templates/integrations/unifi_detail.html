@@ -312,7 +312,7 @@
 
 {% endblock %}
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.querySelectorAll('.local-time[data-utc]').forEach(el => {
     const d = new Date(el.dataset.utc);
     if (!isNaN(d)) {

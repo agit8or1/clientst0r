@@ -327,7 +327,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Equipment catalog cascading dropdowns
 document.addEventListener('DOMContentLoaded', function() {
     const vendorSelect = document.getElementById('id_equipment_vendor');

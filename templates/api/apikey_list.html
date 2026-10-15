@@ -137,7 +137,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 $(document).ready(function() {
     {% if api_keys %}
     $('#apiKeyTable').DataTable({

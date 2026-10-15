@@ -317,7 +317,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Toggle global role field visibility based on user type
 function toggleGlobalRoleField() {
     const userTypeField = document.getElementById('{{ form.user_type.id_for_label }}');

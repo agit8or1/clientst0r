@@ -156,7 +156,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Initialize VLAN field visibility based on mode
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.port-mode').forEach(select => {

@@ -319,7 +319,7 @@
 </div>
 
 {% if messages %}
-<script>
+<script nonce="{{ csp_nonce }}">
     // Auto-hide success messages after 2 seconds
     setTimeout(function() {
         let alerts = document.querySelectorAll('.alert-success');

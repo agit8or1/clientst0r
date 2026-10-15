@@ -416,7 +416,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
     // Hide loader when page is fully loaded
     window.addEventListener('load', function() {
         const loader = document.getElementById('page-loader');

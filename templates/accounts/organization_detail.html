@@ -417,7 +417,7 @@
 </div>
 {% endblock %}
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const BAR_COLORS = ['#198754','#20c997','#ffc107','#fd7e14','#dc3545'];
 
 function updateBars(card, val) {

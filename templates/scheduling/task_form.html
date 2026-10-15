@@ -155,7 +155,7 @@
 </form>
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
     // Show/hide recurrence_interval_days based on recurrence selection
     const recurrenceSelect = document.getElementById('{{ form.recurrence.id_for_label }}');
     const intervalField = document.getElementById('recurrence-interval-field');

@@ -191,7 +191,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     const input = document.querySelector('[name="damage_location"]');
     const display = document.getElementById('location-display');

@@ -95,7 +95,7 @@
 <script id="sq-config" type="application/json">{{ model_config_json|safe }}</script>
 <script id="sq-existing-filters" type="application/json">{{ instance_filters_json|safe }}</script>
 <script id="sq-existing-columns" type="application/json">{{ instance_columns_json|safe }}</script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var config = JSON.parse(document.getElementById('sq-config').textContent);
     var existingFilters = JSON.parse(document.getElementById('sq-existing-filters').textContent);

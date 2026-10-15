@@ -278,7 +278,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Run Scan
 document.getElementById('runScanBtn').addEventListener('click', function() {
     const btn = this;

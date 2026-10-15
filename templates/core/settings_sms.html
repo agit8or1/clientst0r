@@ -118,7 +118,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 function testSMSCredentials() {
     const provider = document.getElementById('sms_provider').value;
     const accountSid = document.getElementById('sms_account_sid').value;

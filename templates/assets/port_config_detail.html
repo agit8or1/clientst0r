@@ -252,7 +252,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const configId = {{ config.pk }};
     const equipmentModelId = {{ config.equipment_model.pk }};

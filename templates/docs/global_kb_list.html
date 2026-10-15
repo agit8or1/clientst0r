@@ -117,7 +117,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 $(document).ready(function() {
     $('#kbTable').DataTable({
         order: [[3, 'desc']],

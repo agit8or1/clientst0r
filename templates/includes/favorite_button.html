@@ -7,7 +7,7 @@
     <i class="fas fa-star"></i>
 </button>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Initialize favorite button state and handle clicks
 (function() {
     const btn = document.querySelector('.favorite-btn[data-object-id="{{ object.id }}"]');

@@ -190,7 +190,7 @@
 
 {% block extra_js %}
 <script src="https://unpkg.com/html5-qrcode"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
     let html5QrcodeScanner = null;
 
     function onScanSuccess(decodedText, decodedResult) {

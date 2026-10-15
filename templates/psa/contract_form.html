@@ -116,7 +116,7 @@
                     </tbody>
                 </table>
                 {% if item and item.sla_matrix %}
-                <script>
+                <script nonce="{{ csp_nonce }}">
                 {# Pre-fill the override inputs from the saved sla_matrix JSON. #}
                 const matrix = {{ item.sla_matrix|safe }};
                 document.querySelectorAll('input[data-prio]').forEach(inp => {
@@ -307,7 +307,7 @@
 {# Hidden input: serialized JSON of all rows. Submitted with the form. #}
 <input type="hidden" name="bundle_items_json" id="bundle-items-json" value="">
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     const tbody = document.getElementById('bundle-rows');
     const tpl = document.getElementById('bundle-row-template');

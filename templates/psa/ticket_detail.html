@@ -1206,7 +1206,7 @@
             </div>
         </div>
         {{ ai_suggestions_json|json_script:"aiSuggestionList" }}
-        <script>
+        <script nonce="{{ csp_nonce }}">
         (function() {
             var raw = document.getElementById('aiSuggestionList');
             if (!raw) return;
@@ -1309,7 +1309,7 @@
 </div>
 
 {# Workflow stage toggle — AJAX checkbox handling for inline workflow checklists #}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     function csrfToken() {
         var el = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -1376,7 +1376,7 @@
 {% block extra_js %}{{ block.super }}
 {{ workspace_config|json_script:"ticketWorkspaceConfig" }}
 <script src="{% static 'js/psa_ticket_workspace.js' %}" defer></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
     var kind = document.getElementById('kit_kind');
     if (!kind) { return; }

@@ -112,7 +112,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 $(document).ready(function() {
     {% if processes %}
     $('#processesTable').DataTable({

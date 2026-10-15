@@ -139,7 +139,7 @@
     </form>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Populate sample cells from first preview row
 const PREVIEW_ROW = [{% if preview_table %}{% for cell in preview_table.0 %}"{{ cell|escapejs }}",{% endfor %}{% endif %}];
 document.querySelectorAll('.sample-cell').forEach(td => {

@@ -159,7 +159,7 @@
 <!-- Store diagram XML safely — json_script prevents </script> injection -->
 {{ diagram.diagram_xml|default:""|json_script:"diagram-data" }}
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Diagram Editor v3.0 - 2026-01-11 - Full-screen editor with floating toolbar
 console.log('🔄 Diagram Editor v3.0 loaded - Full-screen mode with floating toolbar');
 (function() {

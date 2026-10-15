@@ -115,6 +115,7 @@ for _optional_app in ('graphene_django', 'corsheaders'):
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'core.security_headers_middleware.SecurityHeadersMiddleware',  # Enhanced security headers
+    'core.csp_middleware.ContentSecurityPolicyMiddleware',  # CSP header + per-request nonce
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.gzip.GZipMiddleware',  # Compress responses
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -162,6 +163,7 @@ TEMPLATES = [
                 # "Help Us Grow" destinations — the support modal is in
                 # base.html on every page, so no view can supply them.
                 'core.context_processors.support_links',
+                'core.context_processors.csp_nonce',
             ],
         },
     },
@@ -220,7 +222,9 @@ AUTH_PASSWORD_HASHERS = [
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 12}},
+    # Minimum length + special-character rule come from Settings → Security
+    # (or PASSWORD_MIN_LENGTH / PASSWORD_REQUIRE_SPECIAL in the environment).
+    {'NAME': 'core.security_policy.SystemPasswordPolicyValidator'},
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
@@ -311,9 +315,32 @@ else:
     SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
     CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'True').lower() == 'true'
 
-SESSION_COOKIE_AGE = int(os.getenv('SESSION_COOKIE_AGE', 28800))  # 8 hours default
+# Security policy precedence (core/security_policy.py): an environment
+# variable that is explicitly set is an operator override and wins (the UI
+# shows it read-only); otherwise the value saved in Settings → Security
+# applies; otherwise the built-in default. The *_ENV-derived settings below
+# are None when the variable is unset.
+def _env_set(name):
+    return os.getenv(name, '').strip() != ''
+
+
+def _env_int(name):
+    return int(os.getenv(name)) if _env_set(name) else None
+
+
+def _env_bool(name):
+    return os.getenv(name).strip().lower() in ('1', 'true', 'yes', 'on') if _env_set(name) else None
+
+
+# Maximum session length (absolute, from sign-in), enforced by
+# accounts.middleware.SessionIdleTimeoutMiddleware. Default 8 h (saved setting).
+SESSION_ABSOLUTE_TIMEOUT = _env_int('SESSION_COOKIE_AGE')  # seconds, or None
+# Session-store lifetime: the env value when set, else a 7-day backstop (the
+# UI maximum) so the store never cuts a session shorter than the policy; the
+# middleware applies the real limits.
+SESSION_COOKIE_AGE = SESSION_ABSOLUTE_TIMEOUT or 7 * 24 * 3600
 SESSION_EXPIRE_AT_BROWSER_CLOSE = os.getenv('SESSION_EXPIRE_AT_BROWSER_CLOSE', 'True').lower() == 'true'
-SESSION_IDLE_TIMEOUT = int(os.getenv('SESSION_IDLE_TIMEOUT', 3600))  # 1 hour idle timeout
+SESSION_IDLE_TIMEOUT = _env_int('SESSION_IDLE_TIMEOUT')  # seconds, or None → saved setting (default 60 min)
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = False  # Must be False so JS can read csrftoken cookie for AJAX POST requests
@@ -398,27 +425,52 @@ SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 # Browsers reject this header on HTTP (non-localhost), so only set it when using HTTPS
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin' if SECURE_SSL_REDIRECT else None
 
-# Content Security Policy - Stricter (use django-csp for full control)
-# NOTE: unsafe-inline is required for some Django admin and DRF browsable API features
-# FIX: Remove unsafe-inline in production for enhanced security
-CSP_DEFAULT_SRC = ("'self'",)
-if DEBUG:
-    # Development: Allow unsafe-inline for easier debugging
-    CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "https://cdn.jsdelivr.net")
-    CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "https://cdn.jsdelivr.net")
-else:
-    # Production: Remove unsafe-inline for better security (use nonces if needed)
-    CSP_SCRIPT_SRC = ("'self'", "cdn.jsdelivr.net", "https://cdn.jsdelivr.net")
-    CSP_STYLE_SRC = ("'self'", "cdn.jsdelivr.net", "https://cdn.jsdelivr.net")
-CSP_FONT_SRC = ("'self'", "data:", "cdn.jsdelivr.net", "https://cdn.jsdelivr.net")
-CSP_FRAME_SRC = ("'self'", "https://embed.diagrams.net", "https://*.diagrams.net")
-CSP_FRAME_ANCESTORS = ("'none'",)  # Clickjacking protection
-CSP_CONNECT_SRC = ("'self'", "https://embed.diagrams.net", "https://*.diagrams.net")
-CSP_IMG_SRC = ("'self'", "data:", "https://embed.diagrams.net", "https://*.diagrams.net", "https://api.qrserver.com")
-CSP_OBJECT_SRC = ("'none'",)  # Block plugins
-CSP_BASE_URI = ("'self'",)  # Restrict base tag
-CSP_FORM_ACTION = ("'self'",)  # Restrict form submissions
-CSP_UPGRADE_INSECURE_REQUESTS = not DEBUG  # Upgrade HTTP to HTTPS in production
+# Content Security Policy — sent on every HTML response by
+# core.csp_middleware.ContentSecurityPolicyMiddleware (uses Django's built-in
+# nonce support; templates put nonce="{{ csp_nonce }}" on inline <script>).
+#
+# CSP_REPORT_ONLY (default True): send Content-Security-Policy-Report-Only so
+# violations are reported/logged but nothing is blocked. Check the
+# `security.csp` log, then set CSP_REPORT_ONLY=False to enforce.
+# CSP_REPORT_URI: where browsers POST violation reports (logged, rate
+# limited). Set to an empty string to send no report directive.
+# CSP_ENABLED=False turns the header off entirely (emergency escape hatch).
+from django.utils.csp import CSP as _CSP
+CSP_ENABLED = os.getenv('CSP_ENABLED', 'True').lower() == 'true'
+CSP_REPORT_ONLY = os.getenv('CSP_REPORT_ONLY', 'True').lower() == 'true'
+CSP_REPORT_URI = os.getenv('CSP_REPORT_URI', '/csp-report/')
+CSP_REPORT_RATE_LIMIT = int(os.getenv('CSP_REPORT_RATE_LIMIT', '30'))  # reports / minute / client IP
+_CSP_CDNS = [
+    'https://cdn.jsdelivr.net',
+    'https://cdnjs.cloudflare.com',
+    'https://unpkg.com',
+    'https://code.jquery.com',
+    'https://cdn.datatables.net',
+]
+CSP_POLICY = {
+    'default-src': [_CSP.SELF],
+    # Inline <script> blocks carry the per-request nonce; no 'unsafe-inline'.
+    'script-src': [_CSP.SELF, _CSP.NONCE, *_CSP_CDNS],
+    # ~260 inline event handlers (onclick=... etc.) remain in templates and in
+    # HTML built by JS. They are allowed here only; script blocks still need
+    # the nonce.
+    'script-src-attr': [_CSP.UNSAFE_INLINE],
+    # ~90 <style> blocks, ~780 style="" attributes and library-injected styles.
+    'style-src': [_CSP.SELF, _CSP.UNSAFE_INLINE, *_CSP_CDNS],
+    'font-src': [_CSP.SELF, 'data:', 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],
+    # https: — user-authored KB/document content and map tiles (OSM/ArcGIS)
+    # embed images from arbitrary hosts.
+    'img-src': [_CSP.SELF, 'data:', 'blob:', 'https:'],
+    'connect-src': [_CSP.SELF, 'https://api.pwnedpasswords.com', 'https://embed.diagrams.net'],
+    'frame-src': [_CSP.SELF, 'https://embed.diagrams.net'],
+    'worker-src': [_CSP.SELF],
+    'manifest-src': [_CSP.SELF],
+    'object-src': [_CSP.NONE],
+    'base-uri': [_CSP.SELF],
+    'form-action': [_CSP.SELF],
+    # Becomes 'self' on responses marked X-Frame-Options: SAMEORIGIN.
+    'frame-ancestors': [_CSP.NONE],
+}
 
 # Additional Security Headers via Middleware
 # Permissions-Policy (formerly Feature-Policy)
@@ -432,8 +484,13 @@ PERMISSIONS_POLICY = {
 }
 
 # Django Axes (brute force protection)
-AXES_FAILURE_LIMIT = int(os.getenv('AXES_FAILURE_LIMIT', '5'))
-AXES_COOLOFF_TIME = int(os.getenv('AXES_COOLOFF_TIME', '1'))  # hours
+# Lockout values resolve per request (env override > Settings → Security >
+# default) through these callables. Env: AXES_FAILURE_LIMIT (attempts),
+# AXES_COOLOFF_TIME (hours, may be fractional).
+LOCKOUT_FAILURE_LIMIT = _env_int('AXES_FAILURE_LIMIT')
+LOCKOUT_COOLOFF_HOURS = float(os.getenv('AXES_COOLOFF_TIME')) if _env_set('AXES_COOLOFF_TIME') else None
+AXES_FAILURE_LIMIT = 'core.security_policy.axes_failure_limit'
+AXES_COOLOFF_TIME = 'core.security_policy.axes_cool_off'
 # Replaces deprecated AXES_LOCK_OUT_BY_COMBINATION_USER_AND_IP — same behavior
 # (lock out on the username+IP pair).
 AXES_LOCKOUT_PARAMETERS = [['username', 'ip_address']]
@@ -447,7 +504,11 @@ LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'two_factor:login'
 
 # Custom 2FA enforcement
-REQUIRE_2FA = os.getenv('REQUIRE_2FA', 'True').lower() == 'true'
+# None unless REQUIRE_2FA is set in the environment; then Settings → Security
+# decides (default: required). See core/security_policy.py.
+REQUIRE_2FA = _env_bool('REQUIRE_2FA')
+PASSWORD_MIN_LENGTH = _env_int('PASSWORD_MIN_LENGTH')
+PASSWORD_REQUIRE_SPECIAL = _env_bool('PASSWORD_REQUIRE_SPECIAL')
 
 # HaveIBeenPwned Breach Checking
 HIBP_ENABLED = os.getenv('HIBP_ENABLED', 'True').lower() == 'true'
@@ -642,6 +703,11 @@ LOGGING = {
         'vault': {
             'handlers': ['console', 'vault_file'],
             'level': 'DEBUG',
+            'propagate': False,
+        },
+        'security.csp': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
             'propagate': False,
         },
     },

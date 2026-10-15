@@ -216,7 +216,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
     var policy = document.getElementById('background_policy');
     var style = document.getElementById('background_color_style');

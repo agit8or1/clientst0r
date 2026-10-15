@@ -117,7 +117,7 @@
     {% endif %}
   {% endblock %}
 
-  <script>
+  <script nonce="{{ csp_nonce }}">
     // Check if Azure AD SSO is enabled
     fetch('{% url "accounts:azure_status" %}')
       .then(response => response.json())

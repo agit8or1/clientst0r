@@ -360,7 +360,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Configuration
 const PANEL_ID = {{ patch_panel.id }};
 const PORT_COUNT = {{ patch_panel.port_count|default:24 }};

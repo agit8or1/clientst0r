@@ -44,7 +44,7 @@ body { background: linear-gradient(135deg, #0a0e1a, #1a1f2e) !important; color: 
   </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
   const REFRESH_MS = {{ refresh_interval_seconds }} * 1000;
   function escapeHtml(s) {

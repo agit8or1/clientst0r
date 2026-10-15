@@ -12,3 +12,6 @@ class CoreConfig(AppConfig):
         # from their service code.
         from core import webhook_signals
         webhook_signals.connect()
+        # Drop the cached Security settings whenever SystemSetting is saved.
+        from core import security_policy
+        security_policy._connect_signals()

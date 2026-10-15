@@ -661,7 +661,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 function uploadImage() {
     const form = document.getElementById('imageUploadForm');
     const formData = new FormData(form);
@@ -817,7 +817,7 @@ function deleteImage(imageId, button) {
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function filterSoftware(input, tableId) {
     const filter = input.value.toLowerCase();
     document.querySelectorAll('#' + tableId + ' tbody tr').forEach(function(row) {
@@ -825,7 +825,7 @@ function filterSoftware(input, tableId) {
     });
 }
 </script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     let selectedTemplate = 'server_blueprint';
 

@@ -615,7 +615,7 @@
 .port-box:hover { transform: scale(1.35); z-index: 10; }
 [data-bs-theme="dark"] .port-box.empty { background: #1a1d23; }
 </style>
-<script>
+<script nonce="{{ csp_nonce }}">
 // ── Patch panel port map ──────────────────────────────────────────
 {% if patch_panels %}
 document.addEventListener('DOMContentLoaded', function() {

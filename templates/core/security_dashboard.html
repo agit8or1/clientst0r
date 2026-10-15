@@ -542,7 +542,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // ── OS widget ────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', loadPkgWidget);
 

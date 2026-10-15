@@ -89,7 +89,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const checkbox = document.getElementById('id_record_service');
 const fields = document.getElementById('service-detail-fields');
 function toggle() { fields.style.display = checkbox.checked ? '' : 'none'; }

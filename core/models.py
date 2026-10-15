@@ -727,7 +727,9 @@ class SystemSetting(models.Model):
         help_text='Which preset pattern to use when the colour style is preset.')
 
     # Security Settings
-    session_timeout_minutes = models.PositiveIntegerField(default=480, help_text='Session timeout in minutes (default: 8 hours)')
+    # Read through core.security_policy (env override > these > defaults).
+    session_timeout_minutes = models.PositiveIntegerField(default=480, help_text='Maximum session length in minutes, counted from sign-in (default: 8 hours)')
+    session_idle_timeout_minutes = models.PositiveIntegerField(default=60, help_text='Sign out after this many minutes without activity (default: 60)')
     require_2fa = models.BooleanField(default=True, help_text='Require 2FA for all users')
     password_min_length = models.PositiveIntegerField(default=12, help_text='Minimum password length')
     password_require_special = models.BooleanField(default=True, help_text='Require special characters in passwords')

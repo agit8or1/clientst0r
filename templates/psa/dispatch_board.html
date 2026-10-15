@@ -186,7 +186,7 @@
 .dispatch-toast.error { background: var(--bs-danger); }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     const csrf = '{{ csrf_token }}';
     const toast = document.getElementById('dispatch-toast');

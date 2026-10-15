@@ -165,7 +165,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Auto-generate slug from title
 document.getElementById('id_title').addEventListener('blur', function() {
     const title = this.value;

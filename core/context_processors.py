@@ -108,3 +108,15 @@ def support_links(request):
     except Exception:
         # A bad override must not take out every page in the app.
         return {'support': None}
+
+
+def csp_nonce(request):
+    """Per-request CSP nonce for inline <script nonce="{{ csp_nonce }}">.
+
+    Set by core.csp_middleware.ContentSecurityPolicyMiddleware. Lazy: the
+    nonce is generated (and added to the header) only when a template uses
+    it. Empty string when the middleware is not installed, so templates never
+    render nonce="None".
+    """
+    nonce = getattr(request, '_csp_nonce', None)
+    return {'csp_nonce': nonce if nonce is not None else ''}

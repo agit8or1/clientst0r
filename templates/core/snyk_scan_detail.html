@@ -307,7 +307,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 $(document).ready(function() {
     $('#vulnerabilitiesTable').DataTable({
         order: [[0, 'asc']],  // Sort by severity

@@ -354,7 +354,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 $(document).ready(function() {
     // File Upload Modal Logic
     const dropZone = document.getElementById('uploadDropZone');

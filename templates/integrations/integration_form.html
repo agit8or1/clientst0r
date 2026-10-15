@@ -542,7 +542,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
     const providerSelect = document.getElementById('id_provider_type');
 
     // Map provider types to their credential/info section IDs

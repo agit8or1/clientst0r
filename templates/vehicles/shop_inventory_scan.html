@@ -147,7 +147,7 @@
 </div>
 
 {% if messages %}
-<script>
+<script nonce="{{ csp_nonce }}">
     setTimeout(function() {
         document.querySelectorAll('.alert-success').forEach(function(a) {
             a.style.transition = 'opacity .5s';

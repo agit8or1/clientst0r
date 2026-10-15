@@ -193,7 +193,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
     document.querySelectorAll('[data-copy-target]').forEach(btn => {
         btn.addEventListener('click', () => {
             const el = document.querySelector(btn.dataset.copyTarget);

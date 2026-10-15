@@ -257,7 +257,7 @@
 
 {% block extra_js %}
 {% include "core/_geoip_map_scripts.html" %}
-<script>
+<script nonce="{{ csp_nonce }}">
 $(document).ready(function() {
     $('.quick-add-country').click(function() {
         var code = $(this).data('code');

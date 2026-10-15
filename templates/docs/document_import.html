@@ -113,7 +113,7 @@
 
 {% block extra_js %}
 {% if results and run_ai %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function () {
     const standard = '{{ standard|escapejs }}';
     const rows = Array.from(document.querySelectorAll('.ai-review'));

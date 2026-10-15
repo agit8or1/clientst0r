@@ -83,7 +83,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.querySelectorAll('.test-distributor').forEach(btn => {
     btn.addEventListener('click', function() {
         const id = this.dataset.id;

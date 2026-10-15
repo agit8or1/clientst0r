@@ -106,7 +106,7 @@
 </div>
 {% endif %}
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     const KEY = 'serviceCatalogViewMode';
     const params = new URLSearchParams(window.location.search);

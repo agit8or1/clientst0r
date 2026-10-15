@@ -216,7 +216,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 document.querySelectorAll('.copy-sign-link').forEach(btn => {
     btn.addEventListener('click', () => {
         const link = btn.dataset.link;

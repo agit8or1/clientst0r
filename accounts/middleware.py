@@ -12,31 +12,40 @@ from django_otp import user_has_device
 
 class SessionIdleTimeoutMiddleware:
     """
-    Expire authenticated sessions after a period of inactivity.
+    Expire authenticated sessions after a period of inactivity, and after a
+    maximum total length counted from the first authenticated request.
 
-    Idle timeout is controlled by SESSION_IDLE_TIMEOUT (seconds, default 3600).
-    On expiry the user is logged out and redirected to the login page.
+    Both limits resolve per request through core.security_policy:
+    SESSION_IDLE_TIMEOUT / SESSION_COOKIE_AGE in the environment when set,
+    else Settings → Security (idle timeout / maximum session length), else
+    60 min / 8 h. On expiry the user is logged out and sent to the login page.
     """
 
-    EXEMPT_PATHS = ['/account/login/', '/account/logout/', '/static/', '/media/']
+    EXEMPT_PATHS = ['/account/login/', '/account/logout/', '/static/', '/media/', '/csp-report/']
 
     def __init__(self, get_response):
         self.get_response = get_response
-        self.idle_timeout = getattr(settings, 'SESSION_IDLE_TIMEOUT', 3600)
 
     def __call__(self, request):
         if request.user.is_authenticated and not any(
             request.path.startswith(p) for p in self.EXEMPT_PATHS
         ):
+            from core import security_policy
             now = time.time()
             last_activity = request.session.get('_last_activity')
+            started = request.session.get('_auth_started')
 
-            if last_activity and (now - last_activity) > self.idle_timeout:
+            expired = bool(last_activity) and (now - last_activity) > security_policy.idle_timeout_seconds()
+            if not expired and started:
+                expired = (now - started) > security_policy.session_max_age_seconds()
+            if expired:
                 logout(request)
                 from django.contrib.auth.views import redirect_to_login
                 return redirect_to_login(request.path)
 
             request.session['_last_activity'] = now
+            if not started:
+                request.session['_auth_started'] = now
 
         return self.get_response(request)
 
@@ -70,8 +79,11 @@ class Enforce2FAMiddleware:
     """
     Enforce or encourage 2FA enrollment for users.
 
-    When REQUIRE_2FA=True: Forces 2FA enrollment (cannot be skipped)
-    When REQUIRE_2FA=False: Prompts for 2FA enrollment once per session (can be dismissed)
+    When 2FA is required: Forces 2FA enrollment (cannot be skipped)
+    Otherwise: Prompts for 2FA enrollment once per session (can be dismissed)
+
+    "Required" resolves per request via core.security_policy.require_2fa():
+    the REQUIRE_2FA environment variable when set, else Settings → Security.
     """
     ALLOWED_PATHS = [
         '/account/login/',
@@ -79,6 +91,7 @@ class Enforce2FAMiddleware:
         '/account/two_factor/',
         '/admin/login/',
         '/static/',
+        '/csp-report/',
     ]
     # What an authenticated-but-unverified session (user has a device, the
     # session never passed OTP) may still reach. Deliberately excludes
@@ -87,6 +100,7 @@ class Enforce2FAMiddleware:
         '/account/login/',
         '/account/logout/',
         '/static/',
+        '/csp-report/',
     ]
 
     def __init__(self, get_response):
@@ -144,7 +158,8 @@ class Enforce2FAMiddleware:
         if not user_has_device(request.user):
             setup_url = reverse('two_factor:setup')
 
-            if settings.REQUIRE_2FA:
+            from core.security_policy import require_2fa
+            if require_2fa():
                 # REQUIRED: Force redirect to 2FA setup (cannot skip)
                 if request.path != setup_url:
                     return redirect(setup_url)

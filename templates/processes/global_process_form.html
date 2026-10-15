@@ -176,7 +176,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 $(document).ready(function() {
     // Handle removing stages
     $(document).on('click', '.remove-stage', function() {

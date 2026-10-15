@@ -795,7 +795,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 function showUpdateModal() {
     var modal = new bootstrap.Modal(document.getElementById('updateConfirmModal'));
     modal.show();
@@ -1032,7 +1032,7 @@ function waitForServerThenReload() {
             if (cd) cd.innerHTML =
                 'No response after 5 minutes. The service might still be running, '
                 + 'or it might have failed to restart. '
-                + '<a href="javascript:location.reload()">Reload manually</a> '
+                + '<a href="" onclick="location.reload(); return false;">Reload manually</a> '
                 + 'or check <code>journalctl -u clientst0r-gunicorn.service</code>.';
             if (barEl) {
                 barEl.classList.remove('progress-bar-animated', 'bg-info');

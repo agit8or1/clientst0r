@@ -24,20 +24,57 @@
                 <form method="post">
                     {% csrf_token %}
 
-                    <h6 class="mb-3">Authentication</h6>
+                    {% if policy.session_idle_timeout_minutes.locked or policy.session_timeout_minutes.locked or policy.require_2fa.locked or policy.password_min_length.locked or policy.password_require_special.locked or policy.failed_login_attempts.locked or policy.lockout_duration_minutes.locked %}
+                    <div class="alert alert-info small" role="note">
+                        <i class="fas fa-lock"></i>
+                        Fields marked <span class="badge bg-secondary">set by environment</span> are fixed by an environment variable on the server and can't be changed here.
+                        Remove the variable from the server's <code>.env</code> (and restart) to manage them from this page.
+                    </div>
+                    {% endif %}
+
+                    <h6 class="mb-3">Sessions</h6>
 
                     <div class="mb-3">
-                        <label for="session_timeout_minutes" class="form-label">Session Timeout (minutes)</label>
-                        <input type="number" class="form-control" id="session_timeout_minutes" name="session_timeout_minutes" value="{{ settings.session_timeout_minutes }}" min="15" max="10080" required>
-                        <div class="form-text">Inactive sessions will expire after this duration (default: 480 = 8 hours)</div>
+                        <label for="session_idle_timeout_minutes" class="form-label">Idle Timeout (minutes)
+                            {% if policy.session_idle_timeout_minutes.locked %}<span class="badge bg-secondary ms-1" title="{{ policy.session_idle_timeout_minutes.env }}">set by environment</span>{% endif %}
+                        </label>
+                        <input type="number" class="form-control" id="session_idle_timeout_minutes" name="session_idle_timeout_minutes"
+                               value="{% if policy.session_idle_timeout_minutes.locked %}{{ policy.session_idle_timeout_minutes.value|floatformat:'-2' }}{% else %}{{ settings.session_idle_timeout_minutes }}{% endif %}"
+                               min="5" max="1440" {% if policy.session_idle_timeout_minutes.locked %}disabled readonly{% else %}required{% endif %}>
+                        <div class="form-text">
+                            Signed-in users are signed out after this long without activity (default: 60).
+                            {% if policy.session_idle_timeout_minutes.locked %}Set by <code>{{ policy.session_idle_timeout_minutes.env }}</code> (seconds) in the server environment.{% endif %}
+                        </div>
                     </div>
 
+                    <div class="mb-3">
+                        <label for="session_timeout_minutes" class="form-label">Maximum Session Length (minutes)
+                            {% if policy.session_timeout_minutes.locked %}<span class="badge bg-secondary ms-1" title="{{ policy.session_timeout_minutes.env }}">set by environment</span>{% endif %}
+                        </label>
+                        <input type="number" class="form-control" id="session_timeout_minutes" name="session_timeout_minutes"
+                               value="{% if policy.session_timeout_minutes.locked %}{{ policy.session_timeout_minutes.value|floatformat:'-2' }}{% else %}{{ settings.session_timeout_minutes }}{% endif %}"
+                               min="15" max="10080" {% if policy.session_timeout_minutes.locked %}disabled readonly{% else %}required{% endif %}>
+                        <div class="form-text">
+                            Sessions end this long after sign-in, even when active (default: 480 = 8 hours).
+                            {% if policy.session_timeout_minutes.locked %}Set by <code>{{ policy.session_timeout_minutes.env }}</code> (seconds) in the server environment.{% endif %}
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <h6 class="mb-3">Authentication</h6>
+
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="require_2fa" name="require_2fa" {% if settings.require_2fa %}checked{% endif %}>
+                        <input type="checkbox" class="form-check-input" id="require_2fa" name="require_2fa"
+                               {% if policy.require_2fa.value %}checked{% endif %} {% if policy.require_2fa.locked %}disabled{% endif %}>
                         <label class="form-check-label" for="require_2fa">
                             <strong>Require 2FA for all users</strong>
+                            {% if policy.require_2fa.locked %}<span class="badge bg-secondary ms-1" title="{{ policy.require_2fa.env }}">set by environment</span>{% endif %}
                         </label>
-                        <div class="form-text">Enforce TOTP two-factor authentication for all user accounts</div>
+                        <div class="form-text">
+                            Enforce TOTP two-factor authentication for all user accounts. When off, users are prompted once per session and may skip.
+                            {% if policy.require_2fa.locked %}Set by <code>{{ policy.require_2fa.env }}</code> in the server environment.{% endif %}
+                        </div>
                     </div>
 
                     <hr>
@@ -45,17 +82,29 @@
                     <h6 class="mb-3">Password Policy</h6>
 
                     <div class="mb-3">
-                        <label for="password_min_length" class="form-label">Minimum Password Length</label>
-                        <input type="number" class="form-control" id="password_min_length" name="password_min_length" value="{{ settings.password_min_length }}" min="8" max="128" required>
-                        <div class="form-text">Minimum number of characters required for passwords (recommended: 12+)</div>
+                        <label for="password_min_length" class="form-label">Minimum Password Length
+                            {% if policy.password_min_length.locked %}<span class="badge bg-secondary ms-1" title="{{ policy.password_min_length.env }}">set by environment</span>{% endif %}
+                        </label>
+                        <input type="number" class="form-control" id="password_min_length" name="password_min_length"
+                               value="{% if policy.password_min_length.locked %}{{ policy.password_min_length.value }}{% else %}{{ settings.password_min_length }}{% endif %}"
+                               min="8" max="128" {% if policy.password_min_length.locked %}disabled readonly{% else %}required{% endif %}>
+                        <div class="form-text">
+                            Minimum number of characters required when a password is set or changed (recommended: 12+).
+                            {% if policy.password_min_length.locked %}Set by <code>{{ policy.password_min_length.env }}</code> in the server environment.{% endif %}
+                        </div>
                     </div>
 
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="password_require_special" name="password_require_special" {% if settings.password_require_special %}checked{% endif %}>
+                        <input type="checkbox" class="form-check-input" id="password_require_special" name="password_require_special"
+                               {% if policy.password_require_special.value %}checked{% endif %} {% if policy.password_require_special.locked %}disabled{% endif %}>
                         <label class="form-check-label" for="password_require_special">
                             Require special characters in passwords
+                            {% if policy.password_require_special.locked %}<span class="badge bg-secondary ms-1" title="{{ policy.password_require_special.env }}">set by environment</span>{% endif %}
                         </label>
-                        <div class="form-text">Passwords must contain at least one special character (!@#$%^&*)</div>
+                        <div class="form-text">
+                            Passwords must contain at least one character that is not a letter or digit (!@#$%^&amp;*).
+                            {% if policy.password_require_special.locked %}Set by <code>{{ policy.password_require_special.env }}</code> in the server environment.{% endif %}
+                        </div>
                     </div>
 
                     <hr>
@@ -63,15 +112,29 @@
                     <h6 class="mb-3">Brute Force Protection</h6>
 
                     <div class="mb-3">
-                        <label for="failed_login_attempts" class="form-label">Failed Login Attempts</label>
-                        <input type="number" class="form-control" id="failed_login_attempts" name="failed_login_attempts" value="{{ settings.failed_login_attempts }}" min="3" max="20" required>
-                        <div class="form-text">Maximum failed login attempts before account lockout</div>
+                        <label for="failed_login_attempts" class="form-label">Failed Login Attempts
+                            {% if policy.failed_login_attempts.locked %}<span class="badge bg-secondary ms-1" title="{{ policy.failed_login_attempts.env }}">set by environment</span>{% endif %}
+                        </label>
+                        <input type="number" class="form-control" id="failed_login_attempts" name="failed_login_attempts"
+                               value="{% if policy.failed_login_attempts.locked %}{{ policy.failed_login_attempts.value }}{% else %}{{ settings.failed_login_attempts }}{% endif %}"
+                               min="3" max="20" {% if policy.failed_login_attempts.locked %}disabled readonly{% else %}required{% endif %}>
+                        <div class="form-text">
+                            Maximum failed login attempts (per username + IP) before lockout.
+                            {% if policy.failed_login_attempts.locked %}Set by <code>{{ policy.failed_login_attempts.env }}</code> in the server environment.{% endif %}
+                        </div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="lockout_duration_minutes" class="form-label">Lockout Duration (minutes)</label>
-                        <input type="number" class="form-control" id="lockout_duration_minutes" name="lockout_duration_minutes" value="{{ settings.lockout_duration_minutes }}" min="5" max="1440" required>
-                        <div class="form-text">How long to lock accounts after exceeding failed login attempts</div>
+                        <label for="lockout_duration_minutes" class="form-label">Lockout Duration (minutes)
+                            {% if policy.lockout_duration_minutes.locked %}<span class="badge bg-secondary ms-1" title="{{ policy.lockout_duration_minutes.env }}">set by environment</span>{% endif %}
+                        </label>
+                        <input type="number" class="form-control" id="lockout_duration_minutes" name="lockout_duration_minutes"
+                               value="{% if policy.lockout_duration_minutes.locked %}{{ policy.lockout_duration_minutes.value|floatformat:'-2' }}{% else %}{{ settings.lockout_duration_minutes }}{% endif %}"
+                               min="5" max="1440" {% if policy.lockout_duration_minutes.locked %}disabled readonly{% else %}required{% endif %}>
+                        <div class="form-text">
+                            How long to lock accounts after exceeding failed login attempts.
+                            {% if policy.lockout_duration_minutes.locked %}Set by <code>{{ policy.lockout_duration_minutes.env }}</code> (hours) in the server environment.{% endif %}
+                        </div>
                     </div>
 
                     <hr>

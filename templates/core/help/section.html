@@ -99,7 +99,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Highlight active TOC item on scroll
 (function() {
     const links = document.querySelectorAll('.help-toc-link');

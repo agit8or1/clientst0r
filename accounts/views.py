@@ -1587,12 +1587,18 @@ def lockout(request):
     Custom account-locked page shown after too many failed login attempts.
     Provides remaining lockout time and auto-redirects once the lockout expires.
     """
-    from django.conf import settings
     from django.utils import timezone
     from axes.models import AccessAttempt
+    from core import security_policy
 
-    cooloff_hours = getattr(settings, 'AXES_COOLOFF_TIME', 1)
-    failure_limit = getattr(settings, 'AXES_FAILURE_LIMIT', 5)
+    cooloff = security_policy.lockout_cooloff()
+    cooloff_minutes = int(cooloff.total_seconds() // 60)
+    if cooloff_minutes >= 60 and cooloff_minutes % 60 == 0:
+        hours = cooloff_minutes // 60
+        cooloff_display = f"{hours} hour{'s' if hours != 1 else ''}"
+    else:
+        cooloff_display = f"{cooloff_minutes} minute{'s' if cooloff_minutes != 1 else ''}"
+    failure_limit = security_policy.lockout_failure_limit()
     ip = request.META.get('REMOTE_ADDR')
 
     unlock_time = None
@@ -1601,7 +1607,7 @@ def lockout(request):
 
     attempt = AccessAttempt.objects.filter(ip_address=ip).order_by('-attempt_time').first()
     if attempt:
-        unlock_time = attempt.attempt_time + datetime.timedelta(hours=cooloff_hours)
+        unlock_time = attempt.attempt_time + cooloff
         remaining = unlock_time - timezone.now()
         if remaining.total_seconds() > 0:
             total_minutes = int(remaining.total_seconds() / 60)
@@ -1614,7 +1620,8 @@ def lockout(request):
             unlock_timestamp = int(unlock_time.timestamp())
 
     return render(request, 'axes/lockout.html', {
-        'cooloff_hours': cooloff_hours,
+        'cooloff_minutes': cooloff_minutes,
+        'cooloff_display': cooloff_display,
         'failure_limit': failure_limit,
         'time_remaining': time_remaining,
         'unlock_time': unlock_time,

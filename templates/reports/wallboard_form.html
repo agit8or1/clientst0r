@@ -234,7 +234,7 @@
 
 {% block extra_js %}
 {% if wallboard %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var src = document.getElementById('wb-add-source');
     var title = document.getElementById('wb-add-title');
@@ -250,7 +250,7 @@
 
 {% if wallboard and wallboard.widgets.count > 1 %}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var list = document.getElementById('wb-widget-list');
     var status = document.getElementById('wb-reorder-status');

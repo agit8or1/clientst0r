@@ -138,7 +138,7 @@
         <button type="submit" class="btn btn-primary">Send reply</button>
     </div>
 </form>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var parentInput = document.getElementById('reply-parent-id');
     var ctx = document.getElementById('reply-context');

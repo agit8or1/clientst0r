@@ -216,7 +216,7 @@
 </div>
 
 {{ patch_panel.port_configuration|json_script:"pp-port-config" }}
-<script>
+<script nonce="{{ csp_nonce }}">
 let ports = (JSON.parse(document.getElementById('pp-port-config').textContent) || {}).ports || [];
 
 // If creating new, initialize based on port count

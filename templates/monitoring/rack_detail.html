@@ -1130,7 +1130,7 @@
 <!-- SortableJS Library -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Configuration
 const RACK_ID = {{ rack.id }};
 const RACK_UNITS = {{ rack.units }};
@@ -3175,7 +3175,7 @@ document.getElementById('saveDeviceEditBtn').addEventListener('click', function(
 });
 </script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function uploadImage() {
     const form = document.getElementById('imageUploadForm');
     const formData = new FormData(form);

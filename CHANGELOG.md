@@ -5,6 +5,30 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.610] - 2026-10-15
+
+### Security settings take effect, and a Content-Security-Policy
+
+- **Settings → Security now applies what you save:** idle timeout, maximum
+  session length, require 2FA, password minimum length and special-character
+  rule, failed-login limit and lockout duration. Before, these were saved but
+  the values came only from environment variables. An environment variable, if
+  set, still wins; the field then shows "set by environment" and can't be
+  changed in the UI.
+- **Before updating, check Settings → Security** — the saved values become
+  live. In particular, if `AXES_COOLOFF_TIME` isn't set, lockout time becomes
+  the saved value (default 30 minutes) instead of 1 hour, and an install where
+  "Require 2FA" was unticked with no `REQUIRE_2FA` variable will stop requiring
+  2FA.
+- Sessions now have a real maximum length; before, expiry was renewed on every
+  request.
+- **Content-Security-Policy** is sent on every page, with a per-request nonce
+  on inline scripts. It starts in report-only mode: violations are logged
+  (`security.csp`) and nothing is blocked. Set `CSP_REPORT_ONLY=False` to
+  enforce once the log is quiet. `CSP_ENABLED=False` turns it off.
+- Fixed: the security-headers middleware overrode views that allow same-site
+  framing, which blocked the in-app PDF preview.
+
 ## [3.17.609] - 2026-10-15
 
 ### Alerts and webhooks that actually fire

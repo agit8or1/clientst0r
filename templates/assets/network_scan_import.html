@@ -101,7 +101,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.getElementById('uploadForm').addEventListener('submit', function(e) {
     e.preventDefault();
 

@@ -267,7 +267,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
     // View-mode toggle persistence: querystring is the source of truth on render,
     // localStorage restores preference across visits when no ?view= is present.

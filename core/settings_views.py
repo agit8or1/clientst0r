@@ -227,26 +227,43 @@ def settings_general(request):
 @login_required
 @user_passes_test(is_superuser)
 def settings_security(request):
-    """Security and authentication settings."""
+    """Security and authentication settings.
+
+    Values saved here take effect through core.security_policy. A field whose
+    environment variable is set is an operator override: it is shown
+    read-only with the effective value, and a POST never changes it.
+    """
+    from core import security_policy
+
     settings = SystemSetting.get_settings()
 
     if request.method == 'POST':
-        # Update security settings
-        settings.session_timeout_minutes = int(request.POST.get('session_timeout_minutes', settings.session_timeout_minutes))
-        settings.require_2fa = request.POST.get('require_2fa') == 'on'
-        settings.password_min_length = int(request.POST.get('password_min_length', settings.password_min_length))
-        settings.password_require_special = request.POST.get('password_require_special') == 'on'
-        settings.failed_login_attempts = int(request.POST.get('failed_login_attempts', settings.failed_login_attempts))
-        settings.lockout_duration_minutes = int(request.POST.get('lockout_duration_minutes', settings.lockout_duration_minutes))
+        for key, item in security_policy.ITEMS.items():
+            if security_policy.is_env_locked(key):
+                continue  # env wins; keep the saved value untouched
+            if isinstance(item.default, bool):
+                setattr(settings, key, request.POST.get(key) == 'on')
+                continue
+            raw = request.POST.get(key)
+            if raw in (None, ''):
+                continue
+            try:
+                value = int(raw)
+            except (TypeError, ValueError):
+                messages.error(request, f'Invalid value for {key.replace("_", " ")}.')
+                return redirect('core:settings_security')
+            setattr(settings, key, max(item.minimum, min(item.maximum, value)))
 
         settings.updated_by = request.user
         settings.save()
+        security_policy.invalidate()
 
         messages.success(request, 'Security settings updated successfully.')
         return redirect('core:settings_security')
 
     return render(request, 'core/settings_security.html', {
         'settings': settings,
+        'policy': security_policy.describe(),
         'current_tab': 'security',
     })
 

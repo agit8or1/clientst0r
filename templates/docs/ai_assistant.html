@@ -197,7 +197,7 @@ Example: Our environment has 3 domain controllers, uses Azure AD Connect for syn
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('ai-generation-form');
     const promptInput = document.getElementById('prompt');

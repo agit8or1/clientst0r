@@ -87,7 +87,7 @@
 <div class="small text-danger mt-2" id="sb-error" role="alert"></div>
 
 {{ guided_type_choices|json_script:"sb-types" }}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
     var types = JSON.parse(document.getElementById('sb-types').textContent);
     var jsonEl = document.getElementById('sb-json');

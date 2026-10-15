@@ -35,7 +35,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.getElementById('pricing-form').addEventListener('submit', function(e) {
     e.preventDefault();
     const fd = new FormData(this);

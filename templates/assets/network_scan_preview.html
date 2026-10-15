@@ -226,7 +226,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 function toggleAll(type, checked) {
     const checkboxes = document.querySelectorAll(`.${type}-device-checkbox`);
     checkboxes.forEach(cb => cb.checked = checked);

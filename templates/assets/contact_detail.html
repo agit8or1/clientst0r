@@ -206,7 +206,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const CONTACT_PK  = {{ contact.pk }};
 const CSRF        = () => document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 const STAR_LABELS = ['','Terrible','Poor','OK','Good','Excellent'];

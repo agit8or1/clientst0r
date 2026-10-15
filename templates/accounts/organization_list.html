@@ -256,7 +256,7 @@
 </div>
 {% endif %}
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
     // Persist view mode in localStorage in addition to the querystring.
     // Querystring is the source of truth on render; localStorage just lets us

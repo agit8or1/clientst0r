@@ -84,7 +84,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 document.getElementById('installForm').addEventListener('submit', function(e) {
     const btn = document.getElementById('installBtn');
     btn.disabled = true;
@@ -136,7 +136,7 @@ sudo chmod 0440 /etc/sudoers.d/clientst0r-fail2ban</code></pre>
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 document.getElementById('installSudoersForm').addEventListener('submit', function(e) {
     const btn = document.getElementById('installSudoersBtn');
     btn.disabled = true;
@@ -170,7 +170,7 @@ sudo systemctl enable fail2ban</code></pre>
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 document.getElementById('startFail2banForm').addEventListener('submit', function(e) {
     const btn = document.getElementById('startFail2banBtn');
     btn.disabled = true;
@@ -358,7 +358,7 @@ sudo systemctl reload fail2ban</code></pre>
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 $(document).ready(function() {
     $('#check_ip_btn').click(function() {
         var ip = $('#check_ip').val().trim();

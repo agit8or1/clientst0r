@@ -115,7 +115,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 document.getElementById('require_password').addEventListener('change', function() {
     document.getElementById('password_field').style.display = this.checked ? 'block' : 'none';
 });

@@ -121,7 +121,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function updatePreview() {
     const count = parseInt(document.getElementById('id_count').value) || 1;
     const portCount = parseInt(document.getElementById('id_port_count').value) || 24;

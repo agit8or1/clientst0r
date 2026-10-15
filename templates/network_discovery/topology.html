@@ -75,7 +75,7 @@
 
 {% block extra_js %}
 {{ graph_json|json_script:"topo-data" }}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Phase 33.3 (v3.17.558) — small force-directed layout.
 (function () {
     const el = document.getElementById('topo');

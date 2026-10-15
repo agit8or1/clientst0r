@@ -381,7 +381,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     // Show/hide associated organizations field based on is_shared checkbox
     const isSharedCheckbox = document.getElementById('{{ form.is_shared.id_for_label }}');

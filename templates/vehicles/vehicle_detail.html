@@ -674,7 +674,7 @@
                 </div>
             </div>
         </div>
-        <script>
+        <script nonce="{{ csp_nonce }}">
         document.getElementById('copyReceiptUrl')?.addEventListener('click', function() {
             const inp = document.getElementById('receiptDirectUrl');
             inp.select();
@@ -898,7 +898,7 @@
 .severity-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const vehicleId = {{ vehicle.pk }};
     const damageReports = [
@@ -1097,7 +1097,7 @@ function deleteVehiclePhoto(photoId) {
 }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Stock level bars
 document.querySelectorAll('.progress[data-qty]').forEach(function(bar) {
     const qty = parseFloat(bar.dataset.qty) || 0;

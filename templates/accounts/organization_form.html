@@ -194,7 +194,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var checkbox = document.getElementById('{{ form.auto_create_location.id_for_label }}');
     var nameRow = document.getElementById('location-name-row');

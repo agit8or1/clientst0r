@@ -19,7 +19,7 @@
     </div>
     {% endfor %}
 </div>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
     var csrfToken = csrfInput ? csrfInput.value : '';

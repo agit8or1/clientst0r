@@ -170,7 +170,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Phase 35.5 (v3.17.554) — drag a bar sideways to reschedule.
 // Deliberately small: the layout is already done in CSS from server-computed
 // percentages, so this only has to translate a pixel drag into a number of
