@@ -459,13 +459,17 @@ def kb_list(request):
     from docs.models import Document
     m = request.portal_membership
     q = (request.GET.get('q') or '').strip()
-    qs = Document.objects.filter(
-        is_client_visible=True, is_published=True, is_archived=False,
+    qs = Document.objects.published().filter(
+        is_client_visible=True, is_template=False,
     ).filter(
         Q(is_global=True) | Q(organization=m.organization)
     )
     if q:
         qs = qs.filter(Q(title__icontains=q) | Q(body__icontains=q))
+        if not qs.exists():
+            from docs.models import SearchQueryLog
+            SearchQueryLog.record(q, result_count=0, source='portal_kb',
+                                  user=request.user, organization=m.organization)
     featured = list(qs.filter(is_featured_in_portal=True)
                        .order_by('-updated_at')[:10])
     others = list(qs.filter(is_featured_in_portal=False)
@@ -484,8 +488,8 @@ def kb_detail(request, slug):
     from django.db.models import Q, F
     from docs.models import Document
     m = request.portal_membership
-    qs = Document.objects.filter(
-        is_client_visible=True, is_published=True, is_archived=False,
+    qs = Document.objects.published().filter(
+        is_client_visible=True, is_template=False,
     ).filter(
         Q(is_global=True) | Q(organization=m.organization)
     )
@@ -493,8 +497,10 @@ def kb_detail(request, slug):
     # v3.17.234: increment view counter on each portal open. F() avoids
     # a read-modify-write race when two users open the same article
     # simultaneously.
+    from django.utils import timezone
     Document.objects.filter(pk=article.pk).update(
         portal_view_count=F('portal_view_count') + 1,
+        last_viewed_at=timezone.now(),
     )
     return render(request, 'portal/kb_detail.html', {
         'article': article,

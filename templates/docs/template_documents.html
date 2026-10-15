@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Documents from {{ template.title }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'docs:template_list' %}">Templates</a></li>
+        <li class="breadcrumb-item active">{{ template.title }}</li>
+    </ol>
+</nav>
+
+<h2 class="mb-1"><i class="fas fa-sitemap me-2"></i>Documents created from “{{ template.title }}”</h2>
+<p class="text-muted small">
+    The template is at <strong>version {{ current_version }}</strong>.
+    {% if rows %}{{ behind_count }} of {{ rows|length }} document{{ rows|length|pluralize }} {{ behind_count|pluralize:"was,were" }} created from (or last reviewed against) an older version.{% endif %}
+    This page is informational: client documents are never changed automatically. Review the template changes, update a document by hand if needed, then mark it reviewed.
+</p>
+
+{% if rows %}
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+    <thead><tr><th>Document</th><th>Customer</th><th>Based on</th><th>Status</th><th class="text-end"></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+        <td>
+            {% if r.doc.is_global %}<a href="{% url 'docs:global_kb_detail' r.doc.slug %}">{{ r.doc.title }}</a>
+            {% else %}<a href="{% url 'docs:document_detail' r.doc.slug %}">{{ r.doc.title }}</a>{% endif %}
+        </td>
+        <td>{% if r.doc.is_global %}<span class="badge bg-info text-dark">Global KB</span>{% else %}{{ r.doc.organization.name|default:"—" }}{% endif %}</td>
+        <td>{% if r.baseline %}v{{ r.baseline }}{% else %}unknown{% endif %}</td>
+        <td>
+            {% if r.behind %}<span class="badge bg-warning text-dark">Behind (template v{{ current_version }})</span>
+            {% else %}<span class="badge bg-success">Up to date</span>{% endif %}
+        </td>
+        <td class="text-end">
+            {% if r.behind %}
+            <div class="d-inline-flex gap-1">
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'docs:template_document_diff' template.pk r.doc.pk %}">Template changes</a>
+                {% if r.can_edit %}
+                <form method="post" action="{% url 'docs:template_document_mark_reviewed' template.pk r.doc.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-success">Mark reviewed against v{{ current_version }}</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="alert alert-secondary">No documents have been created from this template yet (or none you can see).</div>
+{% endif %}
+{% endblock %}

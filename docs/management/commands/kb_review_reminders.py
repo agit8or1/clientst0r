@@ -15,7 +15,7 @@ from django.core.mail import send_mail
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from docs.models import Document
+from docs.models import Document, SearchQueryLog
 
 
 class Command(BaseCommand):
@@ -34,9 +34,8 @@ class Command(BaseCommand):
         # query. The base filter narrows the set to articles that
         # could possibly be overdue (review_interval_days > 0,
         # published, not archived).
-        candidates = (Document.objects
-                      .filter(review_interval_days__gt=0,
-                              is_published=True, is_archived=False)
+        candidates = (Document.objects.published()
+                      .filter(review_interval_days__gt=0, is_template=False)
                       .select_related('owner'))
 
         # Group by owner to send a digest rather than one email per
@@ -62,8 +61,8 @@ class Command(BaseCommand):
                 lines.append(f'  - {d.title} (last reviewed: {anchor.date() if anchor else "never"})')
             lines += [
                 '',
-                'Open each article and click "Mark reviewed" once you\'ve confirmed it\'s still accurate. ',
-                'Articles you no longer own can be reassigned in the article edit form.',
+                'Open each article and click "Mark reviewed" once you\'ve confirmed it\'s still accurate.',
+                'Articles you no longer own can be reassigned with the Owner field in the article edit form.',
             ]
             body = '\n'.join(lines)
             if dry_run:
@@ -78,6 +77,15 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.ERROR(
                         f'send to {owner.email} failed: {exc}'
                     ))
+        # This daily job also enforces the 90-day retention on the
+        # zero-result search log (KB analytics).
+        pruned = 0
+        if not dry_run:
+            pruned = SearchQueryLog.prune()
+        self.stdout.write(self.style.SUCCESS(
+            f'Pruned {pruned} search log row(s) older than '
+            f'{SearchQueryLog.RETENTION_DAYS} days.'
+        ))
         self.stdout.write(self.style.SUCCESS(
             f'KB review reminder run @ {timezone.now().isoformat()}: '
             f'{len(per_owner)} owners, {sent} sent, dry_run={dry_run}'

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'archived' %}Archived documents{% else %}Draft documents{% endif %}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'docs:document_list' %}">Documents</a></li>
+        <li class="breadcrumb-item active">{% if mode == 'archived' %}Archived{% else %}Drafts{% endif %}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <h2 class="mb-0">
+        {% if mode == 'archived' %}<i class="fas fa-box-archive me-2"></i>Archived documents{% else %}<i class="fas fa-pen-ruler me-2"></i>Drafts{% endif %}
+        {% if org %}<small class="text-muted fs-6">— {{ org.name }}</small>{% endif %}
+    </h2>
+    <div class="d-flex gap-2">
+        {% if mode == 'archived' %}
+        <a href="{% url 'docs:document_drafts_list' %}" class="btn btn-sm btn-outline-secondary">Drafts</a>
+        {% else %}
+        <a href="{% url 'docs:kb_approval_queue' %}" class="btn btn-sm btn-outline-secondary">Approval queue</a>
+        <a href="{% url 'docs:document_archived_list' %}" class="btn btn-sm btn-outline-secondary">Archived</a>
+        {% endif %}
+    </div>
+</div>
+<p class="text-muted small">
+    {% if mode == 'archived' %}Archived documents are hidden from lists, search, exports and the customer portal. Restoring one returns it to its previous published or draft state.
+    {% else %}Unpublished documents: drafts not yet submitted, and documents waiting in the approval queue. None of these show in lists, search, exports or the portal.{% endif %}
+</p>
+
+{% if documents %}
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+    <thead><tr><th>Title</th><th>Customer</th><th>Owner</th><th>State</th><th>Updated</th><th class="text-end"></th></tr></thead>
+    <tbody>
+    {% for d in documents %}
+    <tr>
+        <td>
+            {% if d.is_global %}<a href="{% url 'docs:global_kb_detail' d.slug %}">{{ d.title }}</a>
+            {% else %}<a href="{% url 'docs:document_detail' d.slug %}">{{ d.title }}</a>{% endif %}
+        </td>
+        <td>{% if d.is_global %}<span class="badge bg-info text-dark">Global KB</span>{% else %}{{ d.organization.name|default:"—" }}{% endif %}</td>
+        <td>{{ d.owner.username|default:"—" }}</td>
+        <td>
+            {% if d.publish_state == 'pending_review' %}<span class="badge bg-warning text-dark">Pending review</span>
+            {% elif d.publish_state == 'draft' %}<span class="badge bg-secondary">Draft</span>
+            {% elif d.publish_state == 'archived' %}<span class="badge bg-dark">Archived</span>{% endif %}
+        </td>
+        <td>{{ d.updated_at|date:"Y-m-d" }}</td>
+        <td class="text-end">
+            {% if mode == 'archived' and d.user_can_edit %}
+            <form method="post" action="{% url 'docs:document_unarchive' d.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-box-open"></i> Restore</button>
+            </form>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="alert alert-secondary">{% if mode == 'archived' %}No archived documents.{% else %}No drafts.{% endif %}</div>
+{% endif %}
+{% endblock %}

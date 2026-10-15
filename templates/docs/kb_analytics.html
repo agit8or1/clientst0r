@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}KB Analytics{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'docs:document_list' %}">Documents</a></li>
+        <li class="breadcrumb-item active">KB analytics</li>
+    </ol>
+</nav>
+
+<h2 class="mb-1"><i class="fas fa-chart-line me-2"></i>KB analytics {% if org %}<small class="text-muted fs-6">— {{ org.name }} + global KB</small>{% endif %}</h2>
+<p class="text-muted small">Published documents only. Views count staff opens in the web UI plus customer portal opens.</p>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small text-uppercase">Never viewed</div>
+        <div class="fs-3 fw-bold">{{ never_viewed_count }}</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small text-uppercase">Past review date</div>
+        <div class="fs-3 fw-bold">{{ stale_count }}</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2">
+        <div class="text-muted small text-uppercase">Zero-result queries ({{ retention_days }}d)</div>
+        <div class="fs-3 fw-bold">{{ zero_queries|length }}{% if zero_queries|length == 25 %}+{% endif %}</div></div></div></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><strong>Most viewed</strong></div>
+            <div class="card-body p-0">
+                {% if most_viewed %}
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Document</th><th class="text-end">Staff</th><th class="text-end">Portal</th><th>Last viewed</th></tr></thead>
+                    <tbody>
+                    {% for d in most_viewed %}
+                    <tr>
+                        <td>{% include "docs/_analytics_doc_link.html" with d=d %}</td>
+                        <td class="text-end">{{ d.staff_view_count }}</td>
+                        <td class="text-end">{{ d.portal_view_count }}</td>
+                        <td>{{ d.last_viewed_at|date:"Y-m-d"|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}<p class="text-muted small p-3 mb-0">No views recorded yet.</p>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <strong>Top zero-result searches</strong>
+                <form method="get" class="d-flex gap-1">
+                    <select name="source" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                        <option value="">All searches</option>
+                        {% for key, label in sources %}
+                        <option value="{{ key }}" {% if source == key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+            <div class="card-body p-0">
+                {% if zero_queries %}
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Query</th><th class="text-end">Times</th><th>Last</th></tr></thead>
+                    <tbody>
+                    {% for q in zero_queries %}
+                    <tr><td>{{ q.query }}</td><td class="text-end">{{ q.n }}</td><td>{{ q.last|date:"Y-m-d" }}</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}<p class="text-muted small p-3 mb-0">No zero-result searches in the last {{ retention_days }} days.</p>{% endif %}
+            </div>
+            <div class="card-footer small text-muted">Searches that found nothing, kept {{ retention_days }} days. Vault searches are never recorded.</div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><strong>Past review date</strong>{% if stale_count > stale|length %} <span class="text-muted small">(oldest {{ stale|length }} of {{ stale_count }})</span>{% endif %}</div>
+            <div class="card-body p-0">
+                {% if stale %}
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Document</th><th>Owner</th><th>Due</th><th class="text-end">Days over</th></tr></thead>
+                    <tbody>
+                    {% for s in stale %}
+                    <tr>
+                        <td>{% include "docs/_analytics_doc_link.html" with d=s.doc %}</td>
+                        <td>{{ s.doc.owner.username|default:"—" }}</td>
+                        <td>{{ s.due|date:"Y-m-d" }}</td>
+                        <td class="text-end">{{ s.days_overdue }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}<p class="text-muted small p-3 mb-0">Everything is within its review window.</p>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><strong>Never viewed</strong>{% if never_viewed_count > never_viewed|length %} <span class="text-muted small">(oldest {{ never_viewed|length }} of {{ never_viewed_count }})</span>{% endif %}</div>
+            <div class="card-body p-0">
+                {% if never_viewed %}
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Document</th><th>Owner</th><th>Created</th></tr></thead>
+                    <tbody>
+                    {% for d in never_viewed %}
+                    <tr>
+                        <td>{% include "docs/_analytics_doc_link.html" with d=d %}</td>
+                        <td>{{ d.owner.username|default:"—" }}</td>
+                        <td>{{ d.created_at|date:"Y-m-d" }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}<p class="text-muted small p-3 mb-0">Every published document has been opened at least once.</p>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

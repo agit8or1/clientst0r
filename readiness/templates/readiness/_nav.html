@@ -1,0 +1,8 @@
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link {% if active == 'overview' %}active{% endif %}" href="{% url 'readiness:overview' %}">Overview</a></li>
+    {% if is_staff %}
+    <li class="nav-item"><a class="nav-link {% if active == 'repair' %}active{% endif %}" href="{% url 'readiness:repair_queue' %}">Repair queue</a></li>
+    <li class="nav-item"><a class="nav-link {% if active == 'standards' %}active{% endif %}" href="{% url 'readiness:standard_list' %}">Standards</a></li>
+    <li class="nav-item"><a class="nav-link {% if active == 'broken' %}active{% endif %}" href="{% url 'readiness:broken_relationships' %}">Broken relationships</a></li>
+    {% endif %}
+</ul>

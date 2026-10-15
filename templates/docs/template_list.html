@@ -48,6 +48,7 @@
 
                 <div class="small text-muted mb-3">
                     <div><i class="fas fa-calendar"></i> Updated: {{ template.updated_at|date:"M d, Y" }}</div>
+                    <div><i class="fas fa-code-branch"></i> Version {{ template.template_version|default:1 }}</div>
                 </div>
 
                 <div class="d-flex gap-2">
@@ -56,6 +57,9 @@
                     </a>
                     <a href="{% url 'docs:template_edit' template.pk %}" class="btn btn-sm btn-outline-primary" title="Edit template">
                         <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <a href="{% url 'docs:template_documents' template.pk %}" class="btn btn-sm btn-outline-secondary" title="Documents created from this template">
+                        <i class="fas fa-sitemap"></i> Documents
                     </a>
                     <a href="{% url 'docs:template_delete' template.pk %}" class="btn btn-sm btn-outline-danger" title="Delete">
                         <i class="fas fa-trash"></i>
@@ -83,6 +87,8 @@
         <p class="mb-0">
             Templates are reusable document structures that help you quickly create new documents with pre-filled content.
             When creating a new document or KB article, you can select a template to start with its content, then customize as needed.
+            Each template keeps a version number that goes up when its content changes; <strong>Documents</strong> shows which
+            documents were created from an older version. Existing documents are never changed automatically.
         </p>
     </div>
 </div>

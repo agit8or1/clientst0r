@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Documentation readiness{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width: 1100px;">
+    <h1 class="h3 mb-1"><i class="fas fa-clipboard-check"></i> Documentation readiness</h1>
+    <p class="text-muted">How completely each customer is documented against the standards in force.</p>
+    {% include "readiness/_nav.html" with active='overview' %}
+
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-auto">
+            <select name="standard" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All standards</option>
+                {% for s in standards %}<option value="{{ s.pk }}" {% if std_filter == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+            </select>
+        </div>
+    </form>
+
+    {% if not standards and is_staff %}
+    <div class="alert alert-info">No active standards yet. <a href="{% url 'readiness:standard_create' %}">Create one</a>, or run <code>manage.py readiness_seed_samples</code> for an example.</div>
+    {% endif %}
+
+    <div class="table-responsive">
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Customer</th><th>Score</th><th>Standards in scope</th><th>Unmet requirements</th></tr></thead>
+        <tbody>
+        {% for row in rows %}
+        <tr>
+            <td><a href="{% url 'readiness:org_readiness' org_id=row.org.pk %}">{{ row.org.name }}</a></td>
+            <td>{% include "readiness/_score.html" with score=row.score %}</td>
+            <td>{{ row.standards }}</td>
+            <td>{% if row.unmet %}{% if is_staff %}<a href="{% url 'readiness:repair_queue' %}?customer={{ row.org.pk }}">{{ row.unmet }}</a>{% else %}{{ row.unmet }}{% endif %}{% else %}0{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-muted">No customers to show.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock %}

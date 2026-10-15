@@ -1,0 +1,1 @@
+{% if score is None %}<span class="badge bg-secondary">n/a</span>{% elif score >= 90 %}<span class="badge bg-success">{{ score }}%</span>{% elif score >= 60 %}<span class="badge bg-warning text-dark">{{ score }}%</span>{% else %}<span class="badge bg-danger">{{ score }}%</span>{% endif %}

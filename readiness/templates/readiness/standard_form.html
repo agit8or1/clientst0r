@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{% if standard.pk %}Edit {{ standard.name }}{% else %}New standard{% endif %}{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width: 1100px;">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="{% url 'readiness:standard_list' %}">Standards</a></li>
+        <li class="breadcrumb-item active">{% if standard.pk %}{{ standard.name }} (v{{ standard.version }}){% else %}New{% endif %}</li>
+    </ol></nav>
+
+    <form method="post" id="standard-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="card mb-3"><div class="card-body row g-3">
+            <div class="col-md-6">{{ form.name.label_tag }} {{ form.name }} {{ form.name.errors }}</div>
+            <div class="col-md-3">{{ form.scope.label_tag }} {{ form.scope }}</div>
+            <div class="col-md-3 scope-extra" data-scope="org_type">{{ form.org_type.label_tag }} {{ form.org_type }} {{ form.org_type.errors }}</div>
+            <div class="col-md-3 scope-extra" data-scope="asset_type">{{ form.asset_type.label_tag }} {{ form.asset_type }} {{ form.asset_type.errors }}</div>
+            <div class="col-12">{{ form.description.label_tag }} {{ form.description }}</div>
+            <div class="col-12 form-check ms-2">{{ form.is_active }} {{ form.is_active.label_tag }}</div>
+        </div></div>
+
+        <h5>Requirements</h5>
+        <p class="small text-muted">Editing anything here bumps the standard's version.</p>
+        {{ formset.management_form }}
+        {{ formset.non_form_errors }}
+        {% for f in formset %}
+        <div class="card mb-2 req-form"><div class="card-body row g-2">
+            {{ f.id }}
+            {% if f.non_field_errors %}<div class="col-12 text-danger small">{{ f.non_field_errors|join:" " }}</div>{% endif %}
+            <div class="col-md-4">{{ f.title.label_tag }} {{ f.title }} {{ f.title.errors }}</div>
+            <div class="col-md-3">{{ f.kind.label_tag }} {{ f.kind }} {{ f.kind.errors }}</div>
+            <div class="col-md-1">{{ f.weight.label_tag }} {{ f.weight }}</div>
+            <div class="col-md-1">{{ f.order.label_tag }} {{ f.order }}</div>
+            <div class="col-md-3">{% if f.instance.pk %}<label class="form-check-label">{{ f.DELETE }} Remove</label>{% endif %}</div>
+            {% for field, kinds in f.param_fields %}
+            <div class="col-md-4 param-field" data-kinds="{{ kinds }}">{{ field.label_tag }} {{ field }}{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}</div>
+            {% endfor %}
+            <div class="col-12">{{ f.description.label_tag }} <span class="small text-muted">(why it matters — shown in explanations)</span> {{ f.description }}</div>
+        </div></div>
+        {% endfor %}
+        <button class="btn btn-primary">Save</button>
+        <a class="btn btn-link" href="{% url 'readiness:standard_list' %}">Cancel</a>
+    </form>
+</div>
+<script>
+(function () {
+    var form = document.getElementById('standard-form');
+    form.querySelectorAll('input[type=text], input[type=number], textarea, input[type=datetime-local]').forEach(function (el) { el.classList.add('form-control', 'form-control-sm'); });
+    form.querySelectorAll('select').forEach(function (el) { el.classList.add('form-select', 'form-select-sm'); });
+    var scope = form.querySelector('[name=scope]');
+    function syncScope() {
+        form.querySelectorAll('.scope-extra').forEach(function (el) { el.style.display = el.dataset.scope === scope.value ? '' : 'none'; });
+    }
+    scope.addEventListener('change', syncScope); syncScope();
+    form.querySelectorAll('.req-form').forEach(function (card) {
+        var kind = card.querySelector('select[name$="-kind"]');
+        function sync() {
+            card.querySelectorAll('.param-field').forEach(function (el) {
+                el.style.display = kind.value && el.dataset.kinds.split(' ').indexOf(kind.value) >= 0 ? '' : 'none';
+            });
+        }
+        kind.addEventListener('change', sync); sync();
+    });
+})();
+</script>
+{% endblock %}

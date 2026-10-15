@@ -98,6 +98,15 @@
                             <li><a class="dropdown-item" href="{% url 'docs:document_list' %}"><i class="fas fa-file-alt"></i> {% trans "Documents" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'docs:diagram_list' %}"><i class="fas fa-project-diagram"></i> {% trans "Diagrams" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'locations:floor_plan_import' %}"><i class="fas fa-file-upload"></i> {% trans "Import Floor Plans" %}</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'docs:document_drafts_list' %}"><i class="fas fa-pen-ruler"></i> {% trans "Drafts" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'docs:kb_approval_queue' %}"><i class="fas fa-check-double"></i> {% trans "Approval Queue" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'docs:kb_review_queue' %}"><i class="fas fa-calendar-check"></i> {% trans "Review Queue" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'docs:document_archived_list' %}"><i class="fas fa-box-archive"></i> {% trans "Archived" %}</a></li>
+                            {% if is_staff_user or user.is_superuser %}
+                            <li><a class="dropdown-item" href="{% url 'docs:kb_analytics' %}"><i class="fas fa-chart-line"></i> {% trans "KB Analytics" %}</a></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="{% url 'readiness:overview' %}"><i class="fas fa-clipboard-check"></i> {% trans "Documentation Readiness" %}</a></li>
                         </ul>
                     </li>
                     {% if psa_enabled %}

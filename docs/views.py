@@ -12,8 +12,11 @@ from core.middleware import get_request_organization
 from core.decorators import require_write, require_admin, require_organization_context
 from core.ai_gate import require_ai_enabled_json
 from core.tenancy import get_org_object_or_404
-from .models import Document, DocumentVersion, DocumentCategory
+from .models import Document, DocumentVersion, DocumentCategory, SearchQueryLog
 from .forms import DocumentForm
+from .permissions import (
+    apply_publish_rules, can_edit, can_publish, can_publish_in_org,
+)
 import os
 import mimetypes
 
@@ -52,9 +55,7 @@ def document_list(request):
 
     if in_global_view:
         # Global view: show all documents across all organizations
-        documents = Document.objects.filter(
-            is_published=True,
-            is_archived=False,
+        documents = Document.objects.published().filter(
             is_global=False,  # Exclude global KB articles
             is_template=False  # Exclude templates
         ).select_related('organization').prefetch_related('tags', 'category')
@@ -63,9 +64,7 @@ def document_list(request):
         # `organization=org` stopped at the selected org, so a parent
         # organization could open a subsidiary's document by slug (v3.17.571)
         # but never saw it listed.
-        documents = Document.objects.for_organization(org).filter(
-            is_published=True,
-            is_archived=False,
+        documents = Document.objects.for_organization(org).published().filter(
             is_global=False,  # Exclude global KB articles
             is_template=False  # Exclude templates
         ).select_related('organization').prefetch_related('tags', 'category')
@@ -88,6 +87,9 @@ def document_list(request):
         )
 
     documents = documents.order_by('-updated_at')
+    if query and not category_id and not tag_id and not documents.exists():
+        SearchQueryLog.record(query, result_count=0, source='docs',
+                              user=request.user, organization=org)
 
     # Get all categories and tags for filters
     if in_global_view:
@@ -155,7 +157,8 @@ def document_detail(request, slug):
         document = get_org_object_or_404(Document, org, slug=slug)
 
     # Get versions
-    versions = document.versions.all()[:10]  # Last 10 versions
+    versions = document.versions.select_related('created_by')[:10]  # Last 10 versions
+    version_total = document.versions.count()
 
     # Check if user has write permission
     has_write_permission = False
@@ -167,13 +170,77 @@ def document_detail(request, slug):
         if membership and membership.can_write():
             has_write_permission = True
 
+    _count_staff_view(document)
+
     return render(request, 'docs/document_detail.html', {
         'document': document,
         'rendered_body': document.render_markdown(),
         'versions': versions,
+        'version_total': version_total,
         'has_write_permission': has_write_permission,
         'in_global_view': in_global_view,
+        **_lifecycle_context(request, document),
     })
+
+
+def _count_staff_view(document):
+    """One UPDATE, no model save — a view must not create a version snapshot
+    or race another reader."""
+    from django.db.models import F
+    from django.utils import timezone
+    Document.objects.filter(pk=document.pk).update(
+        staff_view_count=F('staff_view_count') + 1,
+        last_viewed_at=timezone.now(),
+    )
+
+
+def _lifecycle_context(request, document):
+    """Permission flags + template drift for the detail pages."""
+    user = request.user
+    may_edit = can_edit(user, document)
+    may_publish = can_publish(user, document)
+    is_owner = bool(document.owner_id and document.owner_id == user.id)
+    template = document.source_template
+    return {
+        'can_edit_doc': may_edit,
+        'can_publish_doc': may_publish,
+        'can_submit_for_review': (not document.is_archived and not document.is_draft
+                                  and not document.is_live and (may_edit or is_owner)),
+        'can_mark_reviewed': is_owner or may_edit,
+        'source_template': template,
+        'template_behind': document.is_behind_template,
+    }
+
+
+def _resolve_template(request, org, template_id, *, any_org=False):
+    """A template this request may start from, or None."""
+    from django.db.models import Q
+    try:
+        template_id = int(template_id)
+    except (TypeError, ValueError):
+        return None
+    qs = Document.objects.filter(is_template=True)
+    if not any_org:
+        # Org templates of the current customer, and shared ones.
+        qs = qs.filter(Q(organization=org) | Q(organization=None, is_global=True)
+                       | Q(is_global=True))
+    return qs.filter(pk=template_id).first()
+
+
+def _link_source_template(request, org, document, *, any_org=False):
+    """Record which template (and which version of it) a new document came
+    from. The form carries the id in `source_template_id` (set when a template
+    is loaded); `?template=` covers the server-side preload. The document is
+    never updated from the template afterwards."""
+    template_id = request.POST.get('source_template_id') or request.GET.get('template')
+    if not template_id:
+        return None
+    template = _resolve_template(request, org, template_id, any_org=any_org)
+    if template is None:
+        return None
+    document.source_template = template
+    document.source_template_version = template.template_version or 1
+    return template
 
 
 @login_required
@@ -184,6 +251,7 @@ def document_create(request):
     Create new document, optionally from a template.
     """
     org = get_request_organization(request)
+    may_publish = can_publish(request.user, Document(organization=org))
 
     # Check if creating from template
     template_id = request.GET.get('template')
@@ -191,14 +259,8 @@ def document_create(request):
     selected_template = None
 
     if template_id:
-        from django.db.models import Q
-        try:
-            # Allow both org-specific templates and global templates
-            selected_template = Document.objects.get(
-                Q(organization=org) | Q(organization=None, is_global=True),
-                id=template_id,
-                is_template=True
-            )
+        selected_template = _resolve_template(request, org, template_id)
+        if selected_template is not None:
             initial_data = {
                 'title': '',  # Leave title empty for new document
                 'body': selected_template.body,
@@ -206,11 +268,12 @@ def document_create(request):
                 'category': selected_template.category,
                 'tags': selected_template.tags.all(),  # Include tags from template
             }
-        except Document.DoesNotExist:
+        else:
             messages.warning(request, 'Template not found.')
 
     if request.method == 'POST':
-        form = DocumentForm(request.POST, request.FILES, organization=org)
+        form = DocumentForm(request.POST, request.FILES, organization=org,
+                            can_publish=may_publish)
         if form.is_valid():
             document = form.save(commit=False)
             document.organization = org
@@ -218,6 +281,11 @@ def document_create(request):
             document.created_by = request.user
             document.last_modified_by = request.user
             document.is_template = False  # Ensure created docs are not templates
+            _link_source_template(request, org, document)
+            note = apply_publish_rules(
+                document, request.user,
+                requested_publish=form.cleaned_data.get('is_published'),
+                was_live=False)
 
             # Handle file upload
             if document.content_type == 'file' and document.file:
@@ -235,13 +303,17 @@ def document_create(request):
             document.save()
             form.save_m2m()
             messages.success(request, f"Document '{document.title}' created successfully.")
+            if note:
+                messages.info(request, note)
             return redirect('docs:document_detail', slug=document.slug)
     else:
-        form = DocumentForm(organization=org, initial=initial_data)
+        form = DocumentForm(organization=org, initial=initial_data,
+                            can_publish=may_publish)
 
     # Get available templates for dropdown
+    from django.db.models import Q
     templates = Document.objects.filter(
-        organization=org,
+        Q(organization=org) | Q(organization=None, is_global=True),
         is_template=True
     ).order_by('title')
 
@@ -286,11 +358,22 @@ def document_edit(request, slug):
             from django.http import Http404
             raise Http404("No Document matches the given query.")
 
+    if not can_edit(request.user, document):
+        raise PermissionDenied("Your role does not include the 'docs_edit' permission for this customer.")
+    may_publish = can_publish(request.user, document)
+    was_live = document.is_live
+
     if request.method == 'POST':
-        form = DocumentForm(request.POST, request.FILES, instance=document, organization=org)
+        form = DocumentForm(request.POST, request.FILES, instance=document, organization=org,
+                            owner_organization=document.organization,
+                            can_publish=may_publish)
         if form.is_valid():
             document = form.save(commit=False)
             document.last_modified_by = request.user
+            note = apply_publish_rules(
+                document, request.user,
+                requested_publish=form.cleaned_data.get('is_published'),
+                was_live=was_live)
 
             # Handle file upload
             if document.content_type == 'file' and document.file:
@@ -300,9 +383,13 @@ def document_edit(request, slug):
             document.save()
             form.save_m2m()
             messages.success(request, f"Document '{document.title}' updated successfully.")
+            if note:
+                messages.info(request, note)
             return redirect('docs:document_detail', slug=document.slug)
     else:
-        form = DocumentForm(instance=document, organization=org)
+        form = DocumentForm(instance=document, organization=org,
+                            owner_organization=document.organization,
+                            can_publish=may_publish)
 
     return render(request, 'docs/document_form.html', {
         'form': form,
@@ -389,7 +476,8 @@ def document_upload(request):
                 category=category,
                 created_by=request.user,
                 last_modified_by=request.user,
-                is_published=True
+                # Without docs_publish an upload lands as a draft.
+                is_published=can_publish_in_org(request.user, org),
             )
             uploaded_count += 1
 
@@ -521,7 +609,8 @@ def document_import(request):
                     category=category,
                     created_by=request.user,
                     last_modified_by=request.user,
-                    is_published=True,
+                    # Without docs_publish an import lands as a draft.
+                    is_published=can_publish_in_org(request.user, org),
                 )
                 results.append({
                     'name': f.name,
@@ -658,10 +747,8 @@ def global_kb_list(request):
     from django.db.models import Q
 
     # Global KB articles (exclude templates - templates have their own list)
-    documents = Document.objects.filter(
+    documents = Document.objects.published().filter(
         is_global=True,
-        is_published=True,
-        is_archived=False,
         is_template=False  # Exclude templates
     ).prefetch_related('tags', 'category')
 
@@ -683,6 +770,9 @@ def global_kb_list(request):
         )
 
     documents = documents.order_by('-updated_at')
+    if query and not category_id and not tag_id and not documents.exists():
+        SearchQueryLog.record(query, result_count=0, source='global_kb',
+                              user=request.user)
 
     # Get global categories (organization=None) for filters - sorted alphabetically
     categories = DocumentCategory.objects.filter(organization__isnull=True).order_by('name')
@@ -707,9 +797,12 @@ def global_kb_detail(request, slug):
     View global KB article (staff only).
     """
     document = get_object_or_404(Document, slug=slug, is_global=True)
+    _count_staff_view(document)
 
     return render(request, 'docs/global_kb_detail.html', {
         'document': document,
+        'version_total': document.versions.count(),
+        **_lifecycle_context(request, document),
     })
 
 
@@ -757,8 +850,11 @@ def global_kb_create(request):
         if pre_cat:
             initial_data['category'] = pre_cat
 
+    may_publish = can_publish(request.user, Document(organization=org, is_global=True))
+    form_kwargs = dict(organization=org, include_global_categories=True,
+                       can_publish=may_publish, global_article=True)
     if request.method == 'POST':
-        form = DocumentForm(request.POST, organization=org, include_global_categories=True)
+        form = DocumentForm(request.POST, **form_kwargs)
         if form.is_valid():
             document = form.save(commit=False)
             document.organization = org
@@ -766,12 +862,19 @@ def global_kb_create(request):
             document.is_template = False  # Ensure created KB articles are not templates
             document.created_by = request.user
             document.last_modified_by = request.user
+            _link_source_template(request, org, document, any_org=True)
+            note = apply_publish_rules(
+                document, request.user,
+                requested_publish=form.cleaned_data.get('is_published'),
+                was_live=False)
             document.save()
             form.save_m2m()
             messages.success(request, f"Global KB article '{document.title}' created successfully.")
+            if note:
+                messages.info(request, note)
             return redirect('docs:global_kb_detail', slug=document.slug)
     else:
-        form = DocumentForm(organization=org, initial=initial_data, include_global_categories=True)
+        form = DocumentForm(initial=initial_data, **form_kwargs)
 
     # Get available templates for dropdown (from any org for global KB)
     templates = Document.objects.filter(is_template=True).order_by('title')
@@ -791,19 +894,28 @@ def global_kb_edit(request, slug):
     Edit global KB article (staff only).
     """
     document = get_object_or_404(Document, slug=slug, is_global=True)
+    was_live = document.is_live
+    form_kwargs = dict(organization=document.organization, include_global_categories=True,
+                       can_publish=can_publish(request.user, document), global_article=True)
 
     if request.method == 'POST':
-        form = DocumentForm(request.POST, instance=document, organization=document.organization, include_global_categories=True)
+        form = DocumentForm(request.POST, instance=document, **form_kwargs)
         if form.is_valid():
             document = form.save(commit=False)
             document.is_global = True  # Ensure it stays global
             document.last_modified_by = request.user
+            note = apply_publish_rules(
+                document, request.user,
+                requested_publish=form.cleaned_data.get('is_published'),
+                was_live=was_live)
             document.save()
             form.save_m2m()
             messages.success(request, f"Global KB article '{document.title}' updated successfully.")
+            if note:
+                messages.info(request, note)
             return redirect('docs:global_kb_detail', slug=document.slug)
     else:
-        form = DocumentForm(instance=document, organization=document.organization, include_global_categories=True)
+        form = DocumentForm(instance=document, **form_kwargs)
 
     return render(request, 'docs/global_kb_form.html', {
         'form': form,
@@ -1725,8 +1837,8 @@ def kb_review_queue(request):
     is_staff = getattr(request, 'is_staff_user', False) or request.user.is_superuser
     scope = request.GET.get('scope') or ('all' if is_staff else 'mine')
 
-    qs = Document.objects.filter(
-        is_archived=False, is_published=True, review_interval_days__gt=0,
+    qs = Document.objects.published().filter(
+        review_interval_days__gt=0, is_template=False,
     ).select_related('owner', 'organization')
 
     if scope == 'mine' or not is_staff:
@@ -1750,42 +1862,112 @@ def kb_review_queue(request):
     })
 
 
+def _is_staff_request(request):
+    from psa.visibility import is_msp_staff
+    return bool(is_msp_staff(request.user) or getattr(request, 'is_staff_user', False))
+
+
+def _audit_document(request, document, description, *, extra=None):
+    """Audit a lifecycle action. Never blocks the action itself."""
+    try:
+        from audit.models import AuditLog
+        from core.client_ip import get_client_ip
+        AuditLog.log(
+            user=request.user, action='update',
+            organization=None if document.is_global else document.organization,
+            object_type='docs.Document', object_id=document.pk,
+            object_repr=document.title[:255], description=description[:1000],
+            ip_address=get_client_ip(request), path=request.path[:500],
+            extra_data=extra or {},
+        )
+    except Exception:  # noqa: BLE001
+        import logging
+        logging.getLogger('docs').exception('Could not write document audit log')
+
+
+def _detail_redirect(document):
+    if document.is_global:
+        return redirect('docs:global_kb_detail', slug=document.slug)
+    return redirect('docs:document_detail', slug=document.slug)
+
+
+def _document_for_action(request, slug):
+    """Resolve the document a review/approval action names.
+
+    Slugs are unique per organization only, so a bare slug lookup could hit
+    MultipleObjectsReturned. The forms send `pk`; without it the current
+    organization's document wins. Permission is checked by each action
+    against the document's own organization.
+    """
+    from django.http import Http404
+    qs = Document.objects.filter(slug=slug)
+    pk = request.POST.get('pk') or request.GET.get('pk')
+    if pk and str(pk).isdigit():
+        qs = qs.filter(pk=int(pk))
+    org = get_request_organization(request)
+    if org is not None:
+        from core.utils import descendant_org_ids
+        scoped = qs.filter(organization_id__in=descendant_org_ids(org), is_global=False)
+        if scoped.exists():
+            qs = scoped
+    document = qs.order_by('pk').first()
+    if document is None:
+        raise Http404('No Document matches the given query.')
+    return document
+
+
+def _get_accessible_document(request, pk):
+    """A document by pk, scoped like the detail pages: the current
+    organization and its descendants; MSP staff may open any document (the
+    edit view already lets them), and only staff see global KB articles."""
+    from django.http import Http404
+    from core.utils import descendant_org_ids
+    document = get_object_or_404(
+        Document.objects.select_related('organization', 'owner', 'source_template'), pk=pk)
+    staff = _is_staff_request(request)
+    if staff:
+        return document
+    if document.is_global:
+        raise Http404('No Document matches the given query.')
+    org = get_request_organization(request)
+    if org is not None and document.organization_id in descendant_org_ids(org):
+        return document
+    raise Http404('No Document matches the given query.')
+
+
 @login_required
 def kb_mark_reviewed(request, slug):
     """POST: mark this article reviewed (resets the review timer)."""
     if request.method != 'POST':
         return redirect('docs:document_detail', slug=slug)
-    article = get_object_or_404(Document, slug=slug)
-    is_staff = getattr(request, 'is_staff_user', False) or request.user.is_superuser
-    if not is_staff and article.owner_id != request.user.id:
-        messages.error(request, 'Only the article owner or staff can mark it reviewed.')
-        return redirect('docs:document_detail', slug=slug)
+    article = _document_for_action(request, slug)
+    if article.owner_id != request.user.id and not can_edit(request.user, article):
+        messages.error(request, 'Only the article owner or an editor can mark it reviewed.')
+        return _detail_redirect(article)
     article.mark_reviewed(user=request.user)
     messages.success(request, f'Marked "{article.title}" as reviewed.')
-    return redirect('docs:document_detail', slug=slug)
+    return _detail_redirect(article)
 
 
 @login_required
 def kb_approval_queue(request):
     """
-    Phase 22 v2 (v3.17.250): list KB articles in draft state awaiting
-    approval. Articles flagged `is_draft=True` show up here regardless
-    of their `requires_approval` setting (admins can also use is_draft
-    as a manual review gate).
+    Phase 22 v2 (v3.17.250): documents submitted for review (is_draft=True).
+    Everyone who can see a document's organization sees it here; the
+    approve / reject buttons appear only for users who may publish it
+    (docs_publish on its organization, kb_publish_articles for global KB).
     """
-    is_staff = getattr(request, 'is_staff_user', False) or request.user.is_superuser
-    qs = Document.objects.filter(is_draft=True, is_archived=False).select_related('owner')
+    from accounts.permission_utils import filter_by_org_perm
+    is_staff = _is_staff_request(request)
+    qs = Document.objects.filter(is_draft=True, is_archived=False).select_related(
+        'owner', 'organization')
     if not is_staff:
-        # Org members see drafts in their own orgs only.
-        if hasattr(request.user, 'memberships'):
-            org_ids = list(request.user.memberships.filter(is_active=True)
-                                       .values_list('organization_id', flat=True))
-            qs = qs.filter(organization_id__in=org_ids)
-        else:
-            qs = qs.none()
-    qs = qs.order_by('-updated_at')
+        qs = filter_by_org_perm(qs.filter(is_global=False), request.user, 'docs_view')
+    drafts = list(qs.order_by('-updated_at')[:500])
+    for d in drafts:
+        d.user_can_publish = can_publish(request.user, d)
     return render(request, 'docs/kb_approval_queue.html', {
-        'drafts': qs,
+        'drafts': drafts,
         'is_staff': is_staff,
     })
 
@@ -1793,17 +1975,18 @@ def kb_approval_queue(request):
 @login_required
 @require_http_methods(['POST'])
 def kb_approve(request, slug):
-    """v3.17.250: approve a draft article — flips to published."""
-    article = get_object_or_404(Document, slug=slug)
-    is_staff = getattr(request, 'is_staff_user', False) or request.user.is_superuser
-    if not is_staff:
-        messages.error(request, 'Only staff can approve articles.')
-        return redirect('docs:document_detail', slug=slug)
+    """Approve a document under review — it goes live. Needs docs_publish on
+    the document's organization (kb_publish_articles for global KB)."""
+    article = _document_for_action(request, slug)
+    if not can_publish(request.user, article):
+        messages.error(request, 'You do not have permission to publish this document.')
+        return _detail_redirect(article)
     article.is_draft = False
     article.is_published = True
     article.last_modified_by = request.user
     article.save(update_fields=['is_draft', 'is_published', 'updated_at',
                                  'last_modified_by', 'published_at'])
+    _audit_document(request, article, f'Approved and published "{article.title}"')
     messages.success(request, f'Approved & published "{article.title}".')
     return redirect('docs:kb_approval_queue')
 
@@ -1811,13 +1994,13 @@ def kb_approve(request, slug):
 @login_required
 @require_http_methods(['POST'])
 def kb_reject(request, slug):
-    """v3.17.250: reject a draft article — stays as draft, optional note
-    appended to the body so the author has the feedback inline."""
-    article = get_object_or_404(Document, slug=slug)
-    is_staff = getattr(request, 'is_staff_user', False) or request.user.is_superuser
-    if not is_staff:
-        messages.error(request, 'Only staff can reject articles.')
-        return redirect('docs:document_detail', slug=slug)
+    """Reject a document under review — it stays unpublished and in the
+    queue (unchanged v3.17.250 behaviour), with the optional note appended so
+    the author has the feedback inline."""
+    article = _document_for_action(request, slug)
+    if not can_publish(request.user, article):
+        messages.error(request, 'You do not have permission to review this document.')
+        return _detail_redirect(article)
     note = (request.POST.get('note') or '').strip()[:1000]
     if note:
         from django.utils import timezone as _tz
@@ -1829,6 +2012,8 @@ def kb_reject(request, slug):
     article.last_modified_by = request.user
     article.save(update_fields=['body', 'is_draft', 'is_published',
                                  'updated_at', 'last_modified_by'])
+    _audit_document(request, article, f'Rejected "{article.title}"',
+                    extra={'note': note} if note else None)
     messages.success(request, f'Rejected "{article.title}". Author can revise + re-submit.')
     return redirect('docs:kb_approval_queue')
 
@@ -1836,17 +2021,377 @@ def kb_reject(request, slug):
 @login_required
 @require_http_methods(['POST'])
 def kb_submit_for_review(request, slug):
-    """v3.17.250: owner submits the article for approval (is_draft=True)."""
-    article = get_object_or_404(Document, slug=slug)
-    is_staff = getattr(request, 'is_staff_user', False) or request.user.is_superuser
-    if not is_staff and article.owner_id != request.user.id:
-        messages.error(request, 'Only the owner or staff can submit for review.')
-        return redirect('docs:document_detail', slug=slug)
+    """The owner or an editor submits a draft for approval (is_draft=True);
+    it then shows in the approval queue."""
+    article = _document_for_action(request, slug)
+    if article.owner_id != request.user.id and not can_edit(request.user, article):
+        messages.error(request, 'Only the owner or an editor can submit for review.')
+        return _detail_redirect(article)
     article.is_draft = True
     article.is_published = False
     article.save(update_fields=['is_draft', 'is_published', 'updated_at'])
+    _audit_document(request, article, f'Submitted "{article.title}" for review')
     messages.success(request, f'"{article.title}" submitted for review.')
-    return redirect('docs:document_detail', slug=slug)
+    return _detail_redirect(article)
+
+
+# ---------------------------------------------------------------------------
+# Version history: list, view, diff, restore.
+# ---------------------------------------------------------------------------
+
+def _diff_lines(old_text, new_text, old_label, new_label):
+    """Unified diff as (css_class, text) rows. Plain text only — the template
+    autoescapes every row, so document HTML can never execute here."""
+    import difflib
+    rows = []
+    diff = difflib.unified_diff(
+        (old_text or '').splitlines(), (new_text or '').splitlines(),
+        fromfile=old_label, tofile=new_label, lineterm='', n=3)
+    for line in diff:
+        if line.startswith('+++') or line.startswith('---'):
+            kind = 'meta'
+        elif line.startswith('@@'):
+            kind = 'hunk'
+        elif line.startswith('+'):
+            kind = 'add'
+        elif line.startswith('-'):
+            kind = 'del'
+        else:
+            kind = 'ctx'
+        rows.append((kind, line))
+    return rows
+
+
+def _rendered(title, body, content_type):
+    """Sanitized HTML for a snapshot, via the same bleach rules as the live
+    document."""
+    return Document(title=title, body=body or '', content_type=content_type).render_content()
+
+
+@login_required
+def document_versions(request, pk):
+    from django.core.paginator import Paginator
+    document = _get_accessible_document(request, pk)
+    page = Paginator(document.versions.select_related('created_by'), 50).get_page(
+        request.GET.get('page'))
+    return render(request, 'docs/document_versions.html', {
+        'document': document,
+        'page': page,
+        'can_edit_doc': can_edit(request.user, document),
+    })
+
+
+@login_required
+def document_version_detail(request, pk, number):
+    document = _get_accessible_document(request, pk)
+    version = get_object_or_404(document.versions.select_related('created_by'),
+                                version_number=number)
+    return render(request, 'docs/document_version_detail.html', {
+        'document': document,
+        'version': version,
+        'rendered_body': _rendered(version.title, version.body, version.content_type),
+        'can_edit_doc': can_edit(request.user, document),
+    })
+
+
+@login_required
+def document_version_diff(request, pk, number):
+    """Diff a version against the current document (default) or against
+    another version (`?against=<number>`)."""
+    document = _get_accessible_document(request, pk)
+    version = get_object_or_404(document.versions, version_number=number)
+    against = (request.GET.get('against') or 'current').strip()
+    if against != 'current' and against.isdigit():
+        other = get_object_or_404(document.versions, version_number=int(against))
+        new_title, new_body, new_label = other.title, other.body, f'v{other.version_number}'
+    else:
+        against = 'current'
+        new_title, new_body, new_label = document.title, document.body, 'current'
+    old_label = f'v{version.version_number}'
+    return render(request, 'docs/document_version_diff.html', {
+        'document': document,
+        'version': version,
+        'against': against,
+        'new_label': new_label,
+        'title_changed': version.title != new_title,
+        'old_title': version.title,
+        'new_title': new_title,
+        'rows': _diff_lines(version.body, new_body, old_label, new_label),
+        'other_versions': document.versions.exclude(pk=version.pk).values_list(
+            'version_number', flat=True)[:200],
+        'can_edit_doc': can_edit(request.user, document),
+    })
+
+
+@login_required
+@require_http_methods(['POST'])
+def document_version_restore(request, pk, number):
+    """Restore a version's title/body as the current content. Saving snapshots
+    the content being replaced, so the restore is itself undoable. Needs
+    docs_edit (kb_edit_articles for global KB); publish rules apply as for
+    any edit."""
+    document = _get_accessible_document(request, pk)
+    if not can_edit(request.user, document):
+        raise PermissionDenied("Your role does not include the 'docs_edit' permission for this customer.")
+    version = get_object_or_404(document.versions, version_number=number)
+    was_live = document.is_live
+    document.title = version.title
+    document.body = version.body
+    if version.content_type:
+        document.content_type = version.content_type
+    document.last_modified_by = request.user
+    note = apply_publish_rules(document, request.user, requested_publish=None,
+                               was_live=was_live)
+    document.save()
+    _audit_document(request, document,
+                    f'Restored "{document.title}" to version {version.version_number}',
+                    extra={'restored_version': version.version_number})
+    messages.success(request, f'Restored version {version.version_number}. '
+                              'The replaced content was kept as a new version.')
+    if note:
+        messages.info(request, note)
+    return _detail_redirect(document)
+
+
+# ---------------------------------------------------------------------------
+# Archive + drafts lists.
+# ---------------------------------------------------------------------------
+
+def _state_list_queryset(request):
+    """Org documents in scope for the archive/drafts lists, plus global KB
+    articles for MSP staff."""
+    from django.db.models import Q
+    org = get_request_organization(request)
+    staff = _is_staff_request(request)
+    if org is None:
+        if not (staff or request.user.is_superuser):
+            return Document.objects.none(), org
+        qs = Document.objects.all()
+    else:
+        qs = Document.objects.filter(
+            Q(pk__in=Document.objects.for_organization(org).filter(is_global=False).values('pk'))
+            | (Q(is_global=True) if staff else Q(pk__in=[])))
+    return qs.filter(is_template=False).select_related('organization', 'owner'), org
+
+
+@login_required
+def document_archived_list(request):
+    qs, org = _state_list_queryset(request)
+    documents = list(qs.filter(is_archived=True).order_by('-updated_at')[:500])
+    for d in documents:
+        d.user_can_edit = can_edit(request.user, d)
+    return render(request, 'docs/document_state_list.html', {
+        'documents': documents,
+        'org': org,
+        'mode': 'archived',
+    })
+
+
+@login_required
+def document_drafts_list(request):
+    qs, org = _state_list_queryset(request)
+    documents = list(qs.drafts().order_by('-updated_at')[:500])
+    for d in documents:
+        d.user_can_edit = can_edit(request.user, d)
+    return render(request, 'docs/document_state_list.html', {
+        'documents': documents,
+        'org': org,
+        'mode': 'drafts',
+    })
+
+
+@login_required
+@require_http_methods(['POST'])
+def document_unarchive(request, pk):
+    document = _get_accessible_document(request, pk)
+    if not can_edit(request.user, document):
+        raise PermissionDenied("Your role does not include the 'docs_edit' permission for this customer.")
+    if document.is_archived:
+        document.is_archived = False
+        document.last_modified_by = request.user
+        document.save(update_fields=['is_archived', 'last_modified_by', 'updated_at'])
+        _audit_document(request, document, f'Restored "{document.title}" from the archive')
+        messages.success(request, f'"{document.title}" restored from the archive.')
+    if _safe_next(request):
+        return redirect(request.POST['next'])
+    return redirect('docs:document_archived_list')
+
+
+def _safe_next(request):
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = request.POST.get('next')
+    return bool(nxt) and url_has_allowed_host_and_scheme(
+        nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure())
+
+
+# ---------------------------------------------------------------------------
+# Template lineage: which documents came from a template, which are behind.
+# ---------------------------------------------------------------------------
+
+def _viewable_templates(request):
+    from django.db.models import Q
+    org = get_request_organization(request)
+    qs = Document.objects.filter(is_template=True)
+    if _is_staff_request(request) or request.user.is_superuser:
+        if org is None:
+            return qs
+        return qs.filter(Q(organization=org) | Q(is_global=True) | Q(organization=None))
+    if org is None:
+        return qs.none()
+    return qs.filter(Q(organization=org) | Q(is_global=True) | Q(organization=None))
+
+
+def _derived_documents(request, template):
+    """Documents created from `template` that this user may see."""
+    from django.db.models import Q
+    org = get_request_organization(request)
+    qs = template.derived_documents.filter(is_template=False).select_related(
+        'organization', 'owner')
+    if _is_staff_request(request) or request.user.is_superuser:
+        if org is None:
+            return qs
+        return qs.filter(Q(pk__in=Document.objects.for_organization(org).values('pk'))
+                         | Q(is_global=True))
+    if org is None:
+        return qs.none()
+    return qs.filter(pk__in=Document.objects.for_organization(org).filter(
+        is_global=False).values('pk'))
+
+
+@login_required
+def template_documents(request, pk):
+    """Documents created from this template, flagging the ones whose content
+    predates the template's current version. Informational only: nothing
+    here changes a client document."""
+    template = get_object_or_404(_viewable_templates(request), pk=pk)
+    current = template.template_version or 1
+    rows = []
+    for d in _derived_documents(request, template).order_by('organization__name', 'title'):
+        baseline = d.template_baseline_version
+        rows.append({
+            'doc': d,
+            'baseline': baseline,
+            'behind': (baseline or 0) < current,
+            'can_edit': can_edit(request.user, d),
+        })
+    return render(request, 'docs/template_documents.html', {
+        'template': template,
+        'current_version': current,
+        'rows': rows,
+        'behind_count': sum(1 for r in rows if r['behind']),
+    })
+
+
+@login_required
+def template_document_diff(request, pk, doc_pk):
+    """What changed in the template since the version this document is based
+    on. Shows the template's changes, not the document's."""
+    template = get_object_or_404(_viewable_templates(request), pk=pk)
+    document = get_object_or_404(_derived_documents(request, template), pk=doc_pk)
+    current = template.template_version or 1
+    baseline = document.template_baseline_version
+    base_content = template.template_body_at(baseline) if baseline else None
+    rows = []
+    if base_content is not None:
+        rows = _diff_lines(base_content[1], template.body,
+                           f'template v{baseline}', f'template v{current}')
+    return render(request, 'docs/template_document_diff.html', {
+        'template': template,
+        'document': document,
+        'current_version': current,
+        'baseline': baseline,
+        'base_missing': base_content is None,
+        'title_changed': base_content is not None and base_content[0] != template.title,
+        'old_title': base_content[0] if base_content else '',
+        'rows': rows,
+        'can_edit': can_edit(request.user, document),
+    })
+
+
+@login_required
+@require_http_methods(['POST'])
+def template_document_mark_reviewed(request, pk, doc_pk):
+    """Record that this document was checked against the template's current
+    version. Does not touch the document's content."""
+    template = get_object_or_404(_viewable_templates(request), pk=pk)
+    document = get_object_or_404(_derived_documents(request, template), pk=doc_pk)
+    if not can_edit(request.user, document):
+        raise PermissionDenied("Your role does not include the 'docs_edit' permission for this customer.")
+    current = template.template_version or 1
+    # .update(): marking reviewed must not create a version snapshot.
+    Document.objects.filter(pk=document.pk).update(template_reviewed_version=current)
+    _audit_document(request, document,
+                    f'Marked "{document.title}" reviewed against template '
+                    f'"{template.title}" v{current}')
+    messages.success(request, f'"{document.title}" marked as reviewed against v{current}.')
+    return redirect('docs:template_documents', pk=template.pk)
+
+
+# ---------------------------------------------------------------------------
+# KB analytics (MSP staff).
+# ---------------------------------------------------------------------------
+
+@login_required
+def kb_analytics(request):
+    """Most viewed, never viewed, past review date, and top zero-result
+    searches. MSP staff only."""
+    from datetime import timedelta
+    from django.db.models import Count, F, Max, Q
+    from django.utils import timezone
+
+    if not (_is_staff_request(request) or request.user.is_superuser):
+        raise PermissionDenied('KB analytics is available to MSP staff only.')
+
+    org = get_request_organization(request)
+    base = Document.objects.published().filter(is_template=False)
+    if org is not None:
+        base = base.filter(Q(pk__in=Document.objects.for_organization(org).values('pk'),
+                             is_global=False) | Q(is_global=True))
+    base = base.select_related('organization', 'owner')
+
+    most_viewed = list(base.annotate(
+        total_views=F('staff_view_count') + F('portal_view_count'),
+    ).filter(total_views__gt=0).order_by('-total_views', 'title')[:20])
+
+    never_qs = base.filter(staff_view_count=0, portal_view_count=0)
+    never_viewed_count = never_qs.count()
+    never_viewed = list(never_qs.order_by('created_at')[:50])
+
+    now = timezone.now()
+    stale = []
+    for d in base.filter(review_interval_days__gt=0).only(
+            'id', 'title', 'slug', 'is_global', 'organization', 'owner',
+            'review_interval_days', 'last_reviewed_at', 'published_at', 'created_at'):
+        due = d.next_review_due
+        if due is not None and due <= now:
+            stale.append((due, d))
+    stale.sort(key=lambda pair: pair[0])
+    stale_count = len(stale)
+    stale = [{'doc': d, 'due': due, 'days_overdue': (now - due).days}
+             for due, d in stale[:50]]
+
+    since = now - timedelta(days=SearchQueryLog.RETENTION_DAYS)
+    source = request.GET.get('source') or ''
+    zq = SearchQueryLog.objects.filter(created_at__gte=since, result_count=0)
+    if source in dict(SearchQueryLog.SOURCES):
+        zq = zq.filter(source=source)
+    else:
+        source = ''
+    zero_queries = list(zq.values('query').annotate(
+        n=Count('id'), last=Max('created_at')).order_by('-n', '-last')[:25])
+
+    return render(request, 'docs/kb_analytics.html', {
+        'org': org,
+        'most_viewed': most_viewed,
+        'never_viewed': never_viewed,
+        'never_viewed_count': never_viewed_count,
+        'stale': stale,
+        'stale_count': stale_count,
+        'zero_queries': zero_queries,
+        'sources': SearchQueryLog.SOURCES,
+        'source': source,
+        'retention_days': SearchQueryLog.RETENTION_DAYS,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -1951,8 +2496,8 @@ def document_export_bulk(request, fmt):
     is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
     in_global_view = not org and (request.user.is_superuser or is_staff)
 
-    documents = Document.objects.filter(
-        is_published=True, is_archived=False, is_global=False, is_template=False,
+    documents = Document.objects.published().filter(
+        is_global=False, is_template=False,
     )
     if not in_global_view:
         # Same scope as `document_list`, whose filters this endpoint honours.

@@ -50,6 +50,8 @@
     </div>
 </div>
 
+{% include "docs/_lifecycle_panel.html" %}
+
 <div class="card">
     <div class="card-body">
         {% if document.content_type == 'file' and document.file %}
@@ -100,11 +102,22 @@
 </div>
 
 {% if versions %}
-<h3 class="mt-4">Version History</h3>
-<ul class="list-group">
+<div class="d-flex justify-content-between align-items-center mt-4 mb-2 no-print">
+    <h3 class="mb-0">Version History</h3>
+    <a href="{% url 'docs:document_versions' document.pk %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-clock-rotate-left"></i> All {{ version_total }} version{{ version_total|pluralize }}
+    </a>
+</div>
+<ul class="list-group no-print">
     {% for version in versions %}
-    <li class="list-group-item">
-        Version {{ version.version_number }} - <span class="local-time" data-utc="{{ version.created_at|date:'c' }}">{{ version.created_at|date:"Y-m-d H:i" }}</span> by {{ version.created_by.username|default:"System" }}
+    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>
+            Version {{ version.version_number }} - replaced <span class="local-time" data-utc="{{ version.created_at|date:'c' }}">{{ version.created_at|date:"Y-m-d H:i" }}</span> by {{ version.created_by.username|default:"System" }}
+        </span>
+        <span class="d-flex gap-1">
+            <a href="{% url 'docs:document_version_detail' document.pk version.version_number %}" class="btn btn-sm btn-outline-secondary">View</a>
+            <a href="{% url 'docs:document_version_diff' document.pk version.version_number %}" class="btn btn-sm btn-outline-secondary">Compare with current</a>
+        </span>
     </li>
     {% endfor %}
 </ul>

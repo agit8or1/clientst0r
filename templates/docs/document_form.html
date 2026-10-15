@@ -244,10 +244,20 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Options</label>
+                            {% if form.is_published %}
                             <div class="form-check">
                                 {{ form.is_published }}
                                 <label class="form-check-label" for="{{ form.is_published.id_for_label }}">Published</label>
                             </div>
+                            <div class="form-check">
+                                {{ form.requires_approval }}
+                                <label class="form-check-label" for="{{ form.requires_approval.id_for_label }}" title="{{ form.requires_approval.help_text }}">Requires approval</label>
+                            </div>
+                            {% else %}
+                            <div class="small text-muted mb-1"><i class="fas fa-info-circle"></i>
+                                {% if document and document.is_live %}Your changes stay published.{% else %}Saves as a draft — submit it for review to publish.{% endif %}
+                            </div>
+                            {% endif %}
                             <div class="form-check">
                                 {{ form.is_template }}
                                 <label class="form-check-label" for="{{ form.is_template.id_for_label }}">Template</label>
@@ -258,6 +268,22 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.owner.id_for_label }}" class="form-label">Owner</label>
+                            {{ form.owner }}
+                            <small class="form-text text-muted">{{ form.owner.help_text }}</small>
+                            {% if form.owner.errors %}<div class="invalid-feedback d-block">{{ form.owner.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ form.review_interval_days.id_for_label }}" class="form-label">Review every (days)</label>
+                            {{ form.review_interval_days }}
+                            <small class="form-text text-muted">{{ form.review_interval_days.help_text }}</small>
+                            {% if form.review_interval_days.errors %}<div class="invalid-feedback d-block">{{ form.review_interval_days.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <input type="hidden" name="source_template_id" id="source-template-id" value="{% if selected_template %}{{ selected_template.id }}{% endif %}">
 
                     <div class="d-flex justify-content-between gap-2">
                         <div>
@@ -737,6 +763,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
+                        // Remember the template so the new document records
+                        // which template (and version) it came from.
+                        const srcField = document.getElementById('source-template-id');
+                        if (srcField) srcField.value = templateId;
                         // Set content type
                         const contentTypeSelect = document.getElementById('{{ form.content_type.id_for_label }}');
                         contentTypeSelect.value = data.content_type;

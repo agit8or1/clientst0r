@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Documentation standards{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width: 1100px;">
+    <h1 class="h3 mb-1"><i class="fas fa-clipboard-check"></i> Documentation readiness</h1>
+    <p class="text-muted">What must be documented for which customers.</p>
+    {% include "readiness/_nav.html" with active='standards' is_staff=True %}
+    <a class="btn btn-sm btn-primary mb-3" href="{% url 'readiness:standard_create' %}"><i class="fas fa-plus"></i> New standard</a>
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Name</th><th>Applies to</th><th>Requirements</th><th>Version</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        {% for s in standards %}
+        <tr>
+            <td><a href="{% url 'readiness:standard_edit' pk=s.pk %}">{{ s.name }}</a><div class="small text-muted">{{ s.description|truncatechars:120 }}</div></td>
+            <td>{{ s.scope_label }}</td>
+            <td>{{ s.requirements.all|length }}</td>
+            <td>v{{ s.version }}</td>
+            <td>{% if s.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</td>
+            <td><form method="post" action="{% url 'readiness:standard_delete' pk=s.pk %}" onsubmit="return confirm('Delete this standard and its exceptions?');">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-muted">No standards yet. Run <code>manage.py readiness_seed_samples</code> for an example.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

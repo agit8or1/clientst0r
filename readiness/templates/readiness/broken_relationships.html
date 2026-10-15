@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Broken relationships{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width: 1100px;">
+    <h1 class="h3 mb-1"><i class="fas fa-clipboard-check"></i> Documentation readiness</h1>
+    <p class="text-muted">Relationships whose source or target record no longer exists, or belongs to a different customer. Bulk cleanup: <code>manage.py readiness_find_broken_relationships --delete</code>.</p>
+    {% include "readiness/_nav.html" with active='broken' is_staff=True %}
+
+    {% if not groups %}
+    <p class="text-muted">No broken relationships found.</p>
+    {% else %}
+    <p class="small">{{ total }} broken relationship{{ total|pluralize }}.</p>
+    <form method="post" onsubmit="return confirm('Delete the selected relationships?');">
+        {% csrf_token %}
+        {% for org, rows in groups %}
+        <h5 class="mt-3">{{ org.name }} <span class="badge bg-secondary">{{ rows|length }}</span></h5>
+        <table class="table table-sm align-middle">
+            <thead><tr><th style="width:2em"></th><th>Relationship</th><th>Problem</th></tr></thead>
+            <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>{% if row.deletable %}<input type="checkbox" class="form-check-input" name="ids" value="{{ row.b.relationship.pk }}">{% endif %}</td>
+                <td><code>{{ row.b.relationship }}</code></td>
+                <td class="small">{% for p in row.b.problems %}{{ p }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
+        <button class="btn btn-danger btn-sm">Delete selected</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

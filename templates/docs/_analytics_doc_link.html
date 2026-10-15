@@ -1,0 +1,1 @@
+{% if d.is_global %}<a href="{% url 'docs:global_kb_detail' d.slug %}">{{ d.title }}</a> <span class="badge bg-info text-dark">Global</span>{% else %}<a href="{% url 'docs:document_detail' d.slug %}">{{ d.title }}</a>{% if d.organization %} <span class="text-muted small">{{ d.organization.name }}</span>{% endif %}{% endif %}

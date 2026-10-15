@@ -8,8 +8,14 @@
     </ol>
 </nav>
 
-<h2 class="mb-3"><i class="fas fa-check-double me-2"></i>KB Approval Queue</h2>
-<p class="text-muted small">Articles flagged as drafts awaiting editorial review. Approve to publish; reject with notes to send back for revision.</p>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h2 class="mb-0"><i class="fas fa-check-double me-2"></i>KB Approval Queue</h2>
+    <div class="d-flex gap-2">
+        <a href="{% url 'docs:document_drafts_list' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-pen-ruler"></i> Drafts</a>
+        <a href="{% url 'docs:kb_review_queue' %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-calendar-check"></i> Review queue</a>
+    </div>
+</div>
+<p class="text-muted small">Documents submitted for review. Approving publishes the document; rejecting keeps it unpublished and appends your note for the author. Approving needs the publish permission for the document's customer (the KB publish permission for global articles).</p>
 
 {% if drafts %}
 {% for d in drafts %}
@@ -17,27 +23,35 @@
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
             <div>
+                {% if d.is_global %}
+                <a href="{% url 'docs:global_kb_detail' d.slug %}"><strong>{{ d.title }}</strong></a>
+                <span class="badge bg-info text-dark">Global KB</span>
+                {% else %}
                 <a href="{% url 'docs:document_detail' d.slug %}"><strong>{{ d.title }}</strong></a>
+                {% endif %}
                 <div class="text-muted small">
                     Owner: {{ d.owner.username|default:'—' }}
                     · Updated {{ d.updated_at|date:'Y-m-d H:i' }}
-                    {% if d.organization %}· Org: {{ d.organization.name }}{% endif %}
+                    {% if d.organization and not d.is_global %}· Org: {{ d.organization.name }}{% endif %}
+                    · <a href="{% url 'docs:document_versions' d.pk %}">history</a>
                 </div>
             </div>
         </div>
         {% if d.body %}
         <div class="mt-2 p-2 bg-light rounded small" style="white-space: pre-wrap; max-height: 14rem; overflow: auto;">{{ d.body|truncatechars:1000 }}</div>
         {% endif %}
-        {% if is_staff %}
+        {% if d.user_can_publish %}
         <div class="d-flex gap-2 mt-3 flex-wrap">
             <form method="post" action="{% url 'docs:kb_approve' d.slug %}" class="d-inline">
                 {% csrf_token %}
+                <input type="hidden" name="pk" value="{{ d.pk }}">
                 <button type="submit" class="btn btn-sm btn-success">
                     <i class="fas fa-check me-1"></i>Approve & publish
                 </button>
             </form>
             <form method="post" action="{% url 'docs:kb_reject' d.slug %}" class="d-flex gap-2 align-items-center flex-grow-1">
                 {% csrf_token %}
+                <input type="hidden" name="pk" value="{{ d.pk }}">
                 <input name="note" type="text" class="form-control form-control-sm"
                        placeholder="Reason for rejection (optional but recommended)" maxlength="1000">
                 <button type="submit" class="btn btn-sm btn-outline-danger text-nowrap">
@@ -46,7 +60,7 @@
             </form>
         </div>
         {% else %}
-        <p class="text-muted small mt-3 mb-0"><em>Awaiting staff review.</em></p>
+        <p class="text-muted small mt-3 mb-0"><em>Awaiting review by someone with publish permission.</em></p>
         {% endif %}
     </div>
 </div>

@@ -116,9 +116,9 @@ def global_search(request):
         ).select_related('organization'))
 
         # Search Documents (org-specific only)
-        take('documents', permitted(Document, 'docs_view').filter(
-            is_published=True,
-            is_archived=False,
+        # `.published()` is the one definition of live: published, not a
+        # pending draft, not archived.
+        take('documents', permitted(Document, 'docs_view').published().filter(
             is_global=False,
         ).filter(
             Q(title__icontains=query) |
@@ -130,10 +130,8 @@ def global_search(request):
         # which only superusers and MSP staff can hold (same reach as the old
         # staff-only rule, minus staff whose global role drops docs_view).
         if orgs_with_perm(user, 'docs_view') is None:
-            take('global_kb', Document.objects.filter(
+            take('global_kb', Document.objects.published().filter(
                 is_global=True,
-                is_published=True,
-                is_archived=False
             ).filter(
                 Q(title__icontains=query) |
                 Q(body__icontains=query)
@@ -168,5 +166,13 @@ def global_search(request):
 
         # Real total across categories, not the sum of the sliced lists.
         results['total_count'] = sum(results['counts'].values())
+
+        # Zero-result searches feed KB analytics. The total includes password
+        # matches, so a query that found anything in the vault is never zero
+        # and its text is never stored.
+        if results['total_count'] == 0:
+            from docs.models import SearchQueryLog
+            SearchQueryLog.record(query, result_count=0, source='global',
+                                  user=user, organization=org)
 
     return render(request, 'core/search_results.html', results)

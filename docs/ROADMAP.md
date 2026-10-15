@@ -1556,6 +1556,22 @@ someone else.
 - **Closeout checks for change-request verification and ticket merge**
   *(planned)* — those paths still close tickets without the checks.
 
+## Phase 53 — Documentation readiness and lifecycle **(L)** [in progress]
+
+Know what's missing, why it matters and who owns the fix.
+
+- **Readiness standards, scoring, repair queue and exceptions**
+  *(shipped v3.17.605)*.
+- **Broken-relationship report and cleanup** *(shipped v3.17.605)*.
+- **Enforced publish rules, owner and review fields, version
+  view/diff/restore, archive** *(shipped v3.17.605)*.
+- **Template version tracking and drift view** *(shipped v3.17.605)*.
+- **KB analytics** *(shipped v3.17.605)*.
+- **"Create it" links prefill the new record** *(planned)* — readiness links
+  open the right form but don't prefill title, tags or category yet.
+- **Per-asset-type custom fields as readiness requirements** *(planned)* —
+  requirements use built-in asset fields today.
+
 ---
 
 ## Sizing
@@ -1611,6 +1627,7 @@ someone else.
 | 50 — "Help Us Grow" call to action | S | shipped v3.17.586 | none — `config/support_links.py` + `templates/core/_help_us_grow_*.html`; reuses the existing GitHub Sponsors link |
 | 51 — Reliability and customer-boundary hardening | M | in progress — PSA customer boundaries, token revocation and scheduler coverage v3.17.599; role view permissions, protected downloads and customer ticket visibility v3.17.600; billing correctness v3.17.601; staff technicians v3.17.602; imports v3.17.603 | none — touches PSA, docs, accounts, API, vault and the scheduler |
 | 52 — Technician workspace | L | in progress — My Work, drafts, collisions, closeout, KB drafts v3.17.604 | Phase 51 (customer ticket visibility, staff techs) |
+| 53 — Documentation readiness and lifecycle | L | in progress — standards, scoring, lifecycle, analytics v3.17.605 | docs publish rules |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

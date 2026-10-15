@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Readiness — {{ org.name }}{% endblock %}
+{% block extra_css %}
+<style>
+    .req-row { border: 1px solid var(--bs-border-color); border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; }
+    .req-row.met { border-left: 4px solid #198754; }
+    .req-row.unmet { border-left: 4px solid #dc3545; }
+    .req-row.excepted { border-left: 4px solid #0dcaf0; }
+    .req-row.not_applicable { border-left: 4px solid #6c757d; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container my-4" style="max-width: 1100px;">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a href="{% url 'readiness:overview' %}">Documentation readiness</a></li>
+        <li class="breadcrumb-item active">{{ org.name }}</li>
+    </ol></nav>
+    <h1 class="h3">{{ org.name }} {% include "readiness/_score.html" with score=readiness.score %}</h1>
+    {% if not is_staff %}<p class="text-muted small">Read-only view.</p>{% endif %}
+    {% if needs_switch %}
+    <div class="alert alert-secondary small py-2">"Create it" links open in the customer you are working in.
+        <a href="{% url 'accounts:switch_organization' org_id=org.pk %}">Switch to {{ org.name }}</a> first.</div>
+    {% endif %}
+
+    {% for sres in readiness.standards %}
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div><strong>{{ sres.standard.name }}</strong> <span class="text-muted small">v{{ sres.standard.version }} · {{ sres.standard.scope_label }}</span></div>
+            {% include "readiness/_score.html" with score=sres.score %}
+        </div>
+        <div class="card-body">
+        {% for r in sres.results %}
+            <div class="req-row {{ r.status }}">
+                <div class="d-flex justify-content-between">
+                    <div><strong>{{ r.requirement.title }}</strong> <span class="text-muted small">({{ r.requirement.get_kind_display }}, weight {{ r.weight }})</span></div>
+                    {% include "readiness/_status.html" with status=r.status %}
+                </div>
+                <div class="small mt-1">{{ r.explanation }}</div>
+                {% if r.records %}
+                <ul class="small mb-1 mt-1">
+                    {% for rec in r.records|slice:":10" %}
+                    <li>{% if rec.url %}<a href="{{ rec.url }}">{{ rec.label }}</a>{% else %}{{ rec.label }}{% endif %}{% if rec.note %} — <span class="text-muted">{{ rec.note }}</span>{% endif %}</li>
+                    {% endfor %}
+                    {% if r.records|length > 10 %}<li class="text-muted">and {{ r.records|length|add:"-10" }} more</li>{% endif %}
+                </ul>
+                {% endif %}
+                {% if r.status == 'unmet' %}
+                <div class="small text-muted">Owner: {{ r.owner_label }}</div>
+                {% endif %}
+                {% if r.fix %}<a class="btn btn-sm btn-outline-primary mt-1" href="{{ r.fix.url }}">{{ r.fix.label }}</a>{% endif %}
+            </div>
+        {% endfor %}
+        </div>
+    </div>
+    {% empty %}
+    <p class="text-muted">No active standard applies to this customer.</p>
+    {% endfor %}
+
+    {% if is_staff %}
+    <div class="card mb-4">
+        <div class="card-header"><strong>Accepted exceptions</strong></div>
+        <div class="card-body">
+            {% if exceptions %}
+            <table class="table table-sm">
+                <thead><tr><th>Standard</th><th>Requirement</th><th>Reason</th><th>Expires</th><th>By</th><th></th></tr></thead>
+                <tbody>
+                {% for e in exceptions %}
+                <tr class="{% if not e.is_active %}text-muted{% endif %}">
+                    <td>{{ e.standard.name }}</td>
+                    <td>{% if e.requirement %}{{ e.requirement.title }}{% else %}<em>Whole standard</em>{% endif %}</td>
+                    <td>{{ e.reason }}</td>
+                    <td>{% if e.expires_at %}{{ e.expires_at|date:"Y-m-d H:i" }}{% if not e.is_active %} (expired){% endif %}{% else %}never{% endif %}</td>
+                    <td>{{ e.created_by|default:"" }}</td>
+                    <td><form method="post" action="{% url 'readiness:exception_delete' pk=e.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Remove</button></form></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<p class="text-muted small">None.</p>{% endif %}
+
+            <h6 class="mt-3">Accept a gap</h6>
+            <form method="post" action="{% url 'readiness:exception_add' org_id=org.pk %}" class="row g-2">
+                {% csrf_token %}
+                <div class="col-md-3">{{ exception_form.standard.label_tag }} {{ exception_form.standard }}</div>
+                <div class="col-md-3">{{ exception_form.requirement.label_tag }} {{ exception_form.requirement }}</div>
+                <div class="col-md-3">{{ exception_form.reason.label_tag }} {{ exception_form.reason }}</div>
+                <div class="col-md-2">{{ exception_form.expires_at.label_tag }} {{ exception_form.expires_at }}</div>
+                <div class="col-md-1 d-flex align-items-end"><button class="btn btn-sm btn-primary">Add</button></div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+<script>
+document.querySelectorAll('form select, form textarea, form input[type=datetime-local]').forEach(function (el) {
+    if (el.tagName === 'SELECT') el.classList.add('form-select', 'form-select-sm'); else el.classList.add('form-control', 'form-control-sm');
+});
+</script>
+{% endblock %}

@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'vault.apps.VaultConfig',
     'assets.apps.AssetsConfig',
     'docs.apps.DocsConfig',
+    'readiness.apps.ReadinessConfig',
     'files.apps.FilesConfig',
     'audit.apps.AuditConfig',
     'api.apps.ApiConfig',

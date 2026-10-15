@@ -1,0 +1,14 @@
+{# Unified diff rows. Every row is autoescaped text — never |safe. #}
+<style>
+.doc-diff { font-family: var(--bs-font-monospace); font-size: .85rem; white-space: pre-wrap; word-break: break-word; margin: 0; }
+.doc-diff .d-add { background: rgba(25, 135, 84, .15); display: block; }
+.doc-diff .d-del { background: rgba(220, 53, 69, .15); display: block; }
+.doc-diff .d-hunk { color: var(--bs-info); display: block; }
+.doc-diff .d-meta { color: var(--bs-secondary-color); display: block; }
+.doc-diff .d-ctx { display: block; }
+</style>
+{% if rows %}
+<pre class="doc-diff border rounded p-2">{% for kind, line in rows %}<span class="d-{{ kind }}">{{ line }}</span>{% endfor %}</pre>
+{% else %}
+<div class="alert alert-secondary small mb-0">No differences in the content.</div>
+{% endif %}

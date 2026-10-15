@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Template changes — {{ document.title }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'docs:template_list' %}">Templates</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'docs:template_documents' template.pk %}">{{ template.title }}</a></li>
+        <li class="breadcrumb-item active">{{ document.title }}</li>
+    </ol>
+</nav>
+
+<h2 class="mb-1"><i class="fas fa-code-compare me-2"></i>Template changes since v{{ baseline|default:"?" }}</h2>
+<p class="text-muted small">
+    “{{ document.title }}” was created from (or last reviewed against) template version {{ baseline|default:"unknown" }}; the template is now at version {{ current_version }}.
+    Below is what changed <em>in the template</em>. Nothing is applied to the document — copy what's relevant by editing it.
+</p>
+
+{% if base_missing %}
+<div class="alert alert-warning small">The template's content at version {{ baseline|default:"?" }} was not recorded (it predates template version tracking), so the changes can't be shown. Compare the document with the current template by hand.</div>
+{% else %}
+{% if title_changed %}
+<p class="small"><span class="text-muted">Template title:</span> <del>{{ old_title }}</del> → <ins>{{ template.title }}</ins></p>
+{% endif %}
+{% include "docs/_diff_rows.html" %}
+{% endif %}
+
+<div class="d-flex gap-2 mt-3">
+    {% if document.is_global %}
+    <a class="btn btn-outline-secondary" href="{% url 'docs:global_kb_edit' document.slug %}"><i class="fas fa-edit"></i> Edit document</a>
+    {% elif can_edit %}
+    <a class="btn btn-outline-secondary" href="{% url 'docs:document_edit' document.slug %}"><i class="fas fa-edit"></i> Edit document</a>
+    {% endif %}
+    {% if can_edit %}
+    <form method="post" action="{% url 'docs:template_document_mark_reviewed' template.pk document.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Mark reviewed against v{{ current_version }}</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

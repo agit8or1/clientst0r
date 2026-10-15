@@ -4,7 +4,7 @@ Docs models - Knowledge base documents with versions
 from django.db import models
 from django.contrib.auth.models import User
 from core.models import Organization, Tag, BaseModel
-from core.utils import OrganizationManager
+from core.utils import OrganizationManager, OrganizationQuerySet
 import re
 import markdown
 import bleach
@@ -43,6 +43,34 @@ class DocumentCategory(BaseModel):
             from django.utils.text import slugify
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+
+
+class DocumentQuerySet(OrganizationQuerySet):
+    """Document queries with one definition of "published"."""
+
+    def published(self):
+        """The single source of truth for what readers may see.
+
+        A document is live only when it is published, not a pending draft and
+        not archived. Every reader-facing surface (staff list, global KB list,
+        global search, bulk export, customer portal, review reminders) goes
+        through this, so a row left with is_draft=True and is_published=True
+        by an older code path is still treated as a draft.
+        """
+        return self.filter(is_published=True, is_draft=False, is_archived=False)
+
+    def drafts(self):
+        """Unpublished, not archived: private drafts plus pending review."""
+        return self.filter(is_archived=False).filter(
+            models.Q(is_published=False) | models.Q(is_draft=True))
+
+
+class DocumentManager(OrganizationManager):
+    def get_queryset(self):
+        return DocumentQuerySet(self.model, using=self._db)
+
+    def published(self):
+        return self.get_queryset().published()
 
 
 class Document(BaseModel):
@@ -138,11 +166,45 @@ class Document(BaseModel):
         help_text='When the article was first published.',
     )
 
+    # Template lineage. A document created from a template remembers which
+    # template and which template version it started from, so the template's
+    # "documents created from this template" page can show which ones are
+    # behind. Never used to rewrite the document.
+    source_template = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='derived_documents',
+        limit_choices_to={'is_template': True},
+        help_text='Template this document was created from.',
+    )
+    source_template_version = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Template version this document was created from.',
+    )
+    template_reviewed_version = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Template version this document was last reviewed against.',
+    )
+    template_version = models.PositiveIntegerField(
+        default=1,
+        help_text='Templates only: increments each time the template content '
+                  'changes.',
+    )
+
+    # Staff-side readership (the portal has its own counter above).
+    staff_view_count = models.PositiveIntegerField(
+        default=0,
+        help_text='Times staff opened this document in the web UI.',
+    )
+    last_viewed_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text='Last time anyone opened this document (staff or portal).',
+    )
+
     # Metadata
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='documents_created')
     last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='documents_modified')
 
-    objects = OrganizationManager()
+    objects = DocumentManager()
 
     class Meta:
         db_table = 'documents'
@@ -245,7 +307,10 @@ class Document(BaseModel):
             self.slug = slugify(self.title)
         # Create version on save if document already exists
         if self.pk:
-            self._create_version()
+            snapshot = self._create_version()
+            update_fields = kwargs.get('update_fields')
+            if snapshot is not None and update_fields is not None and self.is_template:
+                kwargs['update_fields'] = set(update_fields) | {'template_version'}
         # v3.17.245 — default the owner to created_by on first save.
         if not self.owner_id and self.created_by_id:
             self.owner_id = self.created_by_id
@@ -253,7 +318,64 @@ class Document(BaseModel):
         if not self.is_draft and self.is_published and not self.published_at:
             from django.utils import timezone as _tz
             self.published_at = _tz.now()
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None:
+                kwargs['update_fields'] = set(update_fields) | {'published_at'}
         super().save(*args, **kwargs)
+
+    @property
+    def is_live(self) -> bool:
+        """Same rule as `DocumentQuerySet.published()`, for one row."""
+        return bool(self.is_published and not self.is_draft and not self.is_archived)
+
+    @property
+    def publish_state(self) -> str:
+        """`archived` / `pending_review` / `draft` / `published`."""
+        if self.is_archived:
+            return 'archived'
+        if self.is_draft:
+            return 'pending_review'
+        if not self.is_published:
+            return 'draft'
+        return 'published'
+
+    @property
+    def next_review_due(self):
+        """When the next review falls due, or None if reviews are off."""
+        from datetime import timedelta as _td
+        if not self.review_interval_days:
+            return None
+        anchor = self.last_reviewed_at or self.published_at or self.created_at
+        if not anchor:
+            return None
+        return anchor + _td(days=int(self.review_interval_days))
+
+    @property
+    def template_baseline_version(self):
+        """The template version this document is known to match: the later of
+        the version it was created from and the one it was reviewed against."""
+        versions = [v for v in (self.source_template_version,
+                                self.template_reviewed_version) if v]
+        return max(versions) if versions else None
+
+    @property
+    def is_behind_template(self) -> bool:
+        t = self.source_template
+        if t is None:
+            return False
+        baseline = self.template_baseline_version or 0
+        return baseline < (t.template_version or 1)
+
+    def template_body_at(self, version):
+        """Templates only: this template's (title, body, content_type) as of
+        template `version`, or None when no snapshot covers it."""
+        if version == self.template_version:
+            return (self.title, self.body, self.content_type)
+        snap = self.versions.filter(template_version=version).order_by(
+            '-version_number').first()
+        if snap is None:
+            return None
+        return (snap.title, snap.body, snap.content_type)
 
     @property
     def is_review_overdue(self) -> bool:
@@ -302,19 +424,35 @@ class Document(BaseModel):
 
     def _create_version(self):
         """
-        Create a version snapshot before saving changes.
+        Snapshot the stored (pre-save) content before saving changes.
+
+        Only content edits (title, body or editor type) create a snapshot —
+        status flips like approve / mark-reviewed used to add identical
+        copies. A template whose content changes also moves to the next
+        `template_version`; the snapshot records which template version it
+        holds so later diffs can find it. Returns the snapshot or None.
         """
         try:
             old_doc = Document.objects.get(pk=self.pk)
-            DocumentVersion.objects.create(
-                document=self,
-                title=old_doc.title,
-                body=old_doc.body,
-                version_number=self.versions.count() + 1,
-                created_by=self.last_modified_by
-            )
         except Document.DoesNotExist:
-            pass
+            return None
+        if (old_doc.title, old_doc.body, old_doc.content_type) == (
+                self.title, self.body, self.content_type):
+            return None
+        last = self.versions.aggregate(m=models.Max('version_number'))['m'] or 0
+        template_version = None
+        if old_doc.is_template and self.is_template:
+            template_version = old_doc.template_version or 1
+            self.template_version = template_version + 1
+        return DocumentVersion.objects.create(
+            document=self,
+            title=old_doc.title,
+            body=old_doc.body,
+            content_type=old_doc.content_type,
+            version_number=last + 1,
+            template_version=template_version,
+            created_by=self.last_modified_by
+        )
 
 
 class DocumentVersion(BaseModel):
@@ -326,6 +464,11 @@ class DocumentVersion(BaseModel):
     title = models.CharField(max_length=255)
     body = models.TextField()
     content_type = models.CharField(max_length=20, default='markdown')
+    template_version = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='For template documents: the template version this '
+                  'snapshot holds.',
+    )
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
     class Meta:
@@ -335,6 +478,79 @@ class DocumentVersion(BaseModel):
 
     def __str__(self):
         return f"{self.document.title} v{self.version_number}"
+
+
+class SearchQueryLog(models.Model):
+    """
+    Searches that found nothing, kept for 90 days so staff can see what
+    people look for that the documentation does not answer.
+
+    Only zero-result searches are stored (`record` drops the rest), and only
+    from the global search and the document / global KB / portal KB searches.
+    Vault searches are never logged: their text can name a credential. The
+    global search counts password matches in its total, so a query that hit
+    the vault is never zero and never stored.
+    """
+    SOURCES = [
+        ('global', 'Global search'),
+        ('docs', 'Documents'),
+        ('global_kb', 'Global KB'),
+        ('portal_kb', 'Customer portal KB'),
+    ]
+    RETENTION_DAYS = 90
+    MAX_LENGTH = 200
+
+    query = models.CharField(max_length=200, db_index=True,
+                             help_text='Normalized: lower-case, single spaces.')
+    source = models.CharField(max_length=20, choices=SOURCES, default='global')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                             blank=True, related_name='+')
+    organization = models.ForeignKey(Organization, on_delete=models.SET_NULL,
+                                     null=True, blank=True, related_name='+')
+    result_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = 'docs_search_query_logs'
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['result_count', 'created_at'])]
+
+    def __str__(self):
+        return f'{self.query} ({self.result_count})'
+
+    @classmethod
+    def normalize(cls, text):
+        return ' '.join(str(text or '').lower().split())[:cls.MAX_LENGTH]
+
+    @classmethod
+    def record(cls, query, *, result_count, source, user=None, organization=None):
+        """Store a zero-result search. Never raises: logging must not break
+        a search page."""
+        if result_count:
+            return None
+        normalized = cls.normalize(query)
+        if len(normalized) < 2:
+            return None
+        if user is not None and not getattr(user, 'is_authenticated', False):
+            user = None
+        try:
+            return cls.objects.create(
+                query=normalized, result_count=0, source=source,
+                user=user, organization=organization)
+        except Exception:  # noqa: BLE001
+            import logging
+            logging.getLogger('docs').warning('Could not log search query',
+                                              exc_info=True)
+            return None
+
+    @classmethod
+    def prune(cls, days=None):
+        """Delete rows older than the retention window; returns the count."""
+        from datetime import timedelta
+        from django.utils import timezone
+        cutoff = timezone.now() - timedelta(days=days or cls.RETENTION_DAYS)
+        deleted, _ = cls.objects.filter(created_at__lt=cutoff).delete()
+        return deleted
 
 
 class DocumentFlag(BaseModel):

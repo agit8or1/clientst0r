@@ -44,6 +44,7 @@ urlpatterns = [
     path('assets/', include('assets.urls')),
     path('vault/', include('vault.urls')),
     path('docs/', include('docs.urls')),
+    path('readiness/', include('readiness.urls')),
     path('processes/', include('processes.urls')),
     path('files/', include('files.urls')),
     path('integrations/', include('integrations.urls')),

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}History — {{ document.title }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        {% if document.is_global %}
+        <li class="breadcrumb-item"><a href="{% url 'docs:global_kb_list' %}">Global KB</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'docs:global_kb_detail' document.slug %}">{{ document.title }}</a></li>
+        {% else %}
+        <li class="breadcrumb-item"><a href="{% url 'docs:document_list' %}">Documents</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'docs:document_detail' document.slug %}">{{ document.title }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active">History</li>
+    </ol>
+</nav>
+
+<h2 class="mb-1"><i class="fas fa-clock-rotate-left me-2"></i>Version history</h2>
+<p class="text-muted small">Each version is the content as it stood before an edit replaced it. Restoring a version makes it the current content and keeps what it replaces as a new version.</p>
+
+{% if page.object_list %}
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+    <thead><tr><th>Version</th><th>Title</th><th>Replaced</th><th>By</th><th class="text-end">Actions</th></tr></thead>
+    <tbody>
+    {% for v in page.object_list %}
+    <tr>
+        <td>v{{ v.version_number }}</td>
+        <td>{{ v.title }}</td>
+        <td>{{ v.created_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ v.created_by.username|default:"System" }}</td>
+        <td class="text-end">
+            <div class="d-inline-flex gap-1 flex-wrap justify-content-end">
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'docs:document_version_detail' document.pk v.version_number %}">View</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'docs:document_version_diff' document.pk v.version_number %}">Compare with current</a>
+                {% if can_edit_doc %}
+                <form method="post" action="{% url 'docs:document_version_restore' document.pk v.version_number %}" class="d-inline"
+                      onsubmit="return confirm('Restore version {{ v.version_number }}? The current content is kept as a new version.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Restore</button>
+                </form>
+                {% endif %}
+            </div>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% if page.has_other_pages %}
+<nav><ul class="pagination pagination-sm">
+    {% if page.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page.previous_page_number }}">Newer</a></li>{% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ page.number }} of {{ page.paginator.num_pages }}</span></li>
+    {% if page.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page.next_page_number }}">Older</a></li>{% endif %}
+</ul></nav>
+{% endif %}
+{% else %}
+<div class="alert alert-secondary">No earlier versions — this document has not been edited since it was created.</div>
+{% endif %}
+{% endblock %}

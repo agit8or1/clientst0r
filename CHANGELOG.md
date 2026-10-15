@@ -5,6 +5,44 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.605] - 2026-10-15
+
+### Documentation readiness
+
+- **Readiness standards** (Docs → Documentation Readiness): define what every
+  customer — or every customer of a given type, or with assets of a given type —
+  must have documented: documents by tag, category or title, review freshness,
+  owners, required asset fields, contacts with a given role, credential
+  references (metadata only), and asset relationships. Each customer gets a
+  score with a plain explanation of every unmet requirement, links to fix it,
+  and an owner; a repair queue lists everything unmet across customers.
+  Per-customer exceptions (with reason and optional expiry) are audited.
+  Customer users with View documents see their own customer's page read-only.
+  `manage.py readiness_seed_samples` adds a sample Microsoft 365 tenant
+  documentation standard (not added automatically).
+- **Broken relationships report:** links between records whose target no
+  longer exists or belongs to another customer, with cleanup for staff
+  (`manage.py readiness_find_broken_relationships --delete`).
+
+### Document lifecycle
+
+- **Publishing follows the rules.** Publishing needs the View/Publish document
+  permission for that customer (or Publish KB articles for global articles).
+  Without it, new documents, uploads and imports save as drafts. Documents that
+  require approval go through Submit for review → Approve. Drafts never appear
+  in document lists, search, exports or the portal.
+- **Owner and review interval** are editable on the document form; the document
+  page shows the owner and next review date.
+- **Version history:** view any version, compare two versions, and restore one
+  (audited; the replaced content is kept as a version).
+- **Drafts and Archived lists**, with Unarchive.
+- **Template drift:** documents created from a template remember the template
+  version; each template lists the documents that are behind with a diff of
+  what changed. Nothing is overwritten.
+- **KB analytics** (staff): most viewed, never viewed, past review date, and
+  searches that found nothing. Only zero-result searches are logged, never
+  vault searches, and they are kept for 90 days.
+
 ## [3.17.604] - 2026-10-15
 
 ### Technician workspace

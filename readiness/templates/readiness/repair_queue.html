@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Readiness repair queue{% endblock %}
+{% block content %}
+<div class="container-fluid my-4" style="max-width: 1300px;">
+    <h1 class="h3 mb-1"><i class="fas fa-clipboard-check"></i> Documentation readiness</h1>
+    <p class="text-muted">Every unmet requirement across customers, with who owns the fix. Excepted and not-applicable items are left out.</p>
+    {% include "readiness/_nav.html" with active='repair' is_staff=True %}
+
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-auto"><select name="customer" class="form-select form-select-sm">
+            <option value="">All customers</option>
+            {% for c in customers %}<option value="{{ c.pk }}" {% if org_filter == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select></div>
+        <div class="col-auto"><select name="standard" class="form-select form-select-sm">
+            <option value="">All standards</option>
+            {% for s in standards %}<option value="{{ s.pk }}" {% if std_filter == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </select></div>
+        <div class="col-auto"><select name="owner" class="form-select form-select-sm">
+            <option value="">Any owner</option>
+            <option value="unassigned" {% if owner_filter == 'unassigned' %}selected{% endif %}>Unassigned</option>
+            {% for u in owners %}<option value="{{ u.pk }}" {% if owner_filter == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+        </select></div>
+        <div class="col-auto"><button class="btn btn-sm btn-primary">Filter</button></div>
+    </form>
+
+    <p class="small text-muted">{{ items|length }} open item{{ items|length|pluralize }}.</p>
+    <div class="table-responsive">
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Customer</th><th>Standard</th><th>Requirement</th><th>What's missing</th><th>Owner</th><th></th></tr></thead>
+        <tbody>
+        {% for i in items %}
+        <tr>
+            <td><a href="{% url 'readiness:org_readiness' org_id=i.org.pk %}">{{ i.org.name }}</a></td>
+            <td>{{ i.standard.name }}</td>
+            <td>{{ i.result.requirement.title }} <span class="text-muted small">(weight {{ i.result.weight }})</span></td>
+            <td class="small">{{ i.result.explanation }}</td>
+            <td>{{ i.result.owner_label }}</td>
+            <td>{% if i.result.fix %}<a class="btn btn-sm btn-outline-primary" href="{{ i.result.fix.url }}">{{ i.result.fix.label }}</a>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-muted">Nothing to repair.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock %}

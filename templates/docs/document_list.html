@@ -23,6 +23,11 @@
             <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" href="{% url 'docs:category_list' %}"><i class="fas fa-folder fa-fw"></i> Categories</a></li>
                 <li><a class="dropdown-item" href="{% url 'docs:template_list' %}"><i class="fas fa-file-alt fa-fw"></i> Templates</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{% url 'docs:document_drafts_list' %}"><i class="fas fa-pen-ruler fa-fw"></i> Drafts</a></li>
+                <li><a class="dropdown-item" href="{% url 'docs:kb_approval_queue' %}"><i class="fas fa-check-double fa-fw"></i> Approval queue</a></li>
+                <li><a class="dropdown-item" href="{% url 'docs:kb_review_queue' %}"><i class="fas fa-calendar-check fa-fw"></i> Review queue</a></li>
+                <li><a class="dropdown-item" href="{% url 'docs:document_archived_list' %}"><i class="fas fa-box-archive fa-fw"></i> Archived</a></li>
             </ul>
         </div>
 

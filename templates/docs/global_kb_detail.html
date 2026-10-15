@@ -13,14 +13,18 @@
 <div class="d-flex justify-content-end mb-3">
     <div class="d-flex gap-2">
         {% include "docs/_export_menu.html" with url_name='docs:global_kb_export' slug=document.slug %}
+        {% if can_edit_doc %}
         <a href="{% url 'docs:global_kb_edit' document.slug %}" class="btn btn-secondary">
             <i class="fas fa-edit"></i> Edit
         </a>
+        {% endif %}
         <a href="{% url 'docs:global_kb_list' %}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left"></i> Back to List
         </a>
     </div>
 </div>
+
+{% include "docs/_lifecycle_panel.html" %}
 
 <div class="row">
     <div class="col-md-9">

@@ -1,0 +1,76 @@
+{# Publish state, owner, review date, template lineage and lifecycle actions. #}
+{# Context: document + docs.views._lifecycle_context(). #}
+{% with state=document.publish_state %}
+{% if state == 'pending_review' %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 no-print">
+    <span><i class="fas fa-hourglass-half me-1"></i><strong>Pending review.</strong> Not shown in document lists, search, exports or the customer portal until approved.</span>
+    {% if can_publish_doc %}
+    <span class="d-flex gap-2 flex-wrap">
+        <form method="post" action="{% url 'docs:kb_approve' document.slug %}" class="d-inline">
+            {% csrf_token %}<input type="hidden" name="pk" value="{{ document.pk }}">
+            <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-check me-1"></i>Approve &amp; publish</button>
+        </form>
+        <a href="{% url 'docs:kb_approval_queue' %}" class="btn btn-sm btn-outline-secondary">Approval queue</a>
+    </span>
+    {% endif %}
+</div>
+{% elif state == 'draft' %}
+<div class="alert alert-secondary d-flex justify-content-between align-items-center flex-wrap gap-2 no-print">
+    <span><i class="fas fa-pen-ruler me-1"></i><strong>Draft.</strong> Not shown in document lists, search, exports or the customer portal.
+        {% if document.requires_approval %}This document requires approval before it is published.{% endif %}</span>
+    {% if can_submit_for_review %}
+    <form method="post" action="{% url 'docs:kb_submit_for_review' document.slug %}" class="d-inline">
+        {% csrf_token %}<input type="hidden" name="pk" value="{{ document.pk }}">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-paper-plane me-1"></i>Submit for review</button>
+    </form>
+    {% endif %}
+</div>
+{% elif state == 'archived' %}
+<div class="alert alert-secondary d-flex justify-content-between align-items-center flex-wrap gap-2 no-print">
+    <span><i class="fas fa-box-archive me-1"></i><strong>Archived.</strong> Hidden from lists, search, exports and the customer portal.</span>
+    {% if can_edit_doc %}
+    <form method="post" action="{% url 'docs:document_unarchive' document.pk %}" class="d-inline">
+        {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-box-open me-1"></i>Restore from archive</button>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+{% endwith %}
+
+<div class="card mb-3 no-print">
+    <div class="card-body py-2 small d-flex flex-wrap gap-4 align-items-center">
+        <span><span class="text-muted">Owner:</span>
+            {% if document.owner %}{{ document.owner.get_full_name|default:document.owner.username }}{% else %}<em>none</em>{% endif %}</span>
+        <span><span class="text-muted">Next review:</span>
+            {% if document.next_review_due %}
+                {{ document.next_review_due|date:"Y-m-d" }}
+                {% if document.review_status == 'overdue' %}<span class="badge bg-danger">overdue</span>
+                {% elif document.review_status == 'due_soon' %}<span class="badge bg-warning text-dark">due soon</span>{% endif %}
+            {% else %}<em>reviews off</em>{% endif %}
+        </span>
+        {% if document.last_reviewed_at %}
+        <span><span class="text-muted">Last reviewed:</span> {{ document.last_reviewed_at|date:"Y-m-d" }}</span>
+        {% endif %}
+        {% if document.requires_approval %}<span class="badge bg-info text-dark">Requires approval</span>{% endif %}
+        {% if source_template %}
+        <span><span class="text-muted">From template:</span> {{ source_template.title }}
+            v{{ document.template_baseline_version|default:"?" }}
+            {% if template_behind %}
+            <a href="{% url 'docs:template_document_diff' source_template.pk document.pk %}" class="badge bg-warning text-dark text-decoration-none">template now v{{ source_template.template_version }} — see changes</a>
+            {% endif %}
+        </span>
+        {% endif %}
+        <span class="ms-auto d-flex gap-2 flex-wrap">
+            {% if can_mark_reviewed and document.next_review_due %}
+            <form method="post" action="{% url 'docs:kb_mark_reviewed' document.slug %}" class="d-inline">
+                {% csrf_token %}<input type="hidden" name="pk" value="{{ document.pk }}">
+                <button type="submit" class="btn btn-sm btn-outline-success"><i class="fas fa-calendar-check me-1"></i>Mark reviewed</button>
+            </form>
+            {% endif %}
+            {% if version_total %}
+            <a href="{% url 'docs:document_versions' document.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-clock-rotate-left me-1"></i>History</a>
+            {% endif %}
+        </span>
+    </div>
+</div>
