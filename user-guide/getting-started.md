@@ -35,7 +35,8 @@ Every user is one of two kinds. The difference decides what they can see, indepe
 |---|---|---|
 | Who | Superusers, and users whose **User Type** is *Staff* | Everyone else — people who log in for one of your customers |
 | Customers they see | All of them | Only the organizations they are a member of |
-| Assignable work | Tickets, projects and recurring work for any customer | Only within their own organizations |
+| Assignable work (tickets, problems, projects and tasks, recurring work, dispatch) | Yes, for any customer | No — they never appear as assignees, on the dispatch board or in technician suggestions |
+| Assigning work to technicians | Yes | No, not even a customer's organization admin |
 | Tickets | All tickets | Only tickets marked as visible to the client |
 | Internal notes and internal attachments | Yes | No |
 | Global dashboard (every customer's counts and activity) | Yes | No |

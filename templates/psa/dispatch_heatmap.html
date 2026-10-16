@@ -80,7 +80,7 @@
         <tbody>
             {% for row in rows %}
             <tr>
-                <th class="tech-col">{{ row.tech.username }}</th>
+                <th class="tech-col">{{ row.tech.username }}{% if not row.is_tech %} <span class="badge text-bg-warning" title="Not an MSP technician (User Type Staff) or deactivated">Not a technician</span>{% endif %}</th>
                 {% for cell in row.cells %}
                 <td class="heatmap-cell intensity-{{ cell.intensity }}{% if cell.is_today %} today{% endif %}{% if cell.is_past %} past{% endif %}"
                     title="{{ row.tech.username }} — {{ cell.date|date:"D, M j" }}: {{ cell.count }} ticket{{ cell.count|pluralize }}">

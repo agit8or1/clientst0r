@@ -20,7 +20,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.permission_utils import user_has_perm
-from psa.visibility import is_msp_staff
+from psa.visibility import is_msp_staff, msp_technicians
 
 
 def _serialize_user(u) -> dict:
@@ -40,43 +40,24 @@ def assignable_users_view(request):
     """
     GET /api/mobile/v1/users/assignable/?search=
 
-    Returns the users the caller can assign tickets to:
-      * caller themselves (always — self-claim is allowed),
-      * if `tickets_assign` perm: every active staff user the caller
-        shares at least one active membership with (so cross-tenant
-        users aren't exposed). Superusers see everyone.
+    Returns the users the caller can assign tickets to — MSP technicians
+    only (a customer's own users are never assignees):
+      * without `tickets_assign`: the caller themselves if they are a
+        technician (self-claim), otherwise nobody,
+      * with `tickets_assign`: every active MSP technician, when the caller
+        is MSP staff; a customer user gets an empty list.
     """
     search = (request.query_params.get('search') or '').strip()
 
     if not user_has_perm(request.user, 'tickets_assign'):
         # Self-claim only — no picker. Mobile UI hides the control
         # entirely when this returns a single row that's the caller.
-        rows = [request.user]
-    elif request.user.is_superuser or (
-            is_msp_staff(request.user) and user_has_perm(request.user, 'tickets_view_all')):
-        rows = list(
-            User.objects.filter(is_active=True).order_by('username')[:200]
-        )
+        rows = [request.user] if is_msp_staff(request.user) else []
+    elif is_msp_staff(request.user):
+        rows = list(msp_technicians()[:200])
     else:
-        # Same-org pool: users sharing at least one active membership
-        # with the caller (so the picker doesn't show users from orgs
-        # we have no business touching).
-        try:
-            from accounts.models import Membership
-            my_orgs = Membership.objects.filter(
-                user=request.user, is_active=True,
-            ).values_list('organization_id', flat=True)
-            sibling_ids = (Membership.objects
-                           .filter(organization_id__in=list(my_orgs),
-                                   is_active=True)
-                           .values_list('user_id', flat=True)
-                           .distinct())
-            rows = list(
-                User.objects.filter(id__in=list(sibling_ids), is_active=True)
-                            .order_by('username')[:200]
-            )
-        except Exception:
-            rows = [request.user]
+        # Customer users never see the MSP's technician roster.
+        rows = []
 
     if search:
         q = search.lower()

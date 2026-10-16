@@ -834,11 +834,9 @@ def rank_techs_for_ticket(ticket):
     if ticket is None:
         return []
 
-    # Pool: members of the ticket org + staff/superusers
-    pool = User.objects.filter(is_active=True).filter(
-        models.Q(memberships__organization=ticket.organization, memberships__is_active=True)
-        | models.Q(is_staff=True) | models.Q(is_superuser=True)
-    ).distinct()
+    # Pool: the MSP's technicians (customer users are never candidates).
+    from psa.visibility import msp_technicians
+    pool = msp_technicians()
 
     text = (
         (ticket.subject or '') + ' ' + (ticket.description or '')

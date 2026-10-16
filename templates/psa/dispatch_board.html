@@ -97,6 +97,9 @@
             <tr data-tech="{{ row.tech.id }}">
                 <td class="dispatch-row-label">
                     <strong>{{ row.tech.username }}</strong>
+                    {% if not row.is_tech %}
+                    <div><span class="badge text-bg-warning" title="This user isn't an MSP technician (User Type Staff) or is deactivated. Drag these tickets to a technician to reassign them.">Not a technician</span></div>
+                    {% endif %}
                     {# Notification status icons - visual confirmation that the tech will be reachable #}
                     {% if row.tech.profile.notify_assigned_email %}
                     <i class="fas fa-envelope text-muted ms-1" title="Tech will be emailed on assignment" data-bs-toggle="tooltip"></i>
@@ -106,7 +109,7 @@
                     {% endif %}
                 </td>
                 {% for cell in row.cells %}
-                <td class="dispatch-cell" data-tech="{{ row.tech.id }}">
+                <td class="dispatch-cell{% if not row.is_tech %} dispatch-cell-locked{% endif %}"{% if row.is_tech %} data-tech="{{ row.tech.id }}"{% endif %}>
                     {% for t in cell %}
                     <div class="dispatch-card" draggable="true" data-ticket="{{ t.ticket_number }}">
                         <span class="badge {% if t.status.is_terminal %}text-bg-secondary{% else %}text-bg-info{% endif %}">{{ t.priority.code }}</span>
@@ -119,7 +122,7 @@
                     {% endfor %}
                 </td>
                 {% endfor %}
-                <td class="dispatch-cell" data-tech="{{ row.tech.id }}">
+                <td class="dispatch-cell{% if not row.is_tech %} dispatch-cell-locked{% endif %}"{% if row.is_tech %} data-tech="{{ row.tech.id }}"{% endif %}>
                     {% for t in row.other %}
                     <div class="dispatch-card" draggable="true" data-ticket="{{ t.ticket_number }}">
                         <span class="badge {% if t.status.is_terminal %}text-bg-secondary{% else %}text-bg-info{% endif %}">{{ t.priority.code }}</span>
@@ -154,6 +157,7 @@
     border-color: var(--bs-border-color);
 }
 .dispatch-tech-col { width: 110px; }
+.dispatch-cell-locked { background: var(--bs-warning-bg-subtle); }
 .dispatch-row-label { background: var(--bs-tertiary-bg); font-size: .8rem; }
 .dispatch-cell { min-height: 36px; transition: background 120ms; }
 .dispatch-cell.drop-target {

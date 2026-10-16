@@ -16,8 +16,10 @@ from rest_framework.decorators import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from django.db.models import Q
+
 from .scoping import accessible_org_ids
-from psa.visibility import customer_visible_tickets
+from psa.visibility import customer_visible_tickets, msp_staff_q
 
 
 def _serialize_assignment(a) -> dict:
@@ -278,12 +280,16 @@ def create_scheduled_task_view(request):
     if 'assignee_id' in data:
         raw = data.get('assignee_id')
         if raw not in (None, '', 0):
+            # Only an MSP technician, or a member of this customer, can be
+            # given the task; anyone else is skipped rather than 500ing.
             try:
-                assignee = User.objects.get(pk=int(raw))
+                assignee = (User.objects.filter(is_active=True)
+                            .filter(msp_staff_q()
+                                    | Q(memberships__organization_id=org_id,
+                                        memberships__is_active=True))
+                            .distinct().get(pk=int(raw)))
                 TaskAssignment.objects.create(task=task, user=assignee)
             except (User.DoesNotExist, ValueError, TypeError):
-                # The task was already created; just skip the assignment
-                # rather than 500ing.
                 pass
     else:
         TaskAssignment.objects.create(task=task, user=request.user)

@@ -741,19 +741,7 @@ def execution_create(request, slug):
     )
     eligible_assignees = []
     if can_assign:
-        from django.contrib.auth.models import User as _User
-        from django.db.models import Q as _Q
-        client_ids = list(client_orgs.values_list('id', flat=True))
-        eligible_assignees = list(
-            _User.objects.filter(is_active=True)
-            .filter(
-                _Q(is_staff=True) | _Q(is_superuser=True)
-                | _Q(memberships__organization_id__in=client_ids,
-                     memberships__is_active=True)
-            )
-            .distinct()
-            .order_by('username')
-        )
+        eligible_assignees = list(_eligible_assignees(None))
 
     return render(request, 'processes/execution_form.html', {
         'form': form,

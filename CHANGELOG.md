@@ -5,6 +5,33 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.613] - 2026-10-16
+
+### Dispatch and assignment: MSP technicians only
+
+- **The dispatch board** lists only MSP technicians (superusers, Django staff
+  and users whose User Type is Staff). Before, every member of the selected
+  customer appeared as a tech row, including the customer's own users. A
+  ticket that is still assigned to someone who isn't a technician stays on the
+  board, on a row marked "Not a technician" that accepts no drops, so you can
+  drag those tickets to a technician. The load heatmap shows the same flag.
+- **Assignee lists** for tickets, bulk assign, problems, projects and tasks,
+  recurring work and workflow launches offer MSP technicians only. Technician
+  suggestions on the board also include User Type Staff techs who aren't
+  members of the customer, which they missed before.
+- **The server checks it too:** drag-and-drop, "assign to me", problems and
+  the mobile ticket edit refuse a non-technician assignee. Before, the mobile
+  app could assign a ticket to any user, including another customer's.
+  The mobile assignee picker lists technicians only. Mobile scheduled tasks
+  can be given to a technician or a member of that customer only.
+- **Only MSP staff assign work.** A customer's own organization admin or
+  owner could previously reassign that customer's tickets; they now can't,
+  since doing so meant choosing from the MSP's technician list, which
+  customer users don't see. On mobile, customer users get an empty assignee
+  picker.
+- If a technician no longer appears, set their User Type to Staff
+  (Admin → Access Management → Users → Edit).
+
 ## [3.17.612] - 2026-10-16
 
 ### Sign-in tokens, share links and 2FA keys are no longer stored in plain text

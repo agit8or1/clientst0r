@@ -2331,8 +2331,8 @@ class MobileTicketAssignPermTests(TestCase):
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False,
                    REST_FRAMEWORK=NO_THROTTLE_REST)
 class MobileAssignableUsersTests(TestCase):
-    """v3.17.477 — /users/assignable/ scopes the picker to peers, and to
-    just the caller when they lack tickets_assign."""
+    """/users/assignable/ lists MSP technicians only (v3.17.613), and just
+    the caller when they lack tickets_assign. Customer users get nothing."""
 
     def setUp(self):
         _clear_throttle_cache()
@@ -2356,8 +2356,10 @@ class MobileAssignableUsersTests(TestCase):
                 role_template=tech_tpl if u is not self.manager else mgr_tpl,
                 is_active=True,
             )
-        # `outsider` belongs to a different org — should not appear in
-        # the manager's assignable list.
+        from psa.tests._base import _make_msp_tech
+        for u in (self.tech, self.peer, self.manager):
+            _make_msp_tech(u)
+        # `outsider` is a customer user — never an assignee.
         other_org = Organization.objects.create(name='Other-AL', slug='other-al')
         Membership.objects.create(
             user=self.outsider, organization=other_org, role=Role.ADMIN,
@@ -2379,7 +2381,21 @@ class MobileAssignableUsersTests(TestCase):
         ids = [u['id'] for u in resp.json()['results']]
         self.assertEqual(ids, [self.tech.id])
 
-    def test_with_assign_perm_returns_peers_only(self):
+    def test_customer_user_with_assign_perm_sees_no_roster(self):
+        cust = User.objects.create_user('acust', password='hunter2')
+        Membership.objects.create(
+            user=cust, organization=self.org, role=Role.ADMIN,
+            role_template=self.manager.memberships.first().role_template,
+            is_active=True,
+        )
+        token = _post(self.client, '/api/mobile/v1/auth/login/', {
+            'username': 'acust', 'password': 'hunter2',
+        }).json()['token']
+        resp = _auth_get(self.client, '/api/mobile/v1/users/assignable/', token)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['results'], [])
+
+    def test_with_assign_perm_returns_technicians_only(self):
         resp = _auth_get(
             self.client, '/api/mobile/v1/users/assignable/', self.mgr_token,
         )

@@ -341,10 +341,11 @@ class SkillRankingTests(TestCase):
         from django.core.management import call_command
         call_command('psa_seed_defaults', verbosity=0)
         self.org = Organization.objects.create(name='SkillCo', slug='skill-co')
-        self.tech_a = User.objects.create_user('alice', 'a@x.com', 'pw')
+        from psa.tests._base import _make_msp_tech
+        self.tech_a = _make_msp_tech(User.objects.create_user('alice', 'a@x.com', 'pw'))
         Membership.objects.create(user=self.tech_a, organization=self.org, role=Role.OWNER, is_active=True)
         UserSkill.objects.create(user=self.tech_a, name='Cisco', proficiency='expert')
-        self.tech_b = User.objects.create_user('bob', 'b@x.com', 'pw')
+        self.tech_b = _make_msp_tech(User.objects.create_user('bob', 'b@x.com', 'pw'))
         Membership.objects.create(user=self.tech_b, organization=self.org, role=Role.OWNER, is_active=True)
 
         self.ticket = Ticket.objects.create(

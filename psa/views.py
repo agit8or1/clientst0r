@@ -74,7 +74,7 @@ ATTACHMENT_ALLOWED_MIMES = {
 }
 
 
-from .visibility import visible_attachments, visible_comments
+from .visibility import is_msp_staff, msp_technicians, visible_attachments, visible_comments
 
 
 def _is_msp_staff(request):
@@ -1077,56 +1077,26 @@ def _user_is_org_member(user, org_id):
 
 def _can_assign(request, org):
     """
-    True if `request.user` is allowed to assign work in `org`.
+    True if `request.user` may assign work to technicians.
 
-    Admin = any of:
-      * Django superuser
-      * Django staff
-      * Membership with role in {'admin', 'owner'} for `org`
-      * Membership whose RoleTemplate grants `org_manage_members`
-    `org=None` means MSP-wide context (staff/superuser only).
+    Assigning is the MSP's job: only MSP staff (superusers, Django staff,
+    User Type Staff) can, on any customer. A customer's own users — even an
+    organization admin or owner — can't; they'd be choosing from the MSP's
+    technician roster, which customer users don't see. `org` is kept for
+    callers' signatures.
     """
-    u = request.user
-    if not u.is_authenticated:
-        return False
-    if u.is_superuser or u.is_staff or getattr(request, 'is_staff_user', False):
-        return True
-    if org is None:
-        return False
-    from accounts.models import Membership, Role
-    org_id = getattr(org, 'id', None) or getattr(org, 'pk', None) or org
-    qs = Membership.objects.filter(
-        user=u, organization_id=org_id, is_active=True,
-    ).select_related('role_template')
-    for m in qs:
-        if m.role in (Role.ADMIN, Role.OWNER):
-            return True
-        # Granular RBAC permission grants admin-equivalent assignment power.
-        if m.role_template and getattr(m.role_template, 'org_manage_members', False):
-            return True
-    return False
+    return is_msp_staff(request.user)
 
 
 def _eligible_assignees(org):
     """
-    Users who can be assigned work in `org`:
-      * any user with active Membership in this org
-      * plus all staff / superusers (they can be assigned anywhere)
-    Returns a queryset ordered by username.
-    `org=None` returns staff/superusers only.
+    Users who can be assigned work in `org`: the MSP's technicians
+    (superusers, Django staff, User Type Staff), who can work any customer.
+    A customer's own users are never assignees, so `org` doesn't widen the
+    pool. Returns a queryset ordered by username.
     """
-    from django.contrib.auth.models import User
-    org_id = getattr(org, 'id', None) or getattr(org, 'pk', None) or org if org else None
-    q = (models.Q(is_staff=True) | models.Q(is_superuser=True)
-         | models.Q(profile__user_type='staff'))
-    if org_id:
-        q = q | models.Q(memberships__organization_id=org_id, memberships__is_active=True)
-    return (
-        User.objects.filter(is_active=True)
-        .filter(q)
-        .distinct()
-        .order_by('username')
-    )
+    from psa.visibility import msp_technicians
+    return msp_technicians()
 
 
 def _send_mention_email(ticket, comment, actor, recipient):
@@ -1449,6 +1419,9 @@ def _ticket_quick_action(request, ticket_number):
     description = ''
 
     if action == 'assign_me':
+        if not is_msp_staff(request.user):
+            from django.core.exceptions import ValidationError as _VE
+            raise _VE('Only MSP technicians can be assigned tickets.')
         prev = ticket.assigned_to_id
         ticket.assigned_to = request.user
         ticket.updated_by = request.user
@@ -4099,14 +4072,20 @@ def dispatch_board(request):
         for u in _eligible_assignees(org):
             techs.setdefault(u.id, u)
 
+    # A ticket assigned to someone who isn't an MSP technician (a customer
+    # user, or a deactivated account) keeps its row so nothing is hidden, but
+    # the row is flagged and can't receive drops.
+    from psa.visibility import is_msp_staff
     techs_sorted = sorted(techs.values(), key=lambda u: (u.username or '').lower())
     rows = []
     for u in techs_sorted:
         rows.append({
             'tech': u,
+            'is_tech': bool(u.is_active and is_msp_staff(u)),
             'cells': [cells.get((u.id, d), []) for d in days],
             'other': cells.get((u.id, OTHER), []),
         })
+    rows.sort(key=lambda r: (not r['is_tech'], (r['tech'].username or '').lower()))
 
     # Phase 2.3 — skill ranking. For each ticket card, top 5 candidates
     # by skill+availability score. Only computed for admins who can assign.
@@ -5332,12 +5311,12 @@ def dispatch_assign(request):
             target = User.objects.get(pk=int(assignee), is_active=True)
         except (User.DoesNotExist, ValueError):
             return JsonResponse({'error': 'invalid assignee'}, status=400)
-        # Target must be staff/superuser or a member of the ticket's org.
+        # Target must be an MSP technician.
         eligible_ids = set(
             _eligible_assignees(ticket.organization).values_list('id', flat=True)
         )
         if target.id not in eligible_ids:
-            return JsonResponse({'error': 'assignee not eligible for this org'}, status=400)
+            return JsonResponse({'error': 'assignee is not an MSP technician'}, status=400)
         ticket.assigned_to = target
     ticket.save(update_fields=['assigned_to', 'updated_at'])
     # Phase 11.2: PTO + calendar conflict warnings. Computed AFTER the
@@ -5382,6 +5361,7 @@ def dispatch_heatmap(request):
     tickets when superuser/staff in global view.
     """
     from datetime import date, timedelta
+    from psa.visibility import is_msp_staff
 
     org = get_request_organization(request)
     qs = Ticket.objects.select_related('assigned_to', 'priority', 'status')
@@ -5433,7 +5413,8 @@ def dispatch_heatmap(request):
                 'is_today': d == today,
                 'is_past': d < today,
             })
-        rows.append({'tech': tech, 'cells': cells})
+        rows.append({'tech': tech, 'is_tech': bool(tech.is_active and is_msp_staff(tech)),
+                     'cells': cells})
 
     return render(request, 'psa/dispatch_heatmap.html', {
         'days': days,
@@ -7030,10 +7011,9 @@ def problem_form(request, pk=None):
             # Assignment (optional) — only if the user has problem_assign.
             if user_has_perm(request.user, 'problem_assign'):
                 if assigned_to_id.isdigit():
-                    try:
-                        problem.assigned_to = _User.objects.get(pk=int(assigned_to_id), is_active=True)
-                    except _User.DoesNotExist:
-                        pass
+                    cand = msp_technicians().filter(pk=int(assigned_to_id)).first()
+                    if cand is not None:
+                        problem.assigned_to = cand
                 elif assigned_to_id == '':
                     problem.assigned_to = None
 

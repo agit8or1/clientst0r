@@ -389,7 +389,7 @@ The built-in service desk is off until an administrator turns on `psa_enabled`
 | Projects, tasks, milestones, timeline | Available | | `/psa/projects/` |
 | Recurring tickets | Available | Run every 15 minutes by the built-in scheduler; catch-up capped at 50 per schedule. | `/psa/recurring/` |
 | Knowledge base search and ticket links | Available | | `/psa/kb/` |
-| Dispatch board | Limited | Seven-day grid with overdue and unassigned rows. Drag-and-drop changes the assignee, not the date. | `/psa/dispatch/` |
+| Dispatch board | Limited | Seven-day grid with overdue and unassigned rows. Rows are MSP technicians (User Type Staff); a ticket still assigned to anyone else shows on a row marked "Not a technician". Drag-and-drop changes the assignee, not the date. | `/psa/dispatch/` |
 
 ### Email-to-ticket
 

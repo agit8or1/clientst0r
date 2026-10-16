@@ -31,6 +31,7 @@ from psa.tests._base import (
     _setup_seed,
     _enable_psa_global,
     _enable_psa_for,
+    _make_msp_tech,
 )
 
 
@@ -404,7 +405,7 @@ class DispatchAssignWarningResponseTests(TestCase):
         cls.ttype = TicketType.objects.first()
         cls.new_status = TicketStatus.objects.filter(slug='new').first()
 
-        cls.bob = User.objects.create_user('bob-resp', email='br@x.com', password='pw')
+        cls.bob = _make_msp_tech(User.objects.create_user('bob-resp', email='br@x.com', password='pw'))
         cls.staff = User.objects.create_user(
             'dispatcher', email='d@x.com', password='pw', is_staff=True,
         )

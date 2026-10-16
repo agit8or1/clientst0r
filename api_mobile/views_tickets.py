@@ -13,7 +13,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.permission_utils import user_has_perm
-from psa.visibility import customer_visible_tickets, is_msp_staff, visible_comments
+from psa.visibility import (
+    customer_visible_tickets, is_msp_staff, msp_technicians, visible_comments,
+)
 
 from .scoping import accessible_org_ids
 
@@ -377,7 +379,8 @@ def ticket_detail_view(request, pk: int):
         is_self_claim = target_id is not None and target_id == request.user.id
         is_unassign = target_id is None
         if not (is_self_claim or is_unassign):
-            if not user_has_perm(request.user, 'tickets_assign'):
+            if not (is_msp_staff(request.user)
+                    and user_has_perm(request.user, 'tickets_assign')):
                 return Response(
                     {'detail': "You don't have permission to reassign tickets."},
                     status=403,
@@ -385,10 +388,13 @@ def ticket_detail_view(request, pk: int):
         if target_id is None:
             ticket.assigned_to = None
         else:
-            try:
-                ticket.assigned_to = User.objects.get(pk=target_id)
-            except User.DoesNotExist:
-                return Response({'detail': 'invalid assigned_to_id'}, status=400)
+            target = msp_technicians().filter(pk=target_id).first()
+            if target is None:
+                return Response(
+                    {'detail': 'assigned_to_id must be an active MSP technician'},
+                    status=400,
+                )
+            ticket.assigned_to = target
     ticket.save()
     return Response(_serialize_ticket(ticket, detail=True, viewer=request.user))
 

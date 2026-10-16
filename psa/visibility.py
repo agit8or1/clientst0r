@@ -17,6 +17,21 @@ def is_msp_staff(user):
     return bool(profile is not None and profile.is_staff_user())
 
 
+def msp_staff_q(prefix=''):
+    """Q matching MSP technicians on a User queryset (or via `prefix`, e.g.
+    'assigned_to__'). Same rule as `is_msp_staff`."""
+    from django.db.models import Q
+    return (Q(**{f'{prefix}is_superuser': True}) | Q(**{f'{prefix}is_staff': True})
+            | Q(**{f'{prefix}profile__user_type': 'staff'}))
+
+
+def msp_technicians():
+    """Active MSP technicians: the people tickets and dispatch work go to."""
+    from django.contrib.auth.models import User
+    return (User.objects.filter(is_active=True).filter(msp_staff_q())
+            .distinct().order_by('username'))
+
+
 def customer_visible_tickets(qs, user):
     """Narrow a Ticket queryset to what this user may see."""
     if is_msp_staff(user):

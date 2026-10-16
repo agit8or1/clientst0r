@@ -31,6 +31,7 @@ from psa.tests._base import (
     _setup_seed,
     _enable_psa_global,
     _enable_psa_for,
+    _make_msp_tech,
 )
 
 
@@ -2051,49 +2052,38 @@ class KBCategoryBrowseTests(TestCase):
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class AdminCanAssignTests(TestCase):
-    """v3.17.129: org admins + staff can assign tickets to other techs.
+    """Who can assign tickets, and to whom (v3.17.129; tightened v3.17.613).
 
-    Covers the audit fix that wired up the admin "Assign to tech" sub-menu
-    on ticket detail and the matching `set_assignee` quick-action.
+    Only MSP staff assign, and only MSP technicians are assignees. A
+    customer's own users — even its organization admin — can do neither.
     """
 
     def setUp(self):
         _enable_psa_global()
         _setup_seed()
         self.org_a = Organization.objects.create(name='OrgA', slug='org-a-asg')
-        self.org_b = Organization.objects.create(name='OrgB', slug='org-b-asg')
         _enable_psa_for(self.org_a)
-        _enable_psa_for(self.org_b)
 
-        # Org A: admin + a regular tech (Editor) + a non-member.
+        # Customer-side org admin and editor of org A.
         self.admin_a = User.objects.create_user(username='admin_a', password='pw', email='aa@x.com')
         Membership.objects.update_or_create(
             user=self.admin_a, organization=self.org_a,
             defaults={'role': Role.ADMIN, 'is_active': True},
         )
-        self.tech_a = User.objects.create_user(username='tech_a', password='pw', email='ta@x.com')
-        Membership.objects.update_or_create(
-            user=self.tech_a, organization=self.org_a,
-            defaults={'role': Role.EDITOR, 'is_active': True},
-        )
-        # Editor in org A — NOT an admin; should be forbidden from reassigning.
         self.editor_a = User.objects.create_user(username='editor_a', password='pw', email='ea@x.com')
         Membership.objects.update_or_create(
             user=self.editor_a, organization=self.org_a,
             defaults={'role': Role.EDITOR, 'is_active': True},
         )
-
-        # Org B tech — has no membership in org A.
-        self.tech_b = User.objects.create_user(username='tech_b', password='pw', email='tb@x.com')
-        Membership.objects.update_or_create(
-            user=self.tech_b, organization=self.org_b,
-            defaults={'role': Role.EDITOR, 'is_active': True},
-        )
-
-        # MSP staff user — assignable to anything, regardless of org.
+        # MSP side: a dispatcher (Django staff) and a technician (User Type
+        # Staff, no membership).
         self.staff_user = User.objects.create_user(
             username='staff_u', password='pw', email='su@x.com', is_staff=True,
         )
+        Membership.objects.create(user=self.staff_user, organization=self.org_a,
+                                  role=Role.EDITOR, is_active=True)
+        self.tech = _make_msp_tech(
+            User.objects.create_user(username='tech_t', password='pw', email='tt@x.com'))
 
         kw = dict(
             queue=Queue.objects.first(),
@@ -2101,10 +2091,7 @@ class AdminCanAssignTests(TestCase):
             priority=TicketPriority.objects.first(),
             ticket_type=TicketType.objects.first(),
         )
-        # These tests exercise the customer-side org-admin vs editor rule in
-        # _can_assign, so the actors stay customer users (making them MSP
-        # staff would let every one of them assign). Customer users only see
-        # tickets shared with the client, so share this one.
+        # Shared with the client so the customer users can open it.
         self.ticket_a = Ticket.objects.create(
             organization=self.org_a, subject='Assign me', client_can_view=True, **kw
         )
@@ -2118,110 +2105,87 @@ class AdminCanAssignTests(TestCase):
             s.save()
         return c
 
-    def test_admin_can_assign_to_org_member(self):
-        c = self._login(self.admin_a, self.org_a)
-        resp = c.post(
+    def _set(self, user, assignee_id):
+        return self._login(user, self.org_a).post(
             f'/psa/t/{self.ticket_a.ticket_number}/action/',
-            {'action': 'set_assignee', 'assignee_id': str(self.tech_a.id)},
+            {'action': 'set_assignee', 'assignee_id': assignee_id},
         )
+
+    def test_staff_can_assign_to_technician(self):
+        resp = self._set(self.staff_user, str(self.tech.id))
         self.assertEqual(resp.status_code, 302, resp.content[:200])
         self.ticket_a.refresh_from_db()
-        self.assertEqual(self.ticket_a.assigned_to_id, self.tech_a.id)
+        self.assertEqual(self.ticket_a.assigned_to_id, self.tech.id)
 
-    def test_admin_can_assign_to_staff_user(self):
-        c = self._login(self.admin_a, self.org_a)
-        resp = c.post(
-            f'/psa/t/{self.ticket_a.ticket_number}/action/',
-            {'action': 'set_assignee', 'assignee_id': str(self.staff_user.id)},
-        )
+    def test_staff_cannot_assign_to_customer_user(self):
+        resp = self._set(self.staff_user, str(self.editor_a.id))
         self.assertEqual(resp.status_code, 302)
         self.ticket_a.refresh_from_db()
-        self.assertEqual(self.ticket_a.assigned_to_id, self.staff_user.id)
+        self.assertIsNone(self.ticket_a.assigned_to_id)
 
-    def test_admin_cannot_assign_to_non_member(self):
-        """tech_b is in org B only, not staff/superuser — must be rejected."""
-        c = self._login(self.admin_a, self.org_a)
-        resp = c.post(
-            f'/psa/t/{self.ticket_a.ticket_number}/action/',
-            {'action': 'set_assignee', 'assignee_id': str(self.tech_b.id)},
-        )
-        # Server returns 302 with an error message, leaves assignee unchanged.
-        self.assertEqual(resp.status_code, 302)
+    def test_customer_admin_cannot_assign(self):
+        self._set(self.admin_a, str(self.tech.id))
         self.ticket_a.refresh_from_db()
         self.assertIsNone(self.ticket_a.assigned_to_id)
 
     def test_editor_cannot_reassign(self):
-        """Editor (non-admin) in org A may not use set_assignee."""
-        c = self._login(self.editor_a, self.org_a)
-        resp = c.post(
-            f'/psa/t/{self.ticket_a.ticket_number}/action/',
-            {'action': 'set_assignee', 'assignee_id': str(self.tech_a.id)},
-        )
-        self.assertEqual(resp.status_code, 302)
+        self._set(self.editor_a, str(self.tech.id))
         self.ticket_a.refresh_from_db()
         self.assertIsNone(self.ticket_a.assigned_to_id)
 
-    def test_admin_can_unassign(self):
-        self.ticket_a.assigned_to = self.tech_a
+    def test_staff_can_unassign(self):
+        self.ticket_a.assigned_to = self.tech
         self.ticket_a.save()
-        c = self._login(self.admin_a, self.org_a)
-        resp = c.post(
-            f'/psa/t/{self.ticket_a.ticket_number}/action/',
-            {'action': 'set_assignee', 'assignee_id': ''},
-        )
+        resp = self._set(self.staff_user, '')
         self.assertEqual(resp.status_code, 302)
         self.ticket_a.refresh_from_db()
         self.assertIsNone(self.ticket_a.assigned_to_id)
 
-    def test_dispatch_assign_admin_only(self):
-        """Editor in the ticket's org cannot use the dispatch DnD endpoint."""
-        c = self._login(self.editor_a, self.org_a)
-        resp = c.post(
-            '/psa/dispatch/assign/',
-            {'ticket_number': self.ticket_a.ticket_number,
-             'assignee': str(self.tech_a.id)},
-        )
-        self.assertEqual(resp.status_code, 403)
+    def test_dispatch_assign_forbidden_for_customer_users(self):
+        for user in (self.admin_a, self.editor_a):
+            resp = self._login(user, self.org_a).post(
+                '/psa/dispatch/assign/',
+                {'ticket_number': self.ticket_a.ticket_number,
+                 'assignee': str(self.tech.id)},
+            )
+            self.assertEqual(resp.status_code, 403)
 
-    def test_dispatch_assign_admin_succeeds(self):
-        c = self._login(self.admin_a, self.org_a)
-        resp = c.post(
+    def test_dispatch_assign_staff_succeeds(self):
+        resp = self._login(self.staff_user, self.org_a).post(
             '/psa/dispatch/assign/',
             {'ticket_number': self.ticket_a.ticket_number,
-             'assignee': str(self.tech_a.id)},
+             'assignee': str(self.tech.id)},
         )
         self.assertEqual(resp.status_code, 200)
         self.ticket_a.refresh_from_db()
-        self.assertEqual(self.ticket_a.assigned_to_id, self.tech_a.id)
+        self.assertEqual(self.ticket_a.assigned_to_id, self.tech.id)
 
-    def test_dispatch_assign_rejects_non_member(self):
-        c = self._login(self.admin_a, self.org_a)
-        resp = c.post(
+    def test_dispatch_assign_rejects_customer_user(self):
+        resp = self._login(self.staff_user, self.org_a).post(
             '/psa/dispatch/assign/',
             {'ticket_number': self.ticket_a.ticket_number,
-             'assignee': str(self.tech_b.id)},
+             'assignee': str(self.admin_a.id)},
         )
         self.assertEqual(resp.status_code, 400)
         self.ticket_a.refresh_from_db()
         self.assertIsNone(self.ticket_a.assigned_to_id)
 
-    def test_ticket_detail_passes_eligible_assignees_to_admin(self):
-        c = self._login(self.admin_a, self.org_a)
-        resp = c.get(f'/psa/t/{self.ticket_a.ticket_number}/')
+    def test_ticket_detail_lists_technicians_to_staff(self):
+        resp = self._login(self.staff_user, self.org_a).get(
+            f'/psa/t/{self.ticket_a.ticket_number}/')
         self.assertEqual(resp.status_code, 200)
-        # The admin's name + the org-A tech should both appear in the
-        # rendered Actions sub-menu.
-        body = resp.content.decode()
-        self.assertIn('Assign to tech', body)
-        self.assertIn('tech_a', body)
-        # The non-member from org B must NOT appear.
-        self.assertNotIn('tech_b', body)
+        self.assertIn('Assign to tech', resp.content.decode())
+        ids = {u.id for u in resp.context['eligible_assignees']}
+        self.assertIn(self.tech.id, ids)
+        self.assertNotIn(self.admin_a.id, ids)
+        self.assertNotIn(self.editor_a.id, ids)
 
-    def test_ticket_detail_hides_assign_submenu_for_editor(self):
-        c = self._login(self.editor_a, self.org_a)
-        resp = c.get(f'/psa/t/{self.ticket_a.ticket_number}/')
-        self.assertEqual(resp.status_code, 200)
-        self.assertNotIn('Assign to tech', resp.content.decode())
+    def test_ticket_detail_hides_assign_submenu_for_customer_users(self):
+        for user in (self.admin_a, self.editor_a):
+            resp = self._login(user, self.org_a).get(f'/psa/t/{self.ticket_a.ticket_number}/')
+            self.assertEqual(resp.status_code, 200)
+            self.assertNotIn('Assign to tech', resp.content.decode())
+            self.assertNotIn('tech_t', resp.content.decode())
 
 
 class ContractAutoRenewalTests(TestCase):

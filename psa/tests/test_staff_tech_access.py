@@ -27,7 +27,8 @@ class StaffTechAccessTests(TestCase):
     def test_staff_tech_assignable_without_membership(self):
         ids = set(_eligible_assignees(self.cust).values_list('id', flat=True))
         self.assertIn(self.tech.id, ids)
-        self.assertIn(self.member.id, ids)
+        # A customer's own users are never assignees, even on their customer.
+        self.assertNotIn(self.member.id, ids)
         self.assertNotIn(self.outsider.id, ids)
 
     def test_global_role_grants_membership_checked_permission(self):
