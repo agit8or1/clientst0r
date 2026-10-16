@@ -2784,8 +2784,13 @@ class Quote(models.Model):
         null=True, blank=True, related_name='source_quotes',
     )
 
-    customer_token = models.CharField(max_length=64, blank=True, db_index=True,
-        help_text='Opaque token for the customer-facing sign-and-accept URL')
+    # The sign link is embedded in the quote PDF and email every time staff
+    # view, download or (re)send the quote, so it must stay re-displayable:
+    # stored encrypted, plus an HMAC that the public sign page looks it up by.
+    customer_token = EncryptedTextField(blank=True,
+        help_text='Opaque token for the customer-facing sign-and-accept URL (encrypted at rest)')
+    customer_token_hash = models.CharField(max_length=64, blank=True, db_index=True,
+        editable=False, help_text='HMAC-SHA256 of customer_token, for lookups')
 
     created_by = models.ForeignKey(
         django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
@@ -2808,10 +2813,30 @@ class Quote(models.Model):
     def save(self, *args, **kwargs):
         if not self.quote_number:
             self.quote_number = self._next_number()
-        if not self.customer_token:
+        if not self.customer_token or not self.customer_token_hash:
             import secrets as _secrets
-            self.customer_token = _secrets.token_urlsafe(32)
+            self.set_customer_token(self.customer_token or _secrets.token_urlsafe(32))
+            if kwargs.get('update_fields') is not None:
+                kwargs['update_fields'] = (set(kwargs['update_fields'])
+                                           | {'customer_token', 'customer_token_hash'})
         super().save(*args, **kwargs)
+
+    CUSTOMER_TOKEN_PURPOSE = 'psa.quote.sign'
+
+    @classmethod
+    def hash_customer_token(cls, raw: str) -> str:
+        from vault.secret_fields import hash_token
+        return hash_token(raw, cls.CUSTOMER_TOKEN_PURPOSE)
+
+    @classmethod
+    def lookup_by_customer_token(cls, raw: str):
+        if not raw:
+            return cls.objects.none()
+        return cls.objects.filter(customer_token_hash=cls.hash_customer_token(raw))
+
+    def set_customer_token(self, raw: str):
+        self.customer_token = raw
+        self.customer_token_hash = self.hash_customer_token(raw)
 
     def _next_number(self) -> str:
         year = timezone.now().year
@@ -3111,7 +3136,9 @@ class TicketCSATSurvey(models.Model):
         'core.Organization', on_delete=models.CASCADE,
         related_name='psa_csat_surveys',
     )
-    token = models.CharField(max_length=64, unique=True, db_index=True)
+    # HMAC of the survey link token. The link is emailed once, when the
+    # survey is created; nothing displays it afterwards.
+    token_hash = models.CharField(max_length=64, unique=True, db_index=True)
     recipient_email = models.EmailField()
     sent_at = models.DateTimeField(auto_now_add=True)
     rating = models.PositiveSmallIntegerField(
@@ -3134,10 +3161,31 @@ class TicketCSATSurvey(models.Model):
         return (f'CSAT for {self.ticket.ticket_number}: '
                 f'{self.rating or "pending"}')
 
+    TOKEN_PURPOSE = 'psa.csat'
+
+    @classmethod
+    def hash_survey_token(cls, raw: str) -> str:
+        from vault.secret_fields import hash_token
+        return hash_token(raw, cls.TOKEN_PURPOSE)
+
+    @classmethod
+    def lookup(cls, raw: str):
+        if not raw:
+            return None
+        return cls.objects.filter(token_hash=cls.hash_survey_token(raw)).first()
+
+    def issue_token(self) -> str:
+        """New link token; kept on the instance (``raw_token``) so the
+        creating code can put it in the email. Only the hash is saved."""
+        import secrets as _secrets
+        raw = _secrets.token_urlsafe(32)
+        self.token_hash = self.hash_survey_token(raw)
+        self.raw_token = raw
+        return raw
+
     def save(self, *args, **kwargs):
-        if not self.token:
-            import secrets as _secrets
-            self.token = _secrets.token_urlsafe(32)
+        if not self.token_hash:
+            self.issue_token()
         super().save(*args, **kwargs)
 
     @property

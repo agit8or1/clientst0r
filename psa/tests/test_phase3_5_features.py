@@ -35,6 +35,15 @@ from psa.tests._base import (
 )
 
 
+
+def _emailed_csat_token():
+    """The survey token from the last CSAT email (the only place it exists)."""
+    import re
+    from django.core import mail
+    m = re.search(r'/psa/csat/([^/\s]+)/', mail.outbox[-1].body)
+    assert m, 'no CSAT link in the email'
+    return m.group(1)
+
 class Phase3FeaturesTests(TestCase):
     """
     Phase 3: Projects, Recurring Tickets, Approvals, KB linking.
@@ -1043,7 +1052,10 @@ class CSATSurveyTests(TestCase):
         self.assertEqual(TicketCSATSurvey.objects.count(), 1)
         survey = TicketCSATSurvey.objects.get(ticket=ticket)
         self.assertEqual(survey.recipient_email, 'customer@example.com')
-        self.assertIsNotNone(survey.token)
+        # Only the hash is stored; the emailed link carries the token.
+        raw = _emailed_csat_token()
+        self.assertNotIn(raw, survey.token_hash)
+        self.assertEqual(survey.token_hash, TicketCSATSurvey.hash_survey_token(raw))
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(ticket.ticket_number, mail.outbox[0].subject)
 
@@ -1092,7 +1104,7 @@ class CSATSurveyTests(TestCase):
         ticket.save()
         survey = TicketCSATSurvey.objects.get(ticket=ticket)
         c = Client()
-        r = c.post(f'/psa/csat/{survey.token}/', data={
+        r = c.post(f'/psa/csat/{_emailed_csat_token()}/', data={
             'rating': '5',
             'comment': 'Great work!',
         })
@@ -1111,7 +1123,7 @@ class CSATSurveyTests(TestCase):
         ticket.save()
         survey = TicketCSATSurvey.objects.get(ticket=ticket)
         c = Client()
-        r = c.post(f'/psa/csat/{survey.token}/', data={'rating': '99'})
+        r = c.post(f'/psa/csat/{_emailed_csat_token()}/', data={'rating': '99'})
         self.assertEqual(r.status_code, 200)
         # Stays on the form, rating not persisted.
         survey.refresh_from_db()

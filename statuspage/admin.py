@@ -14,5 +14,5 @@ class StatusPageAdmin(admin.ModelAdmin):
     list_filter = ('is_enabled', 'organization')
     search_fields = ('title',)
     # The token acts as a credential; it is not something to edit by hand.
-    readonly_fields = ('token',)
+    readonly_fields = ('token', 'token_hash')
     inlines = [StatusPageServiceInline]

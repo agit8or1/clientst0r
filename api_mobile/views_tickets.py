@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from django.db.models import Q
 from django.utils import timezone
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
@@ -115,7 +115,7 @@ def _serialize_ticket(t, *, detail=False, viewer=None):
 
 
 @api_view(['GET', 'POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def ticket_list_view(request):
     """
@@ -262,7 +262,7 @@ def ticket_list_view(request):
 
 
 @api_view(['GET', 'PATCH'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def ticket_detail_view(request, pk: int):
     """
@@ -394,7 +394,7 @@ def ticket_detail_view(request, pk: int):
 
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def ticket_comment_view(request, pk: int):
     """POST /api/mobile/v1/tickets/<id>/comments/ — add a comment."""
@@ -429,7 +429,7 @@ def ticket_comment_view(request, pk: int):
 
 
 @api_view(['GET', 'POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def ticket_time_view(request, pk: int):
     """

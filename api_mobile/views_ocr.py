@@ -26,7 +26,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Optional
 
 from rest_framework import status as drf_status
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, parser_classes, permission_classes,
 )
@@ -131,7 +131,7 @@ def _parse_receipt_text(text: str) -> dict[str, Any]:
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def ocr_status_view(request):
     """
@@ -166,7 +166,7 @@ def ocr_status_view(request):
 
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser])
 def ocr_receipt_view(request):

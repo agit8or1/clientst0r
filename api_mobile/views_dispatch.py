@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from django.utils import timezone
 from rest_framework import status as drf_status
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
@@ -68,7 +68,7 @@ def _serialize_ticket_calendar(t) -> dict:
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def dispatch_board_view(request):
     """
@@ -128,7 +128,7 @@ def dispatch_board_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def dispatch_calendar_view(request):
     """
@@ -210,7 +210,7 @@ def dispatch_calendar_view(request):
 
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def create_scheduled_task_view(request):
     """
@@ -315,7 +315,7 @@ def create_scheduled_task_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def dispatch_upcoming_view(request):
     """
@@ -384,7 +384,7 @@ def dispatch_upcoming_view(request):
 
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def task_acknowledge_view(request, pk: int):
     """
@@ -410,7 +410,7 @@ def task_acknowledge_view(request, pk: int):
 
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def task_comment_view(request, pk: int):
     """

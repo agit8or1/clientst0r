@@ -10,7 +10,7 @@ from django.conf import settings as django_settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
-from rest_framework.authtoken.models import Token
+from api_mobile.models import MobileAuthToken
 
 from accounts.models import Membership, Role
 from core.models import Organization
@@ -82,8 +82,11 @@ class MobileAuthLoginTests(TestCase):
         self.assertIn('token', body)
         self.assertEqual(body['user']['username'], 'mobileuser')
         self.assertEqual(body['user']['organization_id'], self.org.id)
-        # Token is real
-        self.assertTrue(Token.objects.filter(key=body['token']).exists())
+        # Token is real, and stored only as its hash
+        row = MobileAuthToken.lookup(body['token'])
+        self.assertIsNotNone(row)
+        self.assertEqual(row.user, self.user)
+        self.assertNotEqual(row.key_hash, body['token'])
 
     def test_login_wrong_password_rejected(self):
         resp = _post(self.client, '/api/mobile/v1/auth/login/', {

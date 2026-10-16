@@ -61,8 +61,13 @@ def maybe_send_csat(ticket, *, base_url=''):
     if not created:
         return survey
 
+    # The raw token exists only on the instance that was just created; only
+    # its hash is stored, so this email is the one place the link appears.
+    raw = getattr(survey, 'raw_token', None)
+    if not raw:
+        return survey
     try:
-        path = reverse('psa:csat_respond', kwargs={'token': survey.token})
+        path = reverse('psa:csat_respond', kwargs={'token': raw})
     except Exception:
         return survey
     link = f'{base_url}{path}' if base_url else path

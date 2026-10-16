@@ -113,9 +113,12 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary" onclick="copyLink('{{ request.scheme }}://{{ request.get_host }}{% url 'core:secure_note_view_link' note.access_token %}')" title="Copy Link">
-                                    <i class="fas fa-copy"></i>
-                                </button>
+                                <form method="post" action="{% url 'core:secure_note_regenerate_link' note.pk %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-warning" title="Link created {{ note.link_issued_at|default:note.created_at|date:'M d, Y' }} &mdash; regenerate to get a new link (the old one stops working)">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </form>
                                 <a href="{% url 'core:secure_note_analytics' note.pk %}" class="btn btn-outline-info" title="View Analytics">
                                     <i class="fas fa-chart-line"></i>
                                 </a>

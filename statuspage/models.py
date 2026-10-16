@@ -12,6 +12,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 from core.models import Organization, BaseModel
+from vault.secret_fields import EncryptedTextField, hash_token
 from monitoring.models import WebsiteMonitor
 
 
@@ -25,7 +26,11 @@ class StatusPage(BaseModel):
         than 403s, because a 403 confirms the page exists;
       * the address carries a 43-character random token rather than the org id,
         so it cannot be found by walking integers;
-      * the token rotates, which invalidates a leaked link immediately.
+      * the token rotates, which invalidates a leaked link immediately;
+      * the token is stored encrypted (``token``, so the settings page can
+        show the link again — operators paste it into websites and emails
+        whenever a client asks) plus an HMAC (``token_hash``) that the public
+        view looks it up by. Neither column holds the token in plaintext.
 
     Unlike the wallboard this is **not** a singleton. An MSP typically wants one
     broadcast page covering shared infrastructure plus, later, a page per client
@@ -54,10 +59,13 @@ class StatusPage(BaseModel):
     is_enabled = models.BooleanField(
         default=False,
         help_text='Off by default. While off, the URL returns 404.')
-    token = models.CharField(
-        max_length=64, unique=True, db_index=True,
-        help_text='Random component of the public URL. Rotating it breaks '
-                  'every existing link immediately.')
+    token = EncryptedTextField(
+        blank=True,
+        help_text='Random component of the public URL (encrypted at rest). '
+                  'Rotating it breaks every existing link immediately.')
+    token_hash = models.CharField(
+        max_length=64, unique=True, db_index=True, editable=False,
+        help_text='HMAC-SHA256 of the token; the public URL is looked up by it.')
 
     title = models.CharField(
         max_length=120, blank=True,
@@ -97,17 +105,34 @@ class StatusPage(BaseModel):
         a credential."""
         return secrets.token_urlsafe(32)
 
+    TOKEN_PURPOSE = 'statuspage.link'
+
+    @classmethod
+    def hash_link_token(cls, raw: str) -> str:
+        return hash_token(raw, cls.TOKEN_PURPOSE)
+
+    @classmethod
+    def lookup(cls, raw: str):
+        """Queryset of pages whose link token is `raw` (at most one)."""
+        return cls.objects.filter(token_hash=cls.hash_link_token(raw or ''))
+
+    def set_token(self, raw: str):
+        self.token = raw
+        self.token_hash = self.hash_link_token(raw)
+
     def save(self, *args, **kwargs):
-        if not self.token:
-            self.token = self.new_token()
+        if not self.token or not self.token_hash:
+            self.set_token(self.token or self.new_token())
+            if kwargs.get('update_fields') is not None:
+                kwargs['update_fields'] = set(kwargs['update_fields']) | {'token', 'token_hash'}
         # A status page that reloads every second would hammer the server for
         # no human benefit; nobody watches one at that resolution.
         self.refresh_seconds = max(30, int(self.refresh_seconds or 120))
         super().save(*args, **kwargs)
 
     def rotate_token(self):
-        self.token = self.new_token()
-        self.save(update_fields=['token', 'updated_at'])
+        self.set_token(self.new_token())
+        self.save(update_fields=['token', 'token_hash', 'updated_at'])
         return self.token
 
     @property

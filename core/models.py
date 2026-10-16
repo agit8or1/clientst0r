@@ -554,7 +554,13 @@ class SecureNote(BaseModel):
 
     # Link-only mode (Issue #47)
     link_only = models.BooleanField(default=False, help_text='Link-only mode: no recipients, share via URL')
-    access_token = models.CharField(max_length=64, unique=True, blank=True, help_text='Unique token for link-only access')
+    # Only the HMAC of the link token is stored (vault.secret_fields.hash_token);
+    # the link is shown to the sender once, when it is created or regenerated.
+    access_token_hash = models.CharField(
+        max_length=64, unique=True, null=True, blank=True,
+        help_text='HMAC-SHA256 of the link-only access token (the token is shown once)')
+    link_issued_at = models.DateTimeField(
+        null=True, blank=True, help_text='When the current secret link was created')
 
     # Security settings
     expires_at = models.DateTimeField(null=True, blank=True, help_text='Auto-delete after this time')
@@ -592,18 +598,44 @@ class SecureNote(BaseModel):
             return ''
         return self._meta.get_field('encrypted_content').unseal_text(self.encrypted_content)
 
-    def generate_access_token(self):
-        """Generate a unique cryptographically secure access token for link-only mode."""
-        import secrets
-        self.access_token = secrets.token_urlsafe(48)
-        return self.access_token
+    ACCESS_TOKEN_PURPOSE = 'core.securenote.link'
 
-    def get_share_url(self, request=None):
-        """Get the shareable URL for link-only mode."""
-        if not self.link_only or not self.access_token:
+    @classmethod
+    def hash_access_token(cls, raw):
+        from vault.secret_fields import hash_token
+        return hash_token(raw, cls.ACCESS_TOKEN_PURPOSE)
+
+    @classmethod
+    def lookup_link(cls, raw):
+        """Link-only note for a presented token, or None."""
+        if not raw:
+            return None
+        return cls.objects.filter(access_token_hash=cls.hash_access_token(raw),
+                                  link_only=True).first()
+
+    def generate_access_token(self):
+        """Issue a new link token (replacing any previous link).
+
+        Returns the raw token, which is also kept on this instance until it
+        is garbage-collected so the creating view can show it once. Only its
+        hash is saved.
+        """
+        import secrets
+        from django.utils import timezone
+        raw = secrets.token_urlsafe(48)
+        self.access_token_hash = self.hash_access_token(raw)
+        self.link_issued_at = timezone.now()
+        self._raw_access_token = raw
+        return raw
+
+    def get_share_url(self, request=None, token=None):
+        """The shareable URL — only available right after the token was
+        generated on this instance (or when the caller supplies it)."""
+        token = token or getattr(self, '_raw_access_token', None)
+        if not self.link_only or not token:
             return None
         from django.urls import reverse
-        path = reverse('core:secure_note_view_link', kwargs={'token': self.access_token})
+        path = reverse('core:secure_note_view_link', kwargs={'token': token})
         if request:
             return request.build_absolute_uri(path)
         return path

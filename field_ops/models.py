@@ -314,8 +314,8 @@ MOBILE_PLATFORM_CHOICES = (
 
 class MobileDevice(models.Model):
     """
-    A registered mobile device for a user. Tied to a DRF Token for
-    long-lived bearer auth + revoke-on-demand.
+    A registered mobile device for a user. May be tied to the hashed
+    mobile API token (api_mobile.MobileAuthToken) it signed in with.
     """
 
     user = models.ForeignKey(
@@ -327,7 +327,7 @@ class MobileDevice(models.Model):
     platform = models.CharField(max_length=10, choices=MOBILE_PLATFORM_CHOICES)
     name = models.CharField(max_length=200, blank=True)
     token = models.ForeignKey(
-        'authtoken.Token',
+        'api_mobile.MobileAuthToken',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

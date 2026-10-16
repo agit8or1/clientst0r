@@ -405,8 +405,7 @@ def wallboard_public(request, token):
     from django.http import Http404
     from django.shortcuts import render
 
-    board = SchedulerWallboard.objects.filter(
-        token=token, is_enabled=True).first()
+    board = SchedulerWallboard.lookup(token).filter(is_enabled=True).first()
     if board is None:
         raise Http404('No wallboard here')
 

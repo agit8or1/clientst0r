@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from django.db.models import Q
 from rest_framework import status as drf_status
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
@@ -143,7 +143,7 @@ def _vault_entries_for_asset(asset, request_user):
 
 
 @api_view(['GET', 'POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def asset_list_view(request):
     """
@@ -227,7 +227,7 @@ def asset_list_view(request):
 
 
 @api_view(['GET', 'PATCH'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def asset_detail_view(request, pk: int):
     """
@@ -296,7 +296,7 @@ def asset_detail_view(request, pk: int):
 
 
 @api_view(['POST', 'DELETE'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def asset_vault_link_view(request, pk: int):
     """

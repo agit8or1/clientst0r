@@ -22,7 +22,7 @@ from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
-from rest_framework.authtoken.models import Token
+from api_mobile.models import MobileAuthToken
 
 from accounts.models import Membership, Role
 from core.models import Organization
@@ -53,7 +53,7 @@ class ClockInTenantScopingTests(TestCase):
         cls.tech = User.objects.create_user('clocktech', 'clock@example.com', 'pw-not-secret')
         Membership.objects.create(user=cls.tech, organization=cls.org_a,
                                   role=Role.EDITOR, is_active=True)
-        cls.token = Token.objects.create(user=cls.tech).key
+        cls.token = MobileAuthToken.issue(cls.tech)[0]
 
     def setUp(self):
         cache.clear()

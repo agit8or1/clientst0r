@@ -127,16 +127,17 @@ class PasswordDetailSerializer(OrganizationScopedSerializerMixin):
     )
     password = serializers.SerializerMethodField()
     otp_code = serializers.SerializerMethodField()
+    license_key = serializers.SerializerMethodField()
 
     class Meta:
         model = Password
         fields = [
             'id', 'organization', 'organization_name',
             'title', 'password_type', 'username', 'password', 'url',
-            'otp_issuer', 'otp_code', 'notes', 'expires_at', 'tags', 'tag_ids',
+            'otp_issuer', 'otp_code', 'license_key', 'notes', 'expires_at', 'tags', 'tag_ids',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'password', 'otp_code', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'password', 'otp_code', 'license_key', 'created_at', 'updated_at']
 
     def _revealing(self):
         """True only for GET /api/passwords/<id>/?reveal=true, which
@@ -154,6 +155,15 @@ class PasswordDetailSerializer(OrganizationScopedSerializerMixin):
         """Only return password if explicitly requested with reveal=true."""
         if self._revealing():
             return obj.get_password()
+        return '**********'
+
+    def get_license_key(self, obj):
+        """Software license key, under the same rule as the password:
+        masked unless the request passed the reveal gate."""
+        if not obj.license_key:
+            return None
+        if self._revealing():
+            return obj.license_key
         return '**********'
 
     def get_otp_code(self, obj):

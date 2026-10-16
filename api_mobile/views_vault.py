@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from django.db.models import Q
 from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes, throttle_classes,
 )
@@ -68,7 +68,7 @@ def _serialize_entry(p):
 
 
 @api_view(['GET', 'POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def vault_list_view(request):
     """
@@ -203,7 +203,7 @@ def _audit_vault_mutation(request, password, *, action: str, description: str):
 
 
 @api_view(['GET', 'PATCH'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def vault_detail_view(request, pk: int):
     """
@@ -301,7 +301,7 @@ def vault_detail_view(request, pk: int):
 
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 @throttle_classes([MobileVaultRevealRateThrottle])
 def vault_reveal_view(request, pk: int):

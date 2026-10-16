@@ -70,6 +70,24 @@
                     <dd><code>{{ profile.last_login_ip }}</code></dd>
                     {% endif %}
                 </dl>
+
+                <hr>
+                <h6><i class="fas fa-mobile-alt"></i> {% trans "Mobile app sessions" %}</h6>
+                {% if mobile_sessions %}
+                <ul class="list-unstyled small mb-2">
+                    {% for s in mobile_sessions %}
+                    <li>{{ s.device_label|default:_("Mobile app") }} &middot; {% trans "signed in" %} {{ s.created_at|date:"M j, Y" }}{% if s.last_used_at %} &middot; {% trans "last used" %} {{ s.last_used_at|timesince }} {% trans "ago" %}{% endif %}</li>
+                    {% endfor %}
+                </ul>
+                <form method="post" action="{% url 'accounts:mobile_sessions_revoke' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="fas fa-sign-out-alt"></i> {% trans "Sign out all mobile sessions" %}
+                    </button>
+                </form>
+                {% else %}
+                <p class="text-muted small mb-0">{% trans "Not signed in to the mobile app anywhere." %}</p>
+                {% endif %}
             </div>
         </div>
     </div>

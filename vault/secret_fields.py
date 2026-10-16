@@ -389,6 +389,136 @@ class SealedTextField(_AADMixin, models.TextField):
 
 
 # ---------------------------------------------------------------------------
+# Third-party columns with a fixed width: django-otp device secrets.
+#
+# TOTPDevice.key is a varchar(80) holding a hex seed (40 chars for the
+# 20-byte seeds every enrolment path here generates). A standard envelope of
+# that hex text is ~100 chars and would not fit, and the column belongs to
+# django-otp's migrations, so it cannot be widened from here without the
+# next django-otp release undoing it. Instead the *binary* seed is encrypted
+# (same field key, AAD, and AES-256-GCM as `seal`) and written as
+#
+#     enc2h$<base64url-nopad(nonce(12) || ciphertext+tag)>
+#
+# which is 70 chars for a 20-byte seed (seeds up to 27 bytes fit).
+#
+# StaticToken.token is a varchar(16) holding a backup code that is only ever
+# compared. It is stored as  h$<first 14 hex of hash_token(code)>  (56 bits
+# of an HMAC keyed with API_KEY_SECRET; guessing is rate-limited by
+# django-otp's throttling, and offline search needs the key).
+#
+# Both are wired onto the django-otp models by swapping the existing field
+# instance's class (accounts.otp_storage.install, called from
+# AccountsConfig.ready). The subclasses deconstruct as a plain CharField, so
+# migration state for the third-party apps is unchanged.
+# ---------------------------------------------------------------------------
+
+HEX_ENVELOPE_PREFIX = 'enc2h$'
+STATIC_TOKEN_HASH_PREFIX = 'h$'
+STATIC_TOKEN_PURPOSE = 'otp_static.token'
+
+
+def is_sealed_hex(value) -> bool:
+    return isinstance(value, str) and value.startswith(HEX_ENVELOPE_PREFIX)
+
+
+def seal_hex(hex_value: str, aad: str, max_length=None) -> str:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from .encryption_v2 import derive_key
+    raw = binascii.unhexlify(hex_value.encode('ascii'))
+    nonce = os.urandom(12)
+    ct = AESGCM(derive_key(KEY_CONTEXT_FIELD)).encrypt(nonce, raw, _aad_bytes(aad))
+    out = HEX_ENVELOPE_PREFIX + base64.urlsafe_b64encode(nonce + ct).decode('ascii').rstrip('=')
+    if max_length and len(out) > max_length:
+        raise ValueError(f'{aad}: secret too long to store encrypted '
+                         f'({len(raw)} bytes; at most 27 fit)')
+    return out
+
+
+def unseal_hex(value: str, aad: str) -> str:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from .encryption import get_decryption_keys
+    from .encryption_v2 import derive_key
+    body = value[len(HEX_ENVELOPE_PREFIX):]
+    try:
+        blob = base64.urlsafe_b64decode(body + '=' * (-len(body) % 4))
+    except (binascii.Error, ValueError) as e:
+        raise SecretFieldError(f'Malformed envelope: {e}')
+    if len(blob) < 12 + 16:
+        raise SecretFieldError('Malformed envelope')
+    for master in get_decryption_keys():
+        try:
+            pt = AESGCM(derive_key(KEY_CONTEXT_FIELD, master)).decrypt(
+                blob[:12], blob[12:], _aad_bytes(aad))
+            return binascii.hexlify(pt).decode('ascii')
+        except Exception:
+            continue
+    raise SecretFieldError(
+        'Could not decrypt value with APP_MASTER_KEY or APP_MASTER_KEY_PREVIOUS')
+
+
+def hash_static_token(raw: str) -> str:
+    return STATIC_TOKEN_HASH_PREFIX + hash_token(raw, STATIC_TOKEN_PURPOSE)[:14]
+
+
+def is_hashed_static_token(value) -> bool:
+    return (isinstance(value, str) and value.startswith(STATIC_TOKEN_HASH_PREFIX)
+            and len(value) == len(STATIC_TOKEN_HASH_PREFIX) + 14)
+
+
+class EncryptedHexKeyField(models.CharField):
+    """Hex secret in a fixed-width column, encrypted as `enc2h$...`.
+
+    Transparent like EncryptedTextField. Not declared on any model here: it
+    replaces the class of django-otp's TOTPDevice.key field at startup.
+    """
+
+    aad = 'otp_totp.TOTPDevice.key'
+
+    def from_db_value(self, value, expression, connection):
+        if is_sealed_hex(value):
+            try:
+                return unseal_hex(value, self.aad)
+            except SecretFieldError as e:
+                logger.error('Cannot decrypt %s: %s', self.aad, e)
+                return value
+        return value  # pre-migration plaintext hex
+
+    def get_prep_value(self, value):
+        value = super().get_prep_value(value)
+        if value in (None, '') or is_sealed_hex(value):
+            return value
+        return seal_hex(value, self.aad, self.max_length)
+
+    def value_to_string(self, obj):
+        return self.get_prep_value(self.value_from_object(obj))
+
+    def deconstruct(self):
+        name, _path, args, kwargs = super().deconstruct()
+        return name, 'django.db.models.CharField', args, kwargs
+
+
+class HashedStaticTokenField(models.CharField):
+    """Backup code column that stores `h$<hash>` and compares by hash.
+
+    Writes and lookups both go through get_prep_value, so django-otp's own
+    ``token_set.filter(token=code)`` and ``token_set.create(token=code)``
+    hash transparently. Reading returns the hash: codes cannot be shown
+    again after they are generated.
+    """
+
+    def get_prep_value(self, value):
+        value = super().get_prep_value(value)
+        if value in (None, '') or is_hashed_static_token(value):
+            return value
+        return hash_static_token(value)
+
+    def deconstruct(self):
+        name, _path, args, kwargs = super().deconstruct()
+        return name, 'django.db.models.CharField', args, kwargs
+
+
+# ---------------------------------------------------------------------------
 # Issued tokens: HMAC, never reversible.
 # ---------------------------------------------------------------------------
 
@@ -423,6 +553,14 @@ HASHED_SECRET_FIELDS = [
     ('network_discovery', 'DiscoverySite', 'key_hash', 'hex64'),
     ('core', 'SecureNote', 'access_password', 'django_password'),
     ('auth', 'User', 'password', 'django_password'),
+    # v3.17.611
+    ('api_mobile', 'MobileAuthToken', 'key_hash', 'hex64'),
+    ('core', 'SecureNote', 'access_token_hash', 'hex64'),
+    ('psa', 'TicketCSATSurvey', 'token_hash', 'hex64'),
+    ('statuspage', 'StatusPage', 'token_hash', 'hex64'),
+    ('scheduling', 'SchedulerWallboard', 'token_hash', 'hex64'),
+    ('psa', 'Quote', 'customer_token_hash', 'hex64'),
+    ('otp_static', 'StaticToken', 'token', 'otp_static'),
 ]
 
 # Columns encrypted by their model with vault.encryption_v2 and a per-row AAD
@@ -441,25 +579,19 @@ V2_ROW_FIELDS = [
 # reason. check_secrets_storage reports these as accepted risks rather than
 # failures; anything secret-named that is in none of the lists fails it.
 ACCEPTED_PLAINTEXT_FIELDS = {
-    ('authtoken', 'Token', 'key'):
-        'Third-party (DRF) mobile API token; stored raw by DRF. Needs a hashed '
-        'token model + authentication class (follow-up).',
-    ('otp_totp', 'TOTPDevice', 'key'):
-        'Third-party (django-otp) TOTP seed; the library reads it raw.',
-    ('otp_static', 'StaticToken', 'token'):
-        'Third-party (django-otp) backup codes; the library compares them raw.',
-    ('core', 'SecureNote', 'access_token'):
-        'Capability-link token, re-displayed to the sender (follow-up: hash + show once).',
-    ('statuspage', 'StatusPage', 'token'):
-        'Private status-page link token, re-displayed in settings (follow-up).',
-    ('scheduling', 'SchedulerWallboard', 'token'):
-        'Wallboard TV link token, re-displayed in settings (follow-up).',
-    ('psa', 'Quote', 'customer_token'):
-        'Customer quote-acceptance link token, re-sent in emails (follow-up).',
-    ('psa', 'TicketCSATSurvey', 'token'):
-        'CSAT survey link token, emailed to requesters (follow-up).',
     ('field_ops', 'MobileDevice', 'expo_push_token'):
-        'Push-notification address issued by Expo; not an authentication secret.',
+        'Push-notification address issued by Expo, not an authentication secret: '
+        'it can only be used to send notifications to the device through Expo\'s '
+        'push service, and the server must read it back to do exactly that.',
+}
+
+# Tables whose rows are raw credentials and must stay empty. They exist only
+# because historical migrations reference the app; check_secrets_storage
+# fails on any row. (app_label, Model) -> reason.
+RETIRED_SECRET_TABLES = {
+    ('authtoken', 'Token'):
+        'DRF tokens stored raw. Replaced by api_mobile.MobileAuthToken (hashed) in '
+        'v3.17.611; nothing authenticates against this table any more.',
 }
 
 # Secret-sounding names that are not secrets.
@@ -484,6 +616,15 @@ def iter_envelope_fields():
             continue
         for f in model._meta.concrete_fields:
             if isinstance(f, (EncryptedTextField, SealedTextField)):
+                yield model, f
+
+
+def iter_hex_envelope_fields():
+    """Yield (model, field) for every EncryptedHexKeyField (django-otp seeds)."""
+    from django.apps import apps
+    for model in apps.get_models():
+        for f in model._meta.concrete_fields:
+            if isinstance(f, EncryptedHexKeyField):
                 yield model, f
 
 
@@ -630,3 +771,55 @@ def hash_token_column_operation(app_label, model_name, field_name, purpose,
                                 [hash_token(value, purpose), row_pk])
 
     return migrations.RunPython(forward, migrations.RunPython.noop, elidable=False)
+
+
+def hash_and_seal_token_operation(app_label, model_name, token_field, hash_field, purpose):
+    """A RunPython operation for re-displayable link tokens.
+
+    For each row whose `token_field` still holds a raw token: write its HMAC
+    to `hash_field` (public lookups compare hashes) and replace the raw token
+    with an enc2$ envelope (the owner's settings page can still show the
+    link). Existing links keep working. The column must already be a
+    TextField (an envelope is ~100 characters). Reverse decrypts the column
+    back to the raw token, which the previous release reads.
+    """
+    from django.db import migrations
+
+    def _cols(apps, schema_editor):
+        model = apps.get_model(app_label, model_name)
+        qn = schema_editor.connection.ops.quote_name
+        return (qn(model._meta.db_table), qn(model._meta.pk.column),
+                qn(model._meta.get_field(token_field).column),
+                qn(model._meta.get_field(hash_field).column))
+
+    aad = f'{app_label}.{model_name}.{token_field}'
+
+    def forward(apps, schema_editor):
+        table, pk, col, hcol = _cols(apps, schema_editor)
+        conn = schema_editor.connection
+        with conn.cursor() as cur:
+            cur.execute(f'SELECT {pk}, {col}, {hcol} FROM {table}')
+            rows = cur.fetchall()
+        for row_pk, value, hashed in rows:
+            if not value:
+                continue
+            raw = unseal(value, aad) if is_sealed(value) else value
+            new_hash = hashed or hash_token(raw, purpose)
+            new_value = value if is_sealed(value) else seal(raw, aad)
+            with conn.cursor() as cur:
+                cur.execute(f'UPDATE {table} SET {col} = %s, {hcol} = %s WHERE {pk} = %s',
+                            [new_value, new_hash, row_pk])
+
+    def backward(apps, schema_editor):
+        table, pk, col, _h = _cols(apps, schema_editor)
+        conn = schema_editor.connection
+        with conn.cursor() as cur:
+            cur.execute(f'SELECT {pk}, {col} FROM {table}')
+            rows = cur.fetchall()
+        for row_pk, value in rows:
+            if is_sealed(value):
+                with conn.cursor() as cur:
+                    cur.execute(f'UPDATE {table} SET {col} = %s WHERE {pk} = %s',
+                                [unseal(value, aad), row_pk])
+
+    return migrations.RunPython(forward, backward, elidable=False)

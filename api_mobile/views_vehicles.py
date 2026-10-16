@@ -24,7 +24,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.utils import timezone
 from rest_framework import status as drf_status
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, parser_classes, permission_classes,
 )
@@ -161,7 +161,7 @@ def _my_vehicle_or_404(user, pk):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def my_vehicles_view(request):
     """
@@ -179,7 +179,7 @@ def my_vehicles_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def vehicle_detail_view(request, pk: int):
     """GET /api/mobile/v1/vehicles/<id>/  — any authenticated user."""
@@ -190,7 +190,7 @@ def vehicle_detail_view(request, pk: int):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def vehicle_inventory_view(request, pk: int):
     """GET /api/mobile/v1/vehicles/<id>/inventory/ — items stocked in the vehicle."""
@@ -205,7 +205,7 @@ def vehicle_inventory_view(request, pk: int):
 
 
 @api_view(['GET', 'POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 @parser_classes([JSONParser, MultiPartParser, FormParser])
 def vehicle_fuel_view(request, pk: int):
@@ -300,7 +300,7 @@ def vehicle_fuel_view(request, pk: int):
 
 
 @api_view(['GET', 'POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 @parser_classes([JSONParser, MultiPartParser, FormParser])
 def vehicle_damage_view(request, pk: int):

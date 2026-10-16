@@ -8,6 +8,8 @@ from django.views.generic import RedirectView, TemplateView
 from django.conf import settings
 from two_factor.urls import urlpatterns as tf_urls
 
+from accounts.otp_views import BackupTokensView
+
 from core.views import privacy_policy as core_privacy_policy
 from core.views import beta_onboarding as core_beta_onboarding
 from core.views import health as core_health
@@ -34,6 +36,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     # Two-Factor Auth
+    # Backup codes are stored hashed: this view shows new codes once instead
+    # of listing stored ones. Same path as two_factor:backup_tokens, listed
+    # first so it wins; reverse() of the two_factor name still resolves here.
+    path('account/two_factor/backup/tokens/', BackupTokensView.as_view(),
+         name='backup_tokens_hashed'),
     path('', include(tf_urls)),
 
     # Legacy logout alias (for compatibility)

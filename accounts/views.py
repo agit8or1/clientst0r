@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth import update_session_auth_hash
 from django.core.paginator import Paginator
+from django.views.decorators.http import require_POST
 from django.db.models import Count, Q
 from core.models import Organization, SupportRating
 from core.decorators import require_owner
@@ -162,7 +163,52 @@ def profile(request):
     return render(request, 'accounts/profile.html', {
         'profile': profile,
         'memberships': memberships,
+        'mobile_sessions': _active_mobile_sessions(request.user),
     })
+
+
+def _active_mobile_sessions(user):
+    try:
+        from api_mobile.models import MobileAuthToken
+        return list(MobileAuthToken.active_for(user))
+    except Exception:
+        return []
+
+
+@login_required
+@require_POST
+def mobile_sessions_revoke(request, user_id=None):
+    """Sign out every mobile-app session of a user.
+
+    Without `user_id`: the requesting user's own sessions. With it: an
+    administrator ending another user's sessions (superuser only — the same
+    rule as the rest of the user-management pages).
+    """
+    from api_mobile.models import MobileAuthToken
+    from audit.models import AuditLog
+
+    if user_id is None or user_id == request.user.id:
+        target = request.user
+        back = redirect('accounts:profile')
+    else:
+        if not request.user.is_superuser:
+            messages.error(request, "You don't have permission to manage this user's sessions.")
+            return redirect('core:dashboard')
+        target = get_object_or_404(User, id=user_id)
+        back = redirect('accounts:user_detail', user_id=target.id)
+
+    n = MobileAuthToken.revoke_all_for(target)
+    try:
+        AuditLog.log(
+            user=request.user, action='update',
+            object_type='user', object_id=target.pk, object_repr=target.username,
+            description=f'Signed out {n} mobile app session(s) of {target.username}',
+            extra_data={'op': 'revoke_all_mobile_sessions', 'revoked': n},
+        )
+    except Exception:
+        pass
+    messages.success(request, f'Signed out {n} mobile app session(s).')
+    return back
 
 
 @login_required
@@ -323,6 +369,21 @@ def password_change(request):
     })
 
 
+_TOTP_ENROL_AAD = 'accounts.session.totp_secret'
+
+
+def _pending_totp_secret(request):
+    """The not-yet-confirmed TOTP secret from the session, or None."""
+    from vault.secret_fields import is_sealed, unseal
+    value = request.session.get('totp_secret')
+    if not value or not is_sealed(value):
+        return None
+    try:
+        return unseal(value, _TOTP_ENROL_AAD)
+    except Exception:
+        return None
+
+
 @login_required
 def two_factor_setup(request):
     """
@@ -349,8 +410,10 @@ def two_factor_setup(request):
             import pyotp
             secret = pyotp.random_base32()
 
-            # Store in session temporarily
-            request.session['totp_secret'] = secret
+            # Kept in the session until the code is confirmed — encrypted,
+            # since sessions live in the database too.
+            from vault.secret_fields import seal
+            request.session['totp_secret'] = seal(secret, _TOTP_ENROL_AAD)
 
             # Generate QR code URL
             totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
@@ -367,7 +430,7 @@ def two_factor_setup(request):
 
         elif action == 'verify':
             # Verify TOTP code
-            secret = request.session.get('totp_secret')
+            secret = _pending_totp_secret(request)
             code = request.POST.get('code')
 
             if secret and code:
@@ -1228,6 +1291,7 @@ def user_detail(request, user_id):
         'viewed_user': user,
         'profile': profile,
         'memberships': memberships,
+        'mobile_sessions': _active_mobile_sessions(user),
     })
 
 

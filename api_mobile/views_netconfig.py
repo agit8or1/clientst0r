@@ -12,7 +12,7 @@ phone never holds a device password or opens an SSH session.
 """
 from __future__ import annotations
 
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
@@ -57,7 +57,7 @@ def _serialize_backup(backup, *, include_body=False):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def device_list_view(request):
     """
@@ -111,7 +111,7 @@ def device_list_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def device_detail_view(request, pk: int):
     """GET /api/mobile/v1/netconfig/devices/<asset_id>/ — snapshot history."""
@@ -148,7 +148,7 @@ def device_detail_view(request, pk: int):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def backup_detail_view(request, pk: int):
     """GET /api/mobile/v1/netconfig/backups/<id>/ — the stored config text."""
@@ -168,7 +168,7 @@ def backup_detail_view(request, pk: int):
 
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def collect_view(request, pk: int):
     """

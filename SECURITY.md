@@ -95,7 +95,7 @@ Client St0r implements defense-in-depth security with multiple layers of protect
 
 #### Data Protection
 - **Vault encryption**: AES-256-GCM; per-purpose keys derived from `APP_MASTER_KEY` with HKDF-SHA256, with the record's context bound as associated data (vault passwords, TOTP secrets, personal vault)
-- **Other stored secrets** (v3.17.607): every stored secret is encrypted or, for tokens the app only needs to compare, stored as a hash — integration and connection credentials, SMTP and SMS passwords, the LDAP bind password and Azure AD client secret, warranty and security-scanner API keys, partner secrets, webhook secrets and custom headers, import API keys, push-notification secrets, license keys, security-vendor and SIEM credentials, and browser-extension and inbound webhook tokens. Secrets use AES-256-GCM with an HKDF-derived key, bound to the field they belong to. A few session and share-link tokens are being moved to hashed storage
+- **Other stored secrets** (v3.17.607): every stored secret is encrypted or, for tokens the app only needs to compare, stored as a hash — integration and connection credentials, SMTP and SMS passwords, the LDAP bind password and Azure AD client secret, warranty and security-scanner API keys, partner secrets, webhook secrets and custom headers, import API keys, push-notification secrets, license keys, security-vendor and SIEM credentials, and browser-extension and inbound webhook tokens. Secrets use AES-256-GCM with an HKDF-derived key, bound to the field they belong to. Since v3.17.612 mobile sign-in tokens, share links, 2FA authenticator seeds and backup codes are covered too
 - **No secret echo**: forms never show a stored secret back; leave a secret field blank to keep it. Webhook header values show as `********`; inbound webhook URLs and tokens are shown once
 - **Key rotation**: `manage.py rotate_encryption_key`, with `APP_MASTER_KEY_PREVIOUS` for old keys (see [Key Rotation](#key-rotation)); `manage.py check_secrets_storage` reports anything stored unprotected
 - **API keys**: stored as HMAC-SHA256 hashes (only a prefix in plaintext); stop working when the owning user is deactivated
@@ -740,7 +740,9 @@ converted existing plaintext and older-format values in place.
 - ✅ Warranty and security-scanner API keys, security-vendor and SIEM credentials, partner secrets, license keys, push-notification secrets, import API keys
 - ✅ Webhook signing secrets and custom header values
 - ✅ Hashed, not encrypted: REST API keys (only a prefix in plaintext), browser-extension tokens, inbound webhook tokens. Installed extensions and webhook URLs already configured at vendors kept working through the conversion
-- A few session and share-link tokens are being moved to hashed storage
+- ✅ Hashed (v3.17.612): mobile app sign-in tokens (one per device, revocable), secure-note links, satisfaction-survey links, 2FA backup codes
+- ✅ Encrypted and looked up by hash (v3.17.612): status-page, wallboard and quote-signing links, which staff re-share
+- ✅ 2FA authenticator seeds (v3.17.612). Existing authenticator apps, mobile sign-ins and links already sent kept working through the conversion
 
 Run `python manage.py check_secrets_storage` to confirm nothing is stored unprotected. It
 prints table, column and primary key only — never values — and exits non-zero on any finding

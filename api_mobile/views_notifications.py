@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import uuid
 
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
@@ -14,7 +14,7 @@ from rest_framework.response import Response
 
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def register_push_view(request):
     """
@@ -72,7 +72,7 @@ def register_push_view(request):
 
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def deregister_push_view(request):
     """

@@ -72,7 +72,8 @@ class Command(BaseCommand):
                 if not name_re.search(f.name):
                     continue
                 key = (model._meta.app_label, model.__name__, f.name)
-                if isinstance(f, (sf.EncryptedTextField, sf.SealedTextField)):
+                if isinstance(f, (sf.EncryptedTextField, sf.SealedTextField,
+                                  sf.EncryptedHexKeyField)):
                     continue
                 if key in hashed or key in v2rows or key in sf.ACCEPTED_PLAINTEXT_FIELDS:
                     continue
@@ -95,6 +96,21 @@ class Command(BaseCommand):
             if bad:
                 self.problems.append(f'{field.aad}: {len(bad)} row(s) not encrypted '
                                      f'(pk {", ".join(map(str, bad[:10]))})')
+
+        for model, field in sf.iter_hex_envelope_fields():
+            bad = [pk for pk, v in self._values(model, field.column)
+                   if v not in ('', None) and not sf.is_sealed_hex(v)]
+            if bad:
+                self.problems.append(f'{field.aad}: {len(bad)} row(s) not encrypted '
+                                     f'(pk {", ".join(map(str, bad[:10]))})')
+
+        for (app_label, model_name), reason in sorted(sf.RETIRED_SECRET_TABLES.items()):
+            model = self._model(app_label, model_name)
+            if model is None:
+                continue
+            n = model._default_manager.count()
+            if n:
+                self.problems.append(f'{app_label}.{model_name}: {n} row(s) — {reason}')
 
         for app_label, model_name, field_name, fmt in sf.HASHED_SECRET_FIELDS:
             model = self._model(app_label, model_name)
@@ -141,6 +157,8 @@ class Command(BaseCommand):
     def _hashed(value, fmt):
         if fmt == 'hex64':
             return sf.looks_like_token_hash(value)
+        if fmt == 'otp_static':
+            return sf.is_hashed_static_token(value)
         if fmt == 'django_password':
             from django.contrib.auth.hashers import identify_hasher, UNUSABLE_PASSWORD_PREFIX
             if value.startswith(UNUSABLE_PASSWORD_PREFIX):

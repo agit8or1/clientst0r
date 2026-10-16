@@ -7,7 +7,7 @@ from django.conf import settings as django_settings
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
-from rest_framework.authtoken.models import Token
+from api_mobile.models import MobileAuthToken
 
 from accounts.models import Membership, Role
 from core.models import Organization
@@ -69,8 +69,8 @@ class InternalTicketVisibilityTests(TestCase):
         return c
 
     def _mobile(self, user):
-        token = Token.objects.get_or_create(user=user)[0]
-        return lambda path: Client().get(path, HTTP_AUTHORIZATION=f'Token {token.key}')
+        token, _row = MobileAuthToken.issue(user)
+        return lambda path: Client().get(path, HTTP_AUTHORIZATION=f'Token {token}')
 
     # Staff web UI
 

@@ -33,8 +33,8 @@ def public(request, token):
     # Phase 40.5 — a portal page's token must not work anonymously. Same 404
     # as a disabled or unknown one: the response never distinguishes between
     # "wrong token", "switched off" and "needs a login".
-    page = StatusPage.objects.filter(
-        token=token, is_enabled=True,
+    page = StatusPage.lookup(token).filter(
+        is_enabled=True,
         visibility=StatusPage.VISIBILITY_PUBLIC).first()
     if page is None:
         raise Http404('No status page here')

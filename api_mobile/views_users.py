@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from django.contrib.auth.models import User
 from django.db.models import Q
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
@@ -34,7 +34,7 @@ def _serialize_user(u) -> dict:
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def assignable_users_view(request):
     """

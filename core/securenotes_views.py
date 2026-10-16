@@ -8,6 +8,8 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.db.models import Q
+from django.http import Http404
+from django.views.decorators.http import require_POST
 from .client_ip import get_client_ip
 from .models import SecureNote
 from .middleware import get_request_organization
@@ -206,10 +208,9 @@ def secure_note_create(request):
                 note.recipients.set(recipients)
                 messages.success(request, f'Secure note sent to {recipients.count()} recipient(s).')
             elif link_only:
-                # Show the shareable link
-                share_url = note.get_share_url(request)
-                messages.success(request, f'Secret link created! Copy the link to share.')
-                return redirect('core:secure_note_link_created', pk=note.pk)
+                # Show the shareable link — this once. Only its hash is
+                # stored, so it is rendered here rather than after a redirect.
+                return _render_link_created(request, note)
 
             return redirect('core:secure_note_sent')
 
@@ -251,10 +252,24 @@ def secure_note_delete(request, pk):
         'note': note,
     })
 
+def _render_link_created(request, note):
+    """The one page that shows a secret link. `note` must have just had
+    generate_access_token() called on it; the URL is not recoverable later."""
+    response = render(request, 'core/secure_note_link_created.html', {
+        'note': note,
+        'share_url': note.get_share_url(request),
+    })
+    # Never cached: the page carries a credential.
+    response['Cache-Control'] = 'no-store, private'
+    return response
+
+
 @login_required
 def secure_note_link_created(request, pk):
     """
-    Show the created secret link after generation (Issue #47 Phase 1).
+    Secret link status (Issue #47 Phase 1). The link itself was shown once,
+    at creation; it is stored only as a hash, so this page offers to
+    regenerate it instead.
     """
     note = get_object_or_404(SecureNote, pk=pk, sender=request.user)
 
@@ -262,12 +277,36 @@ def secure_note_link_created(request, pk):
         messages.error(request, 'This note is not a link-only note.')
         return redirect('core:secure_note_sent')
 
-    share_url = note.get_share_url(request)
-
     return render(request, 'core/secure_note_link_created.html', {
         'note': note,
-        'share_url': share_url,
+        'share_url': None,
     })
+
+
+@login_required
+@require_POST
+def secure_note_regenerate_link(request, pk):
+    """Issue a new secret link for a link-only note. The previous link
+    stops working immediately; the new one is shown once."""
+    note = get_object_or_404(SecureNote, pk=pk, sender=request.user)
+    if not note.link_only:
+        messages.error(request, 'This note is not a link-only note.')
+        return redirect('core:secure_note_sent')
+    if note.is_deleted:
+        messages.error(request, 'This secret has been deleted or already viewed; '
+                                'create a new one instead.')
+        return redirect('core:secure_note_links_dashboard')
+    note.generate_access_token()
+    note.save(update_fields=['access_token_hash', 'link_issued_at'])
+    try:
+        from audit.models import AuditLog
+        AuditLog.log(user=request.user, action='update', organization=note.organization,
+                     object_type='secure_note', object_id=note.pk, object_repr=note.title,
+                     description='Secret link regenerated (previous link revoked)')
+    except Exception:
+        pass
+    messages.success(request, 'New link created. The previous link no longer works.')
+    return _render_link_created(request, note)
 
 
 @login_required
@@ -351,7 +390,9 @@ def secure_note_view_link(request, token):
     No login required - anyone with the link can access.
     Phase 3: Adds access logging and max views checking.
     """
-    note = get_object_or_404(SecureNote, access_token=token, link_only=True)
+    note = SecureNote.lookup_link(token)
+    if note is None:
+        raise Http404('No secret here')
 
     # Check if deleted
     if note.is_deleted:

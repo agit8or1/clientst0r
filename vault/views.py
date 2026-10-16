@@ -242,7 +242,13 @@ def password_reveal(request, pk):
     AJAX endpoint to reveal decrypted password.
     Logs the reveal action for security audit.
     Rate limited to 30 reveals per hour per user to prevent abuse.
+
+    `?field=license_key` reveals a software-license entry's license key
+    instead, through exactly the same gates, approval use and audit trail.
     """
+    reveal_field = request.GET.get('field') or 'password'
+    if reveal_field not in ('password', 'license_key'):
+        return JsonResponse({'error': 'Unknown field'}, status=400)
     # Check if rate limited
     if getattr(request, 'limited', False):
         # Log rate limit attempt
@@ -327,8 +333,13 @@ def password_reveal(request, pk):
                 'matched_rule_id': decision.get('matched_rule_id'),
             }, status=403)
 
+        if reveal_field == 'license_key' and not password.license_key:
+            return JsonResponse({'error': 'This entry has no license key'}, status=404)
         try:
-            plaintext = password.get_password()
+            if reveal_field == 'license_key':
+                plaintext = password.license_key
+            else:
+                plaintext = password.get_password()
 
             # Phase 37 (v3.17.241): mark the satisfying approval as used so
             # the next reveal needs a fresh request.
@@ -350,12 +361,15 @@ def password_reveal(request, pk):
                 object_type='password',
                 object_id=password.id,
                 object_repr=password.title,
-                description=f"Password '{password.title}' revealed",
+                description=(f"License key of '{password.title}' revealed"
+                             if reveal_field == 'license_key'
+                             else f"Password '{password.title}' revealed"),
                 ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
+                user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
+                extra_data={'field': reveal_field},
             )
 
-            return JsonResponse({'password': plaintext})
+            return JsonResponse({reveal_field: plaintext})
         except (ValueError, AttributeError) as e:
             # Encryption/decryption errors
             logger.error(f"Error revealing password {pk}: {e}")

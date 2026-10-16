@@ -508,7 +508,7 @@ class GeofenceOnlyModeTests(TestCase):
     """v3.17.415 — geofence-only-mode write at the locations endpoint."""
 
     def setUp(self):
-        from rest_framework.authtoken.models import Token
+        from api_mobile.models import MobileAuthToken
         from datetime import time as _time
         from resourcing.models import WorkingHours
         self.org = Organization.objects.create(name='Geo Org')
@@ -519,7 +519,7 @@ class GeofenceOnlyModeTests(TestCase):
                 user=self.user, weekday=wd,
                 start_time=_time(0, 0), end_time=_time(23, 59),
             )
-        self.token = Token.objects.create(user=self.user)
+        self.token, _row = MobileAuthToken.issue(self.user)
         from .models import OrganizationFieldOpsSettings
         OrganizationFieldOpsSettings.objects.create(
             organization=self.org, geofence_only_mode=True,
@@ -537,7 +537,7 @@ class GeofenceOnlyModeTests(TestCase):
             '/api/mobile/v1/locations/',
             data=json.dumps({'lat': '40.0', 'lon': '-73.0'}),
             content_type='application/json',
-            HTTP_AUTHORIZATION=f'Token {self.token.key}',
+            HTTP_AUTHORIZATION=f'Token {self.token}',
         )
         self.assertEqual(resp.status_code, 201, resp.content)
         body = resp.json()
@@ -554,7 +554,7 @@ class GeofenceOnlyModeTests(TestCase):
             '/api/mobile/v1/locations/',
             data=json.dumps({'lat': '41.5', 'lon': '-74.5'}),
             content_type='application/json',
-            HTTP_AUTHORIZATION=f'Token {self.token.key}',
+            HTTP_AUTHORIZATION=f'Token {self.token}',
         )
         self.assertEqual(resp.status_code, 201, resp.content)
         # Outside any geofence-only org -> regular TechnicianLocation row

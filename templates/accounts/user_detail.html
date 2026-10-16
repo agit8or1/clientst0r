@@ -143,6 +143,19 @@
                         {% endif %}
                     </dd>
                 </dl>
+                <hr>
+                <h6 class="mb-1">Mobile app sessions</h6>
+                {% if mobile_sessions %}
+                <p class="small mb-2">{{ mobile_sessions|length }} active{% with s=mobile_sessions.0 %} &middot; latest sign-in {{ s.created_at|date:"M j, Y" }}{% endwith %}</p>
+                <form method="post" action="{% url 'accounts:user_mobile_sessions_revoke' viewed_user.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="fas fa-sign-out-alt"></i> Sign out all mobile sessions
+                    </button>
+                </form>
+                {% else %}
+                <p class="text-muted small mb-0">None</p>
+                {% endif %}
             </div>
         </div>
     </div>

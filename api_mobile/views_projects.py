@@ -9,7 +9,7 @@ client's server room, and nothing here can raise an invoice.
 """
 from __future__ import annotations
 
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
@@ -86,7 +86,7 @@ def _serialize_task(task):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def project_list_view(request):
     """
@@ -143,7 +143,7 @@ def project_list_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def project_detail_view(request, pk: int):
     """GET /api/mobile/v1/projects/<id>/ — project plus its tasks."""
@@ -168,7 +168,7 @@ def project_detail_view(request, pk: int):
 
 
 @api_view(['PATCH'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def project_task_view(request, pk: int):
     """

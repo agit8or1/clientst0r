@@ -14,7 +14,7 @@ KB articles are stored in `docs.Document`. Visibility rules:
 from __future__ import annotations
 
 from django.db.models import Q
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
@@ -58,7 +58,7 @@ def _serialize_kb(doc, *, detail=False):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def kb_list_view(request):
     """GET /api/mobile/v1/kb/?search=&organization_id=&page=
@@ -110,7 +110,7 @@ def kb_list_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def kb_detail_view(request, pk: int):
     """GET /api/mobile/v1/kb/<id>/ — detail with raw markdown + rendered HTML."""

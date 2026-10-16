@@ -7940,6 +7940,7 @@ def _phase7_post_to_partner(share, payload: dict) -> dict:
                 'Content-Type': 'application/json',
                 'X-CST0R-Signature': sig,
                 'X-CST0R-Share-Pk': str(share.pk),
+                'X-CST0R-Partner-Id': str(partner.pk),
                 'User-Agent': 'ClientSt0r-Outsourcing/1.0',
             },
         )
@@ -8001,7 +8002,10 @@ def ticket_share(request, ticket_number):
             'subject': ticket.subject,
             'description': ticket.description or '',
             'priority': ticket.priority.code if ticket.priority_id else '',
-            'partner_secret_token': partner.partner_secret,
+            # Never the shared secret itself: the X-CST0R-Signature header
+            # (HMAC of this body under that secret) is the proof. The id
+            # tells the partner which of its keys to verify with.
+            'partner_id': partner.pk,
             'share_pk': share.pk,
             'notes': notes,
             'ts': int(_phase7_time.time()),
@@ -8168,7 +8172,9 @@ def csat_respond(request, token):
     response as authoritative).
     """
     from .models import TicketCSATSurvey
-    survey = get_object_or_404(TicketCSATSurvey, token=token)
+    survey = TicketCSATSurvey.lookup(token)
+    if survey is None:
+        raise Http404('No survey here')
 
     if request.method == 'POST':
         try:

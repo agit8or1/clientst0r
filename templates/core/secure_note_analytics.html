@@ -159,10 +159,8 @@
 <div class="card mt-4">
     <div class="card-body">
         <h6 class="mb-3">Quick Actions</h6>
+        <div class="mb-3">{% include "core/_secure_note_link_status.html" %}</div>
         <div class="btn-group">
-            <button class="btn btn-outline-primary" onclick="copyLink('{{ request.scheme }}://{{ request.get_host }}{% url 'core:secure_note_view_link' note.access_token %}')">
-                <i class="fas fa-copy"></i> Copy Link
-            </button>
             <a href="{% url 'core:secure_note_delete' note.pk %}" class="btn btn-outline-danger">
                 <i class="fas fa-trash"></i> Delete Note
             </a>

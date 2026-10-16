@@ -9,6 +9,8 @@ from core.models import Organization, Tag, BaseModel
 from core.utils import OrganizationManager
 
 
+from vault.secret_fields import EncryptedTextField, hash_token
+
 class ScheduledTask(BaseModel):
     """
     A scheduled recurring or one-time task that requires sign-off from assigned users.
@@ -308,6 +310,9 @@ class SchedulerWallboard(BaseModel):
         cannot be guessed or enumerated by walking integers;
       * the token can be rotated, which instantly invalidates any link that has
         leaked;
+      * the token is stored encrypted (``token`` — the URL has to be shown
+        again whenever a TV is set up or replaced) plus an HMAC
+        (``token_hash``) that the public view looks it up by;
       * what it shows is opt-in per field. Client names are the most sensitive
         thing on a schedule and can be withheld while keeping the board useful.
 
@@ -321,10 +326,13 @@ class SchedulerWallboard(BaseModel):
     is_enabled = models.BooleanField(
         default=False,
         help_text='Off by default. While off, the public URL returns 404.')
-    token = models.CharField(
-        max_length=64, unique=True, db_index=True,
-        help_text='Random component of the public URL. Rotating it breaks '
-                  'every existing link immediately.')
+    token = EncryptedTextField(
+        blank=True,
+        help_text='Random component of the public URL (encrypted at rest). '
+                  'Rotating it breaks every existing link immediately.')
+    token_hash = models.CharField(
+        max_length=64, unique=True, db_index=True, editable=False,
+        help_text='HMAC-SHA256 of the token; the public URL is looked up by it.')
 
     title = models.CharField(max_length=120, blank=True,
                              help_text='Heading on the board. Defaults to "Schedule".')
@@ -369,18 +377,34 @@ class SchedulerWallboard(BaseModel):
         import secrets
         return secrets.token_urlsafe(32)
 
+    TOKEN_PURPOSE = 'scheduling.wallboard'
+
+    @classmethod
+    def hash_link_token(cls, raw: str) -> str:
+        return hash_token(raw, cls.TOKEN_PURPOSE)
+
+    @classmethod
+    def lookup(cls, raw: str):
+        return cls.objects.filter(token_hash=cls.hash_link_token(raw or ''))
+
+    def set_token(self, raw: str):
+        self.token = raw
+        self.token_hash = self.hash_link_token(raw)
+
     def save(self, *args, **kwargs):
         self.pk = 1  # singleton
-        if not self.token:
-            self.token = self.new_token()
+        if not self.token or not self.token_hash:
+            self.set_token(self.token or self.new_token())
+            if kwargs.get('update_fields') is not None:
+                kwargs['update_fields'] = set(kwargs['update_fields']) | {'token', 'token_hash'}
         # A board that reloads every second would hammer the server for no
         # human benefit; a wall display is read at walking pace.
         self.refresh_seconds = max(15, int(self.refresh_seconds or 60))
         super().save(*args, **kwargs)
 
     def rotate_token(self):
-        self.token = self.new_token()
-        self.save(update_fields=['token', 'updated_at'])
+        self.set_token(self.new_token())
+        self.save(update_fields=['token', 'token_hash', 'updated_at'])
         return self.token
 
     @property

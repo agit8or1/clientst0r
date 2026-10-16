@@ -62,6 +62,9 @@ INSTALLED_APPS = [
 
     # Third party
     'rest_framework',
+    # Kept only for migration history (field_ops 0002 and api_mobile
+    # 0001/0002 reference it; its rows are hashed into
+    # api_mobile.MobileAuthToken and deleted). Nothing authenticates with it.
     'rest_framework.authtoken',
     'django_filters',
     'django_otp',

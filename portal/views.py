@@ -465,8 +465,8 @@ def quote_sign(request, token):
         TicketPriority, TicketStatus, TicketType,
     )
 
-    quote = get_object_or_404(Quote.objects.select_related('client_org'),
-                              customer_token=token)
+    quote = get_object_or_404(
+        Quote.lookup_by_customer_token(token).select_related('client_org'))
 
     if request.method == 'POST':
         if quote.status in ('accepted', 'rejected'):

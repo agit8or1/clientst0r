@@ -7,13 +7,22 @@
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card">
+            {% if share_url %}
             <div class="card-header bg-success text-white">
                 <h5 class="mb-0"><i class="fas fa-check-circle"></i> Secret Link Created!</h5>
             </div>
+            {% else %}
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-link"></i> Secret Link</h5>
+            </div>
+            {% endif %}
             <div class="card-body">
+                {% if share_url %}
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i> Your secret link has been generated. Copy the URL below and share it via your preferred method (chat, Slack, Teams, email, QR code, etc.).
+                    <strong>This is the only time the link is shown</strong> &mdash; it is not stored, so it cannot be displayed again.
                 </div>
+                {% endif %}
 
                 <div class="mb-3">
                     <label class="form-label"><strong>Title:</strong></label>
@@ -29,6 +38,7 @@
 
                 <div class="mb-3">
                     <label class="form-label"><strong>Secret Link:</strong></label>
+                    {% if share_url %}
                     <div class="input-group">
                         <input type="text" class="form-control" id="share-url" value="{{ share_url }}" readonly>
                         <button class="btn btn-primary" type="button" id="copy-btn">
@@ -36,6 +46,9 @@
                         </button>
                     </div>
                     <small class="text-muted">Anyone with this link can access the secret note</small>
+                    {% else %}
+                    {% include "core/_secure_note_link_status.html" %}
+                    {% endif %}
                 </div>
 
                 <div class="alert alert-warning">
@@ -61,9 +74,11 @@
                     <a href="{% url 'core:secure_note_sent' %}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left"></i> Back to Sent Notes
                     </a>
+                    {% if share_url %}
                     <button type="button" class="btn btn-success" id="open-link-btn">
                         <i class="fas fa-external-link-alt"></i> Test Link
                     </button>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -92,6 +107,7 @@
     </div>
 </div>
 
+{% if share_url %}
 <script nonce="{{ csp_nonce }}">
 // Copy to clipboard functionality
 document.getElementById('copy-btn').addEventListener('click', function() {
@@ -118,7 +134,8 @@ document.getElementById('copy-btn').addEventListener('click', function() {
 
 // Open link in new tab to test
 document.getElementById('open-link-btn').addEventListener('click', function() {
-    window.open('{{ share_url }}', '_blank');
+    window.open('{{ share_url|escapejs }}', '_blank');
 });
 </script>
+{% endif %}
 {% endblock %}

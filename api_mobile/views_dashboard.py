@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from django.db.models import Count, Q
 from django.utils import timezone
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
@@ -28,7 +28,7 @@ def _safe_count(model_path, **filters):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def dashboard_view(request):
     """
@@ -139,7 +139,7 @@ def dashboard_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def organization_list_view(request):
     """
@@ -183,7 +183,7 @@ def organization_list_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def organization_detail_view(request, pk: int):
     """

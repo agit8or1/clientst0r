@@ -322,7 +322,10 @@ class PasswordViewSet(OrganizationScopedViewSet):
 
         plaintext = password.get_password()
         consume_approval(password, request.user)
-        return Response({'password': plaintext})
+        body = {'password': plaintext}
+        if password.license_key:
+            body['license_key'] = password.license_key
+        return Response(body)
 
     @action(detail=True, methods=['get'])
     def otp(self, request, pk=None):

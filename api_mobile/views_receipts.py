@@ -26,7 +26,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.utils import timezone
 from rest_framework import status as drf_status
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, parser_classes, permission_classes,
 )
@@ -169,7 +169,7 @@ def _confidence_from(extracted):
 
 # ============================================================
 @api_view(['GET', 'POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser])
 def receipt_list_view(request):
@@ -365,7 +365,7 @@ def receipt_list_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def receipt_detail_view(request, pk: int):
     """GET /api/mobile/v1/receipts/<id>/ — own receipts only."""

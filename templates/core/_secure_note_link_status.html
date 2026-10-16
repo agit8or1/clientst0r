@@ -1,0 +1,16 @@
+{# Secret-link status for a link-only note whose link was already shown. #}
+<div class="small">
+    <span class="text-muted">
+        <i class="fas fa-link"></i>
+        Link created {{ note.link_issued_at|default:note.created_at|date:"M d, Y g:i A" }}
+        &mdash; the link is shown only once. Regenerate to get a new link (the old one stops working).
+    </span>
+    {% if not note.is_deleted %}
+    <form method="post" action="{% url 'core:secure_note_regenerate_link' note.pk %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-warning ms-1" title="Regenerate link">
+            <i class="fas fa-sync-alt"></i> Regenerate link
+        </button>
+    </form>
+    {% endif %}
+</div>

@@ -93,6 +93,7 @@ class Command(BaseCommand):
         self.failures = []
         with transaction.atomic():
             self._rotate_envelope_columns(target, decrypt_keys)
+            self._rotate_hex_envelope_columns(target, decrypt_keys)
             self._rotate_v2_row_columns(target, decrypt_keys)
             if self.failures:
                 transaction.set_rollback(True)
@@ -153,6 +154,30 @@ class Command(BaseCommand):
                         new_value = sf.seal(plaintext, field.aad)
                     with v1.using_master_keys(target, [target]):
                         if sf.unseal(new_value, field.aad) != plaintext:
+                            raise ValueError('verification mismatch')
+                except Exception as e:
+                    self.failures.append((label, pk, type(e).__name__))
+                    continue
+                self._update(model, field.column, pk, new_value)
+                done += 1
+            self.counts[label] = (done, skipped)
+
+    def _rotate_hex_envelope_columns(self, target, decrypt_keys):
+        """django-otp TOTP seeds (compact enc2h$ envelope, fixed-width column)."""
+        for model, field in sf.iter_hex_envelope_fields():
+            label = field.aad
+            done = skipped = 0
+            for pk, value in self._rows(model, field.column):
+                if value in (None, ''):
+                    skipped += 1
+                    continue
+                try:
+                    with v1.using_master_keys(target, decrypt_keys):
+                        plaintext = (sf.unseal_hex(value, field.aad)
+                                     if sf.is_sealed_hex(value) else value)
+                        new_value = sf.seal_hex(plaintext, field.aad, field.max_length)
+                    with v1.using_master_keys(target, [target]):
+                        if sf.unseal_hex(new_value, field.aad) != plaintext:
                             raise ValueError('verification mismatch')
                 except Exception as e:
                     self.failures.append((label, pk, type(e).__name__))

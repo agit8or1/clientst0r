@@ -12,7 +12,7 @@ from __future__ import annotations
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status as drf_status
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
@@ -92,7 +92,7 @@ def _serialize_execution(e, *, with_stages: bool = False) -> dict:
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def workflow_list_view(request):
     """
@@ -134,7 +134,7 @@ def workflow_list_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def workflow_detail_view(request, pk: int):
     """GET /api/mobile/v1/workflows/<id>/ — process with full stage list."""
@@ -152,7 +152,7 @@ def workflow_detail_view(request, pk: int):
 
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def workflow_start_view(request, pk: int):
     """
@@ -208,7 +208,7 @@ def workflow_start_view(request, pk: int):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def my_executions_view(request):
     """
@@ -231,7 +231,7 @@ def my_executions_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def execution_detail_view(request, pk: int):
     """GET /api/mobile/v1/workflows/executions/<id>/ — with all stage states."""
@@ -246,7 +246,7 @@ def execution_detail_view(request, pk: int):
 
 
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def execution_complete_stage_view(request, pk: int, stage_id: int):
     """

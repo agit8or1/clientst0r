@@ -5,6 +5,34 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.612] - 2026-10-16
+
+### Sign-in tokens, share links and 2FA keys are no longer stored in plain text
+
+- **Mobile app sign-ins:** each sign-in now gets its own token, stored only as
+  a hash. Signing out ends just that device, and refreshing replaces the old
+  token. Users can sign out all their mobile sessions from their profile;
+  superusers can do it for any user from the user page (audit-logged).
+  Existing app installs stay signed in through the update; no app update is
+  needed.
+- **Share links:** secure-note and satisfaction-survey links are stored as
+  hashes. Status-page, wallboard and quote-signing links, which staff need to
+  re-share, are stored encrypted and looked up by hash. Links already sent
+  keep working. A secure-note link is shown once when it's created and can be
+  regenerated, which stops the old link. Also fixed: a second secure note
+  without a link could not be saved.
+- **Two-factor authentication:** authenticator seeds are stored encrypted and
+  backup codes as hashes. Existing authenticator apps and backup codes keep
+  working. New backup codes are shown once.
+- **License keys** in the vault are masked until revealed, through the same
+  approval, access rules and audit log as passwords. The REST API returns the
+  key only on a reveal request.
+- **Ticket sharing with partner instances** no longer sends your partner
+  secret in the payload; requests carry the partner ID and the existing
+  signature.
+- `check_secrets_storage` now covers these tokens and fails if a raw mobile
+  token ever appears. `rotate_encryption_key` re-encrypts the new fields.
+
 ## [3.17.611] - 2026-10-15
 
 ### Documentation and screenshots match the product

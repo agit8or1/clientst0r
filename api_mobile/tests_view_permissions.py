@@ -15,7 +15,7 @@ from django.conf import settings as django_settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
-from rest_framework.authtoken.models import Token
+from api_mobile.models import MobileAuthToken
 
 from accounts.models import Membership, Role, RoleTemplate
 from core.models import Organization
@@ -123,14 +123,19 @@ class MobileViewPermissionTests(TestCase):
     # --- helpers -----------------------------------------------------------
 
     def _get(self, user, path):
-        token, _ = Token.objects.get_or_create(user=user)
-        return self.client.get(BASE + path, HTTP_AUTHORIZATION=f'Token {token.key}')
+        return self.client.get(BASE + path, HTTP_AUTHORIZATION=f'Token {self._token(user)}')
 
     def _post(self, user, path, payload):
-        token, _ = Token.objects.get_or_create(user=user)
         return self.client.post(BASE + path, data=json.dumps(payload),
                                 content_type='application/json',
-                                HTTP_AUTHORIZATION=f'Token {token.key}')
+                                HTTP_AUTHORIZATION=f'Token {self._token(user)}')
+
+    def _token(self, user):
+        # One sign-in per user per test, like the old get_or_create.
+        cache_ = self.__dict__.setdefault('_mobile_tokens', {})
+        if user.pk not in cache_:
+            cache_[user.pk] = MobileAuthToken.issue(user)[0]
+        return cache_[user.pk]
 
     def _titles(self, resp, key='title'):
         self.assertEqual(resp.status_code, 200, resp.content)

@@ -100,7 +100,7 @@ class SecureNoteLinkPasswordTests(TestCase):
 
     def test_legacy_plaintext_upgraded_on_success(self):
         note = self._note('legacy-pw')
-        resp = Client().post(f'/core/secret/{note.access_token}/', {'password': 'legacy-pw'})
+        resp = Client().post(f'/core/secret/{note._raw_access_token}/', {'password': 'legacy-pw'})
         self.assertContains(resp, 'the secret')
         note.refresh_from_db()
         identify_hasher(note.access_password)
@@ -109,8 +109,8 @@ class SecureNoteLinkPasswordTests(TestCase):
         note = self._note('right-pw')
         c = Client()
         for _ in range(10):
-            c.post(f'/core/secret/{note.access_token}/', {'password': 'wrong'})
-        resp = c.post(f'/core/secret/{note.access_token}/', {'password': 'right-pw'})
+            c.post(f'/core/secret/{note._raw_access_token}/', {'password': 'wrong'})
+        resp = c.post(f'/core/secret/{note._raw_access_token}/', {'password': 'right-pw'})
         self.assertNotContains(resp, 'the secret')
         self.assertContains(resp, 'Too many incorrect attempts')
 

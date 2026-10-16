@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from django.db.models import Q
 from rest_framework import status as drf_status
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
@@ -64,7 +64,7 @@ def _serialize_transaction(tx) -> dict:
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def inventory_list_view(request):
     """
@@ -130,7 +130,7 @@ def inventory_list_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def inventory_detail_view(request, pk: int):
     """GET /api/mobile/v1/inventory/<id>/  — 404 cross-org."""
@@ -146,7 +146,7 @@ def inventory_detail_view(request, pk: int):
 
 
 @api_view(['GET', 'POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def inventory_transactions_view(request, pk: int):
     """

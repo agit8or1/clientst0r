@@ -38,6 +38,8 @@ urlpatterns = [
     path('auth/logout/', views_auth.logout_view, name='logout'),
     path('auth/me/', views_auth.me_view, name='me'),
     path('auth/refresh/', views_auth.refresh_view, name='refresh'),
+    path('auth/sessions/', views_auth.sessions_view, name='sessions'),
+    path('auth/revoke-all/', views_auth.revoke_all_view, name='revoke_all'),
 
     # Projects (v3.17.558) — Phase 35's field-relevant slice.
     path('projects/', views_projects.project_list_view, name='project_list'),

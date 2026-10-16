@@ -391,7 +391,7 @@ class OwnershipTests(_Base):
         self.assertEqual(doc.review_interval_days, 30)
         r = self.client_for(self.reader).get(f'/docs/{doc.slug}/')
         self.assertContains(r, 'lc-reader')
-        self.assertContains(r, doc.next_review_due.strftime('%Y-%m-%d'))
+        self.assertContains(r, timezone.localtime(doc.next_review_due).strftime('%Y-%m-%d'))
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)

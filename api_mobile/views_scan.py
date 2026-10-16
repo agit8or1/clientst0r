@@ -8,7 +8,7 @@ the mobile app can deep-link to the right detail screen.
 """
 from __future__ import annotations
 
-from rest_framework.authentication import TokenAuthentication
+from .authentication import MobileTokenAuthentication
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes,
 )
@@ -19,7 +19,7 @@ from .scoping import accessible_org_ids, perm_org_ids
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([MobileTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def scan_resolve_view(request):
     """
