@@ -57,7 +57,7 @@
 
             <!-- Per-vehicle filter -->
             <div class="col-auto">
-                <select name="vehicle" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width:180px">
+                <select name="vehicle" class="form-select form-select-sm" data-autosubmit style="min-width:180px">
                     <option value="">All vehicles</option>
                     {% for v in all_vehicles %}
                     <option value="{{ v.pk }}" {% if selected_vehicle.pk == v.pk %}selected{% endif %}>{{ v.display_name }}</option>

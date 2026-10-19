@@ -8,7 +8,7 @@
 
     <form method="get" class="row g-2 mb-3">
         <div class="col-auto">
-            <select name="standard" class="form-select form-select-sm" onchange="this.form.submit()">
+            <select name="standard" class="form-select form-select-sm" data-autosubmit>
                 <option value="">All standards</option>
                 {% for s in standards %}<option value="{{ s.pk }}" {% if std_filter == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
             </select>

@@ -256,7 +256,7 @@
                             {% if can_assign and eligible_assignees %}
                             <form method="post" action="{% url 'psa:project_task_update' t.pk %}" class="d-inline">
                                 {% csrf_token %}
-                                <select name="assigned_to" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto;" title="Reassign task">
+                                <select name="assigned_to" class="form-select form-select-sm" data-autosubmit style="width:auto;" title="Reassign task">
                                     <option value="">— Unassigned —</option>
                                     {% for u in eligible_assignees %}
                                     <option value="{{ u.id }}" {% if t.assigned_to_id == u.id %}selected{% endif %}>{{ u.username }}</option>
@@ -266,7 +266,7 @@
                             {% endif %}
                             <form method="post" action="{% url 'psa:project_task_update' t.pk %}" class="d-inline">
                                 {% csrf_token %}
-                                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto;">
+                                <select name="status" class="form-select form-select-sm" data-autosubmit style="width:auto;">
                                     {% for code, label in task_status_choices %}
                                     <option value="{{ code }}" {% if t.status == code %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
@@ -287,7 +287,7 @@
                             {% endif %}
                             <form method="post" action="{% url 'psa:project_task_delete' t.pk %}" class="d-inline">
                                 {% csrf_token %}
-                                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete task?')"><i class="fas fa-times"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" data-confirm="Delete task?"><i class="fas fa-times"></i></button>
                             </form>
                         </span>
                     </li>

@@ -77,9 +77,9 @@
           → Save.
         </p>
         <textarea readonly id="emails-blob" class="form-control" rows="3"
-                  onclick="this.select()">{{ emails_to_add }}</textarea>
+                  data-select-on-click>{{ emails_to_add }}</textarea>
         <button class="btn btn-outline-primary btn-sm mt-2"
-                onclick="navigator.clipboard.writeText(document.getElementById('emails-blob').value); this.textContent='Copied!';">
+                data-copy-from="#emails-blob" data-copied-text="Copied!">
           📋 Copy to clipboard
         </button>
       </div>
@@ -96,7 +96,7 @@
           </p>
           <input readonly class="form-control"
                  value="{{ opt_in_url }}"
-                 onclick="this.select()">
+                 data-select-on-click>
         </div>
       </div>
     {% endif %}
@@ -120,7 +120,7 @@
             <td class="text-end">
               {# v3.17.484 — email the approved tester the opt-in URL automatically. #}
               <form method="post" class="d-inline"
-                    onsubmit="return confirm('Email the Play opt-in URL to {{ r.google_account_email }} and mark as added?');">
+                    data-confirm="Email the Play opt-in URL to {{ r.google_account_email }} and mark as added?">
                 {% csrf_token %}
                 <input type="hidden" name="pk" value="{{ r.pk }}">
                 <button name="action" value="send_opt_in" class="btn btn-success btn-sm">

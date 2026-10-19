@@ -34,7 +34,7 @@
             <input type="text" class="form-control font-monospace" id="nd_site_key"
                    value="{{ new_key }}" readonly>
             <button class="btn btn-outline-secondary" type="button"
-                    onclick="navigator.clipboard.writeText(document.getElementById('nd_site_key').value)">
+                    data-copy-from="#nd_site_key">
                 Copy
             </button>
         </div>
@@ -108,7 +108,7 @@
                           class="d-inline">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-secondary btn-sm"
-                                onclick="return confirm('Rotate the key? The collector stops working until you give it the new one.')">
+                                data-confirm="Rotate the key? The collector stops working until you give it the new one.">
                             Rotate key
                         </button>
                     </form>
@@ -117,7 +117,7 @@
                           class="d-inline">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-danger btn-sm"
-                                onclick="return confirm('Revoke this collector? Its key stops working immediately.')">
+                                data-confirm="Revoke this collector? Its key stops working immediately.">
                             Revoke
                         </button>
                     </form>

@@ -52,7 +52,7 @@
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <strong>Top zero-result searches</strong>
                 <form method="get" class="d-flex gap-1">
-                    <select name="source" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                    <select name="source" class="form-select form-select-sm w-auto" data-autosubmit>
                         <option value="">All searches</option>
                         {% for key, label in sources %}
                         <option value="{{ key }}" {% if source == key %}selected{% endif %}>{{ label }}</option>

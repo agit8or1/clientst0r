@@ -11,7 +11,7 @@
 <h2 class="mb-3"><i class="fas fa-code-branch me-2"></i>Change Requests</h2>
 
 <form method="get" class="d-flex gap-2 mb-3 align-items-center flex-wrap">
-    <select name="status" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+    <select name="status" class="form-select form-select-sm" style="width:auto;" data-autosubmit>
         <option value="">All statuses</option>
         <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
         <option value="pending_cab" {% if status_filter == 'pending_cab' %}selected{% endif %}>Pending CAB Approval</option>
@@ -22,7 +22,7 @@
         <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Failed</option>
         <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
     </select>
-    <select name="risk" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+    <select name="risk" class="form-select form-select-sm" style="width:auto;" data-autosubmit>
         <option value="">All risk levels</option>
         <option value="low" {% if risk_filter == 'low' %}selected{% endif %}>Low</option>
         <option value="medium" {% if risk_filter == 'medium' %}selected{% endif %}>Medium</option>

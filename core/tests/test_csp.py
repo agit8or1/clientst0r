@@ -63,6 +63,7 @@ class CSPHeaderOnPagesTests(TestCase):
         self.assertEqual(d['object-src'], ["'none'"])
         self.assertEqual(d['frame-ancestors'], ["'none'"])
         self.assertNotIn("'unsafe-inline'", d['script-src'])
+        self.assertEqual(d['script-src-attr'], ["'none'"])
         self.assertEqual(d['report-uri'], ['/csp-report/'])
 
     @override_settings(CSP_REPORT_ONLY=False)
@@ -207,3 +208,48 @@ class CSPReportEndpointTests(TestCase):
 
     def test_get_not_allowed(self):
         self.assertEqual(self.client.get('/csp-report/').status_code, 405)
+
+
+class NoInlineEventHandlersTests(TestCase):
+    """script-src-attr is 'none', so an onclick=/onchange=/... attribute in a
+    template, or in HTML a script builds, would silently stop working once
+    CSP is enforced. Use the data-* hooks in static/js/csp-events.js."""
+
+    HANDLER = re.compile(r'''\son[a-z]+\s*=\s*\\?["']''', re.I)
+    SCRIPT_TAG = re.compile(r'<script\b([^>]*)>', re.I)
+    SKIP_TOP = {'venv', 'node_modules', '.git', 'staticfiles', 'mobile', 'mobile-app',
+                'local_apps', 'htmlcov', 'docs'}
+
+    def _sources(self):
+        root = Path(django_settings.BASE_DIR)
+        for path in root.rglob('*'):
+            if path.suffix not in ('.html', '.js') or path.name.endswith('.min.js'):
+                continue
+            rel = path.relative_to(root)
+            if rel.parts[0] in self.SKIP_TOP or 'vendor' in rel.parts or 'site-packages' in rel.parts:
+                continue
+            if 'templates' not in rel.parts and rel.parts[0] != 'static':
+                continue
+            yield rel, path.read_text(encoding='utf-8', errors='ignore')
+
+    def test_no_inline_event_handlers(self):
+        found = []
+        sources = list(self._sources())
+        self.assertGreater(len(sources), 300)  # the scan really covers the templates
+        for rel, text in sources:
+            for m in self.HANDLER.finditer(text):
+                found.append(f'{rel}:{text.count(chr(10), 0, m.start()) + 1}')
+        self.assertEqual(found, [], 'Inline event handlers (blocked by CSP): ' + ', '.join(found[:20]))
+
+    def test_inline_scripts_carry_the_nonce(self):
+        missing = []
+        for rel, text in self._sources():
+            if rel.suffix != '.html':
+                continue
+            for m in self.SCRIPT_TAG.finditer(text):
+                attrs = m.group(1)
+                if 'src=' in attrs or 'nonce=' in attrs or 'application/json' in attrs \
+                        or 'application/ld+json' in attrs or 'text/template' in attrs:
+                    continue
+                missing.append(f'{rel}:{text.count(chr(10), 0, m.start()) + 1}')
+        self.assertEqual(missing, [], 'Inline <script> without nonce: ' + ', '.join(missing[:20]))

@@ -5,6 +5,28 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.614] - 2026-10-19
+
+### No inline event handlers; the Content-Security-Policy blocks them
+
+- All 271 inline event handlers (`onclick`, `onchange`, `onsubmit`,
+  `onmouseover` and the like) in the templates and in HTML that pages build
+  with JavaScript are gone. Pages now wire events through one shared script,
+  `static/js/csp-events.js`: confirmations (`data-confirm`), filters that
+  submit on change (`data-autosubmit`), buttons that call a page function
+  (`data-action`), copy, print, reload and open-in-new-tab hooks. Card hover
+  effects are plain CSS.
+- The Content-Security-Policy now sends `script-src-attr 'none'` instead of
+  `'unsafe-inline'`, so an injected `onerror=` or `onclick=` attribute can't
+  run once the policy is enforced. CSP is still report-only by default; set
+  `CSP_REPORT_ONLY=False` to enforce it.
+- Two inline scripts on the documentation readiness pages were missing their
+  nonce and would have been blocked under an enforced policy; fixed.
+- The offline page's "Try again" is a plain link, so it works without
+  scripts.
+- New tests fail if an inline event handler, or an inline `<script>` without
+  the nonce, is added to any template.
+
 ## [3.17.613] - 2026-10-16
 
 ### Dispatch and assignment: MSP technicians only

@@ -83,7 +83,7 @@
 
                         <div class="mb-3">
                             <label for="id_port_count" class="form-label">Port Count *</label>
-                            <select name="port_count" id="id_port_count" class="form-select" required onchange="updateRackUnits()">
+                            <select name="port_count" id="id_port_count" class="form-select" required data-on-change="updateRackUnits">
                                 <option value="8">8 Ports (1U)</option>
                                 <option value="12">12 Ports (1U)</option>
                                 <option value="24" selected>24 Ports (1U)</option>
@@ -151,7 +151,7 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Port Configuration</h5>
                         <div>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="autoLabel()">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-action="autoLabel">
                                 <i class="fas fa-magic"></i> Auto-Label Ports
                             </button>
                         </div>

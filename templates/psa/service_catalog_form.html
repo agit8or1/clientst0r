@@ -105,7 +105,7 @@
         <div>
             {% if item %}
             <button type="submit" name="delete" value="1" class="btn btn-outline-danger me-2"
-                    onclick="return confirm('Delete this catalog item?');">
+                    data-confirm="Delete this catalog item?">
                 <i class="fas fa-trash me-1"></i>Delete
             </button>
             {% endif %}

@@ -261,8 +261,8 @@
         <div class="manual-entry">
             <label><strong>Or Enter QR Code Manually:</strong></label>
             <input type="text" id="manual-qr-input" placeholder="Enter QR code..."
-                   onkeypress="if(event.key === 'Enter') submitManualQR()">
-            <button class="btn btn-primary btn-block" onclick="submitManualQR()">
+                   data-on-enter="submitManualQR">
+            <button class="btn btn-primary btn-block" data-action="submitManualQR">
                 <i class="fas fa-search"></i> Look Up Item
             </button>
         </div>

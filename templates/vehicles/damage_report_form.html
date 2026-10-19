@@ -124,7 +124,7 @@
                             <img src="{% url 'files:serve_attachment' photo.id %}"
                                  class="vehicle-thumb"
                                  alt="Vehicle photo"
-                                 onclick="window.open('{% url 'files:serve_attachment' photo.id %}','_blank')"
+                                 data-open-url="{% url 'files:serve_attachment' photo.id %}"
                                  title="Click to enlarge">
                             {% endfor %}
                         </div>
@@ -139,7 +139,7 @@
                     <div id="location-display" class="alert alert-info py-2 mb-2 {% if not form.damage_location.value %}d-none{% endif %}">
                         <i class="fas fa-map-marker-alt me-1"></i>
                         Selected: <strong id="location-label">{{ form.damage_location.value|default:"" }}</strong>
-                        <button type="button" class="btn-close btn-sm float-end" onclick="clearLocation()"></button>
+                        <button type="button" class="btn-close btn-sm float-end" data-action="clearLocation"></button>
                     </div>
 
                     <!-- Hidden field -->

@@ -21,7 +21,7 @@
             <input type="text" class="form-control font-monospace" id="public_url"
                    value="{{ public_url }}" readonly>
             <button class="btn btn-outline-secondary" type="button"
-                    onclick="navigator.clipboard.writeText(document.getElementById('public_url').value)">
+                    data-copy-from="#public_url">
                 Copy
             </button>
             <a class="btn btn-outline-primary" href="{{ board.get_public_url }}" target="_blank" rel="noopener">Open</a>
@@ -30,7 +30,9 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="rotate">
             <button class="btn btn-sm btn-outline-danger"
-                    onclick="return confirm('Rotate the link?\n\nEvery screen currently showing this board will stop working until you open the new address on it.')">
+                    data-confirm="Rotate the link?
+
+Every screen currently showing this board will stop working until you open the new address on it.">
                 Rotate link
             </button>
         </form>

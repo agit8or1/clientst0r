@@ -16,19 +16,19 @@
 </div>
 
 <form method="get" class="d-flex gap-2 mb-3 align-items-center flex-wrap">
-    <select name="status" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+    <select name="status" class="form-select form-select-sm" style="width:auto;" data-autosubmit>
         <option value="">All statuses</option>
         {% for value, label in status_choices %}
         <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
     </select>
-    <select name="priority" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+    <select name="priority" class="form-select form-select-sm" style="width:auto;" data-autosubmit>
         <option value="">All priorities</option>
         {% for value, label in priority_choices %}
         <option value="{{ value }}" {% if priority_filter == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
     </select>
-    <select name="assigned" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+    <select name="assigned" class="form-select form-select-sm" style="width:auto;" data-autosubmit>
         <option value="">All assignees</option>
         <option value="me" {% if assigned_filter == 'me' %}selected{% endif %}>Assigned to me</option>
         <option value="unassigned" {% if assigned_filter == 'unassigned' %}selected{% endif %}>Unassigned</option>

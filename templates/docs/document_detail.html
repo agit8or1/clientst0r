@@ -40,7 +40,7 @@
         <a href="{% url 'docs:document_edit' document.slug %}" class="btn btn-secondary">
             <i class="fas fa-edit"></i> Edit
         </a>
-        <button type="button" class="btn btn-danger" onclick="deleteDocument('{{ document.slug }}', '{{ document.title|escapejs }}')">
+        <button type="button" class="btn btn-danger" data-action="deleteDocument" data-args='["{{ document.slug|escapejs }}", "{{ document.title|escapejs }}"]'>
             <i class="fas fa-trash"></i> Delete
         </button>
         {% endif %}
@@ -61,7 +61,7 @@
                     {% if document.file_type and 'image' in document.file_type %}
                         <!-- Display image -->
                         <div class="mb-3">
-                            <img src="{{ document.file.url }}" alt="{{ document.title }}" class="img-fluid rounded shadow-sm" style="max-width: 100%; max-height: 800px; cursor: zoom-in;" onclick="window.open('{{ document.file.url }}', '_blank')">
+                            <img src="{{ document.file.url }}" alt="{{ document.title }}" class="img-fluid rounded shadow-sm" style="max-width: 100%; max-height: 800px; cursor: zoom-in;" data-open-url="{{ document.file.url }}">
                         </div>
                         <div class="text-muted">
                             <small>{{ document.file_type }} • {{ document.file_size|filesizeformat }} • Click image to view full size</small>

@@ -17,7 +17,7 @@
         <a class="btn btn-outline-secondary" href="{% url 'docs:document_version_diff' document.pk version.version_number %}"><i class="fas fa-code-compare"></i> Compare with current</a>
         {% if can_edit_doc %}
         <form method="post" action="{% url 'docs:document_version_restore' document.pk version.version_number %}"
-              onsubmit="return confirm('Restore this version? The current content is kept as a new version.');">
+              data-confirm="Restore this version? The current content is kept as a new version.">
             {% csrf_token %}
             <button type="submit" class="btn btn-primary"><i class="fas fa-rotate-left"></i> Restore this version</button>
         </form>

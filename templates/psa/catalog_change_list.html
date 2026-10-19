@@ -15,7 +15,7 @@
     <div class="row g-2 align-items-end">
         <div class="col-auto">
             <label class="form-label small mb-0">Status</label>
-            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+            <select name="status" class="form-select form-select-sm" data-autosubmit>
                 {% for code, label in status_choices %}
                 <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}

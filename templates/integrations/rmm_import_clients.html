@@ -55,13 +55,13 @@
                         {% csrf_token %}
 
                         <div class="mb-3">
-                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAll()">
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-action="selectAll">
                                 <i class="fas fa-check-square"></i> Select All
                             </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAll()">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-action="deselectAll">
                                 <i class="fas fa-square"></i> Deselect All
                             </button>
-                            <button type="button" class="btn btn-sm btn-outline-info" onclick="selectNew()">
+                            <button type="button" class="btn btn-sm btn-outline-info" data-action="selectNew">
                                 <i class="fas fa-filter"></i> Select New Only
                             </button>
                         </div>
@@ -71,7 +71,7 @@
                                 <thead>
                                     <tr>
                                         <th width="50">
-                                            <input type="checkbox" id="select-all" onchange="toggleAll(this)">
+                                            <input type="checkbox" id="select-all" data-on-change="toggleAll" data-args='["$this"]'>
                                         </th>
                                         <th>Client Name</th>
                                         <th>Client ID</th>

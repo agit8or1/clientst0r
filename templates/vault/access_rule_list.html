@@ -24,14 +24,14 @@
                 <strong>Filters:</strong>
             </div>
             <div class="col-auto">
-                <select class="form-select form-select-sm" name="status" onchange="this.form.submit()">
+                <select class="form-select form-select-sm" name="status" data-autosubmit>
                     <option value="">Any status</option>
                     <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
                     <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
                 </select>
             </div>
             <div class="col-auto">
-                <select class="form-select form-select-sm" name="scope" onchange="this.form.submit()">
+                <select class="form-select form-select-sm" name="scope" data-autosubmit>
                     <option value="">Any scope</option>
                     <option value="item" {% if scope_filter == 'item' %}selected{% endif %}>Specific Password</option>
                     <option value="user" {% if scope_filter == 'user' %}selected{% endif %}>Specific User</option>

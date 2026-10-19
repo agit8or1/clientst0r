@@ -29,7 +29,7 @@
             <input type="text" class="form-control font-monospace" id="nd_token"
                    value="{{ new_token }}" readonly>
             <button class="btn btn-outline-secondary" type="button"
-                    onclick="navigator.clipboard.writeText(document.getElementById('nd_token').value)">
+                    data-copy-from="#nd_token">
                 Copy
             </button>
         </div>

@@ -14,7 +14,7 @@
 </div>
 
 <form method="get" class="mb-3">
-    <select name="status" class="form-select form-select-sm d-inline-block" style="width:auto;" onchange="this.form.submit()">
+    <select name="status" class="form-select form-select-sm d-inline-block" style="width:auto;" data-autosubmit>
         <option value="">All</option>
         <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
         <option value="sent" {% if status_filter == 'sent' %}selected{% endif %}>Sent</option>
@@ -60,7 +60,7 @@
                         <form method="post" action="{% url 'psa:quote_accept' q.pk %}" class="d-inline">
                             {% csrf_token %}
                             <input type="hidden" name="create_ticket" value="on">
-                            <button class="btn btn-sm btn-success" onclick="return confirm('Accept this quote and create a ticket?')" title="Accept"><i class="fas fa-check"></i></button>
+                            <button class="btn btn-sm btn-success" data-confirm="Accept this quote and create a ticket?" title="Accept"><i class="fas fa-check"></i></button>
                         </form>
                         {% endif %}
                     </td>

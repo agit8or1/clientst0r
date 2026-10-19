@@ -17,7 +17,7 @@
         <form method="get" class="row g-3">
             <div class="col-md-4">
                 <label class="form-label">Filter by Label</label>
-                <select name="label" class="form-select" onchange="this.form.submit()">
+                <select name="label" class="form-select" data-autosubmit>
                     <option value="">All Labels</option>
                     {% for label in all_labels %}
                     <option value="{{ label }}" {% if label == label_filter %}selected{% endif %}>{{ label }}</option>
@@ -26,7 +26,7 @@
             </div>
             <div class="col-md-4">
                 <label class="form-label">Status</label>
-                <select name="status" class="form-select" onchange="this.form.submit()">
+                <select name="status" class="form-select" data-autosubmit>
                     <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
                     <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
                     <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>

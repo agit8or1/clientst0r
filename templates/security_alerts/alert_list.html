@@ -21,25 +21,25 @@
 </div>
 
 <form method="get" class="d-flex gap-2 mb-3 align-items-center flex-wrap">
-    <select name="severity" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+    <select name="severity" class="form-select form-select-sm" style="width:auto;" data-autosubmit>
         <option value="">All severities</option>
         {% for value, label in severity_choices %}
         <option value="{{ value }}" {% if filters.severity == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
     </select>
-    <select name="status" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+    <select name="status" class="form-select form-select-sm" style="width:auto;" data-autosubmit>
         <option value="">All statuses</option>
         {% for value, label in status_choices %}
         <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
     </select>
-    <select name="vendor" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+    <select name="vendor" class="form-select form-select-sm" style="width:auto;" data-autosubmit>
         <option value="">All vendors</option>
         {% for value, label in provider_choices %}
         <option value="{{ value }}" {% if filters.vendor == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
     </select>
-    <select name="client" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+    <select name="client" class="form-select form-select-sm" style="width:auto;" data-autosubmit>
         <option value="">All clients</option>
         {% for c in clients %}
         <option value="{{ c.pk }}" {% if filters.client == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
@@ -67,7 +67,7 @@
         <table class="table table-hover mb-0 small">
             <thead class="table-light">
                 <tr>
-                    {% if can_acknowledge %}<th style="width:30px;"><input type="checkbox" id="bulk-toggle" onclick="document.querySelectorAll('input[name=alert_ids]').forEach(cb=>cb.checked=this.checked);"></th>{% endif %}
+                    {% if can_acknowledge %}<th style="width:30px;"><input type="checkbox" id="bulk-toggle" data-check-all="input[name=alert_ids]"></th>{% endif %}
                     <th>Severity</th>
                     <th>Title</th>
                     <th>Asset</th>

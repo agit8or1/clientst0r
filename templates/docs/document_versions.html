@@ -34,7 +34,7 @@
                 <a class="btn btn-sm btn-outline-secondary" href="{% url 'docs:document_version_diff' document.pk v.version_number %}">Compare with current</a>
                 {% if can_edit_doc %}
                 <form method="post" action="{% url 'docs:document_version_restore' document.pk v.version_number %}" class="d-inline"
-                      onsubmit="return confirm('Restore version {{ v.version_number }}? The current content is kept as a new version.');">
+                      data-confirm="Restore version {{ v.version_number }}? The current content is kept as a new version.">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm btn-outline-primary">Restore</button>
                 </form>

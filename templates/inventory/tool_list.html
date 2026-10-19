@@ -22,7 +22,7 @@
     <div class="col-auto">
         <div class="form-check form-switch mt-1">
             <input class="form-check-input" type="checkbox" id="show_all" name="show"
-                   value="all" {% if showing_all %}checked{% endif %} onchange="this.form.submit()">
+                   value="all" {% if showing_all %}checked{% endif %} data-autosubmit>
             <label class="form-check-label small" for="show_all">Include retired</label>
         </div>
     </div>

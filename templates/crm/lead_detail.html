@@ -115,7 +115,7 @@
                 {% endif %}
 
                 {% if can_manage_pipeline and lead.status != 'converted' and lead.status != 'disqualified' %}
-                <form method="post" action="{% url 'crm:lead_convert' lead.pk %}" onsubmit="return confirm('Create a new Organization and Opportunity from this lead?');">
+                <form method="post" action="{% url 'crm:lead_convert' lead.pk %}" data-confirm="Create a new Organization and Opportunity from this lead?">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-success w-100"><i class="fas fa-arrow-right"></i> Convert to Org + Opportunity</button>
                 </form>
@@ -124,7 +124,7 @@
                     {% csrf_token %}
                     <input type="text" name="reason" class="form-control form-control-sm mb-2" placeholder="Disqualification reason (optional)">
                     <button type="submit" class="btn btn-outline-danger w-100"
-                            onclick="return confirm('Mark this lead as disqualified?');">
+                            data-confirm="Mark this lead as disqualified?">
                         <i class="fas fa-times"></i> Disqualify
                     </button>
                 </form>

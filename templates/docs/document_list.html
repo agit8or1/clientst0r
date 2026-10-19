@@ -177,7 +177,7 @@
                     <a href="{% url 'docs:document_detail' doc.slug %}" class="btn btn-outline-primary btn-sm py-0" style="font-size: 0.7rem;"><i class="fas fa-eye"></i></a>
                     {% if has_write_permission %}
                     <a href="{% url 'docs:document_edit' doc.slug %}" class="btn btn-outline-secondary btn-sm py-0" style="font-size: 0.7rem;"><i class="fas fa-edit"></i></a>
-                    <button type="button" class="btn btn-outline-danger btn-sm py-0" style="font-size: 0.7rem;" onclick="deleteDocument('{{ doc.slug }}', '{{ doc.title|escapejs }}')"><i class="fas fa-trash"></i></button>
+                    <button type="button" class="btn btn-outline-danger btn-sm py-0" style="font-size: 0.7rem;" data-action="deleteDocument" data-args='["{{ doc.slug|escapejs }}", "{{ doc.title|escapejs }}"]'><i class="fas fa-trash"></i></button>
                     {% endif %}
                 </div>
             </div>
@@ -259,7 +259,7 @@
                                 <a href="{% url 'docs:document_detail' doc.slug %}" class="btn btn-sm btn-outline-secondary ui-btn-icon" title="View {{ doc.title }}" aria-label="View {{ doc.title }}"><i class="fas fa-eye" aria-hidden="true"></i></a>
                                 {% if has_write_permission %}
                                 <a href="{% url 'docs:document_edit' doc.slug %}" class="btn btn-sm btn-outline-secondary ui-btn-icon" title="Edit {{ doc.title }}" aria-label="Edit {{ doc.title }}"><i class="fas fa-edit" aria-hidden="true"></i></a>
-                                <button type="button" class="btn btn-sm btn-outline-danger ui-btn-icon" title="Delete {{ doc.title }}" aria-label="Delete {{ doc.title }}" onclick="deleteDocument('{{ doc.slug }}', '{{ doc.title|escapejs }}')"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                                <button type="button" class="btn btn-sm btn-outline-danger ui-btn-icon" title="Delete {{ doc.title }}" aria-label="Delete {{ doc.title }}" data-action="deleteDocument" data-args='["{{ doc.slug|escapejs }}", "{{ doc.title|escapejs }}"]'><i class="fas fa-trash" aria-hidden="true"></i></button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -420,7 +420,7 @@ $(document).ready(function() {
                         <strong>${file.name}</strong>
                         <small class="text-muted ms-2">(${formatFileSize(file.size)})</small>
                     </div>
-                    <button type="button" class="btn btn-sm btn-danger" onclick="removeFile(${index})">
+                    <button type="button" class="btn btn-sm btn-danger" data-action="removeFile" data-args='[${index}]'>
                         <i class="fas fa-times"></i>
                     </button>
                 `;

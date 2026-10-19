@@ -124,7 +124,7 @@ created from the customer portal are shared automatically).
 | Tenant isolation (IDOR) | Limited | Org-scoped queries and per-view checks, extended in v3.17.599–600 to PSA records and customer users. Some role checks still pass if a flag is set on any of the user's memberships rather than the record's organization; tracked in the [roadmap](docs/ROADMAP.md). |
 | Rate limiting | Limited | DRF throttles on the API; per-view limits on vault reveal and a few other sensitive pages. |
 | Security headers | Available | HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy and Permissions-Policy. |
-| Content-Security-Policy | Limited | Since v3.17.610, sent on every page with a per-request nonce on inline scripts. It starts in **report-only** mode: violations are logged (`security.csp` logger) and nothing is blocked. Set `CSP_REPORT_ONLY=False` to enforce once the log is quiet; `CSP_ENABLED=False` turns it off. |
+| Content-Security-Policy | Limited | Since v3.17.610, sent on every page with a per-request nonce on inline scripts. Since v3.17.614 the pages contain no inline event handlers and the policy blocks them (`script-src-attr 'none'`). Inline styles are still allowed. It starts in **report-only** mode: violations are logged (`security.csp` logger) and nothing is blocked. Set `CSP_REPORT_ONLY=False` to enforce once the log is quiet; `CSP_ENABLED=False` turns it off. |
 
 ### Vulnerability scanning
 

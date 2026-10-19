@@ -1212,3 +1212,10 @@ main .about-title {
        message needs more of them before it stops being a scrollbox. */
     .hug-modal .hug-message { min-height: 140px; }
 }
+
+/* Hover lift for clickable cards (replaces inline onmouseover handlers). */
+.hover-scale { transition: transform .15s ease; }
+/* Specific enough to win over `main .card:hover { transform: none }`. */
+.hover-scale:hover, main .card.hover-scale:hover { transform: scale(1.02); }
+.hover-scale-lg { transition: transform .15s ease; }
+.hover-scale-lg:hover, main .card.hover-scale-lg:hover { transform: scale(1.05); }

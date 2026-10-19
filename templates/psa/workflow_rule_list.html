@@ -44,7 +44,7 @@
                         <a href="{% url 'psa:workflow_rule_edit' r.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
                         <form method="post" action="{% url 'psa:workflow_rule_delete' r.pk %}" class="d-inline">
                             {% csrf_token %}
-                            <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete rule?')">Delete</button>
+                            <button class="btn btn-sm btn-outline-danger" data-confirm="Delete rule?">Delete</button>
                         </form>
                     </td>
                 </tr>

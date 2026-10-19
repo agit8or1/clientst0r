@@ -26,11 +26,11 @@
             <input type="text" name="notes" class="form-control form-control-sm flex-grow-1"
                    placeholder="Optional decision notes for all selected..." style="max-width: 320px;">
             <button type="submit" name="decision" value="approve" class="btn btn-sm btn-success"
-                    onclick="return confirm('Approve all selected timesheets?');">
+                    data-confirm="Approve all selected timesheets?">
                 <i class="fas fa-check me-1"></i>Approve selected
             </button>
             <button type="submit" name="decision" value="reject" class="btn btn-sm btn-outline-danger"
-                    onclick="return confirm('Reject all selected timesheets?');">
+                    data-confirm="Reject all selected timesheets?">
                 <i class="fas fa-times me-1"></i>Reject selected
             </button>
         </div>
@@ -84,7 +84,7 @@
 
 <p class="text-muted small mt-3">
     Need to decide one at a time?
-    <a href="#" onclick="document.querySelectorAll('.js-single-decide').forEach(function(el){el.classList.toggle('d-none')});return false;">
+    <a href="#" data-toggle-hidden=".js-single-decide">
         Toggle per-row buttons
     </a>
 </p>

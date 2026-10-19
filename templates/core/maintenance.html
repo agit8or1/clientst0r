@@ -82,7 +82,7 @@
                 </div>
 
                 {% if stats.expired_sessions > 0 %}
-                <form method="post" class="d-inline" onsubmit="return confirm('Clear all expired sessions?');">
+                <form method="post" class="d-inline" data-confirm="Clear all expired sessions?">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="clear_expired_sessions">
                     <button type="submit" class="btn btn-warning btn-sm">
@@ -124,7 +124,7 @@
                     </div>
                 </div>
 
-                <form method="post" class="row g-2 align-items-end" onsubmit="return confirm('This will permanently delete old audit logs. Continue?');">
+                <form method="post" class="row g-2 align-items-end" data-confirm="This will permanently delete old audit logs. Continue?">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="cleanup_audit_logs">
                     <div class="col-md-4">
@@ -156,7 +156,7 @@
 
                 <div class="row g-2">
                     <div class="col-md-6">
-                        <form method="post" class="d-inline" onsubmit="return confirm('Optimize all database tables? This may take several minutes.');">
+                        <form method="post" class="d-inline" data-confirm="Optimize all database tables? This may take several minutes.">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="optimize_database">
                             <button type="submit" class="btn btn-primary btn-sm w-100">
@@ -165,7 +165,7 @@
                         </form>
                     </div>
                     <div class="col-md-6">
-                        <form method="post" class="d-inline" onsubmit="return confirm('Analyze all database tables for query optimization?');">
+                        <form method="post" class="d-inline" data-confirm="Analyze all database tables for query optimization?">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="vacuum_database">
                             <button type="submit" class="btn btn-info btn-sm w-100">

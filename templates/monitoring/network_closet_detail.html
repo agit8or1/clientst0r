@@ -292,7 +292,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-outline-danger me-auto" id="closetDeleteDeviceBtn" onclick="deleteClosetDevice()">
+        <button type="button" class="btn btn-outline-danger me-auto" id="closetDeleteDeviceBtn" data-action="deleteClosetDevice">
           <i class="fas fa-trash me-1"></i>Remove
         </button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -390,10 +390,10 @@
 
         <!-- View toggle -->
         <div class="d-flex gap-2 mb-3 closet-view-toggle">
-            <button id="btn-rack-view" class="btn btn-sm btn-primary" onclick="showClosetRackView()">
+            <button id="btn-rack-view" class="btn btn-sm btn-primary" data-action="showClosetRackView">
                 <i class="fas fa-th-list me-1"></i>Rack View
             </button>
-            <button id="btn-board-view" class="btn btn-sm btn-outline-primary" onclick="showClosetBoardView()">
+            <button id="btn-board-view" class="btn btn-sm btn-outline-primary" data-action="showClosetBoardView">
                 <i class="fas fa-border-all me-1"></i>Mounted Board
             </button>
         </div>
@@ -573,7 +573,7 @@
                 <!-- Board canvas -->
                 <div class="flex-grow-1">
                     <div class="d-flex justify-content-end align-items-center mb-2">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="loadClosetBoardDevices()"><i class="fas fa-sync-alt me-1"></i>Refresh</button>
+                        <button class="btn btn-sm btn-outline-secondary" data-action="loadClosetBoardDevices"><i class="fas fa-sync-alt me-1"></i>Refresh</button>
                     </div>
                     <div id="board-hint-bar" style="display:none;font-size:0.72rem;padding:5px 10px;margin-bottom:6px;background:rgba(0,0,0,0.35);border-radius:4px;color:#e2e8f0;">
                         <i class="fas fa-arrows-alt me-1"></i>Drag to reposition
@@ -583,8 +583,8 @@
                         <i class="fas fa-pencil-alt me-1"></i>Click to edit
                     </div>
                     <div id="closet-board-canvas"
-                         ondragover="boardDragOver(event)"
-                         ondrop="boardDrop(event)"></div>
+                         data-on-dragover="boardDragOver" data-args='["$event"]'
+                         data-on-drop="boardDrop" data-args='["$event"]'></div>
                 </div>
             </div>
         </div>
@@ -1071,7 +1071,7 @@ function renderClosetPortsPanel(deviceInfo, ports) {
         const color = statusColors[port.status] || '#475569';
         squares += `<div class="rack-port-square" data-port="${port.port_number}"
             title="Port ${port.port_number}${port.description ? ': '+port.description : ''}"
-            style="background:${color};" onclick="selectClosetPort(${port.port_number})">${port.port_number}</div>`;
+            style="background:${color};" data-action="selectClosetPort" data-args='[${port.port_number}]'>${port.port_number}</div>`;
     });
     container.innerHTML = `
       <div class="rack-port-faceplate mb-3">
@@ -1133,8 +1133,8 @@ function renderClosetPortsPanel(deviceInfo, ports) {
         </div>
         <div id="closetPortEditError" class="alert alert-danger d-none py-1 mb-2"></div>
         <div class="d-flex gap-2">
-          <button type="button" class="btn btn-primary btn-sm" onclick="saveClosetPortEdit()"><i class="fas fa-save me-1"></i>Save Port</button>
-          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearClosetPortSelection()">Cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" data-action="saveClosetPortEdit"><i class="fas fa-save me-1"></i>Save Port</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-action="clearClosetPortSelection">Cancel</button>
         </div>
       </div>`;
 }
@@ -1175,7 +1175,7 @@ function saveClosetPortEdit() {
         connected_to: document.getElementById('closetPortEditConnectedTo').value,
         notes:        document.getElementById('closetPortEditNotes').value,
     };
-    const btn = document.querySelector('[onclick="saveClosetPortEdit()"]');
+    const btn = document.querySelector('[data-action="saveClosetPortEdit"]');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
     fetch(`/monitoring/api/rack-devices/${_closetEditDevice.id}/ports/${_closetActivePort}/`, {
@@ -1270,7 +1270,7 @@ function renderAssetInfoPanel(asset, containerId, prefix) {
       </div>
       <div id="${prefix}SaveError" class="alert alert-danger d-none mb-2"></div>
       <div id="${prefix}SaveSuccess" class="alert alert-success d-none mb-2"></div>
-      <button type="button" class="btn btn-sm btn-primary" id="${prefix}SaveBtn" onclick="saveAssetInfo(${asset.id}, '${prefix}')">
+      <button type="button" class="btn btn-sm btn-primary" id="${prefix}SaveBtn" data-action="saveAssetInfo" data-args='[${asset.id}, ${JSON.stringify(String(prefix))}]'>
         <i class="fas fa-save me-1"></i>Update Asset Info
       </button>`;
 }

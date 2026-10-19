@@ -571,10 +571,10 @@
     <div class="tab-pane fade" id="photos">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5><i class="fas fa-images"></i> Vehicle Photos</h5>
-            <button class="btn btn-primary btn-sm" onclick="document.getElementById('photoUploadInput').click()">
+            <button class="btn btn-primary btn-sm" data-click="#photoUploadInput">
                 <i class="fas fa-upload"></i> Upload Photos
             </button>
-            <input type="file" id="photoUploadInput" accept="image/*" multiple style="display:none;" onchange="uploadVehiclePhotos(this.files)">
+            <input type="file" id="photoUploadInput" accept="image/*" multiple style="display:none;" data-on-change="uploadVehiclePhotos" data-args='["$files"]'>
         </div>
 
         <div id="photoUploadProgress" class="alert alert-info d-none mb-3">
@@ -588,14 +588,13 @@
                     <div class="card h-100" style="background:#1e293b;border:1px solid #334155;">
                         <a href="{{ photo.file.url }}" target="_blank" class="d-block overflow-hidden" style="height:160px;">
                             <img src="{{ photo.file.url }}" alt="{{ photo.original_filename }}"
-                                 class="card-img-top" style="object-fit:cover;height:160px;width:100%;transition:transform 0.2s;"
-                                 onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform=''">
+                                 class="card-img-top hover-scale-lg" style="object-fit:cover;height:160px;width:100%;transition:transform 0.2s;">
                         </a>
                         <div class="card-body p-2">
                             <p class="card-text text-truncate mb-1" style="color:#e2e8f0;font-size:0.78rem;" title="{{ photo.original_filename }}">{{ photo.original_filename }}</p>
                             <div class="d-flex justify-content-between align-items-center">
                                 <small style="color:#64748b;">{{ photo.file_size|filesizeformat }}</small>
-                                <button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:0.7rem;" onclick="deleteVehiclePhoto({{ photo.id }})">
+                                <button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:0.7rem;" data-action="deleteVehiclePhoto" data-args='[{{ photo.id }}]'>
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -974,7 +973,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (d.photoIds && d.photoIds.length > 0) {
                         photoHtml = `<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap;">`;
                         d.photoIds.slice(0, 4).forEach(pid => {
-                            photoHtml += `<img src="/files/attachments/${pid}/" style="width:56px;height:42px;object-fit:cover;border-radius:3px;border:1px solid #475569;cursor:pointer;" onclick="window.open('/files/attachments/${pid}/','_blank')">`;
+                            photoHtml += `<img src="/files/attachments/${pid}/" style="width:56px;height:42px;object-fit:cover;border-radius:3px;border:1px solid #475569;cursor:pointer;" data-open-url="/files/attachments/${pid}/">`;
                         });
                         if (d.photoIds.length > 4) photoHtml += `<span style="font-size:0.7rem;color:#94a3b8;align-self:center;">+${d.photoIds.length - 4} more</span>`;
                         photoHtml += `</div>`;
@@ -1043,14 +1042,13 @@ function uploadVehiclePhotos(files) {
                   <div class="card h-100" style="background:#1e293b;border:1px solid #334155;">
                     <a href="${p.url}" target="_blank" class="d-block overflow-hidden" style="height:160px;">
                       <img src="${p.url}" alt="${p.filename}"
-                           class="card-img-top" style="object-fit:cover;height:160px;width:100%;transition:transform 0.2s;"
-                           onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform=''">
+                           class="card-img-top hover-scale-lg" style="object-fit:cover;height:160px;width:100%;transition:transform 0.2s;">
                     </a>
                     <div class="card-body p-2">
                       <p class="card-text text-truncate mb-1" style="color:#e2e8f0;font-size:0.78rem;" title="${p.filename}">${p.filename}</p>
                       <div class="d-flex justify-content-between align-items-center">
                         <small style="color:#64748b;">${p.file_size_human}</small>
-                        <button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:0.7rem;" onclick="deleteVehiclePhoto(${p.id})">
+                        <button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:0.7rem;" data-action="deleteVehiclePhoto" data-args='[${p.id}]'>
                           <i class="fas fa-trash"></i>
                         </button>
                       </div>

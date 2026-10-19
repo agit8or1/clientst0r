@@ -19,7 +19,7 @@
     <div class="form-check form-check-inline">
         <input type="checkbox" name="show_inactive" value="1" id="show_inactive"
                class="form-check-input" {% if show_inactive %}checked{% endif %}
-               onchange="this.form.submit()">
+               data-autosubmit>
         <label class="form-check-label small" for="show_inactive">Show inactive</label>
     </div>
 </form>

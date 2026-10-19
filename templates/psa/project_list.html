@@ -19,7 +19,7 @@
 </div>
 
 <form method="get" class="mb-3">
-    <select name="status" class="form-select form-select-sm d-inline-block" style="width:auto;" onchange="this.form.submit()">
+    <select name="status" class="form-select form-select-sm d-inline-block" style="width:auto;" data-autosubmit>
         <option value="">All statuses</option>
         <option value="planning" {% if status_filter == 'planning' %}selected{% endif %}>Planning</option>
         <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>

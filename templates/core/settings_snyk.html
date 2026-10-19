@@ -107,22 +107,22 @@
                         </button>
                         <ul class="dropdown-menu">
                             {% if settings.snyk_test_open_source %}
-                            <li><a class="dropdown-item" href="#" onclick="runSnykScan('open_source'); return false;">
+                            <li><a class="dropdown-item" href="#" data-action="runSnykScan" data-args='["open_source"]' data-prevent>
                                 <i class="fas fa-cube"></i> Open Source (Dependencies)
                             </a></li>
                             {% endif %}
                             {% if settings.snyk_test_code %}
-                            <li><a class="dropdown-item" href="#" onclick="runSnykScan('code'); return false;">
+                            <li><a class="dropdown-item" href="#" data-action="runSnykScan" data-args='["code"]' data-prevent>
                                 <i class="fas fa-code"></i> Code (SAST)
                             </a></li>
                             {% endif %}
                             {% if settings.snyk_test_container %}
-                            <li><a class="dropdown-item" href="#" onclick="runSnykScan('container'); return false;">
+                            <li><a class="dropdown-item" href="#" data-action="runSnykScan" data-args='["container"]' data-prevent>
                                 <i class="fab fa-docker"></i> Container (Docker)
                             </a></li>
                             {% endif %}
                             {% if settings.snyk_test_iac %}
-                            <li><a class="dropdown-item" href="#" onclick="runSnykScan('iac'); return false;">
+                            <li><a class="dropdown-item" href="#" data-action="runSnykScan" data-args='["iac"]' data-prevent>
                                 <i class="fas fa-server"></i> Infrastructure as Code
                             </a></li>
                             {% endif %}

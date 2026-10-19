@@ -34,7 +34,7 @@
 
                     <div class="mb-4">
                         <label for="llm_provider" class="form-label fw-bold">Active LLM Provider</label>
-                        <select class="form-select form-select-lg" id="llm_provider" name="llm_provider" onchange="toggleProviderSections()">
+                        <select class="form-select form-select-lg" id="llm_provider" name="llm_provider" data-on-change="toggleProviderSections">
                             <option value="anthropic" {% if current_llm_provider == 'anthropic' %}selected{% endif %}>🇺🇸 Anthropic Claude (English, Multilingual)</option>
                             <option value="moonshot" {% if current_llm_provider == 'moonshot' %}selected{% endif %}>🇨🇳 Moonshot AI - Kimi (Chinese, English)</option>
                             <option value="minimax" {% if current_llm_provider == 'minimax' %}selected{% endif %}>🇨🇳 MiniMax Chat API (Chinese, English)</option>
@@ -57,7 +57,7 @@
                         <label for="anthropic_api_key" class="form-label">Anthropic API Key</label>
                         <div class="input-group">
                             <input type="password" class="form-control font-monospace" id="anthropic_api_key" name="anthropic_api_key" value="{{ current_anthropic_key }}" placeholder="sk-ant-api03-...">
-                            <button type="button" class="btn btn-outline-secondary" id="test-anthropic-btn" onclick="testAnthropicKey()">
+                            <button type="button" class="btn btn-outline-secondary" id="test-anthropic-btn" data-action="testAnthropicKey">
                                 <i class="fas fa-vial"></i> Test
                             </button>
                         </div>
@@ -99,7 +99,7 @@
                             <label for="moonshot_api_key" class="form-label">Moonshot API Key</label>
                             <div class="input-group">
                                 <input type="password" class="form-control font-monospace" id="moonshot_api_key" name="moonshot_api_key" value="{{ current_moonshot_key }}" placeholder="sk-...">
-                                <button type="button" class="btn btn-outline-secondary" id="test-moonshot-btn" onclick="testMoonshotKey()">
+                                <button type="button" class="btn btn-outline-secondary" id="test-moonshot-btn" data-action="testMoonshotKey">
                                     <i class="fas fa-vial"></i> Test
                                 </button>
                             </div>
@@ -130,7 +130,7 @@
                             <label for="minimax_api_key" class="form-label">MiniMax API Key</label>
                             <div class="input-group">
                                 <input type="password" class="form-control font-monospace" id="minimax_api_key" name="minimax_api_key" value="{{ current_minimax_key }}" placeholder="...">
-                                <button type="button" class="btn btn-outline-secondary" id="test-minimax-btn" onclick="testMinimaxKey()">
+                                <button type="button" class="btn btn-outline-secondary" id="test-minimax-btn" data-action="testMinimaxKey">
                                     <i class="fas fa-vial"></i> Test
                                 </button>
                             </div>
@@ -174,7 +174,7 @@
                             <label for="minimax_coding_api_key" class="form-label">MiniMax Coding API Key</label>
                             <div class="input-group">
                                 <input type="password" class="form-control font-monospace" id="minimax_coding_api_key" name="minimax_coding_api_key" value="{{ current_minimax_coding_key }}" placeholder="Your Coding Plan API key">
-                                <button type="button" class="btn btn-outline-secondary" id="test-minimax-coding-btn" onclick="testMinimaxCodingKey()">
+                                <button type="button" class="btn btn-outline-secondary" id="test-minimax-coding-btn" data-action="testMinimaxCodingKey">
                                     <i class="fas fa-vial"></i> Test
                                 </button>
                             </div>
@@ -203,7 +203,7 @@
                             <label for="openai_api_key" class="form-label">OpenAI API Key</label>
                             <div class="input-group">
                                 <input type="password" class="form-control font-monospace" id="openai_api_key" name="openai_api_key" value="{{ current_openai_key }}" placeholder="sk-...">
-                                <button type="button" class="btn btn-outline-secondary" id="test-openai-btn" onclick="testOpenAIKey()">
+                                <button type="button" class="btn btn-outline-secondary" id="test-openai-btn" data-action="testOpenAIKey">
                                     <i class="fas fa-vial"></i> Test
                                 </button>
                             </div>
@@ -240,7 +240,7 @@
                             <label for="ollama_base_url" class="form-label">Ollama Base URL</label>
                             <div class="input-group">
                                 <input type="text" class="form-control font-monospace" id="ollama_base_url" name="ollama_base_url" value="{{ current_ollama_url }}" placeholder="http://localhost:11434">
-                                <button type="button" class="btn btn-outline-secondary" id="test-ollama-btn" onclick="testOllamaConnection()">
+                                <button type="button" class="btn btn-outline-secondary" id="test-ollama-btn" data-action="testOllamaConnection">
                                     <i class="fas fa-vial"></i> Test
                                 </button>
                             </div>
@@ -268,7 +268,7 @@
                         <label for="google_maps_api_key" class="form-label">Google Maps API Key</label>
                         <div class="input-group">
                             <input type="password" class="form-control font-monospace" id="google_maps_api_key" name="google_maps_api_key" value="{{ current_google_maps_key }}" placeholder="AIza...">
-                            <button type="button" class="btn btn-outline-secondary" id="test-googlemaps-btn" onclick="testGoogleMapsKey()">
+                            <button type="button" class="btn btn-outline-secondary" id="test-googlemaps-btn" data-action="testGoogleMapsKey">
                                 <i class="fas fa-vial"></i> Test
                             </button>
                         </div>

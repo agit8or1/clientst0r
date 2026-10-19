@@ -139,7 +139,7 @@
                             <td>{{ t.assigned_to.username|default:'—' }}</td>
                             <td>
                                 {% if can_create %}
-                                <form method="post" action="{% url 'psa:problem_unlink_ticket' problem.pk t.pk %}" class="d-inline" onsubmit="return confirm('Unlink {{ t.ticket_number }} from this problem?');">
+                                <form method="post" action="{% url 'psa:problem_unlink_ticket' problem.pk t.pk %}" class="d-inline" data-confirm="Unlink {{ t.ticket_number }} from this problem?">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-sm btn-link p-0 text-danger" title="Unlink"><i class="fas fa-unlink"></i></button>
                                 </form>

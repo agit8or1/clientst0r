@@ -73,7 +73,7 @@
                     </a>
                     <a href="{% url 'core:download_mobile_app' 'android' %}?rebuild=1"
                        class="btn btn-outline-warning"
-                       onclick="return confirm('{% trans "Wipe the cached APK and rebuild from the current source tree? Build takes ~3-5 minutes." %}');">
+                       data-confirm="{% trans 'Wipe the cached APK and rebuild from the current source tree? Build takes ~3-5 minutes.' %}">
                         <i class="fas fa-redo me-1"></i> {% trans "Rebuild from latest code" %}
                     </a>
                 {% elif android.status == 'building' %}

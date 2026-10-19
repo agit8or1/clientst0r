@@ -91,7 +91,7 @@
     </div>
     {% endif %}
 </div>
-<script>
+<script nonce="{{ csp_nonce }}">
 document.querySelectorAll('form select, form textarea, form input[type=datetime-local]').forEach(function (el) {
     if (el.tagName === 'SELECT') el.classList.add('form-select', 'form-select-sm'); else el.classList.add('form-control', 'form-control-sm');
 });

@@ -68,7 +68,7 @@
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 {% if member.is_active %}
-                                <a href="{% url 'accounts:member_suspend' member.id %}" class="btn btn-sm btn-outline-warning" title="Suspend User" onclick="return confirm('Suspend this user? They will not be able to log in.')">
+                                <a href="{% url 'accounts:member_suspend' member.id %}" class="btn btn-sm btn-outline-warning" title="Suspend User" data-confirm="Suspend this user? They will not be able to log in.">
                                     <i class="fas fa-ban"></i>
                                 </a>
                                 {% else %}

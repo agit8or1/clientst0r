@@ -133,7 +133,7 @@
                     </p>
                     <form method="post"
                           action="{% url 'compliance:mark_recertified' org_id=organization.pk framework_slug=framework.slug %}"
-                          onsubmit="return confirm('Mark {{ framework.name|escapejs }} recertified for {{ organization.name|escapejs }}? This stamps last_recertified_at = now and the next reminder fires {{ enrollment.recertification_interval_days }} days from today.');">
+                          data-confirm="Mark {{ framework.name }} recertified for {{ organization.name }}? This stamps last_recertified_at = now and the next reminder fires {{ enrollment.recertification_interval_days }} days from today.">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-success btn-sm">
                             <i class="fas fa-circle-check me-1"></i>

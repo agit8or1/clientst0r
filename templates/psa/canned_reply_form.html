@@ -61,7 +61,7 @@
         <div>
             {% if reply %}
             <button type="submit" name="delete" value="1" class="btn btn-outline-danger me-2"
-                    onclick="return confirm('Delete this canned reply?');">
+                    data-confirm="Delete this canned reply?">
                 <i class="fas fa-trash me-1"></i>Delete
             </button>
             {% endif %}

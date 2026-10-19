@@ -744,7 +744,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-outline-danger me-auto" id="deleteDeviceEditBtn" onclick="deleteRackDevice()">
+        <button type="button" class="btn btn-outline-danger me-auto" id="deleteDeviceEditBtn" data-action="deleteRackDevice">
           <i class="fas fa-trash me-1"></i>Remove
         </button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -762,7 +762,7 @@
     <div>
         <a href="{% url 'monitoring:rack_device_create' rack.pk %}" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> Add Asset to Rack</a>
         <a href="{% url 'assets:asset_create' %}?redirect=rack_{{ rack.pk }}" class="btn btn-outline-success btn-sm"><i class="fas fa-box"></i> Create New Asset</a>
-        <button class="btn btn-outline-secondary btn-sm" onclick="window.print()" title="Print rack sheet"><i class="fas fa-print"></i> Print</button>
+        <button class="btn btn-outline-secondary btn-sm" data-print title="Print rack sheet"><i class="fas fa-print"></i> Print</button>
         <div class="btn-group btn-group-sm ms-2">
             <a href="{% url 'monitoring:rack_edit' rack.pk %}" class="btn btn-primary"><i class="fas fa-edit"></i></a>
             <a href="{% url 'monitoring:rack_delete' rack.pk %}" class="btn btn-danger"><i class="fas fa-trash"></i></a>
@@ -860,14 +860,14 @@
                                                  class="img-fluid rounded"
                                                  alt="{{ image.original_filename }}"
                                                  style="height: 120px; width: 100%; object-fit: cover; cursor: pointer;"
-                                                 onclick="viewImage('{% url 'files:serve_attachment' image.id %}', '{{ image.original_filename }}')">
+                                                 data-action="viewImage" data-args='["{% url 'files:serve_attachment' image.id %}", "{{ image.original_filename|escapejs }}"]'>
                                         </div>
                                         {% endfor %}
                                     </div>
                                     {% if rack_images.count > 4 %}
                                     <p class="text-muted small mt-2 mb-0">
                                         <i class="fas fa-info-circle"></i> Showing 4 of {{ rack_images.count }} images.
-                                        <a href="#images" onclick="document.getElementById('images-tab').click();">View all</a>
+                                        <a href="#images" data-click="#images-tab">View all</a>
                                     </p>
                                     {% endif %}
                                 </div>
@@ -957,14 +957,14 @@
                                          class="card-img-top"
                                          alt="{{ image.original_filename }}"
                                          style="height: 180px; object-fit: cover; cursor: pointer;"
-                                         onclick="viewImage('{% url 'files:serve_attachment' image.id %}', '{{ image.original_filename }}')">
+                                         data-action="viewImage" data-args='["{% url 'files:serve_attachment' image.id %}", "{{ image.original_filename|escapejs }}"]'>
                                     <div class="card-body p-2">
                                         <p class="card-text small mb-1" title="{{ image.original_filename }}">
                                             {{ image.original_filename|truncatechars:30 }}
                                         </p>
                                         <div class="d-flex justify-content-between align-items-center">
                                             <small class="text-muted">{{ image.file_size|filesizeformat }}</small>
-                                            <button class="btn btn-sm btn-danger" onclick="deleteImage({{ image.id }}, this)" title="Delete">
+                                            <button class="btn btn-sm btn-danger" data-action="deleteImage" data-args='[{{ image.id }}, "$this"]' title="Delete">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </div>
@@ -988,7 +988,7 @@
                     <div class="tab-pane fade" id="wiring" role="tabpanel">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="mb-0">Rack Connections</h6>
-                            <button class="btn btn-primary btn-sm" onclick="openConnectionModal()">
+                            <button class="btn btn-primary btn-sm" data-action="openConnectionModal">
                                 <i class="fas fa-plus"></i> Add Connection
                             </button>
                         </div>
@@ -1068,7 +1068,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="saveConnection()">
+                <button type="button" class="btn btn-primary" data-action="saveConnection">
                     <i class="fas fa-save"></i> Save Connection
                 </button>
             </div>
@@ -1102,7 +1102,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="uploadImage()">
+                <button type="button" class="btn btn-primary" data-action="uploadImage">
                     <i class="fas fa-upload"></i> Upload
                 </button>
             </div>
@@ -2438,7 +2438,7 @@ function renderConnectionsList() {
             <div class="text-center text-muted py-5">
                 <i class="fas fa-project-diagram fa-3x mb-3 opacity-50"></i>
                 <p>No connections defined yet</p>
-                <button class="btn btn-primary" onclick="openConnectionModal()">
+                <button class="btn btn-primary" data-action="openConnectionModal">
                     <i class="fas fa-plus"></i> Add First Connection
                 </button>
             </div>
@@ -2471,7 +2471,7 @@ function renderConnectionsList() {
         html += `<td>${conn.speed || '-'}</td>`;
         html += `<td>
             <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-danger" onclick="deleteConnection(${conn.id})" title="Delete">
+                <button class="btn btn-outline-danger" data-action="deleteConnection" data-args='[${conn.id}]' title="Delete">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -2817,7 +2817,7 @@ function renderPortsPanel(deviceInfo, ports) {
             data-port="${port.port_number}"
             title="Port ${port.port_number}${port.description ? ': ' + port.description : ''}"
             style="background:${color};"
-            onclick="selectPort(${port.port_number})">
+            data-action="selectPort" data-args='[${port.port_number}]'>
             ${label}
           </div>`;
     }
@@ -2898,10 +2898,10 @@ function renderPortsPanel(deviceInfo, ports) {
         </div>
         <div id="portEditError" class="alert alert-danger alert-sm d-none py-1 mb-2"></div>
         <div class="d-flex gap-2">
-          <button type="button" class="btn btn-primary btn-sm" id="savePortEditBtn" onclick="savePortEdit()">
+          <button type="button" class="btn btn-primary btn-sm" id="savePortEditBtn" data-action="savePortEdit">
             <i class="fas fa-save me-1"></i>Save Port
           </button>
-          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearPortSelection()">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-action="clearPortSelection">
             Cancel
           </button>
         </div>
@@ -3054,7 +3054,7 @@ function renderAssetInfoPanel(asset, containerId, prefix) {
       </div>
       <div id="${prefix}SaveError" class="alert alert-danger d-none mb-2"></div>
       <div id="${prefix}SaveSuccess" class="alert alert-success d-none mb-2"></div>
-      <button type="button" class="btn btn-sm btn-primary" id="${prefix}SaveBtn" onclick="saveAssetInfo(${asset.id}, '${prefix}')">
+      <button type="button" class="btn btn-sm btn-primary" id="${prefix}SaveBtn" data-action="saveAssetInfo" data-args='[${asset.id}, ${JSON.stringify(String(prefix))}]'>
         <i class="fas fa-save me-1"></i>Update Asset Info
       </button>`;
 }

@@ -26,7 +26,7 @@
             </div>
             <div class="col-md-3">
                 <label for="type_filter" class="form-label"><i class="fas fa-filter"></i> Filter by Type</label>
-                <select name="type" id="type_filter" class="form-select" onchange="this.form.submit()">
+                <select name="type" id="type_filter" class="form-select" data-autosubmit>
                     <option value="">All Types</option>
                     {% for type_value, type_label in org_type_choices %}
                     <option value="{{ type_value }}" {% if request.GET.type == type_value %}selected{% endif %}>{{ type_label }}</option>
@@ -35,7 +35,7 @@
             </div>
             <div class="col-md-3">
                 <label for="sort_by" class="form-label"><i class="fas fa-sort"></i> Sort By</label>
-                <select name="sort" id="sort_by" class="form-select" onchange="this.form.submit()">
+                <select name="sort" id="sort_by" class="form-select" data-autosubmit>
                     <option value="name" {% if request.GET.sort == 'name' or not request.GET.sort %}selected{% endif %}>Name (A-Z)</option>
                     <option value="-name" {% if request.GET.sort == '-name' %}selected{% endif %}>Name (Z-A)</option>
                     <option value="organization_type" {% if request.GET.sort == 'organization_type' %}selected{% endif %}>Type (A-Z)</option>

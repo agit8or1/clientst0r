@@ -50,13 +50,13 @@
                         <div class="mb-3">
                             <label for="id_count" class="form-label">Number of Patch Panels *</label>
                             <input type="number" name="count" id="id_count" class="form-control" required
-                                   min="1" max="20" value="4" onchange="updatePreview()">
+                                   min="1" max="20" value="4" data-on-change="updatePreview">
                             <small class="form-text text-muted">How many patch panels to create (max 20)</small>
                         </div>
 
                         <div class="mb-3">
                             <label for="id_port_count" class="form-label">Port Count *</label>
-                            <select name="port_count" id="id_port_count" class="form-select" required onchange="updatePreview()">
+                            <select name="port_count" id="id_port_count" class="form-select" required data-on-change="updatePreview">
                                 <option value="8">8 Ports (1U each)</option>
                                 <option value="12">12 Ports (1U each)</option>
                                 <option value="24" selected>24 Ports (1U each)</option>
@@ -67,14 +67,14 @@
                         <div class="mb-3">
                             <label for="id_name_prefix" class="form-label">Name Prefix *</label>
                             <input type="text" name="name_prefix" id="id_name_prefix" class="form-control" required
-                                   value="PP" placeholder="e.g., PP, Patch-Panel" onchange="updatePreview()">
+                                   value="PP" placeholder="e.g., PP, Patch-Panel" data-on-change="updatePreview">
                             <small class="form-text text-muted">Panels will be named: Prefix-01, Prefix-02, etc.</small>
                         </div>
 
                         <div class="mb-3">
                             <label for="id_start_position" class="form-label">Starting U Position *</label>
                             <input type="number" name="start_position" id="id_start_position" class="form-control" required
-                                   min="1" max="42" value="1" onchange="updatePreview()">
+                                   min="1" max="42" value="1" data-on-change="updatePreview">
                             <small class="form-text text-muted">Starting rack position (panels will stack upward)</small>
                         </div>
 

@@ -15,7 +15,7 @@
 </div>
 
 <form method="get" class="mb-3">
-    <select name="status" class="form-select form-select-sm d-inline-block" style="width:auto;" onchange="this.form.submit()">
+    <select name="status" class="form-select form-select-sm d-inline-block" style="width:auto;" data-autosubmit>
         <option value="">All</option>
         <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
         <option value="sent" {% if status_filter == 'sent' %}selected{% endif %}>Sent</option>

@@ -63,7 +63,7 @@
                             <td><small>{{ cr.get_implementation_status_display }}</small></td>
                             <td class="text-end">
                                 {% if can_manage and not release.is_frozen and release.status == 'planned' %}
-                                <form method="post" action="{% url 'psa:release_remove_change' release.pk cr.pk %}" class="d-inline" onsubmit="return confirm('Remove this change from the release?')">
+                                <form method="post" action="{% url 'psa:release_remove_change' release.pk cr.pk %}" class="d-inline" data-confirm="Remove this change from the release?">
                                     {% csrf_token %}
                                     <button class="btn btn-sm btn-outline-danger"><i class="fas fa-times"></i></button>
                                 </form>

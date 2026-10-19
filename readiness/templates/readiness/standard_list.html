@@ -16,7 +16,7 @@
             <td>{{ s.requirements.all|length }}</td>
             <td>v{{ s.version }}</td>
             <td>{% if s.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</td>
-            <td><form method="post" action="{% url 'readiness:standard_delete' pk=s.pk %}" onsubmit="return confirm('Delete this standard and its exceptions?');">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form></td>
+            <td><form method="post" action="{% url 'readiness:standard_delete' pk=s.pk %}" data-confirm="Delete this standard and its exceptions?">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form></td>
         </tr>
         {% empty %}
         <tr><td colspan="6" class="text-muted">No standards yet. Run <code>manage.py readiness_seed_samples</code> for an example.</td></tr>

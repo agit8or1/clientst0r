@@ -183,7 +183,7 @@
                                     </button>
                                 </form>
                                 <form method="post" action="{% url 'core:firewall_country_rule_delete' rule.pk %}"
-                                      onsubmit="return confirm('Delete this country rule?')" style="display:inline;">
+                                      data-confirm="Delete this country rule?" style="display:inline;">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-outline-danger" title="Delete">
                                         <i class="fas fa-trash"></i>

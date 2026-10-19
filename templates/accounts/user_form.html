@@ -238,7 +238,7 @@
                                     </a>
                                     <a href="{% url 'accounts:member_remove' membership.organization.id membership.id %}"
                                        class="btn btn-sm btn-outline-danger" title="Remove from Organization"
-                                       onclick="return confirm('Remove this user from {{ membership.organization.name }}?')">
+                                       data-confirm="Remove this user from {{ membership.organization.name }}?">
                                         <i class="fas fa-times"></i>
                                     </a>
                                 </td>

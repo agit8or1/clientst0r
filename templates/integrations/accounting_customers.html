@@ -16,7 +16,9 @@
     <form method="post" action="{% url 'integrations:accounting_pull_customers' item.pk %}">
         {% csrf_token %}
         <button class="btn btn-outline-primary"
-                onclick="return confirm('Read customers from {{ item.get_provider_type_display }} and link them to clients with a matching name?\n\nNo clients are created here, and nothing is written to the accounting system.')">
+                data-confirm="Read customers from {{ item.get_provider_type_display }} and link them to clients with a matching name?
+
+No clients are created here, and nothing is written to the accounting system.">
             <i class="fas fa-download"></i> Pull from provider
         </button>
     </form>

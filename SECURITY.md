@@ -900,7 +900,7 @@ CSP_REPORT_URI=         # empty = no report directive
 ```
 default-src 'self'
 script-src 'self' 'nonce-…' + the CDNs the templates load from
-script-src-attr 'unsafe-inline'      # remaining inline event handlers
+script-src-attr 'none'               # no inline event handlers (v3.17.614)
 style-src 'self' 'unsafe-inline' + CDNs
 img-src 'self' data: blob: https:
 connect-src 'self' https://api.pwnedpasswords.com https://embed.diagrams.net
@@ -909,8 +909,9 @@ object-src 'none'; base-uri 'self'; form-action 'self'
 frame-ancestors 'none'               # 'self' on views that allow same-site framing
 ```
 
-Inline `<script>` blocks need the nonce; inline event handlers and inline styles are still
-allowed while they are migrated. The in-app PDF preview, which allows same-site framing,
+Inline `<script>` blocks need the nonce, and inline event handlers (`onclick=` and the like)
+are blocked: since v3.17.614 pages wire events through `static/js/csp-events.js` instead.
+Inline styles are still allowed. The in-app PDF preview, which allows same-site framing,
 gets `frame-ancestors 'self'`.
 
 ### Permissions-Policy (formerly Feature-Policy)

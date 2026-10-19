@@ -40,7 +40,7 @@
                 <td class="text-end text-nowrap">
                     <a href="{% url 'reports:saved_query_run' q.pk %}" class="btn btn-sm btn-primary"><i class="fas fa-play"></i> Run</a>
                     <a href="{% url 'reports:saved_query_edit' q.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-pen"></i></a>
-                    <form method="post" action="{% url 'reports:saved_query_delete' q.pk %}" class="d-inline" onsubmit="return confirm('Delete &quot;{{ q.name|escapejs }}&quot;?');">
+                    <form method="post" action="{% url 'reports:saved_query_delete' q.pk %}" class="d-inline" data-confirm="Delete &quot;{{ q.name }}&quot;?">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
                     </form>

@@ -139,7 +139,7 @@
                 <form method="post" action="{% url 'psa:charge_invoice' client.id %}" class="d-inline">
                     {% csrf_token %}
                     <button class="btn btn-sm btn-warning"
-                            onclick="return confirm('Bundle all uninvoiced charges into a new draft invoice?')">
+                            data-confirm="Bundle all uninvoiced charges into a new draft invoice?">
                         <i class="fas fa-file-invoice"></i> Invoice now
                     </button>
                 </form>

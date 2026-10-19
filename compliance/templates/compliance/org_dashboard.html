@@ -84,7 +84,7 @@
                         <form method="post"
                               action="{% url 'compliance:enroll_framework' org_id=organization.pk framework_slug=f.framework.slug %}"
                               class="m-0"
-                              onsubmit="return confirm('Enroll {{ organization.name|escapejs }} in {{ f.framework.name|escapejs }}? This creates {{ f.framework.categories.count }} categories of attestation items.');">
+                              data-confirm="Enroll {{ organization.name }} in {{ f.framework.name }}? This creates {{ f.framework.categories.count }} categories of attestation items.">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-success btn-sm">
                                 <i class="fas fa-circle-plus me-1"></i> Enroll in {{ f.framework.name }}

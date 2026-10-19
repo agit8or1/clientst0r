@@ -44,7 +44,7 @@
                     Warning: Disabling 2FA will make your account less secure. Only disable if necessary.
                 </p>
 
-                <form method="post" onsubmit="return confirm('Are you sure you want to disable 2FA?');">
+                <form method="post" data-confirm="Are you sure you want to disable 2FA?">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="disable">
                     <button type="submit" class="btn btn-danger">

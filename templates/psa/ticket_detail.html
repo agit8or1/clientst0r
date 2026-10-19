@@ -211,7 +211,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="target" value="{{ t.ticket_number }}">
                 <button type="submit" class="btn btn-sm btn-link p-0"
-                        onclick="return confirm('Merge {{ ticket.ticket_number }} INTO {{ t.ticket_number }}? All comments/attachments move there. This ticket gets closed as duplicate.');">
+                        data-confirm="Merge {{ ticket.ticket_number }} INTO {{ t.ticket_number }}? All comments/attachments move there. This ticket gets closed as duplicate.">
                     merge into this
                 </button>
             </form>
@@ -480,7 +480,7 @@
                     </div>
                     <form method="post" action="{% url 'psa:ticket_checklist_delete' ticket.ticket_number item.pk %}">
                         {% csrf_token %}
-                        <button class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('Remove this checklist item?')">Remove</button>
+                        <button class="btn btn-sm btn-link text-danger p-0" data-confirm="Remove this checklist item?">Remove</button>
                     </form>
                 </li>
                 {% endfor %}
@@ -607,7 +607,7 @@
                         <form method="post" action="{% url 'psa:ticket_kit_remove' ticket.ticket_number item.pk %}">
                             {% csrf_token %}
                             <button class="btn btn-sm btn-link text-danger p-0"
-                                    onclick="return confirm('Remove {{ item.label|escapejs }} from the kit list?')">Remove</button>
+                                    data-confirm="Remove {{ item.label }} from the kit list?">Remove</button>
                         </form>
                     </li>
                     {% endfor %}
@@ -762,7 +762,7 @@
                 <form method="post" action="{% url 'psa:invoice_from_ticket' ticket.ticket_number %}" class="d-inline">
                     {% csrf_token %}
                     <button class="btn btn-sm btn-outline-primary"
-                            onclick="return confirm('Create a draft invoice from this ticket\'s billable time + expenses?')">
+                            data-confirm="Create a draft invoice from this ticket's billable time + expenses?">
                         <i class="fas fa-plus"></i> Invoice this ticket
                     </button>
                 </form>
@@ -1161,7 +1161,7 @@
                     {% if s.review_state == 'draft' or s.review_state == 'pending_review' %}
                     <div class="d-flex flex-wrap gap-2 align-items-center">
                         {% if s.kind == 'reply' and s.suggested_body %}
-                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="psaAiInsert({{ s.id }})">
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-action="psaAiInsert" data-args='[{{ s.id }}]'>
                                 <i class="fas fa-clipboard me-1"></i>Insert into reply box
                             </button>
                             <form method="post" action="{% url 'psa_ai:suggestion_apply' s.id %}" class="d-inline">

@@ -42,7 +42,7 @@
         <a class="btn btn-link" href="{% url 'readiness:standard_list' %}">Cancel</a>
     </form>
 </div>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
     var form = document.getElementById('standard-form');
     form.querySelectorAll('input[type=text], input[type=number], textarea, input[type=datetime-local]').forEach(function (el) { el.classList.add('form-control', 'form-control-sm'); });

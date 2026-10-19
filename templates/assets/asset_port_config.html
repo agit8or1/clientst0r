@@ -98,7 +98,7 @@
                         {% else %}
                             <td><input type="text" class="form-control form-control-sm" name="description" value="{{ port.description|default:'' }}" placeholder="e.g., Uplink to Core"></td>
                             <td>
-                                <select class="form-select form-select-sm port-mode" name="mode" onchange="toggleVlanFields(this)">
+                                <select class="form-select form-select-sm port-mode" name="mode" data-on-change="toggleVlanFields" data-args='["$this"]'>
                                     <option value="access" {% if port.mode == 'access' or not port.mode %}selected{% endif %}>Access</option>
                                     <option value="trunk" {% if port.mode == 'trunk' %}selected{% endif %}>Trunk</option>
                                     <option value="hybrid" {% if port.mode == 'hybrid' %}selected{% endif %}>Hybrid</option>

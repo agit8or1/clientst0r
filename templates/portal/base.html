@@ -29,6 +29,7 @@
         a { color: {{ organization.portal_primary_color }}; }
         {% endif %}
     </style>
+    <script src="{% static 'js/csp-events.js' %}"></script>
 </head>
 <body>
     <nav class="portal-nav py-3">
@@ -47,7 +48,7 @@
                 <form method="post" action="{% url 'portal:switch_customer' %}" class="d-inline-flex align-items-center me-2 my-0" id="portal-customer-switcher">
                     {% csrf_token %}
                     <label for="portal-switch-org" class="visually-hidden">Customer</label>
-                    <select name="organization_id" id="portal-switch-org" class="form-select form-select-sm" onchange="this.form.submit()" title="Switch customer">
+                    <select name="organization_id" id="portal-switch-org" class="form-select form-select-sm" data-autosubmit title="Switch customer">
                         {% for pm in request.portal_memberships %}
                         <option value="{{ pm.organization_id }}" {% if pm.organization_id == request.portal_membership.organization_id %}selected{% endif %}>{{ pm.organization.name }}</option>
                         {% endfor %}

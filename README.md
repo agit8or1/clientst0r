@@ -211,8 +211,8 @@ the vault entries and stored credentials in a backup cannot be decrypted. Docker
   and only the tickets you share with them.
 - Uploaded files are served only after a permission check on the record they belong to.
 - Optional Azure AD / Entra ID single sign-on and LDAP / Active Directory sign-in.
-- Content-Security-Policy with per-request nonces, in report-only mode by default
-  (`CSP_REPORT_ONLY=False` to enforce).
+- Content-Security-Policy with per-request nonces and no inline event handlers, in
+  report-only mode by default (`CSP_REPORT_ONLY=False` to enforce).
 - CodeQL and dependency scanning run on every push to `main` and weekly.
 
 **Found a vulnerability?** Please report it privately via

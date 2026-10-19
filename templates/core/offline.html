@@ -21,7 +21,9 @@
         .icon { font-size: 64px; margin-bottom: 24px; }
         h1 { font-size: 28px; color: #e6edf3; margin-bottom: 12px; }
         p { color: #8b949e; line-height: 1.6; margin-bottom: 24px; }
-        button {
+        .retry {
+            display: inline-block;
+            text-decoration: none;
             background: #238636;
             color: #fff;
             border: none;
@@ -30,7 +32,7 @@
             font-size: 16px;
             cursor: pointer;
         }
-        button:hover { background: #2ea043; }
+        .retry:hover { background: #2ea043; }
     </style>
 </head>
 <body>
@@ -38,7 +40,7 @@
         <div class="icon">📡</div>
         <h1>You're offline</h1>
         <p>Client St0r can't reach the server right now. Check your network connection and try again.</p>
-        <button onclick="location.reload()">Try again</button>
+        <a class="retry" href="">Try again</a>
     </div>
 </body>
 </html>

@@ -454,10 +454,10 @@ CSP_POLICY = {
     'default-src': [_CSP.SELF],
     # Inline <script> blocks carry the per-request nonce; no 'unsafe-inline'.
     'script-src': [_CSP.SELF, _CSP.NONCE, *_CSP_CDNS],
-    # ~260 inline event handlers (onclick=... etc.) remain in templates and in
-    # HTML built by JS. They are allowed here only; script blocks still need
-    # the nonce.
-    'script-src-attr': [_CSP.UNSAFE_INLINE],
+    # No inline event-handler attributes: templates wire events through
+    # static/js/csp-events.js (data-action, data-confirm, ...). A test fails
+    # if one is added back (core/tests/test_csp.py).
+    'script-src-attr': [_CSP.NONE],
     # ~90 <style> blocks, ~780 style="" attributes and library-injected styles.
     'style-src': [_CSP.SELF, _CSP.UNSAFE_INLINE, *_CSP_CDNS],
     'font-src': [_CSP.SELF, 'data:', 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],

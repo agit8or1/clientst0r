@@ -58,7 +58,7 @@
                         <td class="text-end">
                             <form method="post" action="{% url 'resourcing:leave_request_cancel' lr.pk %}" style="display:inline;">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Cancel this leave request?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Cancel this leave request?">
                                     <i class="fas fa-times"></i> Cancel
                                 </button>
                             </form>

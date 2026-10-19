@@ -9,8 +9,17 @@
     <div class="d-flex gap-2 align-items-center">
         <input type="number" min="1" name="problem_pk" id="{{ pk_input_id }}" class="form-control form-control-sm" placeholder="Problem PK (e.g. 42)" required>
         <button type="button" class="btn btn-sm btn-primary"
-                onclick="(function(){var f=document.getElementById('{{ form_id }}');var pk=document.getElementById('{{ pk_input_id }}').value;if(!pk)return;f.action='/psa/problems/'+pk+'/link-ticket/';f.submit();})()">
+                data-action="psaLinkTicketToProblem" data-args='["{{ form_id|escapejs }}", "{{ pk_input_id|escapejs }}"]'>
             Link
         </button>
     </div>
 </form>
+<script nonce="{{ csp_nonce }}">
+window.psaLinkTicketToProblem = window.psaLinkTicketToProblem || function (formId, inputId) {
+    var f = document.getElementById(formId);
+    var pk = document.getElementById(inputId).value;
+    if (!pk) return;
+    f.action = '/psa/problems/' + encodeURIComponent(pk) + '/link-ticket/';
+    f.submit();
+};
+</script>

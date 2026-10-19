@@ -113,7 +113,7 @@
 
                 {% if not opp.quote and opp.stage != 'closed_lost' %}
                 {% if opp.stage == 'proposal' or opp.stage == 'negotiation' or opp.stage == 'closed_won' %}
-                <form method="post" action="{% url 'crm:opportunity_to_quote' opp.pk %}" onsubmit="return confirm('Draft a Quote from this opportunity?');">
+                <form method="post" action="{% url 'crm:opportunity_to_quote' opp.pk %}" data-confirm="Draft a Quote from this opportunity?">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-success w-100"><i class="fas fa-file-invoice-dollar"></i> Convert to Quote</button>
                 </form>

@@ -36,6 +36,7 @@
          a fourth opinion. See the header of ui.css before extending it. -->
     <link href="{% static 'css/ui.css' %}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
+    <script src="{% static 'js/csp-events.js' %}"></script>
 </head>
 <body class="{% if user_background_url or user_background_color %}has-background{% endif %}" {% if user_background_url %}style="background-image: url('{{ user_background_url }}');"{% elif user_background_color %}style="background-color: {{ user_background_color }};"{% endif %}>
 
@@ -320,7 +321,7 @@
                     </li>
                     <!-- Theme Toggle -->
                     <li class="nav-item">
-                        <button class="btn btn-link nav-link" onclick="toggleTheme()" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle between dark and light theme" style="border: none; background: none;">
+                        <button class="btn btn-link nav-link" data-action="toggleTheme" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle between dark and light theme" style="border: none; background: none;">
                             <i id="theme-icon" class="fas {% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}fa-sun{% else %}fa-moon{% endif %}"></i>
                         </button>
                     </li>

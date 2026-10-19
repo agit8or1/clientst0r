@@ -192,7 +192,7 @@
                         <span class="text-muted small d-block ms-4"><code>{{ w.data_source }}</code> · {{ w.widget_type }}</span>
                     </span>
                     <form method="post" action="{% url 'reports:wallboard_widget_delete' w.pk %}"
-                          class="d-inline" onsubmit="return confirm('Remove widget &quot;{{ w.title|escapejs }}&quot;?');">
+                          class="d-inline" data-confirm="Remove widget &quot;{{ w.title }}&quot;?">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove widget">
                             <i class="fas fa-trash"></i>

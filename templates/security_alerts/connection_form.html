@@ -175,7 +175,7 @@
                     <p class="small mb-2">Webhook URL and secret are configured. They are stored hashed / encrypted and cannot be displayed.</p>
                     <button type="submit" name="regenerate_webhook" value="1" class="btn btn-sm btn-outline-warning"
                             formnovalidate
-                            onclick="return confirm('Issue a new webhook URL and secret? The current ones stop working immediately.');">
+                            data-confirm="Issue a new webhook URL and secret? The current ones stop working immediately.">
                         <i class="fas fa-sync me-1"></i>Issue new URL and secret
                     </button>
                     {% endif %}

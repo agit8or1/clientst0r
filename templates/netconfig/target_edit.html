@@ -99,7 +99,7 @@
         </div>
         {% if target %}
         <button type="submit" name="action" value="delete" class="btn btn-outline-danger"
-                onclick="return confirm('Remove connection settings? Stored snapshots are kept.')">
+                data-confirm="Remove connection settings? Stored snapshots are kept.">
             Remove
         </button>
         {% endif %}

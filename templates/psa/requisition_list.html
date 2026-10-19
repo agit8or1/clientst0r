@@ -25,7 +25,7 @@
 
 <form method="get" class="mb-3">
     {% if view_mine and can_approve %}<input type="hidden" name="mine" value="1">{% endif %}
-    <select name="status" class="form-select form-select-sm d-inline-block" style="width:auto;" onchange="this.form.submit()">
+    <select name="status" class="form-select form-select-sm d-inline-block" style="width:auto;" data-autosubmit>
         <option value="">All statuses</option>
         <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
         <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>Submitted</option>

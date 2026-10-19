@@ -32,7 +32,7 @@
             <input type="text" class="form-control font-monospace" id="public_url"
                    value="{{ public_url }}" readonly>
             <button class="btn btn-outline-secondary" type="button"
-                    onclick="navigator.clipboard.writeText(document.getElementById('public_url').value)">
+                    data-copy-from="#public_url">
                 Copy
             </button>
         </div>
@@ -40,7 +40,7 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="rotate">
             <button type="submit" class="btn btn-outline-danger btn-sm"
-                    onclick="return confirm('Rotate the link? Anyone holding the current address will get a 404.')">
+                    data-confirm="Rotate the link? Anyone holding the current address will get a 404.">
                 Rotate link
             </button>
         </form>
@@ -179,7 +179,7 @@
                         <input type="hidden" name="action" value="delete_incident">
                         <input type="hidden" name="incident_id" value="{{ i.pk }}">
                         <button type="submit" class="btn btn-outline-danger btn-sm"
-                                onclick="return confirm('Delete this incident and every update on it?')">
+                                data-confirm="Delete this incident and every update on it?">
                             Delete
                         </button>
                     </form>
@@ -305,7 +305,7 @@
                             <input type="hidden" name="action" value="delete_maintenance">
                             <input type="hidden" name="window_id" value="{{ w.pk }}">
                             <button type="submit" class="btn btn-outline-danger btn-sm"
-                                    onclick="return confirm('Delete this window? Cancelling instead keeps the notice visible.')">
+                                    data-confirm="Delete this window? Cancelling instead keeps the notice visible.">
                                 Delete
                             </button>
                         </form>
@@ -428,7 +428,7 @@
     <div class="card-footer d-flex justify-content-between">
         <button type="submit" class="btn btn-primary">Save</button>
         <button type="submit" name="action" value="delete" class="btn btn-outline-danger"
-                onclick="return confirm('Delete this status page? The link stops working immediately.')">
+                data-confirm="Delete this status page? The link stops working immediately.">
             Delete page
         </button>
     </div>

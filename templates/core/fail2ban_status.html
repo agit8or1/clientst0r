@@ -247,7 +247,7 @@ document.getElementById('startFail2banForm').addEventListener('submit', function
                                 <input type="hidden" name="ip_address" value="{{ ip }}">
                                 <input type="hidden" name="jail_name" value="{{ jail.name }}">
                                 <button type="submit" class="btn btn-sm btn-warning"
-                                        onclick="return confirm('Unban {{ ip }} from {{ jail.name }}?')">
+                                        data-confirm="Unban {{ ip }} from {{ jail.name }}?">
                                     <i class="fas fa-unlock"></i> Unban
                                 </button>
                             </form>
@@ -264,7 +264,7 @@ document.getElementById('startFail2banForm').addEventListener('submit', function
                 {% csrf_token %}
                 <input type="hidden" name="jail_name" value="{{ jail.name }}">
                 <button type="submit" class="btn btn-sm btn-danger"
-                        onclick="return confirm('Unban ALL {{ jail.currently_banned }} IPs from {{ jail.name }}?')">
+                        data-confirm="Unban ALL {{ jail.currently_banned }} IPs from {{ jail.name }}?">
                     <i class="fas fa-unlock-alt"></i> Unban All IPs
                 </button>
             </form>
