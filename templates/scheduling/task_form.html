@@ -154,6 +154,8 @@
     </div>
 </form>
 
+{% endblock %}
+
 {% block extra_js %}
 <script nonce="{{ csp_nonce }}">
     // Show/hide recurrence_interval_days based on recurrence selection
@@ -171,5 +173,4 @@
     recurrenceSelect.addEventListener('change', updateIntervalVisibility);
     updateIntervalVisibility();
 </script>
-{% endblock %}
 {% endblock %}

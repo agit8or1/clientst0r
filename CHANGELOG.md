@@ -5,6 +5,28 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.615] - 2026-10-19
+
+### Page script errors on racks, portal vault and scheduled tasks
+
+- Rack pages: the Zoom In, Zoom Out, Reset and Snap to Grid buttons did
+  nothing. The page tried to wire a view-toggle button that no longer exists,
+  threw, and stopped before reaching the others.
+- Customer portal, Shared Credentials: the page script ran before Bootstrap
+  loaded ("bootstrap is not defined"), so the Reveal dialog never opened.
+  The portal base template now has an `extra_js` block after Bootstrap, and
+  the page uses it.
+- Customer portal, Reveal: the server read a field that doesn't exist and
+  answered every reveal with "decrypt failed". It now returns the password
+  (still only for credentials shared with that customer, still audit-logged),
+  and a real decryption failure is logged instead of shown to the customer.
+- Scheduled task create/edit, and the two dashboards: their script block sat
+  inside the content block, so each page sent its script twice. On the task
+  form the second copy failed ("Identifier 'recurrenceSelect' has already
+  been declared"); the dashboards now send theirs once.
+- New tests fail if a script block is nested inside another block, or if a
+  portal page uses Bootstrap before it loads.
+
 ## [3.17.614] - 2026-10-19
 
 ### No inline event handlers; the Content-Security-Policy blocks them

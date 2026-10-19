@@ -870,3 +870,62 @@ class PortalSMSNotifyTests(TestCase):
         self.ticket.save(update_fields=['requester_email'])
         result = notify_portal_status_change(self.ticket)
         self.assertEqual(result['sms'], 'no user account')
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class PortalVaultRevealTests(TestCase):
+    """v3.17.615: Reveal on the portal's Shared Credentials page returns the
+    password (it read a non-existent attribute and always failed), and is
+    still limited to credentials shared with the customer."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from accounts.models import Membership, Role
+        from core.models import Organization
+        from psa.models import ClientPSASettings
+        from core.models import SystemSetting
+        from vault.models import Password
+
+        s = SystemSetting.get_settings()
+        s.psa_enabled = True
+        s.save()
+        cls.org = Organization.objects.create(name='VaultCo', slug='vault-co')
+        ClientPSASettings.objects.create(organization=cls.org, portal_enabled=True)
+        cls.user = User.objects.create_user('vault-portal', 'v@x.com', 'pw')
+        Membership.objects.create(user=cls.user, organization=cls.org,
+                                  role=Role.READONLY, is_active=True)
+        cls.shared = Password(organization=cls.org, title='Wi-Fi', username='guest',
+                              client_visible=True, client_access_mode='all_org')
+        cls.shared.set_password('correct-horse')
+        cls.shared.save()
+        cls.staff_only = Password(organization=cls.org, title='Firewall admin',
+                                  client_visible=True, client_access_mode='none')
+        cls.staff_only.set_password('not-for-you')
+        cls.staff_only.save()
+
+    def setUp(self):
+        self.client.force_login(self.user)
+        s = self.client.session
+        s['2fa_prompted'] = True
+        s.save()
+
+    def test_reveal_returns_shared_password_and_is_audited(self):
+        from audit.models import AuditLog
+        r = self.client.post(f'/portal/vault/{self.shared.pk}/reveal/')
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()['password'], 'correct-horse')
+        self.assertEqual(r.json()['username'], 'guest')
+        self.assertTrue(AuditLog.objects.filter(
+            object_type='vault.Password', object_id=self.shared.pk, action='view').exists())
+
+    def test_staff_only_password_is_not_revealed(self):
+        r = self.client.post(f'/portal/vault/{self.staff_only.pk}/reveal/')
+        self.assertIn(r.status_code, (403, 404))
+        self.assertNotIn(b'not-for-you', r.content)
+
+    def test_list_page_scripts_load_after_bootstrap(self):
+        r = self.client.get('/portal/vault/')
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertContains(r, 'Wi-Fi')
+        self.assertLess(html.index('bootstrap.bundle'), html.index('new bootstrap.Modal'))

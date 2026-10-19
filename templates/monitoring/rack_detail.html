@@ -2171,7 +2171,6 @@ function updateBoardPosition(itemId, itemType, x, y, width, height) {
 
 // Toolbar functions
 function initializeToolbar() {
-    document.getElementById('toggle-rack-view').addEventListener('click', switchToRackView);
     document.getElementById('toggle-grid').addEventListener('click', toggleSnapToGrid);
     document.getElementById('zoom-in').addEventListener('click', () => setZoom(ZOOM_LEVEL + 0.1));
     document.getElementById('zoom-out').addEventListener('click', () => setZoom(ZOOM_LEVEL - 0.1));
@@ -2185,7 +2184,7 @@ function switchToRackView() {
     document.getElementById('board-container').style.display = 'none';
     document.getElementById('toggle-grid').style.display = 'none';
 
-    document.getElementById('toggle-rack-view').classList.add('active');
+    if (document.getElementById('toggle-rack-view')) document.getElementById('toggle-rack-view').classList.add('active');
     if (document.getElementById('toggle-board-view')) document.getElementById('toggle-board-view').classList.remove('active');
 
     // Remove draggable from assets
@@ -2203,7 +2202,7 @@ function switchToBoardView() {
     document.getElementById('board-container').style.display = 'block';
     document.getElementById('toggle-grid').style.display = 'inline-block';
 
-    document.getElementById('toggle-rack-view').classList.remove('active');
+    if (document.getElementById('toggle-rack-view')) document.getElementById('toggle-rack-view').classList.remove('active');
     if (document.getElementById('toggle-board-view')) document.getElementById('toggle-board-view').classList.remove('active');
 
     // Destroy rack sortables (guard against null/uninitialized elements)

@@ -12,6 +12,8 @@ Hard rules:
 """
 from __future__ import annotations
 
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -27,6 +29,8 @@ from psa.models import (
     ClientPSASettings, Queue, Ticket, TicketAttachment,
     TicketComment, TicketPriority, TicketStatus, TicketType,
 )
+
+logger = logging.getLogger(__name__)
 
 
 PORTAL_ORG_SESSION_KEY = 'portal_org_id'
@@ -634,9 +638,10 @@ def vault_reveal(request, pk):
     if not pwd.visible_to_portal_user(request.user):
         return JsonResponse({'error': 'Not authorised.'}, status=403)
     try:
-        plaintext = pwd.password
-    except Exception as exc:
-        return JsonResponse({'error': f'decrypt failed: {exc}'}, status=500)
+        plaintext = pwd.get_password()
+    except Exception:
+        logger.exception('Portal reveal: could not decrypt password %s', pwd.pk)
+        return JsonResponse({'error': 'Could not decrypt this credential.'}, status=500)
     try:
         AuditLog.log(
             user=request.user, action='view',
