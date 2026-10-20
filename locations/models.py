@@ -570,6 +570,21 @@ class WAN(BaseModel):
         help_text="Last time this WAN went down"
     )
 
+    # Scheduled checks and alerting (locations.wan_checks). The failure
+    # streak debounces a single lost ping; alert_state is the declared state,
+    # so an outage alerts once and its recovery alerts once.
+    ALERT_STATE_CHOICES = [('up', 'Up'), ('down', 'Down')]
+    CHECK_RESULT_CHOICES = [('up', 'Answered'), ('down', 'No answer'), ('error', 'Check error')]
+    notify_on_down = models.BooleanField(
+        default=True,
+        help_text="Email when the connection stops answering, and when it recovers"
+    )
+    consecutive_failures = models.PositiveIntegerField(default=0)
+    alert_state = models.CharField(max_length=10, choices=ALERT_STATE_CHOICES, default='up')
+    last_check_result = models.CharField(
+        max_length=10, choices=CHECK_RESULT_CHOICES, blank=True, default='')
+    last_error = models.TextField(blank=True, default='')
+
     # Contract and Billing
     monthly_cost = models.DecimalField(
         max_digits=10,
@@ -634,60 +649,54 @@ class WAN(BaseModel):
             return f"{self.bandwidth_download_mbps} Mbps"
         return "Unknown"
 
+    # Statuses an operator sets by hand. Scheduled checks skip these WANs and
+    # a manual check records its result without overriding them.
+    MANUAL_STATUSES = ('inactive', 'planned', 'maintenance')
+
     def check_status(self):
-        """
-        Check WAN connectivity status by ping.
-        Updates status and last_checked_at.
-        """
+        """Ping the monitor target once and apply the result (see
+        locations.wan_checks). Raises ValueError for a target that could be
+        read as a ping option, before anything is run."""
         if not self.monitor_target or not self.monitoring_enabled:
-            return
+            return None
+        from locations import wan_checks
+        wan_checks.validate_target(self.monitor_target)
+        result = wan_checks.ping_target(self.monitor_target)
+        wan_checks.apply_result(self, result)
+        return result
 
-        import subprocess
-        import re
+    def uptime(self, days: int = 30):
+        """Share of checks in the trailing `days` that got an answer.
+
+        `percent` is None when there were no checks in the window. Check
+        errors (ping could not run) are not counted either way."""
+        from datetime import timedelta
         from django.utils import timezone
+        since = timezone.now() - timedelta(days=days)
+        rows = self.checks.filter(checked_at__gte=since).exclude(result='error')
+        total = rows.count()
+        if not total:
+            return {'checks': 0, 'up': 0, 'down': 0, 'percent': None, 'since': since}
+        down = rows.filter(result='down').count()
+        return {'checks': total, 'up': total - down, 'down': down,
+                'percent': round((total - down) * 100.0 / total, 3), 'since': since}
 
-        # Must start alphanumeric so a target can't be read as a ping option.
-        if not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9.\-]*$', str(self.monitor_target)):
-            raise ValueError(f"Invalid monitor target: {self.monitor_target}")
 
-        try:
-            # Ping the monitor target
-            result = subprocess.run(
-                ['ping', '-c', '1', '-W', '2', self.monitor_target],
-                capture_output=True,
-                timeout=5
-            )
+class WANCheck(models.Model):
+    """One WAN check result. Append-only; trimmed by prune_monitor_checks."""
+    wan = models.ForeignKey(WAN, on_delete=models.CASCADE, related_name='checks')
+    checked_at = models.DateTimeField(db_index=True)
+    result = models.CharField(max_length=10, choices=WAN.CHECK_RESULT_CHOICES)
+    response_time_ms = models.PositiveIntegerField(null=True, blank=True)
+    error = models.TextField(blank=True, default='')
 
-            if result.returncode == 0:
-                # Extract response time from ping output
-                output = result.stdout.decode('utf-8')
-                import re
-                time_match = re.search(r'time=(\d+\.?\d*)', output)
-                if time_match:
-                    response_time = float(time_match.group(1))
-                    self.last_response_time_ms = int(response_time)
+    class Meta:
+        db_table = 'wan_checks'
+        ordering = ['-checked_at']
+        indexes = [models.Index(fields=['wan', 'checked_at'])]
 
-                # Update status
-                if self.status == 'down':
-                    # WAN came back up
-                    self.status = 'active'
-                self.last_checked_at = timezone.now()
-                self.save()
-            else:
-                # Ping failed
-                if self.status != 'down':
-                    self.last_down_at = timezone.now()
-                self.status = 'down'
-                self.last_checked_at = timezone.now()
-                self.save()
-
-        except Exception as e:
-            # Ping failed or timed out
-            if self.status != 'down':
-                self.last_down_at = timezone.now()
-            self.status = 'down'
-            self.last_checked_at = timezone.now()
-            self.save()
+    def __str__(self):
+        return f'{self.wan_id} {self.result} at {self.checked_at}'
 
 
 class LocationFloorPlan(BaseModel):

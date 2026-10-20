@@ -202,10 +202,24 @@ def wan_check_status(request, location_id, wan_id):
     elif not wan.monitor_target:
         messages.warning(request, "No monitor target configured for this WAN connection.")
     else:
-        wan.check_status()
-        if wan.status == 'active':
-            messages.success(request, f"WAN connection is UP. Response time: {wan.last_response_time_ms}ms")
+        try:
+            result = wan.check_status()
+        except ValueError:
+            messages.error(request, "The monitor target is not a valid IP address or hostname.")
+            return redirect('locations:wan_detail', location_id=location.id, wan_id=wan.id)
+        if result.result == 'up':
+            rtt = f" Response time: {result.response_time_ms} ms." if result.response_time_ms is not None else ''
+            messages.success(request, f"The monitor target answered.{rtt}")
+        elif result.result == 'down':
+            if wan.alert_state == 'down':
+                messages.error(request, "No answer. The connection is marked down.")
+            elif wan.status in wan.MANUAL_STATUSES:
+                messages.warning(request, f"No answer. The status stays {wan.get_status_display()} "
+                                          "because it was set by hand.")
+            else:
+                messages.warning(request, f"No answer ({wan.consecutive_failures} failed check(s) in a row). "
+                                          "The connection is marked down after repeated failures.")
         else:
-            messages.error(request, "WAN connection is DOWN.")
+            messages.error(request, f"The check could not run: {result.error}")
 
     return redirect('locations:wan_detail', location_id=location.id, wan_id=wan.id)

@@ -995,7 +995,7 @@ def wan_monitor_list(request):
     # Filter by status
     status_filter = request.GET.get('status')
     if status_filter:
-        wans = wans.filter(connection_status=status_filter)
+        wans = wans.filter(status=status_filter)
 
     # Filter by location
     location_filter = request.GET.get('location')

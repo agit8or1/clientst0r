@@ -27,8 +27,8 @@ class MonitoringHelpPageTests(TestCase):
         r = self.client.get('/core/help/monitoring/')
         self.assertEqual(r.status_code, 200)
         html = r.content.decode()
-        for text in ('Website Monitors', 'WAN Connection Checks', 'monitor.down',
-                     'not scheduled', '2 failed checks in a row', 'no WHOIS lookup'):
+        for text in ('Website Monitors', 'WAN Connection Checks', 'monitor.down', 'wan.down',
+                     'WAN_DOWN_ALERT_THRESHOLD', '2 failed checks in a row', 'no WHOIS lookup'):
             self.assertIn(text, html)
         for text in ('TCP Port:', 'ICMP Ping:', 'Escalation Policies', 'Alert Grouping',
                      'Silence alerts during maintenance', 'Email, webhook, Slack, Teams'):

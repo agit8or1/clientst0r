@@ -551,14 +551,12 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if wan.connection_status == 'active' %}
+                                    {% if wan.status == 'active' %}
                                         <span class="badge bg-success">Active</span>
-                                    {% elif wan.connection_status == 'down' %}
+                                    {% elif wan.status == 'down' %}
                                         <span class="badge bg-danger">Down</span>
-                                    {% elif wan.connection_status == 'degraded' %}
-                                        <span class="badge bg-warning text-dark">Degraded</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">{{ wan.get_connection_status_display }}</span>
+                                        <span class="badge bg-secondary">{{ wan.get_status_display }}</span>
                                     {% endif %}
                                 </td>
                                 <td>

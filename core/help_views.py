@@ -103,7 +103,7 @@ HELP_INDEX = [
      'text': 'SSL certificate expiry warning days issuer domain expiration WHOIS daily email'},
     {'section': 'Website & WAN Monitoring', 'url_name': 'core:help_monitoring',
      'anchor': 'wan-checks', 'heading': 'WAN Connection Checks',
-     'text': 'WAN ping monitor target check status on demand not scheduled no alerts'},
+     'text': 'WAN ping monitor target interval scheduled down recovery alert wan.down wan.up maintenance'},
     {'section': 'Website & WAN Monitoring', 'url_name': 'core:help_monitoring',
      'anchor': 'status-pages', 'heading': 'Status Pages and Incidents',
      'text': 'status page incident maintenance window uptime published'},
@@ -247,7 +247,7 @@ def help_index(request):
         {'icon': 'fa-lock', 'title': 'Password Vault', 'url_name': 'core:help_vault',
          'desc': 'Encrypted credential storage, breach detection, and TOTP.'},
         {'icon': 'fa-heartbeat', 'title': 'Website & WAN Monitoring', 'url_name': 'core:help_monitoring',
-         'desc': 'Scheduled website checks with down alerts and certificate expiry; on-demand WAN ping checks.'},
+         'desc': 'Scheduled website and WAN checks with down and recovery alerts; certificate expiry.'},
         {'icon': 'fa-shield-alt', 'title': 'Security', 'url_name': 'core:help_security',
          'desc': 'Vulnerability scanning, RBAC, audit logging, and 2FA.'},
         {'icon': 'fa-chart-bar', 'title': 'Reports & Analytics', 'url_name': 'core:help_reports',
@@ -1060,12 +1060,12 @@ def help_monitoring(request):
     ]
     content = """
     <h4>Website &amp; WAN Monitoring</h4>
-    <p class="lead">Checks run from the server outward; nothing is installed on what is being checked. Only website monitors run on a schedule and send alerts.</p>
+    <p class="lead">Checks run from the server outward; nothing is installed on what is being checked.</p>
 
     <h5 class="mt-4" id="overview"><i class="fas fa-wifi"></i> Overview</h5>
     <ul>
         <li><strong>Website monitors</strong> (<em>Monitoring &rarr; Website Monitors</em>): an <code>http://</code> or <code>https://</code> URL, checked on a schedule and on <strong>Check Now</strong>, with down and recovery alerts, certificate expiry emails, and a stored check history.</li>
-        <li><strong>WAN connection checks</strong> (on a location's WAN connection): one ping to the WAN's monitor target, only when someone clicks <strong>Check Status</strong>. No schedule, no alerts.</li>
+        <li><strong>WAN connection checks</strong> (on a location's WAN connection): pings to the WAN's monitor target at its interval and on <strong>Check Status</strong>, with down and recovery alerts and a stored check history.</li>
         <li>There are no TCP port, DNS or keyword-match checks.</li>
     </ul>
 
@@ -1096,8 +1096,11 @@ def help_monitoring(request):
     <h5 class="mt-4" id="wan-checks"><i class="fas fa-network-wired"></i> WAN Connection Checks</h5>
     <ul>
         <li>Turn on monitoring for the WAN connection and set a monitor target (IP or hostname).</li>
-        <li><strong>Check Status</strong> sends one ping (2-second timeout) and records up or down, the response time and the last outage time. <em>Monitoring &rarr; WAN Connections</em> lists the results.</li>
-        <li>WAN checks are not scheduled and send no alerts; the check interval and uptime fields are not used yet. For automatic alerts, add a website monitor for something that answers over HTTP or HTTPS through that connection.</li>
+        <li><strong>Check Status</strong> runs a check immediately. The WAN page shows the last result, failed checks in a row and 30-day uptime; <em>Monitoring &rarr; WAN Connections</em> lists every monitored WAN.</li>
+        <li><strong>Schedule:</strong> each WAN is checked at its own interval (default 5 minutes); the scheduler looks for due WANs every minute. A check sends 3 pings and any answer counts as up.</li>
+        <li><strong>Alerts:</strong> after 2 checks in a row with no answer (setting <code>WAN_DOWN_ALERT_THRESHOLD</code>) the WAN is marked Down and one email goes to superusers and the customer's admins and owners; the first answer after that sends one recovery email. Webhooks: <code>wan.check_failed</code>, <code>wan.down</code>, <code>wan.up</code>.</li>
+        <li><strong>Paused:</strong> WANs set to Inactive, Planned or Under Maintenance are not checked on the schedule; use Under Maintenance to silence alerts during planned work.</li>
+        <li>A check that cannot run (no <code>ping</code> on the server) is a check error: recorded, but not counted as a failure.</li>
     </ul>
 
     <h5 class="mt-4" id="status-pages"><i class="fas fa-history"></i> Status Pages and Incidents</h5>

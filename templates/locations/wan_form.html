@@ -149,16 +149,24 @@
                             Enable uptime monitoring for this WAN connection
                         </label>
                     </div>
+                    <div class="form-check mb-3">
+                        {{ form.notify_on_down }}
+                        <label class="form-check-label" for="{{ form.notify_on_down.id_for_label }}">
+                            Email when it stops answering, and when it recovers
+                        </label>
+                        <small class="form-text text-muted d-block">Sent to superusers and this customer's admins and owners. Webhooks fire either way.</small>
+                    </div>
                     <div class="row">
                         <div class="col-md-8 mb-3">
                             <label for="{{ form.monitor_target.id_for_label }}" class="form-label">Monitor Target (IP or hostname)</label>
                             {{ form.monitor_target }}
-                            <small class="form-text text-muted">IP address or hostname to ping for monitoring</small>
+                            <small class="form-text text-muted">IP address or hostname the server pings, such as the site's public IP or gateway</small>
+                            {% if form.monitor_target.errors %}<div class="text-danger small">{{ form.monitor_target.errors|join:" " }}</div>{% endif %}
                         </div>
                         <div class="col-md-4 mb-3">
                             <label for="{{ form.monitor_interval_minutes.id_for_label }}" class="form-label">Check Interval (minutes)</label>
                             {{ form.monitor_interval_minutes }}
-                            <small class="form-text text-muted">Not used yet: WAN checks run when you click Check Status.</small>
+                            <small class="form-text text-muted">How often the server pings the target.</small>
                         </div>
                     </div>
                 </div>
@@ -227,7 +235,7 @@
                 <p class="small">Document your location's internet and WAN connections for better management and troubleshooting.</p>
 
                 <h6 class="mt-3">Monitoring</h6>
-                <p class="small">With monitoring enabled, <strong>Check Status</strong> on the WAN page pings the monitor target once from the server and records whether it answered. Checks are not scheduled and send no alerts; for automatic down alerts, add a website monitor for something that answers through this connection.</p>
+                <p class="small">With monitoring enabled, the server pings the monitor target at the check interval. After 2 checks in a row with no answer the connection is marked down and an email and the <code>wan.down</code> webhook go out; the first answer after that sends a recovery notice. Connections set to Inactive, Planned or Under Maintenance are not checked.</p>
 
                 <h6 class="mt-3">Primary Connection</h6>
                 <p class="small">Mark your main internet connection as primary to help identify which connection is used for critical services.</p>

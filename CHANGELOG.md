@@ -5,6 +5,45 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.617] - 2026-10-20
+
+### Scheduled WAN connection checks with down and recovery alerts
+
+- WAN connections with monitoring enabled are now checked on a schedule.
+  Before, they were checked only when someone clicked **Check Status**, though
+  the form offered a check interval. The scheduler looks for due WANs every
+  minute (new task **WAN Connection Checks**, on by default); each WAN is
+  checked at its own interval.
+- A check sends 3 pings to the monitor target; any answer counts as up and
+  the average round-trip time is recorded. After 2 checks in a row with no
+  answer (`WAN_DOWN_ALERT_THRESHOLD` in `.env`; the website monitor's
+  `WEBSITE_DOWN_ALERT_THRESHOLD` can now be set there too) the WAN is marked **Down** and one email
+  goes to superusers and the customer's admins and owners, with the target,
+  ISP, ISP support phone and circuit ID. The first answer after that sets it
+  back to **Active** and sends one recovery email. A new per-WAN setting turns
+  the email off.
+- New webhook events `wan.check_failed` (every failed check), `wan.down` and
+  `wan.up` (once per change).
+- Every check is stored (`locations.WANCheck`, pruned with website check
+  history after 400 days), and the WAN page shows the last result, failed
+  checks in a row, and a real 30-day uptime figure.
+- WANs set to **Inactive**, **Planned** or **Under Maintenance** are not
+  checked on the schedule; a manual check on one records the result without
+  changing the status or alerting. A check that can't run (no `ping` on the
+  server) is recorded as a check error and is not counted as an outage.
+- `ping` is called by its full path, because the scheduler's systemd unit
+  sets `PATH` to the virtualenv only, and `iputils-ping` is added to the Docker
+  image, which had no `ping` at all.
+- The WAN form refuses a monitor target that isn't an IPv4 address or
+  hostname, and requires one when monitoring is on.
+- The WAN status badge on *Monitoring → WAN Connections*, the location page
+  and the location form read a field that doesn't exist, so it was always
+  blank, and the status filter on the WAN Connections page would have failed.
+  Both use the WAN's status now.
+- *Monitoring → WAN Connections* showed "Never" under Last Checked for every
+  WAN (it read a field that doesn't exist), and its search box showed the
+  word "None" when empty. Both fixed.
+
 ## [3.17.616] - 2026-10-20
 
 ### Monitoring documentation matches what the product does

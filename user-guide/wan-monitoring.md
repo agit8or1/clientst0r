@@ -1,14 +1,14 @@
 # Website & WAN Monitoring
 
-Checks run from the ClientSt0r server outward. No agent is installed on anything being checked. There are two separate features, and only website monitors run on a schedule and send alerts:
+Checks run from the ClientSt0r server outward. No agent is installed on anything being checked. There are two kinds of check:
 
 | | Website monitors | WAN connection checks |
 |---|---|---|
 | **Where** | *Monitoring → Website Monitors* (`/monitoring/websites/`) | The WAN connection's page under its location; *Monitoring → WAN Connections* lists them |
 | **What is checked** | An `http://` or `https://` URL | A ping to the WAN's monitor target (IP or hostname) |
-| **When** | On a schedule, and on **Check Now** | Only when someone clicks **Check Status** |
-| **Alerts** | Email and webhooks on down and recovery; certificate expiry emails | None |
-| **History and uptime** | Every check is kept; 30/90/365-day uptime | Last result only |
+| **When** | On a schedule, and on **Check Now** | On a schedule (since v3.17.617), and on **Check Status** |
+| **Alerts** | Email and webhooks on down and recovery; certificate expiry emails | Email and webhooks on down and recovery |
+| **History and uptime** | Every check is kept; 30/90/365-day uptime | Every check is kept; 30-day uptime on the WAN page |
 
 There are no TCP port, DNS or keyword-match checks.
 
@@ -69,7 +69,7 @@ The monitor list shows current status, response time, certificate expiry and las
 
 With **Notify on down** on:
 
-- **When the site goes down:** one email is sent after **2 failed checks in a row**. You can change the threshold with the `WEBSITE_DOWN_ALERT_THRESHOLD` setting. Further failed checks send nothing.
+- **When the site goes down:** one email is sent after **2 failed checks in a row**. You can change the threshold with `WEBSITE_DOWN_ALERT_THRESHOLD` in `.env`. Further failed checks send nothing.
 - **When it recovers:** one email is sent on the first successful check after that.
 
 Emails go to active superusers and to the admins and owners of the monitor's organization. They need outgoing email configured under *Settings → SMTP/Email* (`/core/settings/smtp/`). Without it, the alert is skipped and logged, but the down or recovered state is still recorded, so fixing email later doesn't send a stale alert.
@@ -125,20 +125,41 @@ Domain expiry dates are **not** looked up automatically (there is no WHOIS looku
 
 ## WAN connection checks
 
-A WAN connection is recorded on its location (see [Locations & WAN](locations.md)). To make it checkable:
+A WAN connection is recorded on its location (see [Locations & WAN](locations.md)). To check it:
 
 1. Turn on **Enable uptime monitoring for this WAN connection**.
-2. Enter a **monitor target**: the IP or hostname to ping, such as the site's public IP.
+2. Enter a **monitor target**: the IP address or hostname to ping, such as the site's public IP or gateway. The form refuses anything that isn't an IPv4 address or hostname.
+3. Set the **check interval** in minutes (default 5).
+4. Leave **Email when it stops answering, and when it recovers** on, or turn it off to rely on webhooks only.
 
-**Check Status** on the WAN's page sends one ping from the server (2-second timeout). It then records **Active** or **Down**, the response time and the time of the last outage. *Monitoring → WAN Connections* lists every WAN with monitoring enabled, with these results.
+### What a check does
 
-WAN checks have three limits:
+The server sends 3 pings to the target (2-second wait for each answer). Any answer counts as up, and the average round-trip time is recorded.
 
-- **No scheduling:** they don't run unless someone clicks **Check Status**.
-- **No alerts:** they don't send email or webhooks.
-- **Unused fields:** the form's check interval and the uptime field on the WAN page are not used yet.
+| Result | Meaning |
+|---|---|
+| **Answered** | At least one ping came back |
+| **No answer** | No ping came back, the ping timed out, or the hostname no longer resolves |
+| **Check error** | The check couldn't run, for example because `ping` isn't installed. Not counted as a failure, and doesn't clear one |
 
-To be alerted automatically when a site's connection drops, add a website monitor for something that answers over HTTP or HTTPS through that connection, such as the firewall's or router's web interface published on the WAN address.
+The scheduler looks for due WANs every minute, and each WAN is checked at its own interval. **Check Status** on the WAN's page runs a check immediately.
+
+WANs whose status you have set to **Inactive**, **Planned** or **Under Maintenance** are not checked on the schedule. A manual check on one records the result but leaves the status alone and sends nothing. Use **Under Maintenance** to silence alerts during planned work.
+
+### Alerts
+
+- **When it goes down:** after **2 checks in a row with no answer**, the status becomes **Down** and one alert goes out. You can change the threshold with `WAN_DOWN_ALERT_THRESHOLD` in `.env`. Further failed checks send nothing.
+- **When it recovers:** the first answer after that sets the status back to **Active** and sends one recovery notice.
+- **Email:** sent to active superusers and to the admins and owners of the WAN's organization, through *Settings → SMTP/Email*. The down email includes the target, ISP, ISP support phone and circuit ID.
+- **Webhooks:** `wan.check_failed` fires on every failed check, and `wan.down` and `wan.up` fire once per change. They fire even with email off. The payload's `data` has `wan_id`, `name`, `location_id`, `location`, `isp`, `monitor_target`, `status`, `last_check_result`, `response_time_ms`, `consecutive_failures`, `error` and `checked_at`.
+
+### History and uptime
+
+Every check is stored. History older than 400 days is deleted by the same daily job as website checks. The WAN page shows the last result, how many checks in a row have failed, and the 30-day uptime: the share of checks that got an answer, not counting check errors. *Monitoring → WAN Connections* lists every WAN with monitoring enabled, with its status and last check.
+
+### Requirements
+
+The `ping` command must be on the server. Ubuntu installs include it, and the Docker image includes it from v3.17.617. Checks go out from the ClientSt0r server, so it must be able to reach the target: a site's public IP, for example, not an address only reachable inside that site's network.
 
 ---
 

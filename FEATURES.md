@@ -278,8 +278,8 @@ created from the customer portal are shared automatically).
 | Certificate chain validation | Limited | Invalid chains fail the check; chain details are not stored. | — |
 | Domain expiry tracking | Limited | No WHOIS lookup; enter expiry dates by hand. Reminders by email (daily). | `/monitoring/expirations/` |
 | Check history and uptime | Available | Every check is kept for 400 days. Uptime (checks not down ÷ all checks) on status pages (30/90/365 days), in the Monitor Uptime report (30 days, per monitor and overall; fixed v3.17.616, it always showed 0% before) and in compliance evidence packs. | `/status/`, `/reports/` |
-| Monitor webhooks | Available | `monitor.check_failed` on every failed check; `monitor.down` / `monitor.up` once per transition. Plain JSON; no Slack or Teams formatting. | `/core/webhooks/` |
-| WAN connection checks | Limited | One ping to the WAN's monitor target when someone clicks **Check Status**. Not scheduled, no alerts; the interval and uptime fields are not used. | WAN detail, `/monitoring/wans/` |
+| Monitor webhooks | Available | `monitor.check_failed` on every failed check; `monitor.down` / `monitor.up` once per transition; the same three as `wan.*` for WAN connections. Plain JSON; no Slack or Teams formatting. | `/core/webhooks/` |
+| WAN connection checks | Available | Since v3.17.617, the server pings each monitored WAN's target at its own interval (3 pings; any answer is up). After 2 checks in a row with no answer the WAN is marked Down and emails superusers and the customer's admins once, and once on recovery; `wan.check_failed`, `wan.down` and `wan.up` webhooks. Check history (400 days) and 30-day uptime. Inactive, Planned and Under Maintenance WANs are not checked. Needs `ping` on the server, and the target must be reachable from it. | WAN detail, `/monitoring/wans/` |
 | View monitors permission | Planned | Not enforced; see [Roles](#roles-and-permissions). | — |
 
 ---

@@ -215,8 +215,19 @@
                     </tr>
                     <tr>
                         <th>Check Interval:</th>
-                        <td>{{ wan.monitor_interval_minutes }} minutes <small class="text-muted">(not used yet; checks run on Check Status)</small></td>
+                        <td>{{ wan.monitor_interval_minutes }} minutes{% if wan.status == 'inactive' or wan.status == 'planned' or wan.status == 'maintenance' %} <small class="text-muted">(paused while {{ wan.get_status_display }})</small>{% endif %}</td>
                     </tr>
+                    <tr>
+                        <th>Alerts:</th>
+                        <td>{% if wan.notify_on_down %}Email on down and recovery{% else %}Email off{% endif %}{% if wan.alert_state == 'down' %} <span class="badge bg-danger">Down alert sent</span>{% endif %}</td>
+                    </tr>
+                    {% if wan.last_check_result %}
+                    <tr>
+                        <th>Last Result:</th>
+                        <td>{% if wan.last_check_result == 'up' %}<span class="badge bg-success">Answered</span>{% elif wan.last_check_result == 'down' %}<span class="badge bg-danger">No answer</span>{% if wan.consecutive_failures %} <small class="text-muted">{{ wan.consecutive_failures }} in a row</small>{% endif %}{% else %}<span class="badge bg-warning text-dark">Check error</span>{% endif %}
+                            {% if wan.last_error %}<div class="small text-muted">{{ wan.last_error }}</div>{% endif %}</td>
+                    </tr>
+                    {% endif %}
                     {% if wan.last_checked_at %}
                     <tr>
                         <th>Last Checked:</th>
@@ -229,12 +240,10 @@
                         <td>{{ wan.last_response_time_ms }} ms</td>
                     </tr>
                     {% endif %}
-                    {% if wan.uptime_percentage %}
                     <tr>
                         <th>Uptime (30 days):</th>
-                        <td>{{ wan.uptime_percentage }}%</td>
+                        <td>{% if wan.uptime_percentage is not None %}{{ wan.uptime_percentage }}%{% else %}<span class="text-muted">No checks yet</span>{% endif %}</td>
                     </tr>
-                    {% endif %}
                     {% if wan.last_down_at %}
                     <tr>
                         <th>Last Down:</th>

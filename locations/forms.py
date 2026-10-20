@@ -185,7 +185,7 @@ class WANForm(forms.ModelForm):
             'isp_name', 'isp_account_number', 'isp_support_phone', 'isp_support_email',
             'bandwidth_download_mbps', 'bandwidth_upload_mbps',
             'static_ip', 'subnet_mask', 'gateway', 'dns_primary', 'dns_secondary',
-            'monitoring_enabled', 'monitor_target', 'monitor_interval_minutes',
+            'monitoring_enabled', 'monitor_target', 'monitor_interval_minutes', 'notify_on_down',
             'monthly_cost', 'contract_start_date', 'contract_end_date', 'contract_term_months',
             'notes'
         ]
@@ -213,6 +213,7 @@ class WANForm(forms.ModelForm):
             'monitoring_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'monitor_target': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'IP or hostname to ping'}),
             'monitor_interval_minutes': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '1440'}),
+            'notify_on_down': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
 
             'monthly_cost': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '$'}),
             'contract_start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -227,3 +228,20 @@ class WANForm(forms.ModelForm):
         self.location = kwargs.pop('location', None)
         super().__init__(*args, **kwargs)
 
+
+    def clean_monitor_target(self):
+        from locations.wan_checks import validate_target
+        target = (self.cleaned_data.get('monitor_target') or '').strip()
+        if target:
+            try:
+                validate_target(target)
+            except ValueError:
+                raise forms.ValidationError(
+                    'Enter an IPv4 address or a hostname (letters, digits, dots and hyphens).')
+        return target
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('monitoring_enabled') and not cleaned.get('monitor_target'):
+            self.add_error('monitor_target', 'Enter the IP address or hostname to check.')
+        return cleaned

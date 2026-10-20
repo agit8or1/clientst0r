@@ -39,10 +39,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     DJANGO_SETTINGS_MODULE=config.settings
 
-# Runtime libs only: mariadb client + curl (used by HEALTHCHECK).
+# Runtime libs only: mariadb client, curl (used by HEALTHCHECK) and ping
+# (scheduled WAN connection checks; Docker's default ping_group_range lets the
+# non-root user send ICMP echo).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libmariadb3 \
         curl \
+        iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the prebuilt venv from the builder stage.

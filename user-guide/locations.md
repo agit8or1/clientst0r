@@ -41,14 +41,12 @@ Each location can have one or more **WAN connections** — the internet links se
 | **Public IP** | Static or range |
 | **Circuit ID** | ISP circuit reference number |
 | **Contract Expiry** | Renewal date |
-| **Status** | Active / Inactive / Maintenance |
+| **Status** | Active / Inactive / Planned / Down / Under Maintenance. Scheduled checks set Active and Down; Inactive, Planned and Under Maintenance pause them |
 | **Notes** | Support contacts, escalation details |
 
-### WAN Status Check
+### WAN checks and alerts
 
-With monitoring enabled and a monitor target (IP or hostname) set, **Check Status** on the WAN detail page sends one ping from the ClientSt0r server and records up or down and the response time. The check runs only when you click it: it is not scheduled and sends no alerts.
-
-> For automatic checks and down alerts, add a [website monitor](wan-monitoring.md) for something that answers over HTTP or HTTPS through that connection.
+With monitoring enabled and a monitor target (IP or hostname) set, the ClientSt0r server pings the target at the WAN's check interval. After 2 checks in a row with no answer, the connection is marked **Down** and an email and the `wan.down` webhook go out. The first answer after that sends a recovery notice. **Check Status** on the WAN detail page runs a check immediately. See [Website & WAN Monitoring](wan-monitoring.md#wan-connection-checks) for the details.
 
 ---
 

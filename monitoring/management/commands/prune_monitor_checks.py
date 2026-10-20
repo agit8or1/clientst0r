@@ -22,7 +22,7 @@ DEFAULT_RETENTION_DAYS = 400
 
 
 class Command(BaseCommand):
-    help = 'Delete website monitor check history older than the retention window.'
+    help = 'Delete website monitor and WAN check history older than the retention window.'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -47,8 +47,10 @@ class Command(BaseCommand):
             return
 
         cutoff = timezone.now() - timedelta(days=days)
-        stale = MonitorCheck.objects.filter(checked_at__lt=cutoff)
-        total = stale.count()
+        # v3.17.617: WAN connection check history shares the retention.
+        from locations.models import WANCheck
+        models_ = (MonitorCheck, WANCheck)
+        total = sum(m.objects.filter(checked_at__lt=cutoff).count() for m in models_)
 
         if options['dry_run']:
             self.stdout.write(
@@ -65,15 +67,16 @@ class Command(BaseCommand):
         # Delete by explicit id batches. A bare queryset .delete() on a table
         # this size holds one long transaction and can lock out the checker
         # that is trying to append to it.
-        while True:
-            ids = list(
-                MonitorCheck.objects.filter(checked_at__lt=cutoff)
-                .values_list('id', flat=True)[:batch]
-            )
-            if not ids:
-                break
-            count, _ = MonitorCheck.objects.filter(id__in=ids).delete()
-            deleted += count
+        for model in models_:
+            while True:
+                ids = list(
+                    model.objects.filter(checked_at__lt=cutoff)
+                    .values_list('id', flat=True)[:batch]
+                )
+                if not ids:
+                    break
+                count, _ = model.objects.filter(id__in=ids).delete()
+                deleted += count
 
         self.stdout.write(self.style.SUCCESS(
             f'Pruned {deleted} check(s) older than {days}d '

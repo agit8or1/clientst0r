@@ -11,15 +11,16 @@
     <div class="card-body">
         <form method="get" class="row g-3">
             <div class="col-md-3">
-                <input type="text" name="q" class="form-control" placeholder="Search WANs, ISPs, locations..." value="{{ query }}">
+                <input type="text" name="q" class="form-control" placeholder="Search WANs, ISPs, locations..." value="{{ query|default_if_none:'' }}">
             </div>
             <div class="col-md-3">
                 <select name="status" class="form-select">
                     <option value="">All Statuses</option>
                     <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
                     <option value="down" {% if status_filter == 'down' %}selected{% endif %}>Down</option>
-                    <option value="degraded" {% if status_filter == 'degraded' %}selected{% endif %}>Degraded</option>
-                    <option value="maintenance" {% if status_filter == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                    <option value="maintenance" {% if status_filter == 'maintenance' %}selected{% endif %}>Under Maintenance</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="planned" {% if status_filter == 'planned' %}selected{% endif %}>Planned</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -96,17 +97,16 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if wan.connection_status == 'active' %}
+                            {% if wan.status == 'active' %}
                                 <span class="badge bg-success"><i class="fas fa-check-circle"></i> Active</span>
-                            {% elif wan.connection_status == 'down' %}
+                            {% elif wan.status == 'down' %}
                                 <span class="badge bg-danger"><i class="fas fa-times-circle"></i> Down</span>
-                            {% elif wan.connection_status == 'degraded' %}
-                                <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle"></i> Degraded</span>
-                            {% elif wan.connection_status == 'maintenance' %}
-                                <span class="badge bg-info"><i class="fas fa-wrench"></i> Maintenance</span>
+                            {% elif wan.status == 'maintenance' %}
+                                <span class="badge bg-info"><i class="fas fa-wrench"></i> Under Maintenance</span>
                             {% else %}
-                                <span class="badge bg-secondary">{{ wan.get_connection_status_display }}</span>
+                                <span class="badge bg-secondary">{{ wan.get_status_display }}</span>
                             {% endif %}
+                            {% if wan.status == 'active' and wan.consecutive_failures %}<div class="small text-warning">{{ wan.consecutive_failures }} missed check{{ wan.consecutive_failures|pluralize }}</div>{% endif %}
                         </td>
                         <td>
                             {% if wan.monitor_target %}
@@ -116,8 +116,8 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if wan.last_monitored_at %}
-                                {{ wan.last_monitored_at|timesince }} ago
+                            {% if wan.last_checked_at %}
+                                {{ wan.last_checked_at|timesince }} ago
                             {% else %}
                                 <span class="text-muted">Never</span>
                             {% endif %}
@@ -155,7 +155,7 @@
 
 <div class="alert alert-info mt-4">
     <i class="fas fa-info-circle"></i>
-    <strong>About WAN checks:</strong> This page shows all WAN connections that have monitoring enabled, with the result of their last check. Checks run when someone clicks <strong>Check Status</strong> on the WAN page; they are not scheduled and send no alerts.
+    <strong>About WAN checks:</strong> This page shows all WAN connections that have monitoring enabled, with the result of their last check. The server pings each one at its check interval; after 2 checks in a row with no answer it is marked down and an alert goes out.
     To add or manage WAN connections, go to <a href="{% url 'locations:location_list' %}" class="alert-link">Locations</a>
     and select a location to view/add WAN connections.
 </div>

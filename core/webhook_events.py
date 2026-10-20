@@ -47,6 +47,7 @@ SUPPORTED_EVENTS = frozenset({
     'organization.updated',
     'location.created', 'location.updated', 'location.deleted',
     'monitor.up', 'monitor.down', 'monitor.check_failed',
+    'wan.up', 'wan.down', 'wan.check_failed',
     'workflow.started', 'workflow.completed', 'workflow.failed',
     'integration.synced', 'integration.failed',
 })

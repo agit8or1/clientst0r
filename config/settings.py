@@ -529,6 +529,11 @@ HIBP_DEFAULT_SCAN_FREQUENCY = int(os.getenv('HIBP_SCAN_FREQUENCY', '24'))
 # Private IP ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
 ALLOW_PRIVATE_IP_INTEGRATIONS = os.getenv('ALLOW_PRIVATE_IP_INTEGRATIONS', 'False').lower() == 'true'
 
+# Failed checks in a row before a down alert (monitoring.down_notifications,
+# locations.wan_checks). Invalid values fall back to 2 where they are read.
+WEBSITE_DOWN_ALERT_THRESHOLD = os.getenv('WEBSITE_DOWN_ALERT_THRESHOLD', '2')
+WAN_DOWN_ALERT_THRESHOLD = os.getenv('WAN_DOWN_ALERT_THRESHOLD', '2')
+
 # AI and External API Configuration
 # Multi-LLM Provider Support
 LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'anthropic')  # anthropic, moonshot, minimax, minimax_coding, openai, ollama

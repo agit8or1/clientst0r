@@ -50,6 +50,7 @@ PERIODIC_COMMANDS = {
     'send_compliance_recertifications',
     'sync_network_assets',
     'update_geoip_db',
+    'check_wans',
     # previously only in the crontab update_instructions.sh installed
     'psa_run_recurring_tickets',
     'psa_poll_email',

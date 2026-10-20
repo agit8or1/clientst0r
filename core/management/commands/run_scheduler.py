@@ -47,6 +47,7 @@ COMMAND_TASKS = {
     'assets_generate_remediation_suggestions': ('assets_generate_remediation_suggestions', []),
     'send_compliance_recertifications': ('send_compliance_recertifications', []),
     'sync_network_assets': ('sync_network_assets', []),
+    'check_wans': ('check_wans', []),
     # Only downloads when the file is missing or older than 25 days; the
     # update script runs the same check, but Docker installs never run that.
     'update_geoip_db': ('update_geoip_db', ['--max-age-days', '25']),

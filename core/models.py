@@ -1096,7 +1096,7 @@ class ScheduledTask(models.Model):
         ('vault_password_expiry', 'Vault Password Expiry Notifications'),
         # Phase 40.1 (v3.17.538). Trims the website check history that uptime
         # percentages are computed from — the highest-volume table in the app.
-        ('prune_monitor_checks', 'Prune Website Check History'),
+        ('prune_monitor_checks', 'Prune Website and WAN Check History'),
         # Phase 34.2 (v3.17.545). Collects device configs over SSH; the
         # per-device cadence lives on the target, so running this hourly is
         # fine and each device is still only polled as often as configured.
@@ -1143,6 +1143,7 @@ class ScheduledTask(models.Model):
         ('send_compliance_recertifications', 'Compliance Recertification Reminders'),
         ('sync_network_assets', 'Network Device Asset Sync'),
         ('update_geoip_db', 'GeoIP Country Database Refresh'),
+        ('check_wans', 'WAN Connection Checks'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1385,7 +1386,7 @@ class ScheduledTask(models.Model):
             # a no-op until its feature is configured.
             {
                 'task_type': 'prune_monitor_checks',
-                'description': 'Trim website check history to the configured retention window',
+                'description': 'Trim website and WAN check history to the configured retention window',
                 'interval_minutes': 1440,
                 'enabled': True,
             },
@@ -1611,6 +1612,13 @@ class ScheduledTask(models.Model):
             'task_type': 'update_geoip_db',
             'description': 'Refresh the GeoIP country database when it is over 25 days old',
             'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            # v3.17.617: each WAN has its own interval; this only looks for due ones.
+            'task_type': 'check_wans',
+            'description': 'Ping monitored WAN connections that are due and alert on down / recovery',
+            'interval_minutes': 1,
             'enabled': True,
         },
     ]
@@ -2162,6 +2170,9 @@ class Webhook(models.Model):
     EVENT_MONITOR_DOWN = 'monitor.down'
     EVENT_MONITOR_SSL_EXPIRING = 'monitor.ssl_expiring'
     EVENT_MONITOR_CHECK_FAILED = 'monitor.check_failed'
+    EVENT_WAN_UP = 'wan.up'
+    EVENT_WAN_DOWN = 'wan.down'
+    EVENT_WAN_CHECK_FAILED = 'wan.check_failed'
 
     # Workflows
     EVENT_WORKFLOW_STARTED = 'workflow.started'
@@ -2220,6 +2231,9 @@ class Webhook(models.Model):
         (EVENT_MONITOR_DOWN, 'Monitor Down'),
         (EVENT_MONITOR_SSL_EXPIRING, 'Monitor SSL Certificate Expiring'),
         (EVENT_MONITOR_CHECK_FAILED, 'Monitor Check Failed'),
+        (EVENT_WAN_UP, 'WAN Connection Up'),
+        (EVENT_WAN_DOWN, 'WAN Connection Down'),
+        (EVENT_WAN_CHECK_FAILED, 'WAN Check Failed'),
 
         # Workflows
         (EVENT_WORKFLOW_STARTED, 'Workflow Started'),
