@@ -138,4 +138,4 @@ Filter by user, date range, action type, and object type. Export the filtered re
 
 ---
 
-*Previous: [WAN Monitoring](wan-monitoring.md) · Next: [API & Integrations](api.md)*
+*Previous: [Website & WAN Monitoring](wan-monitoring.md) · Next: [API & Integrations](api.md)*

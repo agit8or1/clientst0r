@@ -46,9 +46,9 @@ Each location can have one or more **WAN connections** — the internet links se
 
 ### WAN Status Check
 
-Trigger a manual connectivity check from the WAN detail page. The check tests reachability and latency from the ClientSt0r server to the location's public IP.
+With monitoring enabled and a monitor target (IP or hostname) set, **Check Status** on the WAN detail page sends one ping from the ClientSt0r server and records up or down and the response time. The check runs only when you click it: it is not scheduled and sends no alerts.
 
-> For automated uptime monitoring, use [WAN Monitoring](wan-monitoring.md) to create a monitor targeting the location's public IP or a hosted endpoint.
+> For automatic checks and down alerts, add a [website monitor](wan-monitoring.md) for something that answers over HTTP or HTTPS through that connection.
 
 ---
 

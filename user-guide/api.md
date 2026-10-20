@@ -72,12 +72,7 @@ Generate keys at **Profile → API Keys** (`/api/keys/`). Keys inherit your orga
 
 ### Monitoring
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/monitors/` | List WAN monitors |
-| POST | `/api/monitors/` | Create monitor |
-| GET | `/api/monitors/{id}/` | Get monitor + status |
-| PUT/PATCH | `/api/monitors/{id}/` | Update monitor |
+There are no REST endpoints for monitors. Website monitors are readable through GraphQL at `/api/v2/graphql/`: the `websiteMonitors` and `websiteMonitor` queries return configuration, current status, last response and certificate expiry. They are read-only. Webhooks can push the `monitor.down`, `monitor.up` and `monitor.check_failed` events (see [Website & WAN Monitoring](wan-monitoring.md#webhooks)).
 
 ---
 

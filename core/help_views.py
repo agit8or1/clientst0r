@@ -89,24 +89,24 @@ HELP_INDEX = [
      'text': 'import export CSV LastPass 1Password backup migrate'},
 
     # Monitoring
-    {'section': 'WAN Monitoring', 'url_name': 'core:help_monitoring',
-     'anchor': 'overview', 'heading': 'WAN Monitor Overview',
-     'text': 'WAN monitor external internet-facing outbound check uptime response time interval'},
-    {'section': 'WAN Monitoring', 'url_name': 'core:help_monitoring',
-     'anchor': 'monitor-types', 'heading': 'Monitor Types',
-     'text': 'HTTP HTTPS TCP port ping ICMP SSL certificate DNS monitor type'},
-    {'section': 'WAN Monitoring', 'url_name': 'core:help_monitoring',
+    {'section': 'Website & WAN Monitoring', 'url_name': 'core:help_monitoring',
+     'anchor': 'overview', 'heading': 'Overview',
+     'text': 'website monitor WAN connection outbound check from the server no agent'},
+    {'section': 'Website & WAN Monitoring', 'url_name': 'core:help_monitoring',
+     'anchor': 'website-monitors', 'heading': 'Website Monitors',
+     'text': 'HTTP HTTPS URL check interval status code redirect response time history uptime 30 90 365'},
+    {'section': 'Website & WAN Monitoring', 'url_name': 'core:help_monitoring',
      'anchor': 'alerting', 'heading': 'Alerting',
-     'text': 'alert notification email webhook Slack Teams down up'},
-    {'section': 'WAN Monitoring', 'url_name': 'core:help_monitoring',
-     'anchor': 'dashboards', 'heading': 'Status Dashboard',
-     'text': 'status dashboard green red uptime 30 day response time organization'},
-    {'section': 'WAN Monitoring', 'url_name': 'core:help_monitoring',
-     'anchor': 'ssl-monitoring', 'heading': 'SSL Certificate Checks',
-     'text': 'SSL certificate expiry countdown 30 days warning chain issuer'},
-    {'section': 'WAN Monitoring', 'url_name': 'core:help_monitoring',
-     'anchor': 'incident-management', 'heading': 'Incident Management',
-     'text': 'incident down up timestamp duration outage notes maintenance'},
+     'text': 'alert down recovery email webhook monitor.down monitor.up check_failed threshold'},
+    {'section': 'Website & WAN Monitoring', 'url_name': 'core:help_monitoring',
+     'anchor': 'ssl-monitoring', 'heading': 'Certificate and Domain Expiry',
+     'text': 'SSL certificate expiry warning days issuer domain expiration WHOIS daily email'},
+    {'section': 'Website & WAN Monitoring', 'url_name': 'core:help_monitoring',
+     'anchor': 'wan-checks', 'heading': 'WAN Connection Checks',
+     'text': 'WAN ping monitor target check status on demand not scheduled no alerts'},
+    {'section': 'Website & WAN Monitoring', 'url_name': 'core:help_monitoring',
+     'anchor': 'status-pages', 'heading': 'Status Pages and Incidents',
+     'text': 'status page incident maintenance window uptime published'},
 
     # Security
     {'section': 'Security', 'url_name': 'core:help_security',
@@ -246,8 +246,8 @@ def help_index(request):
          'desc': 'Fleet management, maintenance, fuel, and damage reports.'},
         {'icon': 'fa-lock', 'title': 'Password Vault', 'url_name': 'core:help_vault',
          'desc': 'Encrypted credential storage, breach detection, and TOTP.'},
-        {'icon': 'fa-heartbeat', 'title': 'WAN Monitoring', 'url_name': 'core:help_monitoring',
-         'desc': 'Monitor WAN connections, public URLs, ports, and SSL certificates with alerting.'},
+        {'icon': 'fa-heartbeat', 'title': 'Website & WAN Monitoring', 'url_name': 'core:help_monitoring',
+         'desc': 'Scheduled website checks with down alerts and certificate expiry; on-demand WAN ping checks.'},
         {'icon': 'fa-shield-alt', 'title': 'Security', 'url_name': 'core:help_security',
          'desc': 'Vulnerability scanning, RBAC, audit logging, and 2FA.'},
         {'icon': 'fa-chart-bar', 'title': 'Reports & Analytics', 'url_name': 'core:help_reports',
@@ -1049,146 +1049,65 @@ def help_vault(request):
 
 @login_required
 def help_monitoring(request):
-    """Monitoring help"""
+    """Monitoring help. Kept in step with user-guide/wan-monitoring.md."""
     toc = [
-        {'anchor': 'overview', 'heading': 'WAN Monitor Overview'},
-        {'anchor': 'monitor-types', 'heading': 'Monitor Types'},
+        {'anchor': 'overview', 'heading': 'Overview'},
+        {'anchor': 'website-monitors', 'heading': 'Website Monitors'},
         {'anchor': 'alerting', 'heading': 'Alerting'},
-        {'anchor': 'dashboards', 'heading': 'Status Dashboard'},
-        {'anchor': 'ssl-monitoring', 'heading': 'SSL Certificate Checks'},
-        {'anchor': 'incident-management', 'heading': 'Incident Management'},
+        {'anchor': 'ssl-monitoring', 'heading': 'Certificate and Domain Expiry'},
+        {'anchor': 'wan-checks', 'heading': 'WAN Connection Checks'},
+        {'anchor': 'status-pages', 'heading': 'Status Pages and Incidents'},
     ]
     content = """
-    <h4>WAN Connection Monitoring</h4>
-    <p class="lead">Monitor external WAN connections, public URLs, and internet-facing services — not internal infrastructure. Checks run from the server to verify reachability and response from the outside.</p>
+    <h4>Website &amp; WAN Monitoring</h4>
+    <p class="lead">Checks run from the server outward; nothing is installed on what is being checked. Only website monitors run on a schedule and send alerts.</p>
 
-    <div class="alert alert-info mt-3">
-        <i class="fas fa-info-circle me-2"></i>
-        <strong>Scope:</strong> Monitors are for <strong>WAN / internet-facing endpoints</strong> — websites, public APIs, remote hosts reachable over the internet. They are not agent-based and do not monitor internal CPU, RAM, or disk on local servers.
-    </div>
-
-    <h5 class="mt-4" id="overview"><i class="fas fa-wifi"></i> WAN Monitor Overview</h5>
+    <h5 class="mt-4" id="overview"><i class="fas fa-wifi"></i> Overview</h5>
     <ul>
-        <li><strong>Outbound checks:</strong> The ClientSt0r server reaches out to the target URL or IP and records the result</li>
-        <li><strong>No agents required:</strong> Nothing to install on monitored endpoints</li>
-        <li><strong>Configurable interval:</strong> Check every 1 minute up to every 24 hours</li>
-        <li><strong>Response time tracking:</strong> Latency logged per check</li>
-        <li><strong>Uptime history:</strong> 30-day uptime percentage calculated automatically</li>
+        <li><strong>Website monitors</strong> (<em>Monitoring &rarr; Website Monitors</em>): an <code>http://</code> or <code>https://</code> URL, checked on a schedule and on <strong>Check Now</strong>, with down and recovery alerts, certificate expiry emails, and a stored check history.</li>
+        <li><strong>WAN connection checks</strong> (on a location's WAN connection): one ping to the WAN's monitor target, only when someone clicks <strong>Check Status</strong>. No schedule, no alerts.</li>
+        <li>There are no TCP port, DNS or keyword-match checks.</li>
     </ul>
 
-    <h5 class="mt-4" id="monitor-types"><i class="fas fa-plug"></i> Monitor Types</h5>
+    <h5 class="mt-4" id="website-monitors"><i class="fas fa-globe"></i> Website Monitors</h5>
     <ul>
-        <li><strong>HTTP / HTTPS:</strong> Checks that a URL returns a success status code (2xx/3xx). Optionally verify expected response text is present.</li>
-        <li><strong>TCP Port:</strong> Verifies a TCP port is open and accepting connections (e.g. port 443, 22, 25)</li>
-        <li><strong>ICMP Ping:</strong> Basic reachability check — confirms the host responds to ping</li>
-        <li><strong>SSL Certificate:</strong> Checks HTTPS certificate validity and days-until-expiry</li>
-        <li><strong>DNS:</strong> Verifies a domain resolves to an expected IP address</li>
+        <li><strong>Interval:</strong> set per monitor in minutes (default 60). The scheduler looks for due monitors every 5 minutes, so shorter intervals behave like 5.</li>
+        <li><strong>The check:</strong> one <code>GET</code> with a 10-second timeout; redirects are not followed.</li>
+        <li><strong>Status:</strong> 2xx is <strong>Active</strong>; a redirect is <strong>Warning</strong> (the site answered); any other code, a timeout, a connection error or an invalid certificate is <strong>Down</strong>. An address refused by the outbound-request guard (private networks unless <code>ALLOW_PRIVATE_IP_INTEGRATIONS=True</code>; cloud metadata always) is <strong>Error</strong>, which does not alert.</li>
+        <li><strong>Certificates:</strong> for HTTPS the certificate is validated and its issuer, subject, serial, validity dates and TLS version are recorded.</li>
+        <li><strong>History and uptime:</strong> every check is kept for 400 days. Uptime is the share of checks that were not Down, shown on status pages (30, 90 and 365 days), in the Monitor Uptime report (30 days) and in compliance evidence packs. A monitor with no checks in a window shows no figure.</li>
     </ul>
-
-    <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 210" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="210" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Header -->
-        <rect width="700" height="36" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect y="18" width="700" height="18" fill="#161b22"/>
-        <text x="16" y="25" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Monitor Status</text>
-        <!-- Stats row -->
-        <rect x="12" y="44" width="100" height="44" rx="4" fill="#1a3a2a" stroke="#3fb950"/>
-        <text x="62" y="62" fill="#3fb950" font-size="18" font-weight="bold" font-family="sans-serif" text-anchor="middle">12</text>
-        <text x="62" y="78" fill="#56d364" font-size="9" font-family="sans-serif" text-anchor="middle">UP</text>
-
-        <rect x="122" y="44" width="100" height="44" rx="4" fill="#3a1a1a" stroke="#f85149"/>
-        <text x="172" y="62" fill="#f85149" font-size="18" font-weight="bold" font-family="sans-serif" text-anchor="middle">2</text>
-        <text x="172" y="78" fill="#ff7b72" font-size="9" font-family="sans-serif" text-anchor="middle">DOWN</text>
-
-        <rect x="232" y="44" width="100" height="44" rx="4" fill="#2a2a1a" stroke="#e3b341"/>
-        <text x="282" y="62" fill="#e3b341" font-size="18" font-weight="bold" font-family="sans-serif" text-anchor="middle">1</text>
-        <text x="282" y="78" fill="#e3b341" font-size="9" font-family="sans-serif" text-anchor="middle">WARN</text>
-
-        <rect x="342" y="44" width="120" height="44" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="402" y="62" fill="#e6edf3" font-size="14" font-weight="bold" font-family="sans-serif" text-anchor="middle">99.7%</text>
-        <text x="402" y="78" fill="#8b949e" font-size="9" font-family="sans-serif" text-anchor="middle">30d uptime</text>
-
-        <!-- Monitor list -->
-        <rect y="100" width="700" height="24" fill="#161b22" stroke="#21262d" stroke-width="0.5"/>
-        <text x="56" y="116" fill="#8b949e" font-size="10" font-family="monospace">Monitor</text>
-        <text x="280" y="116" fill="#8b949e" font-size="10" font-family="monospace">Type</text>
-        <text x="380" y="116" fill="#8b949e" font-size="10" font-family="monospace">Response</text>
-        <text x="480" y="116" fill="#8b949e" font-size="10" font-family="monospace">Uptime 30d</text>
-        <text x="590" y="116" fill="#8b949e" font-size="10" font-family="monospace">Last Check</text>
-
-        <!-- Row - up -->
-        <rect y="124" width="700" height="28" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
-        <circle cx="28" cy="138" r="6" fill="#3fb950"/>
-        <text x="56" y="142" fill="#e6edf3" font-size="11" font-family="sans-serif">Main Website</text>
-        <text x="280" y="142" fill="#8b949e" font-size="10" font-family="sans-serif">HTTPS</text>
-        <text x="380" y="142" fill="#3fb950" font-size="10" font-family="monospace">142ms</text>
-        <text x="480" y="142" fill="#3fb950" font-size="10" font-family="sans-serif">100.0%</text>
-        <text x="590" y="142" fill="#8b949e" font-size="10" font-family="sans-serif">10s ago</text>
-
-        <!-- Row - down -->
-        <rect y="152" width="700" height="28" fill="#1a0d0d" stroke="#5a2020" stroke-width="0.5"/>
-        <circle cx="28" cy="166" r="6" fill="#f85149"/>
-        <text x="56" y="170" fill="#e6edf3" font-size="11" font-family="sans-serif">DB Server</text>
-        <text x="280" y="170" fill="#8b949e" font-size="10" font-family="sans-serif">TCP:5432</text>
-        <text x="380" y="170" fill="#f85149" font-size="10" font-family="monospace">TIMEOUT</text>
-        <text x="480" y="170" fill="#e3b341" font-size="10" font-family="sans-serif">98.2%</text>
-        <text x="590" y="170" fill="#f85149" font-size="10" font-family="sans-serif">2m ago ⚠</text>
-
-        <!-- Row - up -->
-        <rect y="180" width="700" height="28" fill="#0d1117" stroke="#21262d" stroke-width="0.5"/>
-        <circle cx="28" cy="194" r="6" fill="#3fb950"/>
-        <text x="56" y="198" fill="#e6edf3" font-size="11" font-family="sans-serif">API Gateway</text>
-        <text x="280" y="198" fill="#8b949e" font-size="10" font-family="sans-serif">HTTPS</text>
-        <text x="380" y="198" fill="#3fb950" font-size="10" font-family="monospace">38ms</text>
-        <text x="480" y="198" fill="#3fb950" font-size="10" font-family="sans-serif">99.9%</text>
-        <text x="590" y="198" fill="#8b949e" font-size="10" font-family="sans-serif">10s ago</text>
-
-        <!-- Annotations -->
-        <line x1="172" y1="44" x2="220" y2="20" stroke="#f85149" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="200" y="8" width="120" height="16" rx="8" fill="#da363344"/>
-        <text x="260" y="19" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">Triggers alert email</text>
-      </svg>
-      <p class="help-screenshot-caption">WAN monitor status dashboard. Red circle = DOWN (alert sent), green = UP. Response time and 30-day uptime percentage shown per monitor. All checks are outbound from the server to the public endpoint.</p>
-    </div>
 
     <h5 class="mt-4" id="alerting"><i class="fas fa-bell"></i> Alerting</h5>
     <ul>
-        <li><strong>Real-time Alerts:</strong> Instant notifications for issues</li>
-        <li><strong>Multiple Channels:</strong> Email, webhook, Slack, Teams</li>
-        <li><strong>Alert Rules:</strong> Customize thresholds and conditions</li>
-        <li><strong>Escalation Policies:</strong> Multi-tier alert escalation</li>
-        <li><strong>Alert Grouping:</strong> Reduce alert fatigue with smart grouping</li>
-        <li><strong>Maintenance Windows:</strong> Silence alerts during maintenance</li>
+        <li><strong>Down:</strong> with <em>Notify on down</em> on, one email after 2 failed checks in a row (setting <code>WEBSITE_DOWN_ALERT_THRESHOLD</code>); further failures send nothing.</li>
+        <li><strong>Recovery:</strong> one email on the first successful check after a down alert.</li>
+        <li><strong>Recipients:</strong> active superusers and the admins and owners of the monitor's organization. Needs outgoing email under <em>Settings &rarr; SMTP/Email</em>.</li>
+        <li><strong>Webhooks:</strong> organization webhooks can subscribe to <code>monitor.check_failed</code> (every failed check), <code>monitor.down</code> and <code>monitor.up</code> (once per transition). Plain JSON, signed when the webhook has a secret; no built-in Slack or Teams format.</li>
+        <li>There are no escalation policies, alert grouping or per-monitor recipient lists.</li>
     </ul>
 
-    <h5 class="mt-4" id="dashboards"><i class="fas fa-chart-line"></i> Status Dashboard</h5>
+    <h5 class="mt-4" id="ssl-monitoring"><i class="fas fa-certificate"></i> Certificate and Domain Expiry</h5>
     <ul>
-        <li><strong>Live status:</strong> Green/red/yellow indicators for each monitor</li>
-        <li><strong>Response time:</strong> Latest latency reading per monitor</li>
-        <li><strong>30-day uptime:</strong> Percentage availability over the last 30 days</li>
-        <li><strong>Down duration:</strong> How long a monitor has been failing</li>
-        <li><strong>Grouped by org:</strong> Separate views per organization/client</li>
+        <li><strong>Certificates:</strong> a daily job emails once when a certificate enters its warning window (the larger of the monitor's and the global setting) and once more when it expires. A renewed certificate starts over.</li>
+        <li><strong>Domains:</strong> there is no WHOIS lookup. Enter domains on <em>Monitoring &rarr; Expirations</em>; the same daily job emails about them.</li>
     </ul>
 
-    <h5 class="mt-4" id="ssl-monitoring"><i class="fas fa-certificate"></i> SSL Certificate Checks</h5>
+    <h5 class="mt-4" id="wan-checks"><i class="fas fa-network-wired"></i> WAN Connection Checks</h5>
     <ul>
-        <li><strong>Expiry countdown:</strong> Days remaining on the certificate</li>
-        <li><strong>Early warning:</strong> Alert at 30 days, 14 days, and 7 days before expiry</li>
-        <li><strong>Chain validation:</strong> Checks the full certificate chain is valid</li>
-        <li><strong>Issuer tracking:</strong> Records certificate authority and subject</li>
+        <li>Turn on monitoring for the WAN connection and set a monitor target (IP or hostname).</li>
+        <li><strong>Check Status</strong> sends one ping (2-second timeout) and records up or down, the response time and the last outage time. <em>Monitoring &rarr; WAN Connections</em> lists the results.</li>
+        <li>WAN checks are not scheduled and send no alerts; the check interval and uptime fields are not used yet. For automatic alerts, add a website monitor for something that answers over HTTP or HTTPS through that connection.</li>
     </ul>
 
-    <h5 class="mt-4" id="incident-management"><i class="fas fa-history"></i> Incident Management</h5>
+    <h5 class="mt-4" id="status-pages"><i class="fas fa-history"></i> Status Pages and Incidents</h5>
     <ul>
-        <li><strong>Down/up timestamps:</strong> Exact time an outage started and when it resolved</li>
-        <li><strong>Duration tracking:</strong> Total outage duration logged</li>
-        <li><strong>Alert history:</strong> Record of every notification sent for a monitor</li>
-        <li><strong>Notes:</strong> Add notes to a monitor for context (maintenance, known issues)</li>
+        <li>Status pages publish chosen website monitors under audience-friendly names, with current status and uptime.</li>
+        <li>Incidents and maintenance windows are posted on a status page by hand, optionally linked to a ticket. Outages do not create incidents, and maintenance windows do not silence monitor alerts.</li>
     </ul>
     """
     return render(request, 'core/help/section.html', {
-        'title': 'Monitoring',
+        'title': 'Website & WAN Monitoring',
         'section_id': 'monitoring',
         'toc': toc,
         'content': content,

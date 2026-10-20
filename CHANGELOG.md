@@ -5,6 +5,38 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.616] - 2026-10-20
+
+### Monitoring documentation matches what the product does
+
+- The monitoring guide (`user-guide/wan-monitoring.md`) and the in-app help
+  page described features that don't exist: TCP port, ping, DNS and
+  keyword checks for monitors; Slack and Teams alert channels; escalation
+  policies, alert grouping and per-monitor recipients; automatic incident
+  records; and maintenance windows that silence alerts. Both are rewritten
+  from the code. They now cover website monitors (scheduled HTTP/HTTPS
+  checks, down and recovery emails after two failed checks, the three
+  monitor webhook events, certificate and domain expiry emails, 400 days of
+  check history and uptime) separately from WAN connection checks.
+- WAN connection checks ping once when someone clicks **Check Status**.
+  They are not scheduled and send no alerts. The WAN form said it would
+  "ping the monitor target at the specified interval"; the form, the WAN
+  page and the WAN Connections list now say what happens, and that the
+  interval field isn't used yet.
+- The API guide listed `/api/monitors/` REST endpoints that don't exist.
+  It now points to the GraphQL `websiteMonitors` query and the webhooks.
+  The reports guide no longer lists a monitor reliability chart on the
+  analytics page, which has none.
+- FEATURES.md gains rows for check history and uptime, monitor webhooks
+  and WAN connection checks.
+
+### Monitor Uptime report
+
+- The report counted monitors with status `up`, which no monitor ever has,
+  so it always showed 0%. It now reports 30-day uptime from the check
+  history, the same way status pages do, per monitor and overall. A monitor
+  with no checks in the window shows no figure.
+
 ## [3.17.615] - 2026-10-19
 
 ### Page script errors on racks, portal vault and scheduled tasks

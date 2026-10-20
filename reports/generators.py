@@ -176,30 +176,51 @@ class DocumentUsageReport(ReportGenerator):
 
 
 class MonitorUptimeReport(ReportGenerator):
-    """Website monitor uptime report"""
+    """Website monitor uptime over the last 30 days, from the check history.
+
+    Uptime is computed the way status pages compute it
+    (`WebsiteMonitor.uptime`): a check counts as up unless its status is
+    `down`. A monitor with no checks in the window has no uptime (None), not
+    0% or 100%. `up` / `down` / `warning` count monitors by current status;
+    `active` is the status a healthy monitor has.
+    """
+
+    WINDOW_DAYS = 30
 
     def generate(self):
+        from monitoring.models import MonitorCheck
+
         monitors = WebsiteMonitor.objects.filter(organization=self.organization)
+        since = timezone.now() - timedelta(days=self.WINDOW_DAYS)
+        checks = MonitorCheck.objects.filter(monitor__in=monitors, checked_at__gte=since)
+        total_checks = checks.count()
+        down_checks = checks.filter(status='down').count()
 
-        # Status counts
-        up_count = monitors.filter(status='up').count()
-        down_count = monitors.filter(status='down').count()
-        warning_count = monitors.filter(status='warning').count()
+        rows = []
+        for m in monitors.order_by('name'):
+            u = m.uptime(self.WINDOW_DAYS)
+            rows.append({
+                'name': m.name,
+                'url': m.url,
+                'status': m.status,
+                'uptime_percent': u['percent'],
+                'checks': u['checks'],
+                'down_checks': u['down'],
+            })
 
-        # Average response time (if stored)
-        # This would require adding response time tracking to the model
-
-        # By status
         by_status = monitors.values('status').annotate(
             count=Count('id')
         ).order_by('-count')
 
         return {
             'total_monitors': monitors.count(),
-            'up': up_count,
-            'down': down_count,
-            'warning': warning_count,
-            'uptime_percentage': round((up_count / monitors.count() * 100) if monitors.count() > 0 else 0, 2),
+            'up': monitors.filter(status='active').count(),
+            'down': monitors.filter(status='down').count(),
+            'warning': monitors.filter(status='warning').count(),
+            'window_days': self.WINDOW_DAYS,
+            'uptime_percentage': (round((total_checks - down_checks) * 100.0 / total_checks, 2)
+                                  if total_checks else None),
+            'monitors': rows,
             'by_status': list(by_status),
             'generated_at': timezone.now().isoformat(),
         }

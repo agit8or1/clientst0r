@@ -4823,3 +4823,57 @@ class WidgetViewerScopeTests(TestCase):
         r = self.client.get(f'/reports/dashboards/{dash.pk}/')
         self.assertEqual(r.status_code, 200)
         self.assertIn(b'$1,000', r.content)
+
+
+class MonitorUptimeReportTests(TestCase):
+    """v3.17.616: the Monitor Uptime report counted monitors with status
+    'up', which no monitor ever has, so it always reported 0%. It now reports
+    30-day uptime from the check history, per monitor and overall."""
+
+    def setUp(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from core.models import Organization
+        from monitoring.models import MonitorCheck, WebsiteMonitor
+
+        self.org = Organization.objects.create(name='UptimeCo', slug='uptime-co')
+        other = Organization.objects.create(name='OtherCo', slug='uptime-other')
+        now = timezone.now()
+        self.good = WebsiteMonitor.objects.create(
+            organization=self.org, name='Good', url='https://good.example', status='active')
+        self.flaky = WebsiteMonitor.objects.create(
+            organization=self.org, name='Flaky', url='https://flaky.example', status='down')
+        self.new = WebsiteMonitor.objects.create(
+            organization=self.org, name='New', url='https://new.example', status='unknown')
+        theirs = WebsiteMonitor.objects.create(
+            organization=other, name='Theirs', url='https://theirs.example', status='down')
+        for i in range(4):
+            MonitorCheck.objects.create(monitor=self.good, checked_at=now - timedelta(hours=i),
+                                        status='active')
+        for i, st in enumerate(['active', 'warning', 'down', 'down']):
+            MonitorCheck.objects.create(monitor=self.flaky, checked_at=now - timedelta(hours=i),
+                                        status=st)
+        # Outside the window, and another organization's checks: ignored.
+        MonitorCheck.objects.create(monitor=self.good, checked_at=now - timedelta(days=40),
+                                    status='down')
+        MonitorCheck.objects.create(monitor=theirs, checked_at=now, status='down')
+
+    def test_uptime_from_check_history(self):
+        from reports.generators import MonitorUptimeReport
+        data = MonitorUptimeReport(self.org).generate()
+        self.assertEqual(data['total_monitors'], 3)
+        self.assertEqual(data['up'], 1)
+        self.assertEqual(data['down'], 1)
+        # 8 checks in the window, 2 down; a redirect (warning) counts as up.
+        self.assertEqual(data['uptime_percentage'], 75.0)
+        rows = {r['name']: r for r in data['monitors']}
+        self.assertEqual(rows['Good']['uptime_percent'], 100.0)
+        self.assertEqual(rows['Flaky']['uptime_percent'], 50.0)
+        self.assertIsNone(rows['New']['uptime_percent'])
+        self.assertNotIn('Theirs', rows)
+
+    def test_no_checks_means_no_uptime_figure(self):
+        from core.models import Organization
+        from reports.generators import MonitorUptimeReport
+        empty = Organization.objects.create(name='EmptyCo', slug='uptime-empty')
+        self.assertIsNone(MonitorUptimeReport(empty).generate()['uptime_percentage'])

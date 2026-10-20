@@ -277,6 +277,9 @@ created from the customer portal are shared automatically).
 | SSL certificate details and expiry warnings | Available | Subject, issuer, serial, validity dates, TLS version; expiry warnings by email (daily). | Monitor detail |
 | Certificate chain validation | Limited | Invalid chains fail the check; chain details are not stored. | — |
 | Domain expiry tracking | Limited | No WHOIS lookup; enter expiry dates by hand. Reminders by email (daily). | `/monitoring/expirations/` |
+| Check history and uptime | Available | Every check is kept for 400 days. Uptime (checks not down ÷ all checks) on status pages (30/90/365 days), in the Monitor Uptime report (30 days, per monitor and overall; fixed v3.17.616, it always showed 0% before) and in compliance evidence packs. | `/status/`, `/reports/` |
+| Monitor webhooks | Available | `monitor.check_failed` on every failed check; `monitor.down` / `monitor.up` once per transition. Plain JSON; no Slack or Teams formatting. | `/core/webhooks/` |
+| WAN connection checks | Limited | One ping to the WAN's monitor target when someone clicks **Check Status**. Not scheduled, no alerts; the interval and uptime fields are not used. | WAN detail, `/monitoring/wans/` |
 | View monitors permission | Planned | Not enforced; see [Roles](#roles-and-permissions). | — |
 
 ---

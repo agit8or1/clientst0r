@@ -89,4 +89,4 @@ There is no plaintext vault export. Backups keep vault secrets encrypted with th
 
 ---
 
-*Previous: [Service Vehicles](service-vehicles.md) · Next: [WAN Monitoring](wan-monitoring.md)*
+*Previous: [Service Vehicles](service-vehicles.md) · Next: [Website & WAN Monitoring](wan-monitoring.md)*

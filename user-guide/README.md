@@ -1,6 +1,6 @@
 # ClientSt0r User Guide
 
-ClientSt0r is a self-hosted IT management platform for MSPs and IT teams — combining asset inventory, a password vault, fleet management, WAN monitoring, and security tooling, all scoped per organization.
+ClientSt0r is a self-hosted IT management platform for MSPs and IT teams — combining asset inventory, a password vault, fleet management, website monitoring, and security tooling, all scoped per organization.
 
 > **In-app help** is also available at `/help/` once logged in.
 
@@ -14,7 +14,7 @@ ClientSt0r is a self-hosted IT management platform for MSPs and IT teams — com
 | [Asset Management](asset-management.md) | Hardware inventory, networks, racks, port configuration |
 | [Service Vehicles](service-vehicles.md) | Fleet tracking, maintenance, fuel logs, damage reports |
 | [Password Vault](password-vault.md) | AES-256 encrypted credentials, TOTP, breach detection |
-| [WAN Monitoring](wan-monitoring.md) | HTTP/TCP/ICMP checks, SSL expiry, alerting |
+| [Website & WAN Monitoring](wan-monitoring.md) | Scheduled HTTP/HTTPS checks with down alerts and certificate expiry; on-demand WAN ping checks |
 | [Security](security.md) | 2FA, LDAP and SSO sign-in, Security settings, RBAC, audit logs, encryption and key rotation |
 | [Compliance](compliance.md) | PCI-DSS / HIPAA attestation, customer reports, recertification |
 | [Reports & Analytics](reports.md) | Custom dashboards, report templates, scheduled reports |

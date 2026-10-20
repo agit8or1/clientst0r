@@ -158,6 +158,7 @@
                         <div class="col-md-4 mb-3">
                             <label for="{{ form.monitor_interval_minutes.id_for_label }}" class="form-label">Check Interval (minutes)</label>
                             {{ form.monitor_interval_minutes }}
+                            <small class="form-text text-muted">Not used yet: WAN checks run when you click Check Status.</small>
                         </div>
                     </div>
                 </div>
@@ -226,7 +227,7 @@
                 <p class="small">Document your location's internet and WAN connections for better management and troubleshooting.</p>
 
                 <h6 class="mt-3">Monitoring</h6>
-                <p class="small">Enable monitoring to automatically check if your WAN connection is up. The system will ping the monitor target at the specified interval.</p>
+                <p class="small">With monitoring enabled, <strong>Check Status</strong> on the WAN page pings the monitor target once from the server and records whether it answered. Checks are not scheduled and send no alerts; for automatic down alerts, add a website monitor for something that answers through this connection.</p>
 
                 <h6 class="mt-3">Primary Connection</h6>
                 <p class="small">Mark your main internet connection as primary to help identify which connection is used for critical services.</p>

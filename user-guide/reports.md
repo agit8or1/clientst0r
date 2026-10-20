@@ -25,7 +25,7 @@ Build organization-specific dashboards that combine widgets from multiple data s
 |-------------|-------|
 | **Asset count** | Total assets by type, status, or location |
 | **Warranty alerts** | Assets with warranties expiring within 30/60/90 days |
-| **Monitor status** | WAN monitor uptime summary |
+| **Monitor status** | Website monitors currently down, and a breakdown by status; SSL certificates expiring soon |
 | **Vault health** | Breached or expiring credentials count |
 | **Vehicle fleet** | Fleet status and upcoming maintenance |
 | **Recent activity** | Audit log summary |
@@ -56,7 +56,7 @@ Report templates define what data to include, how to format it, and who receives
 - **Needs Reorder** — flagged assets requiring replacement
 - **Breached Credentials** — vault entries with HIBP hits
 - **Vehicle Maintenance Due** — overdue and upcoming service items
-- **Monitor Uptime Summary** — 30-day uptime % per endpoint
+- **Monitor Uptime** — 30-day uptime per website monitor and overall, from the check history
 - **User Activity** — audit log summary by user and action type
 
 ---
@@ -94,7 +94,6 @@ Scheduled reports can be paused without deleting them. Delivery history is logge
 The analytics dashboard provides real-time metrics and trend charts:
 
 - **Asset growth** — number of assets added over time
-- **Monitor reliability** — uptime trend across all monitors
 - **Vault usage** — new entries, reveals, breach rate
 - **Audit events** — activity volume by type and user
 
