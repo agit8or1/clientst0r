@@ -28,7 +28,8 @@ REGROUPED_URLS = [
     'crm:campaign_list', 'crm:commission_list', 'crm:commission_rule_list',
     'reports:home', 'reports:dashboard_list', 'reports:wallboard_list',
     'reports:template_list', 'reports:generated_list',
-    'reports:analytics_overview',
+    # reports:analytics_overview left the menu in v3.17.618: nothing records
+    # analytics events, so the page was always empty.
 ]
 
 TOP_LEVEL_KEPT = ['Dashboard', 'Operations']
@@ -108,3 +109,5 @@ class NavbarGroupingTests(TestCase):
         r = self.client.get(reverse('core:dashboard'))
         html = r.content.decode()
         self.assertNotIn(reverse('core:snyk_scans'), html)
+        # Reports are MSP staff only (v3.17.618); a plain member doesn't see them.
+        self.assertNotIn(reverse('reports:home'), html)

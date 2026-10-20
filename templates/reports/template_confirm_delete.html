@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Report Template{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-6 offset-lg-3">
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-triangle-exclamation me-2"></i>Delete Report Template</h5>
+                </div>
+                <div class="card-body">
+                    <p>Delete the report template <strong>{{ template.name }}</strong>?</p>
+                    <p class="text-muted small mb-4">Its generated reports and any schedules that use it are deleted too.</p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger"><i class="fas fa-trash me-1"></i>Delete</button>
+                            <a href="{% url 'reports:template_detail' template.pk %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

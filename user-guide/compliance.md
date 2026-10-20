@@ -141,4 +141,4 @@ Each control row carries the full subsection ref (e.g., `164.308(a)(1)(ii)(A)`).
 ## Related
 
 - **[Phase 39 — Compliance Evidence Packs](../docs/ROADMAP.md)** — a single ZIP of supporting evidence (2FA status, user access, password history, assets, SLA, certificate and uptime summaries, vulnerabilities) for audits and customer due-diligence requests. It does not include the attestation answers or evidence links; download the PDF report for those. Only PCI-DSS and HIPAA control catalogs are seeded.
-- **[Reports & Analytics](reports.md)** — the same `reports.pdf_export` helper renders branded PDFs for invoices, quotes, and compliance reports.
+- **[Reports & Dashboards](reports.md)** — the same `reports.pdf_export` helper renders branded PDFs for invoices, quotes, and compliance reports.

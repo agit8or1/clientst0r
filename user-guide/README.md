@@ -17,7 +17,7 @@ ClientSt0r is a self-hosted IT management platform for MSPs and IT teams — com
 | [Website & WAN Monitoring](wan-monitoring.md) | Scheduled HTTP/HTTPS and WAN ping checks with down alerts; certificate expiry |
 | [Security](security.md) | 2FA, LDAP and SSO sign-in, Security settings, RBAC, audit logs, encryption and key rotation |
 | [Compliance](compliance.md) | PCI-DSS / HIPAA attestation, customer reports, recertification |
-| [Reports & Analytics](reports.md) | Custom dashboards, report templates, scheduled reports |
+| [Reports & Dashboards](reports.md) | Report templates, scheduled reports, PSA reports, dashboards, wallboards (MSP staff only) |
 | [Workflows](workflows.md) | Step-by-step checklists and process executions |
 | [Documentation & KB](documentation.md) | Runbooks, knowledge base, document lifecycle and versions, documentation readiness, diagrams, AI assistant |
 | [Locations & WAN](locations.md) | Physical sites and WAN connection management |

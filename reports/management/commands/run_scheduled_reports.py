@@ -90,10 +90,21 @@ class Command(BaseCommand):
             # Storing the file is best-effort — don't fail the schedule run.
             pass
 
-        # Email to recipients
-        if sched.recipients:
-            self._email_artifact(sched, gen, filename, artifact_bytes,
-                                 output_format)
+        # Email to recipients, unless the schedule is "Download Only". An
+        # email problem is recorded on the generated report; the schedule
+        # still rolls forward so it doesn't regenerate every tick.
+        if sched.recipients and sched.delivery_method in ('email', 'both'):
+            try:
+                sent = self._email_artifact(sched, gen, filename, artifact_bytes,
+                                            output_format)
+            except Exception as exc:
+                sent = None
+                gen.error_message = f'Email not sent: {exc}'[:2000]
+            if sent == 0 and not gen.error_message:
+                gen.error_message = 'Email not sent: SMTP is not configured in Settings → Email.'
+            if gen.error_message:
+                gen.save(update_fields=['error_message'])
+                self.stderr.write(f'  ! {sched.name}: {gen.error_message}')
 
         # Roll forward
         sched.last_run = timezone.now()
@@ -126,8 +137,14 @@ class Command(BaseCommand):
 
     def _email_artifact(self, sched, gen, filename, artifact_bytes,
                         output_format):
-        from django.conf import settings
+        """Send the report to each recipient through the SMTP settings in
+        Settings → Email (the same connection every other notification
+        uses). Returns how many messages were accepted; 0 when SMTP is not
+        configured."""
         from django.core.mail import EmailMessage
+
+        from core.mailer import brand_name, default_from_email, get_smtp_connection
+        from core.models import SystemSetting
 
         recipients = sched.recipients
         if isinstance(recipients, str):
@@ -135,25 +152,28 @@ class Command(BaseCommand):
                           for r in recipients.replace(';', ',').split(',')
                           if r.strip()]
         if not recipients:
-            return
+            return 0
+        system = SystemSetting.get_settings()
+        connection = get_smtp_connection(system)
+        if connection is None:
+            return 0
 
-        subject = f'[Client St0r] Scheduled report: {sched.name}'
+        subject = f'[{brand_name(system)}] Scheduled report: {sched.name}'
         body = (
             f'Your scheduled report "{sched.name}" was generated at '
-            f'{gen.created_at}.\n\nSee attached.'
+            f'{gen.created_at:%Y-%m-%d %H:%M %Z}.\n\nThe report is attached.'
         )
-        msg = EmailMessage(
-            subject=subject, body=body,
-            from_email=(getattr(settings, 'DEFAULT_FROM_EMAIL', None)
-                        or 'noreply@localhost'),
-            to=recipients,
-        )
-        ext = (output_format or 'pdf').lower()
         mime = {
             'pdf': 'application/pdf',
             'csv': 'text/csv',
             'json': 'application/json',
-            'excel': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        }.get(ext, 'application/octet-stream')
-        msg.attach(filename, artifact_bytes, mime)
-        msg.send(fail_silently=False)
+        }.get((output_format or 'pdf').lower(), 'application/octet-stream')
+        sent = 0
+        # One message per recipient, so recipients don't see each other.
+        for address in recipients:
+            msg = EmailMessage(subject=subject, body=body,
+                               from_email=default_from_email(system),
+                               to=[address], connection=connection)
+            msg.attach(filename, artifact_bytes, mime)
+            sent += msg.send(fail_silently=False)
+        return sent

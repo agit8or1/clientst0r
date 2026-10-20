@@ -5,6 +5,103 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.618] - 2026-10-20
+
+### API keys: the permission level is enforced
+
+- An API key's **Permission Level** (Read-Only, Editor, Admin, Owner) was
+  stored and shown but never checked, so every key could do whatever its
+  owner could. It now caps the key, on top of the owner's own role:
+  **Read-Only** keys can read but not create, edit, delete or reveal
+  passwords, OTP codes or license keys; **Editor** keys can create, edit and
+  reveal, but not delete or publish documents; **Admin** and **Owner** keys
+  can do everything the owner's role allows.
+- **Check your existing keys.** Keys made with the default Read-Only level
+  now get 403 on writes and reveals. The browser extension reveals passwords
+  through its key, so an extension set up with a Read-Only key needs a new
+  key at Editor or higher. The key form and the extension setup page say so.
+- REST writes now check the module permissions in the record's customer, not
+  only the view permission: **Create**, **Edit** and **Delete** for assets
+  and contacts (asset permissions), documents and passwords, and **Publish
+  documents** for the publish action or a change to `is_published`.
+- Tag create, rename and delete through the API are superuser-only, as in
+  the web app. Tags attached through `tag_ids` must belong to the record's
+  organization; any tag id was accepted before, and the response echoed
+  another customer's tag name.
+
+### Reports are for MSP staff only
+
+- Most of `/reports/` covers every customer: the wallboard (including the
+  newest tickets' subjects and customers), profitability, AR aging,
+  reconciliations, SLA and ticket reports, the executive scorecard. A customer
+  user whose role allowed reports (a customer Owner role includes financial
+  reports) could open them. `/reports/` now returns 403 for customer users,
+  and the Reports menu is hidden for them.
+- Saved queries on vault entries listed every entry's title and username,
+  including other users' personal (My Vault) entries, and ignored the **View
+  passwords** and **View assets** permissions. They now show only shared
+  entries you may view and your own personal ones.
+
+### Report templates and scheduled reports work
+
+- **New Template** and **Edit** on report templates failed (their page
+  template was missing), as did **New Schedule** and **Edit** on scheduled
+  reports (they read a setting name that doesn't exist) and the delete pages
+  for templates, generated reports and schedules. All of them work now, with
+  validation: a template needs a report type that has a generator, a schedule
+  needs a template available to the customer, valid recipient addresses, and
+  at least one recipient when it emails.
+- Schedules have a **Format** (PDF, CSV or JSON); it was always PDF. **Excel**
+  is no longer offered: choosing it produced a PDF.
+- Scheduled reports are emailed through the SMTP settings in *Settings →
+  Email*, one message per recipient (they went through Django's default mail
+  backend, with every recipient on one message). **Download Only** no longer
+  emails. If SMTP isn't set up or sending fails, the report is still saved
+  with a note saying why, and the schedule moves on instead of retrying every
+  15 minutes.
+- Four of the eight built-in reports failed on every run, for every
+  customer, because they queried fields or a model that don't exist: **Asset
+  Summary** (an asset active flag), **Password Security Audit** (`totp_secret`,
+  `category`), **Expiration Forecast** (`expiration_date`, `type`) and
+  **Organization Metrics** (`OrganizationMember`). All four run now. Asset
+  Summary reports assets needing reorder and with expired warranties instead
+  of active/inactive; Password Security Audit covers shared entries only and
+  adds expired, expiring and approval-required counts, by type and folder.
+- The built-in **User Activity Report** had no generator and produced a file
+  holding only an error message. It now reports audit-log events by action
+  and by user, sign-ins, changes and failed sign-ins over 30 days. A report
+  type with no generator now fails instead of saving an error file.
+- The **Monitor Uptime** report adds 30-day uptime for each monitored WAN
+  connection.
+- Reports are generated for the customer selected in the organization
+  switcher, not always the first membership.
+- Edit and Delete buttons on a template (the Edit button never showed), Delete
+  on schedules and generated reports.
+- Icons on the reports, webhook and feature-settings pages were blank: they
+  used Bootstrap Icons classes, which no page loads. They use Font Awesome now.
+- The **Analytics** link is removed from the menu and the Reports home.
+  Nothing records analytics events, so the page was always empty.
+
+### Documentation
+
+- `user-guide/api.md` rewritten from the code. It listed `/api/vehicles/`,
+  which doesn't exist, a `page_size` parameter (pages are a fixed 50), a
+  browsable API (it's off unless `DEBUG` is on), "configurable" per-key rate
+  limits (1,000 requests per hour per user) and a key location that doesn't
+  exist. Contacts, documents and tags were missing. New sections cover key
+  levels and scopes, permissions, `?organization=`, every endpoint's filters,
+  search and ordering, GraphQL, the WAN webhook events and how to verify
+  `X-Webhook-Signature`.
+- `API_V2_GRAPHQL.md` rewritten from the live schema. The examples used a
+  paging shape the schema doesn't have, JWT headers it doesn't accept,
+  `/api/v1/` paths and rate limits that don't apply. It now covers session
+  and CSRF authentication, every query and mutation, and working examples.
+- `user-guide/reports.md` rewritten. It described widget types, template
+  fields, Excel output and analytics that don't exist, and left out
+  wallboards, the PSA and finance reports and saved queries.
+- The in-app API and Reports help pages, `FEATURES.md` and the user-guide
+  index match.
+
 ## [3.17.617] - 2026-10-20
 
 ### Scheduled WAN connection checks with down and recovery alerts

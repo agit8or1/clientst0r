@@ -222,9 +222,21 @@ class SectionPermissionMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    # Sections only MSP technicians may open. Most of /reports/ (wallboards,
+    # profitability, AR aging, ticket and SLA reports, the executive
+    # scorecard) aggregates every customer, and a customer's Owner role
+    # grants reports_view_financial, so until v3.17.618 a customer user could
+    # read other customers' figures and recent ticket subjects there.
+    STAFF_ONLY_PREFIXES = ('/reports/',)
+
     def __call__(self, request):
         user = getattr(request, 'user', None)
         if user is not None and user.is_authenticated:
+            if request.path.startswith(self.STAFF_ONLY_PREFIXES):
+                from django.core.exceptions import PermissionDenied
+                from psa.visibility import is_msp_staff
+                if not is_msp_staff(user):
+                    raise PermissionDenied('Reports are available to MSP staff only.')
             perm = self._required_perm(request.path)
             if perm is not None:
                 self._check(request, user, perm)

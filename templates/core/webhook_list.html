@@ -10,7 +10,7 @@
         </div>
         <div class="col-auto">
             <a href="{% url 'core:webhook_create' %}" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> Create Webhook
+                <i class="fas fa-circle-plus"></i> Create Webhook
             </a>
         </div>
     </div>
@@ -37,7 +37,7 @@
                             <td>
                                 <strong>{{ webhook.name }}</strong>
                                 {% if webhook.secret %}
-                                <i class="bi bi-shield-lock text-success" title="Signed with secret"></i>
+                                <i class="fas fa-shield-halved text-success" title="Signed with secret"></i>
                                 {% endif %}
                             </td>
                             <td>
@@ -68,9 +68,9 @@
                                         {{ last_delivery.delivered_at|timesince }} ago
                                     </span>
                                     {% if last_delivery.status == 'success' %}
-                                    <i class="bi bi-check-circle text-success"></i>
+                                    <i class="fas fa-circle-check text-success"></i>
                                     {% elif last_delivery.status == 'failed' %}
-                                    <i class="bi bi-x-circle text-danger"></i>
+                                    <i class="fas fa-circle-xmark text-danger"></i>
                                     {% endif %}
                                 {% else %}
                                     <span class="text-muted">Never</span>
@@ -100,22 +100,22 @@
                                     <a href="{% url 'core:webhook_deliveries' webhook.id %}"
                                        class="btn btn-outline-secondary"
                                        title="View Deliveries">
-                                        <i class="bi bi-list-ul"></i>
+                                        <i class="fas fa-list-ul"></i>
                                     </a>
                                     <a href="{% url 'core:webhook_test' webhook.id %}"
                                        class="btn btn-outline-primary"
                                        title="Test Webhook">
-                                        <i class="bi bi-send"></i>
+                                        <i class="fas fa-paper-plane"></i>
                                     </a>
                                     <a href="{% url 'core:webhook_edit' webhook.id %}"
                                        class="btn btn-outline-warning"
                                        title="Edit">
-                                        <i class="bi bi-pencil"></i>
+                                        <i class="fas fa-pen"></i>
                                     </a>
                                     <a href="{% url 'core:webhook_delete' webhook.id %}"
                                        class="btn btn-outline-danger"
                                        title="Delete">
-                                        <i class="bi bi-trash"></i>
+                                        <i class="fas fa-trash"></i>
                                     </a>
                                 </div>
                             </td>
@@ -128,7 +128,7 @@
     </div>
     {% else %}
     <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
+        <i class="fas fa-circle-info"></i>
         No webhooks configured yet. <a href="{% url 'core:webhook_create' %}">Create your first webhook</a> to start receiving event notifications.
     </div>
     {% endif %}

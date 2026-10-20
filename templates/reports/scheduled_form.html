@@ -10,7 +10,7 @@
             <div class="card">
                 <div class="card-header">
                     <h4 class="mb-0">
-                        <i class="bi bi-calendar-check me-2"></i>
+                        <i class="fas fa-calendar-check me-2"></i>
                         {{ action }} Scheduled Report
                     </h4>
                 </div>
@@ -54,14 +54,23 @@
                         </div>
 
                         <div class="mb-3">
+                            <label for="output_format" class="form-label">Format *</label>
+                            <select class="form-select" id="output_format" name="output_format" required>
+                                {% for value, label in formats %}
+                                <option value="{{ value }}" {% if schedule.output_format == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="recipients" class="form-label">Recipients (Email Addresses)</label>
                             <input type="text" class="form-control" id="recipients" name="recipients" value="{{ recipients_str }}" placeholder="email1@example.com, email2@example.com">
-                            <div class="form-text">Separate multiple email addresses with commas</div>
+                            <div class="form-text">Separate multiple email addresses with commas. Each recipient gets their own copy with the report attached, sent through the SMTP settings in Settings → Email. Download Only keeps the report under Generated Reports without emailing it.</div>
                         </div>
 
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save me-2"></i>{{ action }} Schedule
+                                <i class="fas fa-floppy-disk me-2"></i>{{ action }} Schedule
                             </button>
                             <a href="{% url 'reports:scheduled_list' %}" class="btn btn-secondary">Cancel</a>
                         </div>

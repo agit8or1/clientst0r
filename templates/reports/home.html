@@ -8,7 +8,7 @@
     <div class="row mb-4">
         <div class="col-12">
             <h1 class="h2">
-                <i class="bi bi-bar-chart-fill me-2"></i>
+                <i class="fas fa-chart-column me-2"></i>
                 Reports & Analytics
             </h1>
             <p class="text-muted">Generate reports, view dashboards, and analyze your data</p>
@@ -22,7 +22,7 @@
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <i class="bi bi-graph-up fs-1 text-primary"></i>
+                            <i class="fas fa-chart-line fs-1 text-primary"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <h6 class="text-muted mb-1">Dashboards</h6>
@@ -38,7 +38,7 @@
                 <div class="card-body">
                     <div class="d="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <i class="bi bi-file-earmark-text fs-1 text-success"></i>
+                            <i class="fas fa-file-lines fs-1 text-success"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <h6 class="text-muted mb-1">Templates</h6>
@@ -54,7 +54,7 @@
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <i class="bi bi-clock-history fs-1 text-info"></i>
+                            <i class="fas fa-clock-rotate-left fs-1 text-info"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <h6 class="text-muted mb-1">Active Schedules</h6>
@@ -70,7 +70,7 @@
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <i class="bi bi-file-earmark-pdf fs-1 text-warning"></i>
+                            <i class="fas fa-file-pdf fs-1 text-warning"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
                             <h6 class="text-muted mb-1">Recent Reports</h6>
@@ -87,32 +87,27 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-lightning-fill me-2"></i>Quick Actions</h5>
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-3 mb-2">
                             <a href="{% url 'reports:dashboard_list' %}" class="btn btn-outline-primary w-100">
-                                <i class="bi bi-grid-3x3-gap me-2"></i>View Dashboards
+                                <i class="fas fa-table-cells me-2"></i>View Dashboards
                             </a>
                         </div>
                         <div class="col-md-3 mb-2">
                             <a href="{% url 'reports:template_list' %}" class="btn btn-outline-success w-100">
-                                <i class="bi bi-file-earmark-plus me-2"></i>Generate Report
+                                <i class="fas fa-file-circle-plus me-2"></i>Generate Report
                             </a>
                         </div>
                         {% if perm.manage_scheduled %}
                         <div class="col-md-3 mb-2">
                             <a href="{% url 'reports:scheduled_list' %}" class="btn btn-outline-info w-100">
-                                <i class="bi bi-calendar-check me-2"></i>Scheduled Reports
+                                <i class="fas fa-calendar-check me-2"></i>Scheduled Reports
                             </a>
                         </div>
                         {% endif %}
-                        <div class="col-md-3 mb-2">
-                            <a href="{% url 'reports:analytics_overview' %}" class="btn btn-outline-warning w-100">
-                                <i class="bi bi-graph-up me-2"></i>Analytics
-                            </a>
-                        </div>
                         {# v3.17.146 — Phase 3.6 wave A: Wallboard + Executive Scorecard #}
                         {% if perm.view_dashboards %}
                         <div class="col-md-3 mb-2">
@@ -305,7 +300,7 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Reports</h5>
+                    <h5 class="mb-0"><i class="fas fa-clock-rotate-left me-2"></i>Recent Reports</h5>
                     <a href="{% url 'reports:generated_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
                 <div class="card-body">
@@ -342,7 +337,7 @@
                                         <td>{{ report.created_at|date:"Y-m-d H:i" }}</td>
                                         <td>
                                             <a href="{% url 'reports:generated_detail' report.pk %}" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-eye"></i>
+                                                <i class="fas fa-eye"></i>
                                             </a>
                                         </td>
                                     </tr>

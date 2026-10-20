@@ -50,18 +50,19 @@ class AssetSummaryReport(ReportGenerator):
         days = self.parameters.get('recent_days', 30)
         recent_date = timezone.now() - timedelta(days=days)
 
-        # Consolidated count query instead of 3 separate .count() calls
+        # Assets have no active/inactive flag; the report counted
+        # `is_active` and failed on every run until v3.17.618.
         counts = assets.aggregate(
             total=Count('id'),
-            active=Count('id', filter=Q(is_active=True)),
-            inactive=Count('id', filter=Q(is_active=False)),
+            needs_reorder=Count('id', filter=Q(needs_reorder=True)),
+            warranty_expired=Count('id', filter=Q(warranty_expiry__lt=timezone.now().date())),
             recent=Count('id', filter=Q(created_at__gte=recent_date)),
         )
 
         return {
             'total_assets': counts['total'],
-            'active_assets': counts['active'],
-            'inactive_assets': counts['inactive'],
+            'needs_reorder': counts['needs_reorder'],
+            'warranty_expired': counts['warranty_expired'],
             'recent_assets': counts['recent'],
             'by_type': list(by_type),
             'generated_at': timezone.now().isoformat(),
@@ -105,36 +106,39 @@ class AssetLifecycleReport(ReportGenerator):
 
 
 class PasswordAuditReport(ReportGenerator):
-    """Password security audit"""
+    """Shared vault entries of the organization (personal My Vault entries
+    are left out). Until v3.17.618 it queried fields that don't exist
+    (`totp_secret`, `category`) and failed on every run."""
 
     def generate(self):
-        passwords = Password.objects.filter(organization=self.organization)
+        passwords = Password.objects.filter(organization=self.organization, is_personal=False)
+        total = passwords.count()
+        now = timezone.now()
 
-        # Passwords with weak indicators
-        no_special_chars = 0
-        short_passwords = 0
-        old_passwords = 0
+        totp_enabled = passwords.exclude(otp_secret='').exclude(otp_secret__isnull=True).count()
 
-        # TOTP enabled count
-        totp_enabled = passwords.exclude(totp_secret='').count()
-
-        # Recently changed
         days = self.parameters.get('recent_days', 90)
-        recent_date = timezone.now() - timedelta(days=days)
-        recently_updated = passwords.filter(updated_at__gte=recent_date).count()
+        recently_updated = passwords.filter(updated_at__gte=now - timedelta(days=days)).count()
 
-        # Passwords by category
-        by_category = passwords.values('category__name').annotate(
-            count=Count('id')
-        ).order_by('-count')
+        by_folder = [
+            {'folder': row['folder__name'] or '(no folder)', 'count': row['count']}
+            for row in passwords.values('folder__name').annotate(count=Count('id')).order_by('-count')
+        ]
+        by_type = list(passwords.values('password_type').annotate(count=Count('id')).order_by('-count'))
 
         return {
-            'total_passwords': passwords.count(),
+            'total_passwords': total,
             'totp_enabled': totp_enabled,
-            'totp_percentage': round((totp_enabled / passwords.count() * 100) if passwords.count() > 0 else 0, 2),
+            'totp_percentage': round(totp_enabled * 100.0 / total, 2) if total else 0,
             'recently_updated': recently_updated,
-            'by_category': list(by_category),
-            'generated_at': timezone.now().isoformat(),
+            'recent_days': days,
+            'expired': passwords.filter(expires_at__lt=now).count(),
+            'expiring_30_days': passwords.filter(expires_at__gte=now,
+                                                 expires_at__lt=now + timedelta(days=30)).count(),
+            'requires_reveal_approval': passwords.filter(requires_reveal_approval=True).count(),
+            'by_type': by_type,
+            'by_folder': by_folder,
+            'generated_at': now.isoformat(),
         }
 
 
@@ -222,6 +226,70 @@ class MonitorUptimeReport(ReportGenerator):
                                   if total_checks else None),
             'monitors': rows,
             'by_status': list(by_status),
+            'wan_connections': self._wan_rows(),
+            'generated_at': timezone.now().isoformat(),
+        }
+
+    def _wan_rows(self):
+        """WAN connections with monitoring on, uptime from their checks
+        (v3.17.617); None when a connection has no checks in the window."""
+        from locations.models import WAN
+
+        rows = []
+        wans = (WAN.objects.filter(organization=self.organization, monitoring_enabled=True)
+                .select_related('location').order_by('location__name', 'name'))
+        for w in wans:
+            u = w.uptime(self.WINDOW_DAYS)
+            rows.append({
+                'location': w.location.name,
+                'name': w.name,
+                'target': w.monitor_target,
+                'status': w.status,
+                'uptime_percent': u['percent'],
+                'checks': u['checks'],
+                'down_checks': u['down'],
+            })
+        return rows
+
+
+class UserActivityReport(ReportGenerator):
+    """Audit-log activity for the organization over the last `days` (default
+    30): totals by action and by user, and failed sign-ins. The built-in
+    "User Activity Report" template had no generator until v3.17.618, so it
+    produced a file holding only an error message."""
+
+    def generate(self):
+        from audit.models import AuditLog
+
+        try:
+            days = max(1, min(int(self.parameters.get('days', 30)), 366))
+        except (TypeError, ValueError):
+            days = 30
+        since = timezone.now() - timedelta(days=days)
+        events = AuditLog.objects.filter(organization=self.organization, timestamp__gte=since)
+        by_action = events.values('action').annotate(count=Count('id')).order_by('-count')
+        # Many rows are written with `user` set and `username` blank, others
+        # (deleted users) with only `username`.
+        grouped = (events.values('user_id', 'user__username', 'username')
+                   .annotate(count=Count('id'),
+                             logins=Count('id', filter=Q(action='login')),
+                             changes=Count('id', filter=Q(action__in=['create', 'update', 'delete']))))
+        totals = {}
+        for row in grouped:
+            name = row['user__username'] or row['username']
+            if not name:
+                continue
+            t = totals.setdefault(name, {'username': name, 'count': 0, 'logins': 0, 'changes': 0})
+            for k in ('count', 'logins', 'changes'):
+                t[k] += row[k]
+        by_user = sorted(totals.values(), key=lambda r: (-r['count'], r['username']))[:50]
+        return {
+            'window_days': days,
+            'total_events': events.count(),
+            'active_users': len(totals),
+            'failed_logins': events.filter(action='login_failed').count(),
+            'by_action': list(by_action),
+            'by_user': by_user,
             'generated_at': timezone.now().isoformat(),
         }
 
@@ -243,9 +311,12 @@ class ExpirationForecastReport(ReportGenerator):
             'future': 0,
         }
 
+        # The report read `expiration_date` and grouped by `type`; the fields
+        # are `expires_at` and `expiration_type` (it failed on every run until
+        # v3.17.618).
         for exp in expirations:
-            if exp.expiration_date:
-                days_until = (exp.expiration_date - now).days
+            if exp.expires_at:
+                days_until = (exp.expires_at.date() - now).days
 
                 if days_until < 0:
                     forecast['expired'] += 1
@@ -259,7 +330,7 @@ class ExpirationForecastReport(ReportGenerator):
                     forecast['future'] += 1
 
         # By type
-        by_type = expirations.values('type').annotate(
+        by_type = expirations.values('expiration_type').annotate(
             count=Count('id')
         ).order_by('-count')
 
@@ -275,20 +346,19 @@ class OrganizationMetricsReport(ReportGenerator):
     """Overall organization metrics"""
 
     def generate(self):
-        from accounts.models import OrganizationMember
+        from accounts.models import Membership
 
-        # Member counts
-        members = OrganizationMember.objects.filter(organization=self.organization)
+        # Member counts (the report imported a model that doesn't exist and
+        # failed on every run until v3.17.618).
+        members = Membership.objects.filter(organization=self.organization)
         member_count = members.count()
-        active_members = members.filter(user__is_active=True).count()
+        active_members = members.filter(is_active=True, user__is_active=True).count()
 
-        # Asset metrics
         assets = Asset.objects.filter(organization=self.organization)
         asset_count = assets.count()
-        active_assets = assets.filter(is_active=True).count()
 
         # Password metrics
-        password_count = Password.objects.filter(organization=self.organization).count()
+        password_count = Password.objects.filter(organization=self.organization, is_personal=False).count()
 
         # Document metrics
         document_count = Document.objects.filter(organization=self.organization).count()
@@ -305,7 +375,6 @@ class OrganizationMetricsReport(ReportGenerator):
             'metrics': {
                 'assets': {
                     'total': asset_count,
-                    'active': active_assets,
                 },
                 'passwords': password_count,
                 'documents': document_count,
@@ -594,6 +663,7 @@ REPORT_GENERATORS = {
     'monitor_uptime': MonitorUptimeReport,
     'expiration_forecast': ExpirationForecastReport,
     'organization_metrics': OrganizationMetricsReport,
+    'user_activity': UserActivityReport,
     # PSA — Workstream 6
     'psa_open_tickets_by_client': PSAOpenTicketsByClientReport,
     'psa_sla_breaches': PSASLABreachesReport,
@@ -674,6 +744,12 @@ def get_report_generator(report_type):
 # v3.17.147 — Phase 3.6 wave B: artifact wrapper for the cron runner
 # ---------------------------------------------------------------------------
 
+# Formats generate_report can write. GeneratedReport.FORMAT_CHOICES also
+# lists Excel, which was offered on the forms but written as a PDF.
+OUTPUT_FORMATS = ('pdf', 'csv', 'json')
+FORMAT_CHOICES = [('pdf', 'PDF'), ('csv', 'CSV'), ('json', 'JSON')]
+
+
 def generate_report(template, output_format='pdf', organization=None, parameters=None):
     """
     Run the generator for ``template`` and serialize the result to the
@@ -690,15 +766,14 @@ def generate_report(template, output_format='pdf', organization=None, parameters
 
     cls = REPORT_GENERATORS.get(template.report_type)
     if cls is None:
-        # Graceful fallback: serialize the template metadata.
-        data = {'error': f'No generator for report_type={template.report_type}',
-                'template': template.name}
-    else:
-        org = organization or getattr(template, 'organization', None)
-        gen = cls(org, parameters or {})
-        data = gen.generate()
+        # Used to write a "successful" file holding only an error message.
+        raise ValueError(f'There is no generator for the report type "{template.report_type}".')
+    org = organization or getattr(template, 'organization', None)
+    data = cls(org, parameters or {}).generate()
 
     fmt = (output_format or 'pdf').lower()
+    if fmt not in OUTPUT_FORMATS:
+        raise ValueError(f'Unsupported report format "{output_format}".')
     safe_name = (template.name or 'report').replace(' ', '_')
     stamp = timezone.now().strftime('%Y%m%d-%H%M%S')
 

@@ -10,7 +10,7 @@
             <div class="card">
                 <div class="card-header">
                     <h4 class="mb-0">
-                        <i class="bi bi-grid-3x3-gap me-2"></i>
+                        <i class="fas fa-table-cells me-2"></i>
                         {{ action }} Dashboard
                     </h4>
                 </div>
@@ -37,7 +37,7 @@
 
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-save me-2"></i>{{ action }} Dashboard
+                                <i class="fas fa-floppy-disk me-2"></i>{{ action }} Dashboard
                             </button>
                             <a href="{% if dashboard %}{% url 'reports:dashboard_detail' dashboard.pk %}{% else %}{% url 'reports:dashboard_list' %}{% endif %}" class="btn btn-secondary">Cancel</a>
                         </div>

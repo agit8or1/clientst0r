@@ -38,6 +38,88 @@ def get_user_primary_organization(user):
     return membership.organization if membership else None
 
 
+def _working_org(request):
+    """The organization selected in the session, else the first membership."""
+    from core.middleware import get_request_organization
+    return get_request_organization(request) or get_user_primary_organization(request.user)
+
+
+def _generatable_types():
+    """Report types a template can use: the ones with a generator."""
+    return [(k, label) for k, label in ReportTemplate.REPORT_TYPES if k in REPORT_GENERATORS]
+
+
+def _template_from_post(request, template, org):
+    """Fill `template` from the form; return a list of errors."""
+    errors = []
+    template.name = (request.POST.get('name') or '').strip()[:200]
+    template.description = request.POST.get('description', '').strip()
+    template.report_type = request.POST.get('report_type') or ''
+    if not template.name:
+        errors.append('Enter a name.')
+    if template.report_type not in dict(_generatable_types()):
+        errors.append('Choose a report type.')
+    template.is_global = request.POST.get('is_global') == 'on' and request.user.is_staff
+    template.organization = None if template.is_global else org
+    if template.query_template is None:
+        template.query_template = ''
+    return errors
+
+
+def _schedule_from_post(request, schedule, orgs):
+    """Fill `schedule` from the form; return a list of errors."""
+    from django.core.validators import validate_email
+    from django.core.exceptions import ValidationError
+    from .generators import OUTPUT_FORMATS
+
+    errors = []
+    schedule.name = (request.POST.get('name') or '').strip()[:200]
+    if not schedule.name:
+        errors.append('Enter a name.')
+    template = ReportTemplate.objects.filter(
+        Q(organization__in=orgs) | Q(is_global=True),
+        pk=request.POST.get('template') or None,
+    ).first() if (request.POST.get('template') or '').isdigit() else None
+    if template is None:
+        errors.append('Choose a report template.')
+    else:
+        schedule.template = template
+    schedule.frequency = request.POST.get('frequency') or ''
+    if schedule.frequency not in dict(ScheduledReport.FREQUENCY_CHOICES):
+        errors.append('Choose a frequency.')
+    schedule.delivery_method = request.POST.get('delivery_method') or ''
+    if schedule.delivery_method not in dict(ScheduledReport.DELIVERY_METHODS):
+        errors.append('Choose a delivery method.')
+    schedule.output_format = request.POST.get('output_format') or 'pdf'
+    if schedule.output_format not in OUTPUT_FORMATS:
+        errors.append('Choose a format.')
+    recipients = [e.strip() for e in (request.POST.get('recipients') or '').replace(';', ',').split(',')
+                  if e.strip()]
+    for address in recipients:
+        try:
+            validate_email(address)
+        except ValidationError:
+            errors.append(f'"{address}" is not a valid email address.')
+    schedule.recipients = recipients
+    if schedule.delivery_method in ('email', 'both') and not recipients:
+        errors.append('Add at least one recipient, or choose Download Only.')
+    return errors
+
+
+def _schedule_context(request, schedule, orgs, action):
+    from .generators import FORMAT_CHOICES
+    return {
+        'schedule': schedule,
+        'action': action,
+        'templates': ReportTemplate.objects.filter(
+            Q(organization__in=orgs) | Q(is_global=True)).order_by('name'),
+        'frequencies': ScheduledReport.FREQUENCY_CHOICES,
+        'delivery_methods': ScheduledReport.DELIVERY_METHODS,
+        'formats': FORMAT_CHOICES,
+        'recipients_str': ', '.join(schedule.recipients or []),
+    }
+
+
 @login_required
 @require_perm('reports_view_dashboards')
 def reports_home(request):
@@ -349,6 +431,11 @@ def template_detail(request, pk):
     context = {
         'template': template,
         'recent_reports': recent_reports,
+        # Global (built-in) templates are not editable here; template_edit
+        # only finds templates in the user's organizations.
+        'can_edit': (template.organization_id is not None
+                     and template.organization_id in set(orgs.values_list('id', flat=True))
+                     and user_has_perm(request.user, 'reports_manage_dashboards')),
     }
 
     return render(request, 'reports/template_detail.html', context)
@@ -358,34 +445,27 @@ def template_detail(request, pk):
 @require_perm('reports_manage_dashboards')
 def template_create(request):
     """Create a new report template"""
-    org = get_user_primary_organization(request.user)
+    org = _working_org(request)
     if not org and not request.user.is_staff:
         messages.error(request, 'You must be a member of an organization to create templates.')
         return redirect('reports:template_list')
 
+    template = ReportTemplate(created_by=request.user, query_template='')
     if request.method == 'POST':
-        name = request.POST.get('name')
-        description = request.POST.get('description', '')
-        report_type = request.POST.get('report_type')
-        query_template = request.POST.get('query_template', '')
-        is_global = request.POST.get('is_global') == 'on' and request.user.is_staff
-
-        template = ReportTemplate.objects.create(
-            name=name,
-            description=description,
-            report_type=report_type,
-            query_template=query_template,
-            is_global=is_global,
-            organization=org if not is_global else None,
-            created_by=request.user
-        )
-
-        messages.success(request, f'Report template "{name}" created successfully.')
-        return redirect('reports:template_detail', pk=template.pk)
+        errors = _template_from_post(request, template, org)
+        if template.organization is None and not template.is_global:
+            errors.append('Select an organization first, or make the template global.')
+        if not errors:
+            template.save()
+            messages.success(request, f'Report template "{template.name}" created successfully.')
+            return redirect('reports:template_detail', pk=template.pk)
+        for e in errors:
+            messages.error(request, e)
 
     context = {
+        'template': template,
         'action': 'Create',
-        'report_types': ReportTemplate.REPORT_TYPES,
+        'report_types': _generatable_types(),
     }
 
     return render(request, 'reports/template_form.html', context)
@@ -403,20 +483,19 @@ def template_edit(request, pk):
     )
 
     if request.method == 'POST':
-        template.name = request.POST.get('name')
-        template.description = request.POST.get('description', '')
-        template.report_type = request.POST.get('report_type')
-        template.query_template = request.POST.get('query_template', '')
-        template.is_global = request.POST.get('is_global') == 'on' and request.user.is_staff
-        template.save()
-
-        messages.success(request, f'Report template "{template.name}" updated successfully.')
-        return redirect('reports:template_detail', pk=template.pk)
+        org = template.organization
+        errors = _template_from_post(request, template, org)
+        if not errors:
+            template.save()
+            messages.success(request, f'Report template "{template.name}" updated successfully.')
+            return redirect('reports:template_detail', pk=template.pk)
+        for e in errors:
+            messages.error(request, e)
 
     context = {
         'template': template,
         'action': 'Edit',
-        'report_types': ReportTemplate.REPORT_TYPES,
+        'report_types': _generatable_types(),
     }
 
     return render(request, 'reports/template_form.html', context)
@@ -446,7 +525,8 @@ def template_delete(request, pk):
 @login_required
 def generate_report(request, pk):
     """Generate a report from a template"""
-    org = get_user_primary_organization(request.user)
+    from .generators import FORMAT_CHOICES, OUTPUT_FORMATS
+    org = _working_org(request)
     if not org:
         messages.error(request, 'You must be a member of an organization to generate reports.')
         return redirect('reports:template_list')
@@ -459,7 +539,10 @@ def generate_report(request, pk):
     )
 
     if request.method == 'POST':
-        report_format = request.POST.get('format', 'pdf')
+        report_format = (request.POST.get('format') or 'pdf').lower()
+        if report_format not in OUTPUT_FORMATS:
+            messages.error(request, 'Choose PDF, CSV or JSON.')
+            return redirect('reports:generate_report', pk=template.pk)
         parameters = {}
 
         # Create the report generation task
@@ -501,7 +584,8 @@ def generate_report(request, pk):
 
     context = {
         'template': template,
-        'formats': GeneratedReport.FORMAT_CHOICES,
+        'formats': FORMAT_CHOICES,
+        'organization': org,
     }
 
     return render(request, 'reports/generate_form.html', context)
@@ -611,60 +695,27 @@ def scheduled_list(request):
 @require_perm('reports_manage_scheduled')
 def scheduled_create(request):
     """Create a new scheduled report"""
-    org = get_user_primary_organization(request.user)
+    org = _working_org(request)
     if not org:
         messages.error(request, 'You must be a member of an organization to create scheduled reports.')
         return redirect('reports:scheduled_list')
 
     orgs = get_user_organizations(request.user)
+    schedule = ScheduledReport(organization=org, created_by=request.user,
+                               frequency='weekly', delivery_method='email', output_format='pdf')
 
     if request.method == 'POST':
-        name = request.POST.get('name')
-        template_id = request.POST.get('template')
-        frequency = request.POST.get('frequency')
-        delivery_method = request.POST.get('delivery_method')
-        recipients_str = request.POST.get('recipients', '')
+        errors = _schedule_from_post(request, schedule, orgs)
+        if not errors:
+            # save() sets next_run from the frequency.
+            schedule.save()
+            messages.success(request, f'Scheduled report "{schedule.name}" created successfully.')
+            return redirect('reports:scheduled_list')
+        for e in errors:
+            messages.error(request, e)
 
-        template = get_object_or_404(ReportTemplate, pk=template_id)
-        recipients = [email.strip() for email in recipients_str.split(',') if email.strip()]
-
-        # Calculate next run based on frequency
-        next_run = timezone.now()
-        if frequency == 'daily':
-            next_run += timedelta(days=1)
-        elif frequency == 'weekly':
-            next_run += timedelta(weeks=1)
-        elif frequency == 'monthly':
-            next_run += timedelta(days=30)
-        elif frequency == 'quarterly':
-            next_run += timedelta(days=90)
-
-        schedule = ScheduledReport.objects.create(
-            name=name,
-            template=template,
-            organization=org,
-            frequency=frequency,
-            delivery_method=delivery_method,
-            recipients=recipients,
-            next_run=next_run,
-            created_by=request.user
-        )
-
-        messages.success(request, f'Scheduled report "{name}" created successfully.')
-        return redirect('reports:scheduled_list')
-
-    templates = ReportTemplate.objects.filter(
-        Q(organization__in=orgs) | Q(is_global=True)
-    )
-
-    context = {
-        'action': 'Create',
-        'templates': templates,
-        'frequencies': ScheduledReport.FREQUENCY_CHOICES,
-        'delivery_methods': ScheduledReport.DELIVERY_CHOICES,
-    }
-
-    return render(request, 'reports/scheduled_form.html', context)
+    return render(request, 'reports/scheduled_form.html',
+                  _schedule_context(request, schedule, orgs, 'Create'))
 
 
 @login_required
@@ -679,32 +730,19 @@ def scheduled_edit(request, pk):
     )
 
     if request.method == 'POST':
-        schedule.name = request.POST.get('name')
-        template_id = request.POST.get('template')
-        schedule.template = get_object_or_404(ReportTemplate, pk=template_id)
-        schedule.frequency = request.POST.get('frequency')
-        schedule.delivery_method = request.POST.get('delivery_method')
-        recipients_str = request.POST.get('recipients', '')
-        schedule.recipients = [email.strip() for email in recipients_str.split(',') if email.strip()]
-        schedule.save()
+        old_frequency = schedule.frequency
+        errors = _schedule_from_post(request, schedule, orgs)
+        if not errors:
+            if schedule.frequency != old_frequency:
+                schedule.next_run = None  # save() recomputes it
+            schedule.save()
+            messages.success(request, f'Scheduled report "{schedule.name}" updated successfully.')
+            return redirect('reports:scheduled_list')
+        for e in errors:
+            messages.error(request, e)
 
-        messages.success(request, f'Scheduled report "{schedule.name}" updated successfully.')
-        return redirect('reports:scheduled_list')
-
-    templates = ReportTemplate.objects.filter(
-        Q(organization=schedule.organization) | Q(is_global=True)
-    )
-
-    context = {
-        'schedule': schedule,
-        'action': 'Edit',
-        'templates': templates,
-        'frequencies': ScheduledReport.FREQUENCY_CHOICES,
-        'delivery_methods': ScheduledReport.DELIVERY_CHOICES,
-        'recipients_str': ', '.join(schedule.recipients),
-    }
-
-    return render(request, 'reports/scheduled_form.html', context)
+    return render(request, 'reports/scheduled_form.html',
+                  _schedule_context(request, schedule, orgs, 'Edit'))
 
 
 @login_required
@@ -2532,7 +2570,7 @@ def saved_query_run(request, pk):
     org = None
     if sq.organization_id:
         org = sq.organization
-    model, qs = execute(sq, organization=org)
+    model, qs = execute(sq, organization=org, user=request.user)
     if model is None:
         messages.error(request, 'Target model unavailable.')
         return redirect('reports:saved_query_list')

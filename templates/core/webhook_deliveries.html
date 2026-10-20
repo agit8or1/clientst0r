@@ -12,7 +12,7 @@
         </div>
         <div class="col-auto">
             <a href="{% url 'core:webhook_test' webhook.id %}" class="btn btn-primary">
-                <i class="bi bi-send"></i> Test Webhook
+                <i class="fas fa-paper-plane"></i> Test Webhook
             </a>
         </div>
     </div>
@@ -81,15 +81,15 @@
                             <td>
                                 {% if delivery.status == 'success' %}
                                 <span class="badge bg-success">
-                                    <i class="bi bi-check-circle"></i> Success
+                                    <i class="fas fa-circle-check"></i> Success
                                 </span>
                                 {% elif delivery.status == 'failed' %}
                                 <span class="badge bg-danger">
-                                    <i class="bi bi-x-circle"></i> Failed
+                                    <i class="fas fa-circle-xmark"></i> Failed
                                 </span>
                                 {% else %}
                                 <span class="badge bg-secondary">
-                                    <i class="bi bi-clock"></i> Pending
+                                    <i class="fas fa-clock"></i> Pending
                                 </span>
                                 {% endif %}
                             </td>
@@ -127,7 +127,7 @@
                             <td>
                                 <a href="{% url 'core:webhook_delivery_detail' delivery.id %}"
                                    class="btn btn-sm btn-outline-secondary">
-                                    <i class="bi bi-eye"></i> Details
+                                    <i class="fas fa-eye"></i> Details
                                 </a>
                             </td>
                         </tr>
@@ -139,12 +139,12 @@
     </div>
 
     <p class="text-muted mt-3">
-        <i class="bi bi-info-circle"></i>
+        <i class="fas fa-circle-info"></i>
         Showing last 100 deliveries. Older deliveries are automatically archived.
     </p>
     {% else %}
     <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
+        <i class="fas fa-circle-info"></i>
         No deliveries recorded yet. <a href="{% url 'core:webhook_test' webhook.id %}">Send a test webhook</a> to verify your configuration.
     </div>
     {% endif %}

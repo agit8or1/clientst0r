@@ -10,7 +10,7 @@
             <div class="card">
                 <div class="card-header">
                     <h4 class="mb-0">
-                        <i class="bi bi-play-circle me-2"></i>
+                        <i class="fas fa-circle-play me-2"></i>
                         Generate Report: {{ template.name }}
                     </h4>
                 </div>
@@ -30,12 +30,12 @@
                                 <option value="{{ value }}">{{ label }}</option>
                                 {% endfor %}
                             </select>
-                            <div class="form-text">Select the output format for your report</div>
+                            <div class="form-text">PDF, CSV or JSON. The report covers {% if organization %}<strong>{{ organization.name }}</strong>{% else %}your organization{% endif %}.</div>
                         </div>
 
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-play-fill me-2"></i>Generate Report
+                                <i class="fas fa-play me-2"></i>Generate Report
                             </button>
                             <a href="{% url 'reports:template_list' %}" class="btn btn-secondary">Cancel</a>
                         </div>

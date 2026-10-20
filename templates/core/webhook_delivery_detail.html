@@ -8,7 +8,7 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2>{{ title }}</h2>
                 <a href="{% url 'core:webhook_deliveries' delivery.webhook.id %}" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left"></i> Back to Deliveries
+                    <i class="fas fa-arrow-left"></i> Back to Deliveries
                 </a>
             </div>
 
@@ -24,15 +24,15 @@
                                 <dd class="col-sm-8">
                                     {% if delivery.status == 'success' %}
                                     <span class="badge bg-success">
-                                        <i class="bi bi-check-circle"></i> Success
+                                        <i class="fas fa-circle-check"></i> Success
                                     </span>
                                     {% elif delivery.status == 'failed' %}
                                     <span class="badge bg-danger">
-                                        <i class="bi bi-x-circle"></i> Failed
+                                        <i class="fas fa-circle-xmark"></i> Failed
                                     </span>
                                     {% else %}
                                     <span class="badge bg-secondary">
-                                        <i class="bi bi-clock"></i> Pending
+                                        <i class="fas fa-clock"></i> Pending
                                     </span>
                                     {% endif %}
                                 </dd>
@@ -76,7 +76,7 @@
             {% if delivery.status == 'failed' and delivery.error_message %}
             <div class="card mb-3 border-danger">
                 <div class="card-header bg-danger text-white">
-                    <h5><i class="bi bi-exclamation-triangle"></i> Error Details</h5>
+                    <h5><i class="fas fa-triangle-exclamation"></i> Error Details</h5>
                 </div>
                 <div class="card-body">
                     <pre class="bg-light p-3 rounded">{{ delivery.error_message }}</pre>

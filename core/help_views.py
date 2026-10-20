@@ -128,33 +128,39 @@ HELP_INDEX = [
     # API
     {'section': 'API', 'url_name': 'core:help_api',
      'anchor': 'api-overview', 'heading': 'API Overview',
-     'text': 'REST API GraphQL webhook API key authentication rate limit'},
+     'text': 'REST API JSON GraphQL webhook rate limit pagination base URL'},
     {'section': 'API', 'url_name': 'core:help_api',
-     'anchor': 'authentication', 'heading': 'Authentication',
-     'text': 'API key bearer token Authorization header profile settings generate'},
+     'anchor': 'authentication', 'heading': 'API Keys',
+     'text': 'API key bearer token Authorization header permission level read-only editor scope organization'},
     {'section': 'API', 'url_name': 'core:help_api',
      'anchor': 'rest-api', 'heading': 'REST API',
-     'text': 'REST endpoint assets passwords organizations vehicles monitors GET POST PUT DELETE'},
+     'text': 'REST endpoint assets contacts documents passwords tags organizations reveal OTP publish GET POST PUT PATCH DELETE'},
+    {'section': 'API', 'url_name': 'core:help_api',
+     'anchor': 'graphql', 'heading': 'GraphQL',
+     'text': 'GraphQL query mutation websiteMonitors session CSRF'},
     {'section': 'API', 'url_name': 'core:help_api',
      'anchor': 'webhooks', 'heading': 'Webhooks',
-     'text': 'webhook event payload asset created updated monitor down up vulnerability breach'},
+     'text': 'webhook event payload signature HMAC asset document password location monitor WAN down up'},
     {'section': 'API', 'url_name': 'core:help_api',
      'anchor': 'filtering', 'heading': 'Filtering & Pagination',
-     'text': 'filter search ordering pagination page size query parameter'},
+     'text': 'filter search ordering pagination page organization query parameter'},
 
     # Reports
-    {'section': 'Reports & Analytics', 'url_name': 'core:help_reports',
-     'anchor': 'dashboards', 'heading': 'Custom Dashboards',
-     'text': 'dashboard widget analytics asset count warranty monitor status vault health activity'},
-    {'section': 'Reports & Analytics', 'url_name': 'core:help_reports',
+    {'section': 'Reports & Dashboards', 'url_name': 'core:help_reports',
      'anchor': 'report-templates', 'heading': 'Report Templates',
-     'text': 'report template data source filter columns CSV PDF export inventory warranty depreciation'},
-    {'section': 'Reports & Analytics', 'url_name': 'core:help_reports',
+     'text': 'report template generate PDF CSV JSON asset summary lifecycle password audit monitor uptime user activity expiration'},
+    {'section': 'Reports & Dashboards', 'url_name': 'core:help_reports',
      'anchor': 'scheduled-reports', 'heading': 'Scheduled Reports',
-     'text': 'scheduled report recurring daily weekly monthly email delivery automation'},
-    {'section': 'Reports & Analytics', 'url_name': 'core:help_reports',
-     'anchor': 'analytics', 'heading': 'Analytics',
-     'text': 'analytics trend chart asset growth uptime vault usage audit events'},
+     'text': 'scheduled report recurring daily weekly monthly quarterly email delivery download only'},
+    {'section': 'Reports & Dashboards', 'url_name': 'core:help_reports',
+     'anchor': 'psa-reports', 'heading': 'PSA and Finance Reports',
+     'text': 'profitability SLA ticket aging AR aging reconciliation MRR forecast scorecard'},
+    {'section': 'Reports & Dashboards', 'url_name': 'core:help_reports',
+     'anchor': 'dashboards', 'heading': 'Dashboards & Wallboards',
+     'text': 'dashboard wallboard widget TV NOC rotate metric chart table'},
+    {'section': 'Reports & Dashboards', 'url_name': 'core:help_reports',
+     'anchor': 'saved-queries', 'heading': 'Saved Queries',
+     'text': 'saved query filter columns tickets assets invoices time entries'},
 
     # Workflows
     {'section': 'Workflows', 'url_name': 'core:help_workflows',
@@ -250,8 +256,8 @@ def help_index(request):
          'desc': 'Scheduled website and WAN checks with down and recovery alerts; certificate expiry.'},
         {'icon': 'fa-shield-alt', 'title': 'Security', 'url_name': 'core:help_security',
          'desc': 'Vulnerability scanning, RBAC, audit logging, and 2FA.'},
-        {'icon': 'fa-chart-bar', 'title': 'Reports & Analytics', 'url_name': 'core:help_reports',
-         'desc': 'Custom dashboards, report templates, scheduled reports, and analytics.'},
+        {'icon': 'fa-chart-bar', 'title': 'Reports & Dashboards', 'url_name': 'core:help_reports',
+         'desc': 'Report templates, scheduled reports, PSA reports, dashboards and wallboards. MSP staff only.'},
         {'icon': 'fa-tasks', 'title': 'Workflows', 'url_name': 'core:help_workflows',
          'desc': 'Step-by-step checklists and process executions for repeatable IT tasks.'},
         {'icon': 'fa-book', 'title': 'Documentation & KB', 'url_name': 'core:help_documentation',
@@ -1318,7 +1324,7 @@ def help_security(request):
         'toc': toc,
         'content': content,
         'prev_section': {'title': 'Monitoring', 'url_name': 'core:help_monitoring'},
-        'next_section': {'title': 'Reports & Analytics', 'url_name': 'core:help_reports'},
+        'next_section': {'title': 'Reports & Dashboards', 'url_name': 'core:help_reports'},
     })
 
 
@@ -1327,53 +1333,63 @@ def help_api(request):
     """API documentation"""
     toc = [
         {'anchor': 'api-overview', 'heading': 'API Overview'},
-        {'anchor': 'authentication', 'heading': 'Authentication'},
+        {'anchor': 'authentication', 'heading': 'API Keys'},
         {'anchor': 'rest-api', 'heading': 'REST API'},
+        {'anchor': 'graphql', 'heading': 'GraphQL'},
         {'anchor': 'webhooks', 'heading': 'Webhooks'},
         {'anchor': 'filtering', 'heading': 'Filtering & Pagination'},
     ]
     content = """
-    <h4>API Documentation</h4>
-    <p class="lead">Programmatic access to ClientSt0r via REST API, webhooks, and the browser extension.</p>
+    <h4>API &amp; Integrations</h4>
+    <p class="lead">A JSON REST API, an optional GraphQL endpoint, and outgoing webhooks.</p>
 
     <h5 class="mt-4" id="api-overview"><i class="fas fa-plug"></i> API Overview</h5>
     <ul>
-        <li><strong>REST API:</strong> Full-featured RESTful API for all resources</li>
-        <li><strong>Webhooks:</strong> Real-time event notifications to external services</li>
-        <li><strong>API Keys:</strong> Secure bearer token authentication</li>
-        <li><strong>Rate Limiting:</strong> Fair usage policies (100 req/min standard)</li>
-        <li><strong>Browser Extension:</strong> Uses the same API with your personal key</li>
+        <li><strong>Base URL:</strong> <code>/api/</code>, JSON only (the browsable HTML view is on only with <code>DEBUG</code>).</li>
+        <li><strong>Authentication:</strong> an API key as a Bearer token, or your signed-in session.</li>
+        <li><strong>Pagination:</strong> 50 results per page.</li>
+        <li><strong>Rate limit:</strong> 1,000 requests per hour per user, across all of that user's keys.</li>
+        <li><strong>Permissions:</strong> the same role permissions as the web app, per customer, for reading, creating, editing, deleting, publishing and revealing.</li>
     </ul>
 
-    <h5 class="mt-4" id="authentication"><i class="fas fa-key"></i> Authentication</h5>
-    <p>Include your API key in every request header:</p>
+    <h5 class="mt-4" id="authentication"><i class="fas fa-key"></i> API Keys</h5>
+    <p>Create keys at <strong>Admin &rarr; Access Management &rarr; API Keys</strong>, or go to <code>/api/keys/</code>. The key is shown once. Send it in every request:</p>
     <div class="card mt-2 mb-3">
         <div class="card-body bg-dark">
             <code class="text-info">Authorization: Bearer itdocs_live_YOUR_KEY_HERE</code>
         </div>
     </div>
-    <p>Generate API keys: <strong>Profile menu → API Keys → Create New Key</strong></p>
+    <p>The <strong>permission level</strong> caps what a key can do, and a key never does more than your own role allows:</p>
+    <ul>
+        <li><strong>Read-Only</strong> &mdash; read only; no changes and no password, OTP or license-key reveals.</li>
+        <li><strong>Editor</strong> &mdash; create, edit and reveal; no deleting and no publishing documents.</li>
+        <li><strong>Admin / Owner</strong> &mdash; everything your role allows.</li>
+    </ul>
+    <p>The <strong>organization scope</strong> is the key's own organization, that organization and its sub-locations, or every customer you can reach. The browser extension uses an API key too, and needs Editor or higher to fill in passwords.</p>
 
     <h5 class="mt-4" id="rest-api"><i class="fas fa-exchange-alt"></i> REST API</h5>
-    <p><strong>Base URL:</strong> <code>https://your-server/api/</code></p>
-
     <table class="table table-sm mt-3">
         <thead><tr><th>Resource</th><th>Endpoint</th><th>Methods</th></tr></thead>
         <tbody>
-            <tr><td>Assets</td><td><code>/api/assets/</code></td><td>GET, POST, PATCH, DELETE</td></tr>
-            <tr><td>Passwords</td><td><code>/api/passwords/</code></td><td>GET, POST, PATCH, DELETE</td></tr>
-            <tr><td>Organizations</td><td><code>/api/organizations/</code></td><td>GET, POST, PATCH, DELETE</td></tr>
-            <tr><td>Vehicles</td><td><code>/api/vehicles/</code></td><td>GET, POST, PATCH, DELETE</td></tr>
-            <tr><td>VLANs</td><td><code>/api/vlans/</code></td><td>GET, POST, PATCH, DELETE</td></tr>
+            <tr><td>Assets</td><td><code>/api/assets/</code></td><td>GET, POST, PUT, PATCH, DELETE</td></tr>
+            <tr><td>Contacts</td><td><code>/api/contacts/</code></td><td>GET, POST, PUT, PATCH, DELETE</td></tr>
+            <tr><td>Documents</td><td><code>/api/documents/</code></td><td>GET, POST, PUT, PATCH, DELETE; <code>POST {id}/publish/</code>, <code>POST {id}/archive/</code></td></tr>
+            <tr><td>Passwords</td><td><code>/api/passwords/</code></td><td>GET, POST, PUT, PATCH, DELETE; <code>?reveal=true</code>, <code>POST {id}/reveal/</code>, <code>GET {id}/otp/</code></td></tr>
+            <tr><td>Tags</td><td><code>/api/tags/</code></td><td>GET; writes for superusers</td></tr>
+            <tr><td>Organizations</td><td><code>/api/organizations/</code></td><td>GET</td></tr>
         </tbody>
     </table>
+    <p>Other modules (monitors, WAN connections, locations, tickets) have no REST endpoints.</p>
 
     <pre class="bg-dark p-3 rounded mt-3"><code class="text-light">curl -s https://your-server/api/assets/ \\
   -H "Authorization: Bearer itdocs_live_xxxxx" \\
   | python3 -m json.tool</code></pre>
 
+    <h5 class="mt-4" id="graphql"><i class="fas fa-diagram-project"></i> GraphQL</h5>
+    <p>When the optional <code>graphene-django</code> package is installed, <code>/api/v2/graphql/</code> answers queries for organizations, assets, passwords (no secrets), documents, diagrams, locations, website monitors and expirations, plus a few asset and document mutations. It uses your signed-in session and CSRF token; API keys are not accepted there.</p>
+
     <h5 class="mt-4" id="webhooks"><i class="fas fa-bell"></i> Webhooks</h5>
-    <p>Configure webhooks at <strong>Settings → Webhooks → Create Webhook</strong>.</p>
+    <p>Configure webhooks at <strong>Settings &rarr; Webhooks &rarr; Create Webhook</strong>.</p>
     <p>Supported events (fired from web, REST API, mobile and sync jobs alike):</p>
     <ul>
         <li><code>asset.created</code> / <code>asset.updated</code> / <code>asset.deleted</code></li>
@@ -1383,65 +1399,21 @@ def help_api(request):
         <li><code>organization.updated</code></li>
         <li><code>user.login</code> / <code>user.logout</code> / <code>user.login_failed</code> / <code>user.password_changed</code> &mdash; customer users only, sent to the organizations they belong to (MSP staff activity is never sent)</li>
         <li><code>monitor.down</code> / <code>monitor.up</code> / <code>monitor.check_failed</code></li>
+        <li><code>wan.down</code> / <code>wan.up</code> / <code>wan.check_failed</code></li>
         <li><code>workflow.started</code> / <code>workflow.completed</code> / <code>workflow.failed</code></li>
         <li><code>integration.synced</code> / <code>integration.failed</code></li>
     </ul>
-    <p>Each POST body is <code>{"event", "timestamp", "organization", "webhook_id", "data"}</code>. When a secret is set, the body is signed with HMAC-SHA256 in the <code>X-Webhook-Signature</code> header (<code>sha256=&lt;hex&gt;</code>). Deliveries are sent after the change is saved and are logged under the webhook's delivery history.</p>
-
-    <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="200" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Header -->
-        <rect width="700" height="36" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect y="18" width="700" height="18" fill="#161b22"/>
-        <text x="16" y="25" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Webhooks</text>
-        <rect x="578" y="8" width="108" height="22" rx="4" fill="#1f6feb"/>
-        <text x="632" y="23" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">+ Create Webhook</text>
-
-        <!-- Webhook card 1 -->
-        <rect x="12" y="44" width="676" height="64" rx="4" fill="#161b22" stroke="#30363d"/>
-        <circle cx="34" cy="76" r="8" fill="#1a7f37"/>
-        <text x="54" y="70" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Slack Alerts</text>
-        <text x="54" y="84" fill="#8b949e" font-size="10" font-family="monospace">https://hooks.slack.com/services/T…</text>
-        <!-- Event badges -->
-        <rect x="340" y="62" width="80" height="14" rx="7" fill="#1f6feb44"/>
-        <text x="380" y="73" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">monitor.down</text>
-        <rect x="428" y="62" width="74" height="14" rx="7" fill="#1f6feb44"/>
-        <text x="465" y="73" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">monitor.up</text>
-        <rect x="508" y="62" width="104" height="14" rx="7" fill="#da363344"/>
-        <text x="560" y="73" fill="#f85149" font-size="9" font-family="sans-serif" text-anchor="middle">monitor.check_failed</text>
-        <text x="54" y="100" fill="#3fb950" font-size="10" font-family="sans-serif">✓ Active  |  Last delivery: 12m ago (200 OK)</text>
-        <rect x="630" y="58" width="50" height="16" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="655" y="70" fill="#8b949e" font-size="9" font-family="sans-serif" text-anchor="middle">Test</text>
-
-        <!-- Webhook card 2 -->
-        <rect x="12" y="118" width="676" height="64" rx="4" fill="#161b22" stroke="#30363d"/>
-        <circle cx="34" cy="150" r="8" fill="#6e40c9"/>
-        <text x="54" y="144" fill="#e6edf3" font-size="12" font-weight="bold" font-family="sans-serif">Teams Notifications</text>
-        <text x="54" y="158" fill="#8b949e" font-size="10" font-family="monospace">https://acmecorp.webhook.office.com/…</text>
-        <rect x="340" y="136" width="80" height="14" rx="7" fill="#1f6feb44"/>
-        <text x="380" y="147" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">asset.created</text>
-        <rect x="428" y="136" width="80" height="14" rx="7" fill="#1f6feb44"/>
-        <text x="468" y="147" fill="#79c0ff" font-size="9" font-family="sans-serif" text-anchor="middle">asset.updated</text>
-        <text x="54" y="174" fill="#3fb950" font-size="10" font-family="sans-serif">✓ Active  |  Last delivery: 2h ago (200 OK)</text>
-        <rect x="630" y="132" width="50" height="16" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="655" y="144" fill="#8b949e" font-size="9" font-family="sans-serif" text-anchor="middle">Test</text>
-        <!-- Annotation -->
-        <line x1="560" y1="62" x2="600" y2="44" stroke="#f85149" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="570" y="36" width="120" height="12" rx="6" fill="#da363344"/>
-        <text x="630" y="46" fill="#f85149" font-size="9" font-family="sans-serif" text-anchor="middle">Event types subscribed</text>
-      </svg>
-      <p class="help-screenshot-caption">Webhook configuration. Each webhook subscribes to specific event types (shown as badges). Use <strong>Test</strong> to send a sample payload and verify delivery.</p>
-    </div>
+    <p>Each POST body is <code>{"event", "timestamp", "organization", "webhook_id", "data"}</code>. When a secret is set, the raw body is signed with HMAC-SHA256 in the <code>X-Webhook-Signature</code> header (<code>sha256=&lt;hex&gt;</code>). Deliveries are sent after the change is saved and are logged under the webhook's delivery history. Use <strong>Test</strong> on a webhook to send a sample payload.</p>
 
     <h5 class="mt-4" id="filtering"><i class="fas fa-filter"></i> Filtering &amp; Pagination</h5>
     <ul>
-        <li><strong>Filter:</strong> <code>?asset_type=server&amp;organization=1</code></li>
+        <li><strong>Filter:</strong> <code>?asset_type=server</code>, <code>?needs_reorder=true</code> (fields vary by endpoint)</li>
         <li><strong>Search:</strong> <code>?search=server</code></li>
         <li><strong>Ordering:</strong> <code>?ordering=-created_at</code></li>
-        <li><strong>Pagination:</strong> <code>?page=2&amp;page_size=50</code></li>
-        <li><strong>Needs Reorder:</strong> <code>?needs_reorder=true</code></li>
+        <li><strong>Pages:</strong> <code>?page=2</code> (50 per page)</li>
+        <li><strong>Customer:</strong> <code>?organization=&lt;id or slug&gt;</code>, or <code>?organization=all</code> for every customer in the key's scope</li>
     </ul>
+    <p>The <a href="https://github.com/agit8or1/clientst0r/blob/main/user-guide/api.md">API guide</a> lists every filter, search field and ordering field.</p>
     """
     return render(request, 'core/help/section.html', {
         'title': 'API & Integrations',
@@ -1455,266 +1427,47 @@ def help_api(request):
 
 @login_required
 def help_reports(request):
-    """Reports & Analytics help"""
+    """Reports & Dashboards help"""
     toc = [
-        {'anchor': 'dashboards', 'heading': 'Custom Dashboards'},
         {'anchor': 'report-templates', 'heading': 'Report Templates'},
         {'anchor': 'scheduled-reports', 'heading': 'Scheduled Reports'},
-        {'anchor': 'analytics', 'heading': 'Analytics'},
+        {'anchor': 'psa-reports', 'heading': 'PSA and Finance Reports'},
+        {'anchor': 'dashboards', 'heading': 'Dashboards & Wallboards'},
+        {'anchor': 'saved-queries', 'heading': 'Saved Queries'},
     ]
     content = """
-    <h4>Reports &amp; Analytics</h4>
-    <p class="lead">Generate, schedule, and export reports across all your organization data. Build custom dashboards and track trends over time.</p>
+    <h4>Reports &amp; Dashboards</h4>
+    <p class="lead">Per-customer reports you can generate or schedule, PSA and finance reports across customers, dashboards, wallboards and saved queries. Find them under <em>More &rarr; Reports</em>.</p>
+    <div class="alert alert-info">Reports are for MSP staff only: most of them cover every customer, so customer users can't open them.</div>
 
-    <h5 class="mt-4" id="dashboards"><i class="fas fa-chart-bar"></i> Custom Dashboards</h5>
-    <p>Build organization-specific dashboards that combine data widgets from multiple sources:</p>
-    <div class="row">
-        <div class="col-md-6">
-            <ul>
-                <li><strong>Asset count</strong> — totals by type, status, or location</li>
-                <li><strong>Warranty alerts</strong> — expiring in 30/60/90 days</li>
-                <li><strong>Monitor status</strong> — WAN uptime summary</li>
-                <li><strong>Vault health</strong> — breached or expiring credentials</li>
-            </ul>
-        </div>
-        <div class="col-md-6">
-            <ul>
-                <li><strong>Vehicle fleet</strong> — status and upcoming maintenance</li>
-                <li><strong>Recent activity</strong> — audit log summary</li>
-                <li>Create multiple dashboards per organization</li>
-                <li>Drag widgets to rearrange layout</li>
-            </ul>
-        </div>
-    </div>
-    <p>Dashboards are shared with all members of the organization. Navigate to <em>Reports → Dashboards</em> to create or manage them.</p>
-
-    <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="300" rx="6" fill="#0d1117" stroke="#30363d"/>
-        <!-- Page title bar -->
-        <rect width="700" height="40" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect y="20" width="700" height="20" fill="#161b22"/>
-        <text x="16" y="26" fill="#e6edf3" font-size="14" font-weight="bold" font-family="sans-serif">Reports Dashboard</text>
-        <rect x="580" y="10" width="106" height="22" rx="4" fill="#1f6feb"/>
-        <text x="633" y="25" fill="#fff" font-size="11" font-family="sans-serif" text-anchor="middle">+ New Dashboard</text>
-
-        <!-- Widget row 1 -->
-        <!-- Asset count widget -->
-        <rect x="12" y="52" width="156" height="100" rx="6" fill="#161b22" stroke="#30363d"/>
-        <text x="28" y="72" fill="#8b949e" font-size="10" font-family="sans-serif">Total Assets</text>
-        <text x="28" y="104" fill="#e6edf3" font-size="32" font-weight="bold" font-family="sans-serif">247</text>
-        <text x="28" y="122" fill="#3fb950" font-size="10" font-family="sans-serif">↑ 12 this month</text>
-        <text x="28" y="140" fill="#58a6ff" font-size="9" font-family="sans-serif">Servers · Switches · Laptops</text>
-
-        <!-- Monitor status widget -->
-        <rect x="180" y="52" width="156" height="100" rx="6" fill="#161b22" stroke="#30363d"/>
-        <text x="196" y="72" fill="#8b949e" font-size="10" font-family="sans-serif">WAN Monitors</text>
-        <text x="196" y="96" fill="#3fb950" font-size="22" font-weight="bold" font-family="sans-serif">18</text>
-        <text x="228" y="96" fill="#8b949e" font-size="12" font-family="sans-serif">/ 19</text>
-        <rect x="196" y="102" width="100" height="8" rx="4" fill="#21262d"/>
-        <rect x="196" y="102" width="94" height="8" rx="4" fill="#3fb950"/>
-        <text x="196" y="124" fill="#3fb950" font-size="10" font-family="sans-serif">18 UP</text>
-        <text x="248" y="124" fill="#f85149" font-size="10" font-family="sans-serif">1 DOWN</text>
-        <text x="196" y="140" fill="#8b949e" font-size="9" font-family="sans-serif">99.4% uptime (30 days)</text>
-
-        <!-- Vault health widget -->
-        <rect x="348" y="52" width="156" height="100" rx="6" fill="#161b22" stroke="#30363d"/>
-        <text x="364" y="72" fill="#8b949e" font-size="10" font-family="sans-serif">Vault Health</text>
-        <text x="364" y="100" fill="#f85149" font-size="22" font-weight="bold" font-family="sans-serif">3</text>
-        <text x="364" y="118" fill="#f85149" font-size="10" font-family="sans-serif">Breached credentials</text>
-        <text x="364" y="134" fill="#d29922" font-size="10" font-family="sans-serif">5 expiring within 30 days</text>
-        <text x="364" y="148" fill="#3fb950" font-size="9" font-family="sans-serif">412 total entries healthy</text>
-
-        <!-- Warranty widget -->
-        <rect x="516" y="52" width="172" height="100" rx="6" fill="#161b22" stroke="#30363d"/>
-        <text x="532" y="72" fill="#8b949e" font-size="10" font-family="sans-serif">Warranty Alerts</text>
-        <text x="532" y="96" fill="#d29922" font-size="22" font-weight="bold" font-family="sans-serif">7</text>
-        <text x="532" y="114" fill="#d29922" font-size="10" font-family="sans-serif">expiring within 30 days</text>
-        <rect x="532" y="122" width="100" height="8" rx="4" fill="#21262d"/>
-        <rect x="532" y="122" width="35" height="8" rx="4" fill="#d29922"/>
-        <text x="532" y="144" fill="#8b949e" font-size="9" font-family="sans-serif">7 of 20 expiring assets flagged</text>
-
-        <!-- Activity feed widget -->
-        <rect x="12" y="164" width="328" height="124" rx="6" fill="#161b22" stroke="#30363d"/>
-        <text x="28" y="182" fill="#8b949e" font-size="10" font-family="sans-serif">Recent Activity</text>
-        <!-- Activity rows -->
-        <circle cx="36" cy="202" r="6" fill="#1f6feb"/>
-        <text x="48" y="206" fill="#c9d1d9" font-size="10" font-family="sans-serif">j.smith created asset Core Switch</text>
-        <text x="48" y="218" fill="#3d444d" font-size="9" font-family="sans-serif">2 minutes ago</text>
-        <circle cx="36" cy="232" r="6" fill="#3fb950"/>
-        <text x="48" y="236" fill="#c9d1d9" font-size="10" font-family="sans-serif">s.lee updated password Cisco Router</text>
-        <text x="48" y="248" fill="#3d444d" font-size="9" font-family="sans-serif">15 minutes ago</text>
-        <circle cx="36" cy="262" r="6" fill="#f85149"/>
-        <text x="48" y="266" fill="#c9d1d9" font-size="10" font-family="sans-serif">monitor Main Site DOWN detected</text>
-        <text x="48" y="278" fill="#3d444d" font-size="9" font-family="sans-serif">1 hour ago</text>
-
-        <!-- Fleet widget -->
-        <rect x="352" y="164" width="336" height="124" rx="6" fill="#161b22" stroke="#30363d"/>
-        <text x="368" y="182" fill="#8b949e" font-size="10" font-family="sans-serif">Fleet Status</text>
-        <text x="368" y="210" fill="#e6edf3" font-size="12" font-family="sans-serif">Ford Transit (Van 01)</text>
-        <rect x="500" y="198" width="54" height="18" rx="9" fill="#1f6feb"/>
-        <text x="527" y="211" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Active</text>
-        <text x="368" y="234" fill="#e6edf3" font-size="12" font-family="sans-serif">Toyota Hilux (Van 02)</text>
-        <rect x="500" y="222" width="80" height="18" rx="9" fill="#da363344" stroke="#f85149" stroke-width="1"/>
-        <text x="540" y="235" fill="#f85149" font-size="10" font-family="sans-serif" text-anchor="middle">Maintenance</text>
-        <text x="368" y="258" fill="#e6edf3" font-size="12" font-family="sans-serif">Mercedes Sprinter</text>
-        <rect x="500" y="246" width="54" height="18" rx="9" fill="#1f6feb"/>
-        <text x="527" y="259" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">Active</text>
-        <!-- Annotation -->
-        <line x1="420" y1="52" x2="440" y2="30" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="420" y="20" width="130" height="14" rx="7" fill="#1f6feb44"/>
-        <text x="485" y="31" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Drag widgets to rearrange</text>
-      </svg>
-      <p class="help-screenshot-caption">Dashboard showing asset count, WAN monitor status, vault health, warranty alerts, recent activity, and fleet status widgets. Each widget updates in real time.</p>
-    </div>
-
-    <h5 class="mt-4" id="report-templates"><i class="fas fa-file-alt"></i> Report Templates</h5>
-    <p>Report templates define what data to include, how to format it, and where to send it:</p>
-    <div class="table-responsive mt-2">
-        <table class="table table-sm table-bordered">
-            <thead><tr><th>Field</th><th>Description</th></tr></thead>
-            <tbody>
-                <tr><td><strong>Data Source</strong></td><td>Assets, Passwords, Vehicles, Monitors, Audit Log, etc.</td></tr>
-                <tr><td><strong>Filters</strong></td><td>Scope by type, status, date range, location</td></tr>
-                <tr><td><strong>Columns</strong></td><td>Choose exactly which fields to include</td></tr>
-                <tr><td><strong>Format</strong></td><td>CSV, PDF, or HTML</td></tr>
-            </tbody>
-        </table>
-    </div>
-    <p><strong>Common built-in templates:</strong></p>
+    <h5 class="mt-4" id="report-templates"><i class="fas fa-file-lines"></i> Report Templates</h5>
+    <p>A report template is a named report type. Generating it produces a file for the customer selected in the organization switcher, as <strong>PDF</strong>, <strong>CSV</strong> or <strong>JSON</strong>. The built-in templates:</p>
     <ul>
-        <li>Asset Inventory — full list with serial, location, warranty, status</li>
-        <li>Expiring Warranties — assets with warranty ending within N days</li>
-        <li>Needs Reorder — all assets flagged for replacement</li>
-        <li>Breached Credentials — vault entries with HIBP hits</li>
-        <li>Vehicle Maintenance Due — overdue and upcoming service</li>
-        <li>Monitor Uptime Summary — 30-day uptime % per endpoint</li>
-        <li>User Activity — audit log summary by user and action</li>
+        <li><strong>Asset Summary</strong> &mdash; totals, recently added, needing reorder, warranty expired, by type</li>
+        <li><strong>Asset Lifecycle</strong> &mdash; assets by age</li>
+        <li><strong>Password Security Audit</strong> &mdash; shared entries: totals, TOTP use, recently updated, expired and expiring, by type and folder</li>
+        <li><strong>Document Usage</strong> &mdash; totals, archived, recently created, by category and type</li>
+        <li><strong>Monitor Uptime</strong> &mdash; 30-day uptime per website monitor and monitored WAN connection</li>
+        <li><strong>Expiration Forecast</strong> &mdash; tracked expirations by due date and type</li>
+        <li><strong>User Activity</strong> &mdash; audit-log events by action and by user, failed sign-ins, last 30 days</li>
+        <li><strong>Organization Metrics</strong> &mdash; members, assets, vault entries, documents, monitors</li>
     </ul>
-    <p>Generate a report at <em>Reports → Templates → (select) → Generate</em>. Results can be downloaded immediately or saved to <em>Generated Reports</em>.</p>
+    <p>The PDF is a plain text document of the report data, suited to attachments and audit trails; CSV and JSON carry the same data. Add your own template at <em>Templates &rarr; New Template</em>; staff can make one global.</p>
 
-    <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="200" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <!-- Header -->
-        <rect width="700" height="40" rx="6" fill="#161b22" stroke="#30363d"/>
-        <rect y="20" width="700" height="20" fill="#161b22"/>
-        <text x="16" y="26" fill="#e6edf3" font-size="13" font-weight="bold" font-family="sans-serif">Report Templates</text>
-        <rect x="568" y="10" width="118" height="22" rx="4" fill="#1f6feb"/>
-        <text x="627" y="25" fill="#fff" font-size="11" font-family="sans-serif" text-anchor="middle">+ New Template</text>
-        <!-- Template rows -->
-        <rect x="12" y="50" width="676" height="36" rx="4" fill="#0d1117" stroke="#30363d"/>
-        <rect x="24" y="60" width="10" height="16" rx="2" fill="#3fb950"/>
-        <text x="42" y="72" fill="#e6edf3" font-size="12" font-family="sans-serif">Asset Inventory</text>
-        <text x="220" y="72" fill="#8b949e" font-size="11" font-family="sans-serif">Assets · All fields · CSV</text>
-        <rect x="520" y="59" width="70" height="18" rx="4" fill="#1f6feb"/>
-        <text x="555" y="72" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">▶ Generate</text>
-        <rect x="600" y="59" width="70" height="18" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="635" y="72" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">✎ Edit</text>
+    <h5 class="mt-4" id="scheduled-reports"><i class="fas fa-calendar-check"></i> Scheduled Reports</h5>
+    <p>A schedule runs a template daily, weekly, monthly (every 30 days) or quarterly (every 90 days) for the selected customer, in the format you choose. The scheduler's <strong>Scheduled Reports</strong> task checks every 15 minutes. Each report is saved under <em>Generated Reports</em>; with an email delivery option, each recipient gets their own copy as an attachment through the SMTP settings in <em>Settings &rarr; Email</em>. <strong>Download Only</strong> saves the report without emailing it. If an email can't be sent, the report notes why and the schedule still moves on.</p>
 
-        <rect x="12" y="92" width="676" height="36" rx="4" fill="#161b22" stroke="#30363d"/>
-        <rect x="24" y="102" width="10" height="16" rx="2" fill="#d29922"/>
-        <text x="42" y="114" fill="#e6edf3" font-size="12" font-family="sans-serif">Expiring Warranties</text>
-        <text x="220" y="114" fill="#8b949e" font-size="11" font-family="sans-serif">Assets · Next 30 days · PDF</text>
-        <rect x="520" y="101" width="70" height="18" rx="4" fill="#1f6feb"/>
-        <text x="555" y="114" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">▶ Generate</text>
-        <rect x="600" y="101" width="70" height="18" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="635" y="114" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">✎ Edit</text>
+    <h5 class="mt-4" id="psa-reports"><i class="fas fa-chart-line"></i> PSA and Finance Reports</h5>
+    <p>The Reports home links to reports across all customers: ticket, SLA and response-time reports; profitability by client, tech, contract and project; revenue leakage and margins; agreement, billing, accounting and bank reconciliation; AR aging and MRR forecast; KPIs, trends and the executive scorecard; procurement and software compliance. Money reports need <strong>View financial reports</strong> and SLA reports <strong>View SLA reports</strong>. Most offer a date range and CSV export.</p>
 
-        <rect x="12" y="134" width="676" height="36" rx="4" fill="#0d1117" stroke="#30363d"/>
-        <rect x="24" y="144" width="10" height="16" rx="2" fill="#f85149"/>
-        <text x="42" y="156" fill="#e6edf3" font-size="12" font-family="sans-serif">Breached Credentials</text>
-        <text x="220" y="156" fill="#8b949e" font-size="11" font-family="sans-serif">Vault · HIBP hits · CSV</text>
-        <rect x="520" y="143" width="70" height="18" rx="4" fill="#1f6feb"/>
-        <text x="555" y="156" fill="#fff" font-size="10" font-family="sans-serif" text-anchor="middle">▶ Generate</text>
-        <rect x="600" y="143" width="70" height="18" rx="4" fill="#21262d" stroke="#30363d"/>
-        <text x="635" y="156" fill="#8b949e" font-size="10" font-family="sans-serif" text-anchor="middle">✎ Edit</text>
-        <!-- Annotation -->
-        <line x1="555" y1="77" x2="620" y2="48" stroke="#79c0ff" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="590" y="38" width="100" height="14" rx="7" fill="#1f6feb44"/>
-        <text x="640" y="49" fill="#79c0ff" font-size="10" font-family="sans-serif" text-anchor="middle">Run instantly or save</text>
-      </svg>
-      <p class="help-screenshot-caption">Report templates list. Click <strong>Generate</strong> to run any template immediately — results download as CSV or PDF. Edit to change filters, columns, or format.</p>
-    </div>
+    <h5 class="mt-4" id="dashboards"><i class="fas fa-table-cells"></i> Dashboards &amp; Wallboards</h5>
+    <p>Dashboards are pages of widgets; each widget shows one data source as a metric, table or chart: open and overdue tickets, revenue and unbilled hours, at-risk clients, monitors down, SSL certificates, domains and warranties expiring soon, security alerts, failed logins and vault activity, and more. Wallboards are full-screen boards with the same widgets for a NOC or office TV. They can start from a template, refresh on their own interval, and rotate between boards.</p>
 
-    <h5 class="mt-4" id="scheduled-reports"><i class="fas fa-clock"></i> Scheduled Reports</h5>
-    <p>Automate report delivery on a recurring schedule:</p>
-    <ul>
-        <li><strong>Frequency:</strong> Daily, Weekly, or Monthly</li>
-        <li><strong>Recipients:</strong> One or more email addresses</li>
-        <li><strong>Format:</strong> CSV, PDF, or HTML attachment</li>
-        <li><strong>Toggle:</strong> Pause and resume without deleting</li>
-        <li><strong>History:</strong> Delivery log with success/failure status</li>
-    </ul>
-    <p>Manage scheduled reports at <em>Reports → Scheduled</em>.</p>
-
-    <h5 class="mt-4" id="analytics"><i class="fas fa-chart-line"></i> Analytics</h5>
-    <p>The analytics overview provides real-time metrics and trend charts at <em>Reports → Analytics</em>:</p>
-    <ul>
-        <li><strong>Asset growth</strong> — assets added over time</li>
-        <li><strong>Monitor reliability</strong> — uptime trend across all monitors</li>
-        <li><strong>Vault usage</strong> — new entries, reveals, breach rate</li>
-        <li><strong>Audit events</strong> — activity volume by type and user</li>
-    </ul>
-
-    <div class="help-screenshot mt-3 mb-4">
-      <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg" class="help-svg-screenshot">
-        <rect width="700" height="220" rx="6" fill="#1a1f2e" stroke="#30363d"/>
-        <text x="16" y="28" fill="#e6edf3" font-size="13" font-weight="bold" font-family="sans-serif">Analytics Overview</text>
-        <!-- Asset growth chart -->
-        <rect x="12" y="40" width="330" height="168" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="28" y="58" fill="#8b949e" font-size="10" font-family="sans-serif">Asset Growth (last 6 months)</text>
-        <!-- Y axis labels -->
-        <text x="28" y="80" fill="#3d444d" font-size="8" font-family="monospace">300</text>
-        <text x="28" y="120" fill="#3d444d" font-size="8" font-family="monospace">200</text>
-        <text x="28" y="160" fill="#3d444d" font-size="8" font-family="monospace">100</text>
-        <!-- Grid lines -->
-        <line x1="50" y1="76" x2="330" y2="76" stroke="#21262d" stroke-width="0.5"/>
-        <line x1="50" y1="116" x2="330" y2="116" stroke="#21262d" stroke-width="0.5"/>
-        <line x1="50" y1="156" x2="330" y2="156" stroke="#21262d" stroke-width="0.5"/>
-        <!-- Bar chart -->
-        <rect x="60" y="144" width="28" height="16" rx="2" fill="#1f6feb88"/>
-        <rect x="105" y="136" width="28" height="24" rx="2" fill="#1f6feb88"/>
-        <rect x="150" y="126" width="28" height="34" rx="2" fill="#1f6feb88"/>
-        <rect x="195" y="118" width="28" height="42" rx="2" fill="#1f6feb88"/>
-        <rect x="240" y="106" width="28" height="54" rx="2" fill="#1f6feb"/>
-        <rect x="285" y="90" width="28" height="70" rx="2" fill="#1f6feb"/>
-        <!-- X labels -->
-        <text x="66" y="172" fill="#3d444d" font-size="8" font-family="sans-serif">Sep</text>
-        <text x="111" y="172" fill="#3d444d" font-size="8" font-family="sans-serif">Oct</text>
-        <text x="156" y="172" fill="#3d444d" font-size="8" font-family="sans-serif">Nov</text>
-        <text x="201" y="172" fill="#3d444d" font-size="8" font-family="sans-serif">Dec</text>
-        <text x="246" y="172" fill="#3d444d" font-size="8" font-family="sans-serif">Jan</text>
-        <text x="289" y="172" fill="#3fb950" font-size="8" font-weight="bold" font-family="sans-serif">Feb</text>
-        <text x="28" y="196" fill="#3fb950" font-size="9" font-family="sans-serif">247 total · ↑12 this month</text>
-
-        <!-- Monitor uptime chart -->
-        <rect x="354" y="40" width="334" height="168" rx="4" fill="#161b22" stroke="#30363d"/>
-        <text x="370" y="58" fill="#8b949e" font-size="10" font-family="sans-serif">Monitor Uptime Trend</text>
-        <!-- Line chart grid -->
-        <line x1="390" y1="76" x2="672" y2="76" stroke="#21262d" stroke-width="0.5"/>
-        <line x1="390" y1="106" x2="672" y2="106" stroke="#21262d" stroke-width="0.5"/>
-        <line x1="390" y1="136" x2="672" y2="136" stroke="#21262d" stroke-width="0.5"/>
-        <line x1="390" y1="166" x2="672" y2="166" stroke="#21262d" stroke-width="0.5"/>
-        <!-- Y axis -->
-        <text x="368" y="80" fill="#3d444d" font-size="8" font-family="monospace">100</text>
-        <text x="368" y="110" fill="#3d444d" font-size="8" font-family="monospace">99</text>
-        <text x="368" y="140" fill="#3d444d" font-size="8" font-family="monospace">98</text>
-        <!-- Uptime line (near 100%) -->
-        <polyline points="400,82 440,80 480,79 520,85 560,80 600,82 640,78 672,80"
-                  fill="none" stroke="#3fb950" stroke-width="2" stroke-linejoin="round"/>
-        <!-- Dip point annotation -->
-        <circle cx="520" cy="85" r="4" fill="#f85149"/>
-        <line x1="520" y1="85" x2="560" y2="60" stroke="#f85149" stroke-width="1.5" stroke-dasharray="3,2"/>
-        <rect x="520" y="50" width="90" height="14" rx="7" fill="#da363344"/>
-        <text x="565" y="61" fill="#f85149" font-size="9" font-family="sans-serif" text-anchor="middle">Incident: 1h outage</text>
-        <text x="370" y="196" fill="#3fb950" font-size="9" font-family="sans-serif">Avg 99.4% · 19 monitors tracked</text>
-      </svg>
-      <p class="help-screenshot-caption">Analytics charts showing asset growth over 6 months (bar chart) and WAN monitor uptime trend (line chart). Incident dips are annotated with the event details.</p>
-    </div>
+    <h5 class="mt-4" id="saved-queries"><i class="fas fa-magnifying-glass"></i> Saved Queries</h5>
+    <p>Filter, pick columns and sort tickets, assets, vault entries (no secrets), invoices or time entries, then save the query to run again or export as CSV. A query can be limited to one customer and shared with its members. Vault queries only list shared entries you may view and your own personal entries.</p>
     """
     return render(request, 'core/help/section.html', {
-        'title': 'Reports & Analytics',
+        'title': 'Reports & Dashboards',
         'section_id': 'reports',
         'toc': toc,
         'content': content,
@@ -1846,7 +1599,7 @@ def help_workflows(request):
         'section_id': 'workflows',
         'toc': toc,
         'content': content,
-        'prev_section': {'title': 'Reports & Analytics', 'url_name': 'core:help_reports'},
+        'prev_section': {'title': 'Reports & Dashboards', 'url_name': 'core:help_reports'},
         'next_section': {'title': 'Documentation & KB', 'url_name': 'core:help_documentation'},
     })
 

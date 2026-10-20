@@ -803,7 +803,7 @@ class WallboardTests(TestCase):
         from accounts.models import Membership, RoleTemplate
         from core.models import Organization
         # Dashboard-only user (no financial perm)
-        self.user = User.objects.create_user('wb_user', 'w@x.com', 'pw')
+        self.user = User.objects.create_user('wb_user', 'w@x.com', 'pw', is_staff=True)
         self.org = Organization.objects.create(name='WB Co', slug='wb-co')
         rt = RoleTemplate.objects.create(
             name='WBDashUser',
@@ -905,12 +905,11 @@ class ScheduledReportRunnerTests(TestCase):
         )
         user = User.objects.filter(username='cron-tester').first() or \
             User.objects.create_user('cron-tester', 'c@x.com', 'pw')
-        # Use 'custom' report_type — the generator wrapper handles "no
-        # generator registered" gracefully (returns an error dict that
-        # serializes to a tiny PDF), so the runner can complete + advance
-        # next_run without depending on real PSA fixture data.
+        # organization_metrics needs no fixture data. (A type with no
+        # generator, like 'custom', now fails instead of writing a file
+        # that holds only an error message.)
         template = ReportTemplate.objects.create(
-            name='Cron Test Report', report_type='custom',
+            name='Cron Test Report', report_type='organization_metrics',
             query_template='', is_global=True, created_by=user,
         )
         s = ScheduledReport.objects.create(
@@ -1258,7 +1257,7 @@ class WallboardViewACLTests(TestCase):
         cls.org_a = Organization.objects.create(name='WB-A-acl', slug='wb-a-acl')
         cls.org_b = Organization.objects.create(name='WB-B-acl', slug='wb-b-acl')
         cls.user_a = User.objects.create_user(
-            'wb-user-a-acl', email='wba@x.com', password='pw',
+            'wb-user-a-acl', email='wba@x.com', password='pw', is_staff=True,
         )
         Membership.objects.create(
             user=cls.user_a, organization=cls.org_a, role=Role.OWNER, is_active=True,
@@ -1281,8 +1280,18 @@ class WallboardViewACLTests(TestCase):
         self.assertContains(resp, 'A-board')
 
     def test_other_org_wallboard_404(self):
-        resp = self.c.get(f'/reports/wallboards/{self.board_b.pk}/')
-        self.assertEqual(resp.status_code, 404)
+        # MSP staff see every customer's boards; a customer member of org A
+        # can't open org B's board (or, since v3.17.618, any report page).
+        from django.test import Client
+        from django.contrib.auth.models import User
+        from accounts.models import Membership, Role
+        member = User.objects.create_user('wb-acl-customer', 'wbac@x.com', 'pw')
+        Membership.objects.create(user=member, organization=self.org_a, role=Role.OWNER,
+                                  is_active=True)
+        c = Client()
+        c.force_login(member)
+        resp = c.get(f'/reports/wallboards/{self.board_b.pk}/')
+        self.assertIn(resp.status_code, (403, 404))
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -1298,7 +1307,7 @@ class WallboardRotateViewTests(TestCase):
         from reports.models import Wallboard
         cls.org = Organization.objects.create(name='RotView', slug='rot-view')
         cls.user = User.objects.create_user(
-            'rot-user-rv', email='rv@x.com', password='pw',
+            'rot-user-rv', email='rv@x.com', password='pw', is_staff=True,
         )
         Membership.objects.create(
             user=cls.user, organization=cls.org, role=Role.OWNER, is_active=True,
@@ -1344,7 +1353,7 @@ class WallboardListViewTests(TestCase):
         from reports.models import Wallboard
         cls.org = Organization.objects.create(name='ListCo', slug='wb-list-co')
         cls.user = User.objects.create_user(
-            'wb-list-user', email='wbl@x.com', password='pw',
+            'wb-list-user', email='wbl@x.com', password='pw', is_staff=True,
         )
         Membership.objects.create(
             user=cls.user, organization=cls.org, role=Role.OWNER, is_active=True,
@@ -1479,16 +1488,13 @@ class AgreementReconciliationTests(TestCase):
         self.assertIn('AR-Client-B', body)
 
     def test_member_sees_only_their_orgs_contracts(self):
+        """A customer member gets 403: /reports/ is MSP staff only since
+        v3.17.618 (this used to check the member saw only their own customer)."""
         from django.test import Client
         c = Client()
         self._login(c, self.member_a, self.client_a)
         r = c.get('/reports/agreement-reconciliation/')
-        self.assertEqual(r.status_code, 200)
-        # Client A contracts visible:
-        self.assertContains(r, 'Block 100h — under')
-        # Client B contracts NOT visible:
-        self.assertNotContains(r, 'Block 100h — over')
-        self.assertNotContains(r, 'MSA — unlimited')
+        self.assertEqual(r.status_code, 403)
 
     def test_overage_cost_calculation(self):
         from django.test import Client
@@ -1584,7 +1590,8 @@ class AgreementReconciliationTests(TestCase):
         c = Client()
         self._login(c, self.member_a, self.client_a)
         r = c.get(f'/reports/agreement-reconciliation/{contract.pk}/')
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -1669,7 +1676,8 @@ class ProcurementSummaryTests(TestCase):
         c = Client()
         self._login(c, self.member, self.org)
         r = c.get('/reports/procurement-summary/')
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -1787,7 +1795,8 @@ class VendorCostHistoryTests(TestCase):
         c = Client()
         self._login(c, self.member, self.org)
         r = c.get('/reports/vendor-cost-history/')
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
 
 class AssetLifecycleScoringModelTests(TestCase):
@@ -1868,7 +1877,7 @@ class AssetLifecycleReportTests(TestCase):
         from datetime import date, timedelta
 
         cls.org = Organization.objects.create(name='LifeViewCo', slug='lifeview-co')
-        cls.user = User.objects.create_user('life-mem', 'lm@x.com', 'pw')
+        cls.user = User.objects.create_user('life-mem', 'lm@x.com', 'pw', is_staff=True)
         Membership.objects.create(user=cls.user, organization=cls.org,
                                    role=Role.OWNER, is_active=True)
 
@@ -1937,7 +1946,8 @@ class AssetLifecycleReportTests(TestCase):
         c = Client()
         self._login(c, u)  # no org pinned
         r = c.get('/reports/asset-lifecycle/')
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -2025,7 +2035,8 @@ class ProcurementForecastingTests(TestCase):
         c = Client()
         self._login(c, self.member, self.org)
         r = c.get('/reports/procurement-forecasting/')
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -2138,13 +2149,13 @@ class ARAgingReportTests(TestCase):
         self.assertNotIn('not pushed', body)
 
     def test_member_sees_only_their_org(self):
+        """A customer member gets 403: /reports/ is MSP staff only since
+        v3.17.618 (this used to check the member saw only their own customer)."""
         from django.test import Client
         c = Client()
         self._login(c, self.member, self.client_a)
         r = c.get('/reports/ar-aging/')
-        rows = {row['name']: row for row in r.context['rows']}
-        self.assertIn('ARClientA', rows)
-        self.assertNotIn('ARClientB', rows)
+        self.assertEqual(r.status_code, 403)
 
     def test_csv_export(self):
         from django.test import Client
@@ -2273,7 +2284,8 @@ class BankReconciliationReportTests(TestCase):
         self._login(c, self.member, self.client_org)
         r = c.post('/reports/bank-reconciliation/mark/',
                    {'batch': 'DEP-1', 'action': 'reconcile'})
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -2522,7 +2534,8 @@ class MRRForecastReportTests(TestCase):
         c = Client()
         self._login(c, self.member, self.client_org)
         r = c.get('/reports/mrr-forecast/')
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -2634,7 +2647,8 @@ class HardwareMarginReportTests(TestCase):
         c = Client()
         self._login(c, self.member, self.client_org)
         r = c.get('/reports/hardware-margin/')
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -2718,13 +2732,13 @@ class TicketAgingReportTests(TestCase):
         self.assertEqual(ctx['total_open'], 6)
 
     def test_member_sees_only_their_org(self):
+        """A customer member gets 403: /reports/ is MSP staff only since
+        v3.17.618 (this used to check the member saw only their own customer)."""
         from django.test import Client
         c = Client()
         self._login(c, self.member, self.org)
         r = c.get('/reports/ticket-aging/')
-        ctx = r.context
-        self.assertEqual(ctx['total_open'], 5)  # outsider excluded
-        self.assertEqual(ctx['bucket_totals']['0-24h'], 1)
+        self.assertEqual(r.status_code, 403)
 
     def test_excludes_terminal_status(self):
         from django.test import Client
@@ -2897,16 +2911,13 @@ class AccountingReconciliationTests(TestCase):
         self.assertIn('duplicate', body)
 
     def test_member_sees_only_their_org_invoices(self):
+        """A customer member gets 403: /reports/ is MSP staff only since
+        v3.17.618 (this used to check the member saw only their own customer)."""
         from django.test import Client
         c = Client()
         self._login(c, self.member_a, self.client_a)
         r = c.get('/reports/accounting-reconciliation/')
-        body = r.content.decode('utf-8')
-        # client_a invoices visible
-        self.assertIn('Pushed not paid', body)
-        # client_b duplicates NOT visible
-        self.assertNotIn('Duplicate A', body)
-        self.assertNotIn('Duplicate B', body)
+        self.assertEqual(r.status_code, 403)
 
     def test_tax_discrepancies_surfaced(self):
         """Phase 27 v4 (v3.17.267) — invoices where provider_tax_amount
@@ -2968,7 +2979,7 @@ class SavedQueryTests(TestCase):
         s.save()
         cls.org = Organization.objects.create(name='SQCo', slug='sq-co')
         cls.outsider = Organization.objects.create(name='OutsideSQ', slug='sq-out')
-        cls.user = User.objects.create_user('sq-user', 'sq@x.com', 'pw')
+        cls.user = User.objects.create_user('sq-user', 'sq@x.com', 'pw', is_staff=True)
         Membership.objects.create(user=cls.user, organization=cls.org,
                                    role=Role.OWNER, is_active=True)
         cls.peer = User.objects.create_user('sq-peer', 'p@x.com', 'pw')
@@ -3102,7 +3113,8 @@ class SavedQueryTests(TestCase):
         c = Client()
         self._login(c, self.outsider_user, self.outsider)
         r = c.get(f'/reports/saved-queries/{sq.pk}/run/')
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
     def test_create_view_persists_filters(self):
         from reports.models import SavedQuery
@@ -3253,20 +3265,21 @@ class WallboardGlobalScopeTests(TestCase):
         self.assertContains(r, 'Org-NOC')
 
     def test_list_hides_global_board_from_org_member(self):
+        """A customer member gets 403: /reports/ is MSP staff only since
+        v3.17.618 (this used to check the member saw only their own customer)."""
         from django.test import Client
         c = Client()
         self._login(c, self.member)
         r = c.get('/reports/wallboards/')
-        self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Org-NOC')
-        self.assertNotContains(r, 'Global-NOC')
+        self.assertEqual(r.status_code, 403)
 
     def test_org_member_cannot_view_global_board_directly(self):
         from django.test import Client
         c = Client()
         self._login(c, self.member)
         r = c.get(f'/reports/wallboards/{self.global_board.pk}/')
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
     def test_staff_can_create_global_board_via_form(self):
         from django.test import Client
@@ -3507,7 +3520,7 @@ class WallboardWidgetCategoryTests(TestCase):
         s['current_organization_id'] = self.outsider_org.id
         s.save()
         r = c.get(f'/reports/wallboards/widgets/{self.metric_widget.pk}/data/?category=all')
-        self.assertEqual(r.status_code, 404)
+        self.assertIn(r.status_code, (403, 404))
 
     def test_tickets_opened_30d_categories_return_distinct_series(self):
         from reports.widget_sources import tickets_opened_30d, get_categories
@@ -3614,7 +3627,7 @@ class WallboardWidgetReorderTests(TestCase):
         cls.org = Organization.objects.create(name='ReorderCo', slug='wb-ro-co')
         cls.other_org = Organization.objects.create(name='OtherCo', slug='wb-ro-other')
         cls.user = User.objects.create_user(
-            'wb-ro-user', email='wbro@x.com', password='pw',
+            'wb-ro-user', email='wbro@x.com', password='pw', is_staff=True,
         )
         Membership.objects.create(
             user=cls.user, organization=cls.org, role=Role.OWNER, is_active=True,
@@ -3695,15 +3708,21 @@ class WallboardWidgetReorderTests(TestCase):
         import json as _json
         from django.test import Client
         from reports.models import Wallboard
+        from django.contrib.auth.models import User
+        from accounts.models import Membership, Role
         foreign_board = Wallboard.objects.create(organization=self.other_org, name='ForeignNOC')
+        # A customer member (MSP staff may reorder any customer's board).
+        member = User.objects.create_user('wb-reorder-customer', 'wbrc@x.com', 'pw')
+        Membership.objects.create(user=member, organization=self.org, role=Role.OWNER,
+                                  is_active=True)
         c = Client()
-        self._login(c)
+        c.force_login(member)
         resp = c.post(
             f'/reports/wallboards/{foreign_board.pk}/widgets/reorder/',
             data=_json.dumps({'order': []}),
             content_type='application/json',
         )
-        self.assertEqual(resp.status_code, 404)
+        self.assertIn(resp.status_code, (403, 404))
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -3811,13 +3830,13 @@ class SLAForecastReportTests(TestCase):
         self.assertEqual(rows[0]['subject'], 'breached')
 
     def test_member_only_their_org(self):
+        """A customer member gets 403: /reports/ is MSP staff only since
+        v3.17.618 (this used to check the member saw only their own customer)."""
         from django.test import Client
         c = Client()
         self._login(c, self.member, self.org)
         r = c.get('/reports/sla-forecast/')
-        ctx = r.context
-        # Outsider excluded — total = 4 instead of 5.
-        self.assertEqual(ctx['summary']['total'], 4)
+        self.assertEqual(r.status_code, 403)
 
     def test_excludes_terminal_and_no_sla(self):
         from django.test import Client
@@ -3951,7 +3970,8 @@ class QuoteConversionReportTests(TestCase):
         c = Client()
         self._login(c, self.member, self.org)
         r = c.get('/reports/quote-conversion/')
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
     def test_csv_export(self):
         from django.test import Client
@@ -4076,17 +4096,13 @@ class KPIDashboardTests(TestCase):
         self.assertEqual(int(w['mrr_total']), 2000)
 
     def test_member_scoped_excludes_mrr(self):
+        """A customer member gets 403: /reports/ is MSP staff only since
+        v3.17.618 (this used to check the member saw only their own customer)."""
         from django.test import Client
         c = Client()
         self._login(c, self.member, self.org)
         r = c.get('/reports/kpi/')
-        w = r.context['widgets']
-        # 3 open + 1 breached = 4 (outsider excluded)
-        self.assertEqual(w['open_ticket_count'], 4)
-        # Non-staff: MRR is zero by design
-        self.assertEqual(int(w['mrr_total']), 0)
-        self.assertEqual(int(w['arr_total']), 0)
-        self.assertFalse(w['is_staff_view'])
+        self.assertEqual(r.status_code, 403)
 
     def test_mean_age_present(self):
         from django.test import Client
@@ -4231,13 +4247,13 @@ class OperationalMetricsReportTests(TestCase):
         self.assertEqual(r.context['age_buckets']['0-24h'], 3)
 
     def test_member_scoped(self):
+        """A customer member gets 403: /reports/ is MSP staff only since
+        v3.17.618 (this used to check the member saw only their own customer)."""
         from django.test import Client
         c = Client()
         self._login(c, self.member, self.org)
         r = c.get('/reports/operational-metrics/')
-        # Member sees only OpsCo: 2 open + 2 resolved = different counts
-        self.assertEqual(r.context['summary']['open_count'], 2)
-        self.assertEqual(r.context['summary']['res_count'], 2)
+        self.assertEqual(r.status_code, 403)
 
     def test_csv_export(self):
         from django.test import Client
@@ -4349,7 +4365,8 @@ class WorkflowPerformanceReportTests(TestCase):
         c = Client()
         self._login(c, self.member, self.org)
         r = c.get('/reports/workflow-performance/')
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
     def test_csv_export(self):
         from django.test import Client
@@ -4490,7 +4507,8 @@ class TrendsReportTests(TestCase):
         c = Client()
         self._login(c, self.member, self.org)
         r = c.get('/reports/trends/')
-        self.assertEqual(r.status_code, 404)
+        # 403 since v3.17.618: /reports/ is MSP staff only.
+        self.assertIn(r.status_code, (403, 404))
 
     def test_csv_export(self):
         from django.test import Client
@@ -4805,10 +4823,11 @@ class WidgetViewerScopeTests(TestCase):
 
         self.client.force_login(self.acme_readonly)
         r = self.client.get(f'/reports/dashboards/{dash.pk}/')
-        self.assertEqual(r.status_code, 200)
+        # A customer member gets 403 since v3.17.618 (/reports/ is MSP staff
+        # only); the widget-level scoping is covered by the source tests.
+        self.assertEqual(r.status_code, 403)
         self.assertNotIn(b'$1,000', r.content)
         self.assertNotIn(b'Umbrella', r.content)
-        self.assertIn(b'reports_view_financial', r.content)
 
     def test_dashboard_page_still_shows_the_msp_everything(self):
         from reports.models import Dashboard, DashboardWidget
@@ -4877,3 +4896,285 @@ class MonitorUptimeReportTests(TestCase):
         from reports.generators import MonitorUptimeReport
         empty = Organization.objects.create(name='EmptyCo', slug='uptime-empty')
         self.assertIsNone(MonitorUptimeReport(empty).generate()['uptime_percentage'])
+
+
+def _msp_staff(username='rb-staff'):
+    from django.contrib.auth.models import User
+    return User.objects.create_user(username, f'{username}@x.com', 'pw', is_staff=True)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class ReportBuilderPagesTests(TestCase):
+    """v3.17.618: creating a report template rendered a template file that
+    didn't exist, the scheduled-report form read a constant that didn't
+    exist, and the delete pages had no templates either — all 500s."""
+
+    def setUp(self):
+        from accounts.models import Membership, Role
+        from core.models import Organization
+        from reports.models import ReportTemplate
+        self.org = Organization.objects.create(name='RB Co', slug='rb-co')
+        self.other = Organization.objects.create(name='RB Other', slug='rb-other')
+        self.user = _msp_staff()
+        Membership.objects.create(user=self.user, organization=self.org, role=Role.OWNER,
+                                  is_active=True)
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['2fa_prompted'] = True
+        session['current_organization_id'] = self.org.pk
+        session.save()
+        self.global_tpl = ReportTemplate.objects.create(
+            name='Org Metrics', report_type='organization_metrics', query_template='',
+            is_global=True)
+        self.foreign_tpl = ReportTemplate.objects.create(
+            name='Theirs', report_type='asset_summary', query_template='',
+            organization=self.other)
+
+    def test_template_create(self):
+        from reports.models import ReportTemplate
+        r = self.client.get('/reports/templates/create/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'User Activity')
+        self.assertNotContains(r, 'value="custom"')
+        r = self.client.post('/reports/templates/create/', {
+            'name': 'Mine', 'report_type': 'user_activity', 'description': 'd'})
+        tpl = ReportTemplate.objects.get(name='Mine')
+        self.assertRedirects(r, f'/reports/templates/{tpl.pk}/', fetch_redirect_response=False)
+        self.assertEqual(tpl.organization, self.org)
+        r = self.client.post('/reports/templates/create/', {'name': 'Bad', 'report_type': 'custom'})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(ReportTemplate.objects.filter(name='Bad').exists())
+        r = self.client.get(f'/reports/templates/{tpl.pk}/')
+        self.assertContains(r, f'/reports/templates/{tpl.pk}/edit/')
+        self.assertEqual(self.client.get(f'/reports/templates/{tpl.pk}/edit/').status_code, 200)
+        self.assertEqual(self.client.get(f'/reports/templates/{tpl.pk}/delete/').status_code, 200)
+
+    def test_scheduled_create_and_edit(self):
+        from reports.models import ScheduledReport
+        r = self.client.get('/reports/scheduled/create/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'name="output_format"')
+        self.assertNotContains(r, 'Theirs')
+        r = self.client.post('/reports/scheduled/create/', {
+            'name': 'Weekly', 'template': self.global_tpl.pk, 'frequency': 'weekly',
+            'delivery_method': 'email', 'output_format': 'csv',
+            'recipients': 'a@example.com, b@example.com'})
+        self.assertRedirects(r, '/reports/scheduled/', fetch_redirect_response=False)
+        s = ScheduledReport.objects.get(name='Weekly')
+        self.assertEqual((s.organization, s.output_format, s.recipients),
+                         (self.org, 'csv', ['a@example.com', 'b@example.com']))
+        self.assertIsNotNone(s.next_run)
+        self.assertEqual(self.client.get(f'/reports/scheduled/{s.pk}/edit/').status_code, 200)
+        self.assertEqual(self.client.get(f'/reports/scheduled/{s.pk}/delete/').status_code, 200)
+
+    def test_scheduled_rejects_bad_input(self):
+        from reports.models import ScheduledReport
+        for data in (
+            {'template': self.foreign_tpl.pk, 'recipients': 'a@example.com'},
+            {'template': self.global_tpl.pk, 'recipients': 'not-an-email'},
+            {'template': self.global_tpl.pk, 'recipients': ''},
+            {'template': self.global_tpl.pk, 'recipients': 'a@example.com', 'output_format': 'excel'},
+        ):
+            post = {'name': 'X', 'frequency': 'daily', 'delivery_method': 'email',
+                    'output_format': 'pdf', **data}
+            self.assertEqual(self.client.post('/reports/scheduled/create/', post).status_code, 200)
+        self.assertFalse(ScheduledReport.objects.filter(name='X').exists())
+
+    def test_generate_formats(self):
+        from reports.models import GeneratedReport
+        r = self.client.get(f'/reports/templates/{self.global_tpl.pk}/generate/')
+        self.assertNotContains(r, 'Excel')
+        self.client.post(f'/reports/templates/{self.global_tpl.pk}/generate/', {'format': 'excel'})
+        self.assertFalse(GeneratedReport.objects.exists())
+        self.client.post(f'/reports/templates/{self.global_tpl.pk}/generate/', {'format': 'csv'})
+        rep = GeneratedReport.objects.get()
+        self.assertEqual((rep.status, rep.format, rep.organization), ('completed', 'csv', self.org))
+        self.assertTrue(rep.file.name.endswith('.csv'))
+        self.assertEqual(self.client.get(f'/reports/generated/{rep.pk}/delete/').status_code, 200)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class ReportsStaffOnlyTests(TestCase):
+    """v3.17.618: /reports/ aggregates every customer; customer users get 403."""
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        from accounts.models import Membership, Role
+        from core.models import Organization
+        self.org = Organization.objects.create(name='Cust', slug='cust-rs')
+        self.customer = User.objects.create_user('cust-owner', 'c@x.com', 'pw')
+        Membership.objects.create(user=self.customer, organization=self.org, role=Role.OWNER,
+                                  is_active=True)
+
+    def _login(self, user):
+        self.client.force_login(user)
+        session = self.client.session
+        session['2fa_prompted'] = True
+        session.save()
+
+    def test_customer_owner_blocked(self):
+        self._login(self.customer)
+        for url in ('/reports/', '/reports/wallboard/data/', '/reports/psa/profitability-by-client/',
+                    '/reports/templates/'):
+            self.assertEqual(self.client.get(url).status_code, 403, url)
+
+    def test_staff_allowed(self):
+        from django.contrib.auth.models import User
+        self._login(User.objects.create_user('rs-staff', 'rs@x.com', 'pw', is_staff=True,
+                                             is_superuser=True))
+        self.assertEqual(self.client.get('/reports/').status_code, 200)
+
+
+class ReportGeneratorFixesTests(TestCase):
+    def setUp(self):
+        from core.models import Organization
+        self.org = Organization.objects.create(name='Gen Co', slug='gen-co')
+
+    def test_user_activity(self):
+        from django.contrib.auth.models import User
+        from audit.models import AuditLog
+        from core.models import Organization
+        from reports.generators import UserActivityReport
+        other = Organization.objects.create(name='Gen Other', slug='gen-other')
+        u = User.objects.create_user('ua-user')
+        AuditLog.objects.create(organization=self.org, user=u, action='login')
+        AuditLog.objects.create(organization=self.org, user=u, action='update')
+        AuditLog.objects.create(organization=self.org, username='gone', action='login_failed')
+        AuditLog.objects.create(organization=other, user=u, action='delete')
+        data = UserActivityReport(self.org).generate()
+        self.assertEqual(data['total_events'], 3)
+        self.assertEqual(data['failed_logins'], 1)
+        self.assertEqual(data['active_users'], 2)
+        self.assertEqual(data['by_user'][0], {'username': 'ua-user', 'count': 2, 'logins': 1,
+                                              'changes': 1})
+
+    def test_every_generator_runs(self):
+        """v3.17.618: Asset Summary, Password Security Audit, Expiration
+        Forecast and Organization Metrics queried fields or a model that don't
+        exist and failed on every run."""
+        from datetime import timedelta
+        from django.contrib.auth.models import User
+        from django.utils import timezone
+        from accounts.models import Membership, Role
+        from assets.models import Asset
+        from monitoring.models import Expiration
+        from reports.generators import REPORT_GENERATORS
+        from vault.models import Password
+        empty = type(self.org).objects.create(name='Gen Empty', slug='gen-empty')
+        Asset.objects.create(organization=self.org, name='a', asset_type='server', needs_reorder=True)
+        Password.objects.create(organization=self.org, title='p',
+                                expires_at=timezone.now() - timedelta(days=1))
+        Expiration.objects.create(organization=self.org, name='cert', expiration_type='ssl_cert'
+                                  if 'ssl_cert' in dict(Expiration._meta.get_field('expiration_type').choices)
+                                  else Expiration._meta.get_field('expiration_type').choices[0][0],
+                                  expires_at=timezone.now() + timedelta(days=5))
+        Membership.objects.create(user=User.objects.create_user('gen-m'), organization=self.org,
+                                  role=Role.READONLY, is_active=True)
+        for org in (empty, self.org):
+            for key, cls in REPORT_GENERATORS.items():
+                with self.subTest(report=key, org=org.slug):
+                    self.assertIsInstance(cls(org, {}).generate(), dict)
+        from reports.generators import (AssetSummaryReport, ExpirationForecastReport,
+                                        OrganizationMetricsReport, PasswordAuditReport)
+        self.assertEqual(AssetSummaryReport(self.org).generate()['needs_reorder'], 1)
+        self.assertEqual(PasswordAuditReport(self.org).generate()['expired'], 1)
+        self.assertEqual(ExpirationForecastReport(self.org).generate()['forecast']['expiring_7_days'], 1)
+        self.assertEqual(OrganizationMetricsReport(self.org).generate()['organization']['member_count'], 1)
+
+    def test_unknown_type_raises(self):
+        from reports.generators import generate_report
+        from reports.models import ReportTemplate
+        tpl = ReportTemplate(name='c', report_type='custom')
+        with self.assertRaises(ValueError):
+            generate_report(tpl, 'pdf', self.org)
+        tpl.report_type = 'organization_metrics'
+        with self.assertRaises(ValueError):
+            generate_report(tpl, 'excel', self.org)
+
+    def test_monitor_uptime_includes_wans(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from locations.models import Location, WAN, WANCheck
+        from reports.generators import MonitorUptimeReport
+        loc = Location.objects.create(organization=self.org, name='HQ')
+        wan = WAN.objects.create(organization=self.org, location=loc, name='Fiber',
+                                 monitoring_enabled=True, monitor_target='192.0.2.1')
+        now = timezone.now()
+        for i, res in enumerate(['up', 'up', 'up', 'down']):
+            WANCheck.objects.create(wan=wan, checked_at=now - timedelta(hours=i), result=res)
+        rows = MonitorUptimeReport(self.org).generate()['wan_connections']
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]['name'], rows[0]['uptime_percent']), ('Fiber', 75.0))
+
+
+class ScheduledReportEmailTests(TestCase):
+    """v3.17.618: scheduled reports went out through Django's default mail
+    backend instead of the SMTP settings, and Download Only still emailed."""
+
+    def setUp(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from core.models import Organization
+        from reports.models import ReportTemplate, ScheduledReport
+        org = Organization.objects.create(name='Mail Co', slug='mail-co')
+        tpl = ReportTemplate.objects.create(name='M', report_type='organization_metrics',
+                                            query_template='', is_global=True)
+        self.s = ScheduledReport.objects.create(
+            name='mailed', template=tpl, organization=org, frequency='daily',
+            delivery_method='email', recipients=['a@example.com', 'b@example.com'],
+            output_format='csv', next_run=timezone.now() - timedelta(minutes=5))
+
+    def _run(self, connection):
+        from unittest import mock
+        from django.core.management import call_command
+        with mock.patch('core.mailer.get_smtp_connection', return_value=connection):
+            call_command('run_scheduled_reports', verbosity=0)
+
+    def test_sends_one_per_recipient_via_smtp_settings(self):
+        from django.core import mail
+        from django.core.mail import get_connection
+        self._run(get_connection('django.core.mail.backends.locmem.EmailBackend'))
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['a@example.com', 'b@example.com'])
+        self.assertTrue(all(len(m.to) == 1 and m.attachments for m in mail.outbox))
+
+    def test_download_only_does_not_email(self):
+        from django.core import mail
+        from django.core.mail import get_connection
+        self.s.delivery_method = 'download'
+        self.s.save()
+        self._run(get_connection('django.core.mail.backends.locmem.EmailBackend'))
+        self.assertEqual(mail.outbox, [])
+        self.s.refresh_from_db()
+        self.assertIsNotNone(self.s.last_run)
+
+    def test_no_smtp_recorded_and_rolls_forward(self):
+        from reports.models import GeneratedReport
+        self._run(None)
+        gen = GeneratedReport.objects.get(scheduled_report=self.s)
+        self.assertIn('SMTP is not configured', gen.error_message)
+        self.s.refresh_from_db()
+        self.assertIsNotNone(self.s.last_run)
+
+
+class SavedQueryVaultScopeTests(TestCase):
+    """v3.17.618: a saved query on vault entries listed other users' personal
+    entries and ignored the View passwords flag."""
+
+    def test_personal_entries_of_others_hidden(self):
+        from django.contrib.auth.models import User
+        from core.models import Organization
+        from reports.models import SavedQuery
+        from reports.saved_query import execute
+        from vault.models import Password
+        org = Organization.objects.create(name='SQV', slug='sqv')
+        from accounts.models import Membership, Role
+        me = _msp_staff('sqv-me')
+        Membership.objects.create(user=me, organization=org, role=Role.OWNER, is_active=True)
+        other = User.objects.create_user('sqv-other')
+        Password.objects.create(organization=org, title='shared')
+        Password.objects.create(organization=org, title='mine', is_personal=True, personal_owner=me)
+        Password.objects.create(organization=org, title='theirs', is_personal=True,
+                                personal_owner=other)
+        sq = SavedQuery.objects.create(name='v', owner=me, target_model='vault.Password')
+        _m, qs = execute(sq, user=me)
+        self.assertEqual(sorted(p.title for p in qs), ['mine', 'shared'])

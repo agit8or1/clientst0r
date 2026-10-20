@@ -10,14 +10,14 @@
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h1 class="h2">
-                        <i class="bi bi-list-ul me-2"></i>
+                        <i class="fas fa-list-ul me-2"></i>
                         Analytics Events
                     </h1>
                     <p class="text-muted">Detailed event log and activity tracking</p>
                 </div>
                 <div>
                     <a href="{% url 'reports:analytics_overview' %}" class="btn btn-secondary">
-                        <i class="bi bi-arrow-left me-2"></i>Back to Overview
+                        <i class="fas fa-arrow-left me-2"></i>Back to Overview
                     </a>
                 </div>
             </div>
@@ -45,7 +45,7 @@
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-search me-2"></i>Filter
+                                <i class="fas fa-magnifying-glass me-2"></i>Filter
                             </button>
                         </div>
                     </form>
@@ -89,7 +89,7 @@
                         <p class="text-muted small mt-3">Showing most recent 500 events matching your filters.</p>
                     {% else %}
                         <div class="alert alert-info">
-                            <i class="bi bi-info-circle me-2"></i>
+                            <i class="fas fa-circle-info me-2"></i>
                             No events found matching your filters.
                         </div>
                     {% endif %}

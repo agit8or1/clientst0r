@@ -88,3 +88,25 @@ class OrganizationPermission(permissions.BasePermission):
                 return membership and membership.can_write()
 
         return False
+
+
+def key_role_allows(request, perm_name):
+    """True unless the request came in on an API key whose Permission Level
+    lacks `perm_name`.
+
+    The level picked when the key was made (Read-Only, Editor, Admin, Owner)
+    caps the key at what that simple role grants, on top of the owner's own
+    permissions: a Read-Only key cannot write or reveal secrets even when its
+    owner can. Until v3.17.618 the level was stored and shown but never
+    checked, so every key could do whatever its owner could.
+    """
+    api_key = getattr(request, 'api_key', None)
+    if api_key is None:
+        return True
+    from accounts.models import Membership
+    return bool(getattr(Membership(role=api_key.role).get_permissions(), perm_name, False))
+
+
+def key_level_label(request):
+    api_key = getattr(request, 'api_key', None)
+    return api_key.get_role_display() if api_key is not None else ''

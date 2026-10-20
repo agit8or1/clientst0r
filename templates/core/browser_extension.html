@@ -60,7 +60,7 @@
                     <li>{% trans "Click the extension icon in your toolbar." %}</li>
                     <li>{% trans "Click the" %} <strong>&#9881; {% trans "settings gear" %}</strong> {% trans "(or right-click → Options)." %}</li>
                     <li>{% trans "Enter your" %} <strong>{% trans "Server URL" %}</strong>: <code>{{ request.scheme }}://{{ request.get_host }}</code></li>
-                    <li>{% trans "Generate an" %} <strong>{% trans "API Key" %}</strong> {% trans "from" %} <a href="{% url 'api:apikey_list' %}">{% trans "Settings → API Keys" %}</a>{% trans "." %}</li>
+                    <li>{% trans "Generate an" %} <strong>{% trans "API Key" %}</strong> {% trans "on the" %} <a href="{% url 'api:apikey_list' %}">{% trans "API Keys" %}</a> {% trans "page with the permission level" %} <strong>{% trans "Editor" %}</strong> {% trans "or higher. A Read-Only key can search but cannot reveal passwords or OTP codes." %}</li>
                     <li>{% trans "Click" %} <strong>{% trans "Test Connection" %}</strong> {% trans "to verify, then" %} <strong>{% trans "Save Settings" %}</strong>{% trans "." %}</li>
                 </ol>
             </div>

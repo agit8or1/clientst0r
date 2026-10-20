@@ -33,7 +33,12 @@
                             </option>
                             {% endfor %}
                         </select>
-                        <small class="form-text text-muted">API keys inherit permissions based on their role</small>
+                        <small class="form-text text-muted">
+                            The most this key can do; it never does more than your own role allows.
+                            <strong>Read-Only</strong>: read, no changes and no password reveals.
+                            <strong>Editor</strong>: create, edit and reveal, no deleting or publishing.
+                            <strong>Admin</strong> / <strong>Owner</strong>: everything your role allows.
+                        </small>
                     </div>
 
                     <div class="mb-3">

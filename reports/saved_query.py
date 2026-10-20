@@ -190,17 +190,47 @@ def build_filter(target_model, filters):
     return q
 
 
-def execute(saved_query, *, organization=None):
+# Role view flags applied to a saved query's rows when it runs for a user.
+VIEW_PERMS = {
+    'assets.Asset': 'assets_view',
+    'vault.Password': 'vault_view',
+}
+
+
+def _scope_for_user(target_model, qs, user):
+    """Apply the module view flag and, for vault entries, hide other users'
+    personal (My Vault) entries. Until v3.17.618 a vault query listed every
+    entry's title and username, personal ones included."""
+    from django.db.models import Q
+    from accounts.permission_utils import orgs_with_perm
+
+    perm = VIEW_PERMS.get(target_model)
+    if target_model == 'vault.Password':
+        allowed = orgs_with_perm(user, perm)
+        shared = Q(is_personal=False) if allowed is None else Q(
+            is_personal=False, organization_id__in=allowed)
+        return qs.filter(shared | Q(is_personal=True, personal_owner=user))
+    if perm:
+        allowed = orgs_with_perm(user, perm)
+        if allowed is not None:
+            qs = qs.filter(organization_id__in=allowed)
+    return qs
+
+
+def execute(saved_query, *, organization=None, user=None):
     """
     Run a `SavedQuery` and return (model, queryset). Tenant scope:
     if `organization` is provided, scope using the model's `org_filter`
     config (defaults to `organization`). Some models — TicketTimeEntry —
-    scope through a relation (`ticket__organization`) instead.
+    scope through a relation (`ticket__organization`) instead. With `user`,
+    rows are also limited to what that user's role may view.
     """
     model = get_model(saved_query.target_model)
     if model is None:
         return None, model.objects.none() if model else []
     qs = model.objects.all()
+    if user is not None:
+        qs = _scope_for_user(saved_query.target_model, qs, user)
     if organization is not None:
         cfg = MODEL_CONFIG.get(saved_query.target_model, {})
         org_field = cfg.get('org_filter', 'organization')

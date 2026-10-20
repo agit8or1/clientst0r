@@ -29,6 +29,27 @@ class ReportsPermissionTests(TestCase):
         cls.admin = User.objects.create_user('admin', 'a@x.com', 'pw',
                                               is_superuser=True, is_staff=True)
 
+    def setUp(self):
+        # An MSP technician (User Type Staff) with no global role: their
+        # memberships decide the report flags. /reports/ is MSP staff only
+        # since v3.17.618, so a plain member is a customer user (403).
+        from psa.tests._base import _make_msp_tech
+        _make_msp_tech(self.tech)
+
+    def test_customer_owner_cannot_open_reports(self):
+        """v3.17.618: an Owner membership grants reports_view_financial, and
+        profitability-by-client covers every customer; a customer user with
+        that membership opened it."""
+        from accounts.models import Membership, Role
+        from core.models import Organization
+        org = Organization.objects.create(name='Cust Owners', slug='perm-cust-own')
+        customer = User.objects.create_user('cust-own', 'co@x.com', 'pw')
+        Membership.objects.create(user=customer, organization=org, role=Role.OWNER,
+                                  is_active=True)
+        self.client.force_login(customer)
+        for url in ('/reports/psa/profitability-by-client/', '/reports/wallboard/data/'):
+            self.assertEqual(self.client.get(url).status_code, 403, url)
+
     def test_user_has_perm_returns_false_for_anon(self):
         from accounts.permission_utils import user_has_perm
         from django.contrib.auth.models import AnonymousUser

@@ -1,367 +1,121 @@
-# Client St0r API v2 - GraphQL
+# GraphQL API
 
-Modern GraphQL API for Client St0r, providing flexible and efficient data querying alongside the REST API v1.
+An optional, mostly read-only GraphQL endpoint next to the [REST API](user-guide/api.md).
 
-## Quick Start
-
-### GraphQL Endpoint
+## Endpoint
 
 ```
 POST /api/v2/graphql/
 ```
 
-Only mounted when the optional GraphQL dependencies are installed
-(`pip install -r requirements-graphql.txt`). The in-browser GraphiQL IDE
-is served at the same URL only when `DEBUG=True`.
+It is only mounted when the optional dependencies are installed
+(`pip install -r requirements-graphql.txt`). `update.sh` installs them on native
+installs; the Docker image does not include them. The in-browser GraphiQL IDE is
+served at the same URL only when `DEBUG=True`.
 
 ## Authentication and scoping
 
-The endpoint uses your normal **web session** (log in first, including
-2FA), so requests need Django's CSRF token (`X-CSRFToken` header). There is
-no JWT or password-for-token mutation; for scripts and integrations use the
-REST API with an API key.
+The endpoint uses your normal **web session** (sign in first, including 2FA), so
+requests need Django's CSRF token in the `X-CSRFToken` header. **API keys are not
+accepted**, and there is no token or JWT sign-in. For scripts and integrations, use
+the REST API with an API key.
 
-Every query returns only data from organizations you belong to (MSP staff
-and superusers see all organizations), other users' personal vault entries
-are never listed, and password entries expose metadata only. Mutations
-check your role on the target organization (`assets_create`,
-`assets_edit`, `assets_delete`, `docs_create`).
+Every query returns only data from organizations you belong to (MSP staff and
+superusers see all organizations). The module view permissions apply (**View
+assets**, **View passwords**, **View documents**). Other users' personal vault
+entries are never listed, and password entries expose metadata only. Mutations
+check your role in the target organization (`assets_create`, `assets_edit`,
+`assets_delete`, `docs_create`).
 
-> Some examples further down predate these rules and the current schema;
-> use the GraphiQL schema explorer (in development) as the source of truth.
+Unlike the REST API, GraphQL requests are not rate-limited.
 
-## Example Queries
+## Queries
 
-### Get Current User
+Lists are plain lists (no paging or Relay connections). Arguments in brackets are
+optional.
+
+| Query | Returns |
+|-------|---------|
+| `me` | The signed-in user |
+| `user(id)`, `users` | Users you can see |
+| `organization(id)`, `organizations`, `myOrganization` | Organizations, with `assetCount` and `passwordCount` |
+| `asset(id)`, `assets(organizationId)` | Assets |
+| `assetTypes` | Asset types |
+| `password(id)`, `passwords(organizationId)` | Vault entry metadata: title, username, URL, type. Never the secret. |
+| `document(id)`, `documents(organizationId)` | Documents, including the body |
+| `diagram(id)`, `diagrams(organizationId)` | Diagrams, including the diagram XML |
+| `location(id)`, `locations` | Locations |
+| `websiteMonitor(id)`, `websiteMonitors(organizationId)` | Website monitors: URL, status, last check, status code, response time, SSL and domain expiry |
+| `expirations(organizationId)`, `expiringSoon(days = 30)` | Tracked expirations, with `daysUntilExpiry` |
+| `dashboardStats` | Counts of organizations, assets, passwords, documents, diagrams and active monitors |
+
+Use the GraphiQL schema explorer (in development) for every field of every type.
+
+## Mutations
+
+| Mutation | Arguments |
+|----------|-----------|
+| `createAsset` | `name!`, `organizationId!`, `assetType`, `manufacturer`, `model`, `serialNumber` |
+| `updateAsset` | `id!`, `name`, `manufacturer`, `model`, `serialNumber` |
+| `deleteAsset` | `id!` |
+| `createDocument` | `title!`, `content!`, `organizationId!` |
+
+Each returns `success` and `errors`, plus the `asset` or `document` it created or
+changed.
+
+## Examples
 
 ```graphql
 query {
-  me {
-    id
-    username
-    email
-    firstName
-    lastName
+  me { username }
+  websiteMonitors {
+    name
+    url
+    status
+    lastCheckedAt
+    sslExpiresAt
+    organization { name }
   }
 }
 ```
 
-### List Organizations
-
 ```graphql
-query {
-  organizations {
-    edges {
-      node {
-        id
-        name
-        memberCount
-        assetCount
-        passwordCount
-      }
-    }
-  }
-}
-```
-
-### Get Assets with Filtering
-
-```graphql
-query {
-  assets(organization: 1, isActive: true, name_Icontains: "server") {
-    edges {
-      node {
-        id
-        name
-        assetType {
-          name
-        }
-        manufacturer
-        model
-        serialNumber
-        organization {
-          name
-        }
-      }
-    }
-  }
-}
-```
-
-### Search Documents
-
-```graphql
-query {
-  documents(title_Icontains: "network", organization: 1) {
-    edges {
-      node {
-        id
-        title
-        category {
-          name
-        }
-        createdAt
-        updatedAt
-      }
-    }
-  }
-}
-```
-
-### Get Expiring Items
-
-```graphql
-query {
-  expiringSoon(days: 30) {
+query ($org: Int) {
+  assets(organizationId: $org) {
     id
     name
-    type
-    expirationDate
-    daysUntilExpiry
-    organization {
-      name
-    }
+    assetType
+    serialNumber
   }
 }
 ```
-
-### Dashboard Statistics
-
-```graphql
-query {
-  dashboardStats {
-    totalOrganizations
-    totalAssets
-    totalPasswords
-    totalDocuments
-    totalDiagrams
-    activeMonitors
-  }
-}
-```
-
-## Example Mutations
-
-### Create Asset
 
 ```graphql
 mutation {
-  createAsset(
-    name: "New Server"
-    assetTypeId: 1
-    organizationId: 1
-    manufacturer: "Dell"
-    model: "PowerEdge R740"
-    serialNumber: "ABC123"
-    description: "Production web server"
-  ) {
+  createAsset(name: "Core Switch", organizationId: 3, assetType: "switch") {
     success
     errors
-    asset {
-      id
-      name
-      serialNumber
-    }
+    asset { id name }
   }
 }
 ```
 
-### Update Asset
+From a page in the app (same session), send the CSRF token with the request:
 
-```graphql
-mutation {
-  updateAsset(
-    id: 123
-    name: "Updated Server Name"
-    description: "Updated description"
-    isActive: true
-  ) {
-    success
-    errors
-    asset {
-      id
-      name
-      description
-    }
-  }
-}
+```javascript
+const csrf = document.cookie.match(/csrftoken=([^;]+)/)[1];
+const res = await fetch('/api/v2/graphql/', {
+  method: 'POST',
+  credentials: 'same-origin',
+  headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+  body: JSON.stringify({ query: '{ me { username } }' }),
+});
+console.log(await res.json());
 ```
 
-### Delete Asset
+## Errors
 
-```graphql
-mutation {
-  deleteAsset(id: 123) {
-    success
-    errors
-  }
-}
-```
-
-### Create Document
-
-```graphql
-mutation {
-  createDocument(
-    title: "Network Documentation"
-    content: "Complete network topology and configuration details..."
-    organizationId: 1
-    categoryId: 5
-  ) {
-    success
-    errors
-    document {
-      id
-      title
-      createdAt
-    }
-  }
-}
-```
-
-## Advanced Queries
-
-### Nested Relationships
-
-```graphql
-query {
-  organizations {
-    edges {
-      node {
-        id
-        name
-        assets {
-          edges {
-            node {
-              name
-              assetType {
-                name
-              }
-            }
-          }
-        }
-        passwords {
-          totalCount
-        }
-        documents {
-          totalCount
-        }
-      }
-    }
-  }
-}
-```
-
-### Pagination
-
-```graphql
-query {
-  assets(first: 10, after: "cursor-here") {
-    pageInfo {
-      hasNextPage
-      hasPreviousPage
-      startCursor
-      endCursor
-    }
-    edges {
-      cursor
-      node {
-        id
-        name
-      }
-    }
-  }
-}
-```
-
-### Filtering and Sorting
-
-```graphql
-query {
-  assets(
-    organization: 1
-    assetType: 2
-    isActive: true
-    name_Icontains: "server"
-    orderBy: "-created_at"
-  ) {
-    edges {
-      node {
-        id
-        name
-        createdAt
-      }
-    }
-  }
-}
-```
-
-## Available Filters
-
-### String Filters
-- `exact`: Exact match
-- `iexact`: Case-insensitive exact match
-- `contains`: Contains substring
-- `icontains`: Case-insensitive contains
-- `startswith`: Starts with
-- `istartswith`: Case-insensitive starts with
-- `endswith`: Ends with
-- `iendswith`: Case-insensitive ends with
-
-### Numeric Filters
-- `exact`: Exact match
-- `lt`: Less than
-- `lte`: Less than or equal
-- `gt`: Greater than
-- `gte`: Greater than or equal
-
-### Boolean Filters
-- `exact`: true or false
-
-### Date Filters
-- `exact`: Exact date
-- `lt`: Before date
-- `lte`: Before or on date
-- `gt`: After date
-- `gte`: After or on date
-- `year`: Year
-- `month`: Month
-- `day`: Day
-
-## Introspection
-
-Get the complete schema:
-
-```graphql
-query {
-  __schema {
-    types {
-      name
-      description
-    }
-  }
-}
-```
-
-Get type details:
-
-```graphql
-query {
-  __type(name: "AssetType") {
-    name
-    fields {
-      name
-      type {
-        name
-      }
-    }
-  }
-}
-```
-
-## Error Handling
-
-Errors are returned in a structured format:
+Errors come back in the standard GraphQL shape:
 
 ```json
 {
@@ -376,200 +130,6 @@ Errors are returned in a structured format:
 }
 ```
 
-## Rate Limiting
-
-- **Authenticated**: 1000 requests per hour
-- **Unauthenticated**: 100 requests per hour
-
-## Best Practices
-
-### 1. Request Only What You Need
-
-```graphql
-# ✅ Good - Request specific fields
-query {
-  assets {
-    edges {
-      node {
-        id
-        name
-      }
-    }
-  }
-}
-
-# ❌ Bad - Requesting everything
-query {
-  assets {
-    edges {
-      node {
-        id
-        name
-        description
-        serialNumber
-        manufacturer
-        model
-        ... # All fields
-      }
-    }
-  }
-}
-```
-
-### 2. Use Fragments for Reusability
-
-```graphql
-fragment AssetDetails on AssetType {
-  id
-  name
-  manufacturer
-  model
-  serialNumber
-}
-
-query {
-  asset(id: 1) {
-    ...AssetDetails
-  }
-}
-```
-
-### 3. Batch Queries
-
-```graphql
-query {
-  assets: assets(first: 10) {
-    edges {
-      node {
-        id
-        name
-      }
-    }
-  }
-  documents: documents(first: 10) {
-    edges {
-      node {
-        id
-        title
-      }
-    }
-  }
-}
-```
-
-### 4. Use Variables
-
-```graphql
-query GetAsset($id: Int!) {
-  asset(id: $id) {
-    id
-    name
-    description
-  }
-}
-
-# Variables
-{
-  "id": 123
-}
-```
-
-## Client Libraries
-
-### JavaScript/TypeScript
-
-```bash
-npm install @apollo/client graphql
-```
-
-```javascript
-import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
-
-const client = new ApolloClient({
-  uri: 'https://your-domain/api/v2/graphql/',
-  cache: new InMemoryCache(),
-  headers: {
-    Authorization: `JWT ${token}`
-  }
-});
-
-const GET_ASSETS = gql`
-  query {
-    assets {
-      edges {
-        node {
-          id
-          name
-        }
-      }
-    }
-  }
-`;
-
-client.query({ query: GET_ASSETS })
-  .then(result => console.log(result));
-```
-
-### Python
-
-```bash
-pip install gql[all]
-```
-
-```python
-from gql import gql, Client
-from gql.transport.requests import RequestsHTTPTransport
-
-transport = RequestsHTTPTransport(
-    url='https://your-domain/api/v2/graphql/',
-    headers={'Authorization': f'JWT {token}'}
-)
-
-client = Client(transport=transport, fetch_schema_from_transport=True)
-
-query = gql('''
-    query {
-        assets {
-            edges {
-                node {
-                    id
-                    name
-                }
-            }
-        }
-    }
-''')
-
-result = client.execute(query)
-print(result)
-```
-
-## Subscriptions (Coming Soon)
-
-Real-time updates using WebSocket subscriptions:
-
-```graphql
-subscription {
-  assetUpdated {
-    id
-    name
-    updatedAt
-  }
-}
-```
-
-## Migration from REST API v1
-
-| REST API v1 | GraphQL API v2 |
-|-------------|----------------|
-| `GET /api/v1/assets/` | `query { assets { ... } }` |
-| `GET /api/v1/assets/:id/` | `query { asset(id: X) { ... } }` |
-| `POST /api/v1/assets/` | `mutation { createAsset(...) { ... } }` |
-| `PUT /api/v1/assets/:id/` | `mutation { updateAsset(id: X, ...) { ... } }` |
-| `DELETE /api/v1/assets/:id/` | `mutation { deleteAsset(id: X) { ... } }` |
-
 ## Support
 
-- **Documentation**: https://github.com/agit8or1/clientst0r/wiki/GraphQL-API
 - **Issues**: https://github.com/agit8or1/clientst0r/issues
-- **Discussions**: https://github.com/agit8or1/clientst0r/discussions

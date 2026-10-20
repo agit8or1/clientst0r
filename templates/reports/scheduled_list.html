@@ -10,14 +10,14 @@
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h1 class="h2">
-                        <i class="bi bi-calendar-check me-2"></i>
+                        <i class="fas fa-calendar-check me-2"></i>
                         Scheduled Reports
                     </h1>
                     <p class="text-muted">Manage your automated report schedules</p>
                 </div>
                 <div>
                     <a href="{% url 'reports:scheduled_create' %}" class="btn btn-primary">
-                        <i class="bi bi-plus-circle me-2"></i>Create Schedule
+                        <i class="fas fa-circle-plus me-2"></i>Create Schedule
                     </a>
                 </div>
             </div>
@@ -51,11 +51,11 @@
                                         <td>
                                             {% if schedule.is_active %}
                                                 <span class="badge bg-success">
-                                                    <i class="bi bi-check-circle me-1"></i>Active
+                                                    <i class="fas fa-circle-check me-1"></i>Active
                                                 </span>
                                             {% else %}
                                                 <span class="badge bg-secondary">
-                                                    <i class="bi bi-pause-circle me-1"></i>Inactive
+                                                    <i class="fas fa-circle-pause me-1"></i>Inactive
                                                 </span>
                                             {% endif %}
                                         </td>
@@ -70,10 +70,13 @@
                                         <td>
                                             <div class="btn-group btn-group-sm">
                                                 <a href="{% url 'reports:scheduled_edit' schedule.pk %}" class="btn btn-outline-primary" title="Edit">
-                                                    <i class="bi bi-pencil"></i>
+                                                    <i class="fas fa-pen"></i>
                                                 </a>
                                                 <a href="{% url 'reports:scheduled_toggle' schedule.pk %}" class="btn btn-outline-{% if schedule.is_active %}warning{% else %}success{% endif %}" title="{% if schedule.is_active %}Disable{% else %}Enable{% endif %}">
-                                                    <i class="bi bi-{% if schedule.is_active %}pause{% else %}play{% endif %}-fill"></i>
+                                                    <i class="fas fa-{% if schedule.is_active %}pause{% else %}play{% endif %}"></i>
+                                                </a>
+                                                <a href="{% url 'reports:scheduled_delete' schedule.pk %}" class="btn btn-outline-danger" title="Delete">
+                                                    <i class="fas fa-trash"></i>
                                                 </a>
                                             </div>
                                         </td>
@@ -84,7 +87,7 @@
                         </div>
                     {% else %}
                         <div class="alert alert-info">
-                            <i class="bi bi-info-circle me-2"></i>
+                            <i class="fas fa-circle-info me-2"></i>
                             No scheduled reports yet. <a href="{% url 'reports:scheduled_create' %}">Create your first schedule</a>.
                         </div>
                     {% endif %}

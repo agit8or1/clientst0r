@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} Report Template - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-file-lines me-2"></i>{{ action }} Report Template</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" maxlength="200" value="{{ template.name|default:'' }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="report_type" class="form-label">Report Type *</label>
+                            <select class="form-select" id="report_type" name="report_type" required>
+                                <option value="">Select a report type...</option>
+                                {% for value, label in report_types %}
+                                <option value="{{ value }}" {% if template.report_type == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">The report type decides what the report contains. A template gives it a name, a description and, optionally, a schedule.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3">{{ template.description|default:'' }}</textarea>
+                        </div>
+                        {% if user.is_staff %}
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="is_global" name="is_global" {% if template.is_global %}checked{% endif %}>
+                            <label class="form-check-label" for="is_global">Global: available in every organization</label>
+                        </div>
+                        {% endif %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-floppy-disk me-2"></i>{% if action == 'Create' %}Create Template{% else %}Save Changes{% endif %}</button>
+                            <a href="{% if template.pk %}{% url 'reports:template_detail' template.pk %}{% else %}{% url 'reports:template_list' %}{% endif %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

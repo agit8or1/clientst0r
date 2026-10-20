@@ -8,13 +8,13 @@
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
             <h1 class="h3 mb-0">
-                <i class="bi bi-file-earmark-text me-2"></i>Report Templates
+                <i class="fas fa-file-lines me-2"></i>Report Templates
             </h1>
             <p class="text-muted mb-0 small">Select a template to generate a report.</p>
         </div>
         {% if user.is_staff %}
         <a href="{% url 'reports:template_create' %}" class="btn btn-sm btn-primary">
-            <i class="bi bi-plus-circle me-1"></i>Create Template
+            <i class="fas fa-circle-plus me-1"></i>Create Template
         </a>
         {% endif %}
     </div>
@@ -50,10 +50,10 @@
                             </td>
                             <td class="text-end text-nowrap">
                                 <a href="{% url 'reports:generate_report' template.pk %}" class="btn btn-sm btn-primary">
-                                    <i class="bi bi-play-fill"></i> Generate
+                                    <i class="fas fa-play"></i> Generate
                                 </a>
                                 <a href="{% url 'reports:template_detail' template.pk %}" class="btn btn-sm btn-outline-secondary" title="View details">
-                                    <i class="bi bi-eye"></i>
+                                    <i class="fas fa-eye"></i>
                                 </a>
                             </td>
                         </tr>
@@ -65,7 +65,7 @@
         {% endfor %}
     {% else %}
         <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>
+            <i class="fas fa-circle-info me-2"></i>
             No report templates available yet.
             {% if user.is_staff %}
                 <a href="{% url 'reports:template_create' %}">Create your first template</a>.

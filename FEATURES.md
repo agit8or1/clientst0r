@@ -594,7 +594,9 @@ cover every organization on the install, so grant it to MSP staff only.
 | Contract profitability snapshot | Limited | Uses a placeholder cost of 60% of the hourly rate instead of technician cost rates. | Contract detail |
 | Client health, executive scorecard, MRR forecast, AR aging, reconciliation reports | Available | | `/reports/` |
 | Custom dashboards and wallboards | Available | Starter widgets; a seeded "MSP Overview" dashboard. | `/reports/dashboards/`, `/reports/wallboards/` |
-| Scheduled reports | Available | Run every 15 minutes by the scheduler. | `/reports/scheduled/` |
+| Report templates | Limited | Eight built-in per-customer reports (assets, lifecycle, password audit, documents, monitor and WAN uptime, expirations, user activity, organization metrics) in PDF, CSV or JSON. The PDF is plain text of the data, not a formatted report. No custom queries in templates. | `/reports/templates/` |
+| Reports access | Available | MSP staff only since v3.17.618; most reports cover every customer. | `/reports/` |
+| Scheduled reports | Available | Run every 15 minutes by the scheduler. PDF, CSV or JSON; emailed through the SMTP settings, one message per recipient, or kept as download only. The create and edit pages failed until v3.17.618. | `/reports/scheduled/` |
 | Audit reports | Available | | `/audit/` |
 | Reports module switch | Limited | Install-wide, not per organization. | `/core/settings/features/` |
 
@@ -660,9 +662,9 @@ All AI features are optional. Nothing calls an AI provider until one is configur
 
 | Capability | Status | Notes | Where |
 |---|---|---|---|
-| REST API | Limited | Assets, contacts, documents, passwords and tags (full CRUD); organizations read-only. Pagination, filtering, ordering, throttling. Role view permissions apply. | `/api/`, [user-guide/api.md](user-guide/api.md) |
-| API keys | Available | `Authorization: Bearer itdocs_live_…`; stored hashed; stop working when the user is deactivated or (for customer users) leaves the key's organization. No expiry date. | `/api/keys/` |
-| GraphQL | Available | Optional dependency (`requirements-graphql.txt`). | `/api/v2/graphql/`, [API_V2_GRAPHQL.md](API_V2_GRAPHQL.md) |
+| REST API | Limited | Assets, contacts, documents, passwords and tags (full CRUD; tag writes for superusers); organizations read-only. No endpoints for monitors, WAN, locations or tickets. Pagination (50 per page), filtering, ordering, 1,000 requests/hour per user. Role permissions apply to reading, creating, editing, deleting, publishing and revealing (writes since v3.17.618). | `/api/`, [user-guide/api.md](user-guide/api.md) |
+| API keys | Available | `Authorization: Bearer itdocs_live_…`; stored hashed. A permission level (Read-Only, Editor, Admin, Owner) caps what the key can do, enforced since v3.17.618; Read-Only keys can't write or reveal. An organization scope picks one customer, a customer and its sub-locations, or every customer the owner can reach. Keys stop working when the user is deactivated or (for customer users) leaves the key's organization. No expiry date. | `/api/keys/` |
+| GraphQL | Limited | Optional dependency (`requirements-graphql.txt`; not in the Docker image). Web session and CSRF only, no API keys. Mostly read-only: four asset/document mutations. | `/api/v2/graphql/`, [API_V2_GRAPHQL.md](API_V2_GRAPHQL.md) |
 | Field selection, bulk operations, OpenAPI explorer | Planned | | — |
 | Mobile API | Available | Token-authenticated; tenant-scoped; customer users get the customer rules. | `/api/mobile/v1/` |
 
@@ -673,7 +675,7 @@ All AI features are optional. Nothing calls an AI provider until one is configur
 | Capability | Status | Notes | Where |
 |---|---|---|---|
 | Extension | Separate component | In this repository under [`clientst0r-extension/`](clientst0r-extension/README.md): Manifest V3, Chrome/Edge 88+, Firefox 109+. Unsigned; loads only in developer mode. Not published to browser stores. | `/core/download-browser-extension/` |
-| Password search, copy, TOTP, autofill suggestions | Limited | Uses a REST API key and the regular `/api/` endpoints. Credentials are matched by host substring. | Extension popup |
+| Password search, copy, TOTP, autofill suggestions | Limited | Uses a REST API key and the regular `/api/` endpoints; the key needs the Editor level or higher to reveal passwords and OTP codes. Credentials are matched by host substring. | Extension popup |
 | Dedicated extension API (`/vault/api/extension/`) | Available | Server side only; the extension does not use it yet, and there is no token button in the UI. | [docs/browser-extension-api.md](docs/browser-extension-api.md) |
 | Lock / master password, offline vault | Planned | | — |
 

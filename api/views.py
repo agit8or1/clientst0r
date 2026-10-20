@@ -25,6 +25,7 @@ from vault.permissions import (
 )
 from core.models import Tag, Organization
 
+from .permissions import key_level_label, key_role_allows
 from .scoping import (
     accessible_org_ids, resolve_scope_org_ids, resolve_create_org,
 )
@@ -54,6 +55,11 @@ class OrganizationScopedViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [IsAuthenticated]
     view_perm = None
+    # Role flags for writes. Checked in the row's customer (and the target
+    # customer on a move), and against the API key's Permission Level.
+    create_perm = None
+    edit_perm = None
+    delete_perm = None
 
     def get_queryset(self):
         """Filter queryset to the org(s) resolved for this request."""
@@ -69,7 +75,32 @@ class OrganizationScopedViewSet(viewsets.ModelViewSet):
         """Narrow to customers where the user holds `view_perm`."""
         if not self.view_perm:
             return queryset
+        if not key_role_allows(self.request, self.view_perm):
+            return queryset.none()
         return filter_by_org_perm(queryset, self.request.user, self.view_perm)
+
+    def require_perm(self, organization, perm, what):
+        """403 unless both the API key's level (if any) and the user's role
+        in `organization` grant `perm`."""
+        if not perm:
+            return
+        if not key_role_allows(self.request, perm):
+            raise PermissionDenied(
+                f"This API key's permission level ({key_level_label(self.request)}) "
+                f"does not allow {what}."
+            )
+        if not has_perm_for_org(self.request.user, organization, perm):
+            raise PermissionDenied(f"You do not have permission to {what} here.")
+
+    def check_tags(self, serializer, organization):
+        """Tags attached through `tag_ids` must belong to the row's customer;
+        the field accepted any tag id, so a row could carry (and echo back)
+        another customer's tag."""
+        tags = serializer.validated_data.get('tags')
+        if tags and organization is not None and any(
+                t.organization_id != organization.id for t in tags):
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'tag_ids': ["Tags must belong to the record's organization."]})
 
     def require_view_perm(self, organization):
         """403 unless the user holds `view_perm` in `organization`. Used on
@@ -89,6 +120,8 @@ class OrganizationScopedViewSet(viewsets.ModelViewSet):
         if hasattr(model, 'organization'):
             kwargs['organization'] = resolve_create_org(self.request, serializer)
             self.require_view_perm(kwargs['organization'])
+            self.require_perm(kwargs['organization'], self.create_perm, 'create this')
+            self.check_tags(serializer, kwargs['organization'])
         if hasattr(model, 'created_by'):
             kwargs['created_by'] = self.request.user
         serializer.save(**kwargs)
@@ -96,6 +129,8 @@ class OrganizationScopedViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         """Set last_modified_by; block moving a row to an inaccessible org."""
         kwargs = {}
+        instance_org = getattr(serializer.instance, 'organization', None)
+        self.require_perm(instance_org, self.edit_perm, 'edit this')
         target_org = serializer.validated_data.get('organization')
         if target_org is not None and target_org.id not in set(
             accessible_org_ids(self.request)
@@ -105,9 +140,15 @@ class OrganizationScopedViewSet(viewsets.ModelViewSet):
             )
         if target_org is not None:
             self.require_view_perm(target_org)
+            self.require_perm(target_org, self.edit_perm, 'edit this')
+        self.check_tags(serializer, target_org or instance_org)
         if hasattr(serializer.Meta.model, 'last_modified_by'):
             kwargs['last_modified_by'] = self.request.user
         serializer.save(**kwargs)
+
+    def perform_destroy(self, instance):
+        self.require_perm(getattr(instance, 'organization', None), self.delete_perm, 'delete this')
+        instance.delete()
 
 
 class AssetViewSet(OrganizationScopedViewSet):
@@ -126,6 +167,9 @@ class AssetViewSet(OrganizationScopedViewSet):
     queryset = Asset.objects.all()
     serializer_class = AssetSerializer
     view_perm = 'assets_view'
+    create_perm = 'assets_create'
+    edit_perm = 'assets_edit'
+    delete_perm = 'assets_delete'
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     # Asset doesn't have `is_active` or `location` columns — those were
     # carried over from an old model spec and crashed every list request
@@ -149,6 +193,9 @@ class ContactViewSet(OrganizationScopedViewSet):
     """
     queryset = Contact.objects.all()
     view_perm = 'assets_view'
+    create_perm = 'assets_create'
+    edit_perm = 'assets_edit'
+    delete_perm = 'assets_delete'
     serializer_class = ContactSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['first_name', 'last_name', 'email', 'phone']
@@ -166,16 +213,38 @@ class DocumentViewSet(OrganizationScopedViewSet):
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer
     view_perm = 'docs_view'
+    create_perm = 'docs_create'
+    edit_perm = 'docs_edit'
+    delete_perm = 'docs_delete'
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_published', 'is_template', 'is_archived', 'category', 'content_type']
     search_fields = ['title', 'body']
     ordering_fields = ['title', 'created_at', 'updated_at']
     ordering = ['-updated_at']
 
+    def _require_publish_if_changed(self, serializer, current):
+        """Publishing or unpublishing through the `is_published` field needs
+        `docs_publish`, like the publish action."""
+        wanted = serializer.validated_data.get('is_published')
+        if wanted is not None and wanted != current:
+            org = (serializer.validated_data.get('organization')
+                   or getattr(serializer.instance, 'organization', None)
+                   or resolve_create_org(self.request, serializer))
+            self.require_perm(org, 'docs_publish', 'publish or unpublish documents')
+
+    def perform_create(self, serializer):
+        self._require_publish_if_changed(serializer, False)
+        super().perform_create(serializer)
+
+    def perform_update(self, serializer):
+        self._require_publish_if_changed(serializer, serializer.instance.is_published)
+        super().perform_update(serializer)
+
     @action(detail=True, methods=['post'])
     def publish(self, request, pk=None):
         """Publish a document."""
         document = self.get_object()
+        self.require_perm(document.organization, 'docs_publish', 'publish documents')
         document.is_published = True
         document.save()
         return Response({'status': 'published'})
@@ -184,6 +253,7 @@ class DocumentViewSet(OrganizationScopedViewSet):
     def archive(self, request, pk=None):
         """Archive a document."""
         document = self.get_object()
+        self.require_perm(document.organization, 'docs_edit', 'archive documents')
         document.is_archived = True
         document.save()
         return Response({'status': 'archived'})
@@ -246,18 +316,36 @@ class PasswordViewSet(OrganizationScopedViewSet):
             body['requires_approval'] = True
         return Response(body, status=denial.status)
 
+    def _require_key(self, perm, what):
+        if not key_role_allows(self.request, perm):
+            raise PermissionDenied(
+                f"This API key's permission level ({key_level_label(self.request)}) "
+                f"does not allow {what}."
+            )
+
+    def _key_reveal_denial(self):
+        """RevealDenied when the API key's level may not see secrets."""
+        if key_role_allows(self.request, 'vault_view_password'):
+            return None
+        return RevealDenied(
+            403, f"This API key's permission level ({key_level_label(self.request)}) "
+                 "does not allow revealing passwords.")
+
     def perform_create(self, serializer):
+        self._require_key('vault_create', 'creating passwords')
         org = resolve_create_org(self.request, serializer)
         if not user_has_org_perm(self.request.user, org.id, 'vault_create'):
             raise PermissionDenied('You do not have permission to create passwords.')
         super().perform_create(serializer)
 
     def perform_update(self, serializer):
+        self._require_key('vault_edit', 'editing passwords')
         if not can_access_password(self.request.user, serializer.instance, 'vault_edit'):
             raise PermissionDenied('You do not have permission to edit this password.')
         super().perform_update(serializer)
 
     def perform_destroy(self, instance):
+        self._require_key('vault_delete', 'deleting passwords')
         if not can_access_password(self.request.user, instance, 'vault_delete'):
             raise PermissionDenied('You do not have permission to delete this password.')
         super().perform_destroy(instance)
@@ -267,6 +355,9 @@ class PasswordViewSet(OrganizationScopedViewSet):
         instance = self.get_object()
         revealing = request.query_params.get('reveal') == 'true'
         if revealing:
+            denial = self._key_reveal_denial()
+            if denial is not None:
+                return self._denied(instance, denial, 'reveal')
             try:
                 gate_reveal(request, instance)
             except RevealDenied as denial:
@@ -302,6 +393,9 @@ class PasswordViewSet(OrganizationScopedViewSet):
         """
         password = self.get_object()
         org = password.organization
+        denial = self._key_reveal_denial()
+        if denial is not None:
+            return self._denied(password, denial, 'reveal')
         try:
             gate_reveal(request, password)
         except RevealDenied as denial:
@@ -334,6 +428,9 @@ class PasswordViewSet(OrganizationScopedViewSet):
         GET /api/passwords/{id}/otp/
         """
         password = self.get_object()
+        denial = self._key_reveal_denial()
+        if denial is not None:
+            return self._denied(password, denial, 'otp')
         try:
             gate_reveal(request, password)
         except RevealDenied as denial:
@@ -377,6 +474,29 @@ class TagViewSet(OrganizationScopedViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name']
     ordering = ['name']
+
+    def _require_tag_admin(self):
+        """Tag management is superuser-only in the web app (core.tag_views);
+        the API let any member create, rename and delete tags."""
+        if not self.request.user.is_superuser:
+            raise PermissionDenied('Only superusers can manage tags.')
+        if not key_role_allows(self.request, 'assets_edit'):
+            raise PermissionDenied(
+                f"This API key's permission level ({key_level_label(self.request)}) "
+                "does not allow managing tags."
+            )
+
+    def perform_create(self, serializer):
+        self._require_tag_admin()
+        super().perform_create(serializer)
+
+    def perform_update(self, serializer):
+        self._require_tag_admin()
+        super().perform_update(serializer)
+
+    def perform_destroy(self, instance):
+        self._require_tag_admin()
+        super().perform_destroy(instance)
 
 
 class OrganizationViewSet(viewsets.ReadOnlyModelViewSet):

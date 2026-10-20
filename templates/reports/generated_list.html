@@ -8,7 +8,7 @@
     <div class="row mb-4">
         <div class="col-12">
             <h1 class="h2">
-                <i class="bi bi-file-earmark-pdf me-2"></i>
+                <i class="fas fa-file-pdf me-2"></i>
                 Generated Reports
             </h1>
             <p class="text-muted">View and download your generated reports</p>
@@ -44,19 +44,19 @@
                                         <td>
                                             {% if report.status == 'completed' %}
                                                 <span class="badge bg-success">
-                                                    <i class="bi bi-check-circle me-1"></i>Completed
+                                                    <i class="fas fa-circle-check me-1"></i>Completed
                                                 </span>
                                             {% elif report.status == 'generating' %}
                                                 <span class="badge bg-info">
-                                                    <i class="bi bi-arrow-repeat me-1"></i>Generating
+                                                    <i class="fas fa-arrows-rotate me-1"></i>Generating
                                                 </span>
                                             {% elif report.status == 'pending' %}
                                                 <span class="badge bg-warning">
-                                                    <i class="bi bi-clock me-1"></i>Pending
+                                                    <i class="fas fa-clock me-1"></i>Pending
                                                 </span>
                                             {% elif report.status == 'failed' %}
                                                 <span class="badge bg-danger">
-                                                    <i class="bi bi-exclamation-triangle me-1"></i>Failed
+                                                    <i class="fas fa-triangle-exclamation me-1"></i>Failed
                                                 </span>
                                             {% endif %}
                                         </td>
@@ -72,17 +72,17 @@
                                         <td>
                                             <div class="btn-group btn-group-sm">
                                                 <a href="{% url 'reports:generated_detail' report.pk %}" class="btn btn-outline-secondary" title="View details">
-                                                    <i class="bi bi-info-circle"></i>
+                                                    <i class="fas fa-circle-info"></i>
                                                 </a>
                                                 {% if report.file %}
                                                     {% with ext=report.format|lower %}
                                                     {% if ext == 'pdf' %}
                                                     <a href="{% url 'reports:generated_download' report.pk %}" class="btn btn-primary" title="Open PDF in new tab" target="_blank" rel="noopener">
-                                                        <i class="bi bi-eye"></i> View PDF
+                                                        <i class="fas fa-eye"></i> View PDF
                                                     </a>
                                                     {% else %}
                                                     <a href="{% url 'reports:generated_download' report.pk %}" class="btn btn-success" title="Download {{ ext|upper }}">
-                                                        <i class="bi bi-download"></i> Download {{ ext|upper }}
+                                                        <i class="fas fa-download"></i> Download {{ ext|upper }}
                                                     </a>
                                                     {% endif %}
                                                     {% endwith %}
@@ -93,7 +93,7 @@
                                                         {% csrf_token %}
                                                         <input type="hidden" name="format" value="{{ report.format }}">
                                                         <button type="submit" class="btn btn-warning" title="No file on disk — re-generate this report">
-                                                            <i class="bi bi-arrow-clockwise"></i> Re-generate
+                                                            <i class="fas fa-rotate-right"></i> Re-generate
                                                         </button>
                                                     </form>
                                                     {% endif %}
@@ -101,12 +101,12 @@
                                             </div>
                                             {% if report.status == 'failed' and report.error_message %}
                                             <small class="text-danger d-block mt-1" title="{{ report.error_message }}">
-                                                <i class="bi bi-exclamation-circle"></i>
+                                                <i class="fas fa-circle-exclamation"></i>
                                                 {{ report.error_message|truncatechars:60 }}
                                             </small>
                                             {% elif report.status == 'completed' and not report.file %}
                                             <small class="text-warning d-block mt-1">
-                                                <i class="bi bi-exclamation-triangle"></i>
+                                                <i class="fas fa-triangle-exclamation"></i>
                                                 File missing — re-generate
                                             </small>
                                             {% endif %}
@@ -118,7 +118,7 @@
                         </div>
                     {% else %}
                         <div class="alert alert-info">
-                            <i class="bi bi-info-circle me-2"></i>
+                            <i class="fas fa-circle-info me-2"></i>
                             No reports generated yet. <a href="{% url 'reports:template_list' %}">Generate your first report</a>.
                         </div>
                     {% endif %}

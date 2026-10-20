@@ -10,7 +10,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">
-                        <i class="bi bi-file-earmark-pdf me-2"></i>
+                        <i class="fas fa-file-pdf me-2"></i>
                         Report Details
                     </h4>
                     <div class="btn-group">
@@ -18,15 +18,15 @@
                             {% with ext=report.format|lower %}
                             {% if ext == 'pdf' %}
                             <a href="{% url 'reports:generated_download' report.pk %}" class="btn btn-primary" target="_blank" rel="noopener">
-                                <i class="bi bi-eye me-2"></i>View PDF
+                                <i class="fas fa-eye me-2"></i>View PDF
                             </a>
                             {% else %}
                             <a href="{% url 'reports:generated_download' report.pk %}" class="btn btn-success">
-                                <i class="bi bi-download me-2"></i>Download {{ ext|upper }}
+                                <i class="fas fa-download me-2"></i>Download {{ ext|upper }}
                             </a>
                             {% endif %}
                             <a href="{% url 'reports:generated_download' report.pk %}" class="btn btn-outline-secondary" title="Download original file">
-                                <i class="bi bi-file-earmark-arrow-down me-2"></i>Download original
+                                <i class="fas fa-file-arrow-down me-2"></i>Download original
                             </a>
                             {% endwith %}
                         {% elif report.template_id %}
@@ -34,19 +34,22 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="format" value="{{ report.format }}">
                                 <button type="submit" class="btn btn-warning">
-                                    <i class="bi bi-arrow-clockwise me-2"></i>Re-generate
+                                    <i class="fas fa-rotate-right me-2"></i>Re-generate
                                 </button>
                             </form>
                         {% endif %}
+                        <a href="{% url 'reports:generated_delete' report.pk %}" class="btn btn-outline-danger">
+                            <i class="fas fa-trash me-2"></i>Delete
+                        </a>
                         <a href="{% url 'reports:generated_list' %}" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left me-2"></i>Back to List
+                            <i class="fas fa-arrow-left me-2"></i>Back to List
                         </a>
                     </div>
                 </div>
                 <div class="card-body">
                     {% if report.status == 'completed' and not report.file %}
                     <div class="alert alert-warning d-flex align-items-start gap-2 mb-3">
-                        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                        <i class="fas fa-triangle-exclamation fs-5"></i>
                         <div>
                             <strong>Report file missing.</strong>
                             This report was marked completed but no file is attached on disk.
@@ -56,7 +59,7 @@
                     </div>
                     {% elif report.status == 'failed' and report.error_message %}
                     <div class="alert alert-danger d-flex align-items-start gap-2 mb-3">
-                        <i class="bi bi-x-circle-fill fs-5"></i>
+                        <i class="fas fa-circle-xmark fs-5"></i>
                         <div>
                             <strong>Generation failed.</strong>
                             <pre class="mb-0 mt-1 small" style="white-space: pre-wrap;">{{ report.error_message }}</pre>
@@ -80,19 +83,19 @@
                             <p>
                                 {% if report.status == 'completed' %}
                                     <span class="badge bg-success fs-6">
-                                        <i class="bi bi-check-circle me-1"></i>Completed
+                                        <i class="fas fa-circle-check me-1"></i>Completed
                                     </span>
                                 {% elif report.status == 'generating' %}
                                     <span class="badge bg-info fs-6">
-                                        <i class="bi bi-arrow-repeat me-1"></i>Generating
+                                        <i class="fas fa-arrows-rotate me-1"></i>Generating
                                     </span>
                                 {% elif report.status == 'pending' %}
                                     <span class="badge bg-warning fs-6">
-                                        <i class="bi bi-clock me-1"></i>Pending
+                                        <i class="fas fa-clock me-1"></i>Pending
                                     </span>
                                 {% elif report.status == 'failed' %}
                                     <span class="badge bg-danger fs-6">
-                                        <i class="bi bi-exclamation-triangle me-1"></i>Failed
+                                        <i class="fas fa-triangle-exclamation me-1"></i>Failed
                                     </span>
                                 {% endif %}
                             </p>
@@ -131,14 +134,14 @@
 
                     {% if report.error_message %}
                     <div class="alert alert-danger">
-                        <h6><i class="bi bi-exclamation-triangle me-2"></i>Error Message</h6>
+                        <h6><i class="fas fa-triangle-exclamation me-2"></i>Error Message</h6>
                         <p class="mb-0">{{ report.error_message }}</p>
                     </div>
                     {% endif %}
 
                     {% if report.file %}
                     <div class="alert alert-success">
-                        <h6><i class="bi bi-file-check me-2"></i>File Information</h6>
+                        <h6><i class="fas fa-file-circle-check me-2"></i>File Information</h6>
                         <p class="mb-0">
                             <strong>File:</strong> {{ report.file.name }}<br>
                             {% if report.file_size %}

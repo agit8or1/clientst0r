@@ -232,13 +232,14 @@
                             <li><a class="dropdown-item" href="{% url 'crm:commission_rule_list' %}"><i class="fas fa-cogs fa-fw"></i> {% trans "Commission Rules" %}</a></li>
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
+                            {% if is_staff_user or user.is_superuser or user.is_staff %}
                             <li><h6 class="dropdown-header"><i class="fas fa-chart-bar fa-fw"></i> {% trans "Reports" %}</h6></li>
                             <li><a class="dropdown-item" href="{% url 'reports:home' %}"><i class="fas fa-home fa-fw"></i> {% trans "Reports Home" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'reports:dashboard_list' %}"><i class="fas fa-th-large fa-fw"></i> {% trans "Dashboards" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'reports:wallboard_list' %}"><i class="fas fa-tv fa-fw"></i> {% trans "Wallboards" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'reports:template_list' %}"><i class="fas fa-file-pdf fa-fw"></i> {% trans "Generate Reports" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'reports:generated_list' %}"><i class="fas fa-history fa-fw"></i> {% trans "Report History" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'reports:analytics_overview' %}"><i class="fas fa-chart-line fa-fw"></i> {% trans "Analytics" %}</a></li>
+                            {% endif %}
                         </ul>
                     </li>
                     {% if user.is_superuser %}

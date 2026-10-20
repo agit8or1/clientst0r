@@ -10,20 +10,23 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">
-                        <i class="bi bi-file-earmark-text me-2"></i>
+                        <i class="fas fa-file-lines me-2"></i>
                         {{ template.name }}
                     </h4>
                     <div class="btn-group">
                         <a href="{% url 'reports:generate_report' template.pk %}" class="btn btn-success">
-                            <i class="bi bi-play-fill me-2"></i>Generate Report
+                            <i class="fas fa-play me-2"></i>Generate Report
                         </a>
-                        {% if template.organization == user.organization %}
+                        {% if can_edit %}
                         <a href="{% url 'reports:template_edit' template.pk %}" class="btn btn-primary">
-                            <i class="bi bi-pencil me-2"></i>Edit
+                            <i class="fas fa-pen me-2"></i>Edit
+                        </a>
+                        <a href="{% url 'reports:template_delete' template.pk %}" class="btn btn-outline-danger">
+                            <i class="fas fa-trash me-2"></i>Delete
                         </a>
                         {% endif %}
                         <a href="{% url 'reports:template_list' %}" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left me-2"></i>Back
+                            <i class="fas fa-arrow-left me-2"></i>Back
                         </a>
                     </div>
                 </div>
@@ -50,7 +53,7 @@
                         <h6 class="text-muted">Status</h6>
                         <p>
                             {% if template.is_global %}
-                                <span class="badge bg-info"><i class="bi bi-globe me-1"></i>Global Template</span>
+                                <span class="badge bg-info"><i class="fas fa-globe me-1"></i>Global Template</span>
                             {% else %}
                                 <span class="badge bg-secondary">Organization Template</span>
                             {% endif %}
@@ -73,7 +76,7 @@
             {% if recent_reports %}
             <div class="card mt-4">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Reports</h5>
+                    <h5 class="mb-0"><i class="fas fa-clock-rotate-left me-2"></i>Recent Reports</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -104,7 +107,7 @@
                                     <td>{{ report.created_at|date:"Y-m-d H:i" }}</td>
                                     <td>
                                         <a href="{% url 'reports:generated_detail' report.pk %}" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-eye"></i>
+                                            <i class="fas fa-eye"></i>
                                         </a>
                                     </td>
                                 </tr>

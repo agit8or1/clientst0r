@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Scheduled Report{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-6 offset-lg-3">
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-triangle-exclamation me-2"></i>Delete Scheduled Report</h5>
+                </div>
+                <div class="card-body">
+                    <p>Delete the schedule <strong>{{ schedule.name }}</strong>?</p>
+                    <p class="text-muted small mb-4">Reports it already generated are kept.</p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger"><i class="fas fa-trash me-1"></i>Delete</button>
+                            <a href="{% url 'reports:scheduled_list' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
