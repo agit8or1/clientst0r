@@ -26,10 +26,14 @@ def _django_staff_without_role(user):
 
 def _kb_perm(user, perm):
     """Global KB reach: superusers, MSP staff whose global role grants it (or
-    who have no global role), or a membership whose role grants it — the
-    same reach `require_kb_perm` gives the global KB views."""
+    who have no global role), or MSP staff with a membership whose role
+    grants it — the same reach `require_kb_perm` gives the global KB views.
+    Customer users never reach the global KB (v3.17.625)."""
     if orgs_with_perm(user, perm) is None:
         return True
+    from psa.visibility import is_msp_staff
+    if not is_msp_staff(user):
+        return False
     return user_has_perm(user, perm)
 
 

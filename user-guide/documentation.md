@@ -74,7 +74,7 @@ The **Knowledge Base** is a public-within-org article library for reference mate
 
 ### Global Knowledge Base
 
-Global KB articles are written by the MSP and are visible to **MSP staff** in every organization. Customer users don't see them on the staff pages, in the APIs or in the mobile app; articles marked client-visible appear in the customer portal instead. Useful for:
+Global KB articles are written by the MSP and are visible to **MSP staff** in every organization. Customer users don't see them on the staff pages, in the APIs or in the mobile app; articles marked client-visible appear in the customer portal instead. Only MSP staff whose role includes **Edit KB articles**, **Move KB articles** or **Manage KB categories** can change them; the same permissions on a customer's role don't apply to the global KB. Drafts and articles pending review are listed only for staff who can edit them. Useful for:
 - Company-wide IT policies
 - Standard operating procedures
 - Product documentation

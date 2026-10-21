@@ -2416,23 +2416,24 @@ def recurring_form(request, pk=None):
 
 
 def _check_kb_perm(user, perm_name):
-    """Cross-org KB permission check.
+    """Global KB permission check.
 
-    Superusers / staff users always pass. For everyone else we walk all
-    of their active memberships — having the permission on ANY membership
-    grants it (typical for KB which is mostly cross-org / global).
+    The global KB belongs to the MSP and is shared by every customer, so
+    only MSP staff hold these permissions. Superusers and Django staff
+    always pass; other MSP staff need the flag on their global role or a
+    membership. Before v3.17.625, customer users passed whenever a
+    membership role granted the flag, and customer Owner, Admin and Editor
+    roles grant kb_edit_articles and kb_move_articles by default.
     """
     if not user.is_authenticated:
         return False
     if user.is_superuser or getattr(user, 'is_staff', False):
         return True
-    from accounts.models import Membership
-    qs = Membership.objects.filter(user=user, is_active=True).select_related('role_template')
-    for m in qs:
-        perms = m.get_permissions()
-        if getattr(perms, perm_name, False):
-            return True
-    return False
+    from psa.visibility import is_msp_staff
+    if not is_msp_staff(user):
+        return False
+    from accounts.permission_utils import user_has_perm
+    return user_has_perm(user, perm_name)
 
 
 def _flatten_categories(cats_by_parent, parent_id=None, depth=0):
@@ -2449,7 +2450,16 @@ def kb_browse(request):
     Shows a category tree sidebar; ?category=<slug> filters to that
     category and all its descendants.
     """
+    from django.core.exceptions import PermissionDenied
     from docs.models import Document, DocumentCategory
+    from psa.visibility import is_msp_staff
+
+    # The global KB is staff-only, as on the Docs side (global_kb_list).
+    # Before v3.17.625 any signed-in user could list and search it here,
+    # drafts included.
+    if not is_msp_staff(request.user):
+        raise PermissionDenied('The knowledge base is available to MSP staff only.')
+    can_edit_kb = _check_kb_perm(request.user, 'kb_edit_articles')
 
     # Global categories tree (parent first, then children)
     cats_qs = DocumentCategory.objects.filter(
@@ -2486,6 +2496,9 @@ def kb_browse(request):
 
     # Articles
     qs = Document.objects.filter(is_global=True, is_archived=False)
+    if not can_edit_kb:
+        # Drafts and articles pending review are for the people who edit them.
+        qs = qs.filter(is_published=True, is_draft=False)
     if descendant_ids:
         qs = qs.filter(category_id__in=descendant_ids)
 
@@ -2496,7 +2509,6 @@ def kb_browse(request):
     articles = qs.select_related('category', 'created_by').order_by('-updated_at')[:100]
 
     # Permission flags — drive button visibility in the template.
-    can_edit_kb = _check_kb_perm(request.user, 'kb_edit_articles')
     can_move_kb = _check_kb_perm(request.user, 'kb_move_articles')
     can_manage_categories = _check_kb_perm(request.user, 'kb_manage_categories')
 

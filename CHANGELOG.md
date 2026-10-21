@@ -5,6 +5,27 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.625] - 2026-10-21
+
+### Global knowledge base: MSP staff only
+
+- **PSA → Knowledge Base** (`/psa/kb/`) listed every global KB article to
+  any signed-in user, customer users included. That covered drafts, and its
+  search matched article text. The Docs pages for the global KB were
+  already staff only. The page is now MSP staff only, and its menu link is
+  hidden from customer users.
+- The global KB permissions (**Edit KB articles**, **Move KB articles**,
+  **Manage KB categories**) were also honored on customer roles. Customer
+  Owner, Admin and Editor roles grant the first two by default, so customer
+  users could create, edit, delete and move MSP-wide articles. The
+  Knowledge Base page showed them the buttons to do so. These permissions
+  now apply only to MSP staff.
+- On `/psa/kb/`, drafts and articles pending review are listed only for
+  staff who can edit KB articles, with a badge. Titles open the global KB
+  article page; they used to link to a per-customer page.
+- The mobile app's KB list uses the same "live" rule as the web app, so an
+  article pending review is never listed.
+
 ## [3.17.624] - 2026-10-21
 
 ### Sign-in: no "CSRF verification failed" after a double submit

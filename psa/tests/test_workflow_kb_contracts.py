@@ -2296,6 +2296,10 @@ class KBPermissionsTests(TestCase):
             user=self.editor_user, organization=self.org,
             role=Role.EDITOR, role_template=self.editor_role, is_active=True,
         )
+        # The global KB is MSP staff only (v3.17.625): these play technicians
+        # whose membership role decides their KB rights.
+        _make_msp_tech(self.ro_user)
+        _make_msp_tech(self.editor_user)
 
     def test_check_kb_perm_helper(self):
         from psa.views import _check_kb_perm
@@ -2371,6 +2375,7 @@ class KBMoveArticlesTests(TestCase):
             user=self.user, organization=self.org,
             role=Role.EDITOR, role_template=self.role, is_active=True,
         )
+        _make_msp_tech(self.user)  # global KB is MSP staff only (v3.17.625)
 
         from docs.models import Document, DocumentCategory
         self.cat_a = DocumentCategory.objects.create(name='Cat A', slug='cat-a')

@@ -122,7 +122,7 @@
                             {% if can_move_kb %}
                             <td><input type="checkbox" class="kb-row-check" name="article_ids" value="{{ a.id }}" form="kb-move-form" aria-label="Select article"></td>
                             {% endif %}
-                            <td><a href="{% url 'docs:document_detail' a.slug %}"><strong>{{ a.title }}</strong></a></td>
+                            <td><a href="{% url 'docs:global_kb_detail' a.slug %}"><strong>{{ a.title }}</strong></a>{% if a.is_draft %} <span class="badge bg-warning text-dark">Pending review</span>{% elif not a.is_published %} <span class="badge bg-secondary">Draft</span>{% endif %}</td>
                             <td>{% if a.category %}<a href="?category={{ a.category.slug }}" class="text-decoration-none"><span class="badge bg-light text-dark border">{{ a.category.name }}</span></a>{% else %}<span class="text-muted small">—</span>{% endif %}</td>
                             <td><small><span data-utc="{{ a.updated_at|date:'c' }}">{{ a.updated_at|date:'Y-m-d' }}</span></small></td>
                             <td><small>{% if a.created_by %}{{ a.created_by.username }}{% else %}—{% endif %}</small></td>

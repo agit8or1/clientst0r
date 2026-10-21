@@ -33,9 +33,8 @@ def _kb_queryset(user):
     visible = Q(organization_id__in=org_ids)
     if orgs_with_perm(user, 'docs_view') is None:
         visible |= Q(is_global=True)
-    return Document.objects.filter(
-        is_published=True, is_archived=False,
-    ).filter(visible)
+    # published(): live only — not a draft, pending review or archived.
+    return Document.objects.published().filter(visible)
 
 
 def _serialize_kb(doc, *, detail=False):
