@@ -160,6 +160,7 @@ An optional GraphQL endpoint is at `/api/v2/graphql/`. It needs the `graphene-dj
 - Queries include `me`, `organizations`, `assets`, `passwords` (no secrets), `documents`, `diagrams`, `locations`, `websiteMonitors`, `expirations`, `expiringSoon`, `dashboardStats`, and single-item versions of most of them.
 - Mutations: `createAsset`, `updateAsset`, `deleteAsset`, `createDocument`.
 - The same view and write permissions apply as in the REST API.
+- `documents` and `diagrams` return published items. Drafts and documents pending review are included only where you can edit them (**Edit documents** in that organization). `createDocument` saves a draft unless you have **Publish documents** there, as the web form does.
 
 ---
 

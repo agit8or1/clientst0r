@@ -27,6 +27,12 @@ entries are never listed, and password entries expose metadata only. Mutations
 check your role in the target organization (`assets_create`, `assets_edit`,
 `assets_delete`, `docs_create`).
 
+Documents and diagrams follow the web app's publish rules. Lists and single
+lookups return published items, including archived ones. Drafts and documents
+pending review are included only where you can edit them: **Edit documents**
+(`docs_edit`) in their organization, or **Edit KB articles** for global KB
+articles. Use `isPublished`, `isDraft` and `isArchived` to tell them apart.
+
 Unlike the REST API, GraphQL requests are not rate-limited.
 
 ## Queries
@@ -61,7 +67,9 @@ Use the GraphiQL schema explorer (in development) for every field of every type.
 | `createDocument` | `title!`, `content!`, `organizationId!` |
 
 Each returns `success` and `errors`, plus the `asset` or `document` it created or
-changed.
+changed. `createDocument` publishes the document only if you have **Publish
+documents** (`docs_publish`) in that organization. Otherwise it is saved as a
+draft, and `message` says so.
 
 ## Examples
 

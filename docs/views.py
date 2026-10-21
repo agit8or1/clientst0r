@@ -155,6 +155,7 @@ def document_detail(request, slug):
     else:
         # Organization view: filter by current org
         document = get_org_object_or_404(Document, org, slug=slug)
+    _require_live_or_editor(request, document)
 
     # Get versions
     versions = document.versions.select_related('created_by')[:10]  # Last 10 versions
@@ -181,6 +182,20 @@ def document_detail(request, slug):
         'in_global_view': in_global_view,
         **_lifecycle_context(request, document),
     })
+
+
+def _require_live_or_editor(request, document):
+    """Drafts and documents pending review are for the people who can edit
+    or publish them. The lists already hid them from readers, but before
+    v3.17.620 a reader could still open (or export, or read the versions of)
+    one by its link. Archived documents stay readable: readers have their
+    own Archived list."""
+    from django.http import Http404
+    if (document.is_published and not document.is_draft) or document.is_template:
+        return document
+    if can_edit(request.user, document) or can_publish(request.user, document):
+        return document
+    raise Http404('No Document matches the given query.')
 
 
 def _count_staff_view(document):
@@ -1926,12 +1941,12 @@ def _get_accessible_document(request, pk):
         Document.objects.select_related('organization', 'owner', 'source_template'), pk=pk)
     staff = _is_staff_request(request)
     if staff:
-        return document
+        return _require_live_or_editor(request, document)
     if document.is_global:
         raise Http404('No Document matches the given query.')
     org = get_request_organization(request)
     if org is not None and document.organization_id in descendant_org_ids(org):
-        return document
+        return _require_live_or_editor(request, document)
     raise Http404('No Document matches the given query.')
 
 
@@ -2423,8 +2438,10 @@ def _resolve_document_for_export(request, slug):
     is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
     in_global_view = not org and (request.user.is_superuser or is_staff)
     if in_global_view:
-        return get_object_or_404(Document, slug=slug)
-    return get_org_object_or_404(Document, org, slug=slug)
+        document = get_object_or_404(Document, slug=slug)
+    else:
+        document = get_org_object_or_404(Document, org, slug=slug)
+    return _require_live_or_editor(request, document)
 
 
 @login_required

@@ -379,3 +379,69 @@ class GraphQLViewPermTests(_Base):
         data = self._query('{ documents { title } diagrams { title } }')['data']
         self.assertIn('kb-doc', {d['title'] for d in data['documents']})
         self.assertIn('dia-kb', {d['title'] for d in data['diagrams']})
+
+
+@skipUnless(HAS_GRAPHENE, 'graphene-django not installed (optional dependency)')
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class GraphQLDraftTests(_Base):
+    """v3.17.620 — drafts and documents pending review need edit rights;
+    createDocument follows the web publish rules."""
+    URL = GraphQLViewPermTests.URL
+    _query = GraphQLViewPermTests._query
+
+    def setUp(self):
+        super().setUp()
+        self.draft = Document.objects.create(
+            organization=self.org_a, title='draft-a', slug='draft-a', is_published=False)
+        self.pending = Document.objects.create(
+            organization=self.org_a, title='pending-a', slug='pending-a',
+            is_published=False, is_draft=True)
+        self.archived = Document.objects.create(
+            organization=self.org_a, title='archived-a', slug='archived-a', is_archived=True)
+        self.dia_draft = Diagram.objects.create(
+            organization=self.org_a, title='dia-draft', slug='dia-draft',
+            diagram_xml='<mxfile/>', is_published=False)
+
+    def _all(self):
+        return self._query(
+            f'{{ documents {{ title }} document(id: {self.draft.pk}) {{ title }} '
+            f'diagrams {{ title }} dashboardStats {{ totalDocuments }} }}')['data']
+
+    def test_reader_sees_published_only(self):
+        self._member(self.org_a, _role(self.org_a, 'gql-reader', docs_edit=False))
+        data = self._all()
+        self.assertEqual({d['title'] for d in data['documents']}, {'doc-a', 'archived-a'})
+        self.assertIsNone(data['document'])
+        self.assertEqual(data['diagrams'], [])
+        self.assertEqual(data['dashboardStats']['totalDocuments'], 2)
+
+    def test_editor_sees_drafts(self):
+        self._member(self.org_a)
+        data = self._all()
+        self.assertEqual({d['title'] for d in data['documents']},
+                         {'doc-a', 'draft-a', 'pending-a', 'archived-a'})
+        self.assertEqual(data['document'], {'title': 'draft-a'})
+        self.assertEqual([d['title'] for d in data['diagrams']], ['dia-draft'])
+
+    def test_unpublished_global_kb_hidden_from_customer(self):
+        self._member(self.org_a)
+        Document.objects.create(title='kb-draft', slug='kb-draft',
+                                is_global=True, is_published=False)
+        titles = {d['title'] for d in self._all()['documents']}
+        self.assertNotIn('kb-draft', titles)
+
+    def test_create_without_publish_saves_draft(self):
+        self._member(self.org_a, _role(self.org_a, 'gql-no-pub', docs_publish=False))
+        out = self._query(f'mutation {{ createDocument(title: "g-draft", content: "x", '
+                          f'organizationId: {self.org_a.id}) {{ success message '
+                          f'document {{ isPublished }} }} }}')['data']['createDocument']
+        self.assertTrue(out['success'])
+        self.assertFalse(out['document']['isPublished'])
+        self.assertIn('draft', out['message'])
+        self.assertFalse(Document.objects.get(title='g-draft').is_published)
+
+    def test_create_with_publish_is_live(self):
+        self._member(self.org_a, _role(self.org_a, 'gql-pub', docs_publish=True))
+        self._query(f'mutation {{ createDocument(title: "g-live", content: "x", '
+                    f'organizationId: {self.org_a.id}) {{ success }} }}')
+        self.assertTrue(Document.objects.get(title='g-live').is_published)

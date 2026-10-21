@@ -5,6 +5,26 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.620] - 2026-10-21
+
+### Drafts are for editors only
+
+- **Web app.** The document lists already hid drafts and documents pending
+  review, but anyone who could view an organization's documents could open
+  one by its link: the document page, its export and its version history
+  showed the full text. These now return 404 unless you can edit or publish
+  the document. Archived documents stay readable; they have their own
+  Archived list.
+- **GraphQL.** `documents`, `document`, `diagrams` and `diagram` returned
+  drafts and documents pending review to anyone who could view documents. They
+  now go only to users who can edit them: **Edit documents** in their
+  organization, or **Edit KB articles** for global KB articles.
+  `dashboardStats` counts the same way. Documents now expose `isDraft`.
+- **GraphQL `createDocument`** published every new document, even for users
+  without **Publish documents**. It now follows the web form: without that
+  permission the document is saved as a draft, and the new `message` field
+  says so.
+
 ## [3.17.619] - 2026-10-21
 
 ### CRM and Security Alerts are MSP staff only

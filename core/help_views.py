@@ -1386,7 +1386,7 @@ def help_api(request):
   | python3 -m json.tool</code></pre>
 
     <h5 class="mt-4" id="graphql"><i class="fas fa-diagram-project"></i> GraphQL</h5>
-    <p>When the optional <code>graphene-django</code> package is installed, <code>/api/v2/graphql/</code> answers queries for organizations, assets, passwords (no secrets), documents, diagrams, locations, website monitors and expirations, plus a few asset and document mutations. It uses your signed-in session and CSRF token; API keys are not accepted there.</p>
+    <p>When the optional <code>graphene-django</code> package is installed, <code>/api/v2/graphql/</code> answers queries for organizations, assets, passwords (no secrets), documents, diagrams, locations, website monitors and expirations, plus a few asset and document mutations. It uses your signed-in session and CSRF token; API keys are not accepted there. Drafts and documents pending review are returned only to users who can edit them, and a document created without the publish permission is saved as a draft.</p>
 
     <h5 class="mt-4" id="webhooks"><i class="fas fa-bell"></i> Webhooks</h5>
     <p>Configure webhooks at <strong>Settings &rarr; Webhooks &rarr; Create Webhook</strong>.</p>

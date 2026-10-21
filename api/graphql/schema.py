@@ -92,7 +92,7 @@ class DocumentType(DjangoObjectType):
         model = Document
         fields = (
             'id', 'title', 'slug', 'body', 'content_type', 'is_published',
-            'is_template', 'is_archived', 'is_global', 'organization',
+            'is_draft', 'is_template', 'is_archived', 'is_global', 'organization',
             'created_at', 'updated_at',
         )
 
@@ -234,15 +234,40 @@ def _visible_assets(info, organization_id=None):
     return _scoped(Asset.objects.all(), info, organization_id, perm='assets_view')
 
 
+def _live_or_editable(queryset, info, live):
+    """Drafts and documents pending review need edit rights on them, as in
+    the web app; readers see published rows (archived ones included, as on
+    the web app's Archived list).
+
+    Edit rights follow docs.permissions: `docs_edit` in the row's customer,
+    `kb_edit_articles` for global KB rows. Before v3.17.620 every row the
+    caller could view was returned, drafts included."""
+    from docs.permissions import _django_staff_without_role, _kb_perm
+    user = info.context.user
+    if _django_staff_without_role(user):
+        return queryset
+    editable = orgs_with_perm(user, 'docs_edit')
+    if editable is None:
+        draft_ok = Q(is_global=False)
+    else:
+        draft_ok = Q(is_global=False, organization_id__in=editable)
+    if _kb_perm(user, 'kb_edit_articles'):
+        draft_ok |= Q(is_global=True)
+    return queryset.filter(live | draft_ok)
+
+
 def _visible_documents(info, organization_id=None):
-    return _scoped_global(Document.objects.all(), info, organization_id,
-                          perm='docs_view')
+    qs = _scoped_global(Document.objects.all(), info, organization_id,
+                        perm='docs_view')
+    return _live_or_editable(
+        qs, info, Q(is_published=True, is_draft=False))
 
 
 def _visible_diagrams(info, organization_id=None):
     # Diagrams live under /docs/ in the web app, so `docs_view` governs them.
-    return _scoped_global(Diagram.objects.all(), info, organization_id,
-                          perm='docs_view')
+    qs = _scoped_global(Diagram.objects.all(), info, organization_id,
+                        perm='docs_view')
+    return _live_or_editable(qs, info, Q(is_published=True))
 
 
 def _get_or_none(queryset, pk):
@@ -404,10 +429,8 @@ class Query(graphene.ObjectType):
             total_organizations=len(org_ids),
             total_assets=_visible_assets(info).count(),
             total_passwords=_visible_passwords(info).count(),
-            total_documents=Document.objects.filter(
-                organization_id__in=_perm_org_ids(info, 'docs_view')).count(),
-            total_diagrams=Diagram.objects.filter(
-                organization_id__in=_perm_org_ids(info, 'docs_view')).count(),
+            total_documents=_visible_documents(info).filter(is_global=False).count(),
+            total_diagrams=_visible_diagrams(info).filter(is_global=False).count(),
             active_monitors=WebsiteMonitor.objects.filter(
                 organization_id__in=org_ids, is_enabled=True,
             ).count(),
@@ -497,19 +520,28 @@ class CreateDocument(graphene.Mutation):
     document = graphene.Field(DocumentType)
     success = graphene.Boolean()
     errors = graphene.List(graphene.String)
+    message = graphene.String()
 
     @login_required
     def mutate(self, info, title, content, organization_id):
-        if not has_perm_for_org(info.context.user, organization_id, 'docs_view'):
+        from docs.permissions import apply_publish_rules
+        user = info.context.user
+        if not has_perm_for_org(user, organization_id, 'docs_view'):
             raise GraphQLError('Permission denied')
         _require_org_perm(info, organization_id, 'docs_create')
-        document = Document.objects.create(
+        document = Document(
             title=title,
             body=content,
             organization_id=organization_id,
-            created_by=info.context.user
+            created_by=user,
         )
-        return CreateDocument(document=document, success=True, errors=[])
+        # Same rule as the web form: without `docs_publish` the document is
+        # saved as a draft. It was always created published before v3.17.620.
+        message = apply_publish_rules(document, user, requested_publish=True,
+                                      was_live=False)
+        document.save()
+        return CreateDocument(document=document, success=True, errors=[],
+                              message=message)
 
 
 class Mutation(graphene.ObjectType):
