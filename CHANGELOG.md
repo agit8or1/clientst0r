@@ -5,6 +5,29 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.619] - 2026-10-21
+
+### CRM and Security Alerts are MSP staff only
+
+- **CRM** (`/crm/`) is the MSP's own sales pipeline, and **Security Alerts**
+  (`/security/`) holds the vendor connections, auto-ticket rules, SIEM
+  endpoints, alerts and incidents for every customer. Customer roles include
+  the CRM and Security Alerts view permissions by default, so customer users
+  could open both sections. Their forms listed every customer by name, and a
+  customer Owner could convert leads, which creates new organizations.
+  Customer users now get a 403 under `/crm/` and `/security/`, and the
+  **More** menu (Security, CRM, Reports) is hidden from them.
+- The public lead-capture form and API, and the security vendor and SIEM
+  webhook receivers, are not affected. They authenticate by key or token.
+- Security Alerts now decides which organizations a staff member sees with
+  the same rule as the rest of the app. Before, it used raw memberships, so a
+  technician with a global role and no membership saw no alerts. Now
+  technicians whose global role includes **View security alerts** see every
+  organization's alerts.
+- Logging a CRM activity on a lead or opportunity is limited to records in the
+  current organization, as the lead and opportunity pages already were. The
+  lookup accepted any record ID before.
+
 ## [3.17.618] - 2026-10-20
 
 ### API keys: the permission level is enforced

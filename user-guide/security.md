@@ -75,7 +75,7 @@ a superuser and never takes over an existing local account with the same usernam
 
 ## MSP Staff and Customer Users
 
-Every user is either **MSP staff** (a superuser, or a user whose **User Type** is *Staff*) or a **customer user**. Only staff users can be assigned tickets, problems, projects and recurring work (for any customer) or appear on the dispatch board, and their global role counts in permission checks alongside any memberships. Customer users see only the organizations they belong to, only tickets marked as visible to the client, and no internal comments or internal attachments. Set the User Type at *Admin → Access Management → Users → Edit*. See [Getting Started](getting-started.md#msp-staff-and-customer-users).
+Every user is either **MSP staff** (a superuser, or a user whose **User Type** is *Staff*) or a **customer user**. Only staff users can be assigned tickets, problems, projects and recurring work (for any customer) or appear on the dispatch board, and their global role counts in permission checks alongside any memberships. Customer users see only the organizations they belong to, only tickets marked as visible to the client, and no internal comments or internal attachments. Reports, CRM and Security Alerts are for staff only: customer users get a 403 there and don't see the **More** menu. Set the User Type at *Admin → Access Management → Users → Edit*. See [Getting Started](getting-started.md#msp-staff-and-customer-users).
 
 ---
 

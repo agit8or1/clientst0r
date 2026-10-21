@@ -790,3 +790,75 @@ class MTTAQueryTests(TestCase):
         self.assertEqual(row['count'], 2)
         self.assertEqual(row['unack_count'], 1)
         self.assertEqual(row['avg_mtta_minutes'], 15)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class SecurityAlertsStaffOnlyTests(TestCase):
+    """v3.17.619 — /security/ is MSP staff only; staff scope follows the
+    global role instead of raw memberships."""
+
+    def setUp(self):
+        from accounts.models import Membership, RoleTemplate
+        self.customer_org = _make_org('Customer', 'customer')
+        self.other_org = _make_org('Other', 'other')
+        conn = _make_conn(self.customer_org)
+        self.alert = SecurityAlert.objects.create(
+            connection=conn, organization=self.customer_org,
+            client_org=self.other_org, external_id='x-1',
+            severity='high', title='Other customer alert',
+        )
+        self.owner = User.objects.create_user('custowner', 'co@x.com', 'pw')
+        Membership.objects.create(user=self.owner, organization=self.customer_org,
+                                  role='owner')
+        self.role = RoleTemplate.objects.create(
+            name='SOC tech', security_alerts_view=True)
+
+    def _client(self, user):
+        c = Client()
+        c.force_login(user)
+        s = c.session
+        s['2fa_prompted'] = True
+        s.save()
+        return c
+
+    def test_customer_owner_gets_403_everywhere(self):
+        c = self._client(self.owner)
+        for path in ('/security/alerts/', f'/security/alerts/{self.alert.pk}/',
+                     '/security/connections/', '/security/connections/new/',
+                     '/security/rules/', '/security/siem/', '/security/incidents/',
+                     '/security/threat-overview/', '/security/playbooks/'):
+            self.assertEqual(c.get(path).status_code, 403, path)
+
+    def test_customer_gets_no_more_menu(self):
+        r = self._client(self.owner).get('/', follow=True)
+        self.assertNotContains(r, 'moreNavDropdown')
+        self.assertNotContains(r, '/security/alerts/')
+        self.assertNotContains(r, '/crm/')
+
+    def test_webhook_receiver_not_gated_for_signed_in_customer(self):
+        r = self._client(self.owner).post(
+            '/security/webhook/bogus-token/', data='{}',
+            content_type='application/json')
+        self.assertEqual(r.status_code, 404)
+
+    def test_staff_with_global_role_and_no_membership_sees_alerts(self):
+        from accounts.models import UserType
+        tech = User.objects.create_user('soc1', 's@x.com', 'pw')
+        tech.profile.user_type = UserType.STAFF
+        tech.profile.global_role_template = self.role
+        tech.profile.save()
+        c = self._client(tech)
+        r = c.get('/security/alerts/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Other customer alert')
+        self.assertEqual(c.get(f'/security/alerts/{self.alert.pk}/').status_code, 200)
+
+    def test_staff_global_role_without_view_sees_nothing(self):
+        from accounts.models import RoleTemplate, UserType
+        from security_alerts.views import _user_orgs
+        tech = User.objects.create_user('soc2', 's2@x.com', 'pw')
+        tech.profile.user_type = UserType.STAFF
+        tech.profile.global_role_template = RoleTemplate.objects.create(
+            name='No SOC', security_alerts_view=False)
+        tech.profile.save()
+        self.assertFalse(_user_orgs(tech).exists())

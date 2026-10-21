@@ -36,13 +36,21 @@ from .models import (
 
 
 def _user_orgs(user):
-    """All orgs visible to the user."""
+    """Orgs whose security data the user may see.
+
+    Uses the same rule as the rest of the app: superusers and MSP staff whose
+    global role grants `security_alerts_view` (or who have no global role)
+    see every organization; anyone else only the organizations, and their
+    subsidiaries, where a membership grants it. Before v3.17.619 this read
+    raw memberships, so a technician with a global role and no membership
+    saw no alerts at all.
+    """
+    from accounts.permission_utils import orgs_with_perm
     from core.models import Organization
-    if user.is_superuser:
+    allowed = orgs_with_perm(user, 'security_alerts_view')
+    if allowed is None:
         return Organization.objects.all()
-    return Organization.objects.filter(
-        memberships__user=user, memberships__is_active=True,
-    ).distinct()
+    return Organization.objects.filter(pk__in=allowed)
 
 
 def _primary_org(user):

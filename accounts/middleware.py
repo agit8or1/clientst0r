@@ -227,16 +227,32 @@ class SectionPermissionMiddleware:
     # scorecard) aggregates every customer, and a customer's Owner role
     # grants reports_view_financial, so until v3.17.618 a customer user could
     # read other customers' figures and recent ticket subjects there.
-    STAFF_ONLY_PREFIXES = ('/reports/',)
+    #
+    # CRM (/crm/) is the MSP's own sales pipeline, and Security Alerts
+    # (/security/) holds the MSP's vendor connections, rules and alerts for
+    # every customer. Customer roles grant crm_view and security_alerts_view
+    # by default, so until v3.17.619 a customer user could open both, and
+    # their forms listed every customer by name.
+    STAFF_ONLY_PREFIXES = ('/reports/', '/crm/', '/security/')
+
+    # Token- or key-authenticated receivers under those prefixes. They don't
+    # rely on a signed-in user, and a signed-in browser must not change that.
+    STAFF_ONLY_EXEMPT = (
+        '/crm/leads/capture/',
+        '/crm/api/leads/capture/',
+        '/security/webhook/',
+        '/security/siem/webhook/',
+    )
 
     def __call__(self, request):
         user = getattr(request, 'user', None)
         if user is not None and user.is_authenticated:
-            if request.path.startswith(self.STAFF_ONLY_PREFIXES):
+            if (request.path.startswith(self.STAFF_ONLY_PREFIXES)
+                    and not request.path.startswith(self.STAFF_ONLY_EXEMPT)):
                 from django.core.exceptions import PermissionDenied
                 from psa.visibility import is_msp_staff
                 if not is_msp_staff(user):
-                    raise PermissionDenied('Reports are available to MSP staff only.')
+                    raise PermissionDenied('This section is available to MSP staff only.')
             perm = self._required_perm(request.path)
             if perm is not None:
                 self._check(request, user, perm)

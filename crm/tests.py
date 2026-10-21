@@ -706,3 +706,65 @@ class FeatureToggleTests(TestCase):
         # v3.17.580 — see the note in the sibling test: CRM lives under More.
         self.assertIn(b'/crm/pipeline/', r.content)
         self.assertIn(b'moreNavDropdown', r.content)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class CRMStaffOnlyTests(TestCase):
+    """v3.17.619 — /crm/ is MSP staff only, and activity lookups are scoped."""
+
+    def setUp(self):
+        from accounts.models import Membership
+        from core.models import Organization
+        from crm.models import Lead
+        self.msp = Organization.objects.create(name='MSP', slug='msp')
+        self.customer = Organization.objects.create(name='Cust', slug='cust')
+        self.lead = Lead.objects.create(organization=self.customer, company_name='CustLead')
+        self.other_lead = Lead.objects.create(organization=self.msp, company_name='MspLead')
+        self.owner = User.objects.create_user('crmowner', 'o@x.com', 'pw')
+        Membership.objects.create(user=self.owner, organization=self.customer, role='owner')
+
+    def _client(self, user, org=None):
+        c = Client()
+        c.force_login(user)
+        s = c.session
+        s['2fa_prompted'] = True
+        if org is not None:
+            s['current_organization_id'] = org.pk
+        s.save()
+        return c
+
+    def test_customer_owner_gets_403(self):
+        c = self._client(self.owner, self.customer)
+        for name, kw in (('crm:home', {}), ('crm:pipeline', {}), ('crm:lead_list', {}),
+                         ('crm:lead_detail', {'pk': self.lead.pk}),
+                         ('crm:opportunity_list', {}), ('crm:campaign_list', {}),
+                         ('crm:commission_list', {}), ('crm:commission_rule_list', {}),
+                         ('crm:lead_create', {}), ('crm:opportunity_create', {})):
+            self.assertEqual(c.get(reverse(name, kwargs=kw)).status_code, 403, name)
+
+    def test_customer_owner_cannot_convert_lead(self):
+        from core.models import Organization
+        before = Organization.objects.count()
+        r = self._client(self.owner, self.customer).post(
+            reverse('crm:lead_convert', kwargs={'pk': self.lead.pk}))
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(Organization.objects.count(), before)
+
+    def test_lead_capture_not_gated_for_signed_in_customer(self):
+        r = self._client(self.owner).post(
+            reverse('crm:lead_capture_web'), {'company_name': '', 'email': ''})
+        self.assertEqual(r.status_code, 400)
+
+    def test_activity_add_scoped_to_current_org(self):
+        from accounts.models import Membership
+        from crm.models import SalesActivity
+        from psa.tests._base import _make_msp_tech
+        tech = _make_msp_tech(User.objects.create_user('crmtech', 't@x.com', 'pw'))
+        Membership.objects.create(user=tech, organization=self.customer, role='admin')
+        c = self._client(tech, self.customer)
+        url = reverse('crm:activity_add', kwargs={'scope': 'lead', 'pk': self.other_lead.pk})
+        self.assertEqual(c.get(url).status_code, 404)
+        self.assertEqual(c.post(url, {'subject': 'x'}).status_code, 404)
+        self.assertFalse(SalesActivity.objects.filter(lead=self.other_lead).exists())
+        ok = reverse('crm:activity_add', kwargs={'scope': 'lead', 'pk': self.lead.pk})
+        self.assertEqual(c.post(ok, {'subject': 'Call'}).status_code, 302)

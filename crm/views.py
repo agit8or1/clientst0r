@@ -753,11 +753,13 @@ def activity_add(request, scope, pk):
     GET shows form; POST creates activity + redirects back.
     """
     target = None
+    # Same tenant scope as the lead / opportunity detail pages; these
+    # lookups were unscoped before v3.17.619.
     if scope == 'lead':
-        target = get_object_or_404(Lead, pk=pk)
+        target = get_object_or_404(_scope_qs(request, Lead.objects.all()), pk=pk)
         kwargs = {'lead': target, 'organization': target.organization}
     elif scope == 'opportunity':
-        target = get_object_or_404(Opportunity, pk=pk)
+        target = get_object_or_404(_scope_qs(request, Opportunity.objects.all()), pk=pk)
         kwargs = {'opportunity': target, 'organization': target.organization}
     elif scope == 'org':
         target = get_object_or_404(Organization, pk=pk)
