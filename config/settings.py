@@ -348,6 +348,7 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = False  # Must be False so JS can read csrftoken cookie for AJAX POST requests
 CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_FAILURE_VIEW = 'core.csrf_failure.csrf_failure'  # friendly page; already-signed-in login resubmits continue (v3.17.624)
 
 # CSRF Trusted Origins - Multi-domain support for HTTPS
 # Required for POST requests when using HTTPS

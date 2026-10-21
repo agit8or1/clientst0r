@@ -5,6 +5,23 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.624] - 2026-10-21
+
+### Sign-in: no "CSRF verification failed" after a double submit
+
+- Signing in replaces the CSRF token. If the sign-in or 2FA form was
+  submitted twice (a double click, Enter pressed twice, or a password
+  manager submitting it), the second copy was rejected with Django's bare
+  "Forbidden (403) CSRF verification failed" page. The first copy had
+  already signed you in.
+- The sign-in page now ignores a second submit while the first is in
+  progress.
+- If a stale sign-in form still arrives after you're signed in, you go on
+  to the page you were heading for instead of a 403. Off-site `next`
+  addresses are ignored.
+- Any other expired form shows a "This form expired" page with a link to
+  reload. That link only points back to this site.
+
 ## [3.17.623] - 2026-10-21
 
 ### Docker: Portainer stacks work without editing the compose file

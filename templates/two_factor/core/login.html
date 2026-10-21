@@ -118,6 +118,21 @@
   {% endblock %}
 
   <script nonce="{{ csp_nonce }}">
+    // Submit each sign-in form once. Signing in replaces the CSRF token, so
+    // a second submit (double click, Enter twice, a password manager) is
+    // rejected with a 403 even though the first one signed you in.
+    document.querySelectorAll('form[method="post"]').forEach(function (form) {
+      form.addEventListener('submit', function (ev) {
+        if (form.dataset.submitted) { ev.preventDefault(); return; }
+        form.dataset.submitted = '1';
+        // Let it be submitted again if the page comes back without navigating.
+        setTimeout(function () { delete form.dataset.submitted; }, 10000);
+      });
+    });
+    window.addEventListener('pageshow', function () {
+      document.querySelectorAll('form[data-submitted]').forEach(function (f) { delete f.dataset.submitted; });
+    });
+
     // Check if Azure AD SSO is enabled
     fetch('{% url "accounts:azure_status" %}')
       .then(response => response.json())
