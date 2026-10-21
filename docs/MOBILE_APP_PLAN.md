@@ -91,7 +91,7 @@ All under `/api/mobile/v1/`. All require `Authorization: Token <key>` except the
 | GET | `/tickets/` | `?status=&priority=&assigned_to_me=true&organization_id=&search=` |
 | GET | `/tickets/<id>/` | detail with comments |
 | POST | `/tickets/` | create |
-| PATCH | `/tickets/<id>/` | partial update (status / priority / assignee) |
+| PATCH | `/tickets/<id>/` | partial update (status / priority / assignee; closing needs `resolution_summary` + `closure_category` and the closeout checks — v3.17.626) |
 | POST | `/tickets/<id>/comments/` | add a comment |
 
 ### KB (v3.17.350)

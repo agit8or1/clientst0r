@@ -425,6 +425,28 @@ class ActionApplierTests(TestCase):
         self.ticket.refresh_from_db()
         self.assertEqual(self.ticket.status_id, target.id)
 
+    def test_set_status_closed_needs_resolution(self):
+        from psa_ai.services.action_applier import apply_suggestion
+        closed = TicketStatus.objects.filter(is_terminal=True).first()
+        s = self._suggest('set_status', {'target_slug': closed.slug})
+        log = apply_suggestion(s, actor=self.user)
+        self.assertFalse(log.success)
+        self.assertIn('resolution summary', log.error)
+        self.ticket.refresh_from_db()
+        self.assertFalse(self.ticket.status.is_terminal)
+
+    def test_set_status_closed_with_resolution_applies(self):
+        from psa_ai.services.action_applier import apply_suggestion
+        closed = TicketStatus.objects.filter(is_terminal=True, requires_signoff=False).first()
+        self.ticket.resolution_summary = 'Patched the server.'
+        self.ticket.closure_category = 'fixed'
+        self.ticket.save()
+        s = self._suggest('set_status', {'target_slug': closed.slug})
+        log = apply_suggestion(s, actor=self.user)
+        self.assertTrue(log.success, log.error)
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status_id, closed.id)
+
     def test_set_status_rejects_unknown_slug(self):
         from psa_ai.services.action_applier import apply_suggestion
         s = self._suggest('set_status', {'target_slug': 'no-such-status'})

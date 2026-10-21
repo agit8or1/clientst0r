@@ -186,7 +186,8 @@
                 {% if cr.implementation_status == 'implementing' %}
                 <form method="post" action="{% url 'psa:change_request_verify' ticket.ticket_number %}">
                     {% csrf_token %}
-                    <textarea name="outcome_summary" class="form-control form-control-sm mb-2" rows="2" placeholder="Outcome summary (optional)"></textarea>
+                    <textarea name="outcome_summary" class="form-control form-control-sm mb-2" rows="2" placeholder="{% if ticket.resolution_summary %}Outcome summary (optional){% else %}Outcome — becomes the ticket's resolution{% endif %}"{% if not ticket.resolution_summary %} required{% endif %}></textarea>
+                    <div class="form-text small mb-2">Verifying closes the ticket, so the closeout checklist, sign-off and time rules apply.</div>
                     <button class="btn btn-success btn-sm w-100"><i class="fas fa-check me-1"></i>Verify (Successful)</button>
                 </form>
                 <form method="post" action="{% url 'psa:change_request_fail' ticket.ticket_number %}">

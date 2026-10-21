@@ -5,6 +5,43 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.626] - 2026-10-21
+
+### Ticket closeout rules apply on every path
+
+The Close button and status menu require a resolution summary and closure
+category, a completed required checklist, an operational sign-off where the
+status needs one, and (when enabled in Settings → PSA) logged time. Other
+ways of closing a ticket skipped some or all of these checks. They now
+apply everywhere:
+
+- **Mobile app / mobile API.** Setting a closed status checks the same
+  rules and returns a 400 that names what's missing. Send
+  `resolution_summary` and `closure_category` with the status change, or
+  set them on the web first. Closing now also records `closed_at`,
+  `resolved_at` and the resolution. Reopening clears them. Changing status
+  or priority from the mobile API requires the **Edit tickets** permission,
+  so a read-only member gets a 403. A sign-off refusal returns a 400 instead
+  of an HTTP 500.
+- **Mobile comments.** Customer users can no longer post internal notes
+  through the mobile API, matching the web rule.
+- **AI-suggested status changes.** Applying an AI suggestion to close a
+  ticket is refused unless the ticket already has a resolution and passes
+  the other checks. The refusal is recorded in the AI action log.
+- **Change verification.** Verifying a change closes its ticket, and now
+  only after the checks pass. If one fails, nothing changes and the change
+  stays in Implementing. The outcome summary becomes the ticket's
+  resolution unless the ticket already has one, and the outcome field is
+  required when it doesn't.
+- **Ticket merge.** Merging closes the source ticket as a duplicate. It now
+  requires the source's sign-off and required checklist to be done first.
+  The time rule is skipped for duplicates. Nothing is moved when the merge
+  is refused.
+- **Partner status updates.** An outsourcing partner reporting a closed
+  status no longer closes the local ticket. An internal note asks a
+  technician to close it. A partner update also no longer reopens a ticket
+  that's already closed.
+
 ## [3.17.625] - 2026-10-21
 
 ### Global knowledge base: MSP staff only

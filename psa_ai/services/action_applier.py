@@ -81,6 +81,14 @@ def _set_status(suggestion, actor):
     target = TicketStatus.objects.filter(slug=target_slug).first()
     if target is None:
         raise InvalidPayload(f'Unknown status slug: {target_slug!r}')
+    if target.is_terminal:
+        # Closing goes through the same closeout rules as the Close button;
+        # the AI can't supply a resolution, so the ticket must already have one.
+        from psa.closeout import closeout_errors
+        errors = closeout_errors(ticket, target, ticket.resolution_summary,
+                                 ticket.closure_category)
+        if errors:
+            raise InvalidPayload('Close the ticket from its page: ' + ' '.join(errors))
     prev = ticket.status.name if ticket.status_id else '—'
     ticket.status = target
     ticket.updated_by = actor

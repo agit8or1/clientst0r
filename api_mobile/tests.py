@@ -672,18 +672,87 @@ class MobileTicketsTests(TestCase):
     def test_ticket_patch_status(self):
         url = f'/api/mobile/v1/tickets/{self.ticket_a.id}/'
         resp = self.client.patch(
-            url, data=json.dumps({'status_id': self.status_closed.id}),
+            url, data=json.dumps({'status_id': self.status_closed.id,
+                                  'resolution_summary': 'Replaced the cable.',
+                                  'closure_category': 'fixed'}),
             content_type='application/json',
             HTTP_AUTHORIZATION=f'Token {self.tech_token}',
         )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['status'], 'Closed')
+        self.ticket_a.refresh_from_db()
+        self.assertEqual(self.ticket_a.resolution_summary, 'Replaced the cable.')
+        self.assertEqual(self.ticket_a.closure_category, 'fixed')
+        self.assertIsNotNone(self.ticket_a.closed_at)
+        self.assertIsNotNone(self.ticket_a.resolved_at)
+
+    def _patch(self, data, token=None):
+        return self.client.patch(
+            f'/api/mobile/v1/tickets/{self.ticket_a.id}/', data=json.dumps(data),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Token {token or self.tech_token}',
+        )
+
+    def test_close_without_resolution_refused(self):
+        resp = self._patch({'status': 'closed'})
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertIn('resolution summary', resp.json()['detail'])
+        self.ticket_a.refresh_from_db()
+        self.assertEqual(self.ticket_a.status_id, self.status_new.id)
+        self.assertIsNone(self.ticket_a.closed_at)
+
+    def test_close_with_incomplete_required_checklist_refused(self):
+        from psa.models import TicketChecklistItem
+        TicketChecklistItem.objects.create(ticket=self.ticket_a, label='Back up config',
+                                           is_required=True)
+        resp = self._patch({'status': 'closed', 'resolution_summary': 'Done.',
+                            'closure_category': 'fixed'})
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertIn('checklist', resp.json()['detail'])
+        self.ticket_a.refresh_from_db()
+        self.assertEqual(self.ticket_a.status_id, self.status_new.id)
+
+    def test_close_requires_logged_time_when_enabled(self):
+        from core.models import SystemSetting
+        s = SystemSetting.get_settings()
+        s.psa_closeout_require_time = True
+        s.save()
+        resp = self._patch({'status': 'closed', 'resolution_summary': 'Done.',
+                            'closure_category': 'fixed'})
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertIn('Log time', resp.json()['detail'])
+
+    def test_reopen_clears_closed_timestamps(self):
+        self._patch({'status': 'closed', 'resolution_summary': 'Done.',
+                     'closure_category': 'fixed'})
+        resp = self._patch({'status_id': self.status_new.id})
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.ticket_a.refresh_from_db()
+        self.assertIsNone(self.ticket_a.closed_at)
+        self.assertIsNone(self.ticket_a.resolved_at)
+
+    def test_read_only_member_cannot_change_status(self):
+        viewer = User.objects.create_user('tkviewer', password='hunter2')
+        Membership.objects.create(user=viewer, organization=self.org_a,
+                                  role=Role.READONLY, is_active=True)
+        token = _post(self.client, '/api/mobile/v1/auth/login/', {
+            'username': 'tkviewer', 'password': 'hunter2'}).json()['token']
+        resp = self._patch({'priority': 'critical'}, token=token)
+        self.assertEqual(resp.status_code, 403, resp.content)
+
+    def test_customer_comment_is_never_internal(self):
+        url = f'/api/mobile/v1/tickets/{self.ticket_a.id}/comments/'
+        resp = _auth_post(self.client, url, self.token,
+                          {'body': 'Hidden?', 'is_internal': True})
+        self.assertEqual(resp.status_code, 201)
+        self.assertFalse(resp.json()['is_internal'])
 
     def test_ticket_patch_status_by_slug(self):
         """v3.17.450: mobile sends `status` (slug), not `status_id`."""
         url = f'/api/mobile/v1/tickets/{self.ticket_a.id}/'
         resp = self.client.patch(
-            url, data=json.dumps({'status': 'closed'}),
+            url, data=json.dumps({'status': 'closed', 'resolution_summary': 'Fixed.',
+                                  'closure_category': 'fixed'}),
             content_type='application/json',
             HTTP_AUTHORIZATION=f'Token {self.tech_token}',
         )

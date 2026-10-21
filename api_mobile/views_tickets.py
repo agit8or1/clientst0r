@@ -290,6 +290,13 @@ def ticket_detail_view(request, pk: int):
 
     # PATCH
     data = request.data or {}
+    prior_status = ticket.status
+    if any(k in data for k in ('status_id', 'status', 'priority_id', 'priority')):
+        if not user_has_perm(request.user, 'tickets_edit'):
+            return Response(
+                {'detail': "You don't have permission to edit tickets."},
+                status=403,
+            )
 
     # v3.17.450: also accept `status` and `priority` as friendly strings.
     # The mobile UI surfaces statuses as `'open'` / `'in_progress'` /
@@ -395,7 +402,47 @@ def ticket_detail_view(request, pk: int):
                     status=400,
                 )
             ticket.assigned_to = target
-    ticket.save()
+
+    # Closing runs the same closeout rules as the web Close button.
+    # Optional `resolution_summary` / `closure_category` fill the
+    # resolution; otherwise the ticket's existing one is used.
+    from django.core.exceptions import ValidationError
+    closing = bool(ticket.status_id and ticket.status.is_terminal
+                   and ticket.status_id != getattr(prior_status, 'pk', None))
+    reopening = bool(prior_status is not None and prior_status.is_terminal
+                     and ticket.status_id and not ticket.status.is_terminal)
+    if closing:
+        from psa.closeout import closeout_errors
+        summary = (str(data.get('resolution_summary') or '').strip()
+                   or (ticket.resolution_summary or '').strip())
+        category = (str(data.get('closure_category') or '').strip()
+                    or ticket.closure_category or '')
+        errors = closeout_errors(ticket, ticket.status, summary, category,
+                                 show_labels=is_msp_staff(request.user))
+        if errors:
+            return Response({'detail': ' '.join(errors), 'errors': errors}, status=400)
+        now = timezone.now()
+        ticket.resolution_summary = summary
+        ticket.closure_category = category
+        ticket.resolved_at = ticket.resolved_at or now
+        ticket.closed_at = ticket.closed_at or now
+    elif reopening:
+        ticket.resolved_at = None
+        ticket.closed_at = None
+        ticket.closure_category = ''
+    ticket.updated_by = request.user
+    try:
+        ticket.save()
+    except ValidationError as exc:
+        return Response({'detail': ' '.join(exc.messages), 'errors': exc.messages}, status=400)
+    if closing:
+        from psa.models import TicketComment
+        label = dict(Ticket.CLOSURE_CATEGORIES).get(ticket.closure_category,
+                                                    ticket.closure_category)
+        TicketComment.objects.create(
+            ticket=ticket, author=request.user, is_internal=False, is_system=True,
+            body=f'Closed ({label}). Resolution: {ticket.resolution_summary}',
+        )
     return Response(_serialize_ticket(ticket, detail=True, viewer=request.user))
 
 
@@ -417,7 +464,9 @@ def ticket_comment_view(request, pk: int):
     if not body:
         return Response({'detail': 'body is required'}, status=400)
 
-    is_internal = bool(request.data.get('is_internal', False))
+    # Customer users only ever post public replies (portal rule).
+    is_internal = (bool(request.data.get('is_internal', False))
+                   and is_msp_staff(request.user))
     comment = TicketComment.objects.create(
         ticket=ticket,
         author=request.user,

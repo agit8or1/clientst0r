@@ -1218,6 +1218,31 @@ class Phase2cRemainderTests(TestCase):
         self.assertEqual(self.t1.closure_category, 'duplicate')
         self.assertIsNotNone(self.t1.closed_at)
 
+    def test_merge_blocked_by_required_checklist(self):
+        from psa.models import TicketChecklistItem
+        TicketChecklistItem.objects.create(ticket=self.t1, label='Wipe laptop',
+                                           is_required=True)
+        TicketComment = self.t1.comments.model
+        TicketComment.objects.create(ticket=self.t1, author=self.alice, body='keep me here')
+        resp = self.client.post(f'/psa/t/{self.t1.ticket_number}/merge/',
+                                {'target': self.t2.ticket_number})
+        self.assertEqual(resp.status_code, 302)
+        self.t1.refresh_from_db()
+        self.assertIsNone(self.t1.duplicate_of_id)
+        self.assertIsNone(self.t1.closed_at)
+        # Nothing moved.
+        self.assertTrue(self.t1.comments.filter(body='keep me here').exists())
+
+    def test_merge_skips_logged_time_rule(self):
+        from core.models import SystemSetting
+        s = SystemSetting.get_settings()
+        s.psa_closeout_require_time = True
+        s.save()
+        self.client.post(f'/psa/t/{self.t1.ticket_number}/merge/',
+                         {'target': self.t2.ticket_number})
+        self.t1.refresh_from_db()
+        self.assertEqual(self.t1.duplicate_of_id, self.t2.id)
+
     def test_merge_into_self_blocked(self):
         before = self.t1.duplicate_of_id
         resp = self.client.post(f'/psa/t/{self.t1.ticket_number}/merge/',

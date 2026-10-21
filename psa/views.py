@@ -1177,6 +1177,21 @@ def ticket_merge(request, ticket_number):
         messages.error(request, 'Cannot merge into a closed ticket.')
         return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': source.ticket_number}))
 
+    # Merging closes the source, so its sign-off and required checklist
+    # must be done first. Checked before anything moves.
+    closed_status = (
+        TicketStatus.objects.filter(slug='closed').first()
+        or TicketStatus.objects.filter(is_terminal=True).order_by('sort_order').first()
+    )
+    if closed_status:
+        errors = _closeout_errors(
+            source, closed_status, f'Merged into {target.ticket_number}', 'duplicate',
+            check_time=False)
+        if errors:
+            for msg in errors:
+                messages.error(request, f'Cannot merge yet: {msg}')
+            return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': source.ticket_number}))
+
     # Move comments + attachments
     moved_comments = source.comments.update(ticket=target)
     moved_attachments = source.attachments.update(ticket=target)
@@ -1190,10 +1205,6 @@ def ticket_merge(request, ticket_number):
     )
 
     # Close the source
-    closed_status = (
-        TicketStatus.objects.filter(slug='closed').first()
-        or TicketStatus.objects.filter(is_terminal=True).order_by('sort_order').first()
-    )
     source.duplicate_of = target
     source.closure_category = 'duplicate'
     source.resolution_summary = f'Merged into {target.ticket_number}'
@@ -1272,41 +1283,9 @@ def ticket_attach(request, ticket_number):
 # Unified closeout — every transition into a terminal status runs these checks
 # ---------------------------------------------------------------------------
 
-def _closeout_errors(ticket, target_status, summary, category, *, show_labels=True):
-    """Why `ticket` may not move to the terminal `target_status` yet.
-
-    One list for every path (Close button, status menu, keyboard shortcut) so
-    no route skips the resolution, the sign-off gate, the required checklist
-    or the optional "time logged" rule. Empty list = OK to close.
-    """
-    errors = []
-    if not summary:
-        errors.append('A resolution summary is required to close a ticket.')
-    if category not in {key for key, _ in Ticket.CLOSURE_CATEGORIES}:
-        errors.append('Pick a valid closure category.')
-    if getattr(target_status, 'requires_signoff', False) and not ticket.signed_off_at:
-        errors.append(
-            f'"{target_status.name}" needs an operational sign-off first — '
-            f'use Sign off in the closeout checklist panel.')
-    outstanding = list(
-        ticket.checklist_items.filter(is_required=True, is_completed=False)
-        .values_list('label', flat=True)[:5]
-    )
-    if outstanding:
-        errors.append('Required checklist items are incomplete'
-                      + (': ' + '; '.join(outstanding) if show_labels else '.'))
-    if _closeout_requires_time() and not ticket.time_entries.filter(
-            ended_at__isnull=False, duration_minutes__gt=0).exists():
-        errors.append('Log time on this ticket before closing it.')
-    return errors
-
-
-def _closeout_requires_time():
-    try:
-        from core.models import SystemSetting
-        return bool(SystemSetting.get_settings().psa_closeout_require_time)
-    except Exception:
-        return False
+# Shared with the mobile API, AI actions and change verification.
+from .closeout import closeout_errors as _closeout_errors  # noqa: E402
+from .closeout import requires_time as _closeout_requires_time  # noqa: E402
 
 
 def _closeout_transition(request, ticket, target_status, *, mark_closed):
@@ -6787,19 +6766,41 @@ def change_request_verify(request, ticket_number):
         messages.error(request, 'Change must be in Implementing state to verify.')
         return redirect('psa:change_request_detail', ticket_number=ticket_number)
     summary = (request.POST.get('outcome_summary') or '').strip()
-    cr.outcome_summary = summary
-    cr.implementation_status = 'verified'
-    cr.actual_end = timezone.now()
-    cr.save(update_fields=['outcome_summary', 'implementation_status', 'actual_end', 'updated_at'])
     closed_status = (
         TicketStatus.objects.filter(slug='closed').first()
         or TicketStatus.objects.filter(is_terminal=True).order_by('sort_order').first()
     )
+    # Verifying closes the ticket, so the same closeout rules apply as for
+    # the Close button. The outcome becomes the resolution unless the
+    # ticket already carries one. Nothing changes when a rule fails.
+    resolution = (ticket.resolution_summary or '').strip() or summary
+    category = ticket.closure_category or 'fixed'
+    if closed_status:
+        errors = _closeout_errors(ticket, closed_status, resolution, category)
+        if errors:
+            for msg in errors:
+                messages.error(request, msg)
+            return redirect('psa:change_request_detail', ticket_number=ticket_number)
+    now = timezone.now()
+    cr.outcome_summary = summary
+    cr.implementation_status = 'verified'
+    cr.actual_end = now
+    cr.save(update_fields=['outcome_summary', 'implementation_status', 'actual_end', 'updated_at'])
     if closed_status:
         ticket.status = closed_status
-        ticket.closed_at = timezone.now()
+        ticket.closed_at = now
+        ticket.resolved_at = ticket.resolved_at or now
+        ticket.resolution_summary = resolution
+        ticket.closure_category = category
         ticket.updated_by = request.user
-        ticket.save(update_fields=['status', 'closed_at', 'updated_by', 'updated_at'])
+        ticket.save(update_fields=['status', 'closed_at', 'resolved_at', 'resolution_summary',
+                                   'closure_category', 'updated_by', 'updated_at'])
+        TicketComment.objects.create(
+            ticket=ticket, author=request.user,
+            body=(f'Closed ({dict(Ticket.CLOSURE_CATEGORIES).get(category, category)}) '
+                  f'after the change was verified. Resolution: {resolution}'),
+            is_internal=False, is_system=True,
+        )
     AuditLog.log(
         user=request.user, action='update',
         organization=cr.organization,
@@ -8130,12 +8131,24 @@ def ticket_partner_webhook(request, share_pk):
 
         # Also try to map onto a local Ticket status. Best-effort -- fallback
         # to in_progress if no match. Skip if partner sent a share-only token.
+        # A partner never closes or reopens the local ticket: terminal
+        # statuses go through the local closeout rules (resolution,
+        # checklist, sign-off, time), so a terminal match only leaves a note.
         local = None
         if partner_status and partner_status not in share_map:
             local = _TS.objects.filter(slug__iexact=partner_status).first()
-        if local is None:
+        if local is not None and local.is_terminal:
+            if not (share.ticket.status_id and share.ticket.status.is_terminal):
+                TicketComment.objects.create(
+                    ticket=share.ticket, is_internal=True, is_system=True,
+                    body=(f'{share.partner_org.name} reported status "{local.name}". '
+                          f'Close the ticket here once the closeout steps are done.'),
+                )
+            local = None
+        elif local is None:
             local = _TS.objects.filter(slug__in=['in_progress', 'in-progress']).first()
-        if local is not None and share.ticket.status_id != local.pk:
+        ticket_closed = bool(share.ticket.status_id and share.ticket.status.is_terminal)
+        if local is not None and not ticket_closed and share.ticket.status_id != local.pk:
             share.ticket.status = local
             share.ticket.save(update_fields=['status', 'updated_at'])
         AuditLog.log(

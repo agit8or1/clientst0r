@@ -1605,8 +1605,11 @@ someone else.
 - **Unified closeout with checklist and sign-off** *(shipped v3.17.604)*.
 - **Draft KB article from a resolution, reviewed before publication**
   *(shipped v3.17.604)*.
-- **Closeout checks for change-request verification and ticket merge**
-  *(planned)* — those paths still close tickets without the checks.
+- **Closeout checks on every closing path** *(shipped v3.17.626)* — the
+  mobile app, AI-suggested status changes, change-request verification and
+  ticket merge run the same resolution, checklist, sign-off and time rules
+  as the Close button (merge skips the time rule); partner status updates
+  no longer close or reopen local tickets.
 
 ## Phase 53 — Documentation readiness and lifecycle **(L)** [in progress]
 
