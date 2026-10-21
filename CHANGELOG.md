@@ -5,6 +5,47 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.621] - 2026-10-21
+
+### Custom asset fields and custom asset types
+
+- New *Assets → Custom Fields & Types* page (`/assets/custom-fields/`).
+  MSP staff who can edit assets for every customer, and superusers, can
+  manage what's on it. It applies to every customer.
+- **Custom fields** add inputs to the asset form. The types are text, long
+  text, number, date, checkbox, dropdown, URL and email. A field can be
+  required, and can be limited to certain asset types; the form shows only
+  the fields that apply to the chosen type. Values are saved in the asset's
+  existing `custom_fields` data and shown with their labels on the Custom
+  Fields tab. Values from imports and integrations keep showing under their
+  stored names. Before this release, the data model for custom types and
+  fields existed but had no screens.
+- **Custom asset types** are added to the built-in types in the Type list,
+  the asset list filter, reports and the REST API. Each can have its own
+  icon. A type that is in use can't be deleted; mark it inactive instead.
+- REST API: assets accept a custom type code in `asset_type`, and now return
+  `asset_type_display` and `custom_fields` (a JSON object; writing it
+  replaces the whole object). GraphQL `createAsset` and the CSV import accept
+  custom types.
+
+### Equipment catalog
+
+- The asset form's **Vendor** dropdown is the equipment catalog, a list of
+  manufacturers and models that fills in Manufacturer and Model. It is now
+  labelled **Catalog manufacturer** / **Catalog model**, with a line saying
+  what it is. The catalog page (`/assets/vendors/`) is now called **Equipment
+  Catalog** and has a link under *Assets → Setup* for MSP staff.
+- The catalog is shared by every customer, but any user with write access
+  could add or edit its entries. Changes are now limited to MSP staff who can
+  edit assets for every customer; everyone can still browse it.
+
+### Documentation
+
+- `user-guide/asset-management.md` and the in-app Assets help described asset
+  QR codes, purchase cost, a status field, depreciation reports and Excel
+  export. None of these exist. The asset fields, custom fields and types,
+  equipment catalog and reporting sections are rewritten from the code.
+
 ## [3.17.620] - 2026-10-21
 
 ### Drafts are for editors only

@@ -1618,8 +1618,14 @@ Know what's missing, why it matters and who owns the fix.
 - **KB analytics** *(shipped v3.17.605)*.
 - **"Create it" links prefill the new record** *(planned)* — readiness links
   open the right form but don't prefill title, tags or category yet.
+- **Custom asset fields and types** *(shipped v3.17.621)* — MSP-defined custom
+  fields (per asset type, required, eight field types) on the asset form and
+  the Custom Fields tab; custom asset types alongside the built-in list; REST
+  API `custom_fields` and `asset_type_display`; equipment catalog relabelled
+  and its changes limited to MSP staff.
 - **Per-asset-type custom fields as readiness requirements** *(planned)* —
-  requirements use built-in asset fields today.
+  extends custom asset fields (shipped v3.17.621); readiness requirements
+  still check built-in asset fields only.
 
 ## Phase 54 — Guided customer service requests **(L)** [in progress]
 
@@ -1691,7 +1697,7 @@ Collect what technicians need up front and show customers where things stand.
 | 50 — "Help Us Grow" call to action | S | shipped v3.17.586 | none — `config/support_links.py` + `templates/core/_help_us_grow_*.html`; reuses the existing GitHub Sponsors link |
 | 51 — Reliability and customer-boundary hardening | M | in progress — PSA customer boundaries, token revocation and scheduler coverage v3.17.599; role view permissions, protected downloads and customer ticket visibility v3.17.600; billing correctness v3.17.601; staff technicians v3.17.602; imports v3.17.603; encrypted secrets v3.17.607; LDAP sign-in v3.17.608; alerts and webhooks v3.17.609; security settings and CSP v3.17.610; documentation v3.17.611; tokens, share links and 2FA keys v3.17.612; dispatch technicians only v3.17.613; no inline event handlers v3.17.614; monitoring docs v3.17.616; scheduled WAN checks v3.17.617; API key levels and staff-only reports v3.17.618; staff-only CRM and Security Alerts v3.17.619; drafts for editors only v3.17.620 | none — touches PSA, docs, accounts, API, vault and the scheduler |
 | 52 — Technician workspace | L | in progress — My Work, drafts, collisions, closeout, KB drafts v3.17.604 | Phase 51 (customer ticket visibility, staff techs) |
-| 53 — Documentation readiness and lifecycle | L | in progress — standards, scoring, lifecycle, analytics v3.17.605 | docs publish rules |
+| 53 — Documentation readiness and lifecycle | L | in progress — standards, scoring, lifecycle, analytics v3.17.605; custom asset fields and types v3.17.621 | docs publish rules |
 | 54 — Guided customer service requests | L | in progress — guided requests, approvals, progress v3.17.606 | Phase 53 publish rules (KB suggestions) |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.

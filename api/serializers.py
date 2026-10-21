@@ -51,6 +51,21 @@ class AssetSerializer(OrganizationScopedSerializerMixin):
         many=True, write_only=True, queryset=Tag.objects.all(), source='tags', required=False
     )
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    # Built-in or custom asset type code (v3.17.621).
+    asset_type = serializers.CharField(max_length=50, required=False)
+    asset_type_display = serializers.CharField(source='get_asset_type_display', read_only=True)
+    custom_fields = serializers.JSONField(required=False)
+
+    def validate_asset_type(self, value):
+        from assets.custom_types import is_valid_asset_type
+        if not is_valid_asset_type(value):
+            raise serializers.ValidationError(f'Unknown asset type "{value}".')
+        return value
+
+    def validate_custom_fields(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('custom_fields must be a JSON object.')
+        return value
 
     class Meta:
         model = Asset
@@ -61,8 +76,8 @@ class AssetSerializer(OrganizationScopedSerializerMixin):
         # in AssetViewSet.filterset_fields.
         fields = [
             'id', 'organization', 'organization_name',
-            'name', 'asset_type', 'serial_number', 'model', 'manufacturer',
-            'hostname', 'ip_address', 'notes', 'tags', 'tag_ids',
+            'name', 'asset_type', 'asset_type_display', 'serial_number', 'model', 'manufacturer',
+            'hostname', 'ip_address', 'notes', 'custom_fields', 'tags', 'tag_ids',
             'needs_reorder', 'created_at', 'updated_at', 'created_by', 'created_by_name'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'created_by']

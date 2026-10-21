@@ -12,9 +12,9 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-server"></i> Equipment Models</h1>
-    <a href="{% url 'assets:equipment_model_create' %}" class="btn btn-primary">
+    {% if can_manage_catalog %}<a href="{% url 'assets:equipment_model_create' %}" class="btn btn-primary">
         <i class="fas fa-plus"></i> Add Equipment Model
-    </a>
+    </a>{% endif %}
 </div>
 
 <div class="card mb-4">
@@ -110,10 +110,10 @@
                                    class="btn btn-outline-primary" title="View">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="{% url 'assets:equipment_model_edit' model.pk %}"
+                                {% if can_manage_catalog %}<a href="{% url 'assets:equipment_model_edit' model.pk %}"
                                    class="btn btn-outline-secondary" title="Edit">
                                     <i class="fas fa-edit"></i>
-                                </a>
+                                </a>{% endif %}
                             </div>
                         </td>
                     </tr>
@@ -130,9 +130,9 @@
             <i class="fas fa-server fa-3x mb-3"></i>
             <p>No equipment models found matching your filters.</p>
             <a href="{% url 'assets:equipment_model_list' %}" class="btn btn-secondary me-2">Clear Filters</a>
-            <a href="{% url 'assets:equipment_model_create' %}" class="btn btn-primary">
+            {% if can_manage_catalog %}<a href="{% url 'assets:equipment_model_create' %}" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Add Equipment Model
-            </a>
+            </a>{% endif %}
         </div>
         {% endif %}
     </div>

@@ -33,7 +33,8 @@ class AssetSummaryReport(ReportGenerator):
         # Asset counts by type. Asset.asset_type is a CharField with
         # choices, NOT an FK to AssetType — so we group by the raw code
         # and translate to display labels via the choices dict.
-        type_choices = dict(Asset._meta.get_field('asset_type').flatchoices)
+        from assets.custom_types import asset_type_choices
+        type_choices = dict(asset_type_choices())
         by_type_raw = assets.values('asset_type').annotate(
             count=Count('id')
         ).order_by('-count')

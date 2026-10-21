@@ -1,20 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}Hardware Vendors - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+{% block title %}Equipment Catalog - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
-        <li class="breadcrumb-item active">Hardware Vendors</li>
+        <li class="breadcrumb-item active">Equipment Catalog</li>
     </ol>
 </nav>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-building"></i> Hardware Vendors</h1>
-    <a href="{% url 'assets:vendor_create' %}" class="btn btn-primary">
+    <div>
+        <h1><i class="fas fa-database"></i> Equipment Catalog</h1>
+        <p class="text-muted mb-0">Manufacturers and their models, shared by every customer. Picking a model on the asset form fills in its Manufacturer and Model.</p>
+    </div>
+    {% if can_manage_catalog %}<a href="{% url 'assets:vendor_create' %}" class="btn btn-primary">
         <i class="fas fa-plus"></i> Add Vendor
-    </a>
+    </a>{% endif %}
 </div>
 
 <div class="card">
@@ -58,9 +61,9 @@
                                 <a href="{% url 'assets:vendor_detail' vendor.pk %}" class="btn btn-outline-primary" title="View">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="{% url 'assets:vendor_edit' vendor.pk %}" class="btn btn-outline-secondary" title="Edit">
+                                {% if can_manage_catalog %}<a href="{% url 'assets:vendor_edit' vendor.pk %}" class="btn btn-outline-secondary" title="Edit">
                                     <i class="fas fa-edit"></i>
-                                </a>
+                                </a>{% endif %}
                             </div>
                         </td>
                     </tr>
@@ -72,9 +75,9 @@
         <div class="text-center py-5 text-muted">
             <i class="fas fa-building fa-3x mb-3"></i>
             <p>No hardware vendors found.</p>
-            <a href="{% url 'assets:vendor_create' %}" class="btn btn-primary">
+            {% if can_manage_catalog %}<a href="{% url 'assets:vendor_create' %}" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Add First Vendor
-            </a>
+            </a>{% endif %}
         </div>
         {% endif %}
     </div>

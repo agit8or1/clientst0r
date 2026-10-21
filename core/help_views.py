@@ -28,7 +28,7 @@ HELP_INDEX = [
     # Assets
     {'section': 'Asset Management', 'url_name': 'core:help_assets',
      'anchor': 'asset-tracking', 'heading': 'Asset Tracking',
-     'text': 'asset tracking make model serial number purchase date warranty lifecycle custom fields attachments photos QR code'},
+     'text': 'asset tracking make model serial number purchase date warranty lifecycle custom fields custom asset types equipment catalog vendor manufacturer photos'},
     {'section': 'Asset Management', 'url_name': 'core:help_assets',
      'anchor': 'network-management', 'heading': 'Network Management',
      'text': 'network ip address subnet vlan mac address topology diagram port assignment switch patch panel'},
@@ -491,11 +491,11 @@ def help_assets(request):
     <h5 class="mt-4" id="asset-tracking"><i class="fas fa-server"></i> Asset Tracking</h5>
     <ul>
         <li><strong>Comprehensive Information:</strong> Track make, model, serial numbers, purchase dates, warranties</li>
-        <li><strong>Custom Fields:</strong> Add unlimited custom fields for organization-specific needs</li>
-        <li><strong>Attachments:</strong> Upload photos, manuals, invoices, and documentation</li>
+        <li><strong>Custom Fields &amp; Types:</strong> MSP staff add fields (for all or chosen asset types) and extra asset types under <em>Assets &rarr; Custom Fields &amp; Types</em>; they apply to every customer</li>
+        <li><strong>Equipment Catalog:</strong> Pick a manufacturer and model from the shared catalog to fill in Manufacturer and Model</li>
+        <li><strong>Photos:</strong> Attach images to an asset; they show on the asset page</li>
         <li><strong>Relationships:</strong> Link related assets, dependencies, and parent/child relationships</li>
-        <li><strong>QR Codes:</strong> Generate QR codes for physical asset labels</li>
-        <li><strong>Lifecycle Tracking:</strong> Monitor asset status from purchase to retirement</li>
+        <li><strong>Lifecycle Tracking:</strong> Purchase date, expected lifespan, end-of-life reminders and warranty expiry</li>
         <li><strong>Needs Reorder:</strong> Flag assets for physical replacement — visible in the asset list with a yellow badge</li>
     </ul>
 

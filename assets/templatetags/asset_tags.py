@@ -75,17 +75,33 @@ ASSET_TYPE_ICONS = {
 _DEFAULT_ICON = ('fa-box', 'text-muted')
 
 
+def _icon_for(asset_type):
+    """Built-in icon, else the custom asset type's chosen icon (v3.17.621)."""
+    if asset_type in ASSET_TYPE_ICONS:
+        return ASSET_TYPE_ICONS[asset_type]
+    from django.core.cache import cache
+    custom = cache.get('asset_custom_type_icons')
+    if custom is None:
+        from assets.models import AssetType
+        custom = dict(AssetType.objects.filter(organization__isnull=True)
+                      .values_list('slug', 'icon'))
+        cache.set('asset_custom_type_icons', custom, 60)
+    if asset_type in custom:
+        return (custom[asset_type], 'text-secondary')
+    return _DEFAULT_ICON
+
+
 @register.simple_tag
 def asset_type_icon(asset_type, extra_classes=''):
     """
     Render a <i> FontAwesome icon for the given asset_type slug.
     Usage: {% asset_type_icon asset.asset_type %}
     """
-    icon, color = ASSET_TYPE_ICONS.get(asset_type, _DEFAULT_ICON)
+    icon, color = _icon_for(asset_type)
     classes = f"fas {icon} {color}"
     if extra_classes:
         classes += f" {extra_classes}"
-    return format_html('<i class="{}" title="{}"></i>', classes, asset_type.replace('_', ' ').title())
+    return format_html('<i class="{}" title="{}"></i>', classes, (asset_type or '').replace('_', ' ').title())
 
 
 @register.simple_tag
@@ -94,7 +110,7 @@ def asset_type_icon_class(asset_type):
     Return just the icon + color CSS classes (no HTML) for use in JS/inline contexts.
     Usage: {% asset_type_icon_class asset.asset_type %}
     """
-    icon, color = ASSET_TYPE_ICONS.get(asset_type, _DEFAULT_ICON)
+    icon, color = _icon_for(asset_type)
     return f"fas {icon} {color}"
 
 
@@ -104,7 +120,7 @@ def asset_icon_fa(asset_type):
     Template filter — returns just the fa-xxx class name for a given asset type.
     Usage: {{ asset.asset_type|asset_icon_fa }}
     """
-    icon, _ = ASSET_TYPE_ICONS.get(asset_type, _DEFAULT_ICON)
+    icon, _ = _icon_for(asset_type)
     return icon
 
 

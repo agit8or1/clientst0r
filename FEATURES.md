@@ -201,8 +201,9 @@ created from the customer portal are shared automatically).
 | Capability | Status | Notes | Where |
 |---|---|---|---|
 | Asset records | Available | Name, type, manufacturer, model, serial, hostname, network, OS, hardware, rack position, lifecycle dates, tags, notes. | `/assets/` |
-| Asset types | Limited | A fixed list of types. Custom asset types exist in the data model but have no screens. | — |
-| Custom fields | Limited | Stored per asset and filled by imports and the API; not editable on the asset form. Required custom fields are not enforced. | — |
+| Asset types | Available | About 60 built-in types, plus custom types MSP staff add for every customer (v3.17.621). | `/assets/custom-fields/` |
+| Custom fields | Available | MSP staff define fields (text, long text, number, date, checkbox, dropdown, URL, email) for all or chosen asset types; shown on the asset form and the Custom Fields tab; required fields enforced for their types. Defined for every customer, not per customer. Readable and writable through the REST API as `custom_fields` (v3.17.621). | `/assets/custom-fields/` |
+| Equipment catalog | Available | Manufacturers and models shared by every customer; picking a model fills in Manufacturer and Model. Changes limited to MSP staff (v3.17.621). | `/assets/vendors/` |
 | Relationships | Available | Link assets to documents, passwords, contacts and other assets; relationship map. | `/assets/relationships/map/` |
 | Tags and photos | Available | Photos are uploaded as attachments and shown in a carousel. | Asset detail |
 | Switch / patch-panel port configuration | Available | | `/assets/<id>/ports/`, `/monitoring/patch-panels/` |

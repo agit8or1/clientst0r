@@ -11,6 +11,7 @@ from core.decorators import require_write, require_organization_context
 from core.tenancy import get_org_object_or_404
 from .models import Asset, Contact, Relationship, ContactRating, ContactNote
 from .forms import AssetForm, ContactForm
+from .views_custom import can_manage_asset_catalog, require_catalog_manager
 
 
 @login_required
@@ -60,7 +61,8 @@ def asset_list(request):
 
     # Get unique values for filter dropdowns
     manufacturers = all_assets.exclude(manufacturer='').values_list('manufacturer', flat=True).distinct().order_by('manufacturer')
-    asset_types = Asset.ASSET_TYPES
+    from assets.custom_types import asset_type_choices
+    asset_types = asset_type_choices()
 
     # Get unique statuses and locations from custom_fields
     # Use values_list to avoid loading full model objects
@@ -162,8 +164,10 @@ def asset_detail(request, pk):
     if sys_settings.asset_age_warnings_enabled:
         asset_age_status = AssetAgeService(sys_settings).get_age_status(asset)
 
+    from assets.custom_types import display_rows
     return render(request, 'assets/asset_detail.html', {
         'asset': asset,
+        'custom_field_rows': display_rows(asset),
         'relationships': relationships,
         'asset_images': asset_images,
         'in_global_view': in_global_view,
@@ -1024,6 +1028,7 @@ def vendor_list(request):
     vendors = Vendor.objects.filter(is_active=True).order_by('name')
 
     return render(request, 'assets/vendor_list.html', {
+        'can_manage_catalog': can_manage_asset_catalog(request.user),
         'vendors': vendors,
     })
 
@@ -1047,6 +1052,7 @@ def vendor_detail(request, pk):
         models_by_type[model.equipment_type].append(model)
 
     return render(request, 'assets/vendor_detail.html', {
+        'can_manage_catalog': can_manage_asset_catalog(request.user),
         'vendor': vendor,
         'equipment_models': equipment_models,
         'models_by_type': models_by_type,
@@ -1054,7 +1060,7 @@ def vendor_detail(request, pk):
 
 
 @login_required
-@require_write
+@require_catalog_manager
 def vendor_create(request):
     """Create new hardware vendor."""
     from .forms import VendorForm
@@ -1075,7 +1081,7 @@ def vendor_create(request):
 
 
 @login_required
-@require_write
+@require_catalog_manager
 def vendor_edit(request, pk):
     """Edit existing vendor."""
     from .forms import VendorForm
@@ -1123,6 +1129,7 @@ def equipment_model_list(request):
     equipment_types = EquipmentModel.EQUIPMENT_TYPES
 
     return render(request, 'assets/equipment_model_list.html', {
+        'can_manage_catalog': can_manage_asset_catalog(request.user),
         'models': models,
         'vendors': vendors,
         'equipment_types': equipment_types,
@@ -1146,13 +1153,14 @@ def equipment_model_detail(request, pk):
     ).select_related('primary_contact')
 
     return render(request, 'assets/equipment_model_detail.html', {
+        'can_manage_catalog': can_manage_asset_catalog(request.user),
         'model': model,
         'assets': assets,
     })
 
 
 @login_required
-@require_write
+@require_catalog_manager
 def equipment_model_create(request):
     """Create new equipment model."""
     from .forms import EquipmentModelForm
@@ -1173,7 +1181,7 @@ def equipment_model_create(request):
 
 
 @login_required
-@require_write
+@require_catalog_manager
 def equipment_model_edit(request, pk):
     """Edit existing equipment model."""
     from .forms import EquipmentModelForm

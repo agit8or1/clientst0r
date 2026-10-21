@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Asset Custom Fields - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'assets:asset_list' %}">Assets</a></li>
+        <li class="breadcrumb-item active">Custom Fields &amp; Types</li>
+    </ol>
+</nav>
+
+<h1 class="mb-1"><i class="fas fa-sliders-h"></i> Custom Fields &amp; Types</h1>
+<p class="text-muted">These apply to every customer. Custom fields appear on the asset form (for the asset types you choose) and on the asset's Custom Fields tab.</p>
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Custom fields</h5>
+        <a href="{% url 'assets:custom_field_create' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Add field</a>
+    </div>
+    <div class="card-body">
+        {% if fields %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr><th>Label</th><th>Key</th><th>Type</th><th>Asset types</th><th>Required</th><th>Status</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for f in fields %}
+                    <tr>
+                        <td><strong>{{ f.label }}</strong>{% if f.help_text %}<div class="small text-muted">{{ f.help_text }}</div>{% endif %}</td>
+                        <td><code>{{ f.key }}</code></td>
+                        <td>{{ f.get_field_type_display }}</td>
+                        <td>{% if f.type_labels %}{{ f.type_labels|join:", " }}{% else %}<span class="text-muted">All types</span>{% endif %}</td>
+                        <td>{% if f.is_required %}Yes{% else %}No{% endif %}</td>
+                        <td>{% if f.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</td>
+                        <td class="text-end text-nowrap">
+                            <a href="{% url 'assets:custom_field_edit' f.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
+                            <form method="post" action="{% url 'assets:custom_field_delete' f.pk %}" class="d-inline" data-confirm="Delete the field '{{ f.label }}'? Values already saved on assets are kept but no longer shown with this label.">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No custom fields yet. Add one to collect extra details on assets, for example a budget code or a support contract number.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Custom asset types</h5>
+        <a href="{% url 'assets:asset_type_create' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Add type</a>
+    </div>
+    <div class="card-body">
+        <p class="small text-muted">Added to the built-in types in the asset form's Type list.</p>
+        {% if custom_types %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Name</th><th>Code</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    {% for t in custom_types %}
+                    <tr>
+                        <td><i class="fas {{ t.icon }} fa-fw"></i> <strong>{{ t.name }}</strong></td>
+                        <td><code>{{ t.slug }}</code></td>
+                        <td>{% if t.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</td>
+                        <td class="text-end"><a href="{% url 'assets:asset_type_edit' t.pk %}" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No custom asset types yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

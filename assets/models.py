@@ -305,6 +305,19 @@ class Asset(BaseModel):
     def __str__(self):
         return f"{self.name} ({self.get_asset_type_display()})"
 
+    # Custom asset types (v3.17.621) are AssetType rows whose slug is stored
+    # in `asset_type`. The field keeps the built-in choices, so the label and
+    # the model validation below also accept an active custom type.
+    def get_asset_type_display(self):
+        from assets.custom_types import asset_type_label
+        return asset_type_label(self.asset_type)
+
+    def clean_fields(self, exclude=None):
+        from assets.custom_types import is_custom_asset_type
+        if is_custom_asset_type(self.asset_type):
+            exclude = set(exclude or ()) | {'asset_type'}
+        super().clean_fields(exclude=exclude)
+
     def save(self, *args, **kwargs):
         """Auto-populate manufacturer/model from equipment_model if set."""
         if self.equipment_model:
@@ -1277,9 +1290,12 @@ class AssetType(BaseModel):
         ('fa-box', 'Generic'),
     ]
 
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='asset_types')
+    # v3.17.621: custom asset types are MSP-wide (organization empty). The
+    # slug is what an asset's `asset_type` stores, next to the built-in codes.
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='asset_types',
+                                     null=True, blank=True)
     name = models.CharField(max_length=100, help_text="e.g., Server, Workstation, Network Device")
-    slug = models.SlugField(max_length=100)
+    slug = models.SlugField(max_length=50)
     description = models.TextField(blank=True)
     icon = models.CharField(max_length=50, choices=ICON_CHOICES, default='fa-box')
     color = models.CharField(max_length=7, default='#0d6efd', help_text="Hex color for UI display")
@@ -1300,7 +1316,7 @@ class AssetType(BaseModel):
         ordering = ['name']
 
     def __str__(self):
-        return f"{self.organization.slug}:{self.name}"
+        return f"{self.organization.slug}:{self.name}" if self.organization_id else self.name
 
     def get_next_asset_number(self):
         """Generate next auto-numbered asset name."""
@@ -1359,6 +1375,53 @@ class AssetTypeField(BaseModel):
 
     def __str__(self):
         return f"{self.asset_type.name}.{self.name}"
+
+
+class AssetCustomField(BaseModel):
+    """
+    v3.17.621 — an extra field on the asset form, defined by MSP staff for
+    every customer. Values are stored in `Asset.custom_fields` under `key`,
+    next to anything imports and integrations put there.
+    """
+    FIELD_TYPES = [
+        ('text', 'Text'),
+        ('textarea', 'Long text'),
+        ('number', 'Number'),
+        ('date', 'Date'),
+        ('checkbox', 'Checkbox'),
+        ('dropdown', 'Dropdown'),
+        ('url', 'URL'),
+        ('email', 'Email'),
+    ]
+
+    label = models.CharField(max_length=100)
+    key = models.SlugField(
+        max_length=64, unique=True,
+        help_text='Stored name of the value. Letters, numbers, - and _.')
+    field_type = models.CharField(max_length=20, choices=FIELD_TYPES, default='text')
+    choices = models.TextField(blank=True, help_text='Dropdown options, one per line.')
+    help_text = models.CharField(max_length=255, blank=True)
+    is_required = models.BooleanField(default=False)
+    asset_types = models.JSONField(
+        default=list, blank=True,
+        help_text='Asset type codes the field applies to. Empty means every type.')
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='asset_custom_fields_created')
+
+    class Meta:
+        db_table = 'asset_custom_fields'
+        ordering = ['order', 'label']
+
+    def __str__(self):
+        return self.label
+
+    def applies_to(self, asset_type):
+        return not self.asset_types or asset_type in self.asset_types
+
+    def choice_list(self):
+        return [line.strip() for line in (self.choices or '').splitlines() if line.strip()]
 
 
 class FlexibleAsset(BaseModel):

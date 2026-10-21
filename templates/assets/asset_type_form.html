@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}{% if instance %}Edit{% else %}Add{% endif %} Asset Type - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'assets:custom_field_list' %}">Custom Fields &amp; Types</a></li>
+        <li class="breadcrumb-item active">{% if instance %}{{ instance.name }}{% else %}Add type{% endif %}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-6 offset-lg-3">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-box"></i> {% if instance %}Edit{% else %}Add{% endif %} asset type</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                    {% for field in form %}
+                    <div class="mb-3">
+                        {% if field.name == 'is_active' %}
+                        <div class="form-check">
+                            {{ field }}
+                            <label class="form-check-label" for="{{ field.id_for_label }}">Active (offered in the asset form)</label>
+                        </div>
+                        {% else %}
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<small class="form-text text-muted d-block">{{ field.help_text }}</small>{% endif %}
+                        {% endif %}
+                        {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                    {% if instance %}<p class="small text-muted">Used by {{ in_use }} asset{{ in_use|pluralize }}.</p>{% endif %}
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'assets:custom_field_list' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save type</button>
+                    </div>
+                </form>
+                {% if instance %}
+                <hr>
+                <form method="post" action="{% url 'assets:asset_type_delete' instance.pk %}" data-confirm="Delete the asset type '{{ instance.name }}'?">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm" {% if in_use %}disabled{% endif %}><i class="fas fa-trash"></i> Delete type</button>
+                    {% if in_use %}<small class="text-muted ms-2">In use: mark it inactive instead.</small>{% endif %}
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}{% if instance %}Edit{% else %}Add{% endif %} Custom Field - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'assets:custom_field_list' %}">Custom Fields &amp; Types</a></li>
+        <li class="breadcrumb-item active">{% if instance %}{{ instance.label }}{% else %}Add field{% endif %}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8 offset-lg-2">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-sliders-h"></i> {% if instance %}Edit{% else %}Add{% endif %} custom field</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                    <div class="row g-3">
+                        {% for field in form %}
+                        {% if field.name == 'is_required' or field.name == 'is_active' %}
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                {{ field }}
+                                <label class="form-check-label" for="{{ field.id_for_label }}">{% if field.name == 'is_required' %}Required (for the asset types it applies to){% else %}Active (shown on the asset form){% endif %}</label>
+                            </div>
+                            {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+                        </div>
+                        {% else %}
+                        <div class="{% if field.name == 'choices' or field.name == 'asset_types' or field.name == 'help_text' %}col-12{% else %}col-md-6{% endif %}">
+                            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}<small class="form-text text-muted d-block">{{ field.help_text }}</small>{% endif %}
+                            {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a href="{% url 'assets:custom_field_list' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save field</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

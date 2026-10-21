@@ -7,6 +7,7 @@ from . import relationship_views
 from . import quick_views
 from . import port_config_views
 from . import port_views
+from . import views_custom
 
 app_name = 'assets'
 
@@ -50,6 +51,15 @@ urlpatterns = [
     path('rma/create/', views.rma_create, name='rma_create'),
     path('rma/<int:pk>/', views.rma_detail, name='rma_detail'),
     path('rma/<int:pk>/transition/', views.rma_transition, name='rma_transition'),
+
+    # Custom fields and custom asset types (v3.17.621)
+    path('custom-fields/', views_custom.custom_field_list, name='custom_field_list'),
+    path('custom-fields/new/', views_custom.custom_field_form, name='custom_field_create'),
+    path('custom-fields/<int:pk>/edit/', views_custom.custom_field_form, name='custom_field_edit'),
+    path('custom-fields/<int:pk>/delete/', views_custom.custom_field_delete, name='custom_field_delete'),
+    path('types/new/', views_custom.asset_type_form, name='asset_type_create'),
+    path('types/<int:pk>/edit/', views_custom.asset_type_form, name='asset_type_edit'),
+    path('types/<int:pk>/delete/', views_custom.asset_type_delete, name='asset_type_delete'),
 
     # Equipment Catalog
     path('vendors/', views.vendor_list, name='vendor_list'),

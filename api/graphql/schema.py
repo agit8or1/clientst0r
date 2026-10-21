@@ -457,7 +457,8 @@ class CreateAsset(graphene.Mutation):
         if not has_perm_for_org(info.context.user, organization_id, 'assets_view'):
             raise GraphQLError('Permission denied')
         _require_org_perm(info, organization_id, 'assets_create')
-        if asset_type not in dict(Asset.ASSET_TYPES):
+        from assets.custom_types import is_valid_asset_type
+        if not is_valid_asset_type(asset_type):
             return CreateAsset(asset=None, success=False, errors=['Unknown asset type'])
         asset = Asset.objects.create(
             name=name,

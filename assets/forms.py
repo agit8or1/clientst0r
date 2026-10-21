@@ -71,10 +71,34 @@ class AssetForm(forms.ModelForm):
             self.fields['tags'].queryset = Tag.objects.none()
             self.fields['primary_contact'].queryset = Contact.objects.none()
 
-        # Populate vendor dropdown
+        # Built-in plus custom asset types (v3.17.621).
+        from .custom_types import FIELD_PREFIX, active_custom_fields, asset_type_choices, form_field_for
+        self.fields['asset_type'].choices = asset_type_choices(
+            include=self.instance.asset_type if self.instance and self.instance.pk else None)
+
+        # Custom fields, filled from / saved to `custom_fields` (v3.17.621).
+        self.custom_field_defs = active_custom_fields()
+        stored = (self.instance.custom_fields or {}) if self.instance else {}
+        for defn in self.custom_field_defs:
+            name = FIELD_PREFIX + defn.key
+            field = form_field_for(defn)
+            field.widget.attrs['data-asset-types'] = ' '.join(defn.asset_types or [])
+            if defn.is_required:
+                field.widget.attrs['data-required'] = '1'
+            self.fields[name] = field
+            if defn.key in stored and not self.is_bound:
+                self.initial[name] = stored[defn.key]
+
+        # The equipment catalog: pick a manufacturer and model to fill in the
+        # Manufacturer and Model fields below. It is a list of products, not
+        # the reseller you bought from (discussion #132).
         from .models import Vendor
         self.fields['equipment_vendor'].queryset = Vendor.objects.filter(is_active=True).order_by('name')
-        self.fields['equipment_vendor'].help_text = "Select vendor to see available models"
+        self.fields['equipment_vendor'].label = "Catalog manufacturer"
+        self.fields['equipment_vendor'].empty_label = "Pick from the equipment catalog (optional)"
+        self.fields['equipment_vendor'].help_text = (
+            "Optional. Choose a manufacturer from the equipment catalog, then a model, "
+            "to fill in Manufacturer and Model.")
 
         # Equipment model dropdown handling
         # If this is a POST request (args[0] exists), allow all active models for validation
@@ -84,9 +108,10 @@ class AssetForm(forms.ModelForm):
         else:
             self.fields['equipment_model'].queryset = EquipmentModel.objects.none()
 
-        self.fields['equipment_model'].empty_label = "First select a vendor"
+        self.fields['equipment_model'].empty_label = "First choose a catalog manufacturer"
         self.fields['equipment_model'].required = False
-        self.fields['equipment_model'].help_text = "Select model to auto-fill manufacturer/model fields"
+        self.fields['equipment_model'].label = "Catalog model"
+        self.fields['equipment_model'].help_text = "Fills in Manufacturer and Model"
 
         # If editing existing asset with equipment_model, pre-populate vendor and model dropdown
         if self.instance and self.instance.pk and self.instance.equipment_model:
@@ -97,8 +122,8 @@ class AssetForm(forms.ModelForm):
             )
 
         # Add help text
-        self.fields['manufacturer'].help_text = "Auto-filled when model is selected, or enter manually"
-        self.fields['model'].help_text = "Auto-filled when model is selected, or enter manually"
+        self.fields['manufacturer'].help_text = "Who makes it (e.g. Cisco, Dell). Filled in from the catalog, or type it."
+        self.fields['model'].help_text = "Filled in from the catalog, or type it."
         self.fields['port_count'].help_text = "Number of network ports (for switches, routers, firewalls, patch panels)"
         self.fields['port_count'].required = False
 
@@ -118,7 +143,45 @@ class AssetForm(forms.ModelForm):
         cleaned_data = super().clean()
         # Remove equipment_vendor - it's just for UI, not saved to model
         cleaned_data.pop('equipment_vendor', None)
+        from .custom_types import FIELD_PREFIX
+        asset_type = cleaned_data.get('asset_type')
+        for defn in self.custom_field_defs:
+            name = FIELD_PREFIX + defn.key
+            if (defn.is_required and defn.field_type != 'checkbox'
+                    and defn.applies_to(asset_type)
+                    and cleaned_data.get(name) in (None, '')
+                    and name not in self.errors):
+                self.add_error(name, 'This field is required for this asset type.')
         return cleaned_data
+
+    def custom_field_rows(self):
+        """Bound custom fields, in definition order, for the template."""
+        from .custom_types import FIELD_PREFIX
+        return [(defn, self[FIELD_PREFIX + defn.key]) for defn in self.custom_field_defs]
+
+    def _apply_custom_fields(self, instance):
+        """Write the custom field values into `custom_fields`. Fields that
+        don't apply to the asset's type are left untouched, as are keys that
+        no definition owns (imports and integrations write those)."""
+        from .custom_types import FIELD_PREFIX, to_storage
+        data = dict(instance.custom_fields or {})
+        for defn in self.custom_field_defs:
+            if not defn.applies_to(instance.asset_type):
+                continue
+            value = to_storage(defn, self.cleaned_data.get(FIELD_PREFIX + defn.key))
+            if value is None:
+                data.pop(defn.key, None)
+            else:
+                data[defn.key] = value
+        instance.custom_fields = data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        self._apply_custom_fields(instance)
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
 
 class ContactForm(forms.ModelForm):

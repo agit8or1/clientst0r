@@ -71,6 +71,7 @@
                 <!-- Equipment Catalog Selection - Cascading Dropdowns -->
                 <div class="col-12">
                     <h6 class="text-muted mb-3"><i class="fas fa-database"></i> Equipment Catalog (Optional)</h6>
+                    <p class="small text-muted mb-0">Pick a product from the <a href="{% url 'assets:vendor_list' %}">equipment catalog</a> to fill in Manufacturer and Model. The catalog lists who makes a product, not who you bought it from.</p>
                 </div>
 
                 <div class="col-md-6">
@@ -238,6 +239,29 @@
                     {% endif %}
                 </div>
 
+                {% if form.custom_field_defs %}
+                <!-- Custom fields (v3.17.621), defined under Assets → Custom Fields -->
+                <div class="col-12"><hr></div>
+                <div class="col-12">
+                    <h6 class="text-muted mb-3"><i class="fas fa-sliders-h"></i> Custom Fields</h6>
+                </div>
+                {% for defn, field in form.custom_field_rows %}
+                <div class="col-md-6 cf-row" data-asset-types="{{ defn.asset_types|join:' ' }}">
+                    {% if defn.field_type == 'checkbox' %}
+                    <div class="form-check mt-4">
+                        {{ field }}
+                        <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    </div>
+                    {% else %}
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if defn.is_required %} <span class="text-danger">*</span>{% endif %}</label>
+                    {{ field }}
+                    {% endif %}
+                    {% if field.help_text %}<small class="form-text text-muted d-block">{{ field.help_text }}</small>{% endif %}
+                    {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
+
                 <!-- Lifespan & Replacement Tracking -->
                 <div class="col-12"><hr></div>
                 <div class="col-12">
@@ -328,6 +352,21 @@
 
 {% block extra_js %}
 <script nonce="{{ csp_nonce }}">
+// Custom fields: show only the ones that apply to the selected asset type.
+document.addEventListener('DOMContentLoaded', function() {
+    const typeSelect = document.getElementById('id_asset_type');
+    const rows = document.querySelectorAll('.cf-row');
+    if (!typeSelect || !rows.length) return;
+    function sync() {
+        rows.forEach(function(row) {
+            const types = (row.dataset.assetTypes || '').split(' ').filter(Boolean);
+            row.classList.toggle('d-none', types.length > 0 && types.indexOf(typeSelect.value) === -1);
+        });
+    }
+    typeSelect.addEventListener('change', sync);
+    sync();
+});
+
 // Equipment catalog cascading dropdowns
 document.addEventListener('DOMContentLoaded', function() {
     const vendorSelect = document.getElementById('id_equipment_vendor');

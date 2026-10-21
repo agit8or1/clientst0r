@@ -408,8 +408,8 @@ class CSVImportService:
                 pass
 
         # Validate asset_type against known choices
-        valid_types = {k for k, _ in Asset.ASSET_TYPES}
-        if asset_fields['asset_type'] not in valid_types:
+        from assets.custom_types import is_valid_asset_type
+        if not is_valid_asset_type(asset_fields['asset_type']):
             asset_fields['asset_type'] = 'other'
 
         asset = Asset.objects.create(**{k: v for k, v in asset_fields.items() if v or k in ('organization', 'name', 'asset_type')})
