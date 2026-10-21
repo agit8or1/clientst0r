@@ -20,6 +20,7 @@
 # `docker compose down -v` to wipe them — DESTRUCTIVE.
 #
 # Compose v2+ doesn't need a `version:` field; intentionally omitted.
+# Optional `env_file` entries (`required: false`) need Compose v2.24 or newer.
 
 services:
 
@@ -33,10 +34,10 @@ services:
     container_name: clientst0r-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD must be set in .env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD must be set (in .env or the stack's variables)}
       MYSQL_DATABASE: ${DB_NAME:-clientst0r}
       MYSQL_USER: ${DB_USER:-clientst0r}
-      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set (in .env or the stack's variables)}
       MYSQL_CHARSET: utf8mb4
       MYSQL_COLLATION: utf8mb4_unicode_ci
     volumes:
@@ -68,9 +69,19 @@ services:
       dockerfile: Dockerfile
     container_name: clientst0r-app
     restart: unless-stopped
+    # Settings come from `.env` next to this file, or from `stack.env`,
+    # which Portainer writes from a stack's environment variables. Both are
+    # optional; the secrets the app can't start without are also passed
+    # below, so stack managers that only interpolate `${...}` work too.
     env_file:
-      - .env
+      - path: .env
+        required: false
+      - path: stack.env
+        required: false
     environment:
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (in .env or the stack's variables)}
+      APP_MASTER_KEY: ${APP_MASTER_KEY:?APP_MASTER_KEY must be set (in .env or the stack's variables)}
+      API_KEY_SECRET: ${API_KEY_SECRET:?API_KEY_SECRET must be set (in .env or the stack's variables)}
       DB_ENGINE: mysql
       DB_HOST: ${DB_HOST:-db}
       DB_PORT: ${DB_PORT:-3306}
@@ -107,9 +118,19 @@ services:
     image: ${CLIENTST0R_IMAGE:-ghcr.io/agit8or1/clientst0r:latest}
     container_name: clientst0r-scheduler
     restart: unless-stopped
+    # Settings come from `.env` next to this file, or from `stack.env`,
+    # which Portainer writes from a stack's environment variables. Both are
+    # optional; the secrets the app can't start without are also passed
+    # below, so stack managers that only interpolate `${...}` work too.
     env_file:
-      - .env
+      - path: .env
+        required: false
+      - path: stack.env
+        required: false
     environment:
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set (in .env or the stack's variables)}
+      APP_MASTER_KEY: ${APP_MASTER_KEY:?APP_MASTER_KEY must be set (in .env or the stack's variables)}
+      API_KEY_SECRET: ${API_KEY_SECRET:?API_KEY_SECRET must be set (in .env or the stack's variables)}
       DB_ENGINE: mysql
       DB_HOST: ${DB_HOST:-db}
       DB_PORT: ${DB_PORT:-3306}

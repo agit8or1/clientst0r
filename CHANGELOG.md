@@ -5,6 +5,28 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.623] - 2026-10-21
+
+### Docker: Portainer stacks work without editing the compose file
+
+- The `app` and `scheduler` services read every setting only from a `.env`
+  file next to `docker-compose.yml`. Portainer stacks, and other stack
+  managers that only fill in `${...}` values, have no such file, so the app
+  started without `SECRET_KEY`, `APP_MASTER_KEY` and `API_KEY_SECRET`.
+  Users had to map each variable into the services by hand (discussion
+  #121).
+- Those three secrets are now passed to both services directly from the
+  stack's variables. `.env` and Portainer's `stack.env` are both read when
+  present, and both are optional.
+- If a required secret or database password is missing, `docker compose`
+  now stops with a message naming it.
+- **Requires Docker Compose v2.24 or newer**: optional `env_file` entries
+  are rejected by older versions. Checked with `docker compose config` for:
+  `.env` only, stack variables only, `stack.env`, nothing set, and the dev
+  override with the proxy and cache profiles. Not tested by starting the
+  containers.
+- `docs/docker.md` has a new "Portainer and other stack managers" section.
+
 ## [3.17.622] - 2026-10-21
 
 ### Document import: AI review errors say why (issue #140)

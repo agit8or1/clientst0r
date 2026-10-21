@@ -34,8 +34,9 @@ docker compose logs -f app
 
 - Docker Engine **24.0+** (released 2023-05) — older versions don't
   ship the Compose v2 plugin.
-- Docker Compose v2 (`docker compose ...`, not the legacy
-  `docker-compose ...` binary).
+- Docker Compose **v2.24+** (`docker compose ...`, not the legacy
+  `docker-compose ...` binary). The compose file uses optional
+  `env_file` entries, which older versions reject.
 - ~2 GB free disk for the image + ~1 GB for the database volume
   before any data.
 - Open ports: by default `8000/tcp` on the host. If you turn on the
@@ -107,26 +108,22 @@ You don't need to build anything: the stack pulls the published image
 `ghcr.io/agit8or1/clientst0r:latest`. Pin a release with
 `CLIENTST0R_IMAGE=ghcr.io/agit8or1/clientst0r:3.17.622`, for example.
 
-`docker-compose.yml` hands the app its settings in two ways:
+There's no need to edit the compose file. Add the settings from
+[Configuration](#configuration) as the stack's **Environment variables**,
+including `DB_ROOT_PASSWORD` and `DB_PASSWORD`. Then deploy.
 
-- the `${...}` values in the file, such as `DB_PASSWORD` and `DB_ROOT_PASSWORD`;
-- `env_file: .env`, which carries everything else, including
-  `SECRET_KEY`, `APP_MASTER_KEY`, `API_KEY_SECRET` and `ALLOWED_HOSTS`.
+- The required secrets (`SECRET_KEY`, `APP_MASTER_KEY`, `API_KEY_SECRET`)
+  and the database settings are passed to the containers directly from
+  those variables.
+- Every other setting reaches the app through `stack.env`, the file
+  Portainer writes from the stack's variables. `docker-compose.yml` reads
+  it when it exists, as well as `.env`; both are optional.
+- If a required secret is missing, deployment stops with a message naming
+  it, instead of the app failing at startup.
 
-Portainer stacks use their **Environment variables** only to fill in the
-`${...}` values. There is no `.env` file next to the compose file, so the
-app starts without its secrets. Portainer writes the stack's variables to
-a file named `stack.env`. Point both Client St0r services at it:
-
-1. Add every setting from the [Configuration](#configuration) section as
-   stack environment variables. That includes `DB_ROOT_PASSWORD` and
-   `DB_PASSWORD`, which the database service needs.
-2. In the compose editor, change `env_file: - .env` to `env_file: - stack.env`
-   under **both** `app` and `scheduler`.
-
-Other managers that set variables only for interpolation need the same
-change: point `env_file` at the file the manager writes, or list each
-variable under the services' `environment:`.
+Other stack managers that only fill in `${...}` values get the required
+settings the same way. For the optional ones, either write them to `.env`
+or `stack.env`, or list them under the services' `environment:`.
 
 ---
 
