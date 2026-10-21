@@ -790,6 +790,22 @@ class DocumentImportViewTests(TestCase):
         doc.refresh_from_db()
         self.assertEqual(doc.content_type, 'markdown')
 
+    def test_ai_review_unexpected_error_returns_json(self):
+        """Issue #140: any failure comes back as JSON with a reason, never
+        Django's HTML 500 page ("Review failed (HTTP 500)" with no detail)."""
+        c = Client()
+        self._login(c)
+        doc = Document.objects.create(
+            organization=self.org, title='SOP', body='raw text',
+            content_type='markdown', created_by=self.staff, last_modified_by=self.staff)
+        with mock.patch('docs.views._docs_ai_ready', side_effect=RuntimeError('provider exploded')):
+            r = c.post('/docs/ai/review-import/',
+                       data={'document_id': doc.id, 'standard': 'general'},
+                       content_type='application/json')
+        self.assertEqual(r.status_code, 500)
+        self.assertEqual(r['Content-Type'], 'application/json')
+        self.assertIn('provider exploded', r.json()['error'])
+
 
 class LooksLikeHtmlTests(TestCase):
     """_looks_like_html distinguishes AI-returned HTML from Markdown (issue #140)."""

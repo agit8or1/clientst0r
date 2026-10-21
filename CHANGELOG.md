@@ -5,6 +5,18 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.622] - 2026-10-21
+
+### Document import: AI review errors say why (issue #140)
+
+- On the import results page, AI review could fail with only "Review failed
+  (HTTP 500)". The endpoint sometimes returned Django's HTML error page
+  instead of JSON, so the page had no reason to show. Every failure now comes
+  back as JSON, and the page shows the reason. The full error is also written
+  to the application log under `docs`. If the server still returns an error
+  page (for example from a proxy), the page says to check the application
+  log.
+
 ## [3.17.621] - 2026-10-21
 
 ### Custom asset fields and custom asset types

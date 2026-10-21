@@ -678,14 +678,20 @@ def ai_review_import(request):
     LLM call is its own short request (never a multi-doc request that would
     blow the gunicorn worker timeout — cf. issue #138).
     """
-    from .services.ai_documentation_generator import AIDocumentationGenerator
     import json
+    import logging
 
-    ai_ok, ai_message = _docs_ai_ready()
-    if not ai_ok:
-        return JsonResponse({'success': False, 'error': ai_message}, status=400)
-
+    # Everything runs inside the try so the import page always gets JSON
+    # with a reason. An uncaught error used to come back as Django's HTML
+    # 500 page, which the page could only show as "Review failed (HTTP 500)"
+    # (issue #140).
     try:
+        from .services.ai_documentation_generator import AIDocumentationGenerator
+
+        ai_ok, ai_message = _docs_ai_ready()
+        if not ai_ok:
+            return JsonResponse({'success': False, 'error': ai_message}, status=400)
+
         data = json.loads(request.body or '{}')
         document_id = data.get('document_id')
         standard = data.get('standard', 'general')
@@ -724,7 +730,8 @@ def ai_review_import(request):
         })
 
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        logging.getLogger('docs').exception('AI review of imported document failed')
+        return JsonResponse({'success': False, 'error': f'AI review failed: {e}'}, status=500)
 
 
 # ============================================================================

@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (resp.status === 502 || resp.status === 504) {
                     setStatus(row, '<i class="fas fa-triangle-exclamation"></i> Server/proxy timed out (' + resp.status + ') — the document may be too large. Try re-running review from the document, or split the file.', 'text-danger');
                 } else {
-                    setStatus(row, '<i class="fas fa-triangle-exclamation"></i> Review failed (HTTP ' + resp.status + ')', 'text-danger');
+                    setStatus(row, '<i class="fas fa-triangle-exclamation"></i> Review failed (HTTP ' + resp.status + '). The server returned an error page instead of a result; the application log has the details.', 'text-danger');
                 }
                 reviewNext(i + 1);
                 return;
