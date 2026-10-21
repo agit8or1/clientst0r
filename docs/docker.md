@@ -101,6 +101,35 @@ forwarder, Anthropic key, and feature flags.
 
 ---
 
+## Portainer and other stack managers
+
+You don't need to build anything: the stack pulls the published image
+`ghcr.io/agit8or1/clientst0r:latest`. Pin a release with
+`CLIENTST0R_IMAGE=ghcr.io/agit8or1/clientst0r:3.17.622`, for example.
+
+`docker-compose.yml` hands the app its settings in two ways:
+
+- the `${...}` values in the file, such as `DB_PASSWORD` and `DB_ROOT_PASSWORD`;
+- `env_file: .env`, which carries everything else, including
+  `SECRET_KEY`, `APP_MASTER_KEY`, `API_KEY_SECRET` and `ALLOWED_HOSTS`.
+
+Portainer stacks use their **Environment variables** only to fill in the
+`${...}` values. There is no `.env` file next to the compose file, so the
+app starts without its secrets. Portainer writes the stack's variables to
+a file named `stack.env`. Point both Client St0r services at it:
+
+1. Add every setting from the [Configuration](#configuration) section as
+   stack environment variables. That includes `DB_ROOT_PASSWORD` and
+   `DB_PASSWORD`, which the database service needs.
+2. In the compose editor, change `env_file: - .env` to `env_file: - stack.env`
+   under **both** `app` and `scheduler`.
+
+Other managers that set variables only for interpolation need the same
+change: point `env_file` at the file the manager writes, or list each
+variable under the services' `environment:`.
+
+---
+
 ## Day-to-day commands
 
 ```bash
