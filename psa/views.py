@@ -2641,10 +2641,19 @@ def ticket_kb_unlink(request, ticket_number, link_pk):
     return redirect('psa:ticket_detail', ticket_number=ticket_number)
 
 
+def _require_approvals_staff(request):
+    """The internal Approvals pages are for MSP staff. Customer users decide
+    their own sign-offs in the portal (Approvals there)."""
+    from django.core.exceptions import PermissionDenied
+    if not is_msp_staff(request.user):
+        raise PermissionDenied('Approvals are for MSP staff.')
+
+
 @login_required
 @require_psa_enabled
 def approval_list(request):
     """Tenant-scoped list of PSA approvals (pending first)."""
+    _require_approvals_staff(request)
     org = get_request_organization(request)
     qs = PSAApproval.objects.select_related('requested_by', 'decided_by', 'related_ticket')
     if org is not None:
@@ -2665,6 +2674,7 @@ def approval_list(request):
 @require_psa_enabled
 @require_http_methods(['POST'])
 def approval_decide(request, pk):
+    _require_approvals_staff(request)
     org = get_request_organization(request)
     qs = PSAApproval.objects.all()
     if org is not None:
@@ -2672,6 +2682,12 @@ def approval_decide(request, pk):
     approval = get_object_or_404(qs, pk=pk)
     if approval.status != 'pending':
         messages.error(request, 'This approval has already been decided.')
+        return redirect('psa:approval_list')
+    if approval.is_client_approval:
+        # A customer sign-off means the customer agreed; staff can't give it
+        # on their behalf.
+        messages.error(request, 'This is a customer sign-off. The customer '
+                                'approves or denies it in the portal.')
         return redirect('psa:approval_list')
 
     decision = request.POST.get('decision')
@@ -2691,6 +2707,7 @@ def approval_decide(request, pk):
 @require_psa_enabled
 def approval_history(request, pk):
     """Phase 20 v6 (v3.17.274): per-approval audit trail viewer."""
+    _require_approvals_staff(request)
     org = get_request_organization(request)
     qs = PSAApproval.objects.all()
     if org is not None:

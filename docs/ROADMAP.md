@@ -1549,6 +1549,9 @@ are built on top of them.
   pending review open (web page, export, versions, GraphQL) only for users who
   can edit or publish them; GraphQL `createDocument` saves a draft without the
   publish permission.
+- **Internal approvals staff only** *(shipped v3.17.627)* — `/psa/approvals/`
+  (list, decide, history) is MSP staff only; customer sign-offs are decided
+  only by the customer in the portal.
 - **Global KB staff only** *(shipped v3.17.625)* — `/psa/kb/` and the global
   KB edit, move and category permissions limited to MSP staff; drafts listed
   only for KB editors.

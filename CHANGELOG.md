@@ -5,6 +5,23 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.627] - 2026-10-22
+
+### Internal approvals: MSP staff only
+
+- **PSA → Approvals** (`/psa/approvals/`) listed every approval in the
+  current organization to any member, customer users included. That covered
+  time entries, expenses, quotes, distributor orders, AI actions and change
+  approvals. Customer users with an Editor role or higher could approve or
+  deny them, and could open each approval's history. The list, decide and
+  history pages are now MSP staff only, and the menu link is hidden from
+  customer users. Customers keep deciding their own sign-offs under
+  **Approvals** in the portal.
+- A **customer sign-off** (an approval routed to the client) could also be
+  approved by staff from the internal page, on the customer's behalf. It is
+  now shown there as "Awaiting customer" without Approve/Deny buttons, and
+  only the customer can decide it in the portal.
+
 ## [3.17.626] - 2026-10-21
 
 ### Ticket closeout rules apply on every path

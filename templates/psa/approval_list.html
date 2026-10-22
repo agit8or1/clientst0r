@@ -32,7 +32,10 @@
                     <td><span data-utc="{{ a.requested_at|date:'c' }}">{{ a.requested_at|date:'Y-m-d H:i' }}</span></td>
                     <td>{% if a.related_ticket %}<a href="{% url 'psa:ticket_detail' a.related_ticket.ticket_number %}">{{ a.related_ticket.ticket_number }}</a>{% else %}—{% endif %}</td>
                     <td>
-                        {% if a.status == 'pending' %}
+                        {% if a.status == 'pending' and a.is_client_approval %}
+                        <span class="badge text-bg-warning">Awaiting customer</span>
+                        <small class="text-muted d-block">Decided in the portal</small>
+                        {% elif a.status == 'pending' %}
                         <form method="post" action="{% url 'psa:approval_decide' a.pk %}" class="d-inline">
                             {% csrf_token %}
                             <button name="decision" value="approve" class="btn btn-sm btn-success">Approve</button>

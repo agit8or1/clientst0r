@@ -135,7 +135,9 @@
                             {% if is_staff_user or user.is_superuser or user.is_staff %}
                             <li><a class="dropdown-item" href="{% url 'psa:kb_browse' %}"><i class="fas fa-book"></i> {% trans "Knowledge Base" %}</a></li>
                             {% endif %}
+                            {% if is_staff_user or user.is_superuser or user.is_staff %}
                             <li><a class="dropdown-item" href="{% url 'psa:approval_list' %}"><i class="fas fa-circle-check"></i> {% trans "Approvals" %}</a></li>
+                            {% endif %}
                             <li><a class="dropdown-item" href="{% url 'psa:change_request_list' %}"><i class="fas fa-code-branch"></i> {% trans "Change Requests" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'psa:problem_list' %}"><i class="fas fa-bug"></i> {% trans "Problems" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'psa:release_list' %}"><i class="fas fa-rocket"></i> {% trans "Releases" %}</a></li>
