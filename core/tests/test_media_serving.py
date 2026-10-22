@@ -142,6 +142,21 @@ class MediaServingTests(TestCase):
         self.assertEqual(r['X-Content-Type-Options'], 'nosniff')
         self.assertIn('private', r['Cache-Control'])
 
+    def test_pdf_can_be_framed_by_this_site_only(self):
+        """Document pages embed PDFs in an iframe: through the whole
+        middleware stack the file allows same-origin framing (both headers),
+        while ordinary pages stay unframeable."""
+        from django.utils.csp import CSP
+        r = self.get(self.doc.file.name, self.staff)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['X-Frame-Options'], 'SAMEORIGIN')
+        # CSP goes on HTML pages only, so no frame-ancestors 'none' overrides
+        # the X-Frame-Options above.
+        policy = r.get(CSP.HEADER_ENFORCE) or r.get(CSP.HEADER_REPORT_ONLY) or ''
+        self.assertNotIn("frame-ancestors 'none'", policy)
+        page = self.client.get('/account/login/')
+        self.assertEqual(page['X-Frame-Options'], 'DENY')
+
     def test_member_of_ticket_customer_gets_file(self):
         r = self.get(self.att.file.name, self.alice)
         self.assertEqual(r.status_code, 200)
