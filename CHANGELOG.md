@@ -5,6 +5,25 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.628] - 2026-11-06
+
+### Fixed: three pages that failed to load
+
+- **Equipment model detail** (`/assets/equipment-models/<id>/`) returned a
+  server error for every model. The template used a `replace` filter that
+  Django does not have. Specification keys now render with a small
+  `underscores_to_spaces` filter.
+- **Send navigation link** (Locations) had the same broken filter.
+- **Free consultation** (`/core/consult/`) could not render: the template
+  called `request.POST.getlist(...)`, which Django templates cannot parse.
+  The view now passes the ticked areas, so they stay ticked when the form
+  comes back with an error.
+- A new test compiles every template in the project, so an unknown filter or
+  tag fails the test suite instead of a page.
+- The `Permissions-Policy` header no longer sends `interest-cohort` (FLoC),
+  which browsers now report as an unrecognized feature. It sends
+  `browsing-topics=()` instead, the opt-out for FLoC's replacement.
+
 ## [3.17.627] - 2026-10-22
 
 ### Internal approvals: MSP staff only

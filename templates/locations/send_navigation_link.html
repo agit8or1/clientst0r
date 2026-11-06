@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load text_filters %}
 
 {% block title %}Send Navigation Link - {{ location.name }} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
@@ -107,7 +108,7 @@
 
                 {% for service_name, url in nav_urls.items %}
                 <div class="mb-2">
-                    <strong>{{ service_name|title|replace:"_":" " }}</strong><br>
+                    <strong>{{ service_name|underscores_to_spaces|title }}</strong><br>
                     <a href="{{ url }}" target="_blank" class="small text-break">{{ url|truncatechars:60 }}</a>
                 </div>
                 {% endfor %}

@@ -271,6 +271,8 @@ def free_consult(request):
 
     return render(request, 'core/consult.html', {
         'area_choices': ConsultRequest.AREA_CHOICES,
+        # Re-check the boxes the visitor ticked when the form comes back with an error.
+        'selected_areas': request.POST.getlist('areas') if request.method == 'POST' else [],
     })
 
 

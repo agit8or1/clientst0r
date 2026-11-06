@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load text_filters %}
 
 {% block title %}{{ model.vendor.name }} {{ model.model_name }} - Equipment Model{% endblock %}
 
@@ -101,7 +102,7 @@
             <div class="card-body">
                 <dl class="row mb-0">
                     {% for key, value in model.specifications.items %}
-                    <dt class="col-sm-4 text-capitalize">{{ key|replace:"_":" " }}:</dt>
+                    <dt class="col-sm-4 text-capitalize">{{ key|underscores_to_spaces }}:</dt>
                     <dd class="col-sm-8">{{ value }}</dd>
                     {% endfor %}
                 </dl>
