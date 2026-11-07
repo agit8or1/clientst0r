@@ -5,6 +5,14 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.634] - 2026-11-07
+
+### Fixed
+- **Links are readable in the dark themes, app-wide.** Dark, Dracula and Monokai used their primary (button) colour for link text: in Dark that was `#375a7f`, about 2:1 against cards, and the hover colour was darker still. `themes.css` now gives those three themes a separate `--link-color` and `--link-hover`, at least 4.5:1 on the page, surface, card and hover backgrounds, with hover lighter rather than darker. Buttons keep the primary colour. General links, breadcrumbs and pagination use the new colour; light themes are unchanged. The hardware-only override from v3.17.633 is removed, since the app-wide rule covers it. `core/tests/test_theme_contrast.py` checks the ratios.
+
+### Documentation
+- All 26 dark-theme screenshots recaptured with the new link colour.
+
 ## [3.17.633] - 2026-11-07
 
 ### Documentation

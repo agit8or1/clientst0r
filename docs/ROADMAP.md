@@ -1594,6 +1594,11 @@ are built on top of them.
 - **Customer users see what the portal shows them** *(shipped v3.17.600)* —
   shared tickets only, no internal comments or attachments, on the staff UI and
   the mobile API; cross-customer ticket reach is an MSP-staff capability.
+- **Readable links in the dark themes** *(shipped v3.17.634)* — Dark, Dracula
+  and Monokai used their button colour for link text, which fell to about 2:1
+  on cards in Dark, and hover went darker. Those themes now have their own link
+  colour, at least 4.5:1 on every page and card surface, lighter on hover; a
+  test checks the ratios.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

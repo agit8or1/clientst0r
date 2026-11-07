@@ -36,6 +36,10 @@
 [data-theme="dark"] {
     --primary-color: #375a7f;
     --primary-hover: #2a4763;
+    /* Link text: the primary colour is tuned for button fills and is too dark
+       to read as text here (>= 4.5:1 on cards, hover lighter not darker). */
+    --link-color: #8fb4e8;
+    --link-hover: #b5cff2;
     --primary-light: #1a3a52;
     --secondary-color: #6c757d;
     --success-color: #00bc8c;
@@ -198,6 +202,10 @@
 [data-theme="dracula"] {
     --primary-color: #bd93f9;
     --primary-hover: #9d73d9;
+    /* Link text: the primary colour is tuned for button fills and is too dark
+       to read as text here (>= 4.5:1 on cards, hover lighter not darker). */
+    --link-color: #dcc6fb;
+    --link-hover: #f0e7fe;
     --primary-light: #6272a4;
     --secondary-color: #6272a4;
     --success-color: #50fa7b;
@@ -252,6 +260,10 @@
 [data-theme="monokai"] {
     --primary-color: #f92672;
     --primary-hover: #c91f5d;
+    /* Link text: the primary colour is tuned for button fills and is too dark
+       to read as text here (>= 4.5:1 on cards, hover lighter not darker). */
+    --link-color: #ffa0c4;
+    --link-hover: #ffc2d9;
     --primary-light: #75715e;
     --secondary-color: #75715e;
     --success-color: #a6e22e;
@@ -533,7 +545,7 @@ body {
 .page-link {
     background-color: var(--surface);
     border-color: var(--border-color);
-    color: var(--primary-color);
+    color: var(--link-color, var(--primary-color));
 }
 
 .page-link:hover {
@@ -612,11 +624,11 @@ small, .small {
 }
 
 a:not(.btn):not(.nav-link):not(.dropdown-item) {
-    color: var(--primary-color) !important;
+    color: var(--link-color, var(--primary-color)) !important;
 }
 
 a:not(.btn):not(.nav-link):not(.dropdown-item):hover {
-    color: var(--primary-hover) !important;
+    color: var(--link-hover, var(--primary-hover)) !important;
 }
 
 /* ========================================
@@ -766,7 +778,7 @@ body.has-background .navbar {
 }
 
 .breadcrumb-item a {
-    color: var(--primary-color) !important;
+    color: var(--link-color, var(--primary-color)) !important;
 }
 
 .breadcrumb-item.active {
