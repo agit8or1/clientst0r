@@ -1601,6 +1601,12 @@ are built on top of them.
   test checks the ratios. The light themes followed *(shipped v3.17.635)*:
   Sunset and Gruvbox were about 2.5:1, Solarized and Nord under 4.5:1; every
   theme now passes, and the test covers all of them.
+- **Dependency floors that actually take effect** *(shipped v3.17.640)* — the
+  update flow never upgrades a package that still meets its range, so installs
+  drifted to 115 advisories. Minimum versions are raised for Django, DRF,
+  urllib3 and the indirect packages with advisories, so the next update brings
+  any install up to date; Authlib and nltk, kept only for an unused scanner,
+  are gone.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

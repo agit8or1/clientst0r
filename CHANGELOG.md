@@ -5,6 +5,16 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.640] - 2026-11-07
+
+### Security
+- **Higher minimum versions for packages with advisories.** The update flow runs `pip install -r requirements.txt` without `--upgrade`, so an installed package that still met its range was never replaced. Prod had drifted to 115 open advisories this way (Django 6.0.4 alone had 13). The new minimums make the next update upgrade any install that is behind:
+  - Django ≥ 6.0.8, Django REST framework ≥ 3.18.2, urllib3 ≥ 2.8.0, pyasn1 ≥ 0.6.4.
+  - New minimums for indirect dependencies: sqlparse ≥ 0.6.0, PyJWT ≥ 2.15.0, oauthlib ≥ 4.0.0, idna ≥ 3.15, certifi ≥ 2026.10.18, anyio ≥ 4.14.2, msgpack ≥ 1.2.3 and filelock ≥ 4.2.1.
+  - graphql-core ≥ 3.2.12 in `requirements-graphql.txt`.
+  - On the reference install, these versions ran the full test suite (3,791 tests) before going live. Six advisories remain open: oauthlib 4.0.1 and pyasn1 0.6.5 are less than two weeks old (neither is exposed here), and paramiko has no fix (accepted until 2027-02-01).
+- **Authlib and nltk removed from `requirements.txt`.** They were listed only to force patched versions of the dependencies of `safety`, a scanner the application never used. The joserfc minimum that came with them went too. `safety` and the 19 packages only it needed were uninstalled from the reference install, so the app no longer carries an unused JWT library and a language toolkit.
+
 ## [3.17.639] - 2026-11-07
 
 ### Documentation

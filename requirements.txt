@@ -1,6 +1,6 @@
 # Core Django
-Django>=6.0.4,<6.1  # Updated to 6.0.4+ to fix 7 advisories incl. SQL injection, timing attack, and DoS chains
-djangorestframework>=3.17.2,<4.0  # 3.17.2+ fixes CVE-2026-73228 (DRF request.data bypassed Django's DATA_UPLOAD_MAX_MEMORY_SIZE on oversized JSON/urlencoded bodies) + CVE-2026-73229 (AdminRenderer disclosure)
+Django>=6.0.8,<6.1  # 6.0.8+ clears the 13 advisories against 6.0.4-6.0.7 (raised v3.17.640; prod runs 6.0.9)
+djangorestframework>=3.18.2,<4.0  # 3.18.2+ fixes three advisories against 3.18.0; 3.17.2+ fixed CVE-2026-73228/73229
 django-filter==25.*
 
 # Database
@@ -25,7 +25,7 @@ whitenoise==6.6.*
 # PSA Integration HTTP clients
 requests>=2.33.0,<2.34  # Updated to 2.33.0+ to fix Insecure Temp File Reuse in extract_zipped_paths()
 maxminddb==2.6.2  # v3.17.598: local GeoIP country lookups for the firewall (core/geoip_db.py)
-urllib3>=2.7.0,<3.0  # v3.17.469 — bumped from 2.6.* to fix CVE-2026-44432 (GHSA-mf9v-mfxr-j63j): decompression-bomb safeguard bypass in Brotli streaming + drain_conn.
+urllib3>=2.8.0,<3.0  # 2.8.0 fixes three advisories against 2.7.x; 2.7.0 fixed CVE-2026-44432
 
 # AI Integration
 anthropic==0.75.*
@@ -52,8 +52,17 @@ requests-oauthlib==1.3.*
 
 # Transitive security floors — pinned to avoid pip-audit findings on indirect deps.
 # Do NOT remove without re-running `pip-audit` to confirm the floor is no longer needed.
-Authlib>=1.6.11           # 1.6.6 had alg:none JWT bypass + 3 other advisories
-nltk>=3.9.4               # 3.9.2 had 5 advisories
-pyasn1>=0.6.3             # 0.6.2 had GHSA-jr27-m4p2-rc6r
+pyasn1>=0.6.4             # 0.6.4 clears three advisories; 0.6.5 (four quadratic-decode DoS fixes) to follow once two weeks old
+# Transitive dependencies with advisories (v3.17.640). Pinned here because the
+# update flow runs `pip install -r` without --upgrade, so an installed version
+# that still satisfies its parent is never replaced; a floor here forces it.
+sqlparse>=0.6.0           # via Django — five advisories against 0.5.x
+PyJWT>=2.15.0             # via msal — 16 advisories against 2.12.x
+oauthlib>=4.0.0           # via requests-oauthlib — 4.0.1 (device-code fix, provider side only) to follow
+idna>=3.15                # via requests
+certifi>=2026.10.18       # via requests — CA bundle refresh
+anyio>=4.14.2             # via anthropic/httpx
+msgpack>=1.2.3            # via cachecontrol (pip-audit)
+filelock>=4.2.1           # via cachecontrol (pip-audit) — nine advisories against 3.x
 paramiko>=3.4,<4  # Phase 34.2 (v3.17.545) — SSH collection of network device configs
 PyYAML>=6.0,<7  # Phase 55 — reads the devicetype-library catalog (yaml.safe_load only)
