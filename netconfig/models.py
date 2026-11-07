@@ -304,6 +304,27 @@ class BackupTarget(BaseModel):
     last_success_at = models.DateTimeField(null=True, blank=True)
     last_error = models.TextField(blank=True)
 
+    # --- SSH host key pinning (v3.17.629) -------------------------------
+    # Credentials are only sent after the device proves it holds this key.
+    # The approved key is set by a person (fetch + compare fingerprint, or
+    # paste a key obtained out of band); a key the device presents that does
+    # not match is parked in `pending_*` for review and the collection stops
+    # before authentication. Nothing approves a key automatically.
+    host_key_type = models.CharField(max_length=40, blank=True)
+    host_key = models.TextField(blank=True, help_text='Approved public key, base64 (as in known_hosts)')
+    host_key_fingerprint = models.CharField(max_length=80, blank=True, help_text='SHA256:… of the approved key')
+    host_key_approved_at = models.DateTimeField(null=True, blank=True)
+    host_key_approved_by = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    pending_host_key_type = models.CharField(max_length=40, blank=True)
+    pending_host_key = models.TextField(blank=True)
+    pending_host_key_fingerprint = models.CharField(max_length=80, blank=True)
+    pending_host_key_seen_at = models.DateTimeField(null=True, blank=True)
+    # GHSA-r374-rxx8-8654: SHA-1 RSA ("ssh-rsa") signatures are refused unless
+    # a device that supports nothing newer is explicitly allowed them.
+    allow_legacy_ssh_rsa = models.BooleanField(
+        default=False, help_text='Accept SHA-1 "ssh-rsa" host-key signatures (old devices only)')
+
     class Meta:
         db_table = 'netconfig_targets'
         ordering = ['asset__name']
@@ -350,6 +371,10 @@ class BackupTarget(BaseModel):
             return 'No username configured.'
         if self.credential_id is None:
             return 'No vault credential linked.'
+        if not self.host_key:
+            return ('The device\'s SSH host key has not been approved. Open the connection '
+                    'settings, fetch the key and compare its fingerprint with the device '
+                    'before any credential is sent.')
         if getattr(self.credential, 'requires_reveal_approval', False):
             return ('That vault entry requires approval for each reveal, so it '
                     'cannot be used by an unattended job. Link a credential '

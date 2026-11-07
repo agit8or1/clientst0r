@@ -163,8 +163,22 @@ def upload_attachment(request):
     # Optimize images
     IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'}
     if file_ext in IMAGE_EXTENSIONS and file_ext != 'svg':  # Don't optimize SVG (vector format)
+        # Decode with the allow-listed decoders only, and require the decoded
+        # format to be the one the extension claims: a .png that is really
+        # EPS/TIFF/anything else is rejected, not stored as-is (v3.17.629).
+        from core.image_safety import open_image
+        expected = {'jpg': {'JPEG', 'MPO'}, 'jpeg': {'JPEG', 'MPO'}, 'png': {'PNG'}, 'gif': {'GIF'},
+                    'bmp': {'BMP'}, 'webp': {'WEBP'}}[file_ext]
         try:
-            img = Image.open(uploaded_file)
+            probe = open_image(uploaded_file)
+            probe.verify()
+            if probe.format not in expected:
+                raise ValueError(probe.format)
+        except Exception:
+            return HttpResponse("Invalid image file", status=400)
+        uploaded_file.seek(0)
+        try:
+            img = open_image(uploaded_file)
 
             # Convert RGBA to RGB if saving as JPEG
             if img.mode in ('RGBA', 'LA', 'P') and file_ext in ('jpg', 'jpeg'):

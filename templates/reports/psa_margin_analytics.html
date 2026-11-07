@@ -173,7 +173,7 @@
     </div>
 </div>
 
-<script type="application/json" id="margin-chart-data">{{ chart_json|safe }}</script>
+{{ chart_payload|json_script:"margin-chart-data" }}
 {% endblock %}
 
 {% block extra_js %}

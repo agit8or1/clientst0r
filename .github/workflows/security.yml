@@ -1,81 +1,156 @@
 name: security
 
+# What blocks, and how to make an exception (v3.17.629):
+#
+# * Dependency audit (pip-audit 2.10.1, all three requirement files): any
+#   advisory blocks. The only exceptions are entries in
+#   .github/security-exceptions.toml (id/alias, package, reason, mitigation,
+#   owner, expiry). Expired entries stop applying. A crashed scanner or an
+#   unreadable report also fails — neither is ever reported as clean.
+# * Semgrep (ERROR severity): findings introduced by a push or pull request
+#   block. Findings that already exist on main are reported by the weekly full
+#   scan (uploaded to code scanning) and are triaged there; suppress a false
+#   positive in code with `# nosemgrep: <rule-id> -- <reason>`.
+# * Gitleaks: a secret in pushed / PR commits blocks. False positives go in
+#   .gitleaks.toml with a comment.
+# * SBOM generation is informational and never blocks.
+
 on:
   push:
     branches: [ "main" ]
   pull_request:
   schedule:
-    - cron: "0 6 * * 1"  # Mondays 06:00 UTC
+    - cron: "0 6 * * 1"  # Mondays 06:00 UTC — catches advisories published since the last change
+  workflow_dispatch:
 
 permissions:
   contents: read
   security-events: write
 
 jobs:
-  security:
+  dependency-audit:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Optional but recommended: harden runner network egress
-      - name: Harden runner
-        uses: step-security/harden-runner@v2
+      - uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install deps
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install semgrep pip-audit cyclonedx-bom
+      - name: Build dependencies for python-ldap (requirements-optional.txt)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libldap2-dev libsasl2-dev
 
-      - name: Semgrep (SAST)
-        run: |
-          semgrep --config p/owasp-top-ten --config p/python --metrics=off || true
-        continue-on-error: true
+      - name: Test the audit summarizer
+        run: python -m unittest scripts/ci/test_pip_audit_summary.py
 
-      - name: pip-audit (PyPI vuln check)
+      - name: Install pip-audit (pinned, isolated from the app's dependencies)
         run: |
-          echo "Running pip-audit to check for dependency vulnerabilities..."
-          pip-audit -r requirements.txt --desc --format json --output pip-audit-report.json || true
-          pip-audit -r requirements.txt --desc || true
-        continue-on-error: true
+          python -m venv /tmp/scanner
+          /tmp/scanner/bin/pip install --quiet pip-audit==2.10.1
 
-      - name: Check vulnerabilities (non-blocking)
+      - name: pip-audit
+        id: audit
         run: |
-          if [ -f pip-audit-report.json ]; then
-            HIGH_COUNT=$(jq '[.vulnerabilities[] | select(.fix_versions != null)] | length' pip-audit-report.json 2>/dev/null || echo "0")
-            if [ "$HIGH_COUNT" -gt "0" ]; then
-              echo "::warning::Found $HIGH_COUNT fixable vulnerabilities in dependencies"
-              echo "::warning::Consider updating vulnerable packages"
-            else
-              echo "✅ No fixable high-severity vulnerabilities found"
-            fi
+          set +e
+          /tmp/scanner/bin/pip-audit \
+            -r requirements.txt -r requirements-graphql.txt -r requirements-optional.txt \
+            --desc --format json --output pip-audit-report.json --progress-spinner off
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Evaluate audit (blocking)
+        run: |
+          python scripts/ci/pip_audit_summary.py \
+            --report pip-audit-report.json \
+            --scanner-exit "${{ steps.audit.outputs.exit }}" \
+            --exceptions .github/security-exceptions.toml \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json
+          if-no-files-found: warn
+
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Semgrep (pinned)
+        run: |
+          python -m venv /tmp/semgrep
+          /tmp/semgrep/bin/pip install --quiet semgrep==1.184.0
+
+      - name: Semgrep — new ERROR findings block
+        if: github.event_name != 'schedule'
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # A generous per-file timeout: large views modules otherwise time out
+          # nondeterministically, which would make the baseline comparison flaky.
+          ARGS="--config p/owasp-top-ten --config p/python --metrics=off --severity ERROR --error --timeout 120"
+          if [ -n "$BASE" ] && [ "$BASE" != "0000000000000000000000000000000000000000" ] \
+             && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            /tmp/semgrep/bin/semgrep $ARGS --baseline-commit "$BASE" .
+          else
+            echo "::warning::No baseline commit available; scanning the full tree."
+            /tmp/semgrep/bin/semgrep $ARGS .
           fi
-        continue-on-error: true
 
-      - name: Gitleaks (secrets scan)
+      - name: Semgrep — weekly full scan to code scanning
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          /tmp/semgrep/bin/semgrep --config p/owasp-top-ten --config p/python --metrics=off \
+            --sarif --output semgrep.sarif . || true
+          test -s semgrep.sarif
+
+      - name: Upload SARIF
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks (blocking)
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
-        continue-on-error: true
 
-      - name: Generate SBOM (CycloneDX)
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Generate SBOM (CycloneDX, informational)
         run: |
-          cyclonedx-py -r -i requirements.txt -o sbom.cdx.json || true
+          python -m venv /tmp/sbom
+          /tmp/sbom/bin/pip install --quiet cyclonedx-bom
+          /tmp/sbom/bin/cyclonedx-py requirements requirements.txt -o sbom.cdx.json
         continue-on-error: true
-
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: sbom-cyclonedx
           path: sbom.cdx.json
-        continue-on-error: true
-        if: always()
+          if-no-files-found: warn

@@ -44,6 +44,12 @@ interface GigabitEthernet0/2
 end"""
 
 
+# Collections need an approved SSH host key (v3.17.629); tests that stub the
+# transport use this placeholder pin.
+PINNED_KEY = {'host_key_type': 'ssh-ed25519', 'host_key': 'AAAAtestpinned',
+              'host_key_fingerprint': 'SHA256:test-pinned'}
+
+
 class ConfigBackupModelTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -321,6 +327,8 @@ class BackupTargetModelTests(TestCase):
         self.cred.save()
 
     def _target(self, **kw):
+        for k, v in PINNED_KEY.items():
+            kw.setdefault(k, v)
         kw.setdefault('host', '10.0.0.2')
         kw.setdefault('username', 'admin')
         kw.setdefault('credential', self.cred)
@@ -408,7 +416,7 @@ class CollectorTests(TestCase):
         self.cred.save()
         self.target = BackupTarget.objects.create(
             asset=self.asset, host='10.0.0.2', username='admin',
-            credential=self.cred, adapter='cisco_ios')
+            credential=self.cred, adapter='cisco_ios', **PINNED_KEY)
 
     def test_blocked_target_records_the_reason_without_raising(self):
         from netconfig.collector import collect_target
@@ -508,7 +516,7 @@ class CollectorTests(TestCase):
         cred2.set_password('pw')
         cred2.save()
         BackupTarget.objects.create(
-            asset=second_asset, host='10.0.0.3', username='admin', credential=cred2)
+            asset=second_asset, host='10.0.0.3', username='admin', credential=cred2, **PINNED_KEY)
 
         calls = {'n': 0}
 
@@ -589,7 +597,7 @@ class TargetViewTests(TestCase):
     def test_delete_a_target_keeps_the_snapshots(self):
         ConfigBackup.record_for_asset(self.asset, CONFIG_A)
         BackupTarget.objects.create(
-            asset=self.asset, host='10.0.0.2', username='admin', credential=self.cred)
+            asset=self.asset, host='10.0.0.2', username='admin', credential=self.cred, **PINNED_KEY)
         self.client.post(f'/netconfig/device/{self.asset.pk}/connection/',
                          {'action': 'delete'})
         self.assertFalse(BackupTarget.objects.filter(asset=self.asset).exists())
@@ -597,14 +605,14 @@ class TargetViewTests(TestCase):
 
     def test_collect_now_requires_post(self):
         BackupTarget.objects.create(
-            asset=self.asset, host='10.0.0.2', username='admin', credential=self.cred)
+            asset=self.asset, host='10.0.0.2', username='admin', credential=self.cred, **PINNED_KEY)
         resp = self.client.get(f'/netconfig/device/{self.asset.pk}/collect/')
         self.assertEqual(resp.status_code, 302)
 
     def test_collect_now_runs_the_collector(self):
         from unittest.mock import patch
         BackupTarget.objects.create(
-            asset=self.asset, host='10.0.0.2', username='admin', credential=self.cred)
+            asset=self.asset, host='10.0.0.2', username='admin', credential=self.cred, **PINNED_KEY)
         with patch('netconfig.collector.collect_over_ssh',
                    return_value=(CONFIG_A, '')):
             self.client.post(f'/netconfig/device/{self.asset.pk}/collect/')
@@ -827,7 +835,7 @@ class DriftAlertTests(TestCase):
         cred.set_password('pw')
         cred.save()
         target = BackupTarget.objects.create(
-            asset=self.asset, host='10.0.0.1', username='admin', credential=cred)
+            asset=self.asset, host='10.0.0.1', username='admin', credential=cred, **PINNED_KEY)
 
         with patch('netconfig.collector.collect_over_ssh', return_value=(CONFIG_A, '')):
             collect_target(target)

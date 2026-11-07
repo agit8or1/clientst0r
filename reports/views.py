@@ -19,6 +19,7 @@ from .models import (
 from .generators import REPORT_GENERATORS
 import csv as _csv
 import json
+from core.json_embed import jsonable
 
 
 def get_user_organizations(user):
@@ -212,8 +213,9 @@ def dashboard_detail(request, pk):
         # <script type="application/json"> tag without re-encoding.
         if w.widget_type in ('chart_line', 'chart_bar', 'chart_pie'):
             has_chart = True
-            # Escape `</` so the payload can't break out of <script> tags.
-            w.rendered_json = json.dumps(w.rendered).replace('</', '<\\/')
+            # Embedded with json_script (escapes <, > and &), not json.dumps|safe.
+            w.rendered_payload = jsonable(w.rendered)
+            w.rendered_dom_id = f'widget-data-{w.pk}'
 
     can_manage = (
         dashboard.created_by_id == request.user.id
@@ -1460,8 +1462,7 @@ def psa_sla_trends(request):
             for p in trend['priorities']
         ],
     }
-    response_chart_json = json.dumps(response_chart).replace('</', '<\\/')
-    resolution_chart_json = json.dumps(resolution_chart).replace('</', '<\\/')
+
 
     # Build a totals list ordered by the priorities list for the template.
     totals_rows = [
@@ -1479,8 +1480,8 @@ def psa_sla_trends(request):
         'priorities': trend['priorities'],
         'totals_rows': totals_rows,
         'top_clients': top_clients,
-        'response_chart_json': response_chart_json,
-        'resolution_chart_json': resolution_chart_json,
+        'response_chart': jsonable(response_chart),
+        'resolution_chart': jsonable(resolution_chart),
         'has_buckets': bool(trend['buckets']),
     })
 
@@ -1538,7 +1539,6 @@ def psa_margin_analytics(request):
             {'name': 'Cost', 'data': [r['cost'] for r in rows]},
         ],
     }
-    chart_json = json.dumps(chart_payload).replace('</', '<\\/')
 
     dimension_choices = [
         ('ticket_type', 'Ticket Type'),
@@ -1552,7 +1552,7 @@ def psa_margin_analytics(request):
         'end_date': end_date,
         'dimension': dimension,
         'dimension_choices': dimension_choices,
-        'chart_json': chart_json,
+        'chart_payload': jsonable(chart_payload),
         'total_revenue': total_revenue,
         'total_cost': total_cost,
         'total_margin': total_margin,
@@ -1803,17 +1803,15 @@ def exec_scorecard(request):
         'revenue': [round(rev_by_day[d], 2) for d in days],
         'tickets': [tix_by_day[d] for d in days],
     }
-    chart_json = json.dumps(chart).replace('</', '<\\/')
-    pie_json = json.dumps(pie_data).replace('</', '<\\/')
 
     return render(request, 'reports/exec_scorecard.html', {
         'kpis': kpis,
         'top_clients': top_clients,
         'top_techs': top_techs,
         'pie_data': pie_data,
-        'pie_json': pie_json,
+        'pie_payload': jsonable(pie_data),
         'chart': chart,
-        'chart_json': chart_json,
+        'chart_payload': jsonable(chart),
         'as_of': timezone.now(),
         'window_start': start_30,
         'window_end': today,
@@ -2013,7 +2011,10 @@ def wallboard_view(request, pk):
         rendered_widgets.append({
             'widget': w,
             'data': data,
-            'data_json': json.dumps(data, default=str),
+            # json_script-embedded (escapes <, > and &): widget data includes
+            # ticket subjects and client names.
+            'data_payload': jsonable(data),
+            'data_dom_id': f'wb-data-{w.pk}',
             'categories': cats,
             'active_category': active_cat,
         })
@@ -2070,7 +2071,10 @@ def wallboard_rotate(request, pk):
         rendered_widgets.append({
             'widget': w,
             'data': data,
-            'data_json': json.dumps(data, default=str),
+            # json_script-embedded (escapes <, > and &): widget data includes
+            # ticket subjects and client names.
+            'data_payload': jsonable(data),
+            'data_dom_id': f'wb-data-{w.pk}',
             'categories': cats,
             'active_category': active_cat,
         })
@@ -2462,7 +2466,6 @@ def saved_query_list(request):
 @login_required
 def saved_query_form(request, pk=None):
     """Create or edit a SavedQuery. Form posts back here on save."""
-    import json as _json
     from .models import SavedQuery
     from .saved_query import MODEL_CONFIG, OPERATORS_BY_TYPE
 
@@ -2539,7 +2542,10 @@ def saved_query_form(request, pk=None):
     user_orgs = Organization.objects.filter(id__in=org_ids).order_by('name')
     return render(request, 'reports/saved_query_form.html', {
         'instance': instance,
-        'model_config_json': _json.dumps({
+        # Structures, not pre-serialized strings: the template embeds them with
+        # json_script, which escapes <, > and & so a filter value can't end
+        # the <script> element (stored XSS, fixed v3.17.629).
+        'model_config': {
             k: {
                 'label': v['label'],
                 'fields': [
@@ -2549,10 +2555,10 @@ def saved_query_form(request, pk=None):
                 'columns': v['columns'],
             }
             for k, v in MODEL_CONFIG.items()
-        }),
+        },
         'user_orgs': user_orgs,
-        'instance_filters_json': _json.dumps(instance.filters or [] if instance else []),
-        'instance_columns_json': _json.dumps(instance.columns or [] if instance else []),
+        'instance_filters': jsonable(instance.filters or [] if instance else []),
+        'instance_columns': jsonable(instance.columns or [] if instance else []),
     })
 
 

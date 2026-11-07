@@ -129,7 +129,7 @@
                     <canvas id="wb-chart-{{ entry.widget.pk }}"
                             data-widget-type="{{ w.widget_type }}"></canvas>
                 </div>
-                <script type="application/json" id="wb-data-{{ entry.widget.pk }}">{{ entry.data_json|safe }}</script>
+                {{ entry.data_payload|json_script:entry.data_dom_id }}
             {% else %}
                 <pre class="small text-muted mb-0">{{ data|stringformat:"s"|truncatechars:200 }}</pre>
             {% endif %}

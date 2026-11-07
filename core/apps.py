@@ -7,6 +7,10 @@ class CoreConfig(AppConfig):
     verbose_name = 'Core'
 
     def ready(self):
+        # Decode only the image formats we accept, whatever a file is called
+        # (v3.17.629). Must run before any upload is validated.
+        from core.image_safety import restrict_decoders
+        restrict_decoders()
         # Outbound webhook events (asset/document/password/location/user/
         # organization/workflow). Monitor and integration events are fired
         # from their service code.

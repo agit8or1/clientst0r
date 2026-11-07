@@ -37,6 +37,12 @@ NO_THROTTLE_REST = dict(django_settings.REST_FRAMEWORK,
                         DEFAULT_THROTTLE_CLASSES=[])
 
 
+# Collections need an approved SSH host key (v3.17.629); tests that stub the
+# transport use this placeholder pin.
+PINNED_KEY = {'host_key_type': 'ssh-ed25519', 'host_key': 'AAAAtestpinned',
+              'host_key_fingerprint': 'SHA256:test-pinned'}
+
+
 def _clear_throttle_cache():
     from django.core.cache import cache
     try:
@@ -343,7 +349,7 @@ class MobileNetconfigTests(TestCase):
         cred.save()
         BackupTarget.objects.create(
             asset=self.switch, host='10.0.0.2', username='admin',
-            credential=cred)
+            credential=cred, **PINNED_KEY)
 
         import json as _json
         raw = _json.dumps(
@@ -368,7 +374,7 @@ class MobileNetconfigTests(TestCase):
         cred.save()
         BackupTarget.objects.create(
             asset=self.switch, host='10.0.0.2', username='admin',
-            credential=cred)
+            credential=cred, **PINNED_KEY)
 
         with patch('netconfig.collector.collect_over_ssh',
                    return_value=('hostname core-sw-01\nend', '15.2')):

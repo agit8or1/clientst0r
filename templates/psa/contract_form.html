@@ -116,9 +116,10 @@
                     </tbody>
                 </table>
                 {% if item and item.sla_matrix %}
+                {{ item.sla_matrix|json_script:"sla-matrix-data" }}
                 <script nonce="{{ csp_nonce }}">
                 {# Pre-fill the override inputs from the saved sla_matrix JSON. #}
-                const matrix = {{ item.sla_matrix|safe }};
+                const matrix = JSON.parse(document.getElementById('sla-matrix-data').textContent);
                 document.querySelectorAll('input[data-prio]').forEach(inp => {
                     const code = inp.dataset.prio;
                     const kind = inp.dataset.kind;

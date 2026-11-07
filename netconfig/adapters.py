@@ -152,33 +152,25 @@ def collect_over_ssh(target, password, *, timeout=30):
             'No command configured to print the running config for this device.')
     config_command = target.config_command or adapter.config_command
 
-    client = paramiko.SSHClient()
-    # Devices are identified by the address the operator configured, on a
-    # network they administer. Refusing an unknown host key here would mean
-    # every new switch fails its first backup until somebody SSHes in by hand,
-    # so unknown keys are accepted — and this is exactly why the transport does
-    # not accept credentials that require per-use approval.
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # The device must prove it holds the approved host key before anything
+    # is authenticated (v3.17.629; previously AutoAddPolicy accepted any key).
+    from .hostkeys import HostKeyError, verified_transport
     try:
-        client.connect(
-            hostname=target.host,
-            port=target.port or 22,
-            username=target.username,
-            password=password,
-            timeout=timeout,
-            banner_timeout=timeout,
-            auth_timeout=timeout,
-            look_for_keys=False,
-            allow_agent=False,
-        )
-    except Exception as exc:
-        raise CollectionError(f'Could not connect: {exc}') from exc
+        transport = verified_transport(target, timeout=timeout)
+    except HostKeyError as exc:
+        raise CollectionError(str(exc)) from exc
+    try:
+        try:
+            transport.auth_password(target.username, password)
+        except paramiko.AuthenticationException as exc:
+            raise CollectionError(f'Authentication failed for {target.username}@{target.host}.') from exc
+        except Exception as exc:  # noqa: BLE001
+            raise CollectionError(f'Could not authenticate: {exc}') from exc
 
-    try:
         for command in adapter.setup_commands:
-            _run(client, command, timeout)
+            _run(transport, command, timeout)
 
-        raw_config = _run(client, config_command, timeout)
+        raw_config = _run(transport, config_command, timeout)
         config = adapter.clean(raw_config)
         if not config.strip():
             raise CollectionError(
@@ -189,21 +181,29 @@ def collect_over_ssh(target, password, *, timeout=30):
         version_command = target.version_command or adapter.version_command
         if version_command:
             try:
-                version = adapter.extract_version(_run(client, version_command, timeout))
+                version = adapter.extract_version(_run(transport, version_command, timeout))
             except Exception:
                 # A missing version string is not a reason to throw away a
                 # config that came back fine.
                 version = ''
         return config, version
     finally:
-        client.close()
+        transport.close()
 
 
-def _run(client, command, timeout):
-    _stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
-    out = stdout.read().decode('utf-8', errors='replace')
-    if not out.strip():
-        err = stderr.read().decode('utf-8', errors='replace').strip()
-        if err:
-            raise CollectionError(f'"{command}" failed: {err[:300]}')
-    return out
+def _run(transport, command, timeout):
+    """Run one command on its own channel of an authenticated transport."""
+    channel = transport.open_session(timeout=timeout)
+    try:
+        channel.settimeout(timeout)
+        channel.exec_command(command)
+        stdout = channel.makefile('rb')
+        stderr = channel.makefile_stderr('rb')
+        out = stdout.read().decode('utf-8', errors='replace')
+        if not out.strip():
+            err = stderr.read().decode('utf-8', errors='replace').strip()
+            if err:
+                raise CollectionError(f'"{command}" failed: {err[:300]}')
+        return out
+    finally:
+        channel.close()

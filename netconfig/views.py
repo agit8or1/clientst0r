@@ -197,6 +197,9 @@ def target_edit(request, asset_id):
     asset = get_object_or_404(_accessible_assets(request), pk=asset_id)
     target = BackupTarget.objects.filter(asset=asset).first()
 
+    if request.method == 'POST' and request.POST.get('action', '').startswith('hostkey_'):
+        return _host_key_action(request, asset, target)
+
     if request.method == 'POST':
         if request.POST.get('action') == 'delete' and target:
             target.delete()
@@ -255,6 +258,51 @@ def target_edit(request, asset_id):
         'credentials': credentials,
         'adapter_choices': ADAPTER_CHOICES,
     })
+
+
+def _host_key_action(request, asset, target):
+    """Enroll, approve, rotate or remove the pinned SSH host key (v3.17.629).
+
+    Every path is an explicit decision by a user who may edit the device, and
+    each is written to the audit log by `hostkeys`. Nothing here approves a
+    key the user has not been shown.
+    """
+    from accounts.permission_utils import user_has_org_perm
+    from . import hostkeys
+
+    back = redirect('netconfig:target_edit', asset_id=asset.pk)
+    if target is None:
+        messages.error(request, 'Save the connection settings first.')
+        return back
+    if not user_has_org_perm(request.user, asset.organization, 'assets_edit'):
+        messages.error(request, 'Changing a device\'s trusted SSH key needs permission to edit assets.')
+        return back
+    action = request.POST.get('action')
+    try:
+        if action == 'hostkey_fetch':
+            key_type, fp, same = hostkeys.fetch_host_key(target, user=request.user)
+            if same:
+                messages.success(request, f'The device presented the approved key ({fp}).')
+            else:
+                messages.warning(request, f'The device presented {key_type} {fp}. Compare it with the fingerprint '
+                                          f'shown on the device\'s console before approving it.')
+        elif action == 'hostkey_approve':
+            hostkeys.approve_pending(target, request.user, request.POST.get('fingerprint', ''))
+            messages.success(request, f'Approved host key {target.host_key_fingerprint}.')
+        elif action == 'hostkey_paste':
+            fp = hostkeys.approve_pasted(target, request.user, request.POST.get('public_key', ''))
+            messages.success(request, f'Approved host key {fp} from the pasted public key.')
+        elif action == 'hostkey_clear':
+            hostkeys.clear_host_key(target, request.user)
+            messages.info(request, 'Removed the approved host key. Collection stays blocked until a key is approved.')
+        elif action == 'hostkey_legacy':
+            hostkeys.set_legacy_rsa(target, request.user, request.POST.get('allow') == '1')
+            messages.info(request, 'Legacy SHA-1 ssh-rsa setting saved.')
+        else:
+            messages.error(request, 'Unknown action.')
+    except hostkeys.HostKeyError as exc:
+        messages.error(request, str(exc))
+    return back
 
 
 @login_required

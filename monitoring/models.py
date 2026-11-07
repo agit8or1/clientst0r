@@ -551,7 +551,8 @@ class RackDevice(BaseModel):
             import sys
 
             # Open the image
-            img = Image.open(self.photo)
+            from core.image_safety import open_image
+            img = open_image(self.photo)
 
             # Convert to RGB if necessary (handles RGBA, P, etc.)
             if img.mode in ('RGBA', 'LA', 'P'):

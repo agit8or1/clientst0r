@@ -897,9 +897,11 @@
 .severity-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
 </style>
 
+{{ damage_photos|json_script:"damage-photos-data" }}
 <script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const vehicleId = {{ vehicle.pk }};
+    const damagePhotos = JSON.parse(document.getElementById('damage-photos-data').textContent);
     const damageReports = [
         {% for report in damage_reports %}
         {
@@ -909,7 +911,7 @@ document.addEventListener('DOMContentLoaded', function() {
             severityLabel: '{{ report.get_severity_display|escapejs }}',
             date: '{{ report.incident_date }}',
             description: '{{ report.description|truncatewords:10|escapejs }}',
-            photoIds: {{ damage_photos_json|safe }}[{{ report.id }}] || []
+            photoIds: damagePhotos['{{ report.id }}'] || []
         }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];

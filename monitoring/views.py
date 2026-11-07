@@ -889,8 +889,9 @@ def network_closet_detail(request, pk):
             patch_panels.append({'device': device, 'ports': ports,
                                   'port_start': port_start, 'port_end': port_end})
 
-    import json
-    patch_panels_json = json.dumps([{
+    # Embedded with json_script: port labels are user-entered text.
+    from core.json_embed import jsonable
+    patch_panels_data = jsonable([{
         'device_id': pp['device'].id,
         'ports': pp['ports'],
         'port_start': pp['port_start'],
@@ -910,7 +911,7 @@ def network_closet_detail(request, pk):
         'devices': devices,
         'unit_map': unit_map,
         'patch_panels': patch_panels,
-        'patch_panels_json': patch_panels_json,
+        'patch_panels_data': patch_panels_data,
         'connections': connections,
         'all_org_assets': list(all_org_assets),
     })

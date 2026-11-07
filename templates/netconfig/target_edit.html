@@ -105,4 +105,54 @@
         {% endif %}
     </div>
 </form>
+
+{% if target %}
+<div class="card mt-4" style="max-width: 760px;" id="host-key">
+    <div class="card-header"><strong><i class="fas fa-fingerprint"></i> Trusted SSH host key</strong></div>
+    <div class="card-body">
+        <p class="small text-muted">The device must prove it holds this key before the vault password is sent.
+        Approve a key only after comparing its fingerprint with the one shown on the device itself
+        (e.g. <code>show ip ssh</code>, <code>show crypto key mypubkey</code>, or <code>ssh-keygen -lf</code> on the host key).</p>
+        {% if target.host_key %}
+            <div class="alert alert-success small mb-3"><strong>Approved:</strong> {{ target.host_key_type }}
+                <code>{{ target.host_key_fingerprint }}</code><br>
+                by {{ target.host_key_approved_by.get_username|default:"unknown" }} on {{ target.host_key_approved_at|date:"Y-m-d H:i" }}</div>
+        {% else %}
+            <div class="alert alert-warning small mb-3">No key approved — collection is blocked and no credential is sent.</div>
+        {% endif %}
+        {% if target.pending_host_key %}
+            <div class="alert {% if target.host_key %}alert-danger{% else %}alert-info{% endif %} small">
+                <strong>{% if target.host_key %}The device presented a DIFFERENT key{% else %}Key presented by the device{% endif %}:</strong>
+                {{ target.pending_host_key_type }} <code>{{ target.pending_host_key_fingerprint }}</code>
+                (seen {{ target.pending_host_key_seen_at|date:"Y-m-d H:i" }}).
+                {% if target.host_key %}This happens when a device is replaced or re-keyed — or when something else is answering at its address. Collection is blocked until you decide.{% endif %}
+                <form method="post" class="mt-2 d-flex gap-2 align-items-center">{% csrf_token %}
+                    <input type="hidden" name="action" value="hostkey_approve">
+                    <input type="hidden" name="fingerprint" value="{{ target.pending_host_key_fingerprint }}">
+                    <div class="form-check"><input class="form-check-input" type="checkbox" required id="hk-confirm">
+                        <label class="form-check-label" for="hk-confirm">I compared this fingerprint with the device</label></div>
+                    <button class="btn btn-sm {% if target.host_key %}btn-danger{% else %}btn-primary{% endif %}">{% if target.host_key %}Replace the approved key{% else %}Approve this key{% endif %}</button>
+                </form>
+            </div>
+        {% endif %}
+        <div class="d-flex gap-2 flex-wrap">
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="hostkey_fetch">
+                <button class="btn btn-sm btn-outline-primary">Fetch key from device</button></form>
+            {% if target.host_key %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="hostkey_clear">
+                <button class="btn btn-sm btn-outline-danger">Remove approved key</button></form>{% endif %}
+        </div>
+        <form method="post" class="mt-3">{% csrf_token %}<input type="hidden" name="action" value="hostkey_paste">
+            <label class="form-label small" for="public_key">Or paste the device's public host key (obtained out of band)</label>
+            <textarea class="form-control form-control-sm font-monospace" id="public_key" name="public_key" rows="2" placeholder="ssh-ed25519 AAAAC3Nza… or a known_hosts line"></textarea>
+            <button class="btn btn-sm btn-outline-secondary mt-1">Approve pasted key</button>
+        </form>
+        <form method="post" class="mt-3">{% csrf_token %}<input type="hidden" name="action" value="hostkey_legacy">
+            <div class="form-check"><input class="form-check-input" type="checkbox" name="allow" value="1" id="legacy" {% if target.allow_legacy_ssh_rsa %}checked{% endif %}>
+                <label class="form-check-label small" for="legacy">Allow legacy SHA-1 <code>ssh-rsa</code> host-key signatures (only for old devices that support nothing newer)</label></div>
+            <button class="btn btn-sm btn-outline-secondary mt-1">Save</button>
+        </form>
+        <p class="small text-muted mt-2 mb-0">Every approval, replacement and removal is recorded in the audit log with the old and new fingerprints.</p>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

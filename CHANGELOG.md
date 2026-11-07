@@ -5,6 +5,65 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.629] - 2026-11-06
+
+### Security
+
+- **Stored XSS in the saved-query editor (Reports → Saved queries).** Filter
+  values were embedded with `json.dumps(...)|safe` inside a
+  `<script type="application/json">` element; a value containing
+  `</script><script>…` ran script for anyone who opened the editor, including a
+  superuser editing another user's query. The editor now passes structured
+  data to Django's `json_script`, which escapes `<`, `>` and `&`. The same
+  pattern was fixed on the report dashboard and wallboard widgets (no escaping
+  at all on the wallboard), the SLA-trend, margin and executive-scorecard
+  charts (which only replaced `</`), the network-closet patch-panel map and
+  the PSA contract SLA matrix (values written straight into JavaScript), and
+  the vehicle damage-photo map. Regression tests parse the page the way a
+  browser tokenizes it; a guard test fails if `*_json|safe` returns to a
+  template.
+- **Pillow 13.0.0.** The constraint `Pillow>=12.2.0,<13.0` resolved to 12.3.0,
+  which has dozens of open advisories (among them GHSA-78g4-xqwv-q3g8, the
+  bundled libopenjp2). It is now `Pillow>=13.0.0,<14.0`, which has no known
+  advisories. Pillow also decoded *any* supported format whatever a file was
+  called — including EPS (Ghostscript), FlashPix, TIFF and SPIDER — because
+  Django's `ImageField` calls `Image.open`. At startup the decoder registry is
+  now limited to PNG, JPEG, GIF, WebP, BMP and ICO (`core/image_safety.py`),
+  and attachment uploads must decode as the format their extension claims.
+- **SSH host keys are pinned for config collection.** The collector created a
+  fresh Paramiko client with `AutoAddPolicy`, so anything answering at a
+  device's address received its vault password. Each device now has an
+  approved host key; the key the device proves it holds is compared before
+  authentication, and on a mismatch the collection stops and the password is
+  not sent. Keys are enrolled explicitly on the device's connection page
+  (fetch the key and confirm its fingerprint against the device, or paste a
+  key obtained out of band); a changed key is held as *pending* and never
+  approved automatically; approvals, rotations and removals are audit-logged
+  with old and new fingerprints.
+- **SHA-1 RSA (GHSA-r374-rxx8-8654).** Paramiko accepts SHA-1 `ssh-rsa`
+  signatures and has no fixed release. `ssh-rsa` is disabled for collection
+  unless a device is explicitly allowed legacy SHA-1 (audited); RSA keys keep
+  working over rsa-sha2-256/512.
+- **Security CI tells the truth.** The workflow suppressed every scanner
+  failure and its summary read `.vulnerabilities[]`, which pip-audit does not
+  emit, so a parse error printed "no vulnerabilities". pip-audit is now pinned
+  (2.10.1) and audits all three requirement files; `scripts/ci/pip_audit_summary.py`
+  parses the documented schema and distinguishes clean, vulnerable, malformed
+  output and scanner failure (each tested). Advisories block unless listed in
+  `.github/security-exceptions.toml` with a reason, mitigation, owner and expiry.
+  New Semgrep ERROR findings and secrets in new commits block; the weekly full
+  Semgrep scan goes to code scanning.
+
+### Upgrade notes
+
+- **Config collection is paused per device until its host key is approved.**
+  Open each device under **Network configs → device → Connection**, choose
+  *Fetch key from device*, compare the fingerprint with the device's console,
+  and approve it. Devices that only support SHA-1 `ssh-rsa` need *Allow legacy
+  SHA-1* first.
+- Run the migration (`netconfig 0004`) and install requirements so Pillow 13
+  is picked up. The Settings → Updates flow does both.
+
 ## [3.17.628] - 2026-11-06
 
 ### Fixed: three pages that failed to load

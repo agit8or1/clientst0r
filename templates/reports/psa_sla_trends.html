@@ -214,8 +214,8 @@
     </div>
 </div>
 
-<script type="application/json" id="response-chart-data">{{ response_chart_json|safe }}</script>
-<script type="application/json" id="resolution-chart-data">{{ resolution_chart_json|safe }}</script>
+{{ response_chart|json_script:"response-chart-data" }}
+{{ resolution_chart|json_script:"resolution-chart-data" }}
 {% endblock %}
 
 {% block extra_js %}

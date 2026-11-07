@@ -113,7 +113,7 @@
                                 <canvas id="widget-chart-{{ widget.pk }}"
                                         data-widget-type="{{ widget.widget_type }}"></canvas>
                             </div>
-                            <script type="application/json" id="widget-data-{{ widget.pk }}">{{ widget.rendered_json|safe }}</script>
+                            {{ widget.rendered_payload|json_script:widget.rendered_dom_id }}
                         {% else %}
                             <p class="text-muted small mb-0">Unsupported widget type: {{ widget.widget_type }}</p>
                         {% endif %}

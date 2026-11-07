@@ -132,8 +132,8 @@
   </div>
 </div>
 
-<script id="es-chart-data" type="application/json">{{ chart_json|safe }}</script>
-<script id="es-pie-data" type="application/json">{{ pie_json|safe }}</script>
+{{ chart_payload|json_script:"es-chart-data" }}
+{{ pie_payload|json_script:"es-pie-data" }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script nonce="{{ csp_nonce }}">
 (function() {

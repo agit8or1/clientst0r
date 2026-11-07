@@ -1,0 +1,18 @@
+# Accepted security advisories — the CI exception policy.
+#
+# The dependency audit (.github/workflows/security.yml, scripts/ci/pip_audit_summary.py)
+# fails on every advisory not listed here. An entry is a decision, not a mute
+# button: it needs the advisory id (or an alias), the package, why it is
+# accepted, what mitigates it, who owns it, and an expiry date. Expired entries
+# stop applying and the build fails again, so the decision gets revisited.
+#
+# Add an entry only when no fixed version exists or upgrading is not yet
+# possible, and the risk is mitigated in our code or configuration.
+
+[[exception]]
+id = "GHSA-r374-rxx8-8654"          # = PYSEC-2026-2858 / CVE-2026-44405
+package = "paramiko"
+reason = "Paramiko accepts SHA-1 RSA (ssh-rsa) signatures; no fixed release exists (3.x or 4.x)."
+mitigation = "netconfig disables ssh-rsa host-key/pubkey algorithms unless a device is explicitly allowed legacy SHA-1 (audited); host keys are pinned (v3.17.629)."
+owner = "netconfig maintainers"
+expires = 2027-02-01

@@ -105,15 +105,24 @@ class Attachment(BaseModel):
         from django.core.files.uploadedfile import InMemoryUploadedFile
 
         try:
-            # Open the image
-            img = Image.open(self.file)
+            # Open the image (allow-listed decoders only)
+            from core.image_safety import open_image
+            img = open_image(self.file)
+            source_format = img.format  # conversions below drop .format
 
-            # Convert RGBA/P to RGB for JPEG compatibility
-            if img.mode in ('RGBA', 'LA', 'P'):
+            # Re-encode only formats we can write back faithfully. GIF (possibly
+            # animated), BMP and ICO keep their original, already-validated bytes.
+            if source_format not in ('JPEG', 'MPO', 'PNG', 'WEBP'):
+                self.file.seek(0)
+                return
+            target = 'JPEG' if source_format in ('JPEG', 'MPO') else source_format
+
+            # JPEG has no alpha: flatten onto white only when writing JPEG.
+            if target == 'JPEG' and img.mode in ('RGBA', 'LA', 'P'):
                 background = Image.new('RGB', img.size, (255, 255, 255))
                 if img.mode == 'P':
                     img = img.convert('RGBA')
-                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                background.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
                 img = background
 
             # Determine max dimensions (optimize large images)
@@ -124,25 +133,17 @@ class Attachment(BaseModel):
             if img.width > MAX_WIDTH or img.height > MAX_HEIGHT:
                 img.thumbnail((MAX_WIDTH, MAX_HEIGHT), Image.Resampling.LANCZOS)
 
-            # Save optimized image to BytesIO
             output = BytesIO()
-            img_format = img.format or 'JPEG'
-
-            # Optimize based on format
-            if img_format in ('JPEG', 'JPG'):
+            if target == 'JPEG':
                 img.save(output, format='JPEG', quality=85, optimize=True)
                 content_type = 'image/jpeg'
-            elif img_format == 'PNG':
+            elif target == 'PNG':
                 img.save(output, format='PNG', optimize=True)
                 content_type = 'image/png'
-            elif img_format == 'WEBP':
+            else:
                 img.save(output, format='WEBP', quality=85, method=6)
                 content_type = 'image/webp'
-            else:
-                # For other formats, save as JPEG
-                img.save(output, format='JPEG', quality=85, optimize=True)
-                content_type = 'image/jpeg'
-
+            size = output.getbuffer().nbytes
             output.seek(0)
 
             # Create new InMemoryUploadedFile
@@ -151,11 +152,11 @@ class Attachment(BaseModel):
                 'ImageField',
                 self.file.name,
                 content_type,
-                output.tell(),
+                size,
                 None
             )
             self.content_type = content_type
-            self.file_size = output.tell()
+            self.file_size = size
 
         except Exception as e:
             # If optimization fails, log and continue with original file
