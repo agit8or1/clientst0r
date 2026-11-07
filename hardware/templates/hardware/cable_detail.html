@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Cable {{ cable }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'hardware:cable_list' %}">Cables — {{ org.name }}</a></li>
+  <li class="breadcrumb-item active">{{ cable }}</li>
+</ol></nav>
+<div class="d-flex justify-content-between align-items-center">
+  <h1 class="h4"><i class="fas fa-ethernet"></i> Cable {{ cable }}</h1>
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'hardware:labels' %}?kind=cable&cables={{ cable.pk }}"><i class="fas fa-tags"></i> Print both end labels</a>
+</div>
+<div class="row g-3">
+  <div class="col-lg-5"><div class="card"><div class="card-body">
+    {% for end, terms in ends.items %}<div class="mb-2"><strong>{{ end }} end</strong>
+      {% for t in terms %}<div><a href="{% url 'hardware:device_detail' t.port.device_id %}#port-{{ t.port_id }}">{{ t.port.device.asset.name }} / {{ t.port.name }}</a> <span class="text-muted small">{{ t.port.get_component_class_display }}</span></div>{% empty %}<div class="text-warning">Not documented</div>{% endfor %}</div>{% endfor %}
+    {% if trace %}<hr><h6>Full path</h6>{% include "hardware/_trace.html" %}{% endif %}
+  </div></div></div>
+  <div class="col-lg-7"><div class="card"><div class="card-body">
+    <form method="post" class="row g-2">{% csrf_token %}
+      <div class="col-md-4"><label class="form-label">Cable ID</label><input class="form-control" name="label" value="{{ cable.label }}" {% if not can_edit %}disabled{% endif %}></div>
+      <div class="col-md-4"><label class="form-label">Type</label><select class="form-select" name="cable_type" {% if not can_edit %}disabled{% endif %}><option value="">—</option>{% for k, v in cable_types %}<option value="{{ k }}" {% if cable.cable_type == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+      <div class="col-md-4"><label class="form-label">Status</label><select class="form-select" name="status" {% if not can_edit %}disabled{% endif %}>{% for k, v in statuses %}<option value="{{ k }}" {% if cable.status == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+      <div class="col-md-3"><label class="form-label">Colour</label><input type="color" class="form-control form-control-color w-100" name="color" value="{{ cable.color|default:'#1f77b4' }}" {% if not can_edit %}disabled{% endif %}></div>
+      <div class="col-md-3"><label class="form-label">Colour name</label><input class="form-control" name="color_name" value="{{ cable.color_name }}" {% if not can_edit %}disabled{% endif %}></div>
+      <div class="col-md-3"><label class="form-label">Length</label><input class="form-control" name="length" value="{{ cable.length|default:'' }}" {% if not can_edit %}disabled{% endif %}></div>
+      <div class="col-md-3"><label class="form-label">Unit</label><select class="form-select" name="length_unit" {% if not can_edit %}disabled{% endif %}><option value="">—</option>{% for k, v in units %}<option value="{{ k }}" {% if cable.length_unit == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+      <div class="col-md-6"><label class="form-label">Label text, A end</label><input class="form-control" name="label_a" value="{{ cable.label_a }}" placeholder="{{ a_default }}" {% if not can_edit %}disabled{% endif %}></div>
+      <div class="col-md-6"><label class="form-label">Label text, B end</label><input class="form-control" name="label_b" value="{{ cable.label_b }}" placeholder="{{ b_default }}" {% if not can_edit %}disabled{% endif %}></div>
+      <div class="col-12 form-text">Left empty, each end's label says where the other end goes (e.g. “{{ a_default }}”).</div>
+      <div class="col-12"><label class="form-label">Description</label><input class="form-control" name="description" value="{{ cable.description }}" {% if not can_edit %}disabled{% endif %}></div>
+      <div class="col-12"><label class="form-label">Notes</label><textarea class="form-control" name="notes" rows="2" {% if not can_edit %}disabled{% endif %}>{{ cable.notes }}</textarea></div>
+      {% if can_edit %}<div class="col-12"><button class="btn btn-primary">Save cable</button></div>{% endif %}
+    </form>
+  </div></div></div>
+</div>
+</div>{% endblock %}

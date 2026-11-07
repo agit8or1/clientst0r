@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Cables — {{ org.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<h1 class="h3"><i class="fas fa-ethernet"></i> Cables <small class="text-muted fs-6">{{ org.name }}</small></h1>
+{% with section='cables' %}{% include "hardware/_nav.html" %}{% endwith %}
+<form class="d-flex gap-2 mb-3" method="get"><input class="form-control" style="max-width:360px" name="q" value="{{ q }}" placeholder="Cable ID, description or device">
+  <button class="btn btn-outline-secondary">Search</button>
+  <a class="btn btn-outline-secondary ms-auto" href="{% url 'hardware:export_csv' 'cables' %}"><i class="fas fa-download"></i> Export CSV</a></form>
+{% if page.object_list %}
+<form method="get" action="{% url 'hardware:labels' %}" id="hw-cable-label-form"><input type="hidden" name="kind" value="cable"><input type="hidden" name="cables" id="hw-cable-ids">
+<div class="table-responsive"><table class="table table-sm table-hover align-middle">
+  <thead><tr><th><input type="checkbox" id="hw-all" aria-label="Select all"></th><th>Cable ID</th><th>A end</th><th>B end</th><th>Type</th><th>Colour</th><th>Length</th><th>Status</th></tr></thead>
+  <tbody>{% for c in page.object_list %}<tr>
+    <td><input type="checkbox" class="hw-c" value="{{ c.pk }}" aria-label="Select {{ c }}"></td>
+    <td><a href="{% url 'hardware:cable_detail' c.pk %}"><strong>{{ c }}</strong></a></td>
+    {% for end in 'AB' %}<td>{% for t in c.terminations.all %}{% if t.end == end %}<div><a href="{% url 'hardware:device_detail' t.port.device_id %}#port-{{ t.port_id }}">{{ t.port.device.asset.name }} / {{ t.port.tech_label|default:t.port.label|default:t.port.name }}</a></div>{% endif %}{% endfor %}</td>{% endfor %}
+    <td>{{ c.get_cable_type_display|default:"—" }}</td>
+    <td>{% if c.color %}<span class="d-inline-block rounded" style="width:1em;height:1em;background:{{ c.color }};vertical-align:-2px"></span>{% endif %} {{ c.color_name }}</td>
+    <td>{% if c.length %}{{ c.length|floatformat:"-2" }} {{ c.length_unit }}{% endif %}</td>
+    <td>{{ c.get_status_display }}</td></tr>{% endfor %}</tbody></table></div>
+<button class="btn btn-outline-primary" type="submit"><i class="fas fa-tags"></i> Print labels for selected cables</button>
+</form>
+<script nonce="{{ csp_nonce }}">
+(function(){const all=document.getElementById('hw-all');const boxes=()=>Array.from(document.querySelectorAll('.hw-c'));
+all.addEventListener('change',()=>boxes().forEach(b=>b.checked=all.checked));
+document.getElementById('hw-cable-label-form').addEventListener('submit',e=>{const ids=boxes().filter(b=>b.checked).map(b=>b.value);if(!ids.length){e.preventDefault();alert('Select at least one cable.');return;}document.getElementById('hw-cable-ids').value=ids.join(',');});})();
+</script>
+{% else %}
+<div class="hw-empty"><h5>No cables documented{% if q %} matching “{{ q }}”{% endif %}</h5><p class="text-muted">Open a device, click a port and choose <em>Connect…</em>, or patch several ports at once from the bulk editor.</p></div>
+{% endif %}
+</div>{% endblock %}

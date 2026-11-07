@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Request a model{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<h1 class="h4"><i class="fas fa-question-circle"></i> Request a hardware model</h1>
+<p class="text-muted">Catalog administrators will add it from the manufacturer's documentation. Meanwhile, add the device with a Generic template; you can review the template change later.</p>
+<form method="post" class="card card-body row g-2 flex-row" style="max-width:760px">{% csrf_token %}
+  <div class="col-md-6"><label class="form-label">Manufacturer *</label><input class="form-control" name="manufacturer" required value="{{ initial.manufacturer|default:'' }}"></div>
+  <div class="col-md-6"><label class="form-label">Model *</label><input class="form-control" name="model" required value="{{ initial.model|default:'' }}"></div>
+  <div class="col-md-6"><label class="form-label">Part number</label><input class="form-control" name="part_number"></div>
+  <div class="col-md-6"><label class="form-label">Category</label><select class="form-select" name="category">{% for k, v in categories %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-12"><label class="form-label">Datasheet / manual URL</label><input class="form-control" type="url" name="datasheet_url"></div>
+  <div class="col-12"><label class="form-label">Notes (ports, modules, anything you know)</label><textarea class="form-control" name="notes" rows="3"></textarea></div>
+  <div class="col-12"><button class="btn btn-primary">Send request</button></div>
+</form>
+</div>{% endblock %}

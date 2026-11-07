@@ -2,6 +2,7 @@
 Assets views
 """
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
@@ -164,8 +165,33 @@ def asset_detail(request, pk):
     if sys_settings.asset_age_warnings_enabled:
         asset_age_status = AssetAgeService(sys_settings).get_age_status(asset)
 
+    # Generated illustration: the documented device (with its fitted modules)
+    # when the asset is in the hardware inventory, else the matching catalog model.
+    art, device_url = None, None
+    try:
+        from hardware.matching import artwork_context, match_equipment_model, match_names
+        hw = getattr(asset, 'hardware', None)
+        if hw is not None:
+            from hardware.device_art import device_faces, device_face_svg
+            layout, faces = device_faces(hw)
+            art = {'hm': hw.hardware_model, 'generic': hw.hardware_model.is_generic, 'layout': layout,
+                   'faces': [{'name': f, 'svg': device_face_svg(hw, f), 'accuracy': layout.face_accuracy(f)}
+                             for f in faces]}
+            device_url = reverse('hardware:device_detail', args=[hw.pk])
+        else:
+            hm = match_equipment_model(asset.equipment_model) if asset.equipment_model_id else None
+            if hm is None and asset.manufacturer and asset.model:
+                hm = match_names(asset.manufacturer, asset.model)
+            art = artwork_context(hm) if hm else None
+    except Exception:  # noqa: BLE001 — the illustration must never break the asset page
+        import logging
+        logging.getLogger(__name__).exception('Asset illustration failed for asset %s', asset.pk)
+
     from assets.custom_types import display_rows
     return render(request, 'assets/asset_detail.html', {
+        'art': art,
+        'device_url': device_url,
+        'search_q': f'{asset.manufacturer} {asset.model}'.strip(),
         'asset': asset,
         'custom_field_rows': display_rows(asset),
         'relationships': relationships,
@@ -1152,10 +1178,23 @@ def equipment_model_detail(request, pk):
         equipment_model=model
     ).select_related('primary_contact')
 
+    # Generated illustration from the hardware catalog: the exact model when it
+    # matches, otherwise a clearly labelled generic one for its type.
+    from hardware.matching import artwork_context, generic_for_type, match_equipment_model
+    hm = match_equipment_model(model)
+    art = artwork_context(hm) if hm else None
+    if art is None:
+        generic = generic_for_type(model.equipment_type)
+        art = artwork_context(generic, generic=True) if generic else None
+
     return render(request, 'assets/equipment_model_detail.html', {
         'can_manage_catalog': can_manage_asset_catalog(request.user),
         'model': model,
         'assets': assets,
+        'art': art,
+        'search_q': f'{model.vendor.name} {model.model_number or model.model_name}',
+        'request_mfr': model.vendor.name,
+        'request_model': model.model_name,
     })
 
 

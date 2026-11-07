@@ -71,6 +71,11 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{% url 'assets:asset_list' %}"><i class="fas fa-box"></i> {% trans "All Assets" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'hardware:device_list' %}"><i class="fas fa-network-wired"></i> {% trans "Hardware & Ports" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'hardware:cable_list' %}"><i class="fas fa-ethernet"></i> {% trans "Cables" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'hardware:diagram' 'connectivity' %}"><i class="fas fa-project-diagram"></i> {% trans "Connectivity Diagram" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'hardware:labels' %}"><i class="fas fa-tags"></i> {% trans "Labels" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'hardware:catalog' %}"><i class="fas fa-book"></i> {% trans "Hardware Catalog" %}</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">{% trans "Infrastructure" %}</h6></li>
                             <li><a class="dropdown-item" href="{% url 'monitoring:rack_list' %}"><i class="fas fa-server"></i> {% trans "Racks" %}</a></li>

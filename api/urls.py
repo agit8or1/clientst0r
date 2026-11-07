@@ -19,6 +19,13 @@ router.register(r'passwords', PasswordViewSet, basename='password')
 router.register(r'tags', TagViewSet, basename='tag')
 router.register(r'organizations', OrganizationViewSet, basename='organization')
 
+# Hardware catalog + inventory (read-only; writes go through /hardware/api/)
+from hardware.api import CableViewSet, DeviceViewSet, HardwareModelViewSet, PortViewSet  # noqa: E402
+router.register(r'hardware/models', HardwareModelViewSet, basename='hardware-model')
+router.register(r'hardware/devices', DeviceViewSet, basename='hardware-device')
+router.register(r'hardware/ports', PortViewSet, basename='hardware-port')
+router.register(r'hardware/cables', CableViewSet, basename='hardware-cable')
+
 app_name = 'api'
 
 urlpatterns = [

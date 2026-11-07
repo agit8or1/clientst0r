@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static hardware_tags %}
+{% block title %}VLANs — {{ org.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<h1 class="h3"><i class="fas fa-layer-group"></i> VLANs <small class="text-muted fs-6">{{ org.name }}</small></h1>
+{% with section='vlans' %}{% include "hardware/_nav.html" %}{% endwith %}
+<p class="text-muted small">VLAN numbers belong to this client. VLAN 10 here is unrelated to VLAN 10 at another client. Use a <em>VLAN group</em> when one client runs separate switching domains (for example two sites that both use VLAN 10 for different networks).</p>
+<div class="row g-3">
+  <div class="col-lg-8"><div class="card"><div class="card-body p-0"><table class="table table-sm mb-0 align-middle">
+    <thead><tr><th>VLAN</th><th>Name</th><th>Group / scope</th><th>Untagged ports</th><th>Tagged ports</th></tr></thead>
+    <tbody>{% for v in vlans %}<tr><td><span class="hw-vchip" style="background:{{ colors|get_item:v.pk }}">{{ v.vlan_id }}</span></td><td>{{ v.name }}<div class="small text-muted">{{ v.description }}</div></td>
+      <td>{% if v.vlan_group %}{{ v.vlan_group.name }}{% if v.vlan_group.site %} <span class="small text-muted">({{ v.vlan_group.site.name }})</span>{% endif %}{% else %}<span class="text-muted">Client-wide</span>{% endif %}</td>
+      <td>{{ v.n_untagged }}</td><td>{{ v.n_tagged }}</td></tr>
+    {% empty %}<tr><td colspan="5" class="text-muted p-3">No VLANs yet. Add the VLANs this client uses, then assign them on switch ports.</td></tr>{% endfor %}</tbody></table></div></div>
+    <a class="btn btn-sm btn-outline-secondary mt-2" href="{% url 'hardware:diagram' 'vlan' %}"><i class="fas fa-sitemap"></i> VLAN diagram</a></div>
+  {% if can_edit %}<div class="col-lg-4">
+    <form method="post" class="card card-body mb-3">{% csrf_token %}<h6>Add VLAN</h6>
+      <div class="row g-2"><div class="col-4"><input class="form-control form-control-sm" name="vlan_id" type="number" min="1" max="4094" placeholder="ID" required></div>
+        <div class="col-8"><input class="form-control form-control-sm" name="name" placeholder="Name" required></div>
+        <div class="col-8"><select class="form-select form-select-sm" name="vlan_group"><option value="">Client-wide</option>{% for g in groups %}<option value="{{ g.pk }}">{{ g.name }}</option>{% endfor %}</select></div>
+        <div class="col-4"><input class="form-control form-control-sm form-control-color w-100" type="color" name="color" value="#1f77b4" title="Colour"></div>
+        <div class="col-12"><input class="form-control form-control-sm" name="description" placeholder="Description"></div></div>
+      <button class="btn btn-sm btn-primary mt-2">Add VLAN</button></form>
+    <form method="post" class="card card-body">{% csrf_token %}<input type="hidden" name="action" value="group"><h6>Add VLAN group</h6>
+      <input class="form-control form-control-sm mb-2" name="name" placeholder="e.g. HQ switching" required>
+      <select class="form-select form-select-sm mb-2" name="site"><option value="">Any site</option>{% for s in sites %}<option value="{{ s.pk }}">{{ s.name }}</option>{% endfor %}</select>
+      <button class="btn btn-sm btn-outline-primary">Add group</button></form>
+  </div>{% endif %}
+</div>
+</div>{% endblock %}

@@ -1,0 +1,25 @@
+{% load hardware_tags %}
+<div class="mb-2">
+  {% if trace.status == 'complete' %}<span class="badge bg-success">Complete documented path</span>
+  {% elif trace.status == 'incomplete' %}<span class="badge bg-warning text-dark">Incomplete documentation</span>
+  {% elif trace.status == 'loop' %}<span class="badge bg-danger">Loop — stopped where the path revisits a port</span>
+  {% elif trace.status == 'split' %}<span class="badge bg-info text-dark">Breakout — the cable splits</span>
+  {% else %}<span class="badge bg-secondary">{{ trace.status }}</span>{% endif %}
+</div>
+<div class="hw-trace">
+  {% for s in trace.steps %}
+    {% if not forloop.first %}<span class="arrow">→</span>{% endif %}
+    {% if s.kind == 'port' %}
+      <div class="step port {% if s.class == 'front_port' or s.class == 'rear_port' %}passive{% endif %}">
+        <a href="{% url 'hardware:device_detail' s.device_id %}#port-{{ s.id }}"><strong>{{ s.device }}</strong></a>
+        <div class="small">{{ s.label|default:s.name }}{% if s.class == 'front_port' %} <span class="text-muted">front</span>{% elif s.class == 'rear_port' %} <span class="text-muted">rear termination</span>{% endif %}{% if s.position %} · pos {{ s.position }}{% endif %}{% if s.note %} · {{ s.note }}{% endif %}</div>
+      </div>
+    {% elif s.kind == 'cable' %}
+      <div class="step cable"><i class="fas fa-ethernet"></i> <a href="{% url 'hardware:cable_detail' s.id %}">{{ s.label }}</a>
+        <div class="small text-muted">{{ s.type|default:"" }}{% if s.color_name %} · {{ s.color_name }}{% endif %}{% if s.length %} · {{ s.length }}{% endif %}{% if s.status != 'connected' %} · {{ s.status }}{% endif %}</div></div>
+    {% else %}
+      <div class="step internal">{{ s.note }}</div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% if trace.problems %}<div class="alert alert-warning small mt-2 mb-0"><strong>Missing documentation</strong><ul class="mb-0">{% for p in trace.problems %}<li>{{ p }}</li>{% endfor %}</ul></div>{% endif %}

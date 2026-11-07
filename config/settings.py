@@ -104,6 +104,7 @@ INSTALLED_APPS = [
     'statuspage.apps.StatusPageConfig',
     'netconfig.apps.NetConfigConfig',
     'network_discovery.apps.NetworkDiscoveryConfig',
+    'hardware.apps.HardwareConfig',
 ]
 
 # Optional apps - only add if installed (allows updates without dependencies).

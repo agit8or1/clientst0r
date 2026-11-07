@@ -81,6 +81,8 @@ urlpatterns = [
     path('status/', include('statuspage.urls')),
     # Phase 34.1 (v3.17.544) — network device config backups.
     path('netconfig/', include('netconfig.urls')),
+    # Hardware catalog + visual inventory (ports, cables, racks, diagrams, labels)
+    path('hardware/', include('hardware.urls')),
     # Phase 32 (v3.17.556) — remote network discovery. `/network-discovery/upload/`
     # is token-only and unauthenticated by design; everything else is gated.
     path('network-discovery/', include('network_discovery.urls')),

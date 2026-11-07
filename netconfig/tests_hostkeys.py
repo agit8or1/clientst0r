@@ -42,7 +42,9 @@ class _Iface(paramiko.ServerInterface):
             channel.sendall((CONFIG if 'running-config' in cmd else 'Cisco IOS Software, Version 15.2(4)E\n').encode())
             channel.send_exit_status(0)
             channel.close()
-        threading.Thread(target=reply, daemon=True).start()
+        # Reply after Paramiko has acknowledged the exec request (as real servers
+        # do); replying and closing immediately races the acknowledgement.
+        threading.Timer(0.2, reply).start()
         return True
 
 
@@ -120,7 +122,7 @@ class HostKeyPinningTests(TestCase):
 
     def _collect(self):
         from netconfig.collector import collect_target
-        return collect_target(self.target, timeout=10)
+        return collect_target(self.target, timeout=30)
 
     def _auths(self, server):
         return [e for e in server.log if e[0] == 'auth']
@@ -176,7 +178,8 @@ class HostKeyPinningTests(TestCase):
         entry = AuditLog.objects.filter(extra_data__event='host_key_rotated').latest('timestamp')
         self.assertEqual(entry.extra_data['old_fingerprint'], fp_of(self.key_a))
         self.assertEqual(entry.extra_data['new_fingerprint'], fp_of(self.key_b))
-        self.assertTrue(self._collect()['ok'])
+        result = self._collect()
+        self.assertTrue(result['ok'], result['message'])
         self.assertEqual(self._auths(impostor), [('auth', 'admin', 'lab-pw')])
 
     def test_stale_approval_is_rejected(self):
@@ -191,7 +194,8 @@ class HostKeyPinningTests(TestCase):
         line = f'[127.0.0.1]:{self.server.port} {self.key_a.get_name()} {base64.b64encode(self.key_a.asbytes()).decode()}'
         fp = hostkeys.approve_pasted(self.target, self.user, line)
         self.assertEqual(fp, fp_of(self.key_a))
-        self.assertTrue(self._collect()['ok'])
+        result = self._collect()
+        self.assertTrue(result['ok'], result['message'])
         with self.assertRaises(hostkeys.HostKeyError):
             hostkeys.approve_pasted(self.target, self.user, 'ssh-ed25519 not-base64!!')
 
@@ -215,7 +219,8 @@ class HostKeyPinningTests(TestCase):
         self.target.save()
         _, fp, _ = hostkeys.fetch_host_key(self.target, user=self.user)
         hostkeys.approve_pending(self.target, self.user, fp)
-        self.assertTrue(self._collect()['ok'])
+        result = self._collect()
+        self.assertTrue(result['ok'], result['message'])
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

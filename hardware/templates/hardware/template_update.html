@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Template update — {{ device }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'hardware:device_detail' device.pk %}">{{ device }}</a></li>
+  <li class="breadcrumb-item active">Catalog template update</li></ol></nav>
+<h1 class="h4">Preview: apply catalog revision {{ device.hardware_model.revision }} to {{ device }}</h1>
+<p class="text-muted">Built from revision {{ device.template_revision }}. Ports are matched by their stable catalog key, never by name, so a renamed port keeps its ID, cable and configuration. Nothing is deleted.</p>
+<div class="row g-3">
+  <div class="col-md-4"><div class="card h-100"><div class="card-header">Will be added ({{ diff.add|length }})</div><ul class="list-group list-group-flush small">{% for t in diff.add %}<li class="list-group-item">{{ t.name }} <span class="text-muted">{{ t.get_component_class_display }} · {{ t.type }}</span></li>{% empty %}<li class="list-group-item text-muted">Nothing</li>{% endfor %}</ul></div></div>
+  <div class="col-md-4"><div class="card h-100"><div class="card-header">Will be updated ({{ diff.update|length }})</div><ul class="list-group list-group-flush small">{% for p, ch in diff.update %}<li class="list-group-item">{{ p.name }}: {% for f, v in ch.items %}<code>{{ f }}</code> {{ v.0|default:"∅" }} → {{ v.1|default:"∅" }}{% if not forloop.last %}; {% endif %}{% endfor %}</li>{% empty %}<li class="list-group-item text-muted">Nothing</li>{% endfor %}</ul></div></div>
+  <div class="col-md-4"><div class="card h-100"><div class="card-header">Removed from the catalog ({{ diff.orphaned|length }})</div><ul class="list-group list-group-flush small">{% for p in diff.orphaned %}<li class="list-group-item">{{ p.name }} — kept on this device{% if p.cable_termination %}, cable stays{% endif %}</li>{% empty %}<li class="list-group-item text-muted">Nothing</li>{% endfor %}</ul></div></div>
+</div>
+<p class="small text-muted mt-3">Technician data (descriptions, VLANs, modes, PoE settings, labels, cables) is never touched by a template update.</p>
+<form method="post">{% csrf_token %}<button class="btn btn-primary" {% if diff.empty %}disabled{% endif %}>Apply update</button> <a class="btn btn-link" href="{% url 'hardware:device_detail' device.pk %}">Cancel</a></form>
+</div>{% endblock %}

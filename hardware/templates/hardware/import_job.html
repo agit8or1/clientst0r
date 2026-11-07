@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Import {{ job.pk }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'hardware:import_jobs' %}">Imports</a></li><li class="breadcrumb-item active">Job {{ job.pk }}</li></ol></nav>
+<h1 class="h4">Import job {{ job.pk }} <small class="text-muted">{{ job.get_status_display }}</small></h1>
+<p class="small">Revision <code>{{ job.revision }}</code> · {{ job.processed_files }}/{{ job.total_files }} files · started {{ job.started_at|date:"Y-m-d H:i" }}{% if job.finished_at %} · finished {{ job.finished_at|date:"Y-m-d H:i" }}{% endif %}</p>
+<div class="mb-2">{% for s in status_counts %}<a class="badge text-bg-light border text-decoration-none me-1" href="?status={{ s.status }}">{{ s.status }} {{ s.n }}</a>{% endfor %}<a class="small ms-2" href="?">all</a></div>
+<form class="d-flex gap-2 mb-2"><input type="hidden" name="status" value="{{ status|default:'' }}"><input class="form-control form-control-sm" style="max-width:320px" name="q" value="{{ q }}" placeholder="Path or message"><button class="btn btn-sm btn-outline-secondary">Search</button></form>
+<table class="table table-sm small"><thead><tr><th>File</th><th>Kind</th><th>Status</th><th>Category</th><th>Unsupported fields</th><th>Message / changes</th></tr></thead><tbody>
+{% for r in page.object_list %}<tr><td class="font-monospace">{% if r.hardware_model %}<a href="{% url 'hardware:model_detail' r.hardware_model_id %}">{{ r.path }}</a>{% else %}{{ r.path }}{% endif %}</td><td>{{ r.kind }}</td><td>{{ r.status }}</td><td>{{ r.category }}</td><td>{{ r.unsupported_fields|join:", " }}</td><td>{{ r.message }}{% if r.changes %} {{ r.changes }}{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+{% if page.has_other_pages %}<nav><ul class="pagination pagination-sm">{% if page.has_previous %}<li class="page-item"><a class="page-link" href="?status={{ status|default:'' }}&q={{ q }}&page={{ page.previous_page_number }}">Previous</a></li>{% endif %}<li class="page-item disabled"><span class="page-link">{{ page.number }}/{{ page.paginator.num_pages }}</span></li>{% if page.has_next %}<li class="page-item"><a class="page-link" href="?status={{ status|default:'' }}&q={{ q }}&page={{ page.next_page_number }}">Next</a></li>{% endif %}</ul></nav>{% endif %}
+</div>{% endblock %}

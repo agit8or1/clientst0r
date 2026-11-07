@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Labels — {{ org.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<h1 class="h3"><i class="fas fa-tags"></i> Labels <small class="text-muted fs-6">{{ org.name }}</small></h1>
+{% with section='labels' %}{% include "hardware/_nav.html" %}{% endwith %}
+<div class="row g-3">
+  <div class="col-lg-4">
+    <form method="get" class="card card-body" id="lb-form">
+      <label class="form-label">Label kind</label>
+      <select class="form-select mb-2" name="kind" id="lb-kind">{% for k, v in kinds %}<option value="{{ k }}" {% if k == kind %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+      <label class="form-label">Label stock / template</label>
+      <select class="form-select mb-2" name="template">{% for t in templates %}{% if t.kind == kind %}<option value="{{ t.pk }}" {% if tpl.pk == t.pk %}selected{% endif %}>{{ t.name }}{% if t.organization_id %} ({{ org.name }}){% endif %}</option>{% endif %}{% endfor %}</select>
+      {% if kind == 'device' or kind == 'patch_strip' %}
+        <label class="form-label">{% if kind == 'patch_strip' %}Patch panels{% else %}Devices{% endif %}</label>
+        <select class="form-select mb-2" multiple size="8" id="lb-devices">{% for d in devices %}{% if kind == 'device' or d in panels %}<option value="{{ d.pk }}" {% if d.pk in sel.devices %}selected{% endif %}>{{ d.asset.name }}</option>{% endif %}{% endfor %}</select>
+        <input type="hidden" name="devices" id="lb-devices-h" value="{{ sel_str.devices }}">
+      {% elif kind == 'rack' %}
+        <label class="form-label">Racks</label>
+        <select class="form-select mb-2" multiple size="6" id="lb-racks">{% for r in racks %}<option value="{{ r.pk }}" {% if r.pk in sel.racks %}selected{% endif %}>{{ r.name }}</option>{% endfor %}</select>
+        <input type="hidden" name="racks" id="lb-racks-h" value="{{ sel_str.racks }}">
+      {% elif kind == 'cable' %}
+        <label class="form-label">Cables</label>
+        <select class="form-select mb-2" multiple size="8" id="lb-cables">{% for c in cables %}<option value="{{ c.pk }}" {% if c.pk in sel.cables %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+        <input type="hidden" name="cables" id="lb-cables-h" value="{{ sel_str.cables }}">
+        <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="concise" value="1" id="lb-concise" {% if concise %}checked{% endif %}><label class="form-check-label small" for="lb-concise">Concise endpoint text on both ends (SW/12 ⇄ PP/12)</label></div>
+        <div class="small text-muted mb-2">Each cable prints two labels — the A end says where B goes and vice versa — unless the cable has its own end text.</div>
+      {% else %}
+        <input type="hidden" name="ports" value="{{ sel_str.ports }}">
+        <div class="small text-muted mb-2">{% if sel.ports %}{{ sel.ports|length }} port{{ sel.ports|length|pluralize }} selected.{% else %}Select ports on a device page (Ctrl-click, then “Port labels for selection”).{% endif %}</div>
+      {% endif %}
+      <details class="mb-2"><summary class="small">Sequential numbering (pre-print blank IDs)</summary>
+        <div class="row g-1 mt-1"><div class="col-6"><input class="form-control form-control-sm" name="seq_pattern" value="{{ seq.seq_pattern|default:'' }}" placeholder="C-{n:04}"></div>
+          <div class="col-3"><input class="form-control form-control-sm" name="seq_start" type="number" value="{{ seq.seq_start|default:1 }}" title="Start"></div>
+          <div class="col-3"><input class="form-control form-control-sm" name="seq_count" type="number" value="{{ seq.seq_count|default:24 }}" title="Count"></div></div></details>
+      <button class="btn btn-outline-primary">Preview</button>
+    </form>
+    {% if tpl %}
+    <div class="card card-body mt-3 small">
+      <strong>{{ tpl.name }}</strong>
+      <div>{{ tpl.width_mm|floatformat:"-2" }} × {{ tpl.height_mm|floatformat:"-2" }} mm · {{ tpl.get_page_size_display }}{% if tpl.page_size != 'label' %} · {{ tpl.columns }} × {{ tpl.rows }}{% endif %} · {{ tpl.font_size_pt|floatformat:"-1" }} pt{% if tpl.include_qr %} · QR{% endif %}</div>
+      <div>Calibration offset X {{ tpl.offset_x_mm|floatformat:"-2" }} / Y {{ tpl.offset_y_mm|floatformat:"-2" }} mm</div>
+      <a class="btn btn-sm btn-outline-secondary mt-2" target="_blank" href="{% url 'hardware:labels_pdf' %}?template={{ tpl.pk }}&calibration=1"><i class="fas fa-ruler"></i> Print calibration page</a>
+      <div class="text-muted mt-1">Print at 100 % / “Actual size”. Measure the 100 mm rulers; if outlines are shifted, set offsets below.</div>
+    </div>
+    {% if can_edit %}
+    <details class="card card-body mt-3"><summary>Customize this template for {{ org.name }}</summary>
+      <form method="post" action="{% url 'hardware:label_template_save' %}" class="row g-1 mt-2 small">{% csrf_token %}
+        {% if tpl.organization_id %}<input type="hidden" name="id" value="{{ tpl.pk }}">{% endif %}
+        <div class="col-12"><label class="form-label">Name</label><input class="form-control form-control-sm" name="name" value="{% if tpl.organization_id %}{{ tpl.name }}{% else %}{{ tpl.name }} ({{ org.name }}){% endif %}"></div>
+        <input type="hidden" name="kind" value="{{ tpl.kind }}">
+        <div class="col-6"><label class="form-label">Width mm</label><input class="form-control form-control-sm" name="width_mm" value="{{ tpl.width_mm }}"></div>
+        <div class="col-6"><label class="form-label">Height mm</label><input class="form-control form-control-sm" name="height_mm" value="{{ tpl.height_mm }}"></div>
+        <div class="col-4"><label class="form-label">Margin mm</label><input class="form-control form-control-sm" name="margin_mm" value="{{ tpl.margin_mm }}"></div>
+        <div class="col-4"><label class="form-label">Font pt</label><input class="form-control form-control-sm" name="font_size_pt" value="{{ tpl.font_size_pt }}"></div>
+        <div class="col-4"><label class="form-label">Page</label><select class="form-select form-select-sm" name="page_size">{% for k, v in tpl.PAGE_CHOICES %}<option value="{{ k }}" {% if tpl.page_size == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+        <div class="col-3"><label class="form-label">Cols</label><input class="form-control form-control-sm" name="columns" value="{{ tpl.columns }}"></div>
+        <div class="col-3"><label class="form-label">Rows</label><input class="form-control form-control-sm" name="rows" value="{{ tpl.rows }}"></div>
+        <div class="col-3"><label class="form-label">Gap X</label><input class="form-control form-control-sm" name="gap_x_mm" value="{{ tpl.gap_x_mm }}"></div>
+        <div class="col-3"><label class="form-label">Gap Y</label><input class="form-control form-control-sm" name="gap_y_mm" value="{{ tpl.gap_y_mm }}"></div>
+        <div class="col-6"><label class="form-label">Page margin left</label><input class="form-control form-control-sm" name="page_margin_left_mm" value="{{ tpl.page_margin_left_mm }}"></div>
+        <div class="col-6"><label class="form-label">Page margin top</label><input class="form-control form-control-sm" name="page_margin_top_mm" value="{{ tpl.page_margin_top_mm }}"></div>
+        <div class="col-6"><label class="form-label">Offset X mm</label><input class="form-control form-control-sm" name="offset_x_mm" value="{{ tpl.offset_x_mm }}"></div>
+        <div class="col-6"><label class="form-label">Offset Y mm</label><input class="form-control form-control-sm" name="offset_y_mm" value="{{ tpl.offset_y_mm }}"></div>
+        <div class="col-6"><label class="form-label">Strip cells</label><input class="form-control form-control-sm" name="strip_cells" value="{{ tpl.strip_cells }}"></div>
+        <div class="col-6"><label class="form-label">Text format</label><input class="form-control form-control-sm" name="text_format" value="{{ tpl.text_format }}" placeholder="{device} / {port}"></div>
+        <div class="col-6 form-check ms-2"><input class="form-check-input" type="checkbox" name="include_qr" value="1" id="t-qr" {% if tpl.include_qr %}checked{% endif %}><label class="form-check-label" for="t-qr">QR code</label></div>
+        <div class="col-5 form-check"><input class="form-check-input" type="checkbox" name="show_border" value="1" id="t-b" {% if tpl.show_border %}checked{% endif %}><label class="form-check-label" for="t-b">Cut guide</label></div>
+        <div class="col-12"><button class="btn btn-sm btn-primary mt-1">Save template for {{ org.name }}</button></div>
+      </form></details>
+    {% endif %}{% endif %}
+  </div>
+  <div class="col-lg-8">
+    {% if error %}<div class="alert alert-warning">{{ error }}</div>{% endif %}
+    {% if items %}
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div><strong>{{ items|length }}</strong> label{{ items|length|pluralize }} — preview (first page)</div>
+      <a class="btn btn-primary" target="_blank" href="{% url 'hardware:labels_pdf' %}?{{ request.GET.urlencode }}{% if not request.GET.template %}&template={{ tpl.pk }}{% endif %}"><i class="fas fa-file-pdf"></i> PDF at actual size</a>
+    </div>
+    <div class="border rounded p-2 bg-body-tertiary" style="overflow:auto">{{ preview|safe }}</div>
+    <p class="small text-muted mt-2">The preview is approximate on screen. The PDF is drawn in millimetres; print it at 100 % with page scaling off. QR codes open the record's page for signed-in users with access to {{ org.name }} only, and contain no credentials.</p>
+    <details class="small"><summary>Label text</summary><ol>{% for it in items %}<li>{{ it.lines|join:" — " }}{% if it.cells %}: {{ it.cells|join:" | " }}{% endif %}</li>{% endfor %}</ol></details>
+    {% else %}
+    <div class="hw-empty"><h5>Choose what to label</h5><p class="text-muted">Pick a kind and a selection on the left, or start from a device page: select ports or open a cable and choose <em>Print labels</em>.</p></div>
+    {% endif %}
+  </div>
+</div>
+<script nonce="{{ csp_nonce }}">
+(function(){const f=document.getElementById('lb-form');
+document.getElementById('lb-kind').addEventListener('change',()=>{f.querySelectorAll('input[type=hidden]').forEach(h=>h.value='');const t=f.querySelector('select[name=template]');if(t)t.disabled=true;f.submit();});
+['devices','racks','cables'].forEach(k=>{const s=document.getElementById('lb-'+k),h=document.getElementById('lb-'+k+'-h');if(!s)return;s.addEventListener('change',()=>{h.value=Array.from(s.selectedOptions).map(o=>o.value).join(',');});});})();
+</script>
+</div>{% endblock %}

@@ -1653,6 +1653,55 @@ Collect what technicians need up front and show customers where things stand.
 
 ---
 
+## Phase 55 — Hardware catalog and visual inventory **(L)** [shipped — v3.17.630]
+
+Document a client's physical network the way a technician sees it: pick the
+model, see its front and rear panel, click a port, and record what it does and
+where its cable goes. Extends assets (`Asset`), racks (`monitoring.Rack`,
+`RackDevice`) and VLANs (`monitoring.VLAN`) rather than adding a second
+inventory. Documentation only — nothing is pushed to devices.
+
+- **55.1 Shared hardware catalog** — manufacturers, device / module / rack
+  models with component templates and front→rear port mappings, kept apart
+  from client inventory. Imported from the community devicetype-library (CC0)
+  at a pinned revision by `manage.py import_hardware_catalog`: preview mode,
+  per-file records, resumable batches, idempotent re-runs, upstream id / path /
+  revision / licence kept on every model, fields without a column preserved and
+  listed, local edits never overwritten without `--overwrite-local`. Coverage
+  report and import history in the app. *(shipped v3.17.630)*
+- **55.2 Generated device artwork** — SVG front/rear (and AP top/bottom) views
+  drawn from layout geometry in millimetres; connector drawings for RJ45,
+  SFP/QSFP-family cages, LC/SC/ST/MPO fibre, DE-9, USB, IEC/NEMA power and
+  more; each clickable connector is the stable component key, and its hit
+  target is the drawn rectangle. Separate accuracy states — verified,
+  approximate, generic — and separate specification and layout provenance.
+  Artwork cached per model / layout version; no per-client rendering.
+  *(shipped v3.17.630)*
+- **55.3 Layout editor and model requests** — place and number ports, arrange
+  rows and blocks, move components between faces, preview, save as a new
+  version; add missing models from documentation or from generic templates;
+  technicians request models the catalog lacks. *(shipped v3.17.630)*
+- **55.4 Client devices, ports and modules** — devices built from a model with
+  versioned templates (preview before applying a catalog change; port ids and
+  cables survive renames); configurable modules in bays; port editor with
+  documented mode, native/tagged/voice VLANs, LAG, PoE settings and labels, kept
+  separate from observed state; multi-select bulk edits and patch-panel
+  assignment; client- and site-scoped VLAN groups; cloning without serials or
+  cables. *(shipped v3.17.630)*
+- **55.5 Cables and tracing** — cables with both ends, labels, type, colour and
+  length; occupancy, client, connector and combo/breakout checks; full physical
+  path tracing through patch panels and wall jacks in both directions, with
+  loops detected and gaps named. *(shipped v3.17.630)*
+- **55.6 Racks, diagrams and labels** — front/rear rack elevations from catalog
+  artwork with depth-aware placement; connectivity and VLAN diagrams drawn only
+  from documented records with undocumented continuations marked, saved
+  positions, SVG/PNG/PDF export; label templates in millimetres for devices,
+  racks, ports, patch strips, wall jacks and cables, with calibration page and
+  QR codes that open the record for authorized users only. *(shipped v3.17.630)*
+- **55.7 Search, CSV and API** — search by model, hostname, serial, asset tag,
+  IP, cable ID and port text; validated CSV import with preview and CSV export;
+  read-only REST endpoints. *(shipped v3.17.630)*
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -1708,6 +1757,7 @@ Collect what technicians need up front and show customers where things stand.
 | 52 — Technician workspace | L | in progress — My Work, drafts, collisions, closeout, KB drafts v3.17.604 | Phase 51 (customer ticket visibility, staff techs) |
 | 53 — Documentation readiness and lifecycle | L | in progress — standards, scoring, lifecycle, analytics v3.17.605; custom asset fields and types v3.17.621 | docs publish rules |
 | 54 — Guided customer service requests | L | in progress — guided requests, approvals, progress v3.17.606 | Phase 53 publish rules (KB suggestions) |
+| 55 — Hardware catalog and visual inventory | L | shipped v3.17.630 | extends `assets.Asset`, `monitoring.Rack`/`RackDevice`/`VLAN`, Phase 34 network devices |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

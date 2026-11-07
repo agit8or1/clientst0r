@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Catalog coverage{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'hardware:catalog' %}">Catalog</a></li><li class="breadcrumb-item active">Coverage</li></ol></nav>
+<h1 class="h3"><i class="fas fa-chart-bar"></i> Catalog coverage</h1>
+<p class="text-muted">What the catalog holds, measured from the database. “All hardware” is the goal, not a claim: models that are not here can be requested or added.</p>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="card card-body"><div class="small text-muted">Models</div><div class="fs-4 fw-bold">{{ totals.all }}</div><div class="small">{{ totals.device }} devices · {{ totals.module }} modules · {{ totals.rack }} racks</div></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body"><div class="small text-muted">Verified front layouts</div><div class="fs-4 fw-bold">{{ totals.verified_layouts }}</div><div class="small">front panel checked against manufacturer documentation (other faces may be approximate)</div></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body"><div class="small text-muted">Generic templates</div><div class="fs-4 fw-bold">{{ totals.generic }}</div><div class="small">configurable, not specific products</div></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body"><div class="small text-muted">Approximate</div><div class="fs-4 fw-bold">{{ totals.approximate }}</div><div class="small">every other model: components known, placement not verified</div></div></div>
+</div>
+{% if job %}<div class="alert alert-light border small">Last import: job <a href="{% url 'hardware:import_job' job.pk %}">#{{ job.pk }}</a> at <code>{{ job.revision|slice:":12" }}</code>, {{ job.get_status_display }} — {% for k, v in job.counts.items %}{{ k }} {{ v }}{% if not forloop.last %}, {% endif %}{% endfor %}. Source: {{ source.name }} ({{ source.license_name }}).</div>{% endif %}
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card"><div class="card-header">Priority manufacturers</div><table class="table table-sm mb-0 small"><thead><tr><th>Manufacturer</th><th class="text-end">Models</th><th class="text-end">Devices</th></tr></thead><tbody>
+    {% for name, r in priority %}<tr><td><a href="{% url 'hardware:catalog' %}?q={{ name|urlencode }}">{{ name }}</a>{% if name == 'HPE' %} <span class="text-muted">(incl. Aruba)</span>{% elif name == 'Dell' %} <span class="text-muted">(incl. Force10 / PowerConnect)</span>{% endif %}</td><td class="text-end">{{ r.total }}</td><td class="text-end">{{ r.devices }}</td></tr>{% endfor %}</tbody></table></div>
+    <div class="card mt-3"><div class="card-header">By category</div><table class="table table-sm mb-0 small"><thead><tr><th>Kind</th><th>Category</th><th class="text-end">Models</th><th class="text-end">Inferred</th></tr></thead><tbody>
+      {% for c in cats %}<tr><td>{{ c.kind }}</td><td><a href="{% url 'hardware:catalog' %}?kind={{ c.kind }}&category={{ c.category }}">{{ c.label }}</a></td><td class="text-end">{{ c.n }}</td><td class="text-end">{{ c.inferred }}</td></tr>{% endfor %}</tbody></table>
+      <div class="card-footer small text-muted">The community library has no device-role field, so categories are inferred from component lists and model names and marked “inferred”. Staff can correct them per model.</div></div>
+  </div>
+  <div class="col-lg-6">
+    <form class="d-flex gap-2 mb-2" method="get"><input class="form-control form-control-sm" name="q" value="{{ q }}" placeholder="Search manufacturers"><button class="btn btn-sm btn-outline-secondary">Search</button></form>
+    <div class="card"><div class="card-body p-0" style="max-height:520px;overflow:auto"><table class="table table-sm mb-0 small"><thead class="sticky-top bg-body"><tr><th>Manufacturer</th><th class="text-end">Total</th><th class="text-end">Devices</th><th class="text-end">Modules</th><th class="text-end">Racks</th><th class="text-end">Verified</th></tr></thead><tbody>
+      {% for r in rows %}<tr><td><a href="{% url 'hardware:catalog' %}?manufacturer={{ r.manufacturer__slug }}">{{ r.manufacturer__name }}</a></td><td class="text-end">{{ r.total }}</td><td class="text-end">{{ r.devices }}</td><td class="text-end">{{ r.modules }}</td><td class="text-end">{{ r.racks }}</td><td class="text-end">{{ r.verified }}</td></tr>{% endfor %}</tbody></table></div></div>
+    {% if unsupported %}<div class="card mt-3"><div class="card-header">Upstream fields kept but not modelled</div><div class="card-body small">{% for f, n in unsupported %}<code>{{ f }}</code> ×{{ n }}{% if not forloop.last %}, {% endif %}{% endfor %}
+      <div class="text-muted mt-1">Stored verbatim on each model (see “Upstream definition”). <code>front_image</code>/<code>rear_image</code> are photo flags; artwork here is generated, not photographic.</div></div></div>{% endif %}
+  </div>
+</div>
+</div>{% endblock %}

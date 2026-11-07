@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Add catalog model{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'hardware:catalog' %}">Catalog</a></li><li class="breadcrumb-item active">Add model</li></ol></nav>
+<h1 class="h4"><i class="fas fa-plus"></i> Add a model to the shared catalog</h1>
+<p class="text-muted small">Every client will see it. Enter only what the manufacturer documents; leave unknowns blank. Record the source so others can check it.</p>
+{% if errors %}<div class="alert alert-danger">{{ errors|join:" " }}</div>{% endif %}
+<form method="post" class="card card-body row g-2 flex-row" style="max-width:900px">{% csrf_token %}
+  <div class="col-md-4"><label class="form-label">Manufacturer *</label><input class="form-control" name="manufacturer" required value="{{ form.manufacturer|default:src.manufacturer.name|default:'' }}"></div>
+  <div class="col-md-5"><label class="form-label">Model *</label><input class="form-control" name="model" required value="{{ form.model|default:'' }}"></div>
+  <div class="col-md-3"><label class="form-label">Kind</label><select class="form-select" name="kind">{% for k, v in kinds %}<option value="{{ k }}" {% if form.kind == k or src.kind == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-md-4"><label class="form-label">Part number</label><input class="form-control" name="part_number" value="{{ form.part_number|default:'' }}"></div>
+  <div class="col-md-4"><label class="form-label">Category</label><select class="form-select" name="category">{% for k, v in categories %}<option value="{{ k }}" {% if form.category == k or src.category == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><label class="form-label">Height (U)</label><input class="form-control" name="u_height" value="{{ form.u_height|default:src.u_height|default:'1' }}"></div>
+  <div class="col-md-2 pt-4"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_full_depth" value="1" id="fd" checked><label class="form-check-label" for="fd">Full depth</label></div></div>
+  <div class="col-md-6"><label class="form-label">Start components from</label><select class="form-select" name="copy_from"><option value="">Nothing (add them next)</option>{% if src %}<option value="{{ src.pk }}" selected>Copy of {{ src }}</option>{% endif %}{% for g in generics %}<option value="{{ g.pk }}">{{ g }}</option>{% endfor %}</select></div>
+  <div class="col-md-6"><label class="form-label">Specification source</label><select class="form-select" name="spec_provenance">{% for k, v in provenances %}{% if k != 'upstream' %}<option value="{{ k }}" {% if k == 'manufacturer' %}selected{% endif %}>{{ v }}</option>{% endif %}{% endfor %}</select></div>
+  <div class="col-12"><label class="form-label">Source document URL</label><input class="form-control" type="url" name="spec_source_url" value="{{ form.spec_source_url|default:'' }}"></div>
+  <div class="col-12"><label class="form-label">What the source says / what is uncertain</label><textarea class="form-control" name="spec_notes" rows="3">{{ form.spec_notes|default:'' }}</textarea></div>
+  <div class="col-12"><label class="form-label">Description</label><input class="form-control" name="description" value="{{ form.description|default:'' }}"></div>
+  <div class="col-12 form-check ms-2"><input class="form-check-input" type="checkbox" name="is_generic" value="1" id="gen"><label class="form-check-label" for="gen">This is a generic template (not a specific product)</label></div>
+  <div class="col-12"><button class="btn btn-primary">Create and add components</button></div>
+</form>
+</div>{% endblock %}

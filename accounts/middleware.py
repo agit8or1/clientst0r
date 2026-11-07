@@ -210,6 +210,7 @@ class SectionPermissionMiddleware:
         ('/vault/', 'vault_view'),
         ('/docs/', 'docs_view'),
         ('/assets/', 'assets_view'),
+        ('/hardware/', 'assets_view'),
     )
 
     EXEMPT_PREFIXES = (

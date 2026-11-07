@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load static hardware_tags %}
+{% block title %}Hardware catalog{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div><h1 class="h3 mb-0"><i class="fas fa-book"></i> Hardware catalog</h1>
+    <p class="text-muted small mb-0">{{ total }} shared model definitions. Coverage is a goal, not a claim that every model exists here.{% if source and source.revision %} Community library at <a href="{{ source.url }}/tree/{{ source.revision }}" target="_blank" rel="noopener noreferrer"><code>{{ source.revision|slice:":10" }}</code></a> ({{ source.license_name }}).{% endif %}</p></div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'hardware:coverage' %}"><i class="fas fa-chart-bar"></i> Coverage report</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'hardware:import_jobs' %}"><i class="fas fa-history"></i> Imports</a>
+    {% if can_admin %}<a class="btn btn-outline-secondary btn-sm" href="{% url 'hardware:model_requests' %}">Requests{% if open_requests %} <span class="badge bg-danger">{{ open_requests }}</span>{% endif %}</a>
+    <a class="btn btn-primary btn-sm" href="{% url 'hardware:model_add' %}"><i class="fas fa-plus"></i> Add model</a>{% endif %}
+  </div>
+</div>
+<form class="row g-2 my-3" method="get">
+  <div class="col-md-3"><input class="form-control form-control-sm" name="q" value="{{ q }}" placeholder="Model, manufacturer, part number"></div>
+  <div class="col-md-2"><select class="form-select form-select-sm" name="manufacturer"><option value="">All manufacturers</option>{% for m in manufacturers %}<option value="{{ m.slug }}" {% if params.manufacturer == m.slug %}selected{% endif %}>{{ m.name }} ({{ m.n }})</option>{% endfor %}</select></div>
+  <div class="col-md-2"><select class="form-select form-select-sm" name="kind"><option value="">Devices, modules, racks</option>{% for k, v in kinds %}<option value="{{ k }}" {% if params.kind == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><select class="form-select form-select-sm" name="category"><option value="">Any category</option>{% for k, v in categories %}<option value="{{ k }}" {% if params.category == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><select class="form-select form-select-sm" name="accuracy"><option value="">Any layout accuracy</option><option value="verified" {% if params.accuracy == 'verified' %}selected{% endif %}>Verified</option><option value="approximate" {% if params.accuracy == 'approximate' %}selected{% endif %}>Approximate</option><option value="generic" {% if params.accuracy == 'generic' %}selected{% endif %}>Generic</option></select></div>
+  <div class="col-md-1 d-grid"><button class="btn btn-sm btn-outline-secondary">Filter</button></div>
+</form>
+<p class="small text-muted">{{ page.paginator.count }} match{{ page.paginator.count|pluralize:"es" }}.</p>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3">
+{% for m in page.object_list %}<div class="col"><a class="card h-100 hw-card text-decoration-none text-body" href="{% url 'hardware:model_detail' m.pk %}"><div class="card-body p-2">
+  {% if m.kind != 'rack' %}<div class="hw-thumb-box mb-2"><img loading="lazy" src="{% url 'hardware:model_art' m.pk 'front' %}?v=thumb" alt=""></div>{% endif %}
+  <div class="small text-muted">{{ m.manufacturer.name }}</div><div class="fw-semibold">{{ m.model }}</div>
+  <div class="small text-muted">{{ m.get_category_display }}{% if m.category_source == 'inferred' %} <span title="Inferred from components and name">(inferred)</span>{% endif %}{% if m.u_height %} · {{ m.u_height|floatformat:"-1" }}U{% endif %}{% if m.kind != 'device' %} · {{ m.get_kind_display }}{% endif %}</div>
+  <div class="mt-1">{% if m.is_generic %}{% accuracy_badge 'generic' %}{% else %}{% accuracy_badge accuracy|get_item:m.pk|default:'approximate' %}{% endif %}</div>
+</div></a></div>
+{% empty %}<div class="col-12"><div class="hw-empty"><h5>No catalog models match.</h5>{% if can_admin %}<a href="{% url 'hardware:model_add' %}">Add the model</a>{% else %}<a href="{% url 'hardware:model_request' %}">Request it</a>{% endif %}</div></div>{% endfor %}
+</div>
+{% if page.has_other_pages %}<nav class="mt-3"><ul class="pagination pagination-sm">
+  {% if page.has_previous %}<li class="page-item"><a class="page-link" href="?{% for k, v in params.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ page.previous_page_number }}">Previous</a></li>{% endif %}
+  <li class="page-item disabled"><span class="page-link">{{ page.number }} / {{ page.paginator.num_pages }}</span></li>
+  {% if page.has_next %}<li class="page-item"><a class="page-link" href="?{% for k, v in params.items %}{% if k != 'page' %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}page={{ page.next_page_number }}">Next</a></li>{% endif %}
+</ul></nav>{% endif %}
+</div>{% endblock %}

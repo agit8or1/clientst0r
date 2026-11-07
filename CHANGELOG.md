@@ -5,6 +5,73 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.630] - 2026-11-07
+
+### Hardware catalog and visual inventory (new)
+
+Document a client's physical network from **Assets → Hardware & Ports**:
+choose a model, see its generated front and rear panel, click a port, record
+what it does and where its cable goes, trace the path, and print labels. It
+builds on assets, racks and VLANs rather than adding a second inventory, and it
+only documents — nothing is pushed to devices. Guide: `docs/HARDWARE_INVENTORY.md`.
+
+- **Shared catalog.** 16,508 device, module and rack definitions imported from
+  the community devicetype-library (CC0, pinned revision `8fc1eaf4`) with
+  `manage.py import_hardware_catalog`: preview mode, per-file records,
+  resumable batches, idempotent re-runs, upstream path / revision / licence on
+  every model, fields without a column kept and listed, local edits never
+  overwritten. Plus a manufacturer-documented **Dell PowerConnect 3448P** and
+  labelled generic templates. Categories are inferred and marked as such.
+  Coverage report and import history in the app.
+- **Generated artwork.** SVG front/rear (and access-point top/bottom) views
+  with chassis finishes, rack ears, vents, unlit LEDs and connector drawings
+  (RJ45, SFP/QSFP-family cages, LC/SC/ST/MPO, DE-9, USB, IEC/NEMA and more).
+  Each clickable connector is the catalog component's stable key, and its hit
+  target is exactly its drawn rectangle. Verified / approximate / generic
+  accuracy is shown per face, separately from where the specification came
+  from. Artwork is cached per layout version.
+- **Devices and ports.** Add a device by searching the catalog; click a port
+  to document description, labels, admin state, speed, mode, native / tagged /
+  voice VLANs, LAG and PoE — documented configuration stays separate from
+  observed state, and a cable never shows as "link up". Multi-select bulk
+  edits, sequential labels and patch-panel assignment. Configurable modules in
+  bays (e.g. a server's NICs), custom ports, cloning without serials or cables.
+  Catalog changes reach a device only through **Preview update**, which keeps
+  port ids, cables and settings.
+- **Cables and tracing.** Cables with IDs, type, colour, length and end
+  labels; occupancy, client, connector and combo/breakout checks; full path
+  tracing through patch panels and wall jacks in both directions, with gaps
+  named and loops stopped.
+- **Racks, diagrams, labels.** Front/rear rack elevations from catalog
+  artwork (depth-aware placement); connectivity and VLAN diagrams drawn only
+  from documented records, with undocumented continuations marked, saved
+  positions and SVG/PNG/PDF export; label PDFs at true size (device, rack,
+  port, patch strip, wall jack, cable) with a calibration page and QR codes
+  that open the record for authorized users only.
+- **Search, CSV, API.** Search by model, hostname, serial, asset tag, IP,
+  cable ID or port text; validated CSV import with preview; CSV export;
+  read-only `/api/hardware/…` endpoints.
+- The **Equipment Catalog** model page and the asset page now show the
+  matching generated illustration (exact vendor + model / part-number match;
+  otherwise a generic illustration clearly labelled "not this model").
+- Client-scoped **VLAN groups** (one client, several switching domains) and
+  front/rear, full/half-depth rack placement extend the existing VLAN and rack
+  models.
+- `seed_hardware_demo` builds the isolated **Client XYZ** demonstration.
+
+### Fixed
+
+- The security workflow's audit-summary test printed a real `::error::`
+  workflow command into the log, which showed as an error on a passing run.
+
+### Upgrade notes
+
+- After applying, load the catalog once (it is not shipped in the database):
+  `python manage.py import_hardware_catalog` (fetches the pinned revision from
+  GitHub; add `--preview` first if you like). Optional:
+  `python manage.py render_hardware_artwork` to pre-render artwork.
+- New dependency: PyYAML (installed by the update).
+
 ## [3.17.629] - 2026-11-06
 
 ### Security

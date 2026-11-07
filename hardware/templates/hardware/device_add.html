@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static hardware_tags %}
+{% block title %}Add device — {{ org.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'hardware:device_list' %}">Hardware — {{ org.name }}</a></li>
+  <li class="breadcrumb-item active">Add device</li>
+</ol></nav>
+<h1 class="h3"><i class="fas fa-plus-circle"></i> Add a device to {{ org.name }}</h1>
+{% if errors %}<div class="alert alert-danger"><ul class="mb-0">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+
+<form method="post" id="hw-add-form">{% csrf_token %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card"><div class="card-header"><strong>1. Manufacturer &amp; model</strong></div>
+      <div class="card-body">
+        <input type="hidden" name="hardware_model" id="hw-model-id" value="{{ model.pk|default:'' }}">
+        <div id="hw-model-chosen" class="{% if not model %}d-none{% endif %} alert alert-success d-flex align-items-center gap-3">
+          <img id="hw-model-thumb" src="{% if model %}{% url 'hardware:model_art' model.pk 'front' %}?v=thumb{% endif %}" alt="" style="height:40px;max-width:220px;background:#2a2e33;border-radius:4px;padding:2px">
+          <div class="flex-grow-1"><strong id="hw-model-name">{{ model }}</strong><div class="small" id="hw-model-meta"></div></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="hw-model-change">Change</button>
+        </div>
+        <div id="hw-model-search-box" class="{% if model %}d-none{% endif %}">
+          <input type="search" class="form-control form-control-lg" id="hw-model-q" placeholder="e.g. Dell PowerConnect 3448P, Ubiquiti U6, 48-port patch panel" autocomplete="off" aria-label="Search the hardware catalog">
+          <div class="form-text">Searches every manufacturer and model in the shared catalog. Empty search shows the generic templates.</div>
+          <div class="list-group mt-2" id="hw-model-results" role="listbox"></div>
+          <div class="small mt-2 text-muted">Not listed? <a href="{% url 'hardware:model_request' %}">Request the model</a> and use a Generic template meanwhile.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card"><div class="card-header"><strong>2. Identity &amp; location</strong></div>
+      <div class="card-body">
+        <div class="mb-2"><label class="form-label">Name / hostname *</label>
+          <input class="form-control" name="name" required maxlength="255" value="{{ form.name|default:'' }}" placeholder="XYZ-SW-01"></div>
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label">Serial / service tag</label><input class="form-control" name="serial_number" value="{{ form.serial_number|default:'' }}"></div>
+          <div class="col-6"><label class="form-label">Asset tag</label><input class="form-control" name="asset_tag" value="{{ form.asset_tag|default:'' }}"></div>
+          <div class="col-6"><label class="form-label">Management IP</label><input class="form-control" name="ip_address" value="{{ form.ip_address|default:'' }}" placeholder="10.99.0.2"></div>
+          <div class="col-6"><label class="form-label">Status</label><select class="form-select" name="status">{% for k, v in statuses %}<option value="{{ k }}" {% if form.status == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+          <div class="col-12"><label class="form-label">Platform <small class="text-muted">(software, e.g. OPNsense — does not change the chassis)</small></label><input class="form-control" name="platform" value="{{ form.platform|default:'' }}"></div>
+          <div class="col-6"><label class="form-label">Site</label><select class="form-select" name="site"><option value="">—</option>{% for s in sites %}<option value="{{ s.pk }}" {% if form.site == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select></div>
+          <div class="col-6"><label class="form-label">Room</label><input class="form-control" name="room" value="{{ form.room|default:'' }}"></div>
+          <div class="col-12"><label class="form-label">Location detail</label><input class="form-control" name="location_detail" value="{{ form.location_detail|default:'' }}" placeholder="IDF closet, top shelf"></div>
+          <div class="col-6"><label class="form-label">Rack</label><select class="form-select" name="rack"><option value="">Not racked</option>{% for r in racks %}<option value="{{ r.pk }}" {% if form.rack == r.pk|stringformat:"s" %}selected{% endif %}>{{ r.name }} ({{ r.units }}U)</option>{% endfor %}</select></div>
+          <div class="col-3"><label class="form-label">Lowest U</label><input class="form-control" type="number" min="1" name="position" value="{{ form.position|default:'' }}"></div>
+          <div class="col-3"><label class="form-label">Face</label><select class="form-select" name="face"><option value="front">Front</option><option value="rear" {% if form.face == 'rear' %}selected{% endif %}>Rear</option></select></div>
+        </div>
+        {% if not racks %}<div class="form-text">No racks for this client yet — <a href="{% url 'monitoring:rack_create' %}">add one</a>.</div>{% endif %}
+        <button class="btn btn-primary w-100 mt-3" type="submit"><i class="fas fa-save"></i> Save and open the device</button>
+      </div>
+    </div>
+  </div>
+</div>
+</form>
+<script nonce="{{ csp_nonce }}">window.HW_ADD = {api: "{% url 'hardware:api_models' %}", art: "{% url 'hardware:model_art' 0 'front' %}"};</script>
+<script src="{% static 'hardware/device_add.js' %}" defer></script>
+</div>{% endblock %}

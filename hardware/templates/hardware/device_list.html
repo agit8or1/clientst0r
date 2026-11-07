@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load static hardware_tags %}
+{% block title %}Hardware — {{ org.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+  <li class="breadcrumb-item active">Hardware — {{ org.name }}</li>
+</ol></nav>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0"><i class="fas fa-network-wired"></i> Hardware &amp; ports <small class="text-muted fs-6">{{ org.name }}</small></h1>
+    <p class="text-muted mb-0 small">Devices built from the shared catalog. Click a device, then click any port to document it.</p>
+  </div>
+  <div class="d-flex gap-2">
+    {% if can_create %}<a href="{% url 'hardware:device_add' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Add device</a>{% endif %}
+  </div>
+</div>
+{% with section='devices' %}{% include "hardware/_nav.html" %}{% endwith %}
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-4"><input class="form-control" name="q" value="{{ q }}" placeholder="Filter by name, model, serial, asset tag"></div>
+  <div class="col-md-3"><select class="form-select" name="category"><option value="">All categories</option>
+    {% for k, v in categories %}<option value="{{ k }}" {% if k == category %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><select class="form-select" name="status"><option value="">Any status</option>
+    {% for k, v in statuses %}<option value="{{ k }}" {% if k == status %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-md-2 d-grid"><button class="btn btn-outline-secondary"><i class="fas fa-filter"></i> Filter</button></div>
+</form>
+
+{% if racks %}
+<div class="mb-3 small">
+  <i class="fas fa-server text-muted"></i> Racks:
+  {% for r in racks %}<a class="badge text-bg-light border text-decoration-none me-1" href="{% url 'hardware:rack' r.pk %}">{{ r.name }}</a>{% endfor %}
+  <span class="text-muted ms-2">{{ cable_count }} documented cable{{ cable_count|pluralize }}</span>
+</div>
+{% endif %}
+
+{% if page.object_list %}
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+  {% for d in page.object_list %}
+  <div class="col">
+    <a href="{% url 'hardware:device_detail' d.pk %}" class="card h-100 hw-card text-decoration-none text-body">
+      <div class="card-body">
+        <div class="hw-thumb-box mb-2"><img loading="lazy" src="{% url 'hardware:model_art' d.hardware_model_id 'front' %}?v=thumb" alt="{{ d.hardware_model }}"></div>
+        <div class="d-flex justify-content-between">
+          <strong>{{ d.asset.name }}</strong>
+          <span class="badge {% if d.status == 'active' %}bg-success{% elif d.status == 'planned' or d.status == 'staged' %}bg-info{% else %}bg-secondary{% endif %}">{{ d.get_status_display }}</span>
+        </div>
+        <div class="small text-muted">{{ d.hardware_model }}{% if d.hardware_model.is_generic %} <span class="badge bg-secondary">generic</span>{% endif %}</div>
+        <div class="small mt-1">
+          {% if d.site %}<i class="fas fa-map-marker-alt text-muted"></i> {{ d.site.name }}{% if d.room %} · {{ d.room }}{% endif %}{% endif %}
+          {% if d.asset.ip_address %}<span class="ms-2 hw-mono">{{ d.asset.ip_address }}</span>{% endif %}
+        </div>
+        <div class="small text-muted mt-1">{{ d.n_ports }} port{{ d.n_ports|pluralize }} · {{ d.n_cabled }} with documented cable{{ d.n_cabled|pluralize }}</div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% if page.has_other_pages %}
+<nav class="mt-3"><ul class="pagination">
+  {% if page.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page.previous_page_number }}&q={{ q|urlencode }}&category={{ category }}&status={{ status }}">Previous</a></li>{% endif %}
+  <li class="page-item disabled"><span class="page-link">Page {{ page.number }} of {{ page.paginator.num_pages }}</span></li>
+  {% if page.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page.next_page_number }}&q={{ q|urlencode }}&category={{ category }}&status={{ status }}">Next</a></li>{% endif %}
+</ul></nav>
+{% endif %}
+{% else %}
+<div class="hw-empty">
+  {% if q or category or status %}
+    <h5>No devices match those filters.</h5>
+    <a href="{% url 'hardware:device_list' %}">Clear filters</a>
+  {% else %}
+    <i class="fas fa-network-wired fa-3x text-muted mb-3"></i>
+    <h5>No hardware documented for {{ org.name }} yet</h5>
+    <p class="text-muted">Add a switch, patch panel or firewall: search the catalog by manufacturer and model, set its location, then click its ports to document them.</p>
+    {% if can_create %}
+    <a href="{% url 'hardware:device_add' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Add the first device</a>
+    <a href="{% url 'hardware:import_csv' %}" class="btn btn-outline-secondary"><i class="fas fa-file-csv"></i> Import from CSV</a>
+    {% endif %}
+  {% endif %}
+</div>
+{% endif %}
+</div>{% endblock %}

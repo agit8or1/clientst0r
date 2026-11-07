@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Catalog imports{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'hardware:catalog' %}">Catalog</a></li><li class="breadcrumb-item active">Imports</li></ol></nav>
+<h1 class="h3"><i class="fas fa-history"></i> Catalog imports</h1>
+<div class="card card-body small mb-3">
+  <div><strong>Source:</strong> {% if source %}<a href="{{ source.url }}" target="_blank" rel="noopener noreferrer">{{ source.name }}</a> — {{ source.license_name }} — current revision <code>{{ source.revision|default:"none" }}</code>{% if source.imported_at %} imported {{ source.imported_at|date:"Y-m-d H:i" }}{% endif %}{% else %}not imported yet{% endif %}</div>
+  <div class="mt-2"><strong>Updating the catalog</strong> (run on the server; re-running is safe):</div>
+<pre class="mb-0 mt-1">python manage.py import_hardware_catalog --revision latest --preview   # what would change
+python manage.py import_hardware_catalog --revision &lt;commit&gt;           # apply that revision
+python manage.py import_hardware_catalog --resume &lt;job id&gt;             # continue an interrupted run</pre>
+  <div class="text-muted mt-1">Models staff changed locally are reported as conflicts and left alone unless <code>--overwrite-local</code> is given. Installed devices only change when a technician previews and applies the template update.</div>
+</div>
+<table class="table table-sm"><thead><tr><th>#</th><th>Started</th><th>Revision</th><th>Status</th><th>Files</th><th>Counts</th></tr></thead><tbody>
+{% for j in jobs %}<tr><td><a href="{% url 'hardware:import_job' j.pk %}">{{ j.pk }}</a></td><td>{{ j.started_at|date:"Y-m-d H:i" }}</td><td><code>{{ j.revision|slice:":10" }}</code></td><td>{{ j.get_status_display }}</td><td>{{ j.processed_files }}/{{ j.total_files }}</td><td class="small">{% for k, v in j.counts.items %}{{ k }} {{ v }}{% if not forloop.last %} · {% endif %}{% endfor %}</td></tr>
+{% empty %}<tr><td colspan="6" class="text-muted">No imports yet.</td></tr>{% endfor %}</tbody></table>
+</div>{% endblock %}

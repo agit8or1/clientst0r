@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% load static hardware_tags %}
+{% block title %}{{ asset.name }} — {{ org.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'hardware:device_list' %}">Hardware — {{ org.name }}</a></li>
+  <li class="breadcrumb-item active">{{ asset.name }}</li>
+</ol></nav>
+
+<div class="hw-head mb-3">
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+  <div>
+    <h1 class="h3 mb-1">{{ asset.name }}
+      <span class="badge {% if device.status == 'active' %}bg-success{% else %}bg-secondary{% endif %} fs-6 align-middle">{{ device.get_status_display }}</span></h1>
+    <div class="text-muted">
+      <a href="{% url 'hardware:model_detail' hm.pk %}">{{ hm }}</a> · {{ hm.get_category_display }}{% if hm.u_height %} · {{ hm.u_height|floatformat:"-1" }}U{% endif %}
+      {% if device.platform %} · platform {{ device.platform }}{% endif %}
+    </div>
+    <div class="mt-1 d-flex flex-wrap gap-1">
+      {% provenance_badge hm.spec_provenance %}
+      {% for f, acc in face_accuracy.items %}{% accuracy_badge acc f %}{% endfor %}
+      {% if hm.is_generic %}<span class="badge bg-secondary">Generic template</span>{% endif %}
+    </div>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    {% if can_edit %}<a class="btn btn-outline-primary btn-sm" href="{% url 'hardware:device_edit' device.pk %}"><i class="fas fa-pen"></i> Edit device</a>{% endif %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'hardware:labels' %}?kind=device&devices={{ device.pk }}"><i class="fas fa-tag"></i> Asset label</a>
+    {% if placement %}<a class="btn btn-outline-secondary btn-sm" href="{% url 'hardware:rack' placement.rack_id %}"><i class="fas fa-server"></i> Rack {{ placement.rack.name }} U{{ placement.start_unit }}</a>{% endif %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'hardware:diagram' 'connectivity' %}#{{ device.public_id }}"><i class="fas fa-project-diagram"></i> Connectivity</a>
+    {% if hm.category == 'patch_panel' or hm.category == 'fiber_panel' or hm.category == 'wall_jack' %}<a class="btn btn-outline-secondary btn-sm" href="{% url 'hardware:patch_panel' device.pk %}"><i class="fas fa-table"></i> Panel mapping</a>{% endif %}
+    {% if can_create %}<button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#hwClone"><i class="fas fa-clone"></i> Clone</button>{% endif %}
+  </div>
+</div>
+
+<div class="row small text-muted g-2">
+  <div class="col-auto"><i class="fas fa-barcode"></i> S/N {{ asset.serial_number|default:"—" }}</div>
+  <div class="col-auto"><i class="fas fa-tag"></i> Asset tag {{ asset.asset_tag|default:"—" }}</div>
+  <div class="col-auto"><i class="fas fa-network-wired"></i> Mgmt IP <span class="hw-mono">{{ asset.ip_address|default:"—" }}</span></div>
+  <div class="col-auto"><i class="fas fa-microchip"></i> Firmware {{ asset.firmware_version|default:"—" }}</div>
+  <div class="col-auto"><i class="fas fa-map-marker-alt"></i> {{ device.site.name|default:"No site" }}{% if device.room %} · {{ device.room }}{% endif %}{% if device.location_detail %} · {{ device.location_detail }}{% endif %}</div>
+  {% if device.install_date %}<div class="col-auto">Installed {{ device.install_date }}</div>{% endif %}
+  {% if asset.warranty_expiry %}<div class="col-auto">Warranty to {{ asset.warranty_expiry }}</div>{% endif %}
+</div>
+</div>
+
+{% if diff and not diff.empty %}
+<div class="alert alert-info d-flex justify-content-between align-items-center">
+  <div><i class="fas fa-code-branch"></i> The catalog template changed (revision {{ hm.revision }}; this device was built from {{ device.template_revision }}):
+    {{ diff.add|length }} new, {{ diff.update|length }} changed, {{ diff.orphaned|length }} removed upstream. Nothing changes until you apply it.</div>
+  {% if can_edit %}<a class="btn btn-sm btn-primary" href="{% url 'hardware:template_update' device.pk %}">Preview update</a>{% endif %}
+</div>
+{% endif %}
+
+<div class="card mb-3">
+  <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+    <div class="btn-group btn-group-sm" role="group" aria-label="Overlay">
+      <span class="input-group-text py-0">Overlay</span>
+      <select class="form-select form-select-sm" id="hw-overlay" style="width:auto">
+        <option value="vlan">VLANs</option><option value="connected">Connected / unconnected</option>
+        <option value="poe">PoE</option><option value="usage">Documented usage</option><option value="none">None</option>
+      </select>
+    </div>
+    <div class="btn-group btn-group-sm" role="group" aria-label="Zoom">
+      <button class="btn btn-outline-secondary" id="hw-zoom-out" title="Zoom out"><i class="fas fa-search-minus"></i></button>
+      <button class="btn btn-outline-secondary" id="hw-zoom-fit" title="Fit width">Fit</button>
+      <button class="btn btn-outline-secondary" id="hw-zoom-in" title="Zoom in"><i class="fas fa-search-plus"></i></button>
+    </div>
+    <span class="small text-muted ms-1">Click a port to edit · Ctrl/⌘-click or Shift-click to select several</span>
+    <div class="ms-auto d-flex gap-2">
+      <button class="btn btn-sm btn-outline-primary d-none" id="hw-bulk-btn" data-bs-toggle="offcanvas" data-bs-target="#hwBulk"><i class="fas fa-list-check"></i> Edit <span id="hw-sel-count">0</span> selected</button>
+      <button class="btn btn-sm btn-link d-none" id="hw-sel-clear">Clear selection</button>
+    </div>
+  </div>
+  <div class="card-body">
+    {% for f in faces %}
+    <div class="mb-3">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="fw-semibold text-uppercase small text-muted">{{ f }} view</div>
+        <div>{% accuracy_badge face_accuracy|get_item:f %}</div>
+      </div>
+      <div class="hw-art-wrap mt-1" data-face="{{ f }}">{{ art|get_item:f|safe }}</div>
+    </div>
+    {% empty %}
+      <div class="alert alert-secondary">This model has no drawable face. Its components are listed below.</div>
+    {% endfor %}
+    <div class="hw-legend" id="hw-legend" aria-live="polite"></div>
+    {% if layout.source_notes %}
+    <details class="small mt-2"><summary class="text-muted">Layout source &amp; remaining uncertainty</summary>
+      <div class="mt-1" style="white-space:pre-line">{{ layout.source_notes }}</div>
+      {% if layout.source_url %}<a href="{{ layout.source_url }}" target="_blank" rel="noopener noreferrer">Source document</a>{% endif %}
+    </details>
+    {% endif %}
+  </div>
+</div>
+
+<ul class="nav nav-tabs" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-ports" type="button">Ports</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-modules" type="button" id="modules">Modules &amp; bays ({{ bays|length }})</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-logical" type="button">Logical &amp; wireless</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-history" type="button">Change history</button></li>
+</ul>
+<div class="tab-content border border-top-0 rounded-bottom p-3 mb-4">
+  <div class="tab-pane fade show active" id="tab-ports">
+    <div class="d-flex gap-2 mb-2 flex-wrap">
+      <input class="form-control form-control-sm" style="max-width:260px" id="hw-port-filter" placeholder="Filter ports (name, description, VLAN)">
+      <select class="form-select form-select-sm" style="max-width:220px" id="hw-class-filter">
+        <option value="">All physical ports</option><option value="interface">Network interfaces</option>
+        <option value="front_port">Front ports</option><option value="rear_port">Rear ports</option>
+        <option value="console">Console</option><option value="power_port">Power inlets</option><option value="power_outlet">Power outlets</option>
+      </select>
+      <button class="btn btn-sm btn-outline-secondary" id="hw-select-visible">Select shown</button>
+      <a class="btn btn-sm btn-outline-secondary" id="hw-print-port-labels" href="#"><i class="fas fa-tags"></i> Port labels for selection</a>
+      <a class="btn btn-sm btn-outline-secondary" id="hw-print-cable-labels" href="#"><i class="fas fa-tags"></i> Cable labels for selection</a>
+      {% if can_edit %}<button class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="collapse" data-bs-target="#hw-add-port"><i class="fas fa-plus"></i> Custom port</button>{% endif %}
+    </div>
+    {% if can_edit %}
+    <form method="post" action="{% url 'hardware:port_add' device.pk %}" class="collapse row g-2 mb-2" id="hw-add-port">{% csrf_token %}
+      <div class="col-md-3"><select class="form-select form-select-sm" name="component_class">
+        <option value="interface">Network interface</option><option value="console">Console</option>
+        <option value="power_port">Power inlet</option><option value="power_outlet">Power outlet</option>
+        <option value="front_port">Passive front port</option><option value="rear_port">Passive rear port</option></select></div>
+      <div class="col-md-3"><input class="form-control form-control-sm" name="name" required placeholder="Name, e.g. eth4"></div>
+      <div class="col-md-2"><input class="form-control form-control-sm" name="type" placeholder="Type, e.g. 10gbase-x-sfpp"></div>
+      <div class="col-md-2"><input class="form-control form-control-sm" name="label" placeholder="Printed label"></div>
+      <div class="col-md-2"><button class="btn btn-sm btn-primary w-100">Add port</button></div>
+      <div class="col-12 form-text">For hardware this particular unit has but the catalog model doesn't (e.g. an add-in NIC). It is listed here but not drawn.</div>
+    </form>
+    {% endif %}
+    <div class="table-responsive">
+      <table class="table table-sm table-hover hw-ports-table" id="hw-port-table">
+        <thead><tr><th><input type="checkbox" id="hw-check-all" aria-label="Select all"></th><th>Port</th><th>Type</th><th>Description / label</th><th>Mode &amp; VLANs</th><th>PoE</th><th>Connected to</th><th>Cable</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="tab-pane fade" id="tab-modules">
+    {% if bays %}
+    <table class="table table-sm">
+      <thead><tr><th>Bay</th><th>Position</th><th>Installed</th><th></th></tr></thead>
+      <tbody>{% for b in bays %}<tr>
+        <td>{{ b.name }} {% if b.bay_kind == 'device' %}<span class="badge bg-light text-dark">device bay</span>{% endif %}</td>
+        <td>{{ b.position|default:"—" }}</td>
+        <td>{% if b.installed_module %}<a href="{% url 'hardware:model_detail' b.installed_module.hardware_model_id %}">{{ b.installed_module.hardware_model }}</a>
+            {% if b.installed_module.serial_number %}<span class="small text-muted">S/N {{ b.installed_module.serial_number }}</span>{% endif %}
+            {% else %}<span class="text-muted">Empty</span>{% endif %}</td>
+        <td class="text-end">{% if can_edit %}
+          {% if b.installed_module %}
+            <form method="post" action="{% url 'hardware:module_remove' b.installed_module.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Remove</button></form>
+          {% elif b.bay_kind == 'module' %}
+            <form method="post" action="{% url 'hardware:module_install' device.pk %}" class="d-flex gap-1 justify-content-end hw-module-form">{% csrf_token %}
+              <input type="hidden" name="bay" value="{{ b.pk }}">
+              <input type="hidden" name="hardware_model" class="hw-module-id">
+              <input class="form-control form-control-sm hw-module-q" placeholder="Search module models" style="max-width:240px" list="hw-mod-dl-{{ b.pk }}" autocomplete="off">
+              <datalist id="hw-mod-dl-{{ b.pk }}"></datalist>
+              <input class="form-control form-control-sm" name="serial_number" placeholder="Serial" style="max-width:120px">
+              <button class="btn btn-sm btn-primary">Install</button>
+            </form>
+          {% endif %}{% endif %}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+    <p class="small text-muted">Servers of the same chassis can differ: fit the NICs, PSUs and drives this unit actually has. A module's ports appear on this device and in the drawing inside its bay.</p>
+    {% else %}<p class="text-muted">This model has no module bays.</p>{% endif %}
+  </div>
+  <div class="tab-pane fade" id="tab-logical">
+    <div class="row">
+      <div class="col-md-6">
+        <h6>Logical interfaces <small class="text-muted">(not cable ports)</small></h6>
+        <ul class="small">{% for l in logical %}<li>{{ l.name }} — {{ l.get_kind_display }}{% if l.vlan %} · VLAN {{ l.vlan.vlan_id }}{% endif %}{% if l.ip_addresses %} · <span class="hw-mono">{{ l.ip_addresses }}</span>{% endif %}</li>{% empty %}<li class="text-muted">None documented.</li>{% endfor %}</ul>
+        <h6>Link aggregation groups</h6>
+        <ul class="small">{% for l in lags %}<li>{{ l.name }} ({{ l.get_mode_display }}) — {{ l.n }} member{{ l.n|pluralize }}</li>{% empty %}<li class="text-muted">None.</li>{% endfor %}</ul>
+      </div>
+      <div class="col-md-6">
+        <h6>Wireless radios <small class="text-muted">(never drawn as sockets)</small></h6>
+        <ul class="small">{% for r in radios %}<li>{{ r.name }} — {{ r.standard }}{% if r.band %} · {{ r.band }}{% endif %}
+          {% for s in r.ssids.all %}<span class="badge bg-info text-dark ms-1">{{ s.ssid }}{% if s.vlan %} → VLAN {{ s.vlan.vlan_id }}{% endif %}</span>{% endfor %}</li>{% empty %}<li class="text-muted">None.</li>{% endfor %}</ul>
+      </div>
+    </div>
+  </div>
+  <div class="tab-pane fade" id="tab-history">
+    <table class="table table-sm small"><thead><tr><th>When</th><th>Who</th><th>What</th><th>Changes</th></tr></thead><tbody>
+      {% for c in changes %}<tr><td class="text-nowrap">{{ c.created_at|date:"Y-m-d H:i" }}</td><td>{{ c.user.get_username|default:"system" }}</td>
+        <td>{{ c.action }} {{ c.object_type }} <span class="text-muted">{{ c.object_repr }}</span></td>
+        <td>{% for k, v in c.changes.items %}<div><code>{{ k }}</code>: {{ v.0|default:"∅" }} → {{ v.1|default:"∅" }}</div>{% endfor %}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-muted">No changes recorded yet.</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+</div>
+
+{% if can_edit %}
+<div class="text-end mb-4"><form method="post" action="{% url 'hardware:device_delete' device.pk %}" class="d-inline" id="hw-delete-form">{% csrf_token %}
+  <input type="hidden" name="confirm_cables" value="1">
+  <button class="btn btn-sm btn-outline-danger" id="hw-delete-btn"><i class="fas fa-trash"></i> Delete device</button></form></div>
+{% endif %}
+
+{# ---------------- Port editor ---------------- #}
+<div class="offcanvas offcanvas-end hw-offcanvas" tabindex="-1" id="hwPort" aria-labelledby="hwPortTitle">
+  <div class="offcanvas-header border-bottom">
+    <div><h5 class="offcanvas-title mb-0" id="hwPortTitle">Port</h5><div class="small text-muted" id="hwPortSub"></div></div>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <form id="hw-port-form" autocomplete="off">
+      <div class="row g-2 hw-readonly" id="hwPortFacts"></div>
+      <div class="section row g-2">
+        <div class="col-12"><label class="form-label" for="pf-description">Description</label><input class="form-control form-control-sm" id="pf-description" name="description" maxlength="250"></div>
+        <div class="col-6"><label class="form-label" for="pf-tech_label">Technician label</label><input class="form-control form-control-sm" id="pf-tech_label" name="tech_label" maxlength="100"></div>
+        <div class="col-6"><label class="form-label" for="pf-admin_state">Administrative state</label><select class="form-select form-select-sm" id="pf-admin_state" name="admin_state">{% for k, v in admin_states %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+        <div class="col-6 hw-if"><label class="form-label" for="pf-configured_speed">Configured speed</label><select class="form-select form-select-sm" id="pf-configured_speed" name="configured_speed">{% for k, v in speeds %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label">Operational state</label><div class="form-control form-control-sm bg-body-tertiary" id="pf-oper"></div></div>
+      </div>
+      <div class="section row g-2 hw-if">
+        <div class="col-6"><label class="form-label" for="pf-mode">Mode</label><select class="form-select form-select-sm" id="pf-mode" name="mode">{% for k, v in modes %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label" for="pf-untagged_vlan">Untagged / native VLAN</label><select class="form-select form-select-sm hw-vlan-select" id="pf-untagged_vlan" name="untagged_vlan"></select></div>
+        <div class="col-12 hw-trunk"><label class="form-label" for="pf-tagged">Tagged VLANs</label><select class="form-select form-select-sm hw-vlan-multi" id="pf-tagged" multiple size="5"></select>
+          <div class="form-text">Ctrl/⌘-click to pick several. VLANs are this client's; manage them under <a href="{% url 'hardware:vlan_list' %}">VLANs</a>.</div></div>
+        <div class="col-6"><label class="form-label" for="pf-voice_vlan">Voice VLAN</label><select class="form-select form-select-sm hw-vlan-select" id="pf-voice_vlan" name="voice_vlan"></select></div>
+        <div class="col-6"><label class="form-label" for="pf-lag">LAG</label><select class="form-select form-select-sm" id="pf-lag" name="lag"></select></div>
+      </div>
+      <div class="section row g-2 hw-poe">
+        <div class="col-12"><label class="form-label">PoE capability (catalog)</label><div class="small" id="pf-poe-cap"></div></div>
+        <div class="col-6"><label class="form-label" for="pf-poe_setting">PoE setting (documented)</label><select class="form-select form-select-sm" id="pf-poe_setting" name="poe_setting">{% for k, v in poe_settings %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label" for="pf-poe_notes">PoE notes</label><input class="form-control form-control-sm" id="pf-poe_notes" name="poe_notes" maxlength="200" placeholder="e.g. priority high, 15.4 W"></div>
+      </div>
+      <div class="section">
+        <div class="d-flex justify-content-between align-items-center"><strong class="small">Connection</strong>
+          <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-primary" id="pf-connect"><i class="fas fa-plug"></i> Connect…</button>
+            <button type="button" class="btn btn-outline-danger d-none" id="pf-disconnect"><i class="fas fa-unlink"></i> Disconnect</button>
+            <a class="btn btn-outline-secondary" id="pf-trace-link" href="#"><i class="fas fa-route"></i> Full trace</a>
+          </div></div>
+        <div id="pf-conn" class="small mt-1"></div>
+        <div class="row g-2 mt-1 d-none" id="pf-cable-fields">
+          <div class="col-6"><label class="form-label" for="pc-label">Cable ID</label><input class="form-control form-control-sm" id="pc-label" maxlength="60"></div>
+          <div class="col-6"><label class="form-label" for="pc-type">Cable type</label><select class="form-select form-select-sm" id="pc-type"><option value="">—</option>{% for k, v in cable_types %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+          <div class="col-4"><label class="form-label" for="pc-color">Colour</label><input type="color" class="form-control form-control-sm form-control-color w-100" id="pc-color"></div>
+          <div class="col-4"><label class="form-label" for="pc-color_name">Colour name</label><input class="form-control form-control-sm" id="pc-color_name" maxlength="30"></div>
+          <div class="col-4"><label class="form-label" for="pc-length">Length</label><div class="input-group input-group-sm"><input class="form-control" id="pc-length" inputmode="decimal"><select class="form-select" id="pc-length_unit" style="max-width:4.2em"><option>m</option><option>ft</option><option>cm</option><option>in</option></select></div></div>
+          <div class="col-6"><label class="form-label" for="pc-label_a">Label, A end</label><input class="form-control form-control-sm" id="pc-label_a" maxlength="100"></div>
+          <div class="col-6"><label class="form-label" for="pc-label_b">Label, B end</label><input class="form-control form-control-sm" id="pc-label_b" maxlength="100"></div>
+        </div>
+        <div id="pf-trace" class="mt-2"></div>
+      </div>
+      <div class="section">
+        <label class="form-label" for="pf-notes">Notes</label><textarea class="form-control form-control-sm" id="pf-notes" name="notes" rows="2"></textarea>
+        <div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="pf-populated" name="is_populated"><label class="form-check-label small" for="pf-populated">Fitted in this unit</label></div>
+        <div class="small text-muted mt-1" id="pf-modified"></div>
+      </div>
+      <div class="alert alert-danger small mt-2 d-none" id="pf-error" role="alert"></div>
+      {% if can_edit %}<div class="d-flex gap-2 mt-3 sticky-bottom bg-body py-2">
+        <button class="btn btn-primary flex-grow-1" type="submit" id="pf-save"><i class="fas fa-save"></i> Save port</button>
+        <button class="btn btn-outline-secondary" type="button" id="pf-next" title="Save and open the next port">Save &amp; next <i class="fas fa-arrow-right"></i></button>
+      </div>{% else %}<div class="alert alert-secondary small mt-3">Read-only: you can view but not change this client's ports.</div>{% endif %}
+    </form>
+  </div>
+</div>
+
+{# ---------------- Bulk editor ---------------- #}
+<div class="offcanvas offcanvas-end hw-offcanvas" tabindex="-1" id="hwBulk" aria-labelledby="hwBulkTitle">
+  <div class="offcanvas-header border-bottom"><h5 class="offcanvas-title" id="hwBulkTitle">Edit <span class="hw-sel-n">0</span> ports</h5><button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button></div>
+  <div class="offcanvas-body">
+    <div class="small text-muted mb-2" id="hw-bulk-list"></div>
+    <p class="small">Only the fields you fill in are changed. All ports are validated first; if one fails, none are changed.</p>
+    <div class="row g-2">
+      <div class="col-12"><label class="form-label">Description</label><input class="form-control form-control-sm" id="bk-description" placeholder="(unchanged)"></div>
+      <div class="col-8"><label class="form-label">Sequential technician labels</label><input class="form-control form-control-sm" id="bk-label-pattern" placeholder="e.g. Desk-{n:02} or {port}"></div>
+      <div class="col-4"><label class="form-label">Start at</label><input class="form-control form-control-sm" type="number" id="bk-label-start" value="1"></div>
+      <div class="col-6"><label class="form-label">Mode</label><select class="form-select form-select-sm" id="bk-mode"><option value="__keep">(unchanged)</option>{% for k, v in modes %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+      <div class="col-6"><label class="form-label">Untagged VLAN</label><select class="form-select form-select-sm hw-vlan-select" id="bk-untagged" data-keep="1"></select></div>
+      <div class="col-6"><label class="form-label">Add tagged</label><select class="form-select form-select-sm hw-vlan-multi" id="bk-tag-add" multiple size="4"></select></div>
+      <div class="col-6"><label class="form-label">Remove tagged</label><select class="form-select form-select-sm hw-vlan-multi" id="bk-tag-remove" multiple size="4"></select></div>
+      <div class="col-6"><label class="form-label">Voice VLAN</label><select class="form-select form-select-sm hw-vlan-select" id="bk-voice" data-keep="1"></select></div>
+      <div class="col-6"><label class="form-label">Admin state</label><select class="form-select form-select-sm" id="bk-admin"><option value="__keep">(unchanged)</option>{% for k, v in admin_states %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+      <div class="col-6"><label class="form-label">PoE setting</label><select class="form-select form-select-sm" id="bk-poe"><option value="__keep">(unchanged)</option>{% for k, v in poe_settings %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+    </div>
+    <button class="btn btn-primary w-100 mt-3" id="bk-apply" {% if not can_edit %}disabled{% endif %}><i class="fas fa-check"></i> Apply to selected ports</button>
+    <hr>
+    <h6>Patch to a panel</h6>
+    <p class="small text-muted">Cables the selected ports, in order, to consecutive front ports of a patch panel.</p>
+    <div class="row g-2">
+      <div class="col-8"><label class="form-label">Panel</label><select class="form-select form-select-sm" id="pp-panel"></select></div>
+      <div class="col-4"><label class="form-label">From port</label><input class="form-control form-control-sm" type="number" min="1" value="1" id="pp-start"></div>
+      <div class="col-8"><label class="form-label">Cable ID pattern</label><input class="form-control form-control-sm" id="pp-pattern" placeholder="e.g. C-{n:03}"></div>
+      <div class="col-4"><label class="form-label">Start #</label><input class="form-control form-control-sm" type="number" value="1" id="pp-n"></div>
+      <div class="col-6"><label class="form-label">Cable type</label><select class="form-select form-select-sm" id="pp-type"><option value="">—</option>{% for k, v in cable_types %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+      <div class="col-6"><label class="form-label">Colour name</label><input class="form-control form-control-sm" id="pp-color-name" placeholder="blue"></div>
+    </div>
+    <button class="btn btn-outline-primary w-100 mt-2" id="pp-apply" {% if not can_edit %}disabled{% endif %}><i class="fas fa-plug"></i> Create patch cables</button>
+    <div class="alert alert-danger small mt-2 d-none" id="bk-error" role="alert"></div>
+  </div>
+</div>
+
+{# ---------------- Connect dialog ---------------- #}
+<div class="modal fade" id="hwConnect" tabindex="-1" aria-labelledby="hwConnectTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="hwConnectTitle">Connect <span id="cx-from"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+    <div class="modal-body">
+      <label class="form-label" for="cx-q">Far end — search this client's free ports</label>
+      <input class="form-control" id="cx-q" placeholder="e.g. PP-01 12, Office 104, workstation" autocomplete="off">
+      <div class="list-group mt-2" id="cx-results" style="max-height:240px;overflow:auto"></div>
+      <div class="mt-2 small" id="cx-chosen"></div>
+      <div class="row g-2 mt-2">
+        <div class="col-md-4"><label class="form-label" for="cx-label">Cable ID</label><input class="form-control form-control-sm" id="cx-label" maxlength="60"></div>
+        <div class="col-md-4"><label class="form-label" for="cx-type">Cable type</label><select class="form-select form-select-sm" id="cx-type"><option value="">—</option>{% for k, v in cable_types %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+        <div class="col-md-2"><label class="form-label" for="cx-color">Colour</label><input type="color" class="form-control form-control-sm form-control-color w-100" id="cx-color" value="#1f77b4"></div>
+        <div class="col-md-2"><label class="form-label" for="cx-length">Length (m)</label><input class="form-control form-control-sm" id="cx-length" inputmode="decimal"></div>
+        <div class="col-md-6"><label class="form-label" for="cx-color_name">Colour name</label><input class="form-control form-control-sm" id="cx-color_name" maxlength="30" placeholder="blue"></div>
+        <div class="col-md-6"><label class="form-label" for="cx-status">Status</label><select class="form-select form-select-sm" id="cx-status"><option value="connected">Installed</option><option value="planned">Planned</option></select></div>
+      </div>
+      <div class="alert alert-danger small mt-2 d-none" id="cx-error" role="alert"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" id="cx-save" disabled><i class="fas fa-plug"></i> Connect</button></div>
+  </div></div>
+</div>
+
+{% if can_create %}
+<div class="modal fade" id="hwClone" tabindex="-1" aria-hidden="true"><div class="modal-dialog"><form class="modal-content" method="post" action="{% url 'hardware:device_clone' device.pk %}">{% csrf_token %}
+  <div class="modal-header"><h5 class="modal-title">Clone {{ asset.name }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+  <div class="modal-body"><label class="form-label">New name</label><input class="form-control" name="name" value="{{ asset.name }}-copy" required>
+    <div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="copy_ports" value="1" id="cl-ports" checked><label class="form-check-label" for="cl-ports">Copy port modes and VLANs</label></div>
+    <p class="small text-muted mt-2 mb-0">Serial number, asset tag, management IP, MAC addresses and cables are never copied.</p></div>
+  <div class="modal-footer"><button class="btn btn-primary">Clone</button></div></form></div></div>
+{% endif %}
+
+{{ page_data|json_script:"hw-page-data" }}
+<script src="{% static 'hardware/device.js' %}" defer></script>
+</div>{% endblock %}

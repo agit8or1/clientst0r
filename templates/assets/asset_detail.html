@@ -78,6 +78,7 @@
 
     <!-- Main Content -->
     <div class="{% if asset_images %}col-lg-8 col-md-7{% else %}col-12{% endif %}">
+        {% if art %}{% include "hardware/_artwork_card.html" %}{% endif %}
         <div class="card">
             <div class="card-header">
                 <ul class="nav nav-tabs card-header-tabs" role="tablist">

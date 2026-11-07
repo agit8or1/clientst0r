@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Model requests{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'hardware:catalog' %}">Catalog</a></li><li class="breadcrumb-item active">Model requests</li></ol></nav>
+<h1 class="h4">Missing-model requests</h1>
+<table class="table table-sm"><thead><tr><th>When</th><th>Client</th><th>Requested</th><th>By</th><th>Status</th><th></th></tr></thead><tbody>
+{% for r in requests %}<tr><td>{{ r.created_at|date:"Y-m-d" }}</td><td>{{ r.organization }}</td><td><strong>{{ r.manufacturer }} {{ r.model }}</strong>{% if r.part_number %} · {{ r.part_number }}{% endif %}<div class="small text-muted">{{ r.get_category_display }}{% if r.datasheet_url %} · <a href="{{ r.datasheet_url }}" target="_blank" rel="noopener noreferrer">datasheet</a>{% endif %} {{ r.notes }}</div></td>
+  <td>{{ r.requested_by.get_username }}</td><td>{{ r.get_status_display }}{% if r.created_model %} — <a href="{% url 'hardware:model_detail' r.created_model_id %}">{{ r.created_model }}</a>{% endif %}</td>
+  <td class="text-end">{% if r.status == 'open' %}<a class="btn btn-sm btn-primary" href="{% url 'hardware:model_add' %}?request={{ r.pk }}">Create model</a>
+    <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="request" value="{{ r.pk }}"><button class="btn btn-sm btn-outline-secondary" name="action" value="decline">Decline</button></form>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="6" class="text-muted">No requests.</td></tr>{% endfor %}</tbody></table>
+</div>{% endblock %}

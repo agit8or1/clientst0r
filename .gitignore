@@ -246,3 +246,6 @@ walkthrough-raw/
 
 # GeoIP country database (v3.17.598), downloaded by manage.py update_geoip_db
 /data/geoip/
+
+# Hardware catalog source checkout (devicetype-library), fetched by import_hardware_catalog
+/data/hardware-catalog/

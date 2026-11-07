@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Hardware search{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<h1 class="h4"><i class="fas fa-search"></i> Hardware search <small class="text-muted">{{ org.name }}</small></h1>
+{% include "hardware/_nav.html" %}
+{% if q|length < 2 %}<p class="text-muted">Search by hostname, model, serial / service tag, asset tag, IP address, cable ID, port description or technician label.</p>
+{% else %}
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card"><div class="card-header">Devices ({{ results.devices|length }})</div><ul class="list-group list-group-flush">
+    {% for d in results.devices %}<li class="list-group-item"><a href="{% url 'hardware:device_detail' d.pk %}"><strong>{{ d.asset.name }}</strong></a> <span class="text-muted small">{{ d.hardware_model }}{% if d.asset.serial_number %} · S/N {{ d.asset.serial_number }}{% endif %}{% if d.asset.ip_address %} · {{ d.asset.ip_address }}{% endif %}</span></li>{% empty %}<li class="list-group-item text-muted">No devices.</li>{% endfor %}</ul></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Ports ({{ results.ports|length }})</div><ul class="list-group list-group-flush">
+    {% for p in results.ports %}<li class="list-group-item"><a href="{% url 'hardware:device_detail' p.device_id %}#port-{{ p.pk }}">{{ p.device.asset.name }} / {{ p.name }}</a> <span class="text-muted small">{{ p.description }} {{ p.tech_label }}</span></li>{% empty %}<li class="list-group-item text-muted">No ports.</li>{% endfor %}</ul></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Cables ({{ results.cables|length }})</div><ul class="list-group list-group-flush">
+    {% for c in results.cables %}<li class="list-group-item"><a href="{% url 'hardware:cable_detail' c.pk %}">{{ c }}</a> <span class="text-muted small">{% for t in c.terminations.all %}{{ t.port.device.asset.name }}/{{ t.port.name }}{% if not forloop.last %} ⇄ {% endif %}{% endfor %}</span></li>{% empty %}<li class="list-group-item text-muted">No cables.</li>{% endfor %}</ul></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Catalog models ({{ results.models|length }})</div><ul class="list-group list-group-flush">
+    {% for m in results.models %}<li class="list-group-item"><a href="{% url 'hardware:model_detail' m.pk %}">{{ m }}</a> <span class="text-muted small">{{ m.get_category_display }}{% if m.part_number %} · {{ m.part_number }}{% endif %}</span></li>{% empty %}<li class="list-group-item text-muted">No models.</li>{% endfor %}</ul></div></div>
+</div>{% endif %}
+</div>{% endblock %}

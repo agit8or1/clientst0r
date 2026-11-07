@@ -5,6 +5,7 @@ Run:  python -m unittest scripts/ci/test_pip_audit_summary.py
 core.tests.test_ci_audit_summary).
 """
 import datetime as dt
+import io
 import json
 import sys
 import tempfile
@@ -119,9 +120,15 @@ class SummaryOutcomeTests(unittest.TestCase):
                 self.assertIn('Scanner failure', '\n'.join(lines))
 
     def test_cli_exit_codes_and_summary_file(self):
+        import contextlib
         summary = self.dir / 'summary.md'
-        rc = S.main(['--report', str(self.write('r.json', VULN_REPORT)), '--scanner-exit', '1',
-                     '--summary', str(summary)])
+        out = io.StringIO()
+        # Captured: printed to the real log, the ::error:: line would become a
+        # GitHub annotation on a passing run.
+        with contextlib.redirect_stdout(out):
+            rc = S.main(['--report', str(self.write('r.json', VULN_REPORT)), '--scanner-exit', '1',
+                         '--summary', str(summary)])
+        self.assertIn('::error::Dependency audit result: vulnerable', out.getvalue())
         self.assertEqual(rc, S.VULNERABLE)
         self.assertIn('GHSA-78g4-xqwv-q3g8', summary.read_text())
 

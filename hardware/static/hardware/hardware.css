@@ -1,0 +1,69 @@
+/* Hardware catalog & visual inventory */
+.hw-subnav .nav-link { padding: .35rem .7rem; font-size: .9rem; }
+.hw-art-wrap {
+  background: radial-gradient(ellipse at top, #3a4048 0%, #22262b 70%);
+  border-radius: .5rem; padding: 18px 14px; overflow: auto; position: relative;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.5);
+}
+.hw-art-wrap svg.hw-art { display: block; width: auto; height: auto; max-width: 100%; margin: 0 auto; }
+.hw-art-wrap.zoomed svg.hw-art { max-width: none; }
+.hw-art-wrap .hw-face-title { color: #c8d0d8; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px; }
+svg .hw-port .hw-hit, svg .hw-bay .hw-hit { cursor: pointer; }
+svg .hw-port:hover .hw-hit { fill: #ffffff; fill-opacity: .18; stroke: #ffd43b; stroke-width: .5; }
+svg .hw-port.hw-selected .hw-hit { fill: #0d6efd; fill-opacity: .28; stroke: #74c0fc; stroke-width: .7; }
+svg .hw-port.hw-active .hw-hit { stroke: #ffd43b; stroke-width: .9; fill: #ffd43b; fill-opacity: .2; }
+svg .hw-port.hw-traced .hw-hit { stroke: #ff6b6b; stroke-width: 1.1; fill: #ff6b6b; fill-opacity: .25; }
+svg .hw-port.hw-unknown { opacity: .45; }
+svg .hw-port.hw-unpopulated { opacity: .3; }
+svg .hw-ov text { pointer-events: none; font-family: "DejaVu Sans", Arial, sans-serif; font-weight: 700; }
+svg .hw-ov rect, svg .hw-ov path { pointer-events: none; }
+.hw-legend { display: flex; flex-wrap: wrap; gap: .4rem .9rem; font-size: .82rem; align-items: center; }
+.hw-legend .sw { display: inline-block; width: 1.4em; height: .95em; border-radius: 3px; vertical-align: -1px; margin-right: .3em; border: 1px solid rgba(0,0,0,.25); text-align: center; font-size: .7em; line-height: .95em; color: #fff; font-weight: 700; }
+.hw-thumb-box { background: #2a2e33; border-radius: .35rem; padding: 6px; height: 74px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.hw-thumb-box img { max-width: 100%; max-height: 62px; }
+.hw-card { transition: box-shadow .15s; }
+.hw-card:hover { box-shadow: 0 .25rem .9rem rgba(0,0,0,.12); }
+.hw-ports-table td, .hw-ports-table th { font-size: .84rem; vertical-align: middle; }
+.hw-ports-table tr.selected { background: rgba(13,110,253,.12); }
+.hw-ports-table tr.hw-flash { animation: hwflash 1.2s; }
+@keyframes hwflash { from { background: rgba(255,212,59,.6); } to { background: transparent; } }
+.hw-vchip { display: inline-block; padding: 0 .4em; border-radius: .7em; color: #fff; font-size: .75rem; font-weight: 600; margin: 0 .15em .1em 0; text-shadow: 0 0 2px rgba(0,0,0,.6); }
+.hw-trace { display: flex; flex-wrap: wrap; align-items: stretch; gap: .35rem; }
+.hw-trace .step { border: 1px solid var(--bs-border-color); border-radius: .4rem; padding: .35rem .55rem; font-size: .85rem; background: var(--bs-body-bg); }
+.hw-trace .step.port { border-left: 4px solid #0d6efd; }
+.hw-trace .step.port.passive { border-left-color: #6f42c1; }
+.hw-trace .step.cable { border-style: dashed; background: var(--bs-tertiary-bg); }
+.hw-trace .step.internal { border: none; background: none; color: var(--bs-secondary-color); font-style: italic; }
+.hw-trace .arrow { align-self: center; color: var(--bs-secondary-color); }
+.hw-offcanvas { width: 460px !important; }
+.hw-offcanvas .form-label { font-size: .8rem; margin-bottom: .15rem; color: var(--bs-secondary-color); }
+.hw-offcanvas .section { border-top: 1px solid var(--bs-border-color); padding-top: .6rem; margin-top: .6rem; }
+.hw-readonly { font-size: .88rem; }
+.hw-rack-wrap { background: #f1f3f5; border-radius: .5rem; padding: 10px; overflow: auto; }
+[data-bs-theme="dark"] .hw-rack-wrap { background: #1d2024; }
+.hw-rack-wrap svg { max-width: 100%; height: auto; }
+.hw-diagram { width: 100%; height: 70vh; border: 1px solid var(--bs-border-color); border-radius: .5rem; background: var(--bs-body-bg); touch-action: none; user-select: none; }
+.hw-diagram .node { cursor: grab; }
+.hw-diagram .node.dragging { cursor: grabbing; }
+.hw-diagram .node.dim, .hw-diagram .edge.dim { opacity: .15; }
+.hw-diagram .node.hit rect { stroke: #f59f00 !important; stroke-width: 3 !important; }
+.hw-label-preview { background: #fff; box-shadow: 0 0 0 1px #ccc; max-width: 100%; height: auto; }
+.hw-editor-canvas { background: #2a2e33; border-radius: .5rem; padding: 10px; overflow: auto; }
+.hw-editor-canvas svg { display: block; }
+.hw-editor-canvas .ed-el { cursor: move; }
+.hw-editor-canvas .ed-el.sel rect.ed-box { stroke: #ffd43b; stroke-width: .8; }
+.hw-mono { font-family: var(--bs-font-monospace); font-size: .82rem; }
+.hw-empty { border: 2px dashed var(--bs-border-color); border-radius: .6rem; padding: 2.5rem 1rem; text-align: center; }
+.hw-model-result { cursor: pointer; }
+.hw-model-result:hover, .hw-model-result.active { background: var(--bs-tertiary-bg); }
+.hw-model-result img { width: 160px; height: 34px; object-fit: contain; background: #2a2e33; border-radius: 3px; }
+/* Above the application's fixed navbar */
+.offcanvas.hw-offcanvas { z-index: 1060; }  /* moved to <body> by device.js; above the navbar (1000) */
+.offcanvas-backdrop { z-index: 1055; }
+.hw-legend .sw { width: auto; min-width: 1.6em; padding: 0 .25em; height: 1.15em; line-height: 1.15em; font-size: .72em; }
+.hw-head { background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: .75rem 1rem; }
+/* Solid panel behind each page, so headings and help text stay legible over a user background image. */
+.hw-page { background: var(--bs-body-bg); border-radius: .6rem; padding: 1rem 1.25rem 1.25rem; box-shadow: 0 .25rem 1rem rgba(0,0,0,.18); }
+/* Keep tall faces (AP discs, multi-U chassis) within the viewport; the SVG letterboxes, hit targets scale with it. */
+.hw-art-wrap svg.hw-art { max-height: 360px; }
+.hw-art-wrap.zoomed svg.hw-art { max-height: none; }

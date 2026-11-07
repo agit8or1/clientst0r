@@ -437,6 +437,9 @@ class Rack(BaseModel):
     room = models.CharField(max_length=50, blank=True, help_text="Room number/name")
     aisle = models.CharField(max_length=50, blank=True, help_text="Aisle/row identifier")
     location = models.CharField(max_length=255, blank=True, help_text="Additional location details")
+    site = models.ForeignKey(
+        'locations.Location', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='racks', help_text="Client site the rack is at")
 
     # Physical specs
     units = models.PositiveIntegerField(default=42, help_text="Rack units (U)")
@@ -529,10 +532,49 @@ class RackDevice(BaseModel):
 
     notes = models.TextField(blank=True)
 
+    FACE_CHOICES = [
+        ('front', 'Front'),
+        ('rear', 'Rear'),
+    ]
+    # Which side of the rack the device is mounted from. A full-depth device
+    # occupies its units on both faces; a half-depth one only on its own face,
+    # so a rear-mounted patch panel can share a unit with a front-mounted
+    # half-depth switch.
+    face = models.CharField(max_length=5, choices=FACE_CHOICES, default='front')
+    is_full_depth = models.BooleanField(default=True)
+
     class Meta:
         db_table = 'rack_devices'
         ordering = ['rack', 'start_unit']
-        unique_together = [['rack', 'start_unit']]
+        constraints = [
+            models.UniqueConstraint(fields=['rack', 'start_unit', 'face'], name='rack_device_unique_start_face'),
+        ]
+
+    def occupied_faces(self):
+        return {'front', 'rear'} if self.is_full_depth else {self.face}
+
+    def overlaps(self, other):
+        """True when two placements in the same rack claim the same space."""
+        if other.rack_id != self.rack_id or other.pk == self.pk:
+            return False
+        if self.board_position_x is not None or other.board_position_x is not None:
+            return False
+        if not (self.occupied_faces() & other.occupied_faces()):
+            return False
+        return self.start_unit <= other.end_unit and other.start_unit <= self.end_unit
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.board_position_x is not None:
+            return
+        if self.start_unit < 1 or self.end_unit > self.rack.units:
+            raise ValidationError(
+                f'U{self.start_unit}–U{self.end_unit} does not fit in a {self.rack.units}U rack.')
+        for other in RackDevice.objects.filter(rack=self.rack).exclude(pk=self.pk):
+            if self.overlaps(other):
+                raise ValidationError(
+                    f'U{self.start_unit}–U{self.end_unit} ({self.face}) overlaps {other.name} '
+                    f'(U{other.start_unit}–U{other.end_unit}, {other.face}).')
 
     def __str__(self):
         return f"{self.name} (U{self.start_unit}-U{self.start_unit + self.units - 1})"
@@ -625,6 +667,31 @@ class RackConnection(BaseModel):
         return f"{self.from_device.name} → {self.to_device.name} ({self.connection_type})"
 
 
+class VLANGroup(BaseModel):
+    """
+    A switching domain inside one client: the set of devices that share one
+    VLAN numbering. Optional — VLANs without a group are client-wide.
+    """
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='vlan_groups')
+    name = models.CharField(max_length=100)
+    site = models.ForeignKey(
+        'locations.Location', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='vlan_groups', help_text='Limit this group to devices at one site')
+    description = models.TextField(blank=True)
+
+    objects = OrganizationManager()
+
+    class Meta:
+        db_table = 'vlan_groups'
+        ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(fields=['organization', 'name'], name='vlan_group_unique_name'),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class VLAN(BaseModel):
     """
     Virtual LAN configuration.
@@ -638,15 +705,45 @@ class VLAN(BaseModel):
     # Optional color for visual identification
     color = models.CharField(max_length=7, blank=True, help_text="Hex color code (e.g., #FF5733)")
 
+    # Optional scope inside the client. A VLAN number means nothing outside its
+    # network: VLAN 10 at one client is unrelated to VLAN 10 at another (the
+    # organization FK covers that), and a client with two independent sites
+    # can number them independently by putting each site's VLANs in a group.
+    vlan_group = models.ForeignKey(
+        'VLANGroup', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='vlans', help_text="Scope within the client (e.g. one site's switching domain)")
+
     objects = OrganizationManager()
 
     class Meta:
         db_table = 'vlans'
         ordering = ['vlan_id']
-        unique_together = [['organization', 'vlan_id']]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'vlan_id'], condition=models.Q(vlan_group__isnull=True),
+                name='vlan_unique_per_org_ungrouped'),
+            models.UniqueConstraint(
+                fields=['vlan_group', 'vlan_id'], condition=models.Q(vlan_group__isnull=False),
+                name='vlan_unique_per_group'),
+        ]
         indexes = [
             models.Index(fields=['organization', 'vlan_id']),
         ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if not 1 <= (self.vlan_id or 0) <= 4094:
+            raise ValidationError({'vlan_id': 'VLAN IDs run from 1 to 4094.'})
+        if self.vlan_group_id and self.vlan_group.organization_id != self.organization_id:
+            raise ValidationError({'vlan_group': 'The VLAN group belongs to a different client.'})
+
+    def save(self, *args, **kwargs):
+        # MariaDB/MySQL cannot create the conditional unique constraints above
+        # (Django skips them with W036), so enforce them here on those databases.
+        from django.db import connection
+        if not connection.features.supports_partial_indexes:
+            self.validate_constraints()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"VLAN {self.vlan_id} - {self.name}"

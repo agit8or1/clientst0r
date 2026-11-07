@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Edit {{ hm }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'hardware:catalog' %}">Catalog</a></li><li class="breadcrumb-item"><a href="{% url 'hardware:model_detail' hm.pk %}">{{ hm }}</a></li><li class="breadcrumb-item active">Edit</li></ol></nav>
+<div class="d-flex justify-content-between"><h1 class="h4">Edit {{ hm }} <small class="text-muted">revision {{ hm.revision }}</small></h1>
+  <a class="btn btn-sm btn-outline-primary" href="{% url 'hardware:layout_editor' hm.pk %}"><i class="fas fa-vector-square"></i> Layout editor</a></div>
+<div class="alert alert-info small">Shared catalog: {{ device_count }} installed device{{ device_count|pluralize }} use this model. Changes create a new revision; installed devices are not changed until a technician previews and applies the update. {% if hm.upstream_path %}Local edits mark this model as locally modified, so upstream re-imports will not overwrite it.{% endif %}</div>
+<div class="row g-3">
+  <div class="col-lg-4"><form method="post" class="card card-body">{% csrf_token %}<input type="hidden" name="action" value="fields"><h6>Model</h6>
+    <label class="form-label small">Category</label><select class="form-select form-select-sm mb-2" name="category">{% for k, v in categories %}<option value="{{ k }}" {% if hm.category == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+    <label class="form-label small">Part number</label><input class="form-control form-control-sm mb-2" name="part_number" value="{{ hm.part_number }}">
+    <label class="form-label small">Height (U)</label><input class="form-control form-control-sm mb-2" name="u_height" value="{{ hm.u_height }}">
+    <label class="form-label small">Specification source</label><select class="form-select form-select-sm mb-2" name="spec_provenance">{% for k, v in provenances %}<option value="{{ k }}" {% if hm.spec_provenance == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+    <label class="form-label small">Source URL</label><input class="form-control form-control-sm mb-2" name="spec_source_url" value="{{ hm.spec_source_url }}">
+    <label class="form-label small">Source notes</label><textarea class="form-control form-control-sm mb-2" name="spec_notes" rows="4">{{ hm.spec_notes }}</textarea>
+    <label class="form-label small">Description</label><textarea class="form-control form-control-sm mb-2" name="description" rows="2">{{ hm.description }}</textarea>
+    <button class="btn btn-sm btn-primary">Save model</button></form>
+    <form method="post" class="card card-body mt-3">{% csrf_token %}<input type="hidden" name="action" value="add_component"><h6>Add components</h6>
+      <select class="form-select form-select-sm mb-2" name="component_class">{% for k, v in classes %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+      <div class="row g-1"><div class="col-8"><input class="form-control form-control-sm" name="name" placeholder="Name or pattern, e.g. Port {n}" required></div><div class="col-4"><input class="form-control form-control-sm" type="number" name="count" value="1" min="1" max="512" title="How many"></div></div>
+      <input class="form-control form-control-sm mt-1" name="label" placeholder="Printed label (pattern allowed, e.g. {n})">
+      <input class="form-control form-control-sm mt-1" name="type" placeholder="Type, e.g. 1000base-t, 10gbase-x-sfpp, 8p8c, de-9, iec-60320-c14">
+      <select class="form-select form-select-sm mt-1" name="connector"><option value="">Connector from type</option>{% for k, v in connectors %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+      <div class="row g-1 mt-1"><div class="col-6"><select class="form-select form-select-sm" name="poe_mode"><option value="">No PoE</option><option value="pse">PoE source</option><option value="pd">Powered device</option></select></div><div class="col-6"><input class="form-control form-control-sm" name="positions" type="number" min="1" value="1" title="Positions (passive ports)"></div></div>
+      <input class="form-control form-control-sm mt-1" name="combo_group" placeholder="Combo group (optional)">
+      <input class="form-control form-control-sm mt-1" name="bay_position" placeholder="Bay position (module bays)">
+      <div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="mgmt_only" value="1" id="mg"><label class="form-check-label small" for="mg">Management only</label></div>
+      <button class="btn btn-sm btn-primary mt-2">Add</button></form>
+  </div>
+  <div class="col-lg-8"><div class="card"><div class="card-header">Components ({{ components|length }})</div>
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="combo">
+    <div class="card-body p-0" style="max-height:540px;overflow:auto"><table class="table table-sm mb-0 small"><thead><tr><th></th><th>Class</th><th>Name</th><th>Label</th><th>Type</th><th>Connector</th><th>Combo</th><th></th></tr></thead><tbody>
+    {% for c in components %}<tr><td><input type="checkbox" name="components" value="{{ c.pk }}" aria-label="Select {{ c.name }}"></td><td>{{ c.get_component_class_display }}</td><td>{{ c.name }}</td><td>{{ c.label }}</td><td class="font-monospace">{{ c.type }}</td><td>{{ c.get_connector_display }}</td><td>{{ c.combo_group }}</td>
+      <td><button class="btn btn-sm btn-link text-danger p-0" form="del-{{ c.pk }}" title="Remove">✕</button></td></tr>{% endfor %}</tbody></table></div>
+    <div class="card-footer d-flex gap-2"><input class="form-control form-control-sm" style="max-width:220px" name="combo_group" placeholder="Combo group name"><button class="btn btn-sm btn-outline-secondary">Set combo group on checked</button><span class="small text-muted">Ports in one combo group are alternatives (e.g. RJ45 or SFP); only one can be cabled.</span></div>
+    </form></div>
+    {% for c in components %}<form method="post" id="del-{{ c.pk }}" class="d-none">{% csrf_token %}<input type="hidden" name="action" value="delete_component"><input type="hidden" name="component" value="{{ c.pk }}"></form>{% endfor %}
+    {% if fronts %}<form method="post" class="card card-body mt-3 row g-1 flex-row">{% csrf_token %}<input type="hidden" name="action" value="mapping"><h6 class="col-12">Front → rear mapping</h6>
+      <div class="col-4"><select class="form-select form-select-sm" name="front">{% for f in fronts %}<option value="{{ f.pk }}">{{ f.name }}</option>{% endfor %}</select></div>
+      <div class="col-2"><input class="form-control form-control-sm" type="number" name="front_position" value="1"></div>
+      <div class="col-4"><select class="form-select form-select-sm" name="rear">{% for r in rears %}<option value="{{ r.pk }}">{{ r.name }} ({{ r.positions }})</option>{% endfor %}</select></div>
+      <div class="col-2"><input class="form-control form-control-sm" type="number" name="rear_position" value="1"></div>
+      <div class="col-12"><button class="btn btn-sm btn-outline-primary">Save mapping</button> <span class="small text-muted">{{ mappings|length }} mapping{{ mappings|length|pluralize }}</span></div></form>{% endif %}
+  </div>
+</div>
+</div>{% endblock %}

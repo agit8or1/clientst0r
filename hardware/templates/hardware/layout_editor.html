@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Layout — {{ hm }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'hardware:catalog' %}">Catalog</a></li><li class="breadcrumb-item"><a href="{% url 'hardware:model_detail' hm.pk %}">{{ hm }}</a></li><li class="breadcrumb-item active">Layout editor</li></ol></nav>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <h1 class="h4 mb-0"><i class="fas fa-vector-square"></i> Layout — {{ hm }} <small class="text-muted">editing v{{ layout.version }}</small></h1>
+  <div class="d-flex gap-2"><button class="btn btn-sm btn-outline-secondary" id="ed-auto">Reset to automatic layout</button><button class="btn btn-sm btn-outline-primary" id="ed-preview">Preview artwork</button><button class="btn btn-sm btn-primary" id="ed-save"><i class="fas fa-save"></i> Save as new version</button></div>
+</div>
+<p class="small text-muted">Positions are millimetres from the top-left of each face. Drag to move (snaps to 0.1 mm with Alt, 0.5 mm otherwise); arrow keys nudge by 0.5 mm (Shift: 5 mm). Saving creates a new layout version; installed devices keep their port IDs and cables.</p>
+<div class="row g-3">
+  <div class="col-xl-9">
+    <div class="d-flex gap-2 align-items-center mb-2 flex-wrap">
+      <select class="form-select form-select-sm" style="width:auto" id="ed-face" aria-label="Face"></select>
+      <button class="btn btn-sm btn-outline-secondary" id="ed-add-face">Add face…</button>
+      <label class="small">W <input class="form-control form-control-sm d-inline-block" style="width:6em" id="ed-fw"> mm</label>
+      <label class="small">H <input class="form-control form-control-sm d-inline-block" style="width:6em" id="ed-fh"> mm</label>
+      <label class="small">Accuracy <select class="form-select form-select-sm d-inline-block" style="width:auto" id="ed-facc"><option value="verified">Verified</option><option value="approximate">Approximate</option><option value="generic">Generic</option></select></label>
+      <div class="btn-group btn-group-sm ms-auto"><button class="btn btn-outline-secondary" id="ed-zin">+</button><button class="btn btn-outline-secondary" id="ed-zout">−</button></div>
+    </div>
+    <div class="hw-editor-canvas"><svg id="ed-canvas" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    <div id="ed-preview-box" class="mt-3"></div>
+    <div class="alert alert-danger small mt-2 d-none" id="ed-errors"></div>
+  </div>
+  <div class="col-xl-3">
+    <div class="card card-body small mb-3" id="ed-props"><strong>Selection</strong><div class="text-muted">Click an element; Shift-click to add to the selection.</div></div>
+    <div class="card card-body small mb-3"><strong>Arrange selected</strong>
+      <div class="row g-1 mt-1">
+        <div class="col-6"><label>Columns<input class="form-control form-control-sm" id="ar-cols" type="number" value="6" min="1"></label></div>
+        <div class="col-6"><label>Rows<input class="form-control form-control-sm" id="ar-rows" type="number" value="2" min="1"></label></div>
+        <div class="col-6"><label>Pitch X<input class="form-control form-control-sm" id="ar-px" value="14.7"></label></div>
+        <div class="col-6"><label>Pitch Y<input class="form-control form-control-sm" id="ar-py" value="10.6"></label></div>
+        <div class="col-6"><label>Block every<input class="form-control form-control-sm" id="ar-block" type="number" value="6" min="0"></label></div>
+        <div class="col-6"><label>Block gap<input class="form-control form-control-sm" id="ar-bgap" value="3.2"></label></div>
+        <div class="col-12"><label>Numbering<select class="form-select form-select-sm" id="ar-order"><option value="col">Column first (1 above 2)</option><option value="row">Row first (1, 2, 3 across)</option></select></label></div>
+        <div class="col-12"><label>Label position<select class="form-select form-select-sm" id="ar-lab"><option value="auto">Top row above, bottom row below</option><option value="above">Above</option><option value="below">Below</option><option value="inside">Inside</option></select></label></div>
+      </div>
+      <button class="btn btn-sm btn-outline-primary mt-2" id="ar-apply">Arrange from first selected</button>
+    </div>
+    <div class="card card-body small mb-3"><strong>Unplaced components</strong><div id="ed-unplaced" style="max-height:220px;overflow:auto"></div></div>
+    <div class="card card-body small"><strong>Source</strong>
+      <label class="mt-1">Document checked against (required for verified)<input class="form-control form-control-sm" id="ed-src"></label>
+      <label class="mt-1">What was verified / what remains uncertain<textarea class="form-control form-control-sm" id="ed-notes" rows="5"></textarea></label>
+      {% if hm.is_generic %}<div class="text-muted mt-1">Generic templates are always marked generic.</div>{% endif %}
+    </div>
+  </div>
+</div>
+{{ editor_data|json_script:"ed-data" }}
+<script src="{% static 'hardware/layout_editor.js' %}" defer></script>
+</div>{% endblock %}

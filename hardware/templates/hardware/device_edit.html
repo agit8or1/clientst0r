@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Edit {{ asset.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'hardware:device_list' %}">Hardware — {{ org.name }}</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'hardware:device_detail' device.pk %}">{{ asset.name }}</a></li>
+  <li class="breadcrumb-item active">Edit</li>
+</ol></nav>
+<h1 class="h4">Edit {{ asset.name }} <small class="text-muted">{{ device.hardware_model }}</small></h1>
+{% if errors %}<div class="alert alert-danger"><ul class="mb-0">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+<form method="post" class="card card-body row g-2 flex-row">{% csrf_token %}
+  <div class="col-md-4"><label class="form-label">Name *</label><input class="form-control" name="name" value="{{ asset.name }}" required></div>
+  <div class="col-md-4"><label class="form-label">Hostname</label><input class="form-control" name="hostname" value="{{ asset.hostname }}"></div>
+  <div class="col-md-4"><label class="form-label">Status</label><select class="form-select" name="status">{% for k, v in statuses %}<option value="{{ k }}" {% if device.status == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-md-4"><label class="form-label">Serial / service tag</label><input class="form-control" name="serial_number" value="{{ asset.serial_number }}"></div>
+  <div class="col-md-4"><label class="form-label">Asset tag</label><input class="form-control" name="asset_tag" value="{{ asset.asset_tag }}"></div>
+  <div class="col-md-4"><label class="form-label">Management IP</label><input class="form-control" name="ip_address" value="{{ asset.ip_address|default:'' }}"></div>
+  <div class="col-md-4"><label class="form-label">Platform</label><input class="form-control" name="platform" value="{{ device.platform }}" placeholder="e.g. OPNsense, Proxmox VE"></div>
+  <div class="col-md-4"><label class="form-label">Firmware</label><input class="form-control" name="firmware_version" value="{{ asset.firmware_version }}"></div>
+  <div class="col-md-4"><label class="form-label">Install date</label><input class="form-control" type="date" name="install_date" value="{{ device.install_date|date:'Y-m-d' }}"></div>
+  <div class="col-md-4"><label class="form-label">Warranty start</label><input class="form-control" type="date" name="warranty_start" value="{{ device.warranty_start|date:'Y-m-d' }}"></div>
+  <div class="col-md-4"><label class="form-label">Warranty end</label><input class="form-control" type="date" name="warranty_expiry" value="{{ asset.warranty_expiry|date:'Y-m-d' }}"></div>
+  <div class="col-md-4"><label class="form-label">Site</label><select class="form-select" name="site"><option value="">—</option>{% for s in sites %}<option value="{{ s.pk }}" {% if device.site_id == s.pk %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select></div>
+  <div class="col-md-4"><label class="form-label">Room</label><input class="form-control" name="room" value="{{ device.room }}"></div>
+  <div class="col-md-8"><label class="form-label">Location detail</label><input class="form-control" name="location_detail" value="{{ device.location_detail }}"></div>
+  <div class="col-md-4"><label class="form-label">Rack</label><select class="form-select" name="rack"><option value="">Not racked</option>{% for r in racks %}<option value="{{ r.pk }}" {% if placement.rack_id == r.pk %}selected{% endif %}>{{ r.name }} ({{ r.units }}U)</option>{% endfor %}</select></div>
+  <div class="col-md-4"><label class="form-label">Lowest U</label><input class="form-control" type="number" min="1" name="position" value="{{ placement.start_unit|default:'' }}"></div>
+  <div class="col-md-4"><label class="form-label">Face</label><select class="form-select" name="face"><option value="front">Front</option><option value="rear" {% if placement.face == 'rear' %}selected{% endif %}>Rear</option></select></div>
+  <div class="col-12"><label class="form-label">Notes</label><textarea class="form-control" name="notes" rows="3">{{ asset.notes }}</textarea></div>
+  <div class="col-12"><button class="btn btn-primary">Save</button> <a class="btn btn-link" href="{% url 'hardware:device_detail' device.pk %}">Cancel</a></div>
+</form>
+</div>{% endblock %}

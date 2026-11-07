@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ title }} — {{ org.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<h1 class="h4"><i class="fas fa-project-diagram"></i> {{ title }} <small class="text-muted">{{ org.name }}{% if site %} · {{ site.name }}{% endif %}</small></h1>
+{% with section=kind %}{% include "hardware/_nav.html" %}{% endwith %}
+<div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+  <form method="get" class="d-flex gap-2"><select class="form-select form-select-sm" name="site" id="dg-site" style="width:auto"><option value="">All sites</option>{% for s in sites %}<option value="{{ s.pk }}" {% if site.pk == s.pk %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select></form>
+  <input class="form-control form-control-sm" style="max-width:220px" id="dg-search" placeholder="Find a device or VLAN">
+  <select class="form-select form-select-sm" style="width:auto" id="dg-filter" aria-label="Show"><option value="">All categories</option></select>
+  <div class="btn-group btn-group-sm"><button class="btn btn-outline-secondary" id="dg-zoom-in" title="Zoom in"><i class="fas fa-search-plus"></i></button><button class="btn btn-outline-secondary" id="dg-fit" title="Fit">Fit</button><button class="btn btn-outline-secondary" id="dg-zoom-out" title="Zoom out"><i class="fas fa-search-minus"></i></button></div>
+  <button class="btn btn-sm btn-primary" id="dg-save"><i class="fas fa-save"></i> Save layout</button>
+  <span class="small text-muted" id="dg-status"></span>
+  <form method="post" action="{{ page_data.export_url }}{% if site %}?site={{ site.pk }}{% endif %}" class="ms-auto d-flex gap-1" id="dg-export">{% csrf_token %}
+    <input type="hidden" name="positions" id="dg-export-pos"><input type="hidden" name="keys" id="dg-export-keys">
+    <button class="btn btn-sm btn-outline-secondary" name="format" value="svg">SVG</button>
+    <button class="btn btn-sm btn-outline-secondary" name="format" value="png">PNG</button>
+    <button class="btn btn-sm btn-outline-secondary" name="format" value="pdf">PDF</button>
+  </form>
+</div>
+<svg class="hw-diagram" id="dg" role="img" aria-label="{{ title }}"></svg>
+<div class="hw-legend mt-2" id="dg-legend"></div>
+<p class="small text-muted mt-1">Drawn only from documented records. Drag devices to arrange them, scroll or pinch to zoom, drag the background to pan, double-click a node to open it. Saved positions stay when records change; new devices get an automatic place.</p>
+{{ page_data|json_script:"dg-data" }}
+<script src="{% static 'hardware/diagram.js' %}" defer></script>
+</div>{% endblock %}

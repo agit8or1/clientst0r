@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Import / export — {{ org.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<h1 class="h3"><i class="fas fa-file-csv"></i> Import / export <small class="text-muted fs-6">{{ org.name }}</small></h1>
+{% with section='import' %}{% include "hardware/_nav.html" %}{% endwith %}
+<div class="row g-3">
+  <div class="col-lg-5">
+    <form method="post" enctype="multipart/form-data" class="card card-body">{% csrf_token %}
+      <h6>Import from CSV</h6>
+      <div class="mb-2"><label class="form-label">What</label><select class="form-select" name="what"><option value="devices">Devices</option><option value="cables" {% if what == 'cables' %}selected{% endif %}>Cables (between existing ports)</option></select></div>
+      <input class="form-control mb-2" type="file" name="file" accept=".csv,text/csv" required>
+      <button class="btn btn-primary">Validate and preview</button>
+      <div class="small text-muted mt-2">Nothing is saved until you confirm the preview. The import is all-or-nothing.</div>
+    </form>
+    <div class="card card-body mt-3 small">
+      <h6>Columns</h6>
+      <div><strong>Devices:</strong> <span class="hw-mono">{{ templates.devices|join:", " }}</span></div>
+      <div class="mt-1"><strong>Cables:</strong> <span class="hw-mono">{{ templates.cables|join:", " }}</span></div>
+      <div class="mt-2">Manufacturer + model must match a catalog model (or its part number). Sites and racks must exist for this client.</div>
+      <hr><h6>Export</h6>
+      <a href="{% url 'hardware:export_csv' 'devices' %}">Devices CSV</a> · <a href="{% url 'hardware:export_csv' 'cables' %}">Cables CSV</a>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    {% if rows %}
+      <h6>Preview: {{ ok|length }} valid, {{ bad|length }} with errors</h6>
+      {% if bad %}<div class="alert alert-danger small">Fix these rows and upload again — nothing has been imported.</div>{% endif %}
+      <div class="table-responsive" style="max-height:60vh"><table class="table table-sm small">
+        <thead><tr><th>Line</th><th>Row</th><th>Result</th></tr></thead><tbody>
+        {% for r in rows %}<tr class="{% if r.errors %}table-danger{% endif %}"><td>{{ r.line }}</td>
+          <td>{% if what == 'devices' %}{{ r.data.name }} — {{ r.data.manufacturer }} {{ r.data.model }}{% if r.data.rack %} · {{ r.data.rack }} U{{ r.data.position }}{% endif %}{% else %}{{ r.data.device_a }} / {{ r.data.port_a }} ⇄ {{ r.data.device_b }} / {{ r.data.port_b }}{% if r.data.cable_id %} ({{ r.data.cable_id }}){% endif %}{% endif %}</td>
+          <td>{% if r.errors %}{{ r.errors|join:" " }}{% else %}<span class="text-success">OK</span>{% endif %}</td></tr>{% endfor %}
+        </tbody></table></div>
+      {% if ok and not bad %}<form method="post">{% csrf_token %}<input type="hidden" name="step" value="confirm"><button class="btn btn-success mt-2"><i class="fas fa-check"></i> Import {{ ok|length }} {{ what }}</button></form>{% endif %}
+    {% else %}<div class="hw-empty"><h5>Upload a CSV to see a validated preview</h5></div>{% endif %}
+  </div>
+</div>
+</div>{% endblock %}

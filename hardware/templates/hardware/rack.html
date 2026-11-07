@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Rack {{ rack.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'hardware:device_list' %}">Hardware — {{ org.name }}</a></li>
+  <li class="breadcrumb-item active">Rack {{ rack.name }}</li></ol></nav>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div><h1 class="h4 mb-0"><i class="fas fa-server"></i> Rack {{ rack.name }}</h1>
+    <div class="text-muted small">{{ rack.units }}U · {{ used }}U used{% if rack.site %} · {{ rack.site.name }}{% endif %}{% if rack.room %} · {{ rack.room }}{% endif %}</div></div>
+  <div class="d-flex gap-2 flex-wrap">
+    <select class="form-select form-select-sm" style="width:auto" id="hw-rack-jump" aria-label="Other racks">{% for r in racks %}<option value="{% url 'hardware:rack' r.pk %}" {% if r.pk == rack.pk %}selected{% endif %}>{{ r.name }}</option>{% endfor %}</select>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'hardware:labels' %}?kind=rack&racks={{ rack.pk }}"><i class="fas fa-tag"></i> Rack label</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'monitoring:rack_detail' rack.pk %}">Rack settings</a>
+  </div>
+</div>
+<div class="row g-3 mt-1">
+  <div class="col-xl-6"><div class="d-flex justify-content-between"><h6>Front</h6>
+    <div class="btn-group btn-group-sm"><a class="btn btn-outline-secondary" href="{% url 'hardware:rack_export' rack.pk 'front' 'svg' %}">SVG</a><a class="btn btn-outline-secondary" href="{% url 'hardware:rack_export' rack.pk 'front' 'png' %}">PNG</a><a class="btn btn-outline-secondary" href="{% url 'hardware:rack_export' rack.pk 'front' 'pdf' %}">PDF</a></div></div>
+    <div class="hw-rack-wrap">{{ front|safe }}</div></div>
+  <div class="col-xl-6"><div class="d-flex justify-content-between"><h6>Rear</h6>
+    <div class="btn-group btn-group-sm"><a class="btn btn-outline-secondary" href="{% url 'hardware:rack_export' rack.pk 'rear' 'svg' %}">SVG</a><a class="btn btn-outline-secondary" href="{% url 'hardware:rack_export' rack.pk 'rear' 'png' %}">PNG</a><a class="btn btn-outline-secondary" href="{% url 'hardware:rack_export' rack.pk 'rear' 'pdf' %}">PDF</a></div></div>
+    <div class="hw-rack-wrap">{{ rear|safe }}</div></div>
+</div>
+<p class="small text-muted mt-2">Devices are drawn from their catalog artwork. A full-depth device shows its rear panel in the rear view; a half-depth device mounted on the other face is outlined dashed. Click a device to open it.</p>
+<table class="table table-sm mt-3"><thead><tr><th>U</th><th>Device</th><th>Face</th><th>Depth</th><th>Model</th></tr></thead><tbody>
+{% for p in placements %}<tr><td>U{{ p.start_unit }}{% if p.units > 1 %}–{{ p.end_unit }}{% endif %}</td>
+  <td>{% if p.asset.hardware %}<a href="{% url 'hardware:device_detail' p.asset.hardware.pk %}">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}</td>
+  <td>{{ p.get_face_display }}</td><td>{{ p.is_full_depth|yesno:"Full,Half" }}</td><td>{{ p.asset.hardware.hardware_model|default:"—" }}</td></tr>
+{% empty %}<tr><td colspan="5" class="text-muted">Nothing mounted yet. Set a rack position when adding or editing a device.</td></tr>{% endfor %}</tbody></table>
+<script nonce="{{ csp_nonce }}">document.getElementById('hw-rack-jump').addEventListener('change', e => { location.href = e.target.value; });</script>
+</div>{% endblock %}

@@ -1,0 +1,27 @@
+{% load hardware_tags %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <h5 class="mb-0"><i class="fas fa-image"></i> Illustration</h5>
+    <div class="d-flex flex-wrap gap-1 align-items-center">
+      {% if art %}
+        {% if art.generic %}<span class="badge bg-secondary" title="No exact catalog match for this model">Generic illustration — not this model</span>
+        {% else %}{% provenance_badge art.hm.spec_provenance %}{% for f in art.faces %}{% accuracy_badge f.accuracy f.name %}{% endfor %}{% endif %}
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'hardware:model_detail' art.hm.pk %}">{% if art.generic %}Generic template{% else %}Catalog model{% endif %}</a>
+      {% endif %}
+      {% if device_url %}<a class="btn btn-sm btn-primary" href="{{ device_url }}"><i class="fas fa-network-wired"></i> Ports &amp; cabling</a>{% endif %}
+    </div>
+  </div>
+  <div class="card-body">
+    {% if art %}
+      {% for f in art.faces %}
+        <div class="small text-uppercase text-muted fw-semibold mt-1">{{ f.name }}</div>
+        <div style="background:radial-gradient(ellipse at top,#3a4048 0%,#22262b 70%);border-radius:.5rem;padding:14px;overflow:auto" class="hw-art-inline">{{ f.svg|safe }}</div>
+      {% endfor %}
+      {% if art.generic %}<p class="small text-muted mt-2 mb-0">The hardware catalog has no exact match for this model, so a generic {{ art.hm.get_category_display|lower }} is shown. <a href="{% url 'hardware:catalog' %}?q={{ search_q|urlencode }}">Search the catalog</a>{% if user.is_authenticated %} or <a href="{% url 'hardware:model_request' %}?manufacturer={{ request_mfr|urlencode }}&model={{ request_model|urlencode }}">request the model</a>{% endif %}.</p>
+      {% else %}<p class="small text-muted mt-2 mb-0">Generated from the catalog's component layout ({{ art.hm }}); not a photograph.</p>{% endif %}
+    {% else %}
+      <p class="text-muted mb-0">No catalog drawing matches this model yet. <a href="{% url 'hardware:catalog' %}?q={{ search_q|urlencode }}">Search the hardware catalog</a>.</p>
+    {% endif %}
+  </div>
+</div>
+<style>.hw-art-inline svg{display:block;width:auto;max-width:100%;max-height:300px;height:auto;margin:0 auto}</style>

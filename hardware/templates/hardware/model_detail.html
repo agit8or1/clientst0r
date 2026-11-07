@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static hardware_tags %}
+{% block title %}{{ hm }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'hardware/hardware.css' %}">{% endblock %}
+{% block content %}<div class="hw-page">
+<nav aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="{% url 'hardware:catalog' %}">Catalog</a></li><li class="breadcrumb-item"><a href="{% url 'hardware:catalog' %}?manufacturer={{ hm.manufacturer.slug }}">{{ hm.manufacturer.name }}</a></li><li class="breadcrumb-item active">{{ hm.model }}</li></ol></nav>
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+  <div><h1 class="h3 mb-1">{{ hm }}</h1>
+    <div class="text-muted">{{ hm.get_kind_display }} · {{ hm.get_category_display }}{% if hm.category_source == 'inferred' %} (inferred){% endif %}{% if hm.part_number %} · P/N {{ hm.part_number }}{% endif %}{% if hm.u_height %} · {{ hm.u_height|floatformat:"-1" }}U{% if not hm.is_full_depth %} half depth{% endif %}{% endif %}{% if hm.airflow %} · airflow {{ hm.airflow }}{% endif %}{% if hm.weight %} · {{ hm.weight|floatformat:"-2" }} {{ hm.weight_unit }}{% endif %}</div>
+    <div class="mt-1 d-flex flex-wrap gap-1">{% provenance_badge hm.spec_provenance %}{% for f, a in face_accuracy.items %}{% accuracy_badge a f %}{% endfor %}{% if hm.is_generic %}<span class="badge bg-secondary">Generic template</span>{% endif %}{% if hm.locally_modified %}<span class="badge bg-primary">Locally modified: {{ hm.local_fields|join:", " }}</span>{% endif %}<span class="badge text-bg-light border">Revision {{ hm.revision }}</span></div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if hm.kind == 'device' %}<a class="btn btn-sm btn-primary" href="{% url 'hardware:device_add' %}?model={{ hm.pk }}"><i class="fas fa-plus"></i> Add to current client</a>{% endif %}
+    {% if can_admin %}<a class="btn btn-sm btn-outline-primary" href="{% url 'hardware:model_edit' hm.pk %}"><i class="fas fa-pen"></i> Edit components</a>
+      {% if layout %}<a class="btn btn-sm btn-outline-primary" href="{% url 'hardware:layout_editor' hm.pk %}"><i class="fas fa-vector-square"></i> Layout editor</a>{% endif %}
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'hardware:model_add' %}?from={{ hm.pk }}"><i class="fas fa-copy"></i> Copy as new model</a>{% endif %}
+  </div>
+</div>
+{% if hm.description %}<p class="mt-2">{{ hm.description }}</p>{% endif %}
+{% for f in faces %}<div class="mt-3"><div class="d-flex justify-content-between"><div class="small text-uppercase text-muted fw-semibold">{{ f }}</div>{% accuracy_badge face_accuracy|get_item:f %}</div><div class="hw-art-wrap mt-1">{{ art|get_item:f|safe }}</div></div>{% endfor %}
+{% if unplaced %}<div class="alert alert-light border small mt-2">Not drawn ({{ unplaced|length }}): {% for c in unplaced %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %} — e.g. backplane interfaces, or components without a placed position.</div>{% endif %}
+<div class="row g-3 mt-1">
+  <div class="col-lg-7"><div class="card"><div class="card-header">Components</div><div class="card-body p-0" style="max-height:520px;overflow:auto">
+    <table class="table table-sm mb-0 small"><thead><tr><th>Class</th><th>Name</th><th>Label</th><th>Type</th><th>Connector</th><th>PoE</th><th>Other</th></tr></thead><tbody>
+    {% for cls, comps in by_class.items %}{% for c in comps %}<tr><td class="text-muted">{{ cls }}</td><td>{{ c.name }}</td><td>{{ c.label }}</td><td class="hw-mono">{{ c.type }}</td><td>{{ c.get_connector_display }}</td><td>{{ c.poe_mode }}{% if c.poe_type %} {{ c.poe_type }}{% endif %}</td>
+      <td>{% if c.mgmt_only %}mgmt {% endif %}{% if c.positions > 1 %}{{ c.positions }} pos {% endif %}{% if c.combo_group %}combo {{ c.combo_group }} {% endif %}{% if c.bay_position %}pos {{ c.bay_position }} {% endif %}{% if c.origin == 'local' %}<span class="badge bg-primary">local</span>{% endif %}</td></tr>{% endfor %}{% empty %}<tr><td colspan="7" class="text-muted">No components defined.</td></tr>{% endfor %}
+    </tbody></table></div></div>
+    {% if mappings %}<div class="card mt-3"><div class="card-header">Front → rear mappings</div><div class="card-body small">{% for m in mappings %}{{ m.front_port.name }}{% if m.front_position > 1 %}:{{ m.front_position }}{% endif %} → {{ m.rear_port.name }}{% if m.rear_port.positions > 1 %}:{{ m.rear_position }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</div></div>{% endif %}
+  </div>
+  <div class="col-lg-5">
+    <div class="card"><div class="card-header">Source &amp; provenance</div><div class="card-body small">
+      <div><strong>Specification:</strong> {{ hm.get_spec_provenance_display }}</div>
+      {% if hm.spec_source_url %}<div><a href="{{ hm.spec_source_url }}" target="_blank" rel="noopener noreferrer">Specification source</a></div>{% endif %}
+      {% if hm.spec_notes %}<div class="mt-1" style="white-space:pre-line">{{ hm.spec_notes }}</div>{% endif %}
+      {% if hm.upstream_path %}<hr><div><strong>Upstream:</strong> <a href="{{ hm.upstream_url }}" target="_blank" rel="noopener noreferrer" class="hw-mono">{{ hm.upstream_path }}</a></div>
+        <div>Revision <code>{{ hm.upstream_revision|slice:":12" }}</code> · imported {{ hm.imported_at|date:"Y-m-d" }} · {{ hm.source.license_name }}</div>
+        {% if hm.unsupported_fields %}<div class="mt-1">Fields kept but not modelled: {% for f in hm.unsupported_fields %}<code>{{ f }}</code> {% endfor %}</div>{% endif %}{% endif %}
+      <hr><div><strong>Layout:</strong> v{{ layout.version }} · {{ layout.get_accuracy_display }}{% if layout.auto_generated %} · generated automatically{% endif %}</div>
+      {% if layout.source_url %}<div><a href="{{ layout.source_url }}" target="_blank" rel="noopener noreferrer">Layout source</a></div>{% endif %}
+      {% if layout.source_notes %}<div class="mt-1" style="white-space:pre-line">{{ layout.source_notes }}</div>{% endif %}
+      <hr><div>Installed at clients: {{ device_count }} device{{ device_count|pluralize }}</div>
+      {% if revisions %}<div class="mt-1">Snapshots: {% for r in revisions %}r{{ r.number }} ({{ r.reason }}){% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+    </div></div>
+    {% if upstream_json %}<details class="card mt-3"><summary class="card-header">Upstream definition as imported</summary><pre class="small p-2 mb-0" style="max-height:360px;overflow:auto">{{ upstream_json }}</pre></details>{% endif %}
+  </div>
+</div>
+</div>{% endblock %}
