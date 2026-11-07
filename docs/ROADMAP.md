@@ -1718,6 +1718,7 @@ inventory. Documentation only — nothing is pushed to devices.
   names the right ends and has an in-use filter *(shipped v3.17.633)*
   The README walkthrough now includes the hardware screens *(shipped v3.17.636;
   release MP4s replaced v3.17.637)*
+  A GitHub social preview image built from the same screenshots *(shipped v3.17.638)*
 
 ## Sizing
 

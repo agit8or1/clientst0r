@@ -95,8 +95,11 @@ Existing topics kept as-is: `msp`, `self-hosted`, `it-documentation`, `service-d
   GitHub Release is only published when one is cut for that tag. The README's release
   badge shows the newest *published Release*, not the newest tag, so compare it with
   `config/version.py` and cut Releases for recent tags when the two drift apart.
-- **Social preview image** — not set. `docs/images/github/walkthrough-poster.png` is
-  1920×1080 and crops cleanly to the 1280×640 GitHub wants.
+- **Social preview image** — use `docs/images/github/social-preview.png` (1280×640, the
+  size GitHub wants): the wordmark, a one-line pitch, and the ticket and switch-panel
+  screenshots. GitHub has no API for this, so upload it by hand under **Settings → General
+  → Social preview → Edit → Upload an image**. Rebuild it whenever those two screenshots
+  change noticeably.
 
 ## Related links to keep visible
 

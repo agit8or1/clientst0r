@@ -5,6 +5,11 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.638] - 2026-11-07
+
+### Documentation
+- **A social preview image for the GitHub repository**, `docs/images/github/social-preview.png`, at 1280×640. It shows the wordmark, a one-line pitch, and the current ticket and switch-panel screenshots. Until now the repository had none and GitHub generated a plain text card. `docs/github-about.md` explains how to upload it, which has to be done by hand: GitHub has no API for the social preview.
+
 ## [3.17.637] - 2026-11-07
 
 ### Documentation
