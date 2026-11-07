@@ -5,6 +5,12 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.636] - 2026-11-07
+
+### Documentation
+- **The README walkthrough was re-recorded on the current release.** It now covers the physical network. After the ticket comes the switch panel with ports coloured by VLAN, then a port opened in the port editor, then the cable traced from switch port to desk. In the dark section, after the rack, it shows the patch panel's front-to-rear mapping and the connectivity diagram. The animated GIF is regenerated from the highlight cut (960×540, 45 seconds at 1.6× speed), and the poster, transcript and captions are regenerated too. The README text describes the new content.
+- `scripts/capture_walkthrough.py` writes the GIF itself, so it can be rebuilt with one command. It can also click an element in a scene (used for the port editor), switches to the Client XYZ hardware demo per scene, and finds the theme toggle in the current navbar, which had broken the light-to-dark switch.
+
 ## [3.17.635] - 2026-11-07
 
 ### Fixed

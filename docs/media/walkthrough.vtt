@@ -33,81 +33,101 @@ Internal notes stay internal. Client-visible replies are kept visibly separate.
 The credentials this job needs, by title and username only. Secrets are never rendered here.
 
 9
-00:00:55.700 --> 00:01:01.700
-The runbook lives beside the work, linked from the ticket that needed it.
+00:00:55.700 --> 00:01:01.200
+The physical network, drawn. A switch rendered from its manufacturer layout, every port coloured by VLAN.
 
 10
-00:01:01.700 --> 00:01:06.700
-Per-client documentation and a shared knowledge base, searchable across titles and body text.
+00:01:01.200 --> 00:01:06.700
+Document a port in place. Click it on the artwork: mode, VLANs, PoE and the cable to the patch panel.
 
 11
-00:01:06.700 --> 00:01:12.700
-Light or dark, per person. Twelve themes ship, and every screen honours the one you pick.
+00:01:06.700 --> 00:01:11.700
+Trace the cable from switch port to desk, through the patch panel and the wall jack.
 
 12
-00:01:12.700 --> 00:01:20.500
-The asset record: identity, network, OS, hardware, rack position, warranty and lifecycle.
+00:01:11.700 --> 00:01:17.700
+The runbook lives beside the work, linked from the ticket that needed it.
 
 13
-00:01:20.500 --> 00:01:24.500
-Lifecycle and warranty dates mean the refresh conversation happens before the hardware fails.
+00:01:17.700 --> 00:01:22.700
+Per-client documentation and a shared knowledge base, searchable across titles and body text.
 
 14
-00:01:24.500 --> 00:01:31.000
-What is physically in the comms room — every device at its U position, linked to its asset record.
+00:01:22.700 --> 00:01:28.700
+Light or dark, per person. Twelve themes ship, and every screen honours the one you pick.
 
 15
-00:01:31.000 --> 00:01:36.500
-Address space per client: subnets with VLAN, gateway and DNS, and which addresses are free.
+00:01:28.700 --> 00:01:36.500
+The asset record: identity, network, OS, hardware, rack position, warranty and lifecycle.
 
 16
-00:01:36.500 --> 00:01:42.500
-The vault: AES-GCM encrypted at rest, per-entry access rules, audited reveals.
+00:01:36.500 --> 00:01:40.500
+Lifecycle and warranty dates mean the refresh conversation happens before the hardware fails.
 
 17
-00:01:42.500 --> 00:01:49.000
-Dispatch the week. Drag a ticket onto a technician's row; SLA risk surfaces at the top.
+00:01:40.500 --> 00:01:47.000
+What is physically in the comms room — every device at its U position, linked to its asset record.
 
 18
-00:01:49.000 --> 00:01:54.500
-Recurring maintenance runs on its own schedule, with per-task sign-off.
+00:01:47.000 --> 00:01:52.500
+Front-to-rear port mapping. Each panel port: what it is patched from, the permanent link behind it, and where it ends.
 
 19
-00:01:54.500 --> 00:02:02.800
-Projects with real dependencies. Drag a bar to reschedule; blocked work says so, and by what.
+00:01:52.500 --> 00:01:57.500
+Diagrams drawn from the records — connectivity and VLANs, never hand-drawn and never stale.
 
 20
-00:02:02.800 --> 00:02:06.800
-The dependency table underneath is where the blocking relationships are edited.
+00:01:57.500 --> 00:02:03.000
+Address space per client: subnets with VLAN, gateway and DNS, and which addresses are free.
 
 21
-00:02:06.800 --> 00:02:11.800
-Back to light for the commercial side. Draft, sent and accepted quotes across every client.
+00:02:03.000 --> 00:02:09.000
+The vault: AES-GCM encrypted at rest, per-entry access rules, audited reveals.
 
 22
-00:02:11.800 --> 00:02:18.300
-Quote to signature: a PDF, an email, and a signing link the customer uses without an account.
+00:02:09.000 --> 00:02:15.500
+Dispatch the week. Drag a ticket onto a technician's row; SLA risk surfaces at the top.
 
 23
-00:02:18.300 --> 00:02:24.800
-Every invoice line carries its origin, so a billing query is answerable without reconstructing it.
+00:02:15.500 --> 00:02:21.000
+Recurring maintenance runs on its own schedule, with per-task sign-off.
 
 24
-00:02:24.800 --> 00:02:30.300
-Agreements track themselves: block hours with rollover, auto-renewal, and a profitability snapshot.
+00:02:21.000 --> 00:02:29.300
+Projects with real dependencies. Drag a bar to reschedule; blocked work says so, and by what.
 
 25
-00:02:30.300 --> 00:02:36.800
-Revenue against cost of delivery, per client, drawn from logged time and issued invoices.
+00:02:29.300 --> 00:02:33.300
+The dependency table underneath is where the blocking relationships are edited.
 
 26
-00:02:36.800 --> 00:02:42.800
-Client health combines SLA performance, ticket velocity, billing aging and engagement.
+00:02:33.300 --> 00:02:38.300
+Back to light for the commercial side. Draft, sent and accepted quotes across every client.
 
 27
-00:02:42.800 --> 00:02:48.800
-And the whole book of business: every tenant, every site, on one page.
+00:02:38.300 --> 00:02:44.800
+Quote to signature: a PDF, an email, and a signing link the customer uses without an account.
 
 28
-00:02:48.800 --> 00:02:54.300
+00:02:44.800 --> 00:02:51.300
+Every invoice line carries its origin, so a billing query is answerable without reconstructing it.
+
+29
+00:02:51.300 --> 00:02:56.800
+Agreements track themselves: block hours with rollover, auto-renewal, and a profitability snapshot.
+
+30
+00:02:56.800 --> 00:03:03.300
+Revenue against cost of delivery, per client, drawn from logged time and issued invoices.
+
+31
+00:03:03.300 --> 00:03:09.300
+Client health combines SLA performance, ticket velocity, billing aging and engagement.
+
+32
+00:03:09.300 --> 00:03:15.300
+And the whole book of business: every tenant, every site, on one page.
+
+33
+00:03:15.300 --> 00:03:20.800
 Modules are opt-in. The service desk, AI assistance and the rest stay off until you turn them on.

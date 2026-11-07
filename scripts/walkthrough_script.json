@@ -74,6 +74,31 @@
     "poster_frame": true
   },
   {
+    "route": "/hardware/devices/1/",
+    "org": "xyz",
+    "theme": "light",
+    "hold": 5.5,
+    "caption_html": "<b>The physical network, drawn.</b> A switch rendered from its manufacturer layout, every port coloured by VLAN.",
+    "caption_text": "The physical network, drawn. A switch rendered from its manufacturer layout, every port coloured by VLAN."
+  },
+  {
+    "route": "/hardware/devices/1/",
+    "org": "xyz",
+    "theme": "light",
+    "click": ".hw-port[data-name=\"1/e12\"]",
+    "hold": 5.5,
+    "caption_html": "<b>Document a port in place.</b> Click it on the artwork: mode, VLANs, PoE and the cable to the patch panel.",
+    "caption_text": "Document a port in place. Click it on the artwork: mode, VLANs, PoE and the cable to the patch panel."
+  },
+  {
+    "route": "/hardware/ports/12/trace/",
+    "org": "xyz",
+    "theme": "light",
+    "hold": 5.0,
+    "caption_html": "<b>Trace the cable</b> from switch port to desk, through the patch panel and the wall jack.",
+    "caption_text": "Trace the cable from switch port to desk, through the patch panel and the wall jack."
+  },
+  {
     "route": "/docs/runbook-warehouse-scanner-onboarding/",
     "org": "client",
     "theme": "light",
@@ -122,6 +147,22 @@
     "hold": 6.5,
     "caption_html": "<b>What is physically in the comms room</b> \u2014 every device at its U position, linked back to its asset record.",
     "caption_text": "What is physically in the comms room \u2014 every device at its U position, linked to its asset record."
+  },
+  {
+    "route": "/hardware/devices/2/patch-panel/?used=1",
+    "org": "xyz",
+    "theme": "dark",
+    "hold": 5.5,
+    "caption_html": "<b>Front-to-rear port mapping.</b> Each panel port: what it is patched from, the permanent link behind it, and where it ends.",
+    "caption_text": "Front-to-rear port mapping. Each panel port: what it is patched from, the permanent link behind it, and where it ends."
+  },
+  {
+    "route": "/hardware/diagrams/connectivity/",
+    "org": "xyz",
+    "theme": "dark",
+    "hold": 5.0,
+    "caption_html": "<b>Diagrams drawn from the records</b> \u2014 connectivity and VLANs, never hand-drawn and never stale.",
+    "caption_text": "Diagrams drawn from the records \u2014 connectivity and VLANs, never hand-drawn and never stale."
   },
   {
     "route": "/monitoring/ipam/",

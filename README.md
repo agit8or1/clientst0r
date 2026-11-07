@@ -21,15 +21,16 @@ Keep customer documentation, assets, credentials and support workflows on your o
 
 ## Watch it work
 
-[![Walkthrough video: a technician moves from the client dashboard into the queue, opens a ticket carrying its contract and credentials, reads the runbook behind it, and finishes on what the month earned](docs/images/github/walkthrough-poster.png)](docs/images/github/walkthrough.gif)
+[![Walkthrough video: a technician moves from the client dashboard into the queue, opens a ticket carrying its contract and credentials, documents a switch port on the panel artwork and traces its cable, then reads the runbook behind the ticket](docs/images/github/walkthrough-poster.png)](docs/images/github/walkthrough.gif)
 
 **[▶ Watch the full 3-minute walkthrough (MP4, 4.5 MB)](https://github.com/agit8or1/clientst0r/releases/download/v3.17.558/clientst0r-walkthrough.mp4)**
 — or the [56-second highlight](https://github.com/agit8or1/clientst0r/releases/download/v3.17.558/clientst0r-walkthrough-highlight.mp4).
-The animation above is a 34-second excerpt.
+The animation above is a 45-second excerpt, played at 1.6× speed.
 
-It runs through three end-to-end workflows — a ticket from queue to runbook, the week
-scheduled on the dispatch board and a project plan, and quote to invoice to profitability
-— with a deliberate light-to-dark transition partway. It is caption-led; there is no
+It runs through four end-to-end workflows — a ticket from queue to runbook, the physical
+network from switch port to desk and patch-panel mapping, the week scheduled on the
+dispatch board and a project plan, and quote to invoice to profitability — with a
+deliberate light-to-dark transition partway. It is caption-led; there is no
 narration track. [Transcript](docs/media/walkthrough.txt) ·
 [captions](docs/media/walkthrough.vtt) · regenerate it, or the screenshots, with
 [`scripts/demo/`](scripts/demo/README.md).

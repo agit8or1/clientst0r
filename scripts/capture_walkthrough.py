@@ -6,6 +6,7 @@ Produces, into --out:
     walkthrough.mp4        3-5 minute caption-led tour, 1920x1080 @ 30 fps, H.264
     walkthrough-short.mp4  30-60 second highlight cut
     walkthrough-poster.png poster frame for the README
+    walkthrough.gif        960x540 animation of the highlight cut, sped up, for the README
     walkthrough.vtt        WebVTT captions matching the on-screen text
     walkthrough.txt        plain transcript / narration-ready script
 
@@ -206,6 +207,8 @@ def main() -> int:
 
     sess_client = session_for('demo.tech', 'Northwind Logistics')
     sess_msp = session_for('demo.tech', 'Beacon Managed IT')
+    sess_xyz = session_for('demo.tech', 'Client XYZ')  # the hardware demo
+    sessions = {'client': sess_client, 'msp': sess_msp, 'xyz': sess_xyz}
 
     script_path = pathlib.Path(__file__).resolve().parent / 'walkthrough_script.json'
     beats = json.loads(script_path.read_text())
@@ -237,7 +240,7 @@ def main() -> int:
             is_dark = cur in ('dark', 'dracula', 'monokai', 'nord')
             if (want == 'dark') == is_dark:
                 return
-            page.evaluate("document.querySelector('button[onclick^=\"toggleTheme\"]')?.click()")
+            page.locator('[data-action="toggleTheme"], button[onclick^="toggleTheme"]').first.click()
             page.wait_for_timeout(1800)
             page.add_style_tag(content=HIDE)
             page.add_style_tag(content=CAPTION_CSS)
@@ -252,18 +255,17 @@ def main() -> int:
                 rec.card(beat['title'], beat['subtitle'], beat.get('url', ''),
                          beat.get('secs', 3.0))
                 continue
-            if beat.get('org') == 'msp':
+            if beat.get('org') in sessions:
                 ctx.clear_cookies()
-                ctx.add_cookies([{'name': settings.SESSION_COOKIE_NAME, 'value': sess_msp,
-                                  'domain': '127.0.0.1', 'path': '/'}])
-            elif beat.get('org') == 'client':
-                ctx.clear_cookies()
-                ctx.add_cookies([{'name': settings.SESSION_COOKIE_NAME, 'value': sess_client,
+                ctx.add_cookies([{'name': settings.SESSION_COOKIE_NAME, 'value': sessions[beat['org']],
                                   'domain': '127.0.0.1', 'path': '/'}])
 
             visit(beat['route'], beat.get('wait_for_text'))
             if beat.get('theme'):
                 set_theme(beat['theme'])
+            if beat.get('click'):
+                page.locator(beat['click']).first.click()
+                page.wait_for_timeout(beat.get('wait_ms', 1500))
             if beat.get('highlight_start'):
                 highlight_range.append(rec.n)
             if beat.get('poster_frame'):
@@ -293,6 +295,12 @@ def main() -> int:
         start, end = highlight_range[0], highlight_range[1]
         encode(ffmpeg, frames, out / 'walkthrough-short.mp4',
                start_frame=start, frame_count=end - start)
+        # GitHub plays a GIF inline but only links a repo video, so the README
+        # gets the highlight as a GIF: 1.6x speed, 10 fps, 960 wide.
+        subprocess.run([ffmpeg, '-y', '-i', str(out / 'walkthrough-short.mp4'), '-vf',
+                        'setpts=PTS/1.6,fps=10,scale=960:-1:flags=lanczos,split[a][b];'
+                        '[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=4',
+                        '-loop', '0', str(out / 'walkthrough.gif')], check=True, capture_output=True)
     write_captions(rec.captions, out / 'walkthrough.vtt')
     (out / 'walkthrough.txt').write_text(
         'ClientSt0r walkthrough — transcript\n'
