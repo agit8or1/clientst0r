@@ -7,6 +7,10 @@ path through patch panels and wall jacks, and print labels.
 Open it from **Assets → Hardware & Ports** (`/hardware/`). Select a client
 first; every inventory page works on the selected client only.
 
+[![Device page for a Dell PowerConnect 3448P switch with front and rear panel artwork, ports coloured by VLAN and the port table](images/github/hardware-device-light.png)](images/github/hardware-device-light.png)
+
+More views: [screenshot gallery → Hardware and cabling](screenshots.md#hardware-and-cabling).
+
 ## Daily workflow
 
 1. **Assets → Hardware & Ports → Add device.** Search the catalog by
@@ -26,12 +30,16 @@ first; every inventory page works on the selected client only.
    switch port → patch cable → panel front → panel rear → permanent link →
    wall jack → patch cable → endpoint — and names any gap.
 
+[![Cable trace from switch port 12 through patch panel PP-01 and wall jack Office 104 A to workstation XYZ-WS-104](images/github/hardware-trace-light.png)](images/github/hardware-trace-light.png)
+
 Overlays (VLANs, connected/unconnected, PoE, documented usage) always carry a
 legend and a text mark, never colour alone. A documented cable is shown as
 documentation, never as link state; *operational state* stays "Not observed"
 unless an import supplies an observation with its source.
 
 ## Catalog
+
+[![Hardware catalog with model cards, panel thumbnails and filters for manufacturer, kind, category and layout accuracy](images/github/hardware-catalog-light.png)](images/github/hardware-catalog-light.png)
 
 **Assets → Hardware Catalog** (`/hardware/catalog/`) is shared by every
 client. It holds manufacturers and device, module and rack models with their
@@ -79,6 +87,13 @@ python manage.py render_hardware_artwork
   matches ports by key (renames keep the port id, cable and settings), adds new
   components and keeps ports removed upstream.
 
+**On SQLite, run a full import outside working hours.** The first import
+writes about 16,500 models in about seven minutes. While each batch holds the
+database write lock, other writes, including saving a sign-in session, can
+time out. Users then get a plain *Bad Request (400)* until the import finishes.
+Later imports only touch changed files. MariaDB/MySQL installs are not
+affected.
+
 Import history: **Catalog → Imports**. Coverage by manufacturer and category:
 **Catalog → Coverage report**. Coverage is a goal, not a claim that every
 model exists.
@@ -114,12 +129,21 @@ A correct port count does not make an arrangement verified. Accuracy is stored
 per face, and specification provenance (where the component list comes from)
 is recorded separately from layout provenance.
 
+[![Catalog model page for the PowerConnect 3448P with artwork, components and a source and provenance panel](images/github/hardware-model-dark.png)](images/github/hardware-model-dark.png)
+
 The **layout editor** (catalog administrators) places, numbers, rotates and
 arranges components, moves them between faces, previews the exact artwork and
 saves a new layout version. Marking a face verified requires the source
 document.
 
 ## Racks, diagrams and labels
+
+<table>
+<tr>
+<td width="50%" valign="top"><a href="images/github/hardware-rack-dark.png"><img src="images/github/hardware-rack-dark.png" alt="Rack elevation, front and rear, drawn from catalog artwork"></a></td>
+<td width="50%" valign="top"><a href="images/github/hardware-connectivity-dark.png"><img src="images/github/hardware-connectivity-dark.png" alt="Connectivity diagram drawn from documented cables, with undocumented continuations flagged"></a></td>
+</tr>
+</table>
 
 * **Rack elevations** (`/hardware/racks/<id>/`): front and rear, drawn from
   catalog artwork; full-depth devices occupy both faces, a half-depth device

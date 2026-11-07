@@ -1,5 +1,9 @@
 /* Hardware catalog & visual inventory */
 .hw-subnav .nav-link { padding: .35rem .7rem; font-size: .9rem; }
+/* The global .nav-link colour is the navbar's (white); the sub-nav sits on the page. */
+.hw-subnav .nav-link:not(.active) { color: var(--bs-body-color) !important; }
+.hw-subnav .nav-link:not(.active):hover { color: var(--bs-link-color) !important; opacity: 1; }
+.hw-rack-name { fill: var(--bs-body-color); }
 .hw-art-wrap {
   background: radial-gradient(ellipse at top, #3a4048 0%, #22262b 70%);
   border-radius: .5rem; padding: 18px 14px; overflow: auto; position: relative;

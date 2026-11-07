@@ -221,6 +221,12 @@ main .form-select:not(.form-select-sm):not(.form-select-lg) {
     border-color: var(--ui-border);
 }
 
+/* Room for the select arrow: the shorthand padding above and in custom.css
+   would otherwise run the selected text underneath it. */
+.form-select,
+main .form-select:not(.form-select-sm):not(.form-select-lg) { padding-right: 2.25rem; }
+.form-select.form-select-sm { padding-right: 2rem; }
+
 main textarea.form-control {
     padding: var(--ui-2) var(--ui-3);
     font-size: var(--ui-text);

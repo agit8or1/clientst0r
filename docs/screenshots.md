@@ -1,6 +1,6 @@
 # ClientSt0r — screenshot gallery
 
-40 views of the running application — 22 in the light theme, 18 in dark. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
+50 views of the running application — 27 in the light theme, 23 in dark. Every one is a capture of ClientSt0r against an isolated demo database; no mockups, no composites.
 
 All organizations, people, hostnames, addresses and credentials below are invented. Domains use the reserved `.example` TLD and addresses are RFC 1918. Nothing is masked after the fact because nothing needed masking — the application never renders a secret into a list, a ticket or a report.
 
@@ -12,6 +12,7 @@ All organizations, people, hostnames, addresses and credentials below are invent
 
 - [Overview and dashboards](#overview-and-dashboards) — 4 views
 - [Visual insights and monitoring](#visual-insights-and-monitoring) — 15 views
+- [Hardware and cabling](#hardware-and-cabling) — 10 views
 - [Everyday workflows](#everyday-workflows) — 14 views
 - [Management and configuration](#management-and-configuration) — 3 views
 - [Access and administration](#access-and-administration) — 4 views
@@ -179,6 +180,92 @@ Everything unmet across customers in one list, filterable by customer, standard 
 [![KB analytics page in light theme with most viewed, past review date and never viewed tables and a list of top zero-result searches](images/github/kb-analytics-light.png)](images/github/kb-analytics-light.png)
 
 Most viewed and never viewed articles, articles past their review date with their owner, and searches that found nothing. Only zero-result searches are kept, for 90 days, and vault searches are never recorded.
+
+---
+
+## Hardware and cabling
+
+Each client's physical network as panel artwork, cables, racks, diagrams and labels.
+
+### A switch and its ports
+
+**Light theme**
+
+[![Device page in light theme for a 48-port Dell PowerConnect 3448P switch: front and rear panel artwork with ports coloured by VLAN, a verified-front and approximate-rear badge, a VLAN legend and the port table below](images/github/hardware-device-light.png)](images/github/hardware-device-light.png)
+
+A Dell PowerConnect 3448P drawn from its catalog layout, front and rear, with the VLAN overlay on. Click a port to document it; badges say which face was checked against the manufacturer's documentation and which is approximate.
+
+### Full cable trace
+
+**Light theme**
+
+[![Cable trace in light theme from switch port 12 through a patch panel, a 34.5 m permanent link and wall jack Office 104 A to workstation XYZ-WS-104, marked complete documented path](images/github/hardware-trace-light.png)](images/github/hardware-trace-light.png)
+
+From one switch port to the workstation it serves: patch cable, panel front and rear, the permanent link in the wall, the jack and the last patch cable, with each cable's ID, type, colour and length.
+
+### Rack from catalog artwork
+
+**Dark theme**
+
+[![Rack elevation in dark theme with a patch panel, switch and firewall shown on the front and rear faces, the half-depth firewall outlined on the rear, and SVG, PNG and PDF export links](images/github/hardware-rack-dark.png)](images/github/hardware-rack-dark.png)
+
+Front and rear of a rack, drawn from each model's artwork at its U position. A half-depth device mounted at the front is outlined on the rear. Each face exports to SVG, PNG or PDF.
+
+### Connectivity diagram
+
+**Dark theme**
+
+[![Physical connectivity diagram in dark theme: firewall, switch, patch panel, server, wall jacks, access point and workstation joined by labelled cables, two nodes flagged with undocumented continuations](images/github/hardware-connectivity-dark.png)](images/github/hardware-connectivity-dark.png)
+
+Drawn only from documented cables. Edges are labelled with the ports at each end, and a device whose path continues without a documented cable is outlined in red. Drag to arrange, save the layout, export it.
+
+### VLAN diagram
+
+**Light theme**
+
+[![VLAN diagram in light theme linking VLANs 10 Staff, 20 Voice, 30 Guest and 99 Management to a firewall, switch, access point and workstation, with untagged, tagged and voice port counts](images/github/hardware-vlan-light.png)](images/github/hardware-vlan-light.png)
+
+Which devices carry which VLANs, from the port configuration: solid lines for native or untagged, dashed for tagged or voice, with untagged/tagged/voice port counts on each line.
+
+### A catalog model and its sources
+
+**Dark theme**
+
+[![Catalog model page in dark theme for the Dell PowerConnect 3448P with front and rear artwork, a component table and a source and provenance panel quoting the manufacturer's guide](images/github/hardware-model-dark.png)](images/github/hardware-model-dark.png)
+
+Every model shows its artwork, its components and where they came from. This switch was entered from Dell's user guide: the page cites the pages used and says what the guide does not state.
+
+### Hardware catalog
+
+**Light theme**
+
+[![Hardware catalog in light theme showing 16,526 models as cards with panel thumbnails, inferred categories and approximate-layout badges, with manufacturer, kind, category and accuracy filters](images/github/hardware-catalog-light.png)](images/github/hardware-catalog-light.png)
+
+About 16,500 device, module and rack models imported from the community device-type library at a pinned revision, each with generated artwork. Filter by manufacturer, kind, category or layout accuracy.
+
+### Layout editor
+
+**Dark theme**
+
+[![Layout editor in dark theme for the PowerConnect 3448P front face, 48 ports in blocks of six, with arrange, numbering and label-position controls and a source document field](images/github/hardware-layout-editor-dark.png)](images/github/hardware-layout-editor-dark.png)
+
+Place, number and arrange a model's components in millimetres and save a new layout version. A face can only be marked verified with the document it was checked against.
+
+### Labels
+
+**Light theme**
+
+[![Label page in light theme with label kind, a 38 × 19 mm cable-flag template, a list of cables to label and a print calibration link](images/github/hardware-labels-light.png)](images/github/hardware-labels-light.png)
+
+Device, rack, port, panel, wall-jack and cable labels from millimetre templates, printed at true size. Cable labels come in pairs, each end naming where the other goes, and a calibration page checks the printer.
+
+### A server with a module
+
+**Dark theme**
+
+[![Device page in dark theme for a Dell PowerEdge R640 with rear artwork showing an installed two-port SFP NIC, approximate-layout badges and a port table including the module ports](images/github/hardware-server-dark.png)](images/github/hardware-server-dark.png)
+
+A Dell PowerEdge R640 from the community library, with a two-port 10 GbE NIC installed in a PCIe bay. The module's ports join the device's port list and can be cabled like any other.
 
 ---
 

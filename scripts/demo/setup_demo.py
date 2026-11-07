@@ -59,4 +59,10 @@ for step in (seed_demo.seed_my_work, seed_demo.seed_document_lifecycle,
              seed_demo.seed_scheduler_history):
     print(step.__name__)
     step()
+# Hardware inventory: the device-type catalog, then the "Client XYZ" demo built
+# from it. HARDWARE_CATALOG_SOURCE reuses an existing devicetype-library
+# checkout instead of cloning one.
+catalog_source = os.environ.get('HARDWARE_CATALOG_SOURCE')
+call_command('import_hardware_catalog', verbosity=0, **({'source_dir': catalog_source} if catalog_source else {}))
+call_command('seed_hardware_demo')
 print(f"demo instance ready: {db['NAME']}")

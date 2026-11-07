@@ -143,7 +143,7 @@ def ensure_theme(page, base: str, want: str) -> None:
     if current_theme(page) == want:
         return
     page.evaluate("""() => {
-        const btn = document.querySelector('button[onclick^="toggleTheme"]');
+        const btn = document.querySelector('[data-action="toggleTheme"], button[onclick^="toggleTheme"]');
         if (btn) { btn.click(); return true; }
         return false;
     }""")

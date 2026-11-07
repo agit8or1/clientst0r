@@ -1701,6 +1701,12 @@ inventory. Documentation only — nothing is pushed to devices.
 - **55.7 Search, CSV and API** — search by model, hostname, serial, asset tag,
   IP, cable ID and port text; validated CSV import with preview and CSV export;
   read-only REST endpoints. *(shipped v3.17.630)*
+- **55.8 Documentation and demo media** — feature list, guide and seeding
+  notes; ten light/dark screenshots of the hardware screens, taken from the
+  isolated demo instance, which now loads the catalog and the Client XYZ demo.
+  Fixes found while capturing them: VLAN-diagram thumbnails, the sub-nav in the
+  light theme, laptops and desktops inferred as access points.
+  *(shipped v3.17.632)*
 
 ## Sizing
 

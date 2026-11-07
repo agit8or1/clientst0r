@@ -379,6 +379,14 @@ _KW = [
 ]
 _KW = [(c, re.compile(p, re.I)) for c, p in _KW]
 
+# Endpoint product lines, matched on the model name only ("desktop" in a
+# description also describes desktop firewalls). Checked before the radio
+# rule so a laptop's Wi-Fi does not make it an access point; mounting kits
+# named after the computer they hold are not the computer.
+_ENDPOINT = re.compile(r'\b(laptop|notebook|latitude|optiplex|vostro|inspiron|thinkpad|thinkcentre|thinkstation|'
+                       r'ideapad|elitebook|elitedesk|prodesk|probook|zbook|macbook|imac|mac mini|mac studio)\b', re.I)
+_MOUNT = re.compile(r'\b(mount|bracket|shelf|kit|tray|holder)\b|rackify', re.I)
+
 _MODULE_PROFILE = {'power supply': 'psu', 'expansion card': 'nic', 'fan': 'fan', 'transceiver': 'transceiver',
                    'cpu': 'module_other', 'memory': 'module_other', 'hard disk': 'drive', 'gpu': 'nic'}
 
@@ -421,6 +429,8 @@ def infer_category(p: ParsedModel) -> str:
     vendor = p.manufacturer.lower()
     vendor = _VENDOR_ALIASES.get(vendor, vendor)
     model_text = f'{p.model} {p.fields.get("part_number", "")}'.strip()
+    if _ENDPOINT.search(p.model) and not _MOUNT.search(f'{p.manufacturer} {p.model}'):
+        return 'workstation'
     for cat, rx in _VENDOR_RULES.get(vendor, ()):
         if rx.search(model_text) or rx.search(p.model):
             if cat in ('ups', 'pdu') and not by_cls[C.CLASS_POWER_OUTLET]:
@@ -726,4 +736,9 @@ def recategorize(stdout=None):
         if cat != hm.category:
             moves[f'{hm.category}→{cat}'] += 1
             HardwareModel.objects.filter(pk=hm.pk).update(category=cat)
+            # The automatic layout (and so the artwork) depends on the category,
+            # e.g. an access point is drawn from the top. Hand-made layouts stay.
+            from .layout import refresh_auto_layout
+            hm.category = cat
+            refresh_auto_layout(hm)
     return moves

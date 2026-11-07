@@ -52,6 +52,12 @@ through guided portal forms that route, ask for approval and track progress in p
 language. Your ticket history and your client data stay in your database, on
 your hardware, under your backup policy.
 
+**The physical network, drawn.** Pick a model from a catalog of about 16,500 device, module
+and rack types, and each client device gets its front and rear panel as artwork. Click a port
+to record its VLANs, PoE and cable, trace a path through patch panels and wall jacks, and
+print true-size labels with QR codes. Racks and diagrams are drawn only from what has been
+documented, and every layout says whether it was checked against the manufacturer's documentation.
+
 **One tenant per client, from day one.** Every asset, document, credential, location and
 ticket belongs to an organization. Technicians switch client context in one click;
 role-based membership decides who sees what. Multi-site clients, parent/child
@@ -83,6 +89,16 @@ apart from client replies, and the credentials the job needs, listed but never r
 <td width="50%" valign="top">
 <a href="docs/images/github/project-timeline-light.png"><img src="docs/images/github/project-timeline-light.png" alt="Project timeline in light theme: a Gantt chart of seven tasks with milestones marked"></a>
 <b>Projects with dependencies</b> · Light<br>Drag a bar to reschedule; blocked work is flagged.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<a href="docs/images/github/hardware-device-light.png"><img src="docs/images/github/hardware-device-light.png" alt="Device page in light theme for a 48-port Dell PowerConnect 3448P switch with front and rear panel artwork and ports coloured by VLAN"></a>
+<b>Every port, on the panel</b> · Light<br>Click a port to document its VLANs, PoE and cable.
+</td>
+<td width="50%" valign="top">
+<a href="docs/images/github/hardware-trace-light.png"><img src="docs/images/github/hardware-trace-light.png" alt="Cable trace in light theme from a switch port through a patch panel and wall jack to a workstation"></a>
+<b>Trace the cable</b> · Light<br>Switch port to desk, through panel and wall jack.
 </td>
 </tr>
 <tr>
@@ -227,6 +243,7 @@ rather than a public issue. Full policy and response timelines: [SECURITY.md](SE
 | [Docker](docs/docker.md) | Compose layout, profiles, backups, upgrades |
 | [Features](FEATURES.md) | Full capability list by area |
 | [Screenshots](docs/screenshots.md) | Complete visual tour |
+| [Hardware inventory](docs/HARDWARE_INVENTORY.md) | Device catalog, panel artwork, ports, cables, racks, diagrams, labels |
 | [Roadmap](docs/ROADMAP.md) | Shipped, in progress and planned phases |
 | [Changelog](CHANGELOG.md) | Release history |
 | [Integrations](docs/INTEGRATION_SETUP_GUIDE.md) | Connecting PSA, RMM, M365, accounting and distributors |

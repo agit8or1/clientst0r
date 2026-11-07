@@ -259,6 +259,16 @@ class VlanTests(Fixture):
         sw.save()
         S.update_port(self.port(sw, 'p1'), {'mode': 'access', 'untagged_vlan': v})
 
+    def test_vlan_diagram_device_nodes_carry_artwork(self):
+        # v3.17.632: device nodes lacked 'thumb', so the page requested ".../undefined".
+        from hardware.diagrams import vlan_data
+        v = VLAN.objects.create(organization=self.org, vlan_id=10, name='Staff')
+        sw = self.dev(self.switch, 'sw')
+        S.update_port(self.port(sw, 'p1'), {'mode': 'access', 'untagged_vlan': v})
+        devices = [n for n in vlan_data(self.org)['nodes'] if n['kind'] == 'device']
+        self.assertEqual(len(devices), 1)
+        self.assertTrue(devices[0]['thumb'].startswith(f'/hardware/catalog/models/{self.switch.pk}/art/front.svg'))
+
 
 class ModuleTests(Fixture):
     def test_install_and_remove_module(self):
@@ -329,6 +339,45 @@ class ArtworkAlignmentTests(Fixture):
 
 
 class ImportTests(TestCase):
+    def test_laptop_with_wifi_is_not_an_access_point(self):
+        # v3.17.632: a Dell Latitude (one NIC + Wi-Fi radio) was inferred as an access point.
+        from hardware.catalog_import import ParsedModel, infer_category
+        radio = {'component_class': 'wireless', 'connector': '', 'mgmt_only': False}
+        nic = {'component_class': 'interface', 'connector': 'rj45', 'mgmt_only': False}
+        laptop = ParsedModel(kind='device', manufacturer='Dell', model='Latitude 5540', slug='dell-latitude-5540',
+                             fields={}, components=[nic, radio])
+        self.assertEqual(infer_category(laptop), 'workstation')
+        ap = ParsedModel(kind='device', manufacturer='Acme', model='Air-1', slug='acme-air-1', fields={},
+                         components=[nic, radio])
+        self.assertEqual(infer_category(ap), 'access_point')
+
+    def test_recategorize_redraws_the_automatic_layout(self):
+        from hardware.catalog_import import recategorize
+        from hardware.layout import get_layout
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / 'device-types' / 'Dell').mkdir(parents=True)
+            (root / 'device-types' / 'Dell' / 'latitude-9.yaml').write_text(textwrap.dedent('''
+                manufacturer: Dell
+                model: Latitude 9
+                slug: dell-latitude-9
+                interfaces:
+                  - name: eth0
+                    type: 1000base-t
+                  - name: wlan0
+                    type: ieee802.11ax
+            '''))
+            self.run_job(root)
+        hm = HardwareModel.objects.get(slug='dell-latitude-9')
+        self.assertEqual(hm.category, 'workstation')
+        HardwareModel.objects.filter(pk=hm.pk).update(category='access_point')   # as an older rule had it
+        hm.refresh_from_db()
+        get_layout(hm)
+        self.assertIn('top', get_layout(hm).faces)
+        self.assertEqual(recategorize(), {'access_point→workstation': 1})
+        hm.refresh_from_db()
+        self.assertNotIn('top', get_layout(hm).faces)
+
     def _lib(self, root, extra=''):
         (root / 'device-types' / 'Acme').mkdir(parents=True, exist_ok=True)
         (root / 'module-types' / 'Acme').mkdir(parents=True, exist_ok=True)

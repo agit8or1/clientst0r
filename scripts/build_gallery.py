@@ -23,6 +23,8 @@ GROUPS = [
      'Where a technician starts the day, and where an owner looks at the whole book of business.'),
     ('insights',   'Visual insights and monitoring',
      'The views that answer a question at a glance — schedules, elevations, address space, margins.'),
+    ('hardware',   'Hardware and cabling',
+     'Each client\'s physical network as panel artwork, cables, racks, diagrams and labels.'),
     ('workflows',  'Everyday workflows',
      'Ticket to resolution, quote to invoice, and the documentation that hangs off both.'),
     ('management', 'Management and configuration',

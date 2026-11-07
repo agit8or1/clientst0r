@@ -119,7 +119,8 @@ def vlan_data(org, site_id=None):
                           'model': str(d.hardware_model), 'category': d.hardware_model.category,
                           'category_label': d.hardware_model.get_category_display(),
                           'rank': 1 + (CATEGORY_RANK.get(d.hardware_model.category, 4) // 2),
-                          'url': reverse('hardware:device_detail', args=[d.pk])})
+                          'url': reverse('hardware:device_detail', args=[d.pk]),
+                          'thumb': reverse('hardware:model_art', args=[d.hardware_model_id, 'front']) + '?v=thumb'})
     edges = []
     for (did, vid), r in rel.items():
         v = vlans.get(vid)
@@ -340,8 +341,10 @@ def rack_svg(rack, face='front', for_export=False, title_prefix=''):
                         f'text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" fill="#fff">'
                         f'{esc(rd.name)}{" (" + ("rear view" if not own_face else "no artwork") + ")" if hw else ""}'
                         f'</text></a>')
+        # On the page the name follows the theme (class), in exports it is dark on white.
+        name_fill = 'fill="#333"' if for_export else 'class="hw-rack-name"'
         body.append(f'<text x="{_f(W + 6)}" y="{_f(y + rd.units * U_MM / 2 + 3)}" font-size="8" '
-                    f'font-family="DejaVu Sans, Arial, sans-serif" fill="#333">{esc(rd.name)}</text>')
+                    f'font-family="DejaVu Sans, Arial, sans-serif" {name_fill}>{esc(rd.name)}</text>')
     inner_svg = (f'<defs>{"".join(defs)}</defs>{"".join(body)}')
     if not for_export:
         return (f'<svg xmlns="http://www.w3.org/2000/svg" class="hw-rack" viewBox="0 0 {_f(W + 140)} {_f(H)}" '

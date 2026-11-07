@@ -70,11 +70,11 @@
         return;
       }
       el('rect', {x: -W / 2, y: -H / 2, width: W, height: H, rx: 7, fill: 'var(--bs-body-bg)', stroke: n.undocumented ? '#c0392b' : 'var(--bs-secondary-color)', 'stroke-width': 1.3}, g);
-      el('image', {href: n.thumb, x: -W / 2 + 6, y: -H / 2 + 5, width: W - 12, height: 16, preserveAspectRatio: 'xMidYMid meet'}, g);
+      if (n.thumb) el('image', {href: n.thumb, x: -W / 2 + 6, y: -H / 2 + 5, width: W - 12, height: 16, preserveAspectRatio: 'xMidYMid meet'}, g);
       const t1 = el('text', {y: 9, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700, fill: 'var(--bs-body-color)'}, g);
-      t1.textContent = n.name.slice(0, 26);
+      t1.textContent = clip(n.name, 22);
       const t2 = el('text', {y: 22, 'text-anchor': 'middle', 'font-size': 9.5, fill: 'var(--bs-secondary-color)'}, g);
-      t2.textContent = (n.category_label + ' · ' + n.model).slice(0, 40);
+      t2.textContent = clip(n.category_label + ' · ' + n.model, 34);
       if (n.undocumented) {
         el('line', {x1: W / 2, y1: 0, x2: W / 2 + 36, y2: 0, stroke: '#c0392b', 'stroke-width': 1.5, 'stroke-dasharray': '4 3'}, g);
         const u = el('text', {x: W / 2 + 4, y: -6, 'font-size': 9, fill: '#c0392b'}, g);
@@ -83,6 +83,8 @@
     });
     legend();
   }
+  // Node boxes are W wide: longer text is cut with an ellipsis (the full text is in the tooltip).
+  function clip(text, max) { return text.length > max ? text.slice(0, max - 1) + '…' : text; }
   function label(g, x, y, text, title) {
     const w = 7 * text.length + 10;
     el('title', {}, g).textContent = title;

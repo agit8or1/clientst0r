@@ -27,6 +27,16 @@ This will:
 python manage.py seed_equipment_catalog
 ```
 
+#### Hardware catalog (device types, ports, panel artwork)
+```bash
+python manage.py import_hardware_catalog --preview   # report only
+python manage.py import_hardware_catalog             # about 16,500 models; several minutes
+python manage.py seed_hardware_demo                  # optional "Client XYZ" demo client
+```
+This is separate from the Equipment Catalog above. See
+[HARDWARE_INVENTORY.md](HARDWARE_INVENTORY.md#updating-the-catalog), including
+the note about running it on SQLite.
+
 #### KB Articles from GitHub (Recommended)
 ```bash
 python manage.py fetch_kb_from_github

@@ -5,6 +5,25 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.632] - 2026-11-07
+
+### Documentation
+- **Hardware screenshots.** The gallery has a new *Hardware and cabling* section with ten views, five light and five dark: switch and server pages, a full cable trace, a rack, the connectivity and VLAN diagrams, the catalog, a catalog model with its sources, the layout editor and labels. The README and `docs/HARDWARE_INVENTORY.md` now show some of them.
+- `FEATURES.md` has a *Hardware catalog and visual inventory* section. `docs/README.md` links the guide, and `docs/SEEDING_DATA.md` lists `import_hardware_catalog` and `seed_hardware_demo`.
+- The hardware guide now warns that on SQLite a first full import holds the database write lock for minutes, and sign-ins can fail with *Bad Request (400)* until it finishes. Run it outside working hours.
+- `scripts/demo/setup_demo.py` now imports the hardware catalog and seeds Client XYZ. `HARDWARE_CATALOG_SOURCE` points it at an existing checkout instead of cloning one.
+
+### Fixed
+- **VLAN diagram:** device nodes now show their panel thumbnail. Before, each one requested `…/diagrams/vlan/undefined` and got a 404.
+- **Hardware sub-navigation** (Devices, Cables, VLANs …) was white on white in the light theme. Only the active tab could be seen.
+- **Diagram node text** is cut with an ellipsis to fit its box instead of running past the edge. The full text is in the tooltip.
+- **Select boxes** app-wide keep room for their arrow. The global padding had run the selected text underneath it.
+- **Rack elevations:** device names beside the rack were dark grey on the dark theme. They now follow the theme; exports keep dark text on white.
+- **Catalog categories:** laptops and desktops (Latitude, OptiPlex, ThinkPad, ThinkCentre, EliteDesk, ProDesk, Mac mini …) with a Wi-Fi radio were inferred as wireless access points. They are now *Workstation / endpoint*. Mounting kits named after a computer are left alone. `import_hardware_catalog --recategorize` now also redraws the automatic layout of each model whose category changes.
+- `scripts/capture_screenshots.py` switches theme with the current toggle markup (`data-action="toggleTheme"`). Before, every dark capture silently came out light.
+
+**After updating:** run `python manage.py import_hardware_catalog --recategorize` once. It only touches models whose inferred category changes (about 20).
+
 ## [3.17.631] - 2026-11-07
 
 ### Fixed

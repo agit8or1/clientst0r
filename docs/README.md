@@ -16,6 +16,7 @@ Start at the [README](../README.md) for positioning, screenshots and install ste
 
 * [Feature list](../FEATURES.md)
 * [Screenshots](screenshots.md)
+* [Hardware catalog and visual inventory](HARDWARE_INVENTORY.md) — device artwork, ports, cables, racks, diagrams, labels
 * [FAQ](faq.md)
 * [Organizations and multi-tenancy](../ORGANIZATIONS.md)
 * [Multi-organization API access](api-multi-org.md)

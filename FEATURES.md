@@ -30,6 +30,7 @@ Contents:
 [Documentation](#documentation) ·
 [Monitoring](#monitoring) ·
 [Infrastructure](#infrastructure) ·
+[Hardware inventory](#hardware-catalog-and-visual-inventory) ·
 [Locations](#locations-and-navigation) ·
 [Service vehicles](#service-vehicles) ·
 [Workflows](#workflows-process-templates) ·
@@ -294,6 +295,23 @@ created from the customer portal are shared automatically).
 | Network closet board layout | Available | | Rack detail |
 | Patch panels | Available | | `/monitoring/patch-panels/` |
 | IPAM: subnets, VLANs, IP assignments | Available | IP statuses: available, assigned, reserved, DHCP. Optional link to an asset. Utilisation counts entered IPs. | `/monitoring/ipam/`, `/monitoring/vlans/` |
+
+---
+
+## Hardware catalog and visual inventory
+
+Guide: [docs/HARDWARE_INVENTORY.md](docs/HARDWARE_INVENTORY.md). This is documentation only: nothing is pushed to devices, and cables are recorded, not observed, so link state shows *Not observed*.
+
+| Capability | Status | Notes | Where |
+|---|---|---|---|
+| Device-type catalog | Available | Imported from the community devicetype-library (CC0) at a pinned revision: about 16,500 device, module and rack models from 470+ manufacturers. Each model records its upstream path, revision and file hash. Imports are resumable and have a preview mode and a coverage report. Categories are inferred and marked as such. | `/hardware/catalog/` |
+| Panel artwork | Available | Generated SVG front and rear panels, drawn in millimetres. Each face is marked *verified*, *approximate* or *generic*; only a person checking against manufacturer documentation can mark one verified. Also shown on Equipment Catalog model and asset pages. | Model and device pages |
+| Layout editor | Available | Catalog administrators place, number and rotate components and save a new layout version. | Catalog model → Layout editor |
+| Client devices and ports | Available | Click a port to document its description, label, mode, VLANs, PoE and cable. Ports can be bulk-edited and bulk-patched to a panel. Modules install into bays. | `/hardware/` |
+| Cable tracing | Available | Shows the full path through patch panels and wall jacks in both directions, and names any undocumented gap. | Port → Full trace |
+| Rack, connectivity and VLAN diagrams | Available | Built only from documented data, with saved layouts. Export to SVG, PNG or PDF. | `/hardware/racks/<id>/`, `/hardware/diagrams/` |
+| Labels | Available | Millimetre-accurate PDF labels with QR codes for devices, ports, panels, jacks and cables, plus a print calibration page. | `/hardware/labels/` |
+| CSV import / export, REST API | Available | CSV import validates and previews every row, then imports all-or-nothing. The REST API is read-only. | `/hardware/import/`, `/api/hardware/` |
 
 ---
 
