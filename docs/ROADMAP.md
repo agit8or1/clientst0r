@@ -1598,7 +1598,9 @@ are built on top of them.
   and Monokai used their button colour for link text, which fell to about 2:1
   on cards in Dark, and hover went darker. Those themes now have their own link
   colour, at least 4.5:1 on every page and card surface, lighter on hover; a
-  test checks the ratios.
+  test checks the ratios. The light themes followed *(shipped v3.17.635)*:
+  Sunset and Gruvbox were about 2.5:1, Solarized and Nord under 4.5:1; every
+  theme now passes, and the test covers all of them.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

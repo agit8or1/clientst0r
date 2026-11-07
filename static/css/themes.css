@@ -9,6 +9,9 @@
 [data-theme="default"] {
     --primary-color: #0d6efd;
     --primary-hover: #0b5ed7;
+    /* Link text, darker than the primary fill so it reads >= 4.5:1 on the page and cards. */
+    --link-color: #0b5ed7;
+    --link-hover: #0a58ca;
     --primary-light: #cfe2ff;
     --secondary-color: #6c757d;
     --success-color: #198754;
@@ -94,6 +97,9 @@
 [data-theme="green"] {
     --primary-color: #198754;
     --primary-hover: #157347;
+    /* Link text, darker than the primary fill so it reads >= 4.5:1 on the page and cards. */
+    --link-color: #157347;
+    --link-hover: #146c43;
     --primary-light: #d1e7dd;
     --secondary-color: #6c757d;
     --success-color: #28a745;
@@ -121,6 +127,9 @@
 [data-theme="ocean"] {
     --primary-color: #0077be;
     --primary-hover: #005a8f;
+    /* Link text, darker than the primary fill so it reads >= 4.5:1 on the page and cards. */
+    --link-color: #006aa9;
+    --link-hover: #005a8f;
     --primary-light: #cce7f5;
     --secondary-color: #6c757d;
     --success-color: #28a745;
@@ -148,6 +157,9 @@
 [data-theme="sunset"] {
     --primary-color: #fd7e14;
     --primary-hover: #d66a0f;
+    /* Link text, darker than the primary fill so it reads >= 4.5:1 on the page and cards. */
+    --link-color: #b8560a;
+    --link-hover: #9a4808;
     --primary-light: #ffe5cc;
     --secondary-color: #6c757d;
     --success-color: #28a745;
@@ -175,6 +187,9 @@
 [data-theme="nord"] {
     --primary-color: #5e81ac;
     --primary-hover: #4c6a8f;
+    /* Link text, darker than the primary fill so it reads >= 4.5:1 on the page and cards. */
+    --link-color: #4c6a8f;
+    --link-hover: #3b5576;
     --primary-light: #d8dee9;
     --secondary-color: #4c566a;
     --success-color: #a3be8c;
@@ -233,6 +248,9 @@
 [data-theme="solarized"] {
     --primary-color: #268bd2;
     --primary-hover: #1f6fa8;
+    /* Link text, darker than the primary fill so it reads >= 4.5:1 on the page and cards. */
+    --link-color: #1a6aa3;
+    --link-hover: #155785;
     --primary-light: #eee8d5;
     --secondary-color: #657b83;
     --success-color: #859900;
@@ -291,6 +309,9 @@
 [data-theme="gruvbox"] {
     --primary-color: #d79921;
     --primary-hover: #b47c19;
+    /* Link text, darker than the primary fill so it reads >= 4.5:1 on the page and cards. */
+    --link-color: #8f6014;
+    --link-hover: #7a5211;
     --primary-light: #fbf1c7;
     --secondary-color: #928374;
     --success-color: #98971a;

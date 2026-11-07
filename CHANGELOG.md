@@ -5,6 +5,14 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.635] - 2026-11-07
+
+### Fixed
+- **Links are readable in the light themes too.** Sunset (2.6:1 on cards) and Gruvbox (2.5:1) were the worst; Solarized, Nord, Default, Green and Ocean also fell under 4.5:1 on the page or hover background. Each now has a darker `--link-color` and `--link-hover`, at least 4.5:1 on the page, surface, card and hover backgrounds, with hover darker. Default's link blue moves from `#0d6efd` to `#0b5ed7`. Purple already passed and is unchanged. Buttons keep each theme's primary colour. `core/tests/test_theme_contrast.py` now checks every theme in `themes.css`, falling back to the primary colour where a theme sets no link colour.
+
+### Documentation
+- All 30 light-theme screenshots recaptured with the new link colour.
+
 ## [3.17.634] - 2026-11-07
 
 ### Fixed
