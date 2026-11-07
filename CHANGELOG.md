@@ -5,6 +5,11 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.631] - 2026-11-07
+
+### Fixed
+- Browsers logged `Error with Permissions-Policy header: Unrecognized feature: 'browsing-topics'` on every page. Current Chrome no longer recognises the Topics API feature (just as `interest-cohort` was dropped before it), so the entry is removed. The header now lists only geolocation, microphone, camera, payment and usb, all disabled. A regression test stops retired features from coming back.
+
 ## [3.17.630] - 2026-11-07
 
 ### Hardware catalog and visual inventory (new)

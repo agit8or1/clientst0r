@@ -485,7 +485,6 @@ PERMISSIONS_POLICY = {
     'camera': [],       # Disable camera
     'payment': [],      # Disable payment API
     'usb': [],          # Disable USB
-    'browsing-topics': [],  # Opt out of the Topics API (successor to FLoC's interest-cohort)
 }
 
 # Django Axes (brute force protection)
