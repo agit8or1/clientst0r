@@ -1706,7 +1706,9 @@ inventory. Documentation only — nothing is pushed to devices.
   isolated demo instance, which now loads the catalog and the Client XYZ demo.
   Fixes found while capturing them: VLAN-diagram thumbnails, the sub-nav in the
   light theme, laptops and desktops inferred as access points.
-  *(shipped v3.17.632)*
+  *(shipped v3.17.632)* Port editor, patch panel, port-mapping, access-point,
+  cable-register and asset-artwork views added. The panel mapping page now
+  names the right ends and has an in-use filter *(shipped v3.17.633)*
 
 ## Sizing
 

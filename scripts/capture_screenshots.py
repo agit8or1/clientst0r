@@ -164,8 +164,8 @@ def capture(entry, page, base, out_dir) -> pathlib.Path:
     ensure_theme(page, base, entry.get('theme', 'light'))
     page.add_style_tag(content=CAPTURE_CSS)
 
-    # Optional form input before capture, e.g. to show a conditional field.
-    # Nothing is submitted.
+    # Optional form input or clicks before capture, e.g. to show a conditional
+    # field or open a panel. Nothing is submitted.
     for action in entry.get('actions', []):
         if 'fill' in action:
             page.fill(action['fill'], action['value'])
@@ -173,6 +173,10 @@ def capture(entry, page, base, out_dir) -> pathlib.Path:
             page.check(action['check'])
         elif 'select' in action:
             page.select_option(action['select'], action['value'])
+        elif 'click' in action:
+            # e.g. open the port editor; still nothing is submitted.
+            page.locator(action['click']).first.click()
+            page.wait_for_timeout(action.get('wait_ms', 800))
     if entry.get('actions'):
         page.evaluate('() => document.activeElement && document.activeElement.blur()')
 

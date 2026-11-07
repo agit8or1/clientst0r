@@ -5,6 +5,18 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.633] - 2026-11-07
+
+### Documentation
+- **Six more hardware screenshots**, with a focus on devices, artwork and port mapping: the port editor open on a switch port, a patch panel's front and rear with the connected overlay, the panel's front-to-rear mapping, an access point drawn top and bottom, the cable register, and the artwork on an asset record. The *Hardware and cabling* gallery now has 16 views. Four existing dark-theme hardware shots were recaptured to pick up the link-contrast fix below.
+- `docs/HARDWARE_INVENTORY.md` has a new *Patch panels and port mapping* section: front and rear ports, the mapping page, bulk patching and the connected overlay. It also notes that faces can be top and bottom, and that artwork appears on asset records. `FEATURES.md` lists panel port mapping.
+- `scripts/capture_screenshots.py` supports a `click` action, used to open the port editor before a capture. Nothing is submitted.
+
+### Fixed
+- **Panel mapping page:** a front port with nothing patched listed the panel's own rear port under *Patched from*. *Patched from* is now the other end of the front patch cable, and *Far end* is the end of the path beyond the panel.
+- **Panel mapping page:** new **In use only** filter, so a 48-port panel with three ports patched shows three rows.
+- **Dark theme, hardware pages:** links (ports, cables, far ends) used the theme's dark link colour at about 2:1 contrast on the page. They are now a lighter blue. Link badges such as *incomplete* keep dark text on their background.
+
 ## [3.17.632] - 2026-11-07
 
 ### Documentation

@@ -23,7 +23,7 @@ from .access import can, can_manage_catalog, current_org, org_filter_ids, org_ge
 from .device_art import device_face_svg, device_faces
 from .layout import get_layout
 from .models import (
-    Cable, DevicePort, HardwareChange, HardwareDevice, HardwareModel, InstalledModule, LayoutTemplate,
+    Cable, CableTermination, DevicePort, HardwareChange, HardwareDevice, HardwareModel, InstalledModule, LayoutTemplate,
     LinkAggregationGroup, ModelRequest, ModuleBay, PortMapping,
 )
 from .payloads import device_ports_json, device_summary, port_json, port_queryset, vlan_color, vlan_json
@@ -395,13 +395,25 @@ def patch_panel_view(request, pk, org):
     for m in maps:
         fr = S.trace(m.front_port)
         ports = fr.ports
-        idx = ports.index(m.front_port) if m.front_port in ports else 0
-        near = ports[idx - 1] if idx > 0 else None
-        far = ports[-1] if ports and ports[-1] != m.front_port and ports[-1] != m.rear_port else None
-        rows.append({'m': m, 'front_cable': getattr(m.front_port, 'cable_termination', None),
+        front_cable = getattr(m.front_port, 'cable_termination', None)
+        # "Patched from" is the other end of the front patch cable; the trace can
+        # run through this panel's own rear port first, so its order is no guide.
+        near = None
+        if front_cable:
+            other = (CableTermination.objects.filter(cable_id=front_cable.cable_id).exclude(pk=front_cable.pk)
+                     .select_related('port__device__asset').first())
+            near = other.port if other else None
+        # "Far end" is whichever end of the path is neither that nor this panel.
+        ends = [p for p in (ports[:1] + ports[-1:]) if p.device_id != device.pk and p != near] if ports else []
+        rows.append({'m': m, 'front_cable': front_cable,
                      'rear_cable': getattr(m.rear_port, 'cable_termination', None), 'near': near,
-                     'far': far, 'status': fr.status, 'trace': fr})
-    return render(request, 'hardware/patch_panel.html', {'org': org, 'device': device, 'rows': rows})
+                     'far': ends[0] if ends else None, 'status': fr.status, 'trace': fr})
+    total = len(rows)
+    used_only = request.GET.get('used') == '1'
+    if used_only:
+        rows = [r for r in rows if r['front_cable'] or r['rear_cable']]
+    return render(request, 'hardware/patch_panel.html', {'org': org, 'device': device, 'rows': rows,
+                                                         'used_only': used_only, 'total': total})
 
 
 @org_view()

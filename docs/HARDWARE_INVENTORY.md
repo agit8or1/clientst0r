@@ -20,6 +20,8 @@ More views: [screenshot gallery → Hardware and cabling](screenshots.md#hardwar
 2. The device page shows the generated artwork. **Click a port** to open the
    port editor: description, technician label, admin state, speed, mode,
    untagged/native, tagged and voice VLANs, LAG, PoE setting, notes.
+
+   [![Port editor open for switch port 1/e12, with VLANs, PoE and the cable to PP-01 Port 12](images/github/hardware-port-editor-dark.png)](images/github/hardware-port-editor-dark.png)
 3. **Connect…** in the editor picks the far end from this client's free ports
    and records the cable (ID, type, colour, length, end labels).
 4. **Ctrl/⌘-click or Shift-click** several ports for bulk changes: description,
@@ -31,6 +33,29 @@ More views: [screenshot gallery → Hardware and cabling](screenshots.md#hardwar
    wall jack → patch cable → endpoint — and names any gap.
 
 [![Cable trace from switch port 12 through patch panel PP-01 and wall jack Office 104 A to workstation XYZ-WS-104](images/github/hardware-trace-light.png)](images/github/hardware-trace-light.png)
+
+## Patch panels and port mapping
+
+A patch panel, keystone wall plate or fibre cassette has **front ports** and
+**rear ports**, and the catalog model records which front port maps to which
+rear port and position. Those mappings are copied to each installed panel, so a
+trace can pass through a panel: patch cable into the front, out the mapped rear
+port, along the permanent link to the jack.
+
+* **Panel mapping** on the panel's device page (`/hardware/devices/<id>/patch-panel/`)
+  lists every front port with what is patched into it, the patch cable, the rear
+  port it maps to, the permanent link and the device at the far end. Each path
+  is marked *complete*, *incomplete* (documentation stops part-way, with a link
+  to the trace) or *unused*. **In use only** hides the empty ports. **Print patch
+  strip** prints the panel's port labels.
+* **Bulk patching:** select several switch ports, then **Patch to a panel**. The
+  selection is cabled in order to consecutive front ports, with sequential cable IDs.
+* The **connected overlay** marks each port with a documented cable, on both
+  faces, so a rear port with only its permanent link stands out.
+
+[![Patch panel mapping: front port, patched-from switch port, patch cable, rear port, permanent link, far end and path status for each port in use](images/github/hardware-panel-mapping-light.png)](images/github/hardware-panel-mapping-light.png)
+
+[![Patch panel PP-01, front and rear, with the connected overlay](images/github/hardware-panel-device-dark.png)](images/github/hardware-panel-device-dark.png)
 
 Overlays (VLANs, connected/unconnected, PoE, documented usage) always carry a
 legend and a text mark, never colour alone. A documented cable is shown as
@@ -124,6 +149,16 @@ data; client overlays are added in the browser.
 | **Verified layout** | Placement checked by a person against the manufacturer's documentation (the source document is recorded). |
 | **Approximate layout** | The components are known but their placement is not verified. Every automatically generated layout is approximate. |
 | **Generic layout** | A user-configurable representation of a generic template. |
+
+Faces are whatever the hardware has: front and rear for rack equipment, top and
+bottom for a ceiling access point. The same artwork appears on the asset record.
+
+<table>
+<tr>
+<td width="50%" valign="top"><a href="images/github/hardware-ap-light.png"><img src="images/github/hardware-ap-light.png" alt="Access point drawn from the top and bottom, uplink port on the bottom face"></a></td>
+<td width="50%" valign="top"><a href="images/github/hardware-asset-artwork-light.png"><img src="images/github/hardware-asset-artwork-light.png" alt="Asset record showing the switch's generated front and rear artwork"></a></td>
+</tr>
+</table>
 
 A correct port count does not make an arrangement verified. Accuracy is stored
 per face, and specification provenance (where the component list comes from)

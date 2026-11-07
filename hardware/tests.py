@@ -481,6 +481,27 @@ class ViewIsolationAndPersistenceTests(Fixture):
         s['current_organization_id'] = org.pk
         s.save()
 
+    def test_patch_panel_mapping_names_both_ends(self):
+        # v3.17.633: an unpatched front port listed the panel's own rear port as "patched from".
+        pp, jack = self.dev(self.panel, 'pp'), self.dev(self.panel, 'jack')
+        f = lambda d, n: self.port(d, n, 'front_port')
+        r = lambda d, n: self.port(d, n, 'rear_port')
+        S.connect(self.org, [self.port(self.sw, 'p1')], [f(pp, 'Port 1')])
+        S.connect(self.org, [r(pp, 'Port 1')], [r(jack, 'Port 2')])
+        S.connect(self.org, [f(jack, 'Port 2')], [self.port(self.ws, 'nic1')])
+        S.connect(self.org, [r(pp, 'Port 2')], [r(jack, 'Port 1')])   # permanent link, nothing patched
+        self.login(self.reader, self.org)
+        rows = {row['m'].front_port.name: row for row in
+                self.client.get(reverse('hardware:patch_panel', args=[pp.pk])).context['rows']}
+        self.assertEqual(rows['Port 1']['near'], self.port(self.sw, 'p1'))
+        self.assertEqual(rows['Port 1']['far'], self.port(self.ws, 'nic1'))
+        self.assertIsNone(rows['Port 2']['near'])
+        self.assertEqual(rows['Port 2']['far'], f(jack, 'Port 1'))
+        self.assertIsNone(rows['Port 3']['near'])
+        self.assertIsNone(rows['Port 3']['far'])
+        used = self.client.get(reverse('hardware:patch_panel', args=[pp.pk]) + '?used=1').context['rows']
+        self.assertEqual([row['m'].front_port.name for row in used], ['Port 1', 'Port 2'])
+
     def test_other_client_cannot_reach_records(self):
         self.login(self.outsider, self.other)
         p = self.port(self.sw, 'p1')

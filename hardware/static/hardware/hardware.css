@@ -71,3 +71,9 @@ svg .hw-ov rect, svg .hw-ov path { pointer-events: none; }
 /* Keep tall faces (AP discs, multi-U chassis) within the viewport; the SVG letterboxes, hit targets scale with it. */
 .hw-art-wrap svg.hw-art { max-height: 360px; }
 .hw-art-wrap.zoomed svg.hw-art { max-height: none; }
+/* The theme's dark link colour (#375a7f) is ~2:1 on the dark page; hardware
+   pages are mostly links (ports, cables, far ends), so lift it here. */
+[data-bs-theme="dark"] .hw-page a:not(.btn):not(.nav-link):not(.dropdown-item):not(.badge) { color: #8fb4e8 !important; }
+[data-bs-theme="dark"] .hw-page a:not(.btn):not(.nav-link):not(.dropdown-item):not(.badge):hover { color: #b5cff2 !important; }
+/* Status badges that are links keep their own text colour. */
+.hw-page a.badge.text-dark { color: #212529 !important; }

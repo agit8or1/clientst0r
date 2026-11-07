@@ -103,6 +103,16 @@ apart from client replies, and the credentials the job needs, listed but never r
 </tr>
 <tr>
 <td width="50%" valign="top">
+<a href="docs/images/github/hardware-port-editor-dark.png"><img src="docs/images/github/hardware-port-editor-dark.png" alt="Port editor open on a switch port with VLANs, PoE and the patch cable to the panel"></a>
+<b>Document a port in place</b> · Dark<br>Mode, VLANs, PoE and the cable, from the artwork.
+</td>
+<td width="50%" valign="top">
+<a href="docs/images/github/hardware-panel-mapping-light.png"><img src="docs/images/github/hardware-panel-mapping-light.png" alt="Patch panel front-to-rear mapping with patched-from port, permanent link, far end and path status"></a>
+<b>Front-to-rear port mapping</b> · Light<br>Every panel port: what it is patched from and where it goes.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 <a href="docs/images/github/vault-dark.png"><img src="docs/images/github/vault-dark.png" alt="Password vault in dark theme listing nine credentials with title, username and security status, every secret hidden"></a>
 <b>Credentials, never on screen</b> · Dark<br>AES-GCM at rest; every reveal audited.
 </td>

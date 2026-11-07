@@ -497,6 +497,23 @@
       "group": "hardware"
     },
     {
+      "name": "hardware-port-editor-dark",
+      "route": "/hardware/devices/1/",
+      "theme": "dark",
+      "group": "hardware",
+      "organization": "Client XYZ",
+      "max_h": 1000,
+      "actions": [
+        {
+          "click": ".hw-port[data-name=\"1/e12\"]",
+          "wait_ms": 1500
+        }
+      ],
+      "heading": "Port editor",
+      "caption": "Click a port on the artwork to edit it: description, technician label, admin state, speed, mode, native, tagged and voice VLANs, LAG and PoE. The cable and its far end are shown in the same panel. Operational state stays \"Not observed\" because nothing here polls the switch.",
+      "alt": "Switch page in dark theme with the port editor open for port 1/e12: description, mode access, VLAN 10 Staff with voice VLAN 20, PoE auto, and cable C-0012 to PP-01 Port 12, with the port highlighted on the panel artwork"
+    },
+    {
       "name": "hardware-trace-light",
       "route": "/hardware/ports/12/trace/",
       "theme": "light",
@@ -506,6 +523,78 @@
       "organization": "Client XYZ",
       "max_h": 1200,
       "group": "hardware"
+    },
+    {
+      "name": "hardware-panel-device-dark",
+      "route": "/hardware/devices/2/",
+      "theme": "dark",
+      "group": "hardware",
+      "organization": "Client XYZ",
+      "max_h": 1000,
+      "actions": [
+        {
+          "select": "#hw-overlay",
+          "value": "connected"
+        }
+      ],
+      "heading": "Patch panel, front and rear",
+      "caption": "A 48-port panel with the connected overlay on. Port 12 and port 24 are cabled at the front and rear, while port 13 has only its permanent link at the rear. The overlay shows documented cables, not link state.",
+      "alt": "Patch panel PP-01 in dark theme with front and rear artwork, the connected overlay marking ports 12 and 24 cabled on both faces and port 13 cabled only at the rear"
+    },
+    {
+      "name": "hardware-panel-mapping-light",
+      "route": "/hardware/devices/2/patch-panel/?used=1",
+      "theme": "light",
+      "group": "hardware",
+      "organization": "Client XYZ",
+      "max_h": 900,
+      "heading": "Front-to-rear port mapping",
+      "caption": "Each panel port as one row: what is patched into the front, which rear termination it maps to, the permanent link, and the device at the far end. A path that stops short is marked incomplete. \"In use only\" hides the empty ports.",
+      "alt": "Patch panel mapping in light theme for PP-01: port 12 from switch port 12 through C-0012 and L-104A to XYZ-WS-104 (complete), port 13 through L-105A to Office 105 jack A (incomplete), port 24 to XYZ-AP-01 (complete)"
+    },
+    {
+      "name": "hardware-cables-dark",
+      "route": "/hardware/cables/",
+      "theme": "dark",
+      "group": "hardware",
+      "organization": "Client XYZ",
+      "max_h": 1000,
+      "heading": "Cable register",
+      "caption": "Every documented cable with both ends, type, colour, length and status. Select several to print their labels in one go.",
+      "alt": "Cable list in dark theme with nine cables: patch cables, permanent links and work-area cables with both ends, type, colour, length and installed status"
+    },
+    {
+      "name": "hardware-server-dark",
+      "route": "/hardware/devices/4/",
+      "theme": "dark",
+      "heading": "A server with a module",
+      "caption": "A Dell PowerEdge R640 from the community library, with a two-port 10 GbE NIC installed in a PCIe bay. The module's ports join the device's port list and can be cabled like any other.",
+      "alt": "Device page in dark theme for a Dell PowerEdge R640 with rear artwork showing an installed two-port SFP NIC, approximate-layout badges and a port table including the module ports",
+      "organization": "Client XYZ",
+      "max_h": 1250,
+      "group": "hardware"
+    },
+    {
+      "name": "hardware-ap-light",
+      "route": "/hardware/devices/5/",
+      "theme": "light",
+      "group": "hardware",
+      "organization": "Client XYZ",
+      "max_h": 1200,
+      "heading": "Access point, top and bottom",
+      "caption": "A ceiling access point drawn from above and below. The uplink port is on the bottom face and is documented as a trunk with native VLAN 99 and tagged 10 and 30.",
+      "alt": "Access point page in light theme for a Ubiquiti U6 Pro with top and bottom artwork, the RJ45 uplink cabled on the bottom face, and the port row showing trunk VLANs 99 native, 10 and 30 tagged"
+    },
+    {
+      "name": "hardware-asset-artwork-light",
+      "route": "/assets/23/",
+      "theme": "light",
+      "group": "hardware",
+      "organization": "Client XYZ",
+      "max_h": 900,
+      "heading": "Artwork on the asset record",
+      "caption": "The asset page shows the same generated front and rear artwork, with its accuracy badges and a link to the ports and cabling.",
+      "alt": "Asset detail page in light theme for XYZ-SW-01 with an illustration card showing the switch front and rear panels, accuracy badges and a ports and cabling button"
     },
     {
       "name": "hardware-rack-dark",
@@ -541,17 +630,6 @@
       "group": "hardware"
     },
     {
-      "name": "hardware-model-dark",
-      "route": "/hardware/catalog/models/16509/",
-      "theme": "dark",
-      "heading": "A catalog model and its sources",
-      "caption": "Every model shows its artwork, its components and where they came from. This switch was entered from Dell's user guide: the page cites the pages used and says what the guide does not state.",
-      "alt": "Catalog model page in dark theme for the Dell PowerConnect 3448P with front and rear artwork, a component table and a source and provenance panel quoting the manufacturer's guide",
-      "organization": "Client XYZ",
-      "max_h": 1250,
-      "group": "hardware"
-    },
-    {
       "name": "hardware-catalog-light",
       "route": "/hardware/catalog/",
       "theme": "light",
@@ -560,6 +638,17 @@
       "alt": "Hardware catalog in light theme showing 16,526 models as cards with panel thumbnails, inferred categories and approximate-layout badges, with manufacturer, kind, category and accuracy filters",
       "organization": "Client XYZ",
       "max_h": 1200,
+      "group": "hardware"
+    },
+    {
+      "name": "hardware-model-dark",
+      "route": "/hardware/catalog/models/16509/",
+      "theme": "dark",
+      "heading": "A catalog model and its sources",
+      "caption": "Every model shows its artwork, its components and where they came from. This switch was entered from Dell's user guide: the page cites the pages used and says what the guide does not state.",
+      "alt": "Catalog model page in dark theme for the Dell PowerConnect 3448P with front and rear artwork, a component table and a source and provenance panel quoting the manufacturer's guide",
+      "organization": "Client XYZ",
+      "max_h": 1250,
       "group": "hardware"
     },
     {
@@ -582,17 +671,6 @@
       "alt": "Label page in light theme with label kind, a 38 × 19 mm cable-flag template, a list of cables to label and a print calibration link",
       "organization": "Client XYZ",
       "max_h": 1300,
-      "group": "hardware"
-    },
-    {
-      "name": "hardware-server-dark",
-      "route": "/hardware/devices/4/",
-      "theme": "dark",
-      "heading": "A server with a module",
-      "caption": "A Dell PowerEdge R640 from the community library, with a two-port 10 GbE NIC installed in a PCIe bay. The module's ports join the device's port list and can be cabled like any other.",
-      "alt": "Device page in dark theme for a Dell PowerEdge R640 with rear artwork showing an installed two-port SFP NIC, approximate-layout badges and a port table including the module ports",
-      "organization": "Client XYZ",
-      "max_h": 1250,
       "group": "hardware"
     }
   ]

@@ -10,7 +10,10 @@
 </ol></nav>
 <div class="d-flex justify-content-between align-items-center">
   <h1 class="h4"><i class="fas fa-table"></i> {{ device.asset.name }} — front / rear mapping</h1>
-  <a class="btn btn-sm btn-outline-secondary" href="{% url 'hardware:labels' %}?kind=patch_strip&devices={{ device.pk }}"><i class="fas fa-tags"></i> Print patch strip</a>
+  <div class="d-flex gap-2">
+    {% if used_only %}<a class="btn btn-sm btn-outline-secondary" href="?">Show all {{ total }} ports</a>{% else %}<a class="btn btn-sm btn-outline-secondary" href="?used=1">In use only</a>{% endif %}
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'hardware:labels' %}?kind=patch_strip&devices={{ device.pk }}"><i class="fas fa-tags"></i> Print patch strip</a>
+  </div>
 </div>
 <p class="text-muted small">Each row is one internal path: what is patched into the front, which rear termination it maps to, and what the permanent link reaches. Rows marked incomplete show where documentation stops.</p>
 <div class="table-responsive"><table class="table table-sm table-hover align-middle">
@@ -24,6 +27,6 @@
     <td>{% if r.rear_cable %}<a href="{% url 'hardware:cable_detail' r.rear_cable.cable_id %}">{{ r.rear_cable.cable }}</a>{% endif %}</td>
     <td>{% if r.far %}<a href="{% url 'hardware:device_detail' r.far.device_id %}#port-{{ r.far.pk }}">{{ r.far.device.asset.name }} / {{ r.far.tech_label|default:r.far.label|default:r.far.name }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
     <td>{% if r.status == 'complete' %}<span class="badge bg-success">complete</span>{% elif not r.front_cable and not r.rear_cable %}<span class="badge bg-light text-muted border">unused</span>{% else %}<a href="{% url 'hardware:trace_page' r.m.front_port_id %}" class="badge bg-warning text-dark text-decoration-none">{{ r.status }}</a>{% endif %}</td>
-  </tr>{% empty %}<tr><td colspan="7" class="text-muted">This device has no internal front-to-rear mappings.</td></tr>{% endfor %}
+  </tr>{% empty %}<tr><td colspan="7" class="text-muted">{% if used_only %}No port on this device has a documented cable yet.{% else %}This device has no internal front-to-rear mappings.{% endif %}</td></tr>{% endfor %}
   </tbody></table></div>
 </div>{% endblock %}
