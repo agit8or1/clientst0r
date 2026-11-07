@@ -5,6 +5,11 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.637] - 2026-11-07
+
+### Documentation
+- The walkthrough MP4s attached to the v3.17.558 release were replaced with the new recording, so the README's links now play the version with the hardware screens. The README's labels now give the new length and size: 3½ minutes and 5.2 MB for the full video, 72 seconds for the highlight.
+
 ## [3.17.636] - 2026-11-07
 
 ### Documentation

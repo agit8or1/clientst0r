@@ -23,8 +23,8 @@ Keep customer documentation, assets, credentials and support workflows on your o
 
 [![Walkthrough video: a technician moves from the client dashboard into the queue, opens a ticket carrying its contract and credentials, documents a switch port on the panel artwork and traces its cable, then reads the runbook behind the ticket](docs/images/github/walkthrough-poster.png)](docs/images/github/walkthrough.gif)
 
-**[▶ Watch the full 3-minute walkthrough (MP4, 4.5 MB)](https://github.com/agit8or1/clientst0r/releases/download/v3.17.558/clientst0r-walkthrough.mp4)**
-— or the [56-second highlight](https://github.com/agit8or1/clientst0r/releases/download/v3.17.558/clientst0r-walkthrough-highlight.mp4).
+**[▶ Watch the full 3½-minute walkthrough (MP4, 5.2 MB)](https://github.com/agit8or1/clientst0r/releases/download/v3.17.558/clientst0r-walkthrough.mp4)**
+— or the [72-second highlight](https://github.com/agit8or1/clientst0r/releases/download/v3.17.558/clientst0r-walkthrough-highlight.mp4).
 The animation above is a 45-second excerpt, played at 1.6× speed.
 
 It runs through four end-to-end workflows — a ticket from queue to runbook, the physical

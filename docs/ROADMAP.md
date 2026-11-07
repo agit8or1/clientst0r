@@ -1716,7 +1716,8 @@ inventory. Documentation only — nothing is pushed to devices.
   *(shipped v3.17.632)* Port editor, patch panel, port-mapping, access-point,
   cable-register and asset-artwork views added. The panel mapping page now
   names the right ends and has an in-use filter *(shipped v3.17.633)*
-  The README walkthrough now includes the hardware screens *(shipped v3.17.636)*
+  The README walkthrough now includes the hardware screens *(shipped v3.17.636;
+  release MP4s replaced v3.17.637)*
 
 ## Sizing
 
