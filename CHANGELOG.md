@@ -5,6 +5,11 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.639] - 2026-11-07
+
+### Documentation
+- **GitHub About panel updated.** The description now names the physical-network side: racks, switch ports, cables and patch panels. Four topics were added, `network-documentation`, `network-diagram`, `cable-management` and `ldap`, bringing the repository to 20, GitHub's limit. `docs/github-about.md` records what was applied.
+
 ## [3.17.638] - 2026-11-07
 
 ### Documentation

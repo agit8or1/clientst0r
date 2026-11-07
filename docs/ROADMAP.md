@@ -1719,6 +1719,7 @@ inventory. Documentation only — nothing is pushed to devices.
   The README walkthrough now includes the hardware screens *(shipped v3.17.636;
   release MP4s replaced v3.17.637)*
   A GitHub social preview image built from the same screenshots *(shipped v3.17.638)*
+  The repository description and topics name the hardware inventory *(v3.17.639)*
 
 ## Sizing
 

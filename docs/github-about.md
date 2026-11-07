@@ -13,14 +13,18 @@ Keep it under GitHub's 350-character limit, lead with the positioning sentence, 
 claim what ships.
 
 > Self-hosted IT documentation and service desk for MSPs. Client assets, runbooks, an
-> encrypted credential vault and a native ticketing system with SLAs, contracts, quotes and
-> invoices — multi-tenant, on your own infrastructure. Django 6 + MariaDB, Docker or
-> one-line install.
+> encrypted credential vault, native ticketing with SLAs, contracts and invoices, and the
+> physical network drawn: racks, switch ports, cables and patch panels. Multi-tenant, on
+> your own infrastructure. Django 6 + MariaDB, Docker or one-line install.
+
+Applied 2026-11-07 (331 characters). It names the hardware inventory (Phase 55,
+v3.17.630) because the README and the social preview now lead with it.
 
 **Shorter variant**, if the panel feels crowded:
 
 > Self-hosted IT documentation and service desk for MSPs — client assets, runbooks, an
-> encrypted vault and native ticketing with SLAs and billing, on your own infrastructure.
+> encrypted vault, native ticketing with SLAs and billing, and the physical network, on
+> your own infrastructure.
 
 ### Why this over the current description
 
@@ -63,13 +67,20 @@ multi-tenant
 ldap
 sla
 helpdesk
+network-documentation
+network-diagram
+cable-management
 django
 python
 docker
 open-source
 ```
 
-GitHub allows up to 20 topics; this is 17, leaving room.
+Applied 2026-11-07. This is 20, GitHub's limit, so a new topic has to replace one.
+`network-documentation`, `network-diagram` and `cable-management` cover the hardware
+inventory (v3.17.630): device and patch-panel artwork, cable tracing, and connectivity and
+VLAN diagrams generated from the records. `ldap` was recommended earlier but had not
+been applied.
 
 ### Changes from the current topic set
 
