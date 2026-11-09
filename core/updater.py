@@ -167,6 +167,19 @@ class UpdateService:
     # v3.17.482 — cache TTL for /tags polls. GitHub's anonymous limit
     # is 60/hour; with TTL=300 we touch GitHub at most 12 times/hour
     # even if Settings → Updates is open in 10 browser tabs.
+    @staticmethod
+    def _record_latest(latest_version):
+        """Persist what this check found for every process to see (the
+        navbar badge reads it; see core.context_processors). .update() so
+        SystemSetting.updated_at keeps meaning "an admin changed settings"."""
+        try:
+            from core.models import SystemSetting
+            SystemSetting.get_settings()
+            SystemSetting.objects.filter(pk=1).update(latest_release_version=str(latest_version or '')[:32],
+                                                      latest_release_checked_at=timezone.now())
+        except Exception:
+            logger.exception('could not record the latest release version')
+
     _CACHE_KEY_SUCCESS = 'system_update_check'
     _CACHE_KEY_LAST_GOOD = 'system_update_check_last_good'
     _CACHE_TTL_SUCCESS = 300       # 5 min — successful result
@@ -313,6 +326,7 @@ class UpdateService:
             # "last good" so a future 403 can return stale-but-useful.
             cache.set(self._CACHE_KEY_SUCCESS, result, self._CACHE_TTL_SUCCESS)
             cache.set(self._CACHE_KEY_LAST_GOOD, result, 24 * 3600)
+            self._record_latest(latest_version)
             return result
 
         except requests.Timeout as e:

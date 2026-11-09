@@ -53,6 +53,7 @@ def organization_context(request):
         'DJANGO_VERSION': f"{'.'.join(map(str, django.VERSION[:3]))}",
         'PYTHON_VERSION': f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         'system_settings': system_settings,  # Add system settings for whitelabeling
+        'update_badge': _update_badge(request, system_settings),
         # v3.17.314 — surface `require_organization_context` warning
         # state so templates that include `org_selector_warning.html`
         # render the org-picker banner correctly even when the view
@@ -130,3 +131,23 @@ def csp_nonce(request):
     """
     nonce = getattr(request, '_csp_nonce', None)
     return {'csp_nonce': nonce if nonce is not None else ''}
+
+
+def _update_badge(request, system_settings):
+    """The newer release the last update check found, for the navbar badge —
+    superusers only (they are the ones who can apply it), and never a network
+    call: it compares what the scheduled check stored with the running
+    version, so it disappears as soon as the update is applied."""
+    user = getattr(request, 'user', None)
+    if not (user is not None and user.is_authenticated and user.is_superuser and system_settings is not None):
+        return None
+    latest = (getattr(system_settings, 'latest_release_version', '') or '').strip()
+    if not latest:
+        return None
+    try:
+        from packaging import version
+        if version.parse(latest) <= version.parse(get_version()):
+            return None
+    except Exception:
+        return None
+    return {'version': latest}

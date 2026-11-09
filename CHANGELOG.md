@@ -5,6 +5,19 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.649] - 2026-11-09
+
+### Added
+- **Update badge in the top bar.** When a newer Client St0r release is out, superusers see an "Update 3.17.NNN" badge next to the theme toggle. It links to Settings → Updates.
+  - The badge comes from the scheduled update check (hourly). It never contacts GitHub while a page loads.
+  - It disappears as soon as that version is running.
+  - Other users never see it.
+- The latest release found is now stored in the database, so every web worker and the scheduler see the same answer. Before, it lived only in each process's memory cache.
+- New installs get the hourly update-check task by default. Existing installs keep their current schedule.
+
+### Upgrade
+- Adds migration `core.0080` (two fields on system settings).
+
 ## [3.17.648] - 2026-11-09
 
 ### Added

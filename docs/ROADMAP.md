@@ -1868,6 +1868,9 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
 - **58.5 Ticket page** *(shipped v3.17.647)* — Analyze / Compare sit in the
   Conversation header beside the thread; remote connect stays on the asset
   card next to the device it opens.
+- **58.6 Update badge** *(shipped v3.17.649)* — superusers see when a newer
+  release is out, from the scheduled update check, linking to Settings →
+  Updates; it disappears once that version is running.
 
 ## Sizing
 

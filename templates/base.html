@@ -241,6 +241,17 @@
                                    aria-label="{% trans 'Search across passwords, assets, documents, and more' %}">
                         </form>
                     </li>
+                    {% if update_badge %}
+                    <!-- Update available (superusers; core.context_processors._update_badge) -->
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center gap-1" href="{% url 'core:system_updates' %}" id="navUpdateBadge"
+                           data-bs-toggle="tooltip" data-bs-placement="bottom"
+                           title="{% blocktrans with v=update_badge.version %}Client St0r {{ v }} is available — open Settings → Updates{% endblocktrans %}">
+                            <i class="fas fa-circle-arrow-up text-warning" aria-hidden="true"></i>
+                            <span class="badge bg-warning text-dark">{% blocktrans with v=update_badge.version %}Update {{ v }}{% endblocktrans %}</span>
+                        </a>
+                    </li>
+                    {% endif %}
                     <!-- Theme Toggle -->
                     <li class="nav-item">
                         <button class="btn btn-link nav-link" data-action="toggleTheme" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle between dark and light theme" style="border: none; background: none;">

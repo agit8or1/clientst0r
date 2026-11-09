@@ -1037,6 +1037,12 @@ class SystemSetting(models.Model):
     map_dragging_enabled = models.BooleanField(default=True, help_text='Enable map dragging by default (can be toggled per-map)')
     global_locations_map_enabled = models.BooleanField(default=True, help_text='Enable global locations map for superusers and staff')
 
+    # Latest release the update check saw (v3.17.649). Kept here rather than
+    # in the cache: the cache is per process, and the navbar's "update
+    # available" badge must see what the scheduler's check found.
+    latest_release_version = models.CharField(max_length=32, blank=True, default='')
+    latest_release_checked_at = models.DateTimeField(null=True, blank=True)
+
     # Metadata
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='system_settings_updates')
@@ -1615,6 +1621,13 @@ class ScheduledTask(models.Model):
             'task_type': 'update_geoip_db',
             'description': 'Refresh the GeoIP country database when it is over 25 days old',
             'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            # v3.17.649: feeds the navbar's "update available" badge.
+            'task_type': 'update_check',
+            'description': 'Check GitHub for a newer Client St0r release',
+            'interval_minutes': 60,
             'enabled': True,
         },
         {
