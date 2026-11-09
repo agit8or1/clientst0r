@@ -1,91 +1,239 @@
+{% load i18n settings_menu %}
 {% comment %}
 Settings menu component - include this in all settings pages
 Usage: {% include "core/_settings_menu.html" with active_page="general" %}
-{% endcomment %}
 
-<div class="card">
+Entries are grouped by task into five collapsible groups (System, Security,
+Organizations & Access, Integrations, Mobile). Only the group holding
+`active_page` starts expanded. Order and gating mirror
+core/settings_groups.py (SETTINGS_GROUPS) — keep the two in step; the
+navbar's Admin menu lands on each group's first visible entry from there.
+{% endcomment %}
+{% settings_open_group active_page as open_group %}
+<nav class="card settings-menu" aria-label="{% trans 'Settings' %}">
     <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-cog"></i> Settings</h5>
+        <h5 class="mb-0"><i class="fas fa-cog" aria-hidden="true"></i> {% trans "Settings" %}</h5>
     </div>
     <div class="list-group list-group-flush">
-        <a href="{% url 'core:settings_general' %}" class="list-group-item list-group-item-action {% if active_page == 'general' %}active{% endif %}">
-            <i class="fas fa-sliders-h"></i> General
-        </a>
-        <a href="{% url 'core:settings_features' %}" class="list-group-item list-group-item-action {% if active_page == 'features' %}active{% endif %}">
-            <i class="fas fa-toggle-on"></i> Feature Toggles
-        </a>
-        {% if psa_enabled %}
-        <a href="{% url 'core:settings_psa' %}" class="list-group-item list-group-item-action {% if active_page == 'psa' %}active{% endif %}">
-            <i class="fas fa-ticket-alt"></i> PSA
-        </a>
-        {% endif %}
-        <a href="{% url 'core:settings_smtp' %}" class="list-group-item list-group-item-action {% if active_page == 'smtp' %}active{% endif %}">
-            <i class="fas fa-envelope"></i> SMTP/Email
-        </a>
-        <a href="{% url 'core:settings_sms' %}" class="list-group-item list-group-item-action {% if active_page == 'sms' %}active{% endif %}" data-bs-toggle="tooltip" title="Configure SMS provider for navigation links and notifications">
-            <i class="fas fa-mobile-alt"></i> SMS Provider
-        </a>
-        <a href="{% url 'core:settings_scheduler' %}" class="list-group-item list-group-item-action {% if active_page == 'scheduler' %}active{% endif %}">
-            <i class="fas fa-clock"></i> Task Scheduler
-        </a>
 
-        <div class="list-group-item bg-light py-1">
-            <small class="text-muted fw-bold">SECURITY</small>
+        {# ---------------- System ---------------- #}
+        {% settings_group_count 'system' as n_system %}
+        <button type="button" class="list-group-item list-group-item-action settings-menu-group{% if open_group != 'system' %} collapsed{% endif %}"
+                data-bs-toggle="collapse" data-bs-target="#settings-group-system"
+                aria-expanded="{% if open_group == 'system' %}true{% else %}false{% endif %}" aria-controls="settings-group-system"
+                data-settings-group="system">
+            <span><i class="fas fa-server fa-fw" aria-hidden="true"></i> {% trans "System" %}</span>
+            <span class="d-flex align-items-center gap-2">
+                <span class="badge rounded-pill text-bg-secondary">{{ n_system }}</span>
+                <i class="fas fa-chevron-down settings-menu-chevron" aria-hidden="true"></i>
+            </span>
+        </button>
+        <div class="collapse{% if open_group == 'system' %} show{% endif %}" id="settings-group-system">
+            <div class="list-group list-group-flush">
+                {% if user.is_superuser %}
+                <a href="{% url 'core:settings_general' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'general' %}active{% endif %}"{% if active_page == 'general' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-sliders-h fa-fw" aria-hidden="true"></i> {% trans "General" %}
+                </a>
+                <a href="{% url 'core:system_updates' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'updates' %}active{% endif %}"{% if active_page == 'updates' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-sync-alt fa-fw" aria-hidden="true"></i> {% trans "System Updates" %}
+                </a>
+                <a href="{% url 'core:system_status' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'system_status' %}active{% endif %}"{% if active_page == 'system_status' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-heartbeat fa-fw" aria-hidden="true"></i> {% trans "System Status" %}
+                </a>
+                <a href="{% url 'core:settings_features' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'features' %}active{% endif %}"{% if active_page == 'features' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-toggle-on fa-fw" aria-hidden="true"></i> {% trans "Feature Toggles" %}
+                </a>
+                {% if psa_enabled %}
+                <a href="{% url 'core:settings_psa' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'psa' %}active{% endif %}"{% if active_page == 'psa' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-ticket-alt fa-fw" aria-hidden="true"></i> {% trans "PSA" %}
+                </a>
+                {% endif %}
+                <a href="{% url 'core:settings_scheduler' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'scheduler' %}active{% endif %}"{% if active_page == 'scheduler' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-clock fa-fw" aria-hidden="true"></i> {% trans "Task Scheduler" %}
+                </a>
+                <a href="{% url 'core:settings_smtp' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'smtp' %}active{% endif %}"{% if active_page == 'smtp' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-envelope fa-fw" aria-hidden="true"></i> {% trans "SMTP/Email" %}
+                </a>
+                <a href="{% url 'core:maintenance' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'maintenance' %}active{% endif %}"{% if active_page == 'maintenance' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-tools fa-fw" aria-hidden="true"></i> {% trans "Maintenance" %}
+                </a>
+                <a href="{% url 'imports:import_list' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'data_import' %}active{% endif %}"{% if active_page == 'data_import' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-file-import fa-fw" aria-hidden="true"></i> {% trans "Data Import" %}
+                </a>
+                <a href="{% url 'core:settings_data_export' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'data_export' %}active{% endif %}"{% if active_page == 'data_export' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-file-export fa-fw" aria-hidden="true"></i> {% trans "Data Export" %}
+                </a>
+                <a href="{% url 'core:settings_kb_import' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'kb_import' %}active{% endif %}"{% if active_page == 'kb_import' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-database fa-fw" aria-hidden="true"></i> {% trans "Demo Data" %}
+                </a>
+                {% endif %}
+            </div>
         </div>
-        <a href="{% url 'core:settings_security' %}" class="list-group-item list-group-item-action {% if active_page == 'security' %}active{% endif %}">
-            <i class="fas fa-shield-alt"></i> Security Settings
-        </a>
-        <a href="{% url 'tech_access:index' %}" class="list-group-item list-group-item-action {% if active_page == 'technician_access' %}active{% endif %}">
-            <i class="fas fa-user-shield"></i> Technician Access
-        </a>
-        <a href="{% url 'core:firewall_settings' %}" class="list-group-item list-group-item-action {% if active_page == 'firewall' %}active{% endif %}">
-            <i class="fas fa-shield-halved"></i> Firewall & GeoIP
-        </a>
-        <a href="{% url 'core:fail2ban_status' %}" class="list-group-item list-group-item-action {% if active_page == 'fail2ban' %}active{% endif %}">
-            <i class="fas fa-ban"></i> Fail2ban
-        </a>
-        <a href="{% url 'core:settings_snyk' %}" class="list-group-item list-group-item-action {% if active_page == 'snyk' %}active{% endif %}">
-            <i class="fas fa-bug"></i> Vulnerability Scans
-        </a>
 
-        <div class="list-group-item bg-light py-1">
-            <small class="text-muted fw-bold">INTEGRATIONS</small>
+        {# ---------------- Security ---------------- #}
+        {% settings_group_count 'security' as n_security %}
+        <button type="button" class="list-group-item list-group-item-action settings-menu-group{% if open_group != 'security' %} collapsed{% endif %}"
+                data-bs-toggle="collapse" data-bs-target="#settings-group-security"
+                aria-expanded="{% if open_group == 'security' %}true{% else %}false{% endif %}" aria-controls="settings-group-security"
+                data-settings-group="security">
+            <span><i class="fas fa-shield-alt fa-fw" aria-hidden="true"></i> {% trans "Security" %}</span>
+            <span class="d-flex align-items-center gap-2">
+                <span class="badge rounded-pill text-bg-secondary">{{ n_security }}</span>
+                <i class="fas fa-chevron-down settings-menu-chevron" aria-hidden="true"></i>
+            </span>
+        </button>
+        <div class="collapse{% if open_group == 'security' %} show{% endif %}" id="settings-group-security">
+            <div class="list-group list-group-flush">
+                {% if user.is_superuser %}
+                <a href="{% url 'core:settings_security' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'security' %}active{% endif %}"{% if active_page == 'security' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-shield-alt fa-fw" aria-hidden="true"></i> {% trans "Security Settings" %}
+                </a>
+                <a href="{% url 'tech_access:index' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'technician_access' %}active{% endif %}"{% if active_page == 'technician_access' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-user-shield fa-fw" aria-hidden="true"></i> {% trans "Technician Access" %}
+                </a>
+                <a href="{% url 'core:security_dashboard' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'security_dashboard' %}active{% endif %}"{% if active_page == 'security_dashboard' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-chart-line fa-fw" aria-hidden="true"></i> {% trans "Security Dashboard" %}
+                </a>
+                <a href="{% url 'core:firewall_settings' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'firewall' %}active{% endif %}"{% if active_page == 'firewall' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-shield-halved fa-fw" aria-hidden="true"></i> {% trans "Firewall & GeoIP" %}
+                </a>
+                <a href="{% url 'core:fail2ban_status' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'fail2ban' %}active{% endif %}"{% if active_page == 'fail2ban' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-ban fa-fw" aria-hidden="true"></i> {% trans "Fail2ban" %}
+                </a>
+                <a href="{% url 'core:settings_snyk' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'snyk' %}active{% endif %}"{% if active_page == 'snyk' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-bug fa-fw" aria-hidden="true"></i> {% trans "Vulnerability Scans" %}
+                </a>
+                {% endif %}
+            </div>
         </div>
-        <a href="{% url 'integrations:integration_list' %}" class="list-group-item list-group-item-action {% if active_page == 'integrations' %}active{% endif %}">
-            <i class="fas fa-plug"></i> Integrations
-        </a>
-        <a href="{% url 'core:settings_directory' %}" class="list-group-item list-group-item-action {% if active_page == 'directory' %}active{% endif %}">
-            <i class="fas fa-users-cog"></i> Directory Services
-        </a>
-        <a href="{% url 'core:settings_ai' %}" class="list-group-item list-group-item-action {% if active_page == 'ai' %}active{% endif %}">
-            <i class="fas fa-robot"></i> AI & LLM
-        </a>
-        <a href="{% url 'psa_ai:profiles' %}" class="list-group-item list-group-item-action {% if active_page == 'ticket_ai' %}active{% endif %}">
-            <i class="fas fa-wand-magic-sparkles"></i> Ticket AI models
-        </a>
 
-        <div class="list-group-item bg-light py-1">
-            <small class="text-muted fw-bold">SYSTEM</small>
+        {# ---------------- Organizations & Access ---------------- #}
+        {% settings_group_count 'access' as n_access %}
+        <button type="button" class="list-group-item list-group-item-action settings-menu-group{% if open_group != 'access' %} collapsed{% endif %}"
+                data-bs-toggle="collapse" data-bs-target="#settings-group-access"
+                aria-expanded="{% if open_group == 'access' %}true{% else %}false{% endif %}" aria-controls="settings-group-access"
+                data-settings-group="access">
+            <span><i class="fas fa-users-cog fa-fw" aria-hidden="true"></i> {% trans "Organizations & Access" %}</span>
+            <span class="d-flex align-items-center gap-2">
+                <span class="badge rounded-pill text-bg-secondary">{{ n_access }}</span>
+                <i class="fas fa-chevron-down settings-menu-chevron" aria-hidden="true"></i>
+            </span>
+        </button>
+        <div class="collapse{% if open_group == 'access' %} show{% endif %}" id="settings-group-access">
+            <div class="list-group list-group-flush">
+                {% if user.is_authenticated %}
+                <a href="{% url 'accounts:access_management' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'access_management' %}active{% endif %}"{% if active_page == 'access_management' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-user-shield fa-fw" aria-hidden="true"></i> {% trans "Access Management" %}
+                </a>
+                <a href="{% url 'accounts:organization_list' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'organizations' %}active{% endif %}"{% if active_page == 'organizations' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-building fa-fw" aria-hidden="true"></i> {% trans "Organizations" %}
+                </a>
+                {% endif %}
+                {% if user.is_superuser %}
+                <a href="{% url 'core:settings_directory' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'directory' %}active{% endif %}"{% if active_page == 'directory' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-address-book fa-fw" aria-hidden="true"></i> {% trans "Directory Services" %}
+                </a>
+                {% endif %}
+            </div>
         </div>
-        <a href="{% url 'core:system_status' %}" class="list-group-item list-group-item-action {% if active_page == 'system_status' %}active{% endif %}">
-            <i class="fas fa-heartbeat"></i> System Status
-        </a>
-        <a href="{% url 'core:settings_kb_import' %}" class="list-group-item list-group-item-action {% if active_page == 'kb_import' %}active{% endif %}">
-            <i class="fas fa-database"></i> Demo Data
-        </a>
-        <a href="{% url 'imports:import_list' %}" class="list-group-item list-group-item-action {% if active_page == 'data_import' %}active{% endif %}">
-            <i class="fas fa-file-import"></i> Data Import
-        </a>
-        <a href="{% url 'core:settings_data_export' %}" class="list-group-item list-group-item-action {% if active_page == 'data_export' %}active{% endif %}">
-            <i class="fas fa-file-export"></i> Data Export
-        </a>
-        <a href="{% url 'core:maintenance' %}" class="list-group-item list-group-item-action {% if active_page == 'maintenance' %}active{% endif %}">
-            <i class="fas fa-tools"></i> Maintenance
-        </a>
+
+        {# ---------------- Integrations ---------------- #}
+        {% settings_group_count 'integrations' as n_integrations %}
+        <button type="button" class="list-group-item list-group-item-action settings-menu-group{% if open_group != 'integrations' %} collapsed{% endif %}"
+                data-bs-toggle="collapse" data-bs-target="#settings-group-integrations"
+                aria-expanded="{% if open_group == 'integrations' %}true{% else %}false{% endif %}" aria-controls="settings-group-integrations"
+                data-settings-group="integrations">
+            <span><i class="fas fa-plug fa-fw" aria-hidden="true"></i> {% trans "Integrations" %}</span>
+            <span class="d-flex align-items-center gap-2">
+                <span class="badge rounded-pill text-bg-secondary">{{ n_integrations }}</span>
+                <i class="fas fa-chevron-down settings-menu-chevron" aria-hidden="true"></i>
+            </span>
+        </button>
+        <div class="collapse{% if open_group == 'integrations' %} show{% endif %}" id="settings-group-integrations">
+            <div class="list-group list-group-flush">
+                {% if user.is_authenticated %}
+                <a href="{% url 'core:webhook_list' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'webhooks' %}active{% endif %}"{% if active_page == 'webhooks' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-bolt fa-fw" aria-hidden="true"></i> {% trans "Webhooks" %}
+                </a>
+                {% endif %}
+                {% if user.is_superuser %}
+                <a href="{% url 'integrations:integration_list' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'integrations' %}active{% endif %}"{% if active_page == 'integrations' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-plug fa-fw" aria-hidden="true"></i> {% trans "Integrations" %}
+                </a>
+                <a href="{% url 'core:settings_ai' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'ai' %}active{% endif %}"{% if active_page == 'ai' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-robot fa-fw" aria-hidden="true"></i> {% trans "AI & LLM" %}
+                </a>
+                <a href="{% url 'psa_ai:profiles' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'ticket_ai' %}active{% endif %}"{% if active_page == 'ticket_ai' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-wand-magic-sparkles fa-fw" aria-hidden="true"></i> {% trans "Ticket AI models" %}
+                </a>
+                <a href="{% url 'core:settings_sms' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'sms' %}active{% endif %}"{% if active_page == 'sms' %} aria-current="page"{% endif %} title="{% trans 'Configure SMS provider for navigation links and notifications' %}">
+                    <i class="fas fa-sms fa-fw" aria-hidden="true"></i> {% trans "SMS Provider" %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ---------------- Mobile ---------------- #}
+        {% settings_group_count 'mobile' as n_mobile %}
+        <button type="button" class="list-group-item list-group-item-action settings-menu-group{% if open_group != 'mobile' %} collapsed{% endif %}"
+                data-bs-toggle="collapse" data-bs-target="#settings-group-mobile"
+                aria-expanded="{% if open_group == 'mobile' %}true{% else %}false{% endif %}" aria-controls="settings-group-mobile"
+                data-settings-group="mobile">
+            <span><i class="fas fa-mobile-alt fa-fw" aria-hidden="true"></i> {% trans "Mobile" %}</span>
+            <span class="d-flex align-items-center gap-2">
+                <span class="badge rounded-pill text-bg-secondary">{{ n_mobile }}</span>
+                <i class="fas fa-chevron-down settings-menu-chevron" aria-hidden="true"></i>
+            </span>
+        </button>
+        <div class="collapse{% if open_group == 'mobile' %} show{% endif %}" id="settings-group-mobile">
+            <div class="list-group list-group-flush">
+                {% if user.is_staff or user.is_superuser %}
+                <a href="{% url 'core:mobile_apps_admin' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'mobile_apps' %}active{% endif %}"{% if active_page == 'mobile_apps' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-mobile-alt fa-fw" aria-hidden="true"></i> {% trans "Mobile Apps" %}
+                </a>
+                {% endif %}
+                {% if user.is_superuser %}
+                <a href="{% url 'core:beta_test_admin' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'beta_testers' %}active{% endif %}"{% if active_page == 'beta_testers' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-user-check fa-fw" aria-hidden="true"></i> {% trans "Beta tester requests" %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
     </div>
-</div>
+</nav>
 
 <style>
+/* Group headers: full-width toggles, wrap long labels instead of overflowing. */
+.settings-menu .settings-menu-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .5rem;
+    font-weight: 600;
+    background-color: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+    min-height: 44px; /* comfortable touch target */
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.settings-menu .settings-menu-group:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: -2px;
+}
+.settings-menu .settings-menu-chevron {
+    transition: transform .2s ease;
+}
+.settings-menu .settings-menu-group.collapsed .settings-menu-chevron {
+    transform: rotate(-90deg);
+}
+.settings-menu .settings-menu-item {
+    padding-left: 1.75rem;
+    overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+    .settings-menu .settings-menu-chevron { transition: none; }
+}
+
 /* Improve readability of active settings menu items in dark mode */
 [data-bs-theme="dark"] .list-group-item-action.active {
     background-color: var(--bs-primary) !important;
