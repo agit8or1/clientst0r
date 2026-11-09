@@ -1,6 +1,7 @@
 """
 Integrations views
 """
+from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_POST, require_http_methods
@@ -585,11 +586,14 @@ def rmm_detail(request, pk):
     total_devices = RMMDevice.objects.filter(connection=connection).count()
     online_devices = RMMDevice.objects.filter(connection=connection, is_online=True).count()
 
+    review = _review_queryset(connection)
     return render(request, 'integrations/rmm_detail.html', {
         'connection': connection,
         'devices': devices,
         'total_devices': total_devices,
         'online_devices': online_devices,
+        'review_count': review.count(),
+        'unresolved_count': review.exclude(ownership_status=RMMDevice.OWNERSHIP_RESOLVED).count(),
     })
 
 
@@ -695,7 +699,13 @@ def rmm_alerts(request):
     # Filter by status if provided
     status_filter = request.GET.get('status', 'active')
     
-    alerts = RMMAlert.objects.for_organization(org).select_related('connection')
+    # Scoped by the device's customer: older alerts were stored under the
+    # connection owner, and an unowned device's alerts belong to no one.
+    from core.utils import descendant_org_ids
+    alerts = RMMAlert.objects.filter(
+        device__organization_id__in=descendant_org_ids(org),
+        device__ownership_status=RMMDevice.OWNERSHIP_RESOLVED,
+    ).select_related('connection', 'device', 'device__linked_asset')
     
     if status_filter == 'active':
         alerts = alerts.filter(status='active')
@@ -706,9 +716,11 @@ def rmm_alerts(request):
     # Order by most recent first
     alerts = alerts.order_by('-triggered_at')
     
+    from psa.visibility import is_msp_staff
     return render(request, 'integrations/rmm_alerts.html', {
         'alerts': alerts,
         'status_filter': status_filter,
+        'can_open_ticket': is_msp_staff(request.user),
     })
 
 
@@ -720,7 +732,11 @@ def rmm_software(request):
     # Get search query
     search_query = request.GET.get('q', '').strip()
     
-    software = RMMSoftware.objects.for_organization(org).select_related('device', 'device__connection')
+    from core.utils import descendant_org_ids
+    software = RMMSoftware.objects.filter(
+        device__organization_id__in=descendant_org_ids(org),
+        device__ownership_status=RMMDevice.OWNERSHIP_RESOLVED,
+    ).select_related('device', 'device__connection')
     
     if search_query:
         from django.db.models import Q
@@ -746,22 +762,165 @@ def rmm_software(request):
 def rmm_device_detail(request, pk):
     """Show details of a single RMM device."""
     org = get_request_organization(request)
-    device = get_object_or_404(RMMDevice.objects.for_organization(org).select_related('connection', 'linked_asset'), pk=pk)
+    device = get_object_or_404(
+        RMMDevice.objects.for_organization(org).filter(ownership_status=RMMDevice.OWNERSHIP_RESOLVED)
+        .select_related('connection', 'linked_asset'), pk=pk)
 
     # Get software for this device
     software = RMMSoftware.objects.filter(device=device).order_by('name')
 
     # Get recent alerts for this device
-    alerts = RMMAlert.objects.filter(
-        organization=org,
-        device=device
-    ).order_by('-triggered_at')[:10]
+    alerts = RMMAlert.objects.filter(device=device).order_by('-triggered_at')[:10]
 
+    from .rmm_association import summary
     return render(request, 'integrations/rmm_device_detail.html', {
         'device': device,
         'software': software,
         'alerts': alerts,
+        'rmm_summaries': [summary(device)],
+        'candidate_assets': _candidate_assets(device),
+        'customer_assets': _customer_assets(device),
+        'can_decide': _can_decide(request),
     })
+
+
+# ---------------------------------------------------------------------------
+# RMM association review: customers that couldn't be resolved, devices the RMM
+# moved to another customer, and asset matches that need a technician.
+# ---------------------------------------------------------------------------
+
+def _can_decide(request):
+    from psa.visibility import is_msp_staff
+    if not is_msp_staff(request.user):
+        return False
+    if request.user.is_superuser or request.user.is_staff:
+        return True
+    from core.decorators import get_user_membership
+    membership = get_user_membership(request)
+    return bool(membership and membership.can_write())
+
+
+def _candidate_assets(device):
+    from assets.models import Asset
+    if not device.is_exposed:
+        return []
+    ids = [i for i in (device.link_candidates or []) if isinstance(i, int)]
+    picked = list(Asset.objects.filter(organization_id=device.organization_id, pk__in=ids))
+    return picked
+
+
+def _customer_assets(device):
+    from assets.models import Asset
+    if not device.is_exposed:
+        return []
+    skip = [i for i in (device.link_candidates or []) if isinstance(i, int)]
+    return list(Asset.objects.filter(organization_id=device.organization_id).exclude(pk__in=skip)
+                .order_by('name')[:500])
+
+
+def _review_queryset(connection):
+    from django.db.models import Q
+    return (RMMDevice.objects.filter(connection=connection)
+            .filter(~Q(ownership_status=RMMDevice.OWNERSHIP_RESOLVED) | Q(link_status=RMMDevice.LINK_REVIEW))
+            .select_related('organization', 'pending_organization', 'linked_asset')
+            .order_by('ownership_status', 'client_name', 'device_name'))
+
+
+@login_required
+def rmm_review(request, pk):
+    """Staff-only queue for one connection: unresolved customers, upstream
+    moves and asset matches that need a decision."""
+    from psa.visibility import is_msp_staff
+    if not is_msp_staff(request.user):
+        raise PermissionDenied
+    org = get_request_organization(request)
+    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
+    from assets.models import Asset
+    from core.models import Organization
+    items = []
+    for device in _review_queryset(connection):
+        candidates = []
+        if device.is_exposed and device.link_status == RMMDevice.LINK_REVIEW:
+            candidates = list(Asset.objects.filter(organization_id=device.organization_id,
+                                                   pk__in=[i for i in device.link_candidates or []
+                                                           if isinstance(i, int)]))
+        items.append({'device': device, 'candidates': candidates})
+    return render(request, 'integrations/rmm_review.html', {
+        'connection': connection,
+        'items': items,
+        'organizations': Organization.objects.filter(is_active=True).order_by('name'),
+        'can_decide': _can_decide(request),
+    })
+
+
+@login_required
+@require_POST
+def rmm_device_decide(request, pk):
+    """Apply a technician's decision about one device."""
+    from assets.models import Asset
+    from core.models import Organization
+    from . import rmm_association as ra
+    if not _can_decide(request):
+        raise PermissionDenied
+    org = get_request_organization(request)
+    device = get_object_or_404(RMMDevice.objects.select_related('connection', 'organization'), pk=pk)
+    # The connection's owner decides: the device is reached through its
+    # connection, never through the (possibly unset) device customer.
+    get_org_object_or_404(RMMConnection, org, pk=device.connection_id)
+    action = request.POST.get('action', '')
+    back = request.POST.get('next') or reverse('integrations:rmm_review', args=[device.connection_id])
+    if not back.startswith('/') or back.startswith('//'):
+        back = reverse('integrations:rmm_review', args=[device.connection_id])
+    try:
+        if action in ('assign_customer', 'map_customer'):
+            target = get_object_or_404(Organization, pk=request.POST.get('organization'), is_active=True)
+            done = ra.assign_customer(device, target, request.user, map_all=(action == 'map_customer'))
+            messages.success(request, f'{len(done)} device(s) assigned to {target.name}.')
+        elif action == 'link_asset':
+            asset = get_object_or_404(Asset, pk=request.POST.get('asset'))
+            ra.link_asset(device, asset, request.user)
+            messages.success(request, f'Linked {device.device_name} to {asset.name}.')
+        elif action == 'create_asset':
+            asset = ra.create_linked_asset(device, request.user)
+            messages.success(request, f'Created asset {asset.name} and linked it.')
+        elif action == 'leave_unlinked':
+            ra.leave_unlinked(device, request.user)
+            messages.success(request, f'{device.device_name} stays unlinked; syncs will not link it again.')
+        elif action == 'match_automatically':
+            ra.match_automatically(device, request.user)
+            messages.success(request, f'{device.device_name} will be matched automatically on the next sync.')
+        else:
+            messages.error(request, 'Unknown action.')
+    except ValueError as exc:
+        messages.error(request, str(exc))
+    return redirect(back)
+
+
+@login_required
+def rmm_device_open(request, pk):
+    """Open a device in its RMM console via a short-lived vendor link,
+    fetched on the server so no API credential reaches the browser."""
+    from psa.visibility import is_msp_staff
+    from .providers.rmm.console import validated_console_url
+    if not is_msp_staff(request.user):
+        raise PermissionDenied
+    org = get_request_organization(request)
+    device = get_object_or_404(
+        RMMDevice.objects.for_organization(org).filter(ownership_status=RMMDevice.OWNERSHIP_RESOLVED)
+        .select_related('connection'), pk=pk)
+    provider = get_rmm_provider(device.connection)
+    url = ''
+    if getattr(provider, 'console_link_mode', 'none') == 'on_demand':
+        try:
+            url = validated_console_url(provider.fetch_console_url(device),
+                                        provider.console_hosts(device.connection))
+        except Exception as exc:
+            logger.warning(f'RMM console link for device {device.pk} unavailable: {exc}')
+    if not url:
+        messages.error(request, f'{device.connection.get_provider_type_display()} did not return a link for '
+                                f'{device.device_name} (ID {device.external_id}). Search for it in the console.')
+        return redirect('integrations:rmm_device_detail', pk=device.pk)
+    return redirect(url)
 
 
 @login_required
@@ -805,6 +964,7 @@ def rmm_device_map_data(request):
     # Get all devices for this organization with coordinates
     devices = RMMDevice.objects.filter(
         organization=organization,
+        ownership_status=RMMDevice.OWNERSHIP_RESOLVED,
         latitude__isnull=False,
         longitude__isnull=False
     ).select_related('connection').values(
@@ -860,6 +1020,8 @@ def global_rmm_device_map_data(request):
 
     # Get all devices with coordinates across all organizations
     devices = RMMDevice.objects.filter(
+        ownership_status=RMMDevice.OWNERSHIP_RESOLVED,
+        organization__isnull=False,
         latitude__isnull=False,
         longitude__isnull=False
     ).select_related('connection', 'organization').values(
@@ -973,11 +1135,11 @@ def rmm_import_clients(request, pk):
                         }
                     clients[client_id]['device_count'] += 1
 
-            # Check which clients already exist as organizations
+            # Which clients are already mapped on this connection
+            from .rmm_association import customer_identity, mapped_organization
             for client_id in clients:
-                existing = Organization.objects.filter(name=clients[client_id]['name']).first()
-                if existing:
-                    clients[client_id]['existing_org'] = existing
+                identity = customer_identity({'client_id': client_id, 'client_name': clients[client_id]['name']})
+                clients[client_id]['existing_org'] = mapped_organization(connection, identity) if identity else None
 
             return render(request, 'integrations/rmm_import_clients.html', {
                 'connection': connection,
@@ -1015,24 +1177,28 @@ def rmm_import_clients(request, pk):
             created_count = 0
             skipped_count = 0
 
+            from .org_import import import_organization_from_rmm
+            from .rmm_association import customer_identity, mapped_organization
             for client_id, client_name in clients_to_import.items():
-                # Check if already exists
-                if Organization.objects.filter(name=client_name).exists():
+                identity = customer_identity({'client_id': client_id, 'client_name': client_name})
+                # Already mapped on this connection: nothing to import.
+                if identity is None or mapped_organization(connection, identity) is not None:
                     skipped_count += 1
                     continue
-
-                # Create new organization
+                # Creates the organization (or adopts the one with exactly
+                # this name) and records the RMM customer ID → organization
+                # mapping, so syncs resolve it by ID rather than by name.
                 try:
                     with transaction.atomic():
-                        org = Organization.objects.create(
-                            name=client_name,
-                            is_active=True,
-                            description=f'Imported from {connection.name} (RMM Client ID: {client_id})'
-                        )
+                        org = import_organization_from_rmm(connection, {
+                            'external_id': client_id, 'client_id': client_id,
+                            'client_name': client_name, 'name': client_name,
+                        }, force=True)
+                    if org is not None:
                         created_count += 1
-                        logger.info(f'Created organization {org.name} from RMM client {client_id}')
+                        logger.info(f'Imported organization {org.name} from RMM client {client_id}')
                 except Exception as e:
-                    logger.error(f'Failed to create organization for client {client_name}: {e}')
+                    logger.error(f'Failed to import organization for client {client_name}: {e}')
 
             if created_count > 0:
                 messages.success(

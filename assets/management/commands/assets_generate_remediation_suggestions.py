@@ -137,10 +137,11 @@ class Command(BaseCommand):
             if not v.affected_pattern:
                 continue
             # Cheap per-asset match using RMMSoftware
-            from integrations.models import RMMSoftware
+            from integrations.models import RMMDevice, RMMSoftware
             sw_qs = RMMSoftware.objects.filter(
-                organization=asset.organization,
-                device__device_name=asset.name,
+                device__linked_asset=asset,
+                device__organization_id=asset.organization_id,
+                device__ownership_status=RMMDevice.OWNERSHIP_RESOLVED,
                 name__icontains=v.affected_pattern,
             )
             if sw_qs.exists():

@@ -4,7 +4,7 @@ All RMM providers must implement this interface.
 """
 import logging
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from .base import BaseProvider, ProviderError, AuthenticationError, RateLimitError
 
 logger = logging.getLogger('integrations')
@@ -27,6 +27,26 @@ class BaseRMMProvider(BaseProvider):
     supports_companies = False
     supports_contacts = False
     supports_tickets = False
+
+    # Links into the vendor's web console (see providers/rmm/console.py):
+    # 'static' builds the URL from synced data, 'on_demand' asks the vendor
+    # API for a short-lived URL when the technician clicks, 'none' offers no
+    # link (the page shows a copyable device name and ID instead).
+    console_link_mode = 'none'
+
+    @classmethod
+    def console_hosts(cls, connection):
+        """Hosts a console link for this connection may point at."""
+        return set()
+
+    @classmethod
+    def device_console_url(cls, connection, device):
+        """A per-device console URL built from synced data, or ''."""
+        return ''
+
+    def fetch_console_url(self, device):
+        """For 'on_demand' providers: ask the vendor for a console URL."""
+        return ''
 
     # Required methods for all RMM providers
 
@@ -183,20 +203,21 @@ class BaseRMMProvider(BaseProvider):
         if not date_string:
             return None
         try:
-            # If it's an integer or float, treat as Unix timestamp
-            if isinstance(date_string, (int, float)):
-                return datetime.fromtimestamp(date_string, tz=timezone.utc)
-
-            # Try parsing as numeric string (Unix timestamp)
+            # Unix timestamps: seconds (NinjaOne) or milliseconds (Datto RMM).
+            # Anything past 1e11 seconds is the year 5138, so it must be ms.
             try:
                 timestamp = float(date_string)
-                return datetime.fromtimestamp(timestamp, tz=timezone.utc)
             except (ValueError, TypeError):
-                pass  # Not a number, try ISO format
+                timestamp = None
+            if timestamp is not None:
+                if timestamp > 1e11:
+                    timestamp /= 1000.0
+                return datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
             # Try ISO 8601 format with Z timezone
-            return datetime.fromisoformat(date_string.replace('Z', '+00:00'))
-        except (ValueError, AttributeError, TypeError):
+            parsed = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+        except (ValueError, AttributeError, TypeError, OverflowError, OSError):
             return None
 
     def _parse_location(self, location_string: Optional[str]) -> tuple[Optional[float], Optional[float]]:

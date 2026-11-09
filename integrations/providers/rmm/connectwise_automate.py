@@ -80,57 +80,51 @@ class ConnectWiseAutomateProvider(BaseRMMProvider):
             logger.error(f"ConnectWise Automate connection test failed: {e}")
             return False
 
+    def _paged(self, endpoint, page_size=100, extra=None):
+        """Automate pages with `page` (from 1) and `pageSize`."""
+        page = 1
+        while True:
+            params = {'page': page, 'pageSize': page_size}
+            params.update(extra or {})
+            data = self._make_request('GET', endpoint, params=params).json()
+            if not data or not isinstance(data, list):
+                return
+            yield from data
+            if len(data) < page_size:
+                return
+            page += 1
+
+    def _name_lookups(self):
+        """Client and location names, read once per sync, for payloads that
+        carry only the IDs. Names are for display; identity is the ID."""
+        clients, locations = {}, {}
+        try:
+            for row in self._paged('/cwa/api/v1/Clients', 500):
+                clients[str(row.get('Id'))] = row.get('Name') or ''
+            for row in self._paged('/cwa/api/v1/Locations', 500):
+                locations[str(row.get('Id'))] = row.get('Name') or ''
+        except Exception as e:
+            logger.warning(f"ConnectWise Automate: client/location names unavailable: {e}")
+        return clients, locations
+
     def list_devices(self, page_size: int = 100, updated_since: Optional[datetime] = None) -> List[Dict[str, Any]]:
         """
-        List all computers (devices).
-
-        ConnectWise Automate uses index/limit pagination.
-
-        Args:
-            page_size: Number of devices per page
-            updated_since: Filter by last contact time
-
-        Returns:
-            List of normalized device dictionaries
+        List all computers (GET /cwa/api/v1/Computers). Every sync reads the
+        full list: a "changed since" condition would miss computers moved to
+        another client without checking in.
         """
         devices = []
-        index = 0
-
         try:
-            while True:
-                params = {
-                    'index': index,
-                    'limit': page_size,
-                }
-
-                # Add condition for updated_since if specified
-                if updated_since:
-                    # Automate uses specific filter syntax
-                    updated_str = updated_since.strftime('%Y-%m-%d %H:%M:%S')
-                    params['condition'] = f"LastContact >= '{updated_str}'"
-
-                response = self._make_request('GET', '/cwa/api/v1/computers', params=params)
-                data = response.json()
-
-                if not data or not isinstance(data, list):
-                    break
-
-                for device_data in data:
-                    try:
-                        devices.append(self.normalize_device(device_data))
-                    except Exception as e:
-                        logger.error(f"Error normalizing Automate device {device_data.get('Id')}: {e}")
-
-                # Check if we got a full page (if not, we're done)
-                if len(data) < page_size:
-                    break
-
-                index += page_size
-                logger.debug(f"ConnectWise Automate: Fetched {index} devices")
-
+            rows = list(self._paged('/cwa/api/v1/Computers', page_size))
+            needs_names = any(not isinstance(r.get('Client'), dict) and r.get('ClientId') for r in rows)
+            self._client_names, self._location_names = self._name_lookups() if needs_names else ({}, {})
+            for device_data in rows:
+                try:
+                    devices.append(self.normalize_device(device_data))
+                except Exception as e:
+                    logger.error(f"Error normalizing Automate device {device_data.get('Id')}: {e}")
             logger.info(f"ConnectWise Automate: Retrieved {len(devices)} total devices")
             return devices
-
         except Exception as e:
             logger.error(f"Error listing ConnectWise Automate devices: {e}")
             raise ProviderError(f"Failed to list devices: {e}")
@@ -160,60 +154,20 @@ class ConnectWiseAutomateProvider(BaseRMMProvider):
         page_size: int = 100
     ) -> List[Dict[str, Any]]:
         """
-        List monitoring alerts (from internal monitors).
-
-        Args:
-            device_id: Filter by computer ID
-            status: Filter by status (active, resolved)
-            updated_since: Filter by date
-            page_size: Number of alerts per page
-
-        Returns:
-            List of normalized alert dictionaries
+        List alerts (GET /cwa/api/v1/Alerts, or one computer's
+        /Computers/{id}/Alerts). Each alert names its computer in
+        `Computer.Id`.
         """
         alerts = []
-        index = 0
-
+        endpoint = f'/cwa/api/v1/Computers/{device_id}/Alerts' if device_id else '/cwa/api/v1/Alerts'
         try:
-            while True:
-                params = {
-                    'index': index,
-                    'limit': page_size,
-                }
-
-                # Build condition filter
-                conditions = []
-                if device_id:
-                    conditions.append(f"ComputerId = {device_id}")
-                if status == 'active':
-                    conditions.append("Status = 'Alert'")
-                elif status == 'resolved':
-                    conditions.append("Status = 'Resolved'")
-
-                if conditions:
-                    params['condition'] = ' AND '.join(conditions)
-
-                # Automate calls them "internal monitors"
-                response = self._make_request('GET', '/cwa/api/v1/internalmonitors', params=params)
-                data = response.json()
-
-                if not data or not isinstance(data, list):
-                    break
-
-                for alert_data in data:
-                    try:
-                        alerts.append(self.normalize_alert(alert_data))
-                    except Exception as e:
-                        logger.error(f"Error normalizing Automate alert {alert_data.get('Id')}: {e}")
-
-                if len(data) < page_size:
-                    break
-
-                index += page_size
-
+            for alert_data in self._paged(endpoint, page_size):
+                try:
+                    alerts.append(self.normalize_alert(alert_data))
+                except Exception as e:
+                    logger.error(f"Error normalizing Automate alert {alert_data.get('AlertId')}: {e}")
             logger.info(f"ConnectWise Automate: Retrieved {len(alerts)} alerts")
             return alerts
-
         except Exception as e:
             logger.error(f"Error listing ConnectWise Automate alerts: {e}")
             raise ProviderError(f"Failed to list alerts: {e}")
@@ -266,101 +220,88 @@ class ConnectWiseAutomateProvider(BaseRMMProvider):
 
     def normalize_device(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Normalize ConnectWise Automate computer data to standard format.
+        Normalize an Automate computer (REST API v1):
 
-        Automate computer structure:
-        {
-            "Id": 12345,
-            "Name": "DESKTOP-ABC123",
-            "Domain": "WORKGROUP",
-            "Type": "0",
-            "Manufacturer": "Dell Inc.",
-            "Model": "OptiPlex 7090",
-            "SerialNumber": "ABC12345",
-            "OS": "Windows 10 Pro",
-            "LocalIPAddress": "192.168.1.100",
-            "MACAddress": "00:11:22:33:44:55",
-            "Status": "Online",
-            "LastContact": "2026-01-11T02:00:00Z",
-            "ClientId": 1,
-            "LocationId": 10
-        }
+            {
+              "Id": "12345", "ComputerName": "FRONTDESK", "FriendlyName": "",
+              "SerialNumber": "ABC12345", "BiosManufacturer": "Dell Inc.",
+              "Status": "Online", "RemoteAgentLastContact": "2026-11-08T09:00:00",
+              "LocalIPAddress": "192.168.1.10", "MACAddress": "00:11:…",
+              "OperatingSystemName": "Microsoft Windows 11 Pro",
+              "Client": {"Id": 1, "Name": "Acme Ltd"},
+              "Location": {"Id": 10, "Name": "Main Office"}
+            }
+
+        Older servers return flat `ClientId` / `LocationId` instead; their
+        names come from the lookups read once per sync. Client and location
+        stay separate: the client is the customer, the location its site.
         """
-        # Map computer type
         comp_type = str(raw_data.get('Type', '0'))
         device_type = self.COMPUTER_TYPE_MAP.get(comp_type, 'workstation')
+        os_name = raw_data.get('OperatingSystemName') or raw_data.get('OS') or ''
+        status = str(raw_data.get('Status') or '').lower()
 
-        # Parse OS type
-        os_name = raw_data.get('OS', '')
-        os_type = self._map_os_type(os_name)
+        client = raw_data.get('Client') if isinstance(raw_data.get('Client'), dict) else {}
+        location = raw_data.get('Location') if isinstance(raw_data.get('Location'), dict) else {}
+        client_id = client.get('Id', raw_data.get('ClientId'))
+        location_id = location.get('Id', raw_data.get('LocationId'))
+        client_name = client.get('Name') or getattr(self, '_client_names', {}).get(str(client_id), '')
+        location_name = location.get('Name') or getattr(self, '_location_names', {}).get(str(location_id), '')
 
-        # Parse last contact
-        last_seen = self._parse_datetime(raw_data.get('LastContact'))
-
-        # Determine online status
-        status = raw_data.get('Status', '').lower()
-        is_online = status == 'online'
+        name = raw_data.get('ComputerName') or raw_data.get('Name') or raw_data.get('FriendlyName') or ''
+        last_seen = (raw_data.get('RemoteAgentLastContact') or raw_data.get('LastHeartbeat')
+                     or raw_data.get('LastContact'))
 
         return {
-            'external_id': str(raw_data.get('Id', '')),
-            'device_name': raw_data.get('Name', ''),
+            'external_id': str(raw_data.get('Id') if raw_data.get('Id') is not None else ''),
+            'device_name': raw_data.get('FriendlyName') or name,
             'device_type': device_type,
-            'manufacturer': raw_data.get('Manufacturer', ''),
-            'model': raw_data.get('Model', ''),
-            'serial_number': raw_data.get('SerialNumber', ''),
-            'os_type': os_type,
+            'manufacturer': raw_data.get('BiosManufacturer') or raw_data.get('Manufacturer', '') or '',
+            'model': raw_data.get('Model', '') or '',
+            'serial_number': raw_data.get('SerialNumber', '') or '',
+            'os_type': self._map_os_type(os_name),
             'os_version': os_name,
-            'hostname': raw_data.get('Name', ''),
-            'ip_address': raw_data.get('LocalIPAddress'),
-            'mac_address': raw_data.get('MACAddress', ''),
-            'is_online': is_online,
-            'last_seen': last_seen,
+            'hostname': name,
+            'ip_address': raw_data.get('LocalIPAddress') or None,
+            'mac_address': raw_data.get('MACAddress', '') or '',
+            'is_online': status == 'online',
+            'last_seen': self._parse_datetime(last_seen),
+            'client_id': str(client_id) if client_id not in (None, '') else '',
+            'client_name': client_name or '',
+            'site_id': str(location_id) if location_id not in (None, '') else '',
+            'site_name': location_name or '',
             'raw_data': raw_data,
         }
 
     def normalize_alert(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Normalize ConnectWise Automate internal monitor data to standard format.
-
-        Automate alert structure:
-        {
-            "Id": 123,
-            "ComputerId": 12345,
-            "Name": "Disk Space",
-            "Message": "C: drive low on space",
-            "Status": "Alert",
-            "Severity": "Warning",
-            "CreateDate": "2026-01-11T01:00:00Z",
-            "LastAlertDate": "2026-01-11T01:30:00Z"
-        }
+        Normalize an Automate alert: `AlertId`, `AlertDate`, `Severity`,
+        `Message`, `Source`, `Computer {Id, Name}`.
         """
-        # Map severity
         severity_map = {
             'informational': 'info',
+            'information': 'info',
             'warning': 'warning',
             'error': 'error',
             'critical': 'critical',
         }
-
-        sev = raw_data.get('Severity', 'Warning').lower()
-        severity = severity_map.get(sev, 'warning')
-
-        # Map status
-        status = 'active' if raw_data.get('Status') == 'Alert' else 'resolved'
-
-        # Parse timestamps
-        triggered_at = self._parse_datetime(raw_data.get('CreateDate'))
-        resolved_at = None  # Automate doesn't track resolution time directly
+        sev = raw_data.get('Severity')
+        if isinstance(sev, dict):
+            sev = sev.get('Name') or sev.get('Label') or ''
+        severity = severity_map.get(str(sev or 'warning').lower(), 'warning')
+        computer = raw_data.get('Computer') if isinstance(raw_data.get('Computer'), dict) else {}
+        computer_id = computer.get('Id', raw_data.get('ComputerId'))
+        alert_id = raw_data.get('AlertId', raw_data.get('Id'))
 
         return {
-            'external_id': str(raw_data.get('Id', '')),
-            'device_id': str(raw_data.get('ComputerId', '')),
-            'alert_type': raw_data.get('Name', ''),
-            'message': raw_data.get('Message', ''),
+            'external_id': str(alert_id) if alert_id is not None else '',
+            'device_id': str(computer_id) if computer_id is not None else '',
+            'alert_type': raw_data.get('Source') or raw_data.get('Name', '') or '',
+            'message': raw_data.get('Message', '') or '',
             'severity': severity,
-            'status': status,
-            'triggered_at': triggered_at,
-            'resolved_at': resolved_at,
+            'status': 'active',
+            'triggered_at': self._parse_datetime(raw_data.get('AlertDate') or raw_data.get('CreateDate')),
+            'resolved_at': None,
             'raw_data': raw_data,
         }
 

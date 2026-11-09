@@ -370,6 +370,7 @@ def ticket_detail(request, ticket_number):
 
     return render(request, 'psa/ticket_detail.html', {
         **workspace,
+        **_ticket_asset_context(ticket, workspace['is_msp_staff']),
         'ticket': ticket,
         'workflow_executions': workflow_executions,
         'comments': comments,
@@ -533,6 +534,14 @@ def ticket_create(request):
             messages.error(request, 'Invalid queue/status/priority/type selection.')
             return redirect(reverse('psa:ticket_create'))
 
+        # The asset must belong to the chosen client; checked here, not just
+        # in the picker, so a crafted form can't attach another customer's.
+        try:
+            related_asset = _asset_for_ticket(org, (request.POST.get('related_asset') or '').strip())
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(reverse('psa:ticket_create'))
+
         # v3.17.129 — admin-only "Assign to" picker on ticket creation.
         # The form may post `assigned_to`; only honour it when the requester
         # has permission to assign work in this org AND the target is
@@ -561,6 +570,7 @@ def ticket_create(request):
             created_by=request.user,
             updated_by=request.user,
             assigned_to=initial_assignee,
+            related_asset=related_asset,
         )
         # Compute SLA due-dates from the priority's targets
         apply_due_dates(ticket)
@@ -625,6 +635,28 @@ def ticket_create(request):
     preselected = get_request_organization(request)
     preselected_id = preselected.id if preselected and eligible_clients.filter(id=preselected.id).exists() else None
 
+    # From an RMM alert: preselect the client and asset only when the alert's
+    # device is verified — its customer settled and its asset link inside
+    # that customer.
+    prefill_subject = ''
+    preselected_asset_id = None
+    alert_id = (request.GET.get('rmm_alert') or '').strip()
+    if alert_id.isdigit() and is_msp_staff(request.user):
+        from integrations.models import RMMAlert, RMMDevice
+        alert = (RMMAlert.objects.select_related('device', 'device__linked_asset')
+                 .filter(pk=int(alert_id), device__ownership_status=RMMDevice.OWNERSHIP_RESOLVED,
+                         device__organization__in=eligible_clients).first())
+        if alert is not None:
+            preselected_id = alert.device.organization_id
+            prefill_subject = f'{alert.device.device_name}: {alert.message}'[:300]
+            linked = alert.device.linked_asset
+            if (linked is not None and linked.organization_id == alert.device.organization_id
+                    and alert.device.link_status in (RMMDevice.LINK_AUTO, RMMDevice.LINK_CONFIRMED)):
+                preselected_asset_id = linked.pk
+    from assets.models import Asset
+    client_assets = (list(Asset.objects.filter(organization_id=preselected_id).order_by('name')
+                          .only('id', 'name', 'hostname')[:500]) if preselected_id else [])
+
     # If invoked via /psa/new/?from_catalog=<slug>, pre-fill from the
     # service-catalog template
     catalog_slug = request.GET.get('from_catalog') or ''
@@ -679,12 +711,30 @@ def ticket_create(request):
         'types': types,
         'eligible_clients': eligible_clients,
         'preselected_client_id': preselected_id,
+        'preselected_asset_id': preselected_asset_id,
+        'client_assets': client_assets,
+        'prefill_subject': prefill_subject,
         'no_eligible_clients': False,
         'catalog_item': catalog_item,
         'available_workflows': available_workflows,
         'can_assign': can_assign,
         'eligible_assignees': eligible_assignees,
     })
+
+
+@login_required
+@require_psa_enabled
+def ticket_client_assets(request):
+    """Assets of one client for the new-ticket asset picker. Only clients
+    the user may open native tickets for."""
+    from psa.feature_flags import clients_eligible_for_native_psa
+    from assets.models import Asset
+    client_id = (request.GET.get('client') or '').strip()
+    if not client_id.isdigit() or not clients_eligible_for_native_psa(request.user).filter(pk=int(client_id)).exists():
+        return JsonResponse({'assets': []}, status=404)
+    assets = (Asset.objects.filter(organization_id=int(client_id)).order_by('name')
+              .values('id', 'name', 'hostname')[:500])
+    return JsonResponse({'assets': list(assets)})
 
 
 @login_required
@@ -858,6 +908,40 @@ def ticket_vault_context(request, ticket_number):
         'ticket': ticket,
         'vault_entries': vault_entries,
     })
+
+
+def _ticket_asset_context(ticket, staff):
+    """The ticket's asset and, for technicians, what its RMMs report.
+
+    Built from synced data only, so an RMM outage never slows or breaks the
+    page. Customers get none of it: the summary, the picker and the RMM
+    details are technician-only.
+    """
+    from assets.models import Asset
+    asset = ticket.related_asset
+    foreign = bool(asset and asset.organization_id != ticket.organization_id)
+    ctx = {'ticket_asset': None if foreign else asset, 'ticket_asset_foreign': foreign,
+           'ticket_rmm': [], 'ticket_asset_choices': []}
+    if not staff:
+        return ctx
+    if asset and not foreign:
+        from integrations.rmm_association import summaries_for_asset
+        ctx['ticket_rmm'] = summaries_for_asset(asset)
+    ctx['ticket_asset_choices'] = list(
+        Asset.objects.filter(organization_id=ticket.organization_id).order_by('name')
+        .only('id', 'name', 'hostname')[:500])
+    return ctx
+
+
+def _asset_for_ticket(org, raw_id):
+    """The asset with this id if it belongs to the ticket's customer."""
+    from assets.models import Asset
+    if not raw_id:
+        return None
+    try:
+        return Asset.objects.get(pk=int(raw_id), organization=org)
+    except (Asset.DoesNotExist, ValueError, TypeError):
+        raise ValueError('That asset belongs to a different customer, or no longer exists.')
 
 
 def _client_ip(request):
@@ -1479,6 +1563,27 @@ def _ticket_quick_action(request, ticket_number):
             f'{prev.username if prev else "unassigned"} → {new_label}'
         )
         audit_extra['previous_assignee_id'] = prev_id
+
+    elif action == 'set_asset':
+        if not is_msp_staff(request.user):
+            from django.core.exceptions import ValidationError as _VE
+            raise _VE('Only MSP technicians can change the ticket asset.')
+        try:
+            asset = _asset_for_ticket(ticket.organization, (request.POST.get('asset') or '').strip())
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
+        prev = ticket.related_asset
+        ticket.related_asset = asset
+        ticket.updated_by = request.user
+        ticket.save(update_fields=['related_asset', 'updated_by', 'updated_at'])
+        TicketComment.objects.create(
+            ticket=ticket, author=request.user,
+            body=f'Asset: {prev.name if prev else "none"} → {asset.name if asset else "none"}.',
+            is_internal=True, is_system=True,
+        )
+        description = f'Asset of {ticket.ticket_number}: {prev.name if prev else "none"} → {asset.name if asset else "none"}'
+        audit_extra['previous_asset_id'] = prev.pk if prev else None
 
     elif action == 'set_status':
         try:

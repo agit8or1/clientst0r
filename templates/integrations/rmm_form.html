@@ -147,6 +147,15 @@
                         <small class="form-text text-muted">Your RMM instance URL</small>
                     </div>
 
+                    <div class="mb-3">
+                        <label for="{{ form.console_base_url.id_for_label }}" class="form-label">Web console URL</label>
+                        {{ form.console_base_url }}
+                        {% if form.console_base_url.errors %}
+                        <div class="invalid-feedback d-block">{{ form.console_base_url.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Optional. Only needed where the web console isn't served from the API address (Tactical RMM). Used for "Open in …" device links.</small>
+                    </div>
+
                     <hr class="my-4">
                     <h4 class="mb-3">API Credentials</h4>
 
@@ -305,6 +314,15 @@
                     <hr class="my-4">
                     <h4 class="mb-3"><i class="fas fa-building"></i> Organization Import Settings</h4>
                     <p class="text-muted mb-3">Automatically create separate organizations for each RMM site/client</p>
+
+                    <div class="mb-3">
+                        <label for="{{ form.customer_scope.id_for_label }}" class="form-label"><strong>Customers on this connection</strong></label>
+                        {{ form.customer_scope }}
+                        {% if form.customer_scope.errors %}
+                        <div class="invalid-feedback d-block">{{ form.customer_scope.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted d-block">{{ form.customer_scope.help_text }}</small>
+                    </div>
 
                     <div class="row mb-3">
                         <div class="col-12">

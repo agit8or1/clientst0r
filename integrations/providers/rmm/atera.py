@@ -79,6 +79,7 @@ class AteraProvider(BaseRMMProvider):
             List of normalized device dictionaries
         """
         devices = []
+        self._agents_by_guid = {}
         page = 1
         page_size = min(page_size, 50)  # Atera max is 50
 
@@ -100,7 +101,9 @@ class AteraProvider(BaseRMMProvider):
 
                 for device_data in page_data:
                     try:
-                        devices.append(self.normalize_device(device_data))
+                        normalized = self.normalize_device(device_data)
+                        devices.append(normalized)
+                        self._remember_agent(device_data)
                     except Exception as e:
                         logger.error(f"Error normalizing Atera device {device_data.get('AgentID')}: {e}")
 
@@ -136,6 +139,27 @@ class AteraProvider(BaseRMMProvider):
             logger.error(f"Error getting Atera device {device_id}: {e}")
             raise ProviderError(f"Failed to get device: {e}")
 
+    def _remember_agent(self, agent):
+        guid = str(agent.get('DeviceGuid') or '').strip().lower()
+        if guid and agent.get('AgentID') is not None:
+            self._agents_by_guid[guid] = (str(agent['AgentID']), str(agent.get('CustomerID') or ''))
+
+    def _agent_lookup(self):
+        """DeviceGuid → (AgentID, CustomerID), from this sync's agent list or,
+        when devices weren't synced, one paged read of /v3/agents."""
+        if getattr(self, '_agents_by_guid', None):
+            return self._agents_by_guid
+        self._agents_by_guid = {}
+        page = 1
+        while True:
+            data = self._make_request('GET', '/v3/agents', params={'page': page, 'itemsInPage': 50}).json() or {}
+            for agent in data.get('items') or []:
+                self._remember_agent(agent)
+            if page >= (data.get('totalPages') or 0):
+                break
+            page += 1
+        return self._agents_by_guid
+
     def list_alerts(
         self,
         device_id: Optional[str] = None,
@@ -144,65 +168,46 @@ class AteraProvider(BaseRMMProvider):
         page_size: int = 50
     ) -> List[Dict[str, Any]]:
         """
-        List monitoring alerts.
+        List alerts (GET /v3/alerts). An alert names its machine by
+        `DeviceGuid`; it is tied to an agent only when that GUID belongs to an
+        agent of this account and both carry the same `CustomerID`.
 
-        Atera tracks alerts in the ticketing system.
-
-        Args:
-            device_id: Filter by agent ID
-            status: Filter by status (Open, Pending, Resolved)
-            updated_since: Filter by date
-            page_size: Number of alerts per page
-
-        Returns:
-            List of normalized alert dictionaries
+        Earlier versions read /v3/tickets and treated a ticket's `EndUserID`
+        as the device. EndUserID is the contact who raised the ticket, so
+        alerts were pinned to whichever device happened to share that number.
         """
         alerts = []
         page = 1
         page_size = min(page_size, 50)
-
         try:
+            agents = self._agent_lookup()
             while True:
-                params = {
-                    'page': page,
-                    'itemsInPage': page_size,
-                }
-
-                # Atera uses tickets for alerts
-                response = self._make_request('GET', '/v3/tickets', params=params)
-                data = response.json()
-
-                page_data = data.get('items', [])
-
-                if not page_data:
-                    break
-
-                for alert_data in page_data:
+                params = {'page': page, 'itemsInPage': page_size}
+                if status == 'active':
+                    params['alertStatus'] = 'Open'
+                elif status == 'resolved':
+                    params['alertStatus'] = 'Closed'
+                data = self._make_request('GET', '/v3/alerts', params=params).json() or {}
+                for alert_data in data.get('items') or []:
                     try:
-                        # Filter by device if specified
-                        if device_id and str(alert_data.get('EndUserID')) != device_id:
+                        alert = self.normalize_alert(alert_data)
+                        guid = str(alert_data.get('DeviceGuid') or '').strip().lower()
+                        agent = agents.get(guid) if guid else None
+                        alert_customer = str(alert_data.get('CustomerID') or '')
+                        if agent and (not alert_customer or not agent[1] or alert_customer == agent[1]):
+                            alert['device_id'] = agent[0]
+                        else:
+                            alert['device_id'] = ''
+                        if device_id and alert['device_id'] != str(device_id):
                             continue
-
-                        # Filter by status if specified
-                        if status:
-                            alert_status = 'active' if alert_data.get('TicketStatus') in ['Open', 'Pending'] else 'resolved'
-                            if alert_status != status:
-                                continue
-
-                        alerts.append(self.normalize_alert(alert_data))
+                        alerts.append(alert)
                     except Exception as e:
-                        logger.error(f"Error normalizing Atera alert {alert_data.get('TicketID')}: {e}")
-
-                # Check pagination
-                total_pages = data.get('totalPages', 0)
-                if page >= total_pages:
+                        logger.error(f"Error normalizing Atera alert {alert_data.get('AlertID')}: {e}")
+                if page >= (data.get('totalPages') or 0):
                     break
-
                 page += 1
-
             logger.info(f"Atera: Retrieved {len(alerts)} alerts")
             return alerts
-
         except Exception as e:
             logger.error(f"Error listing Atera alerts: {e}")
             raise ProviderError(f"Failed to list alerts: {e}")
@@ -241,109 +246,90 @@ class AteraProvider(BaseRMMProvider):
 
     def normalize_device(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Normalize Atera agent data to standard format.
+        Normalize an Atera agent (/v3/agents):
 
-        Atera agent structure:
-        {
-            "AgentID": 123456,
-            "MachineName": "DESKTOP-ABC123",
-            "DomainName": "WORKGROUP",
-            "AgentType": "Workstation",
-            "Manufacturer": "Dell Inc.",
-            "Model": "OptiPlex 7090",
-            "SerialNumber": "ABC12345",
-            "OSType": "Windows",
-            "OSVersion": "10.0.19045",
-            "IPAddress": "192.168.1.100",
-            "MacAddress": "00-11-22-33-44-55",
-            "Online": true,
-            "LastSeenTime": "2026-01-11T02:00:00Z"
-        }
+            {
+              "AgentID": 123456, "DeviceGuid": "6f0c…", "MachineName": "FRONTDESK",
+              "CustomerID": 42, "CustomerName": "Acme Ltd", "FolderID": 3,
+              "Online": true, "Vendor": "Dell Inc.", "VendorBrandModel": "OptiPlex 7090",
+              "VendorSerialNumber": "ABC12345", "OSType": "Windows", "OSVersion": "11",
+              "IpAddresses": ["192.168.1.10"], "MacAddresses": ["00-11-…"],
+              "LastSeen": "2026-11-08T09:00:00", "AppViewUrl": "https://app.atera.com/…"
+            }
+
+        The customer is Atera's own CustomerID. Atera has no site level
+        (FolderID is a grouping inside a customer), so no site is reported.
         """
-        # Map agent type to device type
-        agent_type = raw_data.get('AgentType', 'Workstation').lower()
+        agent_type = str(raw_data.get('AgentType') or raw_data.get('DeviceType') or 'Workstation').lower()
         device_type = self.AGENT_TYPE_MAP.get(agent_type, 'workstation')
 
-        # Parse OS type
-        os_type_raw = raw_data.get('OSType', '').lower()
-        os_type = self._map_os_type(os_type_raw)
+        os_name = raw_data.get('OSType', '') or ''
+        os_version = f"{os_name} {raw_data.get('OSVersion', '') or ''}".strip()
 
-        # Build OS version string
-        os_name = raw_data.get('OSType', '')
-        os_version_num = raw_data.get('OSVersion', '')
-        os_version = f"{os_name} {os_version_num}".strip()
+        ips = raw_data.get('IpAddresses') or []
+        macs = raw_data.get('MacAddresses') or []
+        ip_address = raw_data.get('IPAddress') or (ips[0] if ips else None)
+        mac_address = (raw_data.get('MacAddress') or (macs[0] if macs else '') or '').replace('-', ':')
 
-        # Parse last seen time
-        last_seen = self._parse_datetime(raw_data.get('LastSeenTime'))
-
-        # Normalize MAC address format (Atera uses dashes)
-        mac_address = raw_data.get('MacAddress', '').replace('-', ':')
+        customer_id = raw_data.get('CustomerID')
+        machine = raw_data.get('MachineName') or raw_data.get('AgentName') or raw_data.get('SystemName') or ''
+        last_seen = (raw_data.get('LastSeen') or raw_data.get('LastSeenTime') or raw_data.get('Modified'))
 
         return {
-            'external_id': str(raw_data.get('AgentID', '')),
-            'device_name': raw_data.get('MachineName', ''),
+            'external_id': str(raw_data.get('AgentID') if raw_data.get('AgentID') is not None else ''),
+            'device_name': machine,
             'device_type': device_type,
-            'manufacturer': raw_data.get('Manufacturer', ''),
-            'model': raw_data.get('Model', ''),
-            'serial_number': raw_data.get('SerialNumber', ''),
-            'os_type': os_type,
+            'manufacturer': raw_data.get('Vendor') or raw_data.get('Manufacturer', '') or '',
+            'model': raw_data.get('VendorBrandModel') or raw_data.get('Model', '') or '',
+            'serial_number': raw_data.get('VendorSerialNumber') or raw_data.get('SerialNumber', '') or '',
+            'os_type': self._map_os_type(os_name.lower()),
             'os_version': os_version,
-            'hostname': raw_data.get('MachineName', ''),
-            'ip_address': raw_data.get('IPAddress'),
+            'hostname': machine,
+            'ip_address': ip_address,
             'mac_address': mac_address,
-            'is_online': raw_data.get('Online', False),
-            'last_seen': last_seen,
+            'is_online': bool(raw_data.get('Online', False)),
+            'last_seen': self._parse_datetime(last_seen),
+            'client_id': str(customer_id) if customer_id is not None else '',
+            'client_name': raw_data.get('CustomerName', '') or '',
+            'site_id': '',
+            'site_name': '',
             'raw_data': raw_data,
         }
 
     def normalize_alert(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Normalize Atera ticket data to standard format.
-
-        Atera ticket structure:
-        {
-            "TicketID": 12345,
-            "TicketNumber": 1001,
-            "TicketTitle": "Antivirus alert",
-            "TicketStatus": "Open",
-            "TicketPriority": "High",
-            "TicketType": "Problem",
-            "EndUserID": 123,
-            "CreateDate": "2026-01-11T01:00:00Z",
-            "LastEndUserUpdate": "2026-01-11T01:30:00Z",
-            "CloseDate": null
-        }
+        Normalize an Atera alert: `AlertID`, `DeviceGuid`, `CustomerID`,
+        `Severity` (Information / Warning / Critical), `Title`, `Created`,
+        `Archived`, `ArchivedDate`. The device is filled in by list_alerts
+        once the GUID is verified against an agent.
         """
-        # Map priority to severity
-        priority_map = {
-            'low': 'info',
-            'normal': 'warning',
-            'high': 'error',
-            'critical': 'critical',
-        }
-
-        priority = raw_data.get('TicketPriority', 'Normal').lower()
-        severity = priority_map.get(priority, 'warning')
-
-        # Map status
-        ticket_status = raw_data.get('TicketStatus', 'Open')
-        status = 'active' if ticket_status in ['Open', 'Pending'] else 'resolved'
-
-        # Parse timestamps
-        triggered_at = self._parse_datetime(raw_data.get('CreateDate'))
-        resolved_at = self._parse_datetime(raw_data.get('CloseDate')) if status == 'resolved' else None
+        severity_map = {'information': 'info', 'warning': 'warning', 'critical': 'critical', 'error': 'error'}
+        severity = severity_map.get(str(raw_data.get('Severity') or 'Information').lower(), 'warning')
+        archived = bool(raw_data.get('Archived'))
 
         return {
-            'external_id': str(raw_data.get('TicketID', '')),
-            'device_id': str(raw_data.get('EndUserID', '')),
-            'alert_type': raw_data.get('TicketType', ''),
-            'message': raw_data.get('TicketTitle', ''),
+            'external_id': str(raw_data.get('AlertID') if raw_data.get('AlertID') is not None else ''),
+            'device_id': '',
+            'alert_type': raw_data.get('AlertCategoryID') or raw_data.get('Source') or 'alert',
+            'message': raw_data.get('Title') or raw_data.get('AlertMessage') or '',
             'severity': severity,
-            'status': status,
-            'triggered_at': triggered_at,
-            'resolved_at': resolved_at,
+            'status': 'resolved' if archived else 'active',
+            'triggered_at': self._parse_datetime(raw_data.get('Created')),
+            'resolved_at': self._parse_datetime(raw_data.get('ArchivedDate')) if archived else None,
             'raw_data': raw_data,
         }
+
+    # Atera returns each agent's console address in `AppViewUrl`; it is
+    # shown only when it points at Atera's own web app.
+    console_link_mode = 'static'
+
+    @classmethod
+    def console_hosts(cls, connection):
+        return {'app.atera.com'}
+
+    @classmethod
+    def device_console_url(cls, connection, device):
+        return (device.raw_data or {}).get('AppViewUrl') or ''
 
     def normalize_software(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """

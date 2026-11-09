@@ -241,6 +241,46 @@ https://your-server.com:8443/api/v1 (Self-Hosted)
 
 ## RMM Integrations
 
+### Customers, sites and device links
+
+Each RMM connection is either **single customer** (every device belongs to the
+organization that owns the connection) or **multiple customers** (each device is
+filed under the customer the RMM reports for it). Set this under **Customers** on
+the connection form.
+
+On a multiple-customer connection a device is only shown on a customer's assets,
+tickets, alerts and reports once its customer is settled: by an imported or mapped
+RMM customer ID, or by a technician in **Integrations → (connection) → Review**.
+A device the RMM moves to another customer is hidden until a technician confirms
+the move. Devices are never filed under the connection owner as a fallback.
+
+| RMM | Customer | Site | Alerts tied to a device by | Open the device in the RMM | How verified |
+|---|---|---|---|---|---|
+| NinjaOne | Organization ID | Location ID (kept separate from the organization) | `deviceId` | Yes: a short-lived link from the documented dashboard-URL endpoint, fetched by the server when you click | Fixture tests against the v2 API spec. Not yet checked against a live account |
+| Datto RMM | Site UID (Datto's site is the customer, so one site is one customer) | Same site | `alertSourceInfo.deviceUid` | Yes: the device's `portalUrl`, shown only on the platform's web host (for example `pinotage.centrastage.net`) | Fixture tests against the API v2 spec. Not yet checked against a live account |
+| Atera | `CustomerID` | None (Atera has no site level) | `DeviceGuid`, matched to an agent of the same customer | Yes: the agent's `AppViewUrl`, only on `app.atera.com` | Fixture tests against a published copy of the v3 API spec. Not yet checked against a live account |
+| ConnectWise Automate | Client ID | Location ID | `Computer.Id` | No documented URL. The page shows a copyable name and ID | Fixture tests against a published copy of the REST v1 spec. Not yet checked against a live server |
+| Tactical RMM | Client ID from one `/clients/` read per sync. If that read fails, the client name (needs a one-time mapping) | Site ID (site names may repeat across customers) | `agent_id` | Yes, when **Web console URL** is set on the connection: `<console>/agents/<agent id>` | Fixture tests against the Tactical RMM source. Not yet checked against a live server |
+
+Device asset links follow the same rules for every RMM. They never cross customers:
+
+- A unique serial matches. Placeholder serials ("To Be Filled By O.E.M.", "0", etc.) are ignored.
+- A unique hostname matches only when the serial and site don't conflict.
+- IP addresses are never used to identify a device.
+- Duplicates and conflicts go to the review queue with the candidates and a plain explanation.
+- A technician's link, "create new" or "leave unlinked" decision is kept across syncs.
+- An RMM fills empty asset fields. It updates a field only while that field still holds the value the RMM last wrote, so technician edits are kept.
+
+**After upgrading**, run one sync on each connection, then preview and apply reconciliation:
+
+```bash
+python manage.py rmm_reconcile                 # dry run: counts only, nothing saved
+python manage.py rmm_reconcile --apply         # make the changes
+python manage.py rmm_reconcile --connection 3  # one connection only
+```
+
+It is safe to run again. Links to another customer's assets stop showing as soon as the update is applied, before reconciliation runs.
+
 ### NinjaOne (NinjaRMM)
 
 **Base URL Format:**
@@ -357,7 +397,8 @@ https://your-tactical-instance.com
 4. Enter **Name** (e.g., "Client St0r")
 5. Select **Permissions** (read agents, alerts, software)
 6. Copy the **API Key** (shown only once)
-7. Use your Tactical RMM installation URL
+7. Use your Tactical RMM API URL as the base URL (for example `https://api.yourdomain.com`)
+8. Optional: set **Web console URL** to the address you open Tactical RMM at (for example `https://rmm.yourdomain.com`) to get "Open in Tactical RMM" links
 
 **API Documentation:** https://docs.tacticalrmm.com/api/
 

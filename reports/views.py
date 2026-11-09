@@ -3500,6 +3500,12 @@ def software_compliance_report(request):
             ids = list(request.user.memberships.filter(is_active=True)
                                   .values_list('organization_id', flat=True))
         org_qs_filter = Q(organization_id__in=ids)
+    # Only devices whose customer is settled; software is scoped by its
+    # device's customer.
+    sw_filter = Q(device__organization__isnull=False, device__ownership_status='resolved')
+    if not is_staff:
+        sw_filter &= Q(device__organization_id__in=ids)
+    device_filter = org_qs_filter & Q(organization__isnull=False, ownership_status='resolved')
 
     # MSP-wide (org=None) policies + org-scoped ones
     policies = list(SoftwarePolicy.objects.filter(is_active=True))
@@ -3508,18 +3514,18 @@ def software_compliance_report(request):
 
     deny_violations = []
     if deny:
-        sw_qs = RMMSoftware.objects.filter(org_qs_filter).select_related(
-            'organization', 'device')[:5000]
+        sw_qs = RMMSoftware.objects.filter(sw_filter).select_related(
+            'device', 'device__organization')[:5000]
         for sw in sw_qs:
             for p in deny:
-                if p.organization_id and p.organization_id != sw.organization_id:
+                if p.organization_id and p.organization_id != sw.device.organization_id:
                     continue
                 if p.matches(sw.name):
                     deny_violations.append({
                         'software': sw.name,
                         'version': sw.version,
-                        'device': sw.device.name if sw.device else '',
-                        'org': sw.organization.name,
+                        'device': sw.device.device_name,
+                        'org': sw.device.organization.name,
                         'policy': p.name,
                         'severity': p.severity,
                     })
@@ -3527,7 +3533,7 @@ def software_compliance_report(request):
     require_gaps = []
     if require:
         # For each device, see which require-policies have no matching software
-        devices = RMMDevice.objects.filter(org_qs_filter).select_related(
+        devices = RMMDevice.objects.filter(device_filter).select_related(
             'organization')[:2000]
         for d in devices:
             installed = list(RMMSoftware.objects.filter(
@@ -3537,7 +3543,7 @@ def software_compliance_report(request):
                     continue
                 if not any(p.matches(name) for name in installed):
                     require_gaps.append({
-                        'device': d.name,
+                        'device': d.device_name,
                         'org': d.organization.name,
                         'policy': p.name,
                         'severity': p.severity,

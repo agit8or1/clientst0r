@@ -1,0 +1,41 @@
+{% comment %}
+One line per RMM device managing an asset. Staff pages only — never include
+this from a customer-facing template.
+  rmm_summaries: list from integrations.rmm_association.summaries_for_asset
+  compact: smaller layout for the ticket sidebar
+{% endcomment %}
+{% for s in rmm_summaries %}
+<div class="rmm-summary {% if not forloop.last %}border-bottom pb-2 mb-2{% endif %}">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <strong>{{ s.provider }}</strong>
+        <span class="text-muted small">{{ s.connection }}</span>
+        {% if s.status.state == 'online' %}
+        <span class="badge bg-success" title="{{ s.status.detail }}">Online</span>
+        {% elif s.status.state == 'offline' %}
+        <span class="badge bg-danger" title="{{ s.status.detail }}">Offline</span>
+        {% elif s.status.state == 'stale' %}
+        <span class="badge bg-warning text-dark" title="{{ s.status.detail }}"><i class="fas fa-clock me-1"></i>Stale data</span>
+        {% else %}
+        <span class="badge bg-secondary" title="{{ s.status.detail }}">Status unknown</span>
+        {% endif %}
+    </div>
+    <dl class="row small mb-1 mt-1">
+        <dt class="col-5">Device</dt><dd class="col-7 mb-0">{{ s.device.device_name }}</dd>
+        <dt class="col-5">Customer / site</dt><dd class="col-7 mb-0">{{ s.device.client_name|default:"—" }}{% if s.device.site_name and s.device.site_name != s.device.client_name %} / {{ s.device.site_name }}{% endif %}</dd>
+        <dt class="col-5">Last check-in</dt><dd class="col-7 mb-0">{% if s.device.last_seen %}{{ s.device.last_seen|date:"Y-m-d H:i" }} <span class="text-muted">({{ s.device.last_seen|timesince }} ago)</span>{% else %}—{% endif %}</dd>
+        <dt class="col-5">Data refreshed</dt><dd class="col-7 mb-0">{% if s.device.data_refreshed_at %}{{ s.device.data_refreshed_at|date:"Y-m-d H:i" }}{% else %}never{% endif %}</dd>
+    </dl>
+    {% if s.status.state == 'stale' %}<p class="small text-warning-emphasis mb-1">{{ s.status.detail }}</p>{% endif %}
+    {% if s.console_url %}
+    <a href="{{ s.console_url }}" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener noreferrer">
+        <i class="fas fa-external-link-alt me-1"></i>Open in {{ s.provider }}
+    </a>
+    {% else %}
+    <div class="input-group input-group-sm" style="max-width: 26rem;">
+        <span class="input-group-text">{{ s.provider }} ID</span>
+        <input type="text" class="form-control font-monospace" id="rmm-ref-{{ s.device.pk }}" value="{{ s.device.device_name }} · {{ s.device.external_id }}" readonly data-select-on-click aria-label="Device name and RMM ID">
+        <button type="button" class="btn btn-outline-secondary" data-copy-from="#rmm-ref-{{ s.device.pk }}" data-copied-text="Copied">Copy</button>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}

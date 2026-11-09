@@ -153,9 +153,12 @@ def asset_detail(request, pk):
     from docs.services.llm_providers import is_llm_configured
     has_ai, _ = is_llm_configured()
 
-    # RMM device data for the RMM tab
-    from integrations.models import RMMDevice
-    rmm_devices = asset.rmm_devices.select_related('connection').prefetch_related('software', 'alerts').all()
+    # RMM device data for the RMM tab: only devices of this asset's own
+    # customer whose ownership is settled, so a stale cross-customer link
+    # never shows another customer's machine here.
+    from integrations.rmm_association import exposed_devices, summaries_for_asset
+    rmm_devices = exposed_devices(asset).prefetch_related('software', 'alerts')
+    rmm_summaries = summaries_for_asset(asset)
 
     # Asset health context
     from core.models import SystemSetting
@@ -197,6 +200,7 @@ def asset_detail(request, pk):
         'in_global_view': in_global_view,
         'has_ai': has_ai,
         'rmm_devices': rmm_devices,
+        'rmm_summaries': rmm_summaries,
         'asset_age_enabled': sys_settings.asset_age_warnings_enabled,
         'firmware_enabled': sys_settings.firmware_checks_enabled,
         'warranty_enabled': sys_settings.warranty_checks_enabled,
@@ -529,7 +533,8 @@ def asset_generate_profile(request, pk):
     rmm = None
     rmm_software = []
     try:
-        rmm = asset.rmm_devices.select_related('connection').prefetch_related('software').first()
+        from integrations.rmm_association import exposed_devices
+        rmm = exposed_devices(asset).prefetch_related('software').first()
         if rmm:
             rmm_software = list(rmm.software.order_by('name')[:150])
     except Exception:
@@ -820,7 +825,8 @@ def _asset_ai_doc_inner(request, pk):
     import logging as _logging
     _rmm_log = _logging.getLogger('assets')
     try:
-        rmm = asset.rmm_devices.select_related('connection').first()
+        from integrations.rmm_association import exposed_devices
+        rmm = exposed_devices(asset).first()
         if rmm:
             asset_data['rmm_provider'] = rmm.connection.get_provider_type_display() if rmm.connection else ''
             asset_data['rmm_status'] = 'Online' if rmm.is_online else 'Offline'
@@ -831,7 +837,8 @@ def _asset_ai_doc_inner(request, pk):
         _rmm_log.warning(f'asset_ai_doc: RMM data fetch failed for asset {pk}: {e}')
 
     try:
-        rmm_obj = asset.rmm_devices.first()
+        from integrations.rmm_association import exposed_devices
+        rmm_obj = exposed_devices(asset).first()
         if rmm_obj:
             sw_qs = rmm_obj.software.order_by('name')
             total_sw = sw_qs.count()

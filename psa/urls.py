@@ -7,6 +7,7 @@ app_name = 'psa'
 urlpatterns = [
     path('', views.ticket_list, name='ticket_list'),
     path('new/', views.ticket_create, name='ticket_create'),
+    path('new/assets/', views.ticket_client_assets, name='ticket_client_assets'),
     path('settings/', views.psa_global_settings_view, name='settings'),
     # Legacy per-client URL — redirects to the new global page.
     path('settings/client/', views.client_settings_view, name='client_settings'),

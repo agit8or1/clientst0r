@@ -5,6 +5,44 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.643] - 2026-11-09
+
+### Added
+- **Tickets know their asset and what its RMM reports.** New tickets have an asset picker that lists only the chosen client's assets. The server rejects another customer's asset even from a crafted form. The asset can be changed from the ticket sidebar. Technicians see each RMM that manages the asset: provider, connection, customer and site, last reported status, last check-in and when the data was last refreshed. Stale data is labelled separately from offline. An "Open in …" button appears where the RMM documents a device link. Otherwise the page shows a copyable name and ID. Customers see none of it.
+- **"Create ticket" from an RMM alert.** The new ticket is prefilled with the client, and with the asset when the alert's device has a verified link inside that customer. There was no alert-to-ticket path before.
+- **RMM review queue** (Integrations → connection → Review, staff only). It lists devices with no settled customer and asset matches that need a decision, each with a plain explanation, for example "2 assets at this customer have the hostname FRONTDESK. Choose the correct one." A technician can assign the customer (one device, or every device of that RMM customer), link an asset, create one, or leave the device unlinked. Every decision is audited and kept across syncs.
+- **`manage.py rmm_reconcile`.** It checks existing RMM data against the new rules. It is a dry run by default (`--apply` makes the changes, `--connection N` limits it to one connection) and is safe to run again.
+- **RMM connection settings:** *Customers* (single or multiple) and *Web console URL* (Tactical RMM's console host for device links).
+
+### Fixed
+- **RMM devices could appear under the wrong customer.**
+  - A device whose customer couldn't be placed was filed under the connection owner.
+  - Assets were matched by hostname with `.first()` across every customer.
+  - Alerts were stored under the connection owner.
+  - Now each device's customer comes from the RMM's own customer ID (NinjaOne organization, Datto site, Atera customer, Automate client, Tactical client) and is settled before anything is linked or shown. Unplaced devices and devices the RMM moved to another customer are hidden until a technician confirms them. They never fall back to the owner.
+  - Asset links never cross customers. Any existing cross-customer link stops showing as soon as this update is applied.
+- **Asset matching rules.**
+  - A unique usable serial matches. Placeholder serials are ignored.
+  - A unique hostname matches only within the customer, with no serial or site conflict.
+  - IP addresses are never used. Duplicates and conflicts go to review.
+  - A hostname change keeps the link. A technician's link or unlink is remembered.
+  - Repeated or overlapping syncs don't create duplicate assets: a per-connection sync lock plus row locks.
+  - Two RMMs can share one asset.
+  - Synced hardware fields fill blanks and never overwrite a value a technician changed.
+- **Atera alerts were attached to the wrong device.** The adapter read tickets and took the contact's `EndUserID` as a device ID. Alerts now come from `/v3/alerts` and attach only when their `DeviceGuid` belongs to an agent of the same customer.
+- **Adapter fixes.**
+  - NinjaOne reads `/v2/devices-detailed` with paging, the `offline` flag and organization/location names.
+  - Datto follows `nextPageUrl` (same host only) and reads alerts from the documented endpoint.
+  - Automate keeps ClientId/LocationId and resolves names by ID.
+  - Tactical RMM uses real client and site IDs from one `/clients/` read per sync, lists alerts with `PATCH /alerts/` and ties them by `agent_id`. Payloads with only a name need a one-time mapping, so two customers' "Main Office" sites stay apart and a renamed customer is never created twice.
+  - Blank device IDs are rejected.
+  - Numeric timestamps (seconds or milliseconds) no longer raise an error.
+- RMM alerts, software, vulnerability matches, the software policy report and asset documents only use devices settled in the same customer. The software report also no longer fails on `device.name`.
+
+### Upgrade
+- Apply the update (it adds a migration). Existing connections keep their behaviour: connections without organization import become single-customer.
+- Run a sync on each RMM connection, then `python manage.py rmm_reconcile` to preview and `python manage.py rmm_reconcile --apply` to apply. See `docs/INTEGRATION_SETUP_GUIDE.md` → RMM Integrations.
+
 ## [3.17.642] - 2026-11-09
 
 ### Fixed

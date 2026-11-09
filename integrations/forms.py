@@ -503,13 +503,15 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
 
     class Meta:
         model = RMMConnection
-        fields = ['provider_type', 'name', 'base_url', 'sync_enabled', 'sync_devices',
-                  'sync_alerts', 'sync_software', 'map_to_assets', 'sync_interval_minutes',
+        fields = ['provider_type', 'name', 'base_url', 'console_base_url', 'customer_scope', 'sync_enabled',
+                  'sync_devices', 'sync_alerts', 'sync_software', 'map_to_assets', 'sync_interval_minutes',
                   'import_organizations', 'org_import_as_active', 'org_name_prefix']
         widgets = {
             'provider_type': forms.Select(attrs={'class': 'form-control', 'id': 'id_rmm_provider_type'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'base_url': forms.URLInput(attrs={'class': 'form-control'}),
+            'console_base_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://rmm.example.com'}),
+            'customer_scope': forms.Select(attrs={'class': 'form-control'}),
             'sync_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'sync_devices': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'sync_alerts': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -523,6 +525,9 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         help_texts = {
             'map_to_assets': 'Automatically create/update Assets from RMM devices',
             'import_organizations': 'Automatically create organizations from RMM sites/clients',
+            'customer_scope': ('Single: every device belongs to this organization. Multiple: each device is '
+                               "matched to its RMM customer; devices whose customer can't be resolved wait "
+                               'for review instead of landing here.'),
         }
 
     def __init__(self, *args, **kwargs):

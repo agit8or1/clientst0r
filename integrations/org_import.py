@@ -211,7 +211,7 @@ def import_organization_from_psa(connection, company_data):
         return org
 
 
-def import_organization_from_rmm(connection, site_data):
+def import_organization_from_rmm(connection, site_data, *, force=False):
     """
     Import or update an organization from RMM site/client data.
 
@@ -224,7 +224,7 @@ def import_organization_from_rmm(connection, site_data):
     Returns:
         Organization instance or None
     """
-    if not connection.import_organizations:
+    if not (connection.import_organizations or force):
         return None
 
     # PREFER client_name over site_name for organization naming
@@ -236,11 +236,14 @@ def import_organization_from_rmm(connection, site_data):
     # Use client name if available, otherwise fall back to site name
     org_name = client_name if client_name else site_name
 
-    # Use client_id if available, otherwise use site external_id
-    external_id = site_data.get('client_id', '') or site_data.get('external_id', '')
-    external_id = str(external_id)
+    # The customer's identity: its real ID, or — for payloads that carry
+    # only a name — the name, recorded as a name mapping (never as an ID).
+    from .rmm_association import _map_value, customer_identity, map_customer, mapped_organization
+    identity = customer_identity({'client_id': site_data.get('client_id', '') or site_data.get('external_id', ''),
+                                  'client_name': org_name})
+    external_id = identity.client_id or identity.client_name if identity else ''
 
-    if not external_id or not org_name:
+    if not identity or not org_name:
         logger.warning(f"Missing required data for RMM import: {site_data}")
         return None
 
@@ -257,36 +260,25 @@ def import_organization_from_rmm(connection, site_data):
 
     # Check if organization already exists by external_id mapping
     # Use ExternalObjectMap for reliable tracking (prevents slug collisions)
-    org = find_existing_organization_by_rmm_id(connection, external_id)
+    org = mapped_organization(connection, identity)
 
     if not org:
-        # Fallback: Try name match (for backward compatibility)
-        org = Organization.objects.filter(name=display_name).first()
-
-    if not org:
-        # Fallback: Try slug match
-        org = Organization.objects.filter(slug=base_slug).first()
+        # Organizations created before mappings were recorded are found by
+        # their exact name — but only when exactly one has it and no other
+        # customer of this connection is already mapped to it. A slug match
+        # ("Main Office" vs "main-office") is too loose to trust.
+        same_name = list(Organization.objects.filter(name=display_name)[:2])
+        if len(same_name) == 1 and not _eom_filter(
+                connection, local_type='organization', local_id=same_name[0].pk,
+        ).exclude(external_id=_map_value(identity)).exists():
+            org = same_name[0]
 
     if org:
         # Update existing organization
         org.name = display_name
         org.save()
 
-        # Create/update ExternalObjectMap for stable tracking
-        # Use 'rmm_client' if client_id exists, otherwise 'rmm_site'
-        external_type = 'rmm_client' if site_data.get('client_id') else 'rmm_site'
-        ct = ContentType.objects.get_for_model(connection)
-        ExternalObjectMap.objects.update_or_create(
-            connection_type=ct,
-            connection_id=connection.pk,
-            external_type=external_type,
-            external_id=str(external_id),
-            defaults={
-                'organization': org,
-                'local_type': 'organization',
-                'local_id': org.id,
-            }
-        )
+        map_customer(connection, identity, org)
 
         logger.info(f"Updated organization {org.slug} from RMM: {org_name} (client: {client_name}, site: {site_name})")
 
@@ -323,19 +315,7 @@ def import_organization_from_rmm(connection, site_data):
         if memberships_created > 0:
             logger.info(f"Created {memberships_created} inherited memberships for {org.name}")
 
-        # Create ExternalObjectMap for stable tracking (prevents slug collisions)
-        # Use 'rmm_client' if client_id exists, otherwise 'rmm_site'
-        external_type = 'rmm_client' if site_data.get('client_id') else 'rmm_site'
-        ct = ContentType.objects.get_for_model(connection)
-        ExternalObjectMap.objects.create(
-            connection_type=ct,
-            connection_id=connection.pk,
-            external_type=external_type,
-            external_id=str(external_id),
-            organization=org,
-            local_type='organization',
-            local_id=org.id,
-        )
+        map_customer(connection, identity, org)
 
         AuditLog.objects.create(
             action='sync',

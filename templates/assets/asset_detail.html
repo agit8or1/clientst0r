@@ -460,16 +460,22 @@
                     <!-- RMM Tab -->
                     {% if rmm_devices %}
                     <div class="tab-pane fade" id="rmm" role="tabpanel">
+                        <div class="card mb-3">
+                            <div class="card-header"><i class="fas fa-satellite-dish me-1"></i><strong>Managed by</strong></div>
+                            <div class="card-body">
+                                {% include "integrations/_rmm_device_summary.html" %}
+                            </div>
+                        </div>
                         {% for rmm in rmm_devices %}
                         <div class="card mb-3 {% if not forloop.first %}mt-3{% endif %}">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <span>
                                     <i class="fas fa-desktop me-1"></i>
                                     <strong>{{ rmm.device_name }}</strong>
-                                    {% if rmm.is_online %}<span class="badge bg-success ms-2">Online</span>{% else %}<span class="badge bg-secondary ms-2">Offline</span>{% endif %}
+                                    <span class="text-muted small ms-2">{{ rmm.connection.get_provider_type_display }} · {{ rmm.connection.name }}</span>
                                 </span>
                                 <a href="{% url 'integrations:rmm_device_detail' rmm.pk %}" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-external-link-alt"></i> View in RMM
+                                    <i class="fas fa-info-circle"></i> Device record
                                 </a>
                             </div>
                             <div class="card-body">
@@ -481,7 +487,7 @@
                                             <dt class="col-sm-5">OS</dt><dd class="col-sm-7">{{ rmm.os_version|default:"—" }}</dd>
                                             <dt class="col-sm-5">Hostname</dt><dd class="col-sm-7"><code>{{ rmm.hostname|default:"—" }}</code></dd>
                                             <dt class="col-sm-5">IP</dt><dd class="col-sm-7">{% if rmm.ip_address %}<code>{{ rmm.ip_address }}</code>{% else %}—{% endif %}</dd>
-                                            <dt class="col-sm-5">Site / Client</dt><dd class="col-sm-7">{{ rmm.site_name|default:"—" }}</dd>
+                                            <dt class="col-sm-5">Customer / site</dt><dd class="col-sm-7">{{ rmm.client_name|default:"—" }}{% if rmm.site_name and rmm.site_name != rmm.client_name %} / {{ rmm.site_name }}{% endif %}</dd>
                                             <dt class="col-sm-5">Last Seen</dt><dd class="col-sm-7">{{ rmm.last_seen|date:"Y-m-d H:i"|default:"—" }}</dd>
                                             {% with raw=rmm.raw_data %}
                                             {% if raw %}

@@ -15,17 +15,66 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>
         <i class="fas fa-desktop"></i> {{ device.device_name }}
-        {% if device.is_online %}
-        <span class="badge bg-success">Online</span>
-        {% else %}
-        <span class="badge bg-secondary">Offline</span>
-        {% endif %}
     </h1>
     <div>
         {% if device.linked_asset %}
         <a href="{% url 'assets:asset_detail' device.linked_asset.pk %}" class="btn btn-outline-primary">
             <i class="fas fa-link"></i> View Asset
         </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><h5 class="mb-0"><i class="fas fa-satellite-dish"></i> Status and asset link</h5></div>
+    <div class="card-body">
+        {% include "integrations/_rmm_device_summary.html" %}
+        <hr>
+        <p class="mb-2">
+            {% if device.linked_asset %}
+            Linked to <a href="{% url 'assets:asset_detail' device.linked_asset.pk %}">{{ device.linked_asset.name }}</a>
+            <span class="text-muted">({{ device.get_link_status_display|lower }})</span>.
+            {% elif device.link_status == 'unlinked' %}
+            A technician left this device unlinked. Syncs won't link it.
+            {% elif device.link_status == 'review' %}
+            <i class="fas fa-exclamation-triangle text-warning me-1"></i>{{ device.link_note }}
+            {% else %}
+            Not linked to an asset.
+            {% endif %}
+        </p>
+        {% if can_decide %}
+        <div class="d-flex flex-wrap gap-2 align-items-end">
+            <form method="post" action="{% url 'integrations:rmm_device_decide' device.pk %}" class="d-flex gap-2 align-items-end">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <div>
+                    <label class="form-label small mb-1" for="link-asset">Asset at {{ device.organization.name }}</label>
+                    <select class="form-select form-select-sm" name="asset" id="link-asset" required>
+                        <option value="">Choose…</option>
+                        {% for a in candidate_assets %}<option value="{{ a.pk }}">{{ a.name }} (suggested)</option>{% endfor %}
+                        {% for a in customer_assets %}<option value="{{ a.pk }}">{{ a.name }}{% if a.hostname %} — {{ a.hostname }}{% endif %}</option>{% endfor %}
+                    </select>
+                </div>
+                <button class="btn btn-sm btn-outline-primary" name="action" value="link_asset">Link</button>
+            </form>
+            {% if not device.linked_asset %}
+            <form method="post" action="{% url 'integrations:rmm_device_decide' device.pk %}">
+                {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+                <button class="btn btn-sm btn-outline-success" name="action" value="create_asset">Create asset</button>
+            </form>
+            {% endif %}
+            {% if device.link_status != 'unlinked' %}
+            <form method="post" action="{% url 'integrations:rmm_device_decide' device.pk %}">
+                {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+                <button class="btn btn-sm btn-outline-secondary" name="action" value="leave_unlinked" data-confirm="Unlink this device and keep it unlinked on future syncs?">{% if device.linked_asset %}Unlink{% else %}Leave unlinked{% endif %}</button>
+            </form>
+            {% else %}
+            <form method="post" action="{% url 'integrations:rmm_device_decide' device.pk %}">
+                {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+                <button class="btn btn-sm btn-outline-secondary" name="action" value="match_automatically">Allow automatic matching again</button>
+            </form>
+            {% endif %}
+        </div>
         {% endif %}
     </div>
 </div>

@@ -73,65 +73,44 @@ class DattoRMMProvider(BaseRMMProvider):
             logger.error(f"Datto RMM connection test failed: {e}")
             return False
 
-    def list_devices(self, page_size: int = 100, updated_since: Optional[datetime] = None) -> List[Dict[str, Any]]:
+    def _paged(self, endpoint, key, page_size=250):
+        """Datto pages with `max` and hands back `pageDetails.nextPageUrl`
+        until the last page. The next URL must stay on the configured API
+        host; anything else ends the listing."""
+        from urllib.parse import urlsplit
+        api_host = urlsplit(self.base_url).hostname
+        params = {'max': min(page_size, 250)}
+        url = endpoint
+        for _ in range(10000):
+            data = self._make_request('GET', url, params=params).json() or {}
+            for item in data.get(key) or []:
+                yield item
+            nxt = (data.get('pageDetails') or {}).get('nextPageUrl')
+            if not nxt:
+                return
+            parts = urlsplit(nxt)
+            if parts.hostname and parts.hostname != api_host:
+                logger.warning(f"Datto RMM: ignoring a next-page URL on another host ({parts.hostname})")
+                return
+            url = parts.path + (f'?{parts.query}' if parts.query else '')
+            params = None
+
+    def list_devices(self, page_size: int = 250, updated_since: Optional[datetime] = None) -> List[Dict[str, Any]]:
         """
-        List all devices.
-
-        Datto RMM uses offset-based pagination.
-
-        Args:
-            page_size: Number of devices per page
-            updated_since: Filter by last modified time
-
-        Returns:
-            List of normalized device dictionaries
+        List all devices (GET /api/v2/account/devices). The API has no
+        "changed since" filter, so the full list is read and `updated_since`
+        is ignored: skipping devices by last-seen time would hide moves
+        between sites.
         """
         devices = []
-        page = 1
-
         try:
-            while True:
-                params = {
-                    'pageSize': page_size,
-                    'page': page,
-                }
-
-                response = self._make_request('GET', '/api/v2/account/devices', params=params)
-                data = response.json()
-
-                # Datto returns paginated response
-                page_data = data.get('devices', [])
-
-                if not page_data:
-                    break
-
-                for device_data in page_data:
-                    try:
-                        # Filter by updated_since if specified
-                        if updated_since:
-                            last_seen_str = device_data.get('lastSeen')
-                            if last_seen_str:
-                                last_seen = self._parse_datetime(last_seen_str)
-                                if last_seen and last_seen < updated_since:
-                                    continue
-
-                        devices.append(self.normalize_device(device_data))
-                    except Exception as e:
-                        logger.error(f"Error normalizing Datto device {device_data.get('uid')}: {e}")
-
-                # Check if there are more pages
-                page_number = data.get('pageNumber', 0)
-                total_pages = data.get('totalPages', 0)
-
-                if page_number >= total_pages:
-                    break
-
-                page += 1
-                logger.debug(f"Datto RMM: Fetched page {page_number}/{total_pages}")
-
+            for device_data in self._paged('/api/v2/account/devices', 'devices', page_size):
+                try:
+                    devices.append(self.normalize_device(device_data))
+                except Exception as e:
+                    logger.error(f"Error normalizing Datto device {device_data.get('uid')}: {e}")
             logger.info(f"Datto RMM: Retrieved {len(devices)} total devices")
             return devices
-
         except Exception as e:
             logger.error(f"Error listing Datto RMM devices: {e}")
             raise ProviderError(f"Failed to list devices: {e}")
@@ -158,66 +137,26 @@ class DattoRMMProvider(BaseRMMProvider):
         device_id: Optional[str] = None,
         status: Optional[str] = None,
         updated_since: Optional[datetime] = None,
-        page_size: int = 100
+        page_size: int = 250
     ) -> List[Dict[str, Any]]:
         """
-        List monitoring alerts (open tickets).
-
-        Args:
-            device_id: Filter by device UID
-            status: Filter by status (open, resolved)
-            updated_since: Only return alerts updated after this time
-            page_size: Number of alerts per page
-
-        Returns:
-            List of normalized alert dictionaries
+        List open alerts (GET /api/v2/account/alerts/open; resolved ones with
+        status='resolved'). Each alert names its device in
+        `alertSourceInfo.deviceUid`.
         """
         alerts = []
-        page = 1
-
+        which = 'resolved' if status == 'resolved' else 'open'
         try:
-            while True:
-                params = {
-                    'pageSize': page_size,
-                    'page': page,
-                }
-
-                if device_id:
-                    params['deviceUid'] = device_id
-
-                # Datto calls them "open tickets"
-                response = self._make_request('GET', '/api/v2/account/tickets/open', params=params)
-                data = response.json()
-
-                page_data = data.get('tickets', [])
-
-                if not page_data:
-                    break
-
-                for alert_data in page_data:
-                    try:
-                        # Filter by status if specified
-                        if status:
-                            alert_status = 'active' if alert_data.get('status') == 'open' else 'resolved'
-                            if alert_status != status:
-                                continue
-
-                        alerts.append(self.normalize_alert(alert_data))
-                    except Exception as e:
-                        logger.error(f"Error normalizing Datto alert {alert_data.get('id')}: {e}")
-
-                # Check pagination
-                page_number = data.get('pageNumber', 0)
-                total_pages = data.get('totalPages', 0)
-
-                if page_number >= total_pages:
-                    break
-
-                page += 1
-
+            for alert_data in self._paged(f'/api/v2/account/alerts/{which}', 'alerts', page_size):
+                try:
+                    alert = self.normalize_alert(alert_data)
+                    if device_id and alert['device_id'] != str(device_id):
+                        continue
+                    alerts.append(alert)
+                except Exception as e:
+                    logger.error(f"Error normalizing Datto alert {alert_data.get('alertUid')}: {e}")
             logger.info(f"Datto RMM: Retrieved {len(alerts)} alerts")
             return alerts
-
         except Exception as e:
             logger.error(f"Error listing Datto RMM alerts: {e}")
             raise ProviderError(f"Failed to list alerts: {e}")
@@ -255,110 +194,100 @@ class DattoRMMProvider(BaseRMMProvider):
 
     def normalize_device(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Normalize Datto RMM device data to standard format.
+        Normalize a Datto RMM device (API v2 spec):
 
-        Datto device structure:
-        {
-            "uid": "abc-123-def-456",
-            "hostname": "DESKTOP-ABC123",
-            "description": "John's Computer",
-            "deviceType": {
-                "category": "desktop"
-            },
-            "manufacturer": "Dell Inc.",
-            "model": "OptiPlex 7090",
-            "serialNumber": "ABC12345",
-            "operatingSystem": "Microsoft Windows 10 Pro",
-            "domain": "WORKGROUP",
-            "ipAddress": "192.168.1.100",
-            "macAddress": "00:11:22:33:44:55",
-            "online": true,
-            "lastSeen": "2026-01-11T02:00:00Z"
-        }
+            {
+              "id": 101, "uid": "abc-123", "hostname": "FRONTDESK",
+              "description": "Front desk PC", "intIpAddress": "192.168.1.10",
+              "online": true, "lastSeen": 1767920400000,       # epoch ms
+              "siteId": 9, "siteUid": "site-9", "siteName": "Acme Ltd",
+              "deviceType": {"category": "Desktop"},
+              "operatingSystem": "Microsoft Windows 11 Pro",
+              "portalUrl": "https://pinotage.centrastage.net/…"
+            }
+
+        Datto's site is the customer: the same site becomes both the customer
+        and its only site, so one site never yields two customers. Serial,
+        make and model live in the per-device audit, which is not fetched
+        (one call per device); devices match on hostname within the customer.
         """
-        # Map device type
-        device_type_category = raw_data.get('deviceType', {}).get('category', 'unknown').lower()
+        device_type_category = str((raw_data.get('deviceType') or {}).get('category') or 'unknown').lower()
         device_type = self.DEVICE_TYPE_MAP.get(device_type_category, 'unknown')
-
-        # Parse OS type
-        os_name = raw_data.get('operatingSystem', '')
-        os_type = self._map_os_type(os_name)
-
-        # Parse last seen
-        last_seen = self._parse_datetime(raw_data.get('lastSeen'))
-
-        # Extract site/client information
-        # Datto RMM provides siteUid/siteId and siteName
-        site_id = raw_data.get('siteUid', '') or raw_data.get('siteId', '')
-        site_name = raw_data.get('siteName', '')
+        os_name = raw_data.get('operatingSystem', '') or ''
+        site_uid = raw_data.get('siteUid') or ''
+        site_name = raw_data.get('siteName', '') or ''
+        bios = raw_data.get('bios') or {}
+        system = raw_data.get('systemInfo') or {}
 
         return {
-            'external_id': str(raw_data.get('uid', '')),
+            'external_id': str(raw_data.get('uid') or ''),
             'device_name': raw_data.get('hostname', '') or raw_data.get('description', ''),
             'device_type': device_type,
-            'manufacturer': raw_data.get('manufacturer', ''),
-            'model': raw_data.get('model', ''),
-            'serial_number': raw_data.get('serialNumber', ''),
-            'os_type': os_type,
+            'manufacturer': system.get('manufacturer') or raw_data.get('manufacturer', '') or '',
+            'model': system.get('model') or raw_data.get('model', '') or '',
+            'serial_number': bios.get('serialNumber') or raw_data.get('serialNumber', '') or '',
+            'os_type': self._map_os_type(os_name),
             'os_version': os_name,
-            'hostname': raw_data.get('hostname', ''),
-            'ip_address': raw_data.get('ipAddress'),
-            'mac_address': raw_data.get('macAddress', ''),
-            'is_online': raw_data.get('online', False),
-            'last_seen': last_seen,
-            # Site/Client mapping for proper org assignment
-            'site_id': str(site_id) if site_id else '',
+            'hostname': raw_data.get('hostname', '') or '',
+            'ip_address': raw_data.get('intIpAddress') or raw_data.get('ipAddress') or None,
+            'mac_address': raw_data.get('macAddress', '') or '',
+            'is_online': bool(raw_data.get('online', False)),
+            'last_seen': self._parse_datetime(raw_data.get('lastSeen')),
+            'client_id': str(site_uid),
+            'client_name': site_name,
+            'site_id': str(site_uid),
             'site_name': site_name,
-            'client_id': str(site_id) if site_id else '',  # Datto uses "site" for client
-            'client_name': site_name,  # Datto uses "site" for client
             'raw_data': raw_data,
         }
 
     def normalize_alert(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Normalize Datto RMM alert (ticket) data to standard format.
-
-        Datto alert structure:
-        {
-            "id": 12345,
-            "ticketNumber": "TKT-001",
-            "deviceUid": "abc-123-def-456",
-            "subject": "Antivirus alert",
-            "priority": "high",
-            "status": "open",
-            "createDate": "2026-01-11T01:00:00Z",
-            "modifiedDate": "2026-01-11T01:30:00Z"
-        }
+        Normalize a Datto RMM alert: `alertUid`, `priority`, `resolved`,
+        `resolvedOn`, `timestamp` (epoch ms) and
+        `alertSourceInfo {deviceUid, deviceName, siteUid, siteName}`.
         """
-        # Map priority to severity
         priority_map = {
+            'information': 'info',
             'low': 'info',
+            'moderate': 'warning',
             'normal': 'warning',
             'high': 'error',
             'critical': 'critical',
         }
-
-        priority = raw_data.get('priority', 'normal').lower()
-        severity = priority_map.get(priority, 'warning')
-
-        # Map status
-        status = 'active' if raw_data.get('status') == 'open' else 'resolved'
-
-        # Parse timestamps
-        triggered_at = self._parse_datetime(raw_data.get('createDate'))
-        resolved_at = self._parse_datetime(raw_data.get('resolvedDate')) if status == 'resolved' else None
+        severity = priority_map.get(str(raw_data.get('priority') or 'moderate').lower(), 'warning')
+        resolved = bool(raw_data.get('resolved'))
+        source = raw_data.get('alertSourceInfo') or {}
+        message = (raw_data.get('diagnostics') or raw_data.get('alertMessage')
+                   or (raw_data.get('alertContext') or {}).get('@class') or 'Datto RMM alert')
 
         return {
-            'external_id': str(raw_data.get('id', '')),
-            'device_id': str(raw_data.get('deviceUid', '')),
-            'alert_type': raw_data.get('alertSourceInfo', {}).get('source', 'ticket'),
-            'message': raw_data.get('subject', ''),
+            'external_id': str(raw_data.get('alertUid') or ''),
+            'device_id': str(source.get('deviceUid') or ''),
+            'alert_type': (raw_data.get('alertContext') or {}).get('@class') or 'alert',
+            'message': message,
             'severity': severity,
-            'status': status,
-            'triggered_at': triggered_at,
-            'resolved_at': resolved_at,
+            'status': 'resolved' if resolved else 'active',
+            'triggered_at': self._parse_datetime(raw_data.get('timestamp')),
+            'resolved_at': self._parse_datetime(raw_data.get('resolvedOn')) if resolved else None,
             'raw_data': raw_data,
         }
+
+    # The device object carries its own console address in `portalUrl`. It
+    # must point at the web portal of the same platform as the API host
+    # (pinotage-api.centrastage.net → pinotage.centrastage.net).
+    console_link_mode = 'static'
+
+    @classmethod
+    def console_hosts(cls, connection):
+        from .console import host_of
+        host = host_of(connection.base_url)
+        if host.endswith('-api.centrastage.net'):
+            return {host.replace('-api.centrastage.net', '.centrastage.net')}
+        return set()
+
+    @classmethod
+    def device_console_url(cls, connection, device):
+        return (device.raw_data or {}).get('portalUrl') or ''
 
     def normalize_software(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """

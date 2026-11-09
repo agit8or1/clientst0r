@@ -15,7 +15,9 @@ from .models import (
 )
 from .providers import get_provider
 from .providers.rmm import get_rmm_provider
-from .org_import import import_organization_from_rmm
+from .rmm_association import (
+    apply_customer_decision, associate, clean_external_id, customer_identity, resolve_customer, set_device_organization,
+)
 from audit.models import AuditLog
 
 logger = logging.getLogger('integrations')
@@ -465,6 +467,29 @@ class PSASync:
         return hashlib.sha256(data_str.encode()).hexdigest()
 
 
+class SyncAlreadyRunning(SyncError):
+    """Another worker holds this connection's sync lock."""
+
+
+SYNC_LOCK_MINUTES = 30
+
+
+def acquire_sync_lock(connection):
+    """Take the connection's sync lock in one conditional UPDATE, so two
+    processes (a manual sync and the scheduler, or a retry) can't both win."""
+    now = timezone.now()
+    from django.db.models import Q
+    got = RMMConnection.objects.filter(pk=connection.pk).filter(
+        Q(sync_lock_until__isnull=True) | Q(sync_lock_until__lt=now)
+    ).update(sync_lock_until=now + timedelta(minutes=SYNC_LOCK_MINUTES))
+    return bool(got)
+
+
+def release_sync_lock(connection):
+    RMMConnection.objects.filter(pk=connection.pk).update(sync_lock_until=None)
+    connection.sync_lock_until = None
+
+
 class RMMSync:
     """
     Synchronizes data from an RMM connection to local database.
@@ -477,7 +502,7 @@ class RMMSync:
         self.organization = connection.organization
         self.sync_start = timezone.now()
         self.stats = {
-            'devices': {'created': 0, 'updated': 0, 'mapped': 0, 'errors': 0},
+            'devices': {'created': 0, 'updated': 0, 'mapped': 0, 'review': 0, 'unresolved': 0, 'errors': 0},
             'alerts': {'created': 0, 'updated': 0, 'errors': 0},
             'software': {'created': 0, 'updated': 0, 'deleted': 0, 'errors': 0},
             'organizations': {'created': 0, 'updated': 0, 'errors': 0},
@@ -489,6 +514,15 @@ class RMMSync:
         """
         logger.info(f"Starting RMM sync for {self.connection}")
 
+        if not acquire_sync_lock(self.connection):
+            raise SyncAlreadyRunning(
+                f"A sync of {self.connection.name} is already running; this one was not started.")
+        try:
+            return self._sync_all()
+        finally:
+            release_sync_lock(self.connection)
+
+    def _sync_all(self):
         try:
             # Test connection first
             if not self.provider.test_connection():
@@ -566,27 +600,33 @@ class RMMSync:
 
         try:
             devices_data = self.provider.list_devices(updated_since=updated_since)
-
-            for device_data in devices_data:
-                try:
-                    with transaction.atomic():
-                        # Determine target organization for this device
-                        target_org = self._determine_target_organization(device_data)
-
-                        # Create/update device with the determined organization
-                        device = self._upsert_device(device_data, target_org)
-
-                        # Auto-map to assets if enabled
-                        if self.connection.map_to_assets:
-                            self._map_device_to_asset(device)
-
-                except Exception as e:
-                    logger.error(f"Error syncing device {device_data.get('external_id')}: {e}")
-                    self.stats['devices']['errors'] += 1
-
         except Exception as e:
             logger.error(f"Error listing devices: {e}")
             raise
+
+        for device_data in devices_data:
+            external_id = clean_external_id(device_data.get('external_id'))
+            if not external_id:
+                # Without the RMM's own ID there is nothing to upsert against:
+                # a blank ID would merge unrelated devices into one row.
+                logger.warning(f"Skipping a {self.connection} device with no ID: "
+                               f"{device_data.get('device_name')!r}")
+                self.stats['devices']['errors'] += 1
+                continue
+            device_data = dict(device_data, external_id=external_id)
+            try:
+                with transaction.atomic():
+                    device = self._upsert_device(device_data)
+                    if device.is_exposed and (self.connection.map_to_assets or device.linked_asset_id):
+                        outcome = associate(device, auto_create=self.connection.map_to_assets,
+                                            auto_match=self.connection.map_to_assets)
+                        if outcome in ('match', 'create'):
+                            self.stats['devices']['mapped'] += 1
+                        elif outcome == 'review':
+                            self.stats['devices']['review'] += 1
+            except Exception as e:
+                logger.error(f"Error syncing device {external_id}: {e}")
+                self.stats['devices']['errors'] += 1
 
     def sync_alerts(self):
         """Sync alerts from RMM."""
@@ -667,84 +707,10 @@ class RMMSync:
             logger.error(f"Error in software sync: {e}")
             raise
 
-    def _determine_target_organization(self, device_data):
-        """
-        Determine which organization this device should belong to.
-
-        If import_organizations is enabled, attempts to import/find organization
-        from RMM site/client data. Falls back to connection organization.
-
-        Args:
-            device_data: Normalized device data from provider
-
-        Returns:
-            Organization instance
-        """
-        if not self.connection.import_organizations:
-            # Organization import disabled - use connection's organization
-            return self.organization
-
-        # Extract site/client information from device
-        # PREFER client_id over site_id (client = organization, site = location)
-        client_id = device_data.get('client_id', '') or device_data.get('organization_id', '')
-        client_name = device_data.get('client_name', '') or device_data.get('organization_name', '')
-        site_id = device_data.get('site_id', '') or device_data.get('location_id', '')
-        site_name = device_data.get('site_name', '') or device_data.get('location_name', '')
-
-        # Use client ID if available, otherwise fall back to site ID
-        external_id = client_id if client_id else site_id
-        # For name, we need at least one (prefer client over site, but accept either)
-        name = client_name if client_name else site_name
-
-        if not external_id or not name:
-            # No site/client info available - fallback to connection org
-            logger.debug(f"Device {device_data.get('external_id')} has no site/client info, using connection org")
-            return self.organization
-
-        # Build site data for organization import
-        # IMPORTANT: Pass BOTH client_name and site_name so org_import can choose correctly
-        site_data = {
-            'external_id': external_id,
-            'client_id': client_id,  # Pass separately for preference logic
-            'client_name': client_name,
-            'name': site_name if site_name else client_name,  # fallback for 'name' field
-            'description': f"Imported from {self.connection.get_provider_type_display()}",
-        }
-
-        try:
-            # Check if organization already exists before importing
-            from .org_import import find_existing_organization_by_rmm_id
-            existing_org = find_existing_organization_by_rmm_id(self.connection, site_id)
-
-            # Attempt to import/find organization
-            imported_org = import_organization_from_rmm(self.connection, site_data)
-
-            if imported_org:
-                # Track if this was a create or update
-                if existing_org:
-                    self.stats['organizations']['updated'] += 1
-                    logger.debug(f"Updated existing organization {imported_org.name} for site {site_name}")
-                else:
-                    self.stats['organizations']['created'] += 1
-                    logger.info(f"Created new organization {imported_org.name} for site {site_name}")
-
-                logger.info(f"Device {device_data.get('device_name')} mapped to organization {imported_org.name}")
-                return imported_org
-            else:
-                # Import returned None - fallback to connection org
-                logger.warning(f"Failed to import organization for site {site_name}, using connection org")
-                return self.organization
-
-        except Exception as e:
-            logger.error(f"Error importing organization for site {site_name}: {e}")
-            self.stats['organizations']['errors'] += 1
-            # On error, fallback to connection org
-            return self.organization
-
     def _enrich_raw_data(self, device_data: dict) -> dict:
-        """Merge provider-normalized hardware values into raw_data so
-        _update_asset_hardware can find them even when the original API
-        response uses different/absent field names."""
+        """Merge provider-normalized hardware values into raw_data so the
+        asset update can find them even when the original API response uses
+        different/absent field names."""
         raw = dict(device_data.get('raw_data') or {})
         if device_data.get('ram_gb') is not None:
             raw['_norm_ram_gb'] = device_data['ram_gb']
@@ -754,85 +720,93 @@ class RMMSync:
             raw['_norm_cpu'] = device_data['cpu']
         return raw
 
-    def _upsert_device(self, device_data, target_org):
-        """
-        Create or update RMM device.
+    def _upsert_device(self, device_data):
+        """Create or update the RMM device and settle its customer.
 
-        Args:
-            device_data: Normalized device data from provider
-            target_org: Organization to assign device to
+        The row is locked for the rest of the transaction, so a retry or an
+        overlapping sync of the same device waits and then sees this one's
+        result instead of deciding (and creating assets) twice.
         """
         external_id = device_data['external_id']
+        device = (RMMDevice.objects.select_for_update()
+                  .filter(connection=self.connection, external_id=external_id).first())
+        created = device is None
+        decision = resolve_customer(self.connection, device_data, device,
+                                    legacy_keys=device_data.get('legacy_client_ids') or ())
+        if decision.created:
+            self.stats['organizations']['created'] += 1
+        identity = customer_identity(device_data)
 
-        # Check if exists
-        device, created = RMMDevice.objects.update_or_create(
-            connection=self.connection,
-            external_id=external_id,
-            defaults={
-                'organization': target_org,
-                'device_name': device_data['device_name'],
-                'device_type': device_data['device_type'],
-                'manufacturer': device_data.get('manufacturer', ''),
-                'model': device_data.get('model', ''),
-                'serial_number': device_data.get('serial_number', ''),
-                'os_type': device_data.get('os_type', ''),
-                'os_version': device_data.get('os_version', ''),
-                'hostname': device_data.get('hostname', ''),
-                'ip_address': device_data.get('ip_address'),
-                'mac_address': device_data.get('mac_address', ''),
-                'site_id': device_data.get('site_id', '') or device_data.get('client_id', ''),
-                'site_name': device_data.get('site_name', '') or device_data.get('client_name', ''),
-                'latitude': device_data.get('latitude'),
-                'longitude': device_data.get('longitude'),
-                'is_online': device_data.get('is_online', False),
-                'last_seen': device_data.get('last_seen'),
-                'raw_data': self._enrich_raw_data(device_data),
-            }
-        )
+        if created:
+            device = RMMDevice(connection=self.connection, external_id=external_id)
+        previous_org = device.organization_id
 
+        device.device_name = device_data.get('device_name') or device_data.get('hostname') or external_id
+        device.device_type = device_data.get('device_type') or 'unknown'
+        device.manufacturer = device_data.get('manufacturer') or ''
+        device.model = device_data.get('model') or ''
+        device.serial_number = (device_data.get('serial_number') or '').strip()
+        device.os_type = device_data.get('os_type') or ''
+        device.os_version = device_data.get('os_version') or ''
+        device.hostname = device_data.get('hostname') or ''
+        device.ip_address = device_data.get('ip_address') or None
+        device.mac_address = (device_data.get('mac_address') or '')[:17]
+        device.client_id = clean_external_id(device_data.get('client_id'))
+        device.client_name = (device_data.get('client_name') or '').strip()
+        device.site_id = clean_external_id(device_data.get('site_id'))
+        device.site_name = (device_data.get('site_name') or '').strip()
+        device.latitude = device_data.get('latitude')
+        device.longitude = device_data.get('longitude')
+        device.is_online = bool(device_data.get('is_online', False))
+        device.last_seen = device_data.get('last_seen')
+        device.raw_data = self._enrich_raw_data(device_data)
+        device.data_refreshed_at = timezone.now()
+
+        apply_customer_decision(device, decision, identity)
+        device.save()
+
+        if not created and device.organization_id != previous_org:
+            set_device_organization(device, device.organization)
         if created:
             self.stats['devices']['created'] += 1
         else:
             self.stats['devices']['updated'] += 1
-
-        # Note: ExternalObjectMap not used for RMM devices (PSA-only)
-        # RMM devices already have connection FK for tracking
-
+        if decision.status != RMMDevice.OWNERSHIP_RESOLVED:
+            self.stats['devices']['unresolved'] += 1
         return device
 
     def _upsert_alert(self, alert_data):
-        """Create or update RMM alert."""
-        external_id = alert_data['external_id']
-        device_external_id = alert_data.get('device_id', '')
+        """Create or update RMM alert.
 
-        # Find the device this alert belongs to
-        device = None
-        if device_external_id:
-            try:
-                device = RMMDevice.objects.get(
-                    connection=self.connection,
-                    external_id=device_external_id
-                )
-            except RMMDevice.DoesNotExist:
-                logger.warning(f"Device {device_external_id} not found for alert {external_id}, skipping alert")
-                return None
-
-        if not device:
-            logger.warning(f"No device specified for alert {external_id}, skipping")
+        An alert is stored only when the adapter could tie it to a device of
+        this connection, and it carries that device's customer (none while
+        the device is unowned).
+        """
+        external_id = clean_external_id(alert_data.get('external_id'))
+        device_external_id = clean_external_id(alert_data.get('device_id'))
+        if not external_id:
+            logger.warning(f"Skipping an alert with no ID on {self.connection}")
+            return None
+        if not device_external_id:
+            logger.debug(f"Alert {external_id} has no verified device on {self.connection}, skipping")
+            return None
+        device = RMMDevice.objects.filter(connection=self.connection,
+                                          external_id=device_external_id).first()
+        if device is None:
+            logger.warning(f"Device {device_external_id} not found for alert {external_id}, skipping alert")
             return None
 
-        # Check if exists
         alert, created = RMMAlert.objects.update_or_create(
             connection=self.connection,
             external_id=external_id,
             defaults={
-                'organization': self.organization,
+                'organization': device.organization,
                 'device': device,
                 'alert_type': alert_data.get('alert_type', ''),
                 'message': alert_data.get('message', ''),
                 'severity': alert_data.get('severity', 'info'),
                 'status': alert_data.get('status', 'active'),
-                'triggered_at': alert_data.get('triggered_at'),
+                'triggered_at': alert_data.get('triggered_at') or timezone.now(),
                 'resolved_at': alert_data.get('resolved_at'),
                 'raw_data': alert_data.get('raw_data', {}),
             }
@@ -842,10 +816,6 @@ class RMMSync:
             self.stats['alerts']['created'] += 1
         else:
             self.stats['alerts']['updated'] += 1
-
-        # Note: ExternalObjectMap not used for RMM alerts (PSA-only)
-        # RMM alerts already have connection FK for tracking
-
         return alert
 
     def _upsert_software(self, device, sw_data):
@@ -858,7 +828,6 @@ class RMMSync:
         if not external_id:
             external_id = f"{name}_{version}"
 
-        # Check if exists
         software, created = RMMSoftware.objects.update_or_create(
             device=device,
             external_id=external_id,
@@ -879,242 +848,6 @@ class RMMSync:
             self.stats['software']['updated'] += 1
 
         return software
-
-    def _update_asset_hardware(self, asset, device):
-        """Update hardware/OS fields on an asset from the RMM device. Always overwrites
-        RMM-sourced fields so that re-syncing fixes stale or missing values."""
-        update_fields = []
-        raw = device.raw_data or {}
-
-        cpu_raw = raw.get('cpu_model') or raw.get('cpu') or raw.get('_norm_cpu') or ''
-        cpu = ', '.join(str(c) for c in cpu_raw if c) if isinstance(cpu_raw, list) else str(cpu_raw)
-        if cpu and cpu != asset.cpu:
-            asset.cpu = cpu
-            update_fields.append('cpu')
-
-        try:
-            total_ram_val = raw.get('total_ram') or 0
-            if total_ram_val:
-                # TRMM stores total_ram in GB; use directly
-                ram_gb = int(round(float(total_ram_val)))
-            elif raw.get('_norm_ram_gb') is not None:
-                ram_gb = int(round(float(raw['_norm_ram_gb'])))
-            else:
-                ram_gb = None
-            if ram_gb and ram_gb != asset.ram_gb:
-                asset.ram_gb = ram_gb
-                update_fields.append('ram_gb')
-        except (ValueError, TypeError):
-            pass
-
-        disks = raw.get('disks') or []
-        storage_parts = []
-        for disk in disks:
-            dev = disk.get('device') or disk.get('dev', '?')
-            total = disk.get('total_gb') or disk.get('total') or 0
-            used = disk.get('used_gb') or disk.get('used') or 0
-            percent = disk.get('percent')
-            try:
-                total = float(total)
-                used = float(used)
-            except (ValueError, TypeError):
-                total = 0
-                used = 0
-            if total:
-                pct = round(float(percent)) if percent is not None else (round(used / total * 100) if total else 0)
-                storage_parts.append(f"{dev} {int(total)}GB ({pct}% used)")
-        if storage_parts:
-            storage = ', '.join(storage_parts)
-        else:
-            storage = raw.get('_norm_storage') or ''
-        if storage and storage != asset.storage:
-            asset.storage = storage
-            update_fields.append('storage')
-
-        if device.os_type and device.os_type != asset.os_name:
-            asset.os_name = device.os_type
-            update_fields.append('os_name')
-        if device.os_version and device.os_version != asset.os_version:
-            asset.os_version = device.os_version
-            update_fields.append('os_version')
-        if device.hostname and device.hostname != asset.hostname:
-            asset.hostname = device.hostname
-            update_fields.append('hostname')
-        if device.ip_address and str(device.ip_address) != str(asset.ip_address or ''):
-            asset.ip_address = device.ip_address
-            update_fields.append('ip_address')
-        if device.mac_address is not None and device.mac_address != (asset.mac_address or ''):
-            asset.mac_address = device.mac_address
-            update_fields.append('mac_address')
-
-        if update_fields:
-            asset.save(update_fields=update_fields)
-
-    def _map_device_to_asset(self, device):
-        """
-        Automatically map RMM device to Asset record.
-        Tries to find existing asset by serial number or hostname.
-        Creates new asset if not found.
-        """
-        from assets.models import Asset
-
-        # Use the device's actual organization (not the connection default org),
-        # so assets are scoped to the correct client when import_organizations=True.
-        device_org = device.organization or self.organization
-
-        # If already linked, verify the link is still valid.
-        # A valid link requires ALL of:
-        #   1. The asset belongs to the same org as the device (guards against stale
-        #      cross-org links left over from before the org-assignment fix).
-        #   2. At least one identifier — serial number or hostname — still matches.
-        if device.linked_asset:
-            linked = device.linked_asset
-            org_match = (linked.organization_id == device_org.id)
-            _garbage = {
-                'to be filled by o.e.m.', 'to be filled by o.e.m',
-                'default string', 'not specified', 'none', 'n/a', 'na',
-                'system serial number', 'chassis serial number',
-                '0', '00000000', '0000000000', '000000000000',
-                '1234567890', '123456789', '12345678',
-                'invalid', 'unknown', 'xxxxxxxxxxx',
-            }
-            def _good_serial(s):
-                return s and s.lower().strip() not in _garbage and len(s.strip()) >= 4
-            serial_match = (_good_serial(device.serial_number) and
-                            _good_serial(linked.serial_number) and
-                            device.serial_number == linked.serial_number)
-            hostname_match = (device.hostname and linked.hostname and
-                              device.hostname.lower() == linked.hostname.lower())
-            if org_match and (serial_match or hostname_match):
-                self._update_asset_hardware(linked, device)
-                return  # Link is legitimate — keep it
-            # Link looks wrong — clear it so we can re-evaluate
-            logger.info(
-                f"Clearing stale asset link for RMM device {device.external_id}: "
-                f"linked asset {linked.id} failed validation "
-                f"(org_match={org_match}, serial_match={serial_match}, hostname_match={hostname_match})"
-            )
-            device.linked_asset = None
-            device.save(update_fields=['linked_asset'])
-
-        # Try to find existing asset by serial number.
-        # Skip matching if the serial is a known placeholder — many OEMs and
-        # hypervisors ship with identical garbage values, which causes every
-        # device with that serial to pile onto the same asset record.
-        _GARBAGE_SERIALS = {
-            'to be filled by o.e.m.', 'to be filled by o.e.m',
-            'default string', 'not specified', 'none', 'n/a', 'na',
-            'system serial number', 'chassis serial number',
-            '0', '00000000', '0000000000', '000000000000',
-            '1234567890', '123456789', '12345678',
-            'invalid', 'unknown', 'xxxxxxxxxxx',
-        }
-        usable_serial = (
-            device.serial_number and
-            device.serial_number.lower().strip() not in _GARBAGE_SERIALS and
-            len(device.serial_number.strip()) >= 4
-        )
-
-        asset = None
-        if usable_serial:
-            asset = Asset.objects.filter(
-                organization=device_org,
-                serial_number=device.serial_number
-            ).first()
-
-        # Try hostname if serial not found
-        if not asset and device.hostname:
-            asset = Asset.objects.filter(
-                organization=device_org,
-                hostname__iexact=device.hostname
-            ).first()
-
-        # NOTE: IP address matching intentionally omitted — private IP ranges
-        # (10.x, 192.168.x, 172.16.x) overlap across organizations and cause
-        # false-positive matches that hard-link unrelated devices to the same asset.
-
-        # Create new asset if not found
-        if not asset:
-            # Map device type to asset type
-            asset_type_map = {
-                'workstation': 'computer',
-                'server': 'server',
-                'laptop': 'computer',
-                'network': 'network',
-                'mobile': 'mobile',
-                'virtual': 'server',
-                'cloud': 'server',
-            }
-            asset_type = asset_type_map.get(device.device_type, 'other')
-
-            raw = device.raw_data or {}
-            cpu_raw = raw.get('cpu_model') or raw.get('cpu') or raw.get('_norm_cpu') or ''
-            cpu = ', '.join(str(c) for c in cpu_raw if c) if isinstance(cpu_raw, list) else str(cpu_raw)
-            ram_gb = None
-            try:
-                total_ram_val = raw.get('total_ram') or 0
-                if total_ram_val:
-                    # TRMM stores total_ram in GB; other providers may use MB via _norm_ram_gb
-                    ram_gb = int(round(float(total_ram_val)))
-                elif raw.get('_norm_ram_gb') is not None:
-                    ram_gb = int(round(float(raw['_norm_ram_gb'])))
-            except (ValueError, TypeError):
-                pass
-            disks = raw.get('disks') or []
-            storage_parts = []
-            for disk in disks:
-                dev = disk.get('device') or disk.get('dev', '?')
-                total = disk.get('total_gb') or disk.get('total') or 0
-                used = disk.get('used_gb') or disk.get('used') or 0
-                percent = disk.get('percent')
-                try:
-                    total = float(total)
-                    used = float(used)
-                except (ValueError, TypeError):
-                    total = 0
-                    used = 0
-                if total:
-                    pct = round(float(percent)) if percent is not None else (round(used / total * 100) if total else 0)
-                    storage_parts.append(f"{dev} {int(total)}GB ({pct}% used)")
-            storage = ', '.join(storage_parts) or raw.get('_norm_storage', '')
-            agent_notes = raw.get('notes') or raw.get('description') or ''
-            notes_text = agent_notes or f'Auto-mapped from RMM device {device.external_id}. Online: {device.is_online}'
-
-            asset = Asset.objects.create(
-                organization=device_org,
-                name=device.device_name,
-                asset_type=asset_type,
-                serial_number=device.serial_number or '',
-                manufacturer=device.manufacturer or '',
-                model=device.model or '',
-                hostname=device.hostname or '',
-                ip_address=device.ip_address or '',
-                mac_address=device.mac_address or '',
-                os_name=device.os_type or '',
-                os_version=device.os_version or '',
-                cpu=cpu,
-                ram_gb=ram_gb,
-                storage=storage or '',
-                notes=notes_text,
-                custom_fields={
-                    'rmm_synced': True,
-                    'rmm_provider': self.connection.provider_type,
-                    'rmm_external_id': device.external_id,
-                    'is_online': device.is_online,
-                    'last_rmm_sync': timezone.now().isoformat(),
-                }
-            )
-
-            logger.info(f"Created asset {asset.id} from RMM device {device.external_id}")
-        else:
-            self._update_asset_hardware(asset, device)
-
-        # Link device to asset
-        device.linked_asset = asset
-        device.save()
-
-        self.stats['devices']['mapped'] += 1
-        logger.debug(f"Mapped RMM device {device.external_id} to asset {asset.id}")
 
     def _hash_data(self, data):
         """Generate hash of data for change detection."""

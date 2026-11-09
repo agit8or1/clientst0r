@@ -531,13 +531,43 @@
                     <dt class="col-5">Urgency</dt><dd class="col-7">{{ ticket.get_urgency_display }}</dd>
                     <dt class="col-5">Assignee</dt><dd class="col-7">{{ ticket.assigned_to.username|default:"—" }}</dd>
                     <dt class="col-5">Contact</dt><dd class="col-7">{{ ticket.contact|default:"—" }}</dd>
-                    <dt class="col-5">Asset</dt><dd class="col-7">{{ ticket.related_asset|default:"—" }}</dd>
+                    <dt class="col-5">Asset</dt><dd class="col-7">{% if ticket_asset %}{% if is_msp_staff %}<a href="{% url 'assets:asset_detail' ticket_asset.pk %}">{{ ticket_asset.name }}</a>{% else %}{{ ticket_asset.name }}{% endif %}{% else %}—{% endif %}</dd>
                     <dt class="col-5">Doc</dt><dd class="col-7">{{ ticket.related_documentation|default:"—" }}</dd>
                     <dt class="col-5">KB</dt><dd class="col-7">{{ ticket.related_kb_article|default:"—" }}</dd>
                     <dt class="col-5">Calendar</dt><dd class="col-7">{{ ticket.related_calendar_event|default:"—" }}</dd>
                 </dl>
             </div>
         </div>
+
+        {% if is_msp_staff %}
+        {# Technician-only: the asset this ticket is about and what its RMMs report. #}
+        <div class="card mt-3" id="ticket-asset-card">
+            <div class="card-header"><strong><i class="fas fa-desktop me-1"></i>Asset</strong></div>
+            <div class="card-body small">
+                {% if ticket_asset_foreign %}
+                <p class="text-danger mb-2">The asset previously on this ticket belongs to a different customer and is hidden. Choose one of this customer's assets.</p>
+                {% endif %}
+                {% if ticket_asset %}
+                {% if ticket_rmm %}
+                {% include "integrations/_rmm_device_summary.html" with rmm_summaries=ticket_rmm compact=True %}
+                {% else %}
+                <p class="text-muted mb-2">No RMM reports this asset.</p>
+                {% endif %}
+                {% endif %}
+                <form method="post" action="{% url 'psa:ticket_quick_action' ticket.ticket_number %}" class="d-flex gap-2 mt-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="set_asset">
+                    <select name="asset" class="form-select form-select-sm" aria-label="Asset for this ticket">
+                        <option value="">— No asset —</option>
+                        {% for a in ticket_asset_choices %}
+                        <option value="{{ a.pk }}" {% if ticket_asset and ticket_asset.pk == a.pk %}selected{% endif %}>{{ a.name }}{% if a.hostname and a.hostname != a.name %} ({{ a.hostname }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-sm btn-outline-primary">Set</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
 
         {% comment %}
             Phase 46 (v3.17.533) — what the tech has to take. Attached to the

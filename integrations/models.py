@@ -313,6 +313,12 @@ class RMMConnection(BaseModel):
 
     # Connection settings (varies by provider)
     base_url = models.URLField(max_length=500)
+    # The RMM's web console, where it differs from the API address (Tactical
+    # RMM serves its web app from a separate host). Used only to build
+    # "Open in …" links, never to call the API.
+    console_base_url = models.URLField(max_length=500, blank=True, default='',
+                                       help_text="Web console address, if different from the API URL "
+                                                 "(e.g. https://rmm.example.com for Tactical RMM)")
 
     # Encrypted credentials (stored as JSON)
     encrypted_credentials = SealedTextField(legacy='v1_json', help_text="Encrypted (enc2$ envelope) JSON with API keys, secrets, tokens")
@@ -328,6 +334,22 @@ class RMMConnection(BaseModel):
     # Asset mapping - link RMM devices to Asset model
     map_to_assets = models.BooleanField(default=True, help_text="Automatically map RMM devices to Assets")
 
+    # Which customer a device belongs to. A single-customer connection puts
+    # every device in the connection's own organization; a multi-customer
+    # connection resolves each device's customer from the RMM's own client
+    # identity and holds anything it cannot resolve for staff review rather
+    # than filing it under the connection owner.
+    CUSTOMER_SCOPE_SINGLE = 'single'
+    CUSTOMER_SCOPE_MULTI = 'multi'
+    CUSTOMER_SCOPE_CHOICES = [
+        (CUSTOMER_SCOPE_SINGLE, 'Single customer — every device belongs to this organization'),
+        (CUSTOMER_SCOPE_MULTI, 'Multiple customers — match each device to its RMM customer'),
+    ]
+    customer_scope = models.CharField(
+        max_length=10, choices=CUSTOMER_SCOPE_CHOICES, default=CUSTOMER_SCOPE_MULTI,
+        help_text="Multi-customer connections hold devices whose customer can't be "
+                  "resolved for review instead of assigning them to this organization.")
+
     # Organization import settings
     import_organizations = models.BooleanField(default=False, help_text="Automatically import/create organizations from RMM sites/clients")
     org_import_as_active = models.BooleanField(default=True, help_text="Set imported organizations as active")
@@ -341,8 +363,16 @@ class RMMConnection(BaseModel):
     last_sync_at = models.DateTimeField(null=True, blank=True)
     last_sync_status = models.CharField(max_length=50, blank=True)
     last_error = models.TextField(blank=True)
+    # Held while a sync runs, so a manual sync and the scheduler (or a retry)
+    # never work the same connection at once. Expires on its own if a worker
+    # dies mid-sync.
+    sync_lock_until = models.DateTimeField(null=True, blank=True)
 
     objects = OrganizationManager()
+
+    @property
+    def is_single_customer(self):
+        return self.customer_scope == self.CUSTOMER_SCOPE_SINGLE
 
     class Meta:
         db_table = 'rmm_connections'
@@ -458,7 +488,11 @@ class RMMDevice(BaseModel):
         ('windows', 'Windows'),
     ]
 
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='rmm_devices')
+    # Null while the device's customer is unresolved or under review after an
+    # upstream move: an unowned device is invisible to every customer-scoped
+    # query until a technician decides.
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='rmm_devices',
+                                     null=True, blank=True)
     connection = models.ForeignKey(RMMConnection, on_delete=models.CASCADE, related_name='devices')
 
     # Device identification
@@ -480,9 +514,47 @@ class RMMDevice(BaseModel):
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     mac_address = models.CharField(max_length=17, blank=True)
 
-    # Site/Client info (for organization mapping)
-    site_id = models.CharField(max_length=255, blank=True, help_text="RMM site/client ID")
-    site_name = models.CharField(max_length=255, blank=True, help_text="RMM site/client name")
+    # Customer and site as the RMM reports them. The customer is the RMM's
+    # client / organization (Datto: the site); the site is its location.
+    client_id = models.CharField(max_length=255, blank=True, help_text="RMM customer ID")
+    client_name = models.CharField(max_length=255, blank=True, help_text="RMM customer name")
+    site_id = models.CharField(max_length=255, blank=True, help_text="RMM site/location ID")
+    site_name = models.CharField(max_length=255, blank=True, help_text="RMM site/location name")
+    # Stable key the customer was resolved from: "id:<customer id>" or, for
+    # payloads that only carry names, "name:<customer name>".
+    customer_key = models.CharField(max_length=300, blank=True)
+
+    OWNERSHIP_RESOLVED = 'resolved'
+    OWNERSHIP_UNRESOLVED = 'unresolved'
+    OWNERSHIP_MOVED = 'moved'
+    OWNERSHIP_CHOICES = [
+        (OWNERSHIP_RESOLVED, 'Customer resolved'),
+        (OWNERSHIP_UNRESOLVED, 'Customer unresolved — needs review'),
+        (OWNERSHIP_MOVED, 'Moved to another customer upstream — needs review'),
+    ]
+    ownership_status = models.CharField(max_length=12, choices=OWNERSHIP_CHOICES, default=OWNERSHIP_RESOLVED)
+    ownership_note = models.TextField(blank=True)
+    # Customer proposed by the RMM when a device moved or could be mapped.
+    pending_organization = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True, blank=True,
+                                             related_name='+')
+    # A technician's decision about the customer holds while the RMM keeps
+    # reporting the same customer key.
+    confirmed_customer_key = models.CharField(max_length=300, blank=True)
+
+    LINK_AUTO = 'auto'
+    LINK_CONFIRMED = 'confirmed'
+    LINK_REVIEW = 'review'
+    LINK_UNLINKED = 'unlinked'
+    LINK_CHOICES = [
+        ('', 'Not linked'),
+        (LINK_AUTO, 'Linked automatically'),
+        (LINK_CONFIRMED, 'Linked by a technician'),
+        (LINK_REVIEW, 'Needs review'),
+        (LINK_UNLINKED, 'Left unlinked by a technician'),
+    ]
+    link_status = models.CharField(max_length=10, choices=LINK_CHOICES, blank=True, default='')
+    link_note = models.TextField(blank=True)
+    link_candidates = models.JSONField(default=list, blank=True)
 
     # Location info (for mapping devices on location maps)
     latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True, help_text="Device latitude for map display")
@@ -505,8 +577,16 @@ class RMMDevice(BaseModel):
     # Raw RMM data (JSON)
     raw_data = models.JSONField(default=dict, blank=True)
     last_synced_at = models.DateTimeField(auto_now=True)
+    # When the RMM last returned this device's data (not just a local save).
+    data_refreshed_at = models.DateTimeField(null=True, blank=True)
 
     objects = OrganizationManager()
+
+    @property
+    def is_exposed(self):
+        """Customer-facing views may show this device only when its customer
+        is settled."""
+        return bool(self.organization_id) and self.ownership_status == self.OWNERSHIP_RESOLVED
 
     class Meta:
         db_table = 'rmm_devices'
@@ -540,7 +620,9 @@ class RMMAlert(BaseModel):
         ('closed', 'Closed'),
     ]
 
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='rmm_alerts')
+    # Follows the device's customer; null while the device is unowned.
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='rmm_alerts',
+                                     null=True, blank=True)
     connection = models.ForeignKey(RMMConnection, on_delete=models.CASCADE, related_name='alerts')
     device = models.ForeignKey(RMMDevice, on_delete=models.CASCADE, related_name='alerts')
 
@@ -576,7 +658,9 @@ class RMMSoftware(BaseModel):
     """
     Software inventory from RMM.
     """
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='rmm_software')
+    # Follows the device's customer; null while the device is unowned.
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='rmm_software',
+                                     null=True, blank=True)
     connection = models.ForeignKey(RMMConnection, on_delete=models.CASCADE, related_name='software_inventory')
     device = models.ForeignKey(RMMDevice, on_delete=models.CASCADE, related_name='software')
 

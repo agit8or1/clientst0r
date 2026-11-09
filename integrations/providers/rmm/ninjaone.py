@@ -76,57 +76,50 @@ class NinjaOneProvider(BaseRMMProvider):
             logger.error(f"NinjaOne connection test failed: {e}")
             return False
 
-    def list_devices(self, page_size: int = 100, updated_since: Optional[datetime] = None) -> List[Dict[str, Any]]:
+    def _paged(self, endpoint, page_size=1000):
+        """NinjaOne pages with `pageSize` and `after` (the last id seen)."""
+        after = None
+        while True:
+            params = {'pageSize': page_size}
+            if after is not None:
+                params['after'] = after
+            data = self._make_request('GET', endpoint, params=params).json()
+            if not isinstance(data, list) or not data:
+                return
+            yield from data
+            last = data[-1].get('id') if isinstance(data[-1], dict) else None
+            if len(data) < page_size or last is None or last == after:
+                return
+            after = last
+
+    def _lookups(self):
+        """Organization and location names, fetched once per sync."""
+        orgs, locations = {}, {}
+        try:
+            for row in self._paged('/v2/organizations'):
+                orgs[str(row.get('id'))] = row.get('name') or ''
+            for row in self._paged('/v2/locations'):
+                locations[str(row.get('id'))] = row.get('name') or ''
+        except Exception as e:  # names are display only; IDs still resolve
+            logger.warning(f"NinjaOne: organization/location names unavailable: {e}")
+        return orgs, locations
+
+    def list_devices(self, page_size: int = 1000, updated_since: Optional[datetime] = None) -> List[Dict[str, Any]]:
         """
-        List all devices with cursor-based pagination.
-
-        NinjaOne uses cursor-based pagination with X-Page-After header.
-
-        Args:
-            page_size: Number of devices per page (max 1000)
-            updated_since: Only return devices updated after this time
-
-        Returns:
-            List of normalized device dictionaries
+        List all devices from /v2/devices-detailed, which (unlike /v2/devices)
+        carries the system and OS details. NinjaOne documents no "changed
+        since" filter, so every sync reads the full list.
         """
         devices = []
-        params = {'pageSize': min(page_size, 1000)}
-
-        if updated_since:
-            # NinjaOne expects ISO 8601 format
-            params['updatedAfter'] = updated_since.isoformat()
-
-        page_after = None
-
+        self._org_names, self._location_names = self._lookups()
         try:
-            while True:
-                if page_after:
-                    params['pageAfter'] = page_after
-
-                response = self._make_request('GET', '/v2/devices', params=params)
-                data = response.json()
-
-                # NinjaOne returns array of devices
-                if not isinstance(data, list):
-                    logger.error(f"Unexpected response format from NinjaOne: {type(data)}")
-                    break
-
-                for device_data in data:
-                    try:
-                        devices.append(self.normalize_device(device_data))
-                    except Exception as e:
-                        logger.error(f"Error normalizing NinjaOne device {device_data.get('id')}: {e}")
-
-                # Check for next page cursor in response headers
-                page_after = response.headers.get('X-Page-After')
-                if not page_after:
-                    break
-
-                logger.debug(f"NinjaOne: Fetched {len(data)} devices, continuing with cursor {page_after}")
-
+            for device_data in self._paged('/v2/devices-detailed', min(page_size, 1000)):
+                try:
+                    devices.append(self.normalize_device(device_data))
+                except Exception as e:
+                    logger.error(f"Error normalizing NinjaOne device {device_data.get('id')}: {e}")
             logger.info(f"NinjaOne: Retrieved {len(devices)} total devices")
             return devices
-
         except Exception as e:
             logger.error(f"Error listing NinjaOne devices: {e}")
             raise ProviderError(f"Failed to list devices: {e}")
@@ -156,45 +149,24 @@ class NinjaOneProvider(BaseRMMProvider):
         page_size: int = 100
     ) -> List[Dict[str, Any]]:
         """
-        List monitoring alerts.
-
-        Args:
-            device_id: Filter by device ID
-            status: Filter by status (OPEN, CLOSED)
-            updated_since: Only return alerts updated after this time
-            page_size: Number of alerts per page
-
-        Returns:
-            List of normalized alert dictionaries
+        List the currently triggered alerts. /v2/alerts takes no paging or
+        status parameters; every alert it returns is open, and each names its
+        device in `deviceId`.
         """
         alerts = []
-        params = {'pageSize': min(page_size, 1000)}
-
-        if device_id:
-            params['deviceId'] = device_id
-        if status:
-            params['status'] = status.upper()
-        if updated_since:
-            params['updatedAfter'] = updated_since.isoformat()
-
+        endpoint = f'/v2/device/{device_id}/alerts' if device_id else '/v2/alerts'
         try:
-            # NinjaOne alerts endpoint with pagination
-            response = self._make_request('GET', '/v2/alerts', params=params)
-            data = response.json()
-
+            data = self._make_request('GET', endpoint).json()
             if not isinstance(data, list):
                 logger.error(f"Unexpected response format from NinjaOne alerts: {type(data)}")
                 return alerts
-
             for alert_data in data:
                 try:
                     alerts.append(self.normalize_alert(alert_data))
                 except Exception as e:
                     logger.error(f"Error normalizing NinjaOne alert {alert_data.get('uid')}: {e}")
-
             logger.info(f"NinjaOne: Retrieved {len(alerts)} alerts")
             return alerts
-
         except Exception as e:
             logger.error(f"Error listing NinjaOne alerts: {e}")
             raise ProviderError(f"Failed to list alerts: {e}")
@@ -235,112 +207,84 @@ class NinjaOneProvider(BaseRMMProvider):
 
     def normalize_device(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Normalize NinjaOne device data to standard format.
+        Normalize a NinjaOne device (v2 OpenAPI spec, /v2/devices-detailed).
 
-        NinjaOne device structure:
-        {
-            "id": 123,
-            "nodeClass": "WINDOWS_WORKSTATION",
-            "online": true,
-            "lastContact": "2026-01-11T02:00:00Z",
-            "system": {
-                "name": "DESKTOP-ABC123",
-                "dnsName": "desktop-abc123.domain.local",
-                "manufacturer": "Dell Inc.",
-                "model": "OptiPlex 7090",
-                "serialNumber": "ABC12345",
-                "biosSerialNumber": "ABC12345",
-                "biosVersion": "1.2.3",
-                "ipAddresses": ["192.168.1.100", "fe80::1"],
-                "macAddresses": ["00:11:22:33:44:55"]
-            },
-            "os": {
-                "name": "Microsoft Windows 10 Pro",
-                "version": "10.0.19045",
-                "build": "19045"
+            {
+              "id": 123, "uid": "…", "nodeClass": "WINDOWS_WORKSTATION",
+              "systemName": "FRONTDESK", "displayName": "Front desk PC",
+              "dnsName": "frontdesk.corp.local", "offline": false,
+              "lastContact": 1767920400.5,            # epoch seconds
+              "organizationId": 7, "locationId": 12,
+              "references": {"organization": {"id": 7, "name": "Acme"},
+                             "location": {"id": 12, "name": "Main Office"}},
+              "system": {"manufacturer": "Dell Inc.", "model": "OptiPlex 7090",
+                         "serialNumber": "ABC12345", "biosSerialNumber": "…"},
+              "os": {"name": "Windows 11 Pro"},
+              "ipAddresses": ["192.168.1.10"], "macAddresses": ["00:11:…"]
             }
-        }
-        """
-        system = raw_data.get('system', {})
-        os_info = raw_data.get('os', {})
 
-        # Map node class to device type
-        node_class = raw_data.get('nodeClass', '').upper()
+        Organization (the customer) and location (its site) stay separate
+        identities. Cloud monitors, VM hosts and unmanaged devices have no
+        `system` block.
+        """
+        system = raw_data.get('system') or {}
+        os_info = raw_data.get('os') or {}
+        refs = raw_data.get('references') or {}
+
+        node_class = (raw_data.get('nodeClass') or '').upper()
         device_type = self.NODE_CLASS_MAP.get(node_class, 'unknown')
 
-        # Get first IP and MAC address
-        ip_addresses = system.get('ipAddresses', [])
-        mac_addresses = system.get('macAddresses', [])
-
-        ip_address = ip_addresses[0] if ip_addresses else None
+        ip_addresses = raw_data.get('ipAddresses') or system.get('ipAddresses') or []
+        mac_addresses = raw_data.get('macAddresses') or system.get('macAddresses') or []
+        ip_address = next((ip for ip in ip_addresses if ip and ':' not in ip), None) or (ip_addresses[0] if ip_addresses else None)
         mac_address = mac_addresses[0] if mac_addresses else ''
 
-        # Parse OS type from OS name
-        os_name = os_info.get('name', '')
-        os_type = self._map_os_type(os_name)
+        os_name = os_info.get('name', '') or ''
+        os_version = f"{os_name} {os_info['version']}".strip() if os_info.get('version') else os_name
 
-        # Build OS version string
-        os_version = os_info.get('name', '')
-        if os_info.get('version'):
-            os_version = f"{os_name} {os_info['version']}"
+        if 'offline' in raw_data:
+            is_online = not raw_data.get('offline')
+        else:
+            is_online = bool(raw_data.get('online', False))
 
-        # Parse last contact timestamp
-        last_seen = self._parse_datetime(raw_data.get('lastContact'))
+        org_id = raw_data.get('organizationId') or (refs.get('organization') or {}).get('id') or ''
+        loc_id = raw_data.get('locationId') or (refs.get('location') or {}).get('id') or ''
+        org_name = ((refs.get('organization') or {}).get('name')
+                    or getattr(self, '_org_names', {}).get(str(org_id), '') or raw_data.get('organizationName', ''))
+        loc_name = ((refs.get('location') or {}).get('name')
+                    or getattr(self, '_location_names', {}).get(str(loc_id), '') or raw_data.get('locationName', ''))
 
-        # Extract organization/client information
-        # NinjaOne provides organizationId and organization name in device data
-        organization_id = raw_data.get('organizationId', '') or raw_data.get('orgId', '')
-        # Organization name might be in 'organization' field or need separate lookup
-        organization_name = raw_data.get('organizationName', '') or raw_data.get('orgName', '')
-
-        # Location/site information (if provided)
-        location_id = raw_data.get('locationId', '')
-        location_name = raw_data.get('locationName', '')
+        name = (raw_data.get('systemName') or system.get('name') or raw_data.get('displayName')
+                or raw_data.get('dnsName') or '')
+        serial = system.get('serialNumber') or system.get('biosSerialNumber') or system.get('assetSerialNumber') or ''
 
         return {
-            'external_id': str(raw_data['id']),
-            'device_name': system.get('name', ''),
+            'external_id': str(raw_data.get('id') if raw_data.get('id') is not None else ''),
+            'device_name': raw_data.get('displayName') or name,
             'device_type': device_type,
-            'manufacturer': system.get('manufacturer', ''),
-            'model': system.get('model', ''),
-            'serial_number': system.get('serialNumber') or system.get('biosSerialNumber', ''),
-            'os_type': os_type,
+            'manufacturer': system.get('manufacturer', '') or '',
+            'model': system.get('model', '') or '',
+            'serial_number': serial,
+            'os_type': self._map_os_type(os_name),
             'os_version': os_version,
-            'hostname': system.get('dnsName', ''),
+            'hostname': name or raw_data.get('dnsName', ''),
             'ip_address': ip_address,
             'mac_address': mac_address,
-            'is_online': raw_data.get('online', False),
-            'last_seen': last_seen,
-            # Organization/Client mapping for proper org assignment
-            'organization_id': str(organization_id) if organization_id else '',
-            'organization_name': organization_name,
-            'client_id': str(organization_id) if organization_id else '',  # Alias
-            'client_name': organization_name,  # Alias
-            # Location/Site info (less preferred than organization)
-            'location_id': str(location_id) if location_id else '',
-            'location_name': location_name,
-            'site_id': str(location_id) if location_id else '',  # Alias
-            'site_name': location_name,  # Alias
+            'is_online': is_online,
+            'last_seen': self._parse_datetime(raw_data.get('lastContact')),
+            'client_id': str(org_id) if org_id else '',
+            'client_name': org_name or '',
+            'site_id': str(loc_id) if loc_id else '',
+            'site_name': loc_name or '',
             'raw_data': raw_data,
         }
 
     def normalize_alert(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Normalize NinjaOne alert data to standard format.
-
-        NinjaOne alert structure:
-        {
-            "uid": "abc-123-def-456",
-            "deviceId": 123,
-            "type": "ANTIVIRUS",
-            "message": "Threat detected",
-            "severity": "CRITICAL",
-            "status": "OPEN",
-            "createTime": "2026-01-11T01:00:00Z",
-            "updateTime": "2026-01-11T01:30:00Z"
-        }
+        Normalize a NinjaOne alert (v2 spec): `uid`, `deviceId`, `sourceType`,
+        `subject`, `message`, `severity`, `createTime` (epoch seconds). Alerts
+        listed by the API are open; there is no status field.
         """
-        # Map NinjaOne severity to standard levels
         severity_map = {
             'NONE': 'info',
             'MINOR': 'warning',
@@ -348,29 +292,37 @@ class NinjaOneProvider(BaseRMMProvider):
             'MAJOR': 'error',
             'CRITICAL': 'critical',
         }
-
-        ninja_severity = raw_data.get('severity', 'NONE').upper()
-        severity = severity_map.get(ninja_severity, 'info')
-
-        # Map status
-        ninja_status = raw_data.get('status', 'OPEN').upper()
-        status = 'active' if ninja_status == 'OPEN' else 'resolved'
-
-        # Parse timestamps
-        triggered_at = self._parse_datetime(raw_data.get('createTime'))
-        resolved_at = self._parse_datetime(raw_data.get('resolvedTime')) if status == 'resolved' else None
+        severity = severity_map.get(str(raw_data.get('severity') or 'NONE').upper(), 'info')
+        device_id = raw_data.get('deviceId')
+        if device_id is None:
+            device_id = (raw_data.get('device') or {}).get('id')
 
         return {
-            'external_id': str(raw_data.get('uid', '')),
-            'device_id': str(raw_data.get('deviceId', '')),
-            'alert_type': raw_data.get('type', ''),
-            'message': raw_data.get('message', ''),
+            'external_id': str(raw_data.get('uid') or ''),
+            'device_id': str(device_id) if device_id is not None else '',
+            'alert_type': raw_data.get('sourceType') or raw_data.get('type') or '',
+            'message': raw_data.get('message') or raw_data.get('subject') or '',
             'severity': severity,
-            'status': status,
-            'triggered_at': triggered_at,
-            'resolved_at': resolved_at,
+            'status': 'active',
+            'triggered_at': self._parse_datetime(raw_data.get('createTime')),
+            'resolved_at': None,
             'raw_data': raw_data,
         }
+
+    # A device's dashboard URL comes from the documented
+    # GET /v2/device/{id}/dashboard-url, which returns a short-lived link. It
+    # is fetched on the server when the technician clicks, never stored.
+    console_link_mode = 'on_demand'
+
+    @classmethod
+    def console_hosts(cls, connection):
+        from .console import host_of
+        host = host_of(connection.base_url)
+        return {host} if host.endswith('.ninjarmm.com') or host.endswith('.ninjaone.com') else set()
+
+    def fetch_console_url(self, device):
+        data = self._make_request('GET', f'/v2/device/{device.external_id}/dashboard-url').json()
+        return (data or {}).get('url', '') if isinstance(data, dict) else ''
 
     def normalize_software(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """

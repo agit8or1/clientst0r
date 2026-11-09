@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}PSA — New Ticket{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -52,6 +53,17 @@
                 </select>
                 <div class="form-text">Clients with an active external PSA connection are excluded.</div>
             </div>
+            <div class="col-md-6">
+                <label class="form-label" for="ticket-asset">Asset <span class="text-muted small">(optional)</span></label>
+                <select name="related_asset" id="ticket-asset" class="form-select"
+                        data-assets-url="{% url 'psa:ticket_client_assets' %}">
+                    <option value="">— No asset —</option>
+                    {% for a in client_assets %}
+                    <option value="{{ a.id }}" {% if preselected_asset_id == a.id %}selected{% endif %}>{{ a.name }}{% if a.hostname and a.hostname != a.name %} ({{ a.hostname }}){% endif %}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Only this client's assets are listed.</div>
+            </div>
         </div>
 
         {% if catalog_item and catalog_item.fields_json %}
@@ -93,7 +105,7 @@
         <div class="mb-3">
             <label class="form-label">Subject <span class="text-danger">*</span></label>
             <input type="text" name="subject" class="form-control" required maxlength="300"
-                   value="{% if catalog_item %}{{ catalog_item.default_subject }}{% endif %}">
+                   value="{% if catalog_item %}{{ catalog_item.default_subject }}{% elif prefill_subject %}{{ prefill_subject }}{% endif %}">
         </div>
         <div class="mb-3">
             <label class="form-label">Description</label>
@@ -162,4 +174,8 @@
     </div>
 </form>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}{{ block.super }}
+<script src="{% static 'js/ticket_asset_picker.js' %}" defer></script>
 {% endblock %}

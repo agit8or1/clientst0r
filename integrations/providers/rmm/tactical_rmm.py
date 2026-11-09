@@ -112,6 +112,7 @@ class TacticalRMMProvider(BaseRMMProvider):
             List of normalized device dictionaries
         """
         devices = []
+        self._client_ids, self._site_ids = self._client_site_ids()
 
         try:
             # Tactical RMM returns all agents in single response
@@ -160,6 +161,30 @@ class TacticalRMMProvider(BaseRMMProvider):
             logger.error(f"Error listing Tactical RMM agents: {e}")
             raise ProviderError(f"Failed to list devices: {e}")
 
+    def _client_site_ids(self):
+        """Real client and site IDs from one GET /clients/ per sync.
+
+        The agent list carries only `client_name` and `site_name`. Tactical
+        RMM keeps client names unique and site names unique within a client,
+        so the (client, site) name pair maps to exactly one pair of IDs.
+        """
+        clients, sites = {}, {}
+        try:
+            data = self._safe_json(self._make_request('GET', '/clients/'))
+        except Exception as e:
+            logger.warning(f"Tactical RMM: client list unavailable, using names: {e}")
+            return clients, sites
+        for client in data if isinstance(data, list) else []:
+            cname = str(client.get('name') or '').casefold()
+            if client.get('id') is None or not cname:
+                continue
+            clients[cname] = str(client['id'])
+            for site in client.get('sites') or []:
+                sname = str(site.get('name') or '').casefold()
+                if site.get('id') is not None and sname:
+                    sites[(cname, sname)] = str(site['id'])
+        return clients, sites
+
     def get_device(self, device_id: str) -> Dict[str, Any]:
         """
         Get single agent by ID.
@@ -199,8 +224,9 @@ class TacticalRMMProvider(BaseRMMProvider):
         alerts = []
 
         try:
-            # Get alerts from alerts endpoint
-            response = self._make_request('GET', '/alerts/')
+            # /alerts/ lists with PATCH (GET is not allowed); an empty filter
+            # body returns every alert that isn't hidden.
+            response = self._make_request('PATCH', '/alerts/', json={})
             data = self._safe_json(response)
 
             if not isinstance(data, list):
@@ -210,7 +236,7 @@ class TacticalRMMProvider(BaseRMMProvider):
             for alert_data in data:
                 try:
                     # Filter by device_id if specified
-                    if device_id and str(alert_data.get('agent')) != str(device_id):
+                    if device_id and str(alert_data.get('agent_id')) != str(device_id):
                         continue
 
                     # Filter by status if specified
@@ -430,9 +456,15 @@ class TacticalRMMProvider(BaseRMMProvider):
         if raw_site and not site_name:
             site_name = raw_site
 
-        # Derive stable slug IDs for org matching
-        client_id = slugify(client_name) if client_name else ''
-        site_id   = slugify(site_name)   if site_name   else ''
+        # Real IDs from /clients/. Without them the identity is the client
+        # name, marked as such (client_id stays empty), so a rename shows up
+        # as a change for review rather than a new customer. Earlier versions
+        # used name slugs as IDs; `legacy_client_ids` lets those mappings
+        # carry over.
+        client_id = getattr(self, '_client_ids', {}).get(client_name.casefold(), '') if client_name else ''
+        site_id = (getattr(self, '_site_ids', {}).get((client_name.casefold(), site_name.casefold()), '')
+                   if client_name and site_name else '')
+        legacy_client_ids = [slugify(client_name)] if client_name else []
 
         # Parse location data if available
         # Check for location in various possible fields
@@ -488,7 +520,7 @@ class TacticalRMMProvider(BaseRMMProvider):
         agent_notes = raw_data.get('notes') or raw_data.get('description') or ''
 
         return {
-            'external_id': str(raw_data['agent_id']),
+            'external_id': str(raw_data.get('agent_id') or ''),
             'device_name': raw_data.get('hostname', ''),
             'device_type': device_type,
             'manufacturer': manufacturer,
@@ -513,6 +545,7 @@ class TacticalRMMProvider(BaseRMMProvider):
             'site_id': site_id,
             'client_name': client_name,
             'client_id': client_id,
+            'legacy_client_ids': legacy_client_ids,
             'raw_data': raw_data,
         }
 
@@ -548,12 +581,15 @@ class TacticalRMMProvider(BaseRMMProvider):
         status = 'active' if not raw_data.get('resolved', False) else 'resolved'
 
         # Parse timestamps
-        triggered_at = self._parse_datetime(raw_data.get('created'))
+        triggered_at = self._parse_datetime(raw_data.get('alert_time') or raw_data.get('created'))
         resolved_at = self._parse_datetime(raw_data.get('resolved_on')) if status == 'resolved' else None
 
+        # `agent` is the agent's database key; `agent_id` is the string ID
+        # devices are stored under. Alerts on checks without an agent have
+        # neither and are skipped.
         return {
-            'external_id': str(raw_data.get('id', '')),
-            'device_id': str(raw_data.get('agent', '')),
+            'external_id': str(raw_data.get('id') if raw_data.get('id') is not None else ''),
+            'device_id': str(raw_data.get('agent_id') or ''),
             'alert_type': raw_data.get('alert_type', ''),
             'message': raw_data.get('message', ''),
             'severity': severity,
@@ -562,6 +598,25 @@ class TacticalRMMProvider(BaseRMMProvider):
             'resolved_at': resolved_at,
             'raw_data': raw_data,
         }
+
+    # The web app routes agents at /agents/<agent_id> (tacticalrmm-web,
+    # src/router/routes.ts). Its host is not the API host, so links are
+    # offered only when the connection has its web console URL configured.
+    console_link_mode = 'static'
+
+    @classmethod
+    def console_hosts(cls, connection):
+        from .console import host_of
+        host = host_of(getattr(connection, 'console_base_url', '') or '')
+        return {host} if host else set()
+
+    @classmethod
+    def device_console_url(cls, connection, device):
+        from urllib.parse import quote
+        base = (getattr(connection, 'console_base_url', '') or '').rstrip('/')
+        if not base or not device.external_id:
+            return ''
+        return f"{base}/agents/{quote(device.external_id, safe='')}"
 
     def normalize_software(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """

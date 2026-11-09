@@ -476,9 +476,11 @@ class Asset(BaseModel):
                 continue
             # Cheap match: skip if not relevant to this asset's RMM software
             from integrations.models import RMMSoftware
+            # This asset's own RMM devices, inside its own customer.
             sw_qs = RMMSoftware.objects.filter(
-                organization=self.organization,
-                device__device_name=self.name,
+                device__linked_asset=self,
+                device__organization_id=self.organization_id,
+                device__ownership_status='resolved',
                 name__icontains=v.affected_pattern,
             )
             if not sw_qs.exists():
@@ -1079,16 +1081,28 @@ class Vulnerability(BaseModel):
         from integrations.models import RMMSoftware
         if not self.affected_pattern:
             return []
+        from django.db.models import F, Q
+        # Inventory counts only for devices whose customer is settled, and is
+        # scoped by the device's customer (older rows stored the connection
+        # owner's organization on the software row itself).
         sw_qs = RMMSoftware.objects.filter(
             name__icontains=self.affected_pattern,
-        ).select_related('device', 'organization')
+            device__organization__isnull=False,
+            device__ownership_status='resolved',
+        ).select_related('device')
         if self.organization_id:
-            sw_qs = sw_qs.filter(organization_id=self.organization_id)
-        # Map RMMDevice → matching Asset by device_name (best-effort linkage)
-        device_names = {sw.device.device_name for sw in sw_qs if sw.device}
-        return list(Asset.objects.filter(
-            name__in=device_names,
-        ).select_related('organization').order_by('organization__name', 'name'))
+            sw_qs = sw_qs.filter(device__organization_id=self.organization_id)
+        # A linked asset of the same customer is the device; without a link,
+        # fall back to an asset of the same name in the device's own customer
+        # only — never a same-named asset at another customer.
+        linked = Q(pk__in=sw_qs.filter(device__linked_asset__organization_id=F('device__organization_id'))
+                   .values('device__linked_asset_id'))
+        by_name = Q()
+        for org_id, name in sw_qs.filter(device__linked_asset__isnull=True).values_list(
+                'device__organization_id', 'device__device_name').distinct():
+            by_name |= Q(organization_id=org_id, name=name)
+        return list(Asset.objects.filter(linked | by_name if by_name else linked)
+                    .select_related('organization').order_by('organization__name', 'name'))
 
     def create_remediation_ticket(self, *, organization=None, user=None):
         """Phase 17 v8 (v3.17.307): spawn a PSA Ticket asking a tech to

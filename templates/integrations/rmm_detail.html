@@ -30,6 +30,13 @@
     </div>
 </div>
 
+{% if review_count %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center">
+    <span><i class="fas fa-clipboard-check me-1"></i>{{ review_count }} device{{ review_count|pluralize }} need{{ review_count|pluralize:"s," }} a decision about {% if unresolved_count %}their customer{% if review_count != unresolved_count %} or {% endif %}{% endif %}{% if review_count != unresolved_count %}their asset{% endif %}. They aren't shown to any customer until then.</span>
+    <a href="{% url 'integrations:rmm_review' connection.pk %}" class="btn btn-sm btn-warning">Review</a>
+</div>
+{% endif %}
+
 <!-- Quick Links to Synced Data -->
 <div class="row mb-4">
     <div class="col-12">

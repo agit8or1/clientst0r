@@ -384,7 +384,7 @@ Planned capabilities:
 - Software compliance auditing *(shipped v3.17.305 — `SoftwarePolicy` model with deny/require actions + severity; `/reports/software-compliance/` joins policies against `RMMSoftware` inventory and surfaces deny violations + require gaps)*
 - Hardware lifecycle scoring (composite — see Phase 13) *(shipped — Phase 13 v6, v3.17.263 — `Asset.lifecycle_score()` 0-100 composite)*
 - Warranty lookups (vendor API integrations) *(shipped v3.17.309 — `WarrantyConnection` model + `BaseWarrantyProvider` interface + Dell / HPE / Lenovo adapter stubs; live `lookup_warranty()` lands when an MSP connects a real account)*
-- Patch correlation (this CVE matches these N assets) *(shipped v3.17.306 — `Vulnerability` model with cve_id + cvss_score + affected_pattern; `affected_assets()` walks `RMMSoftware → RMMDevice → Asset` (by name) to surface affected endpoints)*
+- Patch correlation (this CVE matches these N assets) *(shipped v3.17.306 — `Vulnerability` model with cve_id + cvss_score + affected_pattern; `affected_assets()` walks `RMMSoftware → RMMDevice → Asset` to surface affected endpoints; since v3.17.643 through the device's verified asset link inside its own customer)*
 - Smart asset grouping (auto-cohort by role/version/location) *(shipped v3.17.307 — `AssetGroup` model with JSON criteria + computed `members()`; supports `asset_type` / `manufacturer__icontains` / `model__icontains` / `os_version__icontains` / `tags__contains`)*
 - Vulnerability-to-ticket linking *(shipped v3.17.307 — `Vulnerability.create_remediation_ticket()` spawns a PSA Ticket with severity-mapped priority (critical→P1) and an affected-asset list)*
 - Configuration monitoring *(shipped v3.17.308 — `Asset.config_monitored` flag drives the daily `assets_capture_baselines` cron that snapshots into `AssetBaseline`; old baselines retained for history)*
@@ -1611,6 +1611,16 @@ are built on top of them.
   Bootstrap from a CDN, so a blocked or failing CDN left the app unstyled. The
   unmodified 5.3.0 release now ships in `static/vendor/bootstrap/`, and a test
   fails if a template or view links the CDN copy again.
+- **RMM devices stay with their own customer** *(shipped v3.17.643)* — every
+  RMM integration (NinjaOne, Datto RMM, Atera, ConnectWise Automate, Tactical
+  RMM) settles each device's customer from the RMM's own customer ID before
+  anything is linked or shown. Connections are single- or multiple-customer.
+  Unplaced or moved devices wait in a staff review queue instead of falling
+  back to the connection owner. Asset matching uses a unique serial, or a
+  unique hostname inside the customer, and never an IP address. Conflicts go
+  to review with the candidates. Technician decisions and edits are kept.
+  Alerts and software follow their device's customer. `rmm_reconcile`
+  previews and applies the fix-up for existing data.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 
@@ -1636,6 +1646,13 @@ someone else.
   compact rows. The sender's role comes from how the entry was recorded, not
   from its visibility; the portal never receives internal notes, internal
   attachments or private reply previews.
+- **Ticket asset with RMM status** *(shipped v3.17.643)* — pick the
+  customer's asset when creating a ticket, or change it on the ticket. The
+  list holds that customer's assets only, and the server checks it again. Technicians
+  see which RMM manages the asset, its last reported status (stale data is
+  marked separately from offline), its last check-in, and an "Open in" link
+  where the RMM documents one. RMM alerts open a prefilled ticket. Customers
+  see none of the RMM details.
 
 ## Phase 53 — Documentation readiness and lifecycle **(L)** [in progress]
 
