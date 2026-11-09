@@ -143,44 +143,25 @@
     </div>
     {% endif %}
 
-    <!-- Sudo Configuration Alert -->
-    {% if not sudo_configured %}
+    {% comment %} The root helper can't be run without a password. When the helper
+       isn't installed at all, the one-time setup card above covers it. v3.17.645:
+       this used to ask for new NOPASSWD sudoers rules; root actions go through
+       the root helper since v3.17.597, so it never does now. {% endcomment %}
+    {% if not sudo_configured and not root_helper_needed %}
     <div class="row mb-4">
         <div class="col-12">
             <div class="alert alert-danger" role="alert">
                 <h5 class="alert-heading">
-                    <i class="fas fa-exclamation-triangle"></i> One-Time Setup Required for Web-Based Updates
+                    <i class="fas fa-exclamation-triangle"></i> The app can't run the root helper
                 </h5>
                 <p>
-                    To enable one-click updates from the web UI, you need to configure passwordless sudo.
-                    This is a <strong>one-time setup</strong> that allows the web interface to restart the Gunicorn service automatically.
+                    The root helper is installed, but this account can't run it without a password, so
+                    <strong>Apply Update</strong> can't reload the app. Run the one-time setup again on the server:
                 </p>
-                <p class="mb-2"><strong>Run this command once on your server:</strong></p>
                 <div class="bg-dark text-light p-3 rounded" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
-                    <div class="mb-2 text-white">sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<'SUDOERS'</div>
-                    {% comment %} v3.17.520: was a single line granting /usr/bin/systemd-run and
-                       /usr/bin/tee bare — either of which is root in all but name, since
-                       systemd-run runs any command as root and tee writes any file it is
-                       pointed at. Narrowed to exactly what the updater issues; keep this in
-                       step with scripts/install_auto_update.sh. {% endcomment %}
-                    <div class="mb-2 text-white">administrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload clientst0r-gunicorn.service</div>
-                    <div class="mb-2 text-white">administrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart clientst0r-gunicorn.service</div>
-                    <div class="mb-2 text-white">administrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl status clientst0r-gunicorn.service</div>
-                    <div class="mb-2 text-white">administrator ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload</div>
-                    <div class="mb-2 text-white">administrator ALL=(ALL) NOPASSWD: /usr/bin/systemd-run --on-active=3 --system /usr/bin/systemctl restart clientst0r-gunicorn.service</div>
-                    <div class="mb-2 text-white">SUDOERS</div>
-                    <div class="mb-3"></div>
-                    <div class="mb-2 text-white">sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update</div>
+                    <div class="text-white">{{ root_helper_command }}</div>
                 </div>
-                <p class="mt-3 mb-0">
-                    <i class="fas fa-info-circle"></i>
-                    <strong>After running this command:</strong> Refresh this page and you'll be able to click "Apply Update" to update with a single click!
-                    <br>
-                    <small class="text-muted">Without this setup, you'll need to update manually via command line each time.
-                    These grants are deliberately narrow — each line is one command the updater actually runs, so this
-                    does not give the web app general root access. <code>scripts/install_auto_update.sh</code> installs
-                    the same set automatically.</small>
-                </p>
+                <p class="mt-3 mb-0"><small class="text-muted">It reinstalls the helper and its single sudoers rule. No other sudo rules are needed.</small></p>
             </div>
         </div>
     </div>

@@ -36,6 +36,23 @@ def is_installed() -> bool:
     return st.st_uid == 0 and not st.st_mode & 0o022
 
 
+def is_usable(timeout=10) -> bool:
+    """Installed, and this account may run it through sudo without a
+    password. `sudo -n -l <cmd>` asks the sudoers policy without running
+    anything."""
+    if not is_installed():
+        return False
+    try:
+        result = subprocess.run(
+            [SUDO, '-n', '-l', HELPER_PATH],
+            capture_output=True, text=True, timeout=timeout,
+            stdin=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
+
+
 def needs_bootstrap() -> bool:
     """A native (systemd) install that has not had the one-time setup yet.
     Docker installs have no sudo and no systemd units, so never."""

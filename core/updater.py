@@ -371,24 +371,14 @@ class UpdateService:
             # Pre-check: Verify passwordless sudo is configured (if running under systemd)
             if self._is_systemd_service():
                 if not self._check_passwordless_sudo():
-                    service_name = self.service_name or 'clientst0r-gunicorn.service'
+                    # v3.17.645: used to print sudoers lines to add. Root
+                    # actions go through the root helper now; never ask for
+                    # new NOPASSWD rules.
+                    from . import root_helper
                     raise Exception(
-                        "Passwordless sudo is not configured for auto-updates. "
-                        "Please configure it by running these commands:\n\n"
-                        "sudo tee /etc/sudoers.d/clientst0r-auto-update > /dev/null <<SUDOERS\n"
-                        f"$(whoami) ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload {service_name}, "
-                        f"/usr/bin/systemctl restart {service_name}, "
-                        f"/usr/bin/systemctl stop {service_name}, /usr/bin/systemctl start {service_name}, "
-                        f"/usr/bin/systemctl status {service_name}, /usr/bin/systemctl daemon-reload, "
-                        # v3.17.520: `systemd-run`, `pkill`, `tee`, `cp` and `chmod`
-                        # were all listed bare. Any one of them granted without
-                        # arguments is root in all but name — systemd-run runs any
-                        # command as root, tee/cp write any file. Pinned to the exact
-                        # invocations the updater issues.
-                        f"/usr/bin/systemd-run --on-active=3 --system /usr/bin/systemctl restart {service_name}\n"
-                        "SUDOERS\n\n"
-                        "sudo chmod 0440 /etc/sudoers.d/clientst0r-auto-update\n\n"
-                        "After configuring, refresh this page and try again. "
+                        "This account can't run the root helper without a password, so the "
+                        "update can't reload the app. Run the one-time setup on the server, "
+                        f"then try again:\n\n{root_helper.bootstrap_command()}\n\n"
                         "Or update manually via command line (see instructions below)."
                     )
 
@@ -641,9 +631,17 @@ class UpdateService:
         `systemctl status <service>` is the better probe anyway: read-only,
         harmless to run, and much closer to what the updater actually needs.
 
+        v3.17.645: the root helper comes first. Since v3.17.597 every root
+        action an update takes goes through it, so an install with the helper
+        needs no other sudo rule; the systemctl probes below only matter for
+        an install that hasn't had the helper's one-time setup.
+
         Returns:
             bool: True if passwordless sudo works, False otherwise
         """
+        from . import root_helper
+        if root_helper.is_usable():
+            return True
         try:
             import shutil, os
 

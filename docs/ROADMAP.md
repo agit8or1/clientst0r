@@ -1621,6 +1621,10 @@ are built on top of them.
   to review with the candidates. Technician decisions and edits are kept.
   Alerts and software follow their device's customer. `rmm_reconcile`
   previews and applies the fix-up for existing data.
+- **Updates page checks the root helper** *(shipped v3.17.645)* — Settings →
+  Updates and the Apply pre-check ask whether the app may run the root helper,
+  which every update uses, instead of probing old `sudo systemctl` rules. A
+  failed old probe no longer shows a setup banner asking for NOPASSWD rules.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

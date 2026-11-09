@@ -5,6 +5,11 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.645] - 2026-11-09
+
+### Fixed
+- **Settings → Updates no longer asks for sudoers rules.** The page could show "One-Time Setup Required" with NOPASSWD `systemctl` lines to add, on a server where updates worked. Since 3.17.597 every root action an update takes goes through the root helper, but the page and the Apply pre-check still tested the old `sudo systemctl` rules, and a single failed probe showed the banner. They now ask sudo whether the app may run the root helper, and use the old probe only on an install without the helper. If the helper is installed but can't be run, the page gives the one-time setup command (`install-root-helper.sh`). Neither ever tells you to add NOPASSWD rules.
+
 ## [3.17.644] - 2026-11-09
 
 ### Added
