@@ -1607,6 +1607,10 @@ are built on top of them.
   urllib3 and the indirect packages with advisories, so the next update brings
   any install up to date; Authlib and nltk, kept only for an unused scanner,
   are gone.
+- **Bootstrap served locally** *(shipped v3.17.642)* — every page loaded
+  Bootstrap from a CDN, so a blocked or failing CDN left the app unstyled. The
+  unmodified 5.3.0 release now ships in `static/vendor/bootstrap/`, and a test
+  fails if a template or view links the CDN copy again.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

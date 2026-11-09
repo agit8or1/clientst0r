@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
+from django.templatetags.static import static
 from django.core.cache import cache
 from django.utils import timezone
 from django_ratelimit.decorators import ratelimit
@@ -16,6 +17,9 @@ from .updater import UpdateService
 from . import root_helper
 from .models import ConsultRequest
 from audit.models import AuditLog
+
+# Served from static/vendor so a CDN outage can't leave these pages unstyled.
+BOOTSTRAP_CSS = 'vendor/bootstrap/5.3.0/css/bootstrap.min.css'
 
 logger = logging.getLogger(__name__)
 
@@ -1545,7 +1549,7 @@ def download_mobile_app(request, app_type):
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
                         <meta http-equiv="Expires" content="0">
-                        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                        <link href="{static(BOOTSTRAP_CSS)}" rel="stylesheet">
                         <style>
                             body {{ background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
                             .container {{ max-width: 1200px; margin: 30px auto; padding: 20px; }}
@@ -1679,7 +1683,7 @@ def download_mobile_app(request, app_type):
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
                         <meta http-equiv="Expires" content="0">
-                        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                        <link href="{static(BOOTSTRAP_CSS)}" rel="stylesheet">
                         <style>
                             body {{ background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
                             .container {{ max-width: 800px; margin: 50px auto; padding: 40px; }}
@@ -1753,7 +1757,7 @@ def download_mobile_app(request, app_type):
                             <title>Android Build Failed - Client St0r</title>
                             <meta charset="UTF-8">
                             <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-                            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                            <link href="{static(BOOTSTRAP_CSS)}" rel="stylesheet">
                             <style>
                                 body {{ background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
                                 .container {{ max-width: 1100px; margin: 30px auto; padding: 20px; }}
@@ -1843,7 +1847,7 @@ def download_mobile_app(request, app_type):
                 <meta http-equiv="Pragma" content="no-cache">
                 <meta http-equiv="Expires" content="0">
                 <meta http-equiv="refresh" content="5">
-                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                <link href="{static(BOOTSTRAP_CSS)}" rel="stylesheet">
                 <style>
                     body {{ background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
                     .container {{ max-width: 1200px; margin: 30px auto; padding: 20px; }}
@@ -1996,7 +2000,7 @@ def download_mobile_app(request, app_type):
                         <meta http-equiv="Pragma" content="no-cache">
                         <meta http-equiv="Expires" content="0">
                         <meta http-equiv="refresh" content="5">
-                        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                        <link href="{static(BOOTSTRAP_CSS)}" rel="stylesheet">
                         <style>
                             body {{ background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
                             .container {{ max-width: 1200px; margin: 30px auto; padding: 20px; }}
@@ -2064,7 +2068,7 @@ def download_mobile_app(request, app_type):
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
                         <meta http-equiv="Expires" content="0">
-                        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                        <link href="{static(BOOTSTRAP_CSS)}" rel="stylesheet">
                         <style>
                             body {{ background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
                             .container {{ max-width: 800px; margin: 50px auto; padding: 40px; }}
@@ -2116,7 +2120,7 @@ def download_mobile_app(request, app_type):
                         <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                         <meta http-equiv="Pragma" content="no-cache">
                         <meta http-equiv="Expires" content="0">
-                        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                        <link href="{static(BOOTSTRAP_CSS)}" rel="stylesheet">
                         <style>
                             body {{ background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
                             .container {{ max-width: 800px; margin: 50px auto; padding: 40px; text-align: center; }}
@@ -2160,7 +2164,7 @@ def download_mobile_app(request, app_type):
                 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
                 <meta http-equiv="Pragma" content="no-cache">
                 <meta http-equiv="Expires" content="0">
-                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                <link href="{static(BOOTSTRAP_CSS)}" rel="stylesheet">
                 <style>
                     body {{ background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
                     .container {{ max-width: 800px; margin: 50px auto; padding: 40px; text-align: center; }}
@@ -2209,7 +2213,7 @@ def download_mobile_app(request, app_type):
                 <meta http-equiv="Pragma" content="no-cache">
                 <meta http-equiv="Expires" content="0">
                 <meta http-equiv="refresh" content="5">
-                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                <link href="__BOOTSTRAP_CSS__" rel="stylesheet">
                 <style>
                     body { background: #0d1117; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
                     .container { max-width: 1200px; margin: 30px auto; padding: 20px; }
@@ -2288,7 +2292,7 @@ def download_mobile_app(request, app_type):
                 </div>
             </body>
             </html>
-        """.replace('__CSP_NONCE__', csp_nonce), content_type='text/html; charset=utf-8')
+        """.replace('__CSP_NONCE__', csp_nonce).replace('__BOOTSTRAP_CSS__', static(BOOTSTRAP_CSS)), content_type='text/html; charset=utf-8')
 
     else:
         raise Http404("Invalid app type")

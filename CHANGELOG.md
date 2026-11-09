@@ -5,6 +5,12 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.642] - 2026-11-09
+
+### Fixed
+- **Pages no longer depend on a CDN for Bootstrap.** Every page loaded Bootstrap's stylesheet and script from jsDelivr, so when that request was blocked or failed, the app showed an unstyled page with every menu open. That is what broke the README dashboard screenshot. The unmodified Bootstrap 5.3.0 release (CSS, JS bundle, source maps and licence, checked against the npm registry hash) now ships in `static/vendor/bootstrap/5.3.0/`. The main layout, the customer portal, the sign-in and two-factor pages, the lockout, firewall-blocked and survey pages, the diagram editor, and the mobile build status pages all use the local copy. The firewall-blocked page moves from Bootstrap 5.1.3 to the same 5.3.0. A test fails if any template or view links Bootstrap from a CDN again, or if the vendored files change.
+- Other libraries (Font Awesome, DataTables, Select2, Leaflet) still load from CDNs.
+
 ## [3.17.641] - 2026-11-08
 
 ### Changed
