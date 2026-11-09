@@ -91,6 +91,16 @@ def organization_context(request):
     else:
         context['user_organizations'] = []
 
+    # Navbar client switcher (templates/core/_client_switcher.html): recents,
+    # search and the "View all clients" link, bounded for large client lists.
+    if request.user.is_authenticated:
+        try:
+            from .client_switcher import switcher_context
+            context['client_switcher'] = switcher_context(
+                request, context['user_organizations'])
+        except Exception:
+            context['client_switcher'] = None
+
     return context
 
 

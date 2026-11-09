@@ -14,10 +14,12 @@ from . import fail2ban_views
 from . import webhook_views
 from . import security_views
 from . import help_views
+from . import client_switcher
 
 app_name = 'core'
 
 urlpatterns = [
+    path('clients/switcher-search/', client_switcher.client_switcher_search, name='client_switcher_search'),
     path('dashboard/', dashboard_views.dashboard, name='dashboard'),
     path('global-dashboard/', dashboard_views.global_dashboard, name='global_dashboard'),
     path('documentation/', views.documentation, name='documentation'),

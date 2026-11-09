@@ -1,0 +1,184 @@
+{% load i18n static %}{% comment %}
+Navbar client switcher. Included from base.html inside the right-hand
+<ul class="navbar-nav">, where the old inline switcher markup used to be.
+
+Context (all global, from core.context_processors.organization_context):
+  current_organization  active client, or None for Global View
+  is_staff_user         MSP staff (profile user_type=Staff)
+  user_organizations    clients the user may switch to (authorized list)
+  client_switcher       core.client_switcher.switcher_context(): recents,
+                        search flag, Global View + "View all clients" flags
+
+Bounded for large client lists: above INLINE_ALL_LIMIT clients only the
+recents (max 5) are listed inline; the rest is reached through search
+(core:client_switcher_search, max 20 results). Switching goes through
+accounts:switch_organization, which re-checks access and records the recent.
+{% endcomment %}
+{% if current_organization or user.is_superuser or is_staff_user %}
+{% with cs=client_switcher %}
+<li class="nav-item dropdown client-switcher">
+    {% if current_organization %}
+    <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-active" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-haspopup="true" title="{{ current_organization.name }}" aria-label="{% blocktrans with name=current_organization.name %}Current client: {{ name }}. Switch client{% endblocktrans %}">
+        <span class="org-pulse-dot flex-shrink-0" aria-hidden="true"></span>
+        <span class="org-pill-name">{{ current_organization.name }}</span>
+        <i class="fas fa-chevron-down org-pill-caret flex-shrink-0 ms-1" aria-hidden="true"></i>
+    </a>
+    {% else %}
+    <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-global" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-haspopup="true" aria-label="{% trans 'Current context: Global View. Switch client' %}">
+        <i class="fas fa-globe flex-shrink-0" style="font-size:.75rem;" aria-hidden="true"></i>
+        <span class="org-pill-name">{% trans "Global View" %}</span>
+        <i class="fas fa-chevron-down org-pill-caret flex-shrink-0 ms-1" aria-hidden="true"></i>
+    </a>
+    {% endif %}
+
+    <div class="dropdown-menu dropdown-menu-end shadow client-switcher-menu" aria-labelledby="orgDropdown"
+         data-client-switcher
+         data-search-url="{% url 'core:client_switcher_search' %}"
+         data-i18n-none="{% trans 'No clients match your search.' %}"
+         data-i18n-count="{% trans '__N__ matching clients' %}"
+         data-i18n-more="{% trans 'Showing the first matches. Keep typing to narrow the list.' %}"
+         data-i18n-error="{% trans 'Search is unavailable. Press Enter to search on a full page.' %}"
+         data-i18n-active="{% trans 'Active' %}">
+
+        {# Current context — never ambiguous #}
+        <div class="client-switcher-current px-3 py-2">
+            <div class="client-switcher-label">{% trans "Current context" %}</div>
+            <div class="d-flex align-items-center gap-2 fw-semibold min-w-0">
+                {% if current_organization %}
+                <i class="fas fa-building text-warning flex-shrink-0" aria-hidden="true"></i>
+                <span class="text-truncate" title="{{ current_organization.name }}">{{ current_organization.name }}</span>
+                {% else %}
+                <i class="fas fa-globe text-success flex-shrink-0" aria-hidden="true"></i>
+                <span class="text-truncate">{% trans "Global View" %}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if cs and cs.search_enabled %}
+        <form class="client-switcher-search px-3 pb-2" action="{% url 'core:client_switcher_search' %}" method="get" role="search">
+            <label class="visually-hidden" for="clientSwitcherSearch">{% trans "Search clients" %}</label>
+            <div class="position-relative">
+                <i class="fas fa-search client-switcher-search-icon" aria-hidden="true"></i>
+                <input type="search" class="form-control form-control-sm" id="clientSwitcherSearch" name="q"
+                       placeholder="{% blocktrans count n=cs.total %}Search {{ n }} client…{% plural %}Search {{ n }} clients…{% endblocktrans %}"
+                       autocomplete="off" spellcheck="false" maxlength="100"
+                       aria-controls="clientSwitcherResults" aria-describedby="clientSwitcherStatus">
+            </div>
+        </form>
+        <div id="clientSwitcherStatus" class="client-switcher-status px-3 small text-muted" role="status" aria-live="polite"></div>
+        <ul id="clientSwitcherResults" class="list-unstyled mb-0 client-switcher-scroll" hidden aria-label="{% trans 'Search results' %}"></ul>
+        {% endif %}
+
+        <div class="client-switcher-default" data-cs-default>
+            {% if cs.can_global_view or not cs and user.is_superuser or not cs and is_staff_user %}
+            <hr class="dropdown-divider my-1">
+            <a class="dropdown-item d-flex align-items-center gap-2 {% if not current_organization %}fw-semibold{% endif %}" href="{% url 'accounts:switch_to_global_view' %}"{% if not current_organization %} aria-current="true"{% endif %}>
+                {% if not current_organization %}
+                <i class="fas fa-check-circle text-success flex-shrink-0" aria-hidden="true"></i>
+                {% else %}
+                <i class="fas fa-globe text-muted flex-shrink-0" aria-hidden="true"></i>
+                {% endif %}
+                <span class="text-truncate">{% trans "Global View" %}</span>
+                {% if not current_organization %}<span class="badge bg-success ms-auto">{% trans "Active" %}</span>{% endif %}
+            </a>
+            {% endif %}
+
+            {% if cs %}
+                {% if cs.show_all_inline %}
+                    {% if cs.inline_orgs %}
+                    <hr class="dropdown-divider my-1">
+                    <div class="client-switcher-label px-3 pt-1">{% trans "Clients" %}</div>
+                    <ul class="list-unstyled mb-0 client-switcher-scroll">
+                        {% for org in cs.inline_orgs %}
+                        {% include "core/_client_switcher_item.html" %}
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                {% else %}
+                    <hr class="dropdown-divider my-1">
+                    <div class="client-switcher-label px-3 pt-1">{% trans "Recent" %}</div>
+                    {% if cs.recents %}
+                    <ul class="list-unstyled mb-0">
+                        {% for org in cs.recents %}
+                        {% include "core/_client_switcher_item.html" %}
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="px-3 py-1 mb-0 small text-muted">{% trans "Clients you switch to will appear here. Use the search above to find one." %}</p>
+                    {% endif %}
+                {% endif %}
+            {% else %}
+                {# Fallback if the switcher context failed to build: bounded plain list. #}
+                <hr class="dropdown-divider my-1">
+                <ul class="list-unstyled mb-0 client-switcher-scroll">
+                    {% for org in user_organizations|slice:":10" %}
+                    {% include "core/_client_switcher_item.html" %}
+                    {% endfor %}
+                </ul>
+                {% if user_organizations|length > 10 %}
+                <a class="dropdown-item" href="{% url 'core:client_switcher_search' %}">{% trans "Find a client…" %}</a>
+                {% endif %}
+            {% endif %}
+        </div>
+
+        {% if cs.can_view_list %}
+        <hr class="dropdown-divider my-1">
+        <a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'accounts:organization_list' %}">
+            <i class="fas fa-list text-muted flex-shrink-0" aria-hidden="true"></i>
+            <span>{% trans "View all clients" %}</span>
+        </a>
+        {% endif %}
+    </div>
+    <script src="{% static 'js/client-switcher.js' %}" defer></script>
+    <style>
+        /* Client switcher menu. Colours come from the theme variables so
+           every theme (light, dark, dracula, monokai, ...) styles it. */
+        .client-switcher-menu {
+            width: 20rem;
+            max-width: calc(100vw - 2rem);
+            padding: .25rem 0;
+            overflow-x: hidden;
+        }
+        .client-switcher-menu .dropdown-item {
+            min-height: 2.75rem;            /* comfortable touch target */
+            padding-top: .5rem;
+            padding-bottom: .5rem;
+            min-width: 0;
+            white-space: nowrap;
+        }
+        .client-switcher-menu .dropdown-item > .text-truncate,
+        .client-switcher-menu .min-w-0 { min-width: 0; }
+        .client-switcher-label {
+            font-size: .7rem;
+            font-weight: 600;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            color: var(--text-secondary, #6c757d);
+        }
+        .client-switcher-current { color: var(--text-primary, inherit); }
+        .client-switcher-search .form-control {
+            padding-left: 2rem;
+            font-size: 1rem;                /* 16px: no zoom-on-focus on iOS */
+            background-color: var(--surface, #fff);
+            color: var(--text-primary, #212529);
+            border-color: var(--border-color, #dee2e6);
+        }
+        .client-switcher-search .form-control::placeholder { color: var(--text-secondary, #6c757d); opacity: 1; }
+        .client-switcher-search-icon {
+            position: absolute; left: .7rem; top: 50%; transform: translateY(-50%);
+            font-size: .8rem; color: var(--text-secondary, #6c757d); pointer-events: none;
+        }
+        .client-switcher-status:empty { display: none; }
+        .client-switcher-scroll { max-height: min(50vh, 22rem); overflow-y: auto; overscroll-behavior: contain; }
+        .client-switcher-menu .dropdown-item:focus-visible {
+            outline: 2px solid var(--primary-color, #0d6efd);
+            outline-offset: -2px;
+        }
+        /* In the collapsed (drawer) navbar the menu spans the drawer width. */
+        @media (max-width: 1399.98px) {
+            .client-switcher-menu { width: 100%; max-width: 100%; }
+        }
+    </style>
+</li>
+{% endwith %}
+{% endif %}
