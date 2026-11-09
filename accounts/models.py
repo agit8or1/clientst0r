@@ -496,6 +496,14 @@ class UserProfile(BaseModel):
                   'dashboard. Empty = use defaults.',
     )
 
+    # Navbar shortcut strip (core/shortcut_strip.py): up to three keys from
+    # SHORTCUT_REGISTRY. NULL = never chosen (defaults apply); [] = no pins.
+    # Re-checked against permissions + feature flags on every request.
+    shortcut_pins = models.JSONField(
+        null=True, blank=True, default=None,
+        help_text='Up to three shortcut-strip keys. Unset = defaults; empty list = none.',
+    )
+
     # v3.17.233 — Customer-portal notification preferences.
     portal_notify_ticket_reply = models.BooleanField(
         default=True,

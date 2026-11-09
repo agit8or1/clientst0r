@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Shortcuts" %}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">{% trans "Dashboard" %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'accounts:profile' %}">{% trans "Profile" %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans "Shortcuts" %}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-6 col-md-8">
+        <div class="card">
+            <div class="card-header"><strong><i class="fas fa-thumbtack me-1"></i>{% trans "Shortcuts" %}</strong></div>
+            <div class="card-body">
+                <p class="text-muted small">
+                    {% blocktrans with n=max_pins %}Pick up to {{ n }} pages to keep one click away in the navigation bar. Only pages you can open are listed; if you lose access to one later, its shortcut disappears.{% endblocktrans %}
+                    {% trans "Starred records stay in" %} <a href="{% url 'core:favorite_list' %}">{% trans "Favorites" %}</a>.
+                </p>
+                {% if error %}<div class="alert alert-danger py-2" role="alert">{{ error }}</div>{% endif %}
+                <form method="post" action="{% url 'accounts:shortcut_pins_edit' %}" id="shortcutPinsForm">
+                    {% csrf_token %}
+                    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+                    {% for item in available %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="pins" value="{{ item.key }}" id="pin-{{ item.key }}"{% if item.checked %} checked{% endif %}>
+                        <label class="form-check-label" for="pin-{{ item.key }}"><i class="fas {{ item.icon }} fa-fw me-1" aria-hidden="true"></i>{{ item.label }}</label>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">{% trans "No pages are available to pin." %}</p>
+                    {% endfor %}
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="submit" class="btn btn-sm btn-primary">{% trans "Save" %}</button>
+                        <button type="submit" name="reset" value="1" class="btn btn-sm btn-outline-secondary">{% trans "Reset to defaults" %}</button>
+                        {% if next %}<a href="{{ next }}" class="btn btn-sm btn-link">{% trans "Cancel" %}</a>{% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

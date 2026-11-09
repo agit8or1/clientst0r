@@ -5,6 +5,7 @@ from django.urls import path
 from . import views
 from . import roles_views
 from . import quick_views
+from . import shortcut_views
 from . import oauth_views
 
 app_name = 'accounts'
@@ -29,6 +30,8 @@ urlpatterns = [
     path('profile/edit/', views.profile_edit, name='profile_edit'),
     # v3.17.230 — editable dashboard Quick Actions.
     path('profile/quick-actions/', views.quick_actions_edit, name='quick_actions_edit'),
+    # Navbar shortcut strip (up to three pinned pages, MSP staff only).
+    path('profile/shortcuts/', shortcut_views.shortcut_pins_edit, name='shortcut_pins_edit'),
     path('profile/toggle-theme/', views.toggle_theme, name='toggle_theme'),
     path('profile/password/', views.password_change, name='password_change'),
     path('profile/2fa/', views.two_factor_setup, name='two_factor_setup'),
