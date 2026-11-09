@@ -1,0 +1,19 @@
+{% load i18n shortcut_strip_tags %}{% comment %}
+Shortcut strip: up to three pinned pages for MSP staff (core/shortcut_strip.py).
+Include in or just below the navbar. Renders nothing for anonymous users and
+customer (portal) users. Pins are re-checked on every request, so a pin the
+user may no longer open is simply absent. Separate from record Favorites.
+{% endcomment %}{% if user.is_authenticated %}{% shortcut_strip_eligible as strip_ok %}{% if strip_ok %}{% shortcut_pins as pins %}
+<nav class="shortcut-strip d-flex align-items-center gap-1 flex-wrap" id="shortcutStrip" aria-label="{% trans 'Shortcuts' %}">
+    {% for pin in pins %}
+    <a class="btn btn-sm btn-outline-secondary text-reset py-0 px-2" href="{{ pin.url }}" data-shortcut="{{ pin.key }}"{% if request.path == pin.url %} aria-current="page"{% endif %}>
+        <i class="fas {{ pin.icon }} me-1" aria-hidden="true"></i>{{ pin.label }}
+    </a>
+    {% endfor %}
+    <a class="btn btn-sm btn-link text-reset py-0 px-1" href="{% url 'accounts:shortcut_pins_edit' %}?next={{ request.get_full_path|urlencode }}"
+       title="{% if pins %}{% trans 'Edit shortcuts' %}{% else %}{% trans 'Add shortcuts' %}{% endif %}"
+       aria-label="{% if pins %}{% trans 'Edit shortcuts' %}{% else %}{% trans 'Add shortcuts' %}{% endif %}">
+        <i class="fas {% if pins %}fa-pen{% else %}fa-plus{% endif %} small" aria-hidden="true"></i>
+    </a>
+</nav>
+{% endif %}{% endif %}
