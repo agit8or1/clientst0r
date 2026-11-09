@@ -2476,3 +2476,30 @@ class SystemWarningNotification(models.Model):
 
     def __str__(self):
         return f"{self.severity}: {self.warning_id}"
+
+
+class RecentClient(models.Model):
+    """
+    A client a user switched to, for the "Recent" list in the client switcher.
+
+    One row per (user, client); switching again bumps `switched_at`. Rows are
+    never trusted for access: the switcher filters them against the user's
+    current access on every request, so a revoked membership drops the client
+    from the list without touching this table. See core/client_switcher.py.
+    """
+    from django.contrib.auth.models import User
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recent_clients')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='+')
+    switched_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        db_table = 'core_recent_clients'
+        unique_together = [['user', 'organization']]
+        ordering = ['-switched_at']
+        indexes = [
+            models.Index(fields=['user', '-switched_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} -> {self.organization_id} @ {self.switched_at}"

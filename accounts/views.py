@@ -48,6 +48,8 @@ def switch_organization(request, org_id):
     if 'global_view_mode' in request.session:
         del request.session['global_view_mode']
     request.session.modified = True  # Force session save
+    from core.client_switcher import record_recent_client
+    record_recent_client(request.user, org)
     messages.success(request, f"Switched to {org.name}")
 
     # Check if user wants to stay on current page
@@ -497,16 +499,10 @@ def organization_list(request):
     Supports filtering by organization_type, sorting, search, view-mode toggle
     (grid/list), and pagination.
     """
-    if request.user.is_superuser:
-        organizations = Organization.objects.all()
-    else:
-        # Show organizations where user is an owner
-        owned_org_ids = Membership.objects.filter(
-            user=request.user,
-            role='owner',
-            is_active=True
-        ).values_list('organization_id', flat=True)
-        organizations = Organization.objects.filter(id__in=owned_org_ids)
+    # Superusers see every client, others the clients they own. Shared with
+    # the navbar client switcher's "View all clients" link.
+    from core.client_switcher import organization_list_queryset
+    organizations = organization_list_queryset(request.user)
 
     # Annotate active member and asset counts once on the queryset (avoids N+1
     # when the list view iterates).  These attributes are used by both grid

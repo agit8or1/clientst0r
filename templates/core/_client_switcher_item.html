@@ -1,0 +1,12 @@
+{% load i18n %}{% if current_organization and org.id == current_organization.id %}<li>
+    <a class="dropdown-item d-flex align-items-center gap-2 fw-semibold" href="{% url 'accounts:switch_organization' org.id %}" title="{{ org.name }}" aria-current="true">
+        <i class="fas fa-check-circle text-success flex-shrink-0" aria-hidden="true"></i>
+        <span class="text-truncate">{{ org.name }}</span>
+        <span class="badge bg-warning text-dark ms-auto">{% trans "Active" %}</span>
+    </a>
+</li>{% else %}<li>
+    <a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'accounts:switch_organization' org.id %}" title="{{ org.name }}">
+        <i class="fas fa-building text-muted flex-shrink-0" aria-hidden="true"></i>
+        <span class="text-truncate">{{ org.name }}</span>
+    </a>
+</li>{% endif %}
