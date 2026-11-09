@@ -251,7 +251,7 @@ FEATURES = [
         'detail': 'Results show on each entry; nothing is changed automatically.',
         'link': '',
         'doc': 'SECURITY.md',
-        'tests': ['core.tests.test_scheduler_periodic_jobs'],
+        'tests': ['vault.tests_release_652', 'core.tests.test_scheduler_periodic_jobs'],
     },
     {
         'key': 'vault_isolation',
@@ -325,8 +325,9 @@ FEATURES = [
         'protects': 'Accountability: who did what, when, from where.',
         'default': 'On: sign-ins, record changes, reveals and access decisions are recorded per customer.',
         'prerequisites': 'None.',
-        'detail': 'Not tamper-proof: superusers can delete entries (Django admin, and the maintenance clean-up), '
-                  'there is no automatic retention, and exports are not themselves recorded.',
+        'detail': 'Not tamper-proof: superusers can delete entries (Django admin, and the maintenance clean-up). '
+                  'Each deletion is itself recorded with a count. There is no automatic retention, and exports '
+                  'are not themselves recorded.',
         'link': 'audit:audit_log_list',
         'doc': 'docs/CLIENT_DATA_PROTECTION.md#limitations',
         'tests': ['audit.tests'],
@@ -339,12 +340,11 @@ FEATURES = [
         'protects': 'Credential use, after the fact.',
         'default': "On: a reveal (or copy) writes an audit event with the user, credential, customer and address.",
         'prerequisites': 'None.',
-        'detail': 'Web vault, REST and mobile reveals are recorded as action "reveal", object type "password"; a '
-                  'copy is recorded as a reveal. Browser-extension reveals are recorded as action "read" with '
-                  'event vault_extension_reveal.',
+        'detail': 'Recorded as action "reveal", object type "password", from the web vault, REST API, mobile '
+                  'API and browser extension; a copy is recorded as a reveal.',
         'link': 'audit:audit_log_list',
         'doc': 'docs/CLIENT_DATA_PROTECTION.md#revealing-a-vault-credential',
-        'tests': ['api.tests'],
+        'tests': ['api.tests', 'vault.tests_release_652'],
     },
     {
         'key': 'theft_detection',

@@ -236,7 +236,8 @@ def password_detail(request, pk):
 
 
 @login_required
-@ratelimit(key='user', rate='30/h', method='POST', block=True)
+# One counter for the web vault and the browser extension (same group).
+@ratelimit(group='vault.reveal', key='user', rate='30/h', method='POST', block=True)
 def password_reveal(request, pk):
     """
     AJAX endpoint to reveal decrypted password.

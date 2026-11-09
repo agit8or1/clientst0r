@@ -920,6 +920,11 @@ def maintenance(request):
             days = int(request.POST.get('days', 90))
             cutoff_date = timezone.now() - timedelta(days=days)
             deleted_count = AuditLog.objects.filter(timestamp__lt=cutoff_date).delete()[0]
+            # The clean-up itself stays on record (v3.17.652).
+            AuditLog.log(user=request.user, action='delete', object_type='audit_log',
+                         description=f'Deleted {deleted_count} audit log entries older than {days} days',
+                         ip_address=request.META.get('REMOTE_ADDR'),
+                         extra_data={'event': 'audit_log_cleanup', 'days': days, 'deleted': deleted_count})
             messages.success(request, f'Deleted {deleted_count} audit log entries older than {days} days.')
 
         elif action == 'optimize_database':

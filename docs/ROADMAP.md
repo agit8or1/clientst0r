@@ -1645,6 +1645,13 @@ are built on top of them.
   a 1-hour lockout, a fixed "2FA enabled" badge) are gone.
   `docs/CLIENT_DATA_PROTECTION.md` explains who sees what, vault reveals,
   ticket AI, RMM enforcement and known limitations.
+- **Vault and audit follow-ups** *(shipped v3.17.652)* — browser-extension
+  reveals are audited as reveals and share the web vault's 30/hour limit
+  (they had none); the extension's offline cache leaves out entries that need
+  approval; deleting audit entries (Maintenance clean-up or Django admin) is
+  itself recorded. Still open: granting superuser as a protected change
+  *(planned)*, and staff without a global role listing vault titles at every
+  customer.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

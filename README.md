@@ -258,7 +258,7 @@ Administrators can check whether each one is in effect at a given customer under
   ticket text are redacted. Nothing AI produces is sent to a customer until a technician
   presses Send, and ClientSt0r sends no commands to devices.
 
-Setup checklist and limitations (audit log deletable by superusers, Azure AD sign-in skips
+Setup checklist and limitations (audit log deletable by superusers, though each deletion is recorded, Azure AD sign-in skips
 TOTP, mobile tokens last until revoked, CSP report-only by default):
 [docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md#limitations). Reporting a
 vulnerability: [SECURITY.md](SECURITY.md).

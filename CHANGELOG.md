@@ -5,6 +5,20 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.652] - 2026-11-09
+
+### Security
+- **Browser-extension reveals had no rate limit.** They now share the web vault's 30 reveals per hour per user (one counter for both).
+- **Browser-extension reveals are audited as reveals.** They were recorded as action `read` / `vault.Password`, so an audit search for reveals missed them. They now use `reveal` / `password` like the web vault, REST and mobile reveals; `extra_data.event` is still `vault_extension_reveal`.
+- **The extension's offline cache leaves out entries that need approval before reveal**, so an approval can't be sidestepped by syncing.
+- **Deleting audit entries is recorded.** The Maintenance clean-up and deletions in Django admin each add an entry with who, when and how many.
+
+### Tests
+- New: save-time breach check (only the 5-character SHA-1 prefix is sent; a breached password warns and is recorded), extension reveal audit and limit, offline-cache exclusion, audit-deletion records.
+
+### Upgrade
+- Apply the update. No migration. Audit searches for `action=read` with event `vault_extension_reveal` will find older extension reveals; new ones use `action=reveal`.
+
 ## [3.17.651] - 2026-11-09
 
 ### Added

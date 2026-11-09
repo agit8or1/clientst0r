@@ -121,11 +121,13 @@ Wi-Fi" and clicks Reveal.
 3. **Access rules** (if any). Deny rules for a country, address range or time
    win. If the rules can't be evaluated the reveal is refused (503), not
    allowed.
-4. **Rate limit.** 30 reveals per hour per user.
+4. **Rate limit.** 30 reveals per hour per user, counted across the web vault
+   and the browser extension together; the mobile API has its own 30/hour.
 5. **Audit.** The reveal writes an audit event: action `reveal`, object
    type `password`, the user, the entry, the customer and the address. Copying
-   the value is recorded as a reveal. (Browser-extension reveals are recorded
-   as action `read` with event `vault_extension_reveal`, so filter on both.)
+   the value is recorded as a reveal. Browser-extension reveals are recorded
+   the same way (since v3.17.652; before that, as action `read` with event
+   `vault_extension_reveal`).
 
 The same checks guard the web vault, the REST API (`?reveal=true` and
 `/reveal/`), the mobile API and the browser extension's reveal and TOTP
@@ -202,7 +204,8 @@ Evidence: `tech_access/catalog.py` (`LOCKED`, `NEEDS_LIVE_REMOTE`),
 Known gaps, stated plainly:
 
 - **The audit log isn't tamper-proof.** Superusers can delete entries (in
-  Django admin, and with the Maintenance clean-up). There is no automatic
+  Django admin, and with the Maintenance clean-up). Each deletion is recorded
+  with a count, but the deleted entries are gone. There is no automatic
   retention, and audit-log exports aren't themselves recorded.
 - **Azure AD single sign-on skips TOTP.** The identity provider is trusted for
   the second factor. Each such sign-in is recorded as `azure_ad_2fa_bypass`.
@@ -219,10 +222,10 @@ Known gaps, stated plainly:
   a global role that grants it.
 - **Ticket text and attachments aren't encrypted** by the app.
 - **Browser-extension offline cache.** A role with "extension offline cache"
-  can sync encrypted vault blobs to the extension. That sync doesn't pass
-  through the per-entry reveal checks (approval, access rules, rate limit); it
-  is recorded once per sync with a count. Leave that permission off unless
-  you need it (it is off by default).
+  can sync encrypted vault blobs to the extension. Entries that need approval
+  are left out (since v3.17.652), but the sync doesn't apply access rules or
+  the reveal rate limit; it is recorded once per sync with a count. Leave that
+  permission off unless you need it (it is off by default).
 
 ## Setup checklist
 

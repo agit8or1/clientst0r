@@ -15,6 +15,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django_ratelimit.decorators import ratelimit
 
 from accounts.permission_utils import filter_by_org_perm
 from audit.models import AuditLog
@@ -358,7 +359,10 @@ def bulk_sync(request):
     except (TypeError, ValueError):
         limit = 100
     cursor = request.GET.get('cursor')
-    qs = _visible_password_qs(request.user, organization).order_by('id')
+    # Entries that need approval before reveal never go into the offline
+    # cache: the cache would skip that approval (v3.17.652).
+    qs = (_visible_password_qs(request.user, organization)
+          .exclude(requires_reveal_approval=True).order_by('id'))
     if cursor:
         try:
             qs = qs.filter(id__gt=int(cursor))
@@ -467,6 +471,8 @@ def totp_code(request, pk):
 @csrf_exempt
 @require_http_methods(['POST'])
 @extension_auth_required
+# Shares the web vault's 30/hour counter (v3.17.652); it had no limit.
+@ratelimit(group='vault.reveal', key='user', rate='30/h', method='POST', block=True)
 def reveal(request, pk):
     """
     Decrypt and return the password plaintext for the extension to autofill.
@@ -511,11 +517,13 @@ def reveal(request, pk):
 
     consume_approval(password, request.user)
 
+    # Same action and object type as the web, REST and mobile reveals, so one
+    # audit filter finds every reveal (was 'read' / 'vault.Password').
     AuditLog.log(
         user=request.user,
-        action='read',
+        action='reveal',
         organization=password.organization,
-        object_type='vault.Password',
+        object_type='password',
         object_id=password.pk,
         object_repr=password.title,
         description=f'vault_extension_reveal — {password.title}',

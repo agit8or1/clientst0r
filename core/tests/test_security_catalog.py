@@ -158,3 +158,23 @@ class PublicPagesTests(TestCase):
             self.assertIn(label, html)
         self.assertNotIn('1-hour cooldown', html)
         self.assertNotIn('Logs immutable', html)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class AuditCleanupIsRecordedTests(TestCase):
+    def test_maintenance_cleanup_and_admin_delete_leave_a_record(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from audit.models import AuditLog
+        su = User.objects.create_user('sf_purge', 'p@msp.test', 'pw-sf-123!', is_superuser=True, is_staff=True)
+        old = AuditLog.log(user=su, action='read', description='old entry')
+        AuditLog.objects.filter(pk=old.pk).update(timestamp=timezone.now() - timedelta(days=400))
+        self.client.force_login(su)
+        self.client.post(reverse('core:maintenance'), {'action': 'cleanup_audit_logs', 'days': '90'})
+        self.assertFalse(AuditLog.objects.filter(pk=old.pk).exists())
+        rec = AuditLog.objects.get(extra_data__event='audit_log_cleanup')
+        self.assertEqual(rec.extra_data['deleted'], 1)
+        victim = AuditLog.log(user=su, action='read', description='to delete')
+        self.client.post(reverse('admin:audit_auditlog_delete', args=[victim.pk]), {'post': 'yes'})
+        self.assertFalse(AuditLog.objects.filter(pk=victim.pk).exists())
+        self.assertTrue(AuditLog.objects.filter(extra_data__event='audit_log_admin_delete').exists())
