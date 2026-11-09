@@ -4,7 +4,8 @@ rem0te processes the job, and what it will cost.
 
 A profile is usable only when every one of these holds:
   * the profile is enabled and has a credential (Ollama needs a base URL);
-  * the customer's AIBusinessPolicy lists it;
+  * the customer's AIBusinessPolicy lists it — or it is the acting
+    technician's own key and the policy allows technicians' keys;
   * its credential may be spent here — a company key on that company only,
     an MSP key on customers it is assigned to, a technician key by that
     technician and only where the policy allows technician keys;
@@ -54,7 +55,18 @@ def profile_refusal(profile, organization, actor, policy=None, processor=None) -
     policy = policy if policy is not None else policy_for(organization)
     if not profile.enabled:
         return f'{profile.name} is disabled.'
-    if policy is None or not policy.allowed_profiles.filter(pk=profile.pk).exists():
+    own_key = (profile.credential_owner == AIModelProfile.OWNER_TECHNICIAN
+               and profile.owner_user_id == getattr(actor, 'pk', None))
+    if profile.credential_owner == AIModelProfile.OWNER_TECHNICIAN and not own_key:
+        return f"{profile.name} uses another technician's key."
+    if policy is None:
+        return f"{profile.name} is not allowed by this customer's AI policy."
+    if own_key:
+        # A technician's own key is allowed wherever the customer allows
+        # technicians' keys; it doesn't need listing profile by profile.
+        if not policy.allow_technician_credentials:
+            return "This customer doesn't allow technicians' own keys."
+    elif not policy.allowed_profiles.filter(pk=profile.pk).exists():
         return f"{profile.name} is not allowed by this customer's AI policy."
     if profile.provider == 'ollama':
         if not profile.base_url:
@@ -132,7 +144,9 @@ def availability(ticket, actor, mode: str) -> Tuple[bool, List[str]]:
         reasons.append('This customer requires on-premises processing, and its rem0te is not marked on-premises.')
     usable = usable_profiles(org, actor) if not reasons else []
     if not reasons and not usable:
-        reasons.append('No AI model profile is enabled and allowed for this customer.')
+        reasons.append('No AI model profile is enabled and allowed for this customer.'
+                       + (' You can add your own key under My Profile → My AI keys.'
+                          if policy.allow_technician_credentials and not policy.local_only else ''))
     if not reasons and mode == 'compare' and len(usable) < 2:
         reasons.append('Comparing needs at least two allowed model profiles.')
     return (not reasons), reasons

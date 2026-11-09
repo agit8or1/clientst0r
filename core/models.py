@@ -1144,6 +1144,9 @@ class ScheduledTask(models.Model):
         ('sync_network_assets', 'Network Device Asset Sync'),
         ('update_geoip_db', 'GeoIP Country Database Refresh'),
         ('check_wans', 'WAN Connection Checks'),
+        # v3.17.648: recovers missed rem0te callbacks for ticket analysis jobs
+        # and expires stale ones (OPTIONAL AI; nothing to do when unused).
+        ('poll_analysis_jobs', 'Ticket AI Analysis Job Recovery (optional AI)'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1618,6 +1621,13 @@ class ScheduledTask(models.Model):
             # v3.17.617: each WAN has its own interval; this only looks for due ones.
             'task_type': 'check_wans',
             'description': 'Ping monitored WAN connections that are due and alert on down / recovery',
+            'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            'task_type': 'poll_analysis_jobs',
+            'description': 'Ask rem0te about unfinished ticket analysis jobs and expire stale ones '
+                           '(optional AI; does nothing when no jobs are open)',
             'interval_minutes': 1,
             'enabled': True,
         },

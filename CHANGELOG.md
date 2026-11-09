@@ -5,6 +5,26 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.648] - 2026-11-09
+
+### Added
+- **My AI keys (OPTIONAL AI).** Technicians can add their own Claude or OpenAI key under My Profile → My AI keys. Keys are write-only and sealed to the gateway key like an administrator's. A key is usable only by its owner, and only at customers whose AI policy allows technicians' own keys and isn't local-only; it doesn't need to be listed in the policy. Other technicians, customers and portal users can't see or use it.
+  - Ollama isn't offered, because an Ollama address needs a protected-change approval.
+  - Model IDs are validated.
+  - Every save and delete is audited, without the key.
+- **Scheduled recovery of analysis jobs.** The in-app scheduler runs `poll_analysis_jobs` every minute. Ticket analysis jobs whose rem0te callback went missing now finish or expire even when nobody has the ticket open. A broken pairing on one job doesn't stop the others being checked.
+
+### Security
+- **Protected e-mail addresses.** Moving the e-mail address of a superuser, approver or MSP technician is now a protected change. The address matters because password resets, theft alerts and protected-change notices go there.
+  - From My Profile, the owner re-enters their password (and authenticator code).
+  - From the user editor or the Django admin, the editing administrator confirms the change under Technician Access.
+  - Either way, a different administrator approves it. The old address is told at every step, and an approver can't move an account to their own address.
+  - Customer portal users change their own address as before, and directory sync (LDAP / Entra ID) still writes addresses from the directory.
+- When no model is available, the ticket's "unavailable" message now says where to add your own key, if the customer allows it.
+
+### Upgrade
+- Adds migrations `tech_access.0003` (new protected-change kind) and `core.0079` (new scheduled task type). The scheduler creates the task row by itself on its next run.
+
 ## [3.17.647] - 2026-11-09
 
 ### Changed

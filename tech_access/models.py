@@ -158,6 +158,7 @@ class ProtectedChange(models.Model):
         ('recovery_contact', 'Recovery contact'),
         ('provider_destination', 'AI provider destination'),
         ('security_limits', 'Security limits'),
+        ('account_email', 'Account e-mail address'),
     ]
     PENDING, APPLIED, REJECTED, CANCELLED, EXPIRED = 'pending', 'applied', 'rejected', 'cancelled', 'expired'
     STATUSES = [(s, s.title()) for s in (PENDING, APPLIED, REJECTED, CANCELLED, EXPIRED)]

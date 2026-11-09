@@ -1795,13 +1795,17 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
   and model; the gateway re-checks job, actor, tenant, profile, evidence digest,
   expiry and budget on every call. *(shipped v3.17.646; isolated worker mode is
   opt-in — the default in-process mode is reported as not isolated)*
+  Technicians add their own Claude / OpenAI keys under My Profile → My AI keys,
+  usable only by them where the customer allows technicians' keys.
+  *(shipped v3.17.648)*
 - **56.3 Compare models** — separately permissioned, shows every recipient and
   its cost first, labels disagreements, returns partial results.
   *(shipped v3.17.646)*
 - **56.4 Signed integration channel** — mutual HMAC signing, DB-backed nonces,
   delegated short-lived identity, idempotent jobs (409 on a changed payload),
   sequenced and de-duplicated events, polling recovery, outage leaves manual
-  work untouched. *(shipped v3.17.646 — ClientSt0r side)*
+  work untouched. *(shipped v3.17.646 — ClientSt0r side; the recovery poll runs
+  every minute from the in-app scheduler since v3.17.648)*
 - **56.5 Private RMM handoffs, read-only diagnostics and remote launch** —
   targets only from verified same-business associations; "Sent" only on a
   confirmed receipt. *(planned — needs the rem0te contract implementation)*
@@ -1830,7 +1834,11 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
   step)*
 - **57.4 Protected changes** — widening needs fresh authentication and a
   distinct approver; self-promotion and own-recovery-address approvals refused;
-  the previously verified contact is notified. *(shipped v3.17.646)*
+  the previously verified contact is notified. *(shipped v3.17.646)* The e-mail
+  address of superusers, approvers and MSP technicians moves the same way, from
+  the profile page, the user editor and the Django admin, and the old address
+  is told at every step. *(shipped v3.17.648)* Granting superuser from inside
+  the app as a protected change. *(planned)*
 - **57.5 Read-only theft detection** — distinct tickets, customers, exports and
   diagnostic bytes per identity across UI, REST and mobile API, 1 h and 24 h
   windows, on by default, tunable, containment by level, no ticket text in

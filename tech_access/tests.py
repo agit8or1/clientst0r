@@ -541,3 +541,137 @@ class MappingReportTests(TestCase):
         self.assertTrue(any(row['template'] == 'Custom approvers' for row in r['ambiguous']))
         self.assertEqual(AccessAssignment.objects.count(), before)
         self.assertTrue(RoleTemplate.objects.filter(pk=t.pk, psa_ai_approve_reply=True).exists())
+
+
+def _profile_post(user, **over):
+    """The profile edit form's current values as POST data, with overrides."""
+    from accounts.forms import UserProfileForm
+    from accounts.models import UserProfile
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    form = UserProfileForm(instance=profile, user=user)
+    data = {}
+    for name, field in form.fields.items():
+        value = form[name].value()
+        if isinstance(value, bool):
+            if value:
+                data[name] = 'on'
+        elif value is not None and name != 'background_image':
+            data[name] = value
+    data.update(over)
+    return data
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class EmailProtectionTests(TestCase):
+    """A protected account's e-mail address moves only through a protected
+    change: fresh auth by the requester, approval by a different admin."""
+
+    def setUp(self):
+        _setup_seed()
+        self.a, self.b = _orgs()
+        self.alice = make_tech('alice', superuser=True)
+        self.bob = make_tech('bob', superuser=True)
+        self.tech = make_tech('tech')
+        mail.outbox = []
+
+    def _client(self, user):
+        c = Client()
+        c.force_login(user)
+        return c
+
+    def test_technician_changes_own_address_only_with_password_and_approval(self):
+        c = self._client(self.tech)
+        r = c.post('/accounts/profile/edit/', _profile_post(self.tech, email='evil@attacker.test'))
+        self.assertEqual(r.status_code, 200)  # re-rendered: password missing
+        self.tech.refresh_from_db()
+        self.assertEqual(self.tech.email, 'tech@msp.test')
+        self.assertFalse(ProtectedChange.objects.filter(kind='account_email').exists())
+
+        r = c.post('/accounts/profile/edit/', _profile_post(self.tech, email='new@msp.test',
+                                                             email_change_password='pw-tech'))
+        self.assertEqual(r.status_code, 302)
+        self.tech.refresh_from_db()
+        self.assertEqual(self.tech.email, 'tech@msp.test')  # not yet
+        change = ProtectedChange.objects.get(kind='account_email')
+        self.assertIsNotNone(change.requester_reauth_at)
+        self.assertEqual(change.target_user, self.tech)
+        self.assertIn('tech@msp.test', change.notified)  # the old address is told
+
+        # The technician can't approve it; a superuser can.
+        r = _Req(self.alice)
+        protected.reauthenticate(r, 'pw-alice')
+        protected.approve(change, r)
+        self.tech.refresh_from_db()
+        self.assertEqual(self.tech.email, 'new@msp.test')
+        self.assertTrue(any('tech@msp.test' in m.to for m in mail.outbox))
+
+    def test_wrong_password_is_refused(self):
+        c = self._client(self.tech)
+        r = c.post('/accounts/profile/edit/', _profile_post(self.tech, email='new@msp.test',
+                                                             email_change_password='nope'))
+        self.assertContains(r, 'Password incorrect.')
+        self.assertFalse(ProtectedChange.objects.filter(kind='account_email').exists())
+
+    def test_customer_user_changes_own_address_directly(self):
+        customer = User.objects.create_user('cust', 'cust@client.test', 'pw-cust')
+        Membership.objects.create(user=customer, organization=self.a, role=Role.EDITOR, is_active=True)
+        r = self._client(customer).post('/accounts/profile/edit/', _profile_post(customer, email='cust2@client.test'))
+        self.assertEqual(r.status_code, 302)
+        customer.refresh_from_db()
+        self.assertEqual(customer.email, 'cust2@client.test')
+        self.assertFalse(ProtectedChange.objects.exists())
+
+    def test_admin_edit_of_a_technician_address_is_proposed_not_applied(self):
+        r = self._client(self.alice).post(f'/accounts/users/{self.tech.pk}/edit/', {
+            'username': 'tech', 'email': 'moved@msp.test', 'first_name': '', 'last_name': '',
+            'is_active': 'on', 'user_type': 'staff'})
+        self.assertEqual(r.status_code, 302, r.content[:500])
+        self.tech.refresh_from_db()
+        self.assertEqual(self.tech.email, 'tech@msp.test')
+        change = ProtectedChange.objects.get(kind='account_email')
+        self.assertIsNone(change.requester_reauth_at)  # alice confirms on Technician Access
+        req = _Req(self.alice)
+        protected.reauthenticate(req, 'pw-alice')
+        protected.confirm(change, req)
+        # Bob can't approve moving the account to his own address.
+        bob_addr = ProtectedChange.objects.create(
+            kind='account_email', summary='x', payload={'user': self.tech.pk, 'old_email': 'tech@msp.test',
+                                                         'new_email': self.bob.email},
+            requested_by=self.alice, target_user=self.tech, requester_reauth_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(hours=1))
+        self.assertIn('your own address', protected.approval_refusal(bob_addr, self.bob))
+        req = _Req(self.bob)
+        protected.reauthenticate(req, 'pw-bob')
+        protected.approve(change, req)
+        self.tech.refresh_from_db()
+        self.assertEqual(self.tech.email, 'moved@msp.test')
+
+    def test_stale_proposal_is_not_applied(self):
+        change = services.propose_email_change(self.tech, 'a@msp.test', self.alice, confirmed=True)
+        User.objects.filter(pk=self.tech.pk).update(email='elsewhere@msp.test')
+        req = _Req(self.bob)
+        protected.reauthenticate(req, 'pw-bob')
+        with self.assertRaises(protected.ProtectedChangeError):
+            protected.approve(change, req)
+
+    def test_one_admin_install_cannot_move_its_own_address(self):
+        self.bob.delete()
+        with self.assertRaises(ValueError):
+            services.propose_email_change(self.alice, 'x@msp.test', self.alice)
+
+    def test_django_admin_routes_through_a_protected_change(self):
+        from django.contrib import admin as dj_admin
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.test import RequestFactory
+        model_admin = dj_admin.site._registry[User]
+        req = RequestFactory().post('/admin/')
+        req.user, req.session = self.alice, {}
+        req._messages = FallbackStorage(req)
+
+        class F:
+            changed_data = ['email']
+        self.tech.email = 'admin-moved@msp.test'
+        model_admin.save_model(req, self.tech, F(), True)
+        self.tech.refresh_from_db()
+        self.assertEqual(self.tech.email, 'tech@msp.test')
+        self.assertTrue(ProtectedChange.objects.filter(kind='account_email', target_user=self.tech).exists())

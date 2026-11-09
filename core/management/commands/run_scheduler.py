@@ -52,6 +52,7 @@ COMMAND_TASKS = {
     # update script runs the same check, but Docker installs never run that.
     'update_geoip_db': ('update_geoip_db', ['--max-age-days', '25']),
     'rmm_sync': ('sync_rmm', []),
+    'poll_analysis_jobs': ('poll_analysis_jobs', []),
 }
 
 

@@ -48,11 +48,11 @@ TECHNICIAN_SAFEGUARDS = [
         'status': 'enforced',
         'scope': 'Technician access above L1, preset widening, group additions, lifted denies/restrictions, '
                  'Rem0te ticket-processor pairings, Ollama destinations, approvers, recovery contact, loosened '
-                 'theft-detection limits.',
+                 'theft-detection limits, and the e-mail address of superusers, approvers and MSP technicians.',
         'detail': 'The requester re-authenticates (password plus authenticator code), a different approver '
                   're-authenticates and approves. Self-promotion and approving your own recovery address are '
-                  'refused; the previously verified recovery contact is notified. A one-administrator install '
-                  'cannot widen access.',
+                  'refused; the previously verified recovery contact is notified, and an account\'s old e-mail '
+                  'address hears about a move at every step. A one-administrator install cannot widen access.',
         'link': 'tech_access:index',
         'doc': 'docs/TECHNICIAN_ACCESS.md#protected-changes',
     },

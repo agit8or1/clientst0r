@@ -82,7 +82,8 @@ No ticket text is sent. Response `200/201/202 {"processor_job_id": "…", "statu
 ### `GET /api/integration/v1/jobs/{job_id}`
 
 `{"status": "accepted|queued|running|completed|failed|cancelled", "sequence": <int>}`. ClientSt0r polls this to
-recover missed events. If rem0te is unreachable, the job is marked *unavailable* and nothing else changes —
+recover missed events: the ticket page while it is open, and the scheduler's `poll_analysis_jobs` task
+every minute (at most once per job every 15 s). If rem0te is unreachable, the job is marked *unavailable* and nothing else changes —
 manual ticket work carries on.
 
 ## ClientSt0r routes (called by rem0te)

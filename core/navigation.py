@@ -276,6 +276,8 @@ SECTIONS = (
     # ---- Account ----------------------------------------------------------
     Section('account_profile', 'account', _('My Profile'), tabs=(
         Tab(_('My Profile'), 'accounts:profile', 'fa-user'),
+        # OPTIONAL AI: a technician's own provider keys (psa_ai.profile_views.own_keys).
+        Tab(_('My AI keys'), 'psa_ai:own_keys', 'fa-key', gate=_all(_ai_enabled, _staff_user_or_superuser)),
     )),
     Section('account_work', 'account', _('My Work Details'), tabs=(
         Tab(_('My Resources'), 'resourcing:my_resourcing', 'fa-user-graduate'),

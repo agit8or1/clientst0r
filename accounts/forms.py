@@ -177,7 +177,18 @@ class UserProfileForm(forms.ModelForm):
             'autocomplete': 'email'
         })
     )
-    
+    # Only asked for when a protected account (superuser, approver or MSP
+    # technician) changes its address; see tech_access.services.
+    email_change_password = forms.CharField(
+        required=False, label='Current password',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'current-password'}),
+    )
+    email_change_otp = forms.CharField(
+        required=False, label='Authenticator code', max_length=12,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'one-time-code',
+                                      'inputmode': 'numeric'}),
+    )
+
     class Meta:
         model = UserProfile
         fields = ['phone', 'title', 'department', 'timezone', 'time_format', 'locale', 'theme', 'background_mode', 'background_color', 'preset_background', 'background_image', 'email_notifications', 'notification_frequency', 'notify_assigned_email', 'notify_assigned_sms', 'notify_scheduled_email', 'notify_scheduled_sms', 'tooltips_enabled', 'preferred_organization']
@@ -324,13 +335,41 @@ class UserProfileForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             logger.debug(f"UserProfileForm: timezone={self.instance.timezone}, theme={self.instance.theme}")
     
+    def email_change_protected(self):
+        from tech_access.services import email_is_protected
+        return bool(self.user and email_is_protected(self.user))
+
+    def clean(self):
+        cleaned = super().clean()
+        self.email_change = None
+        new = (cleaned.get('email') or '').strip()
+        if self.user and new and new.lower() != (self.user.email or '').lower() and self.email_change_protected():
+            from tech_access.protected import can_widen_at_all, verify_credentials
+            if not can_widen_at_all(self.user):
+                self.add_error('email', 'Changing this address needs a second administrator to approve it, '
+                                        'and this install has only one.')
+            else:
+                error = verify_credentials(self.user, cleaned.get('email_change_password') or '',
+                                           cleaned.get('email_change_otp') or '')
+                if error:
+                    self.add_error('email_change_password', error)
+                else:
+                    self.email_change = new
+        return cleaned
+
     def save(self, commit=True):
         profile = super().save(commit=False)
         
         if self.user:
             self.user.first_name = self.cleaned_data['first_name']
             self.user.last_name = self.cleaned_data['last_name']
-            self.user.email = self.cleaned_data['email']
+            if getattr(self, 'email_change', None):
+                # Proposed, not applied: a second administrator approves it.
+                from tech_access.services import propose_email_change
+                self.email_proposal = propose_email_change(self.user, self.email_change, self.user,
+                                                           confirmed=True)
+            elif not self.email_change_protected():
+                self.user.email = self.cleaned_data['email']
             if commit:
                 self.user.save()
         

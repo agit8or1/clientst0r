@@ -657,3 +657,95 @@ print(json.dumps(out))
         self.assertNotEqual(out['vault'], 'READ')
         self.assertEqual(out['provider'], 'sk-ant-provider-key')
         self.assertIs(out['isolated'], True)
+
+
+class OwnKeyTests(AssistBase):
+    """Technicians' own provider keys: write-only, usable only by their owner,
+    only where the customer allows technicians' keys, never under local-only."""
+    URL = '/psa/ai/my-keys/'
+    KEY = 'sk-ant-technician-' + 'q' * 30
+
+    def _add(self, client=None, **over):
+        data = {'action': 'save', 'provider': 'anthropic', 'model': 'claude-haiku-5-5', 'enabled': 'on',
+                'input_price_per_1k': 0, 'output_price_per_1k': 0, 'max_output_tokens': 800, 'api_key': self.KEY}
+        data.update(over)
+        return (client or self.c).post(self.URL, data)
+
+    def test_only_technicians_reach_the_page(self):
+        portal = User.objects.create_user('portal2', password='pw')
+        Membership.objects.create(user=portal, organization=self.a, role=Role.OWNER)
+        self.assertEqual(sign_in(portal, self.a).get(self.URL).status_code, 404)
+        self.assertEqual(self.c.get(self.URL).status_code, 200)
+
+    def test_key_is_write_only_and_usable_only_by_its_owner_where_allowed(self):
+        from .services.profiles import profile_refusal
+        r = self._add()
+        self.assertEqual(r.status_code, 302)
+        p = AIModelProfile.objects.get(owner_user=self.tech)
+        self.assertEqual(p.credential_owner, AIModelProfile.OWNER_TECHNICIAN)
+        self.assertTrue(p.sealed_api_key.startswith('aigw1.'))
+        self.assertNotIn(self.KEY, self.c.get(self.URL).content.decode())
+        self.assertNotIn(self.KEY, self.c.get(self.URL + f'?edit={p.pk}').content.decode())
+
+        pol = AIBusinessPolicy.objects.get(organization=self.a)
+        self.assertIn("doesn't allow technicians' own keys", profile_refusal(p, self.a, self.tech, pol))
+        pol.allow_technician_credentials = True
+        pol.save()
+        self.assertEqual(profile_refusal(p, self.a, self.tech, pol), '')  # no listing needed
+        other = make_tech('morgan')
+        grant(other, self.a, 'l2')
+        self.assertIn("another technician's key", profile_refusal(p, self.a, other, pol))
+        pol.local_only = True
+        pol.save()
+        self.assertIn('on-premises', profile_refusal(p, self.a, self.tech, pol))
+
+    def test_no_ollama_and_model_id_is_validated(self):
+        self._add(provider='ollama')
+        self._add(model='x; rm -rf /')
+        self.assertFalse(AIModelProfile.objects.filter(owner_user=self.tech).exists())
+
+    def test_cannot_touch_someone_elses_profile(self):
+        before = (self.cheap.name, self.cheap.model, self.cheap.sealed_api_key)
+        self._add(pk=self.cheap.pk, model='hijacked')
+        self.c.post(self.URL, {'action': 'delete', 'pk': self.cheap.pk})
+        self.cheap.refresh_from_db()
+        self.assertEqual((self.cheap.name, self.cheap.model, self.cheap.sealed_api_key), before)
+
+    def test_delete_removes_profile_and_key(self):
+        self._add()
+        p = AIModelProfile.objects.get(owner_user=self.tech)
+        self.c.post(self.URL, {'action': 'delete', 'pk': p.pk})
+        self.assertFalse(AIModelProfile.objects.filter(pk=p.pk).exists())
+
+
+class AnalysisJobPollingScheduleTests(AssistBase):
+    def test_scheduler_runs_poll_analysis_jobs(self):
+        from core.management.commands.run_scheduler import COMMAND_TASKS
+        from core.models import ScheduledTask
+        self.assertEqual(COMMAND_TASKS['poll_analysis_jobs'], ('poll_analysis_jobs', []))
+        ScheduledTask.get_or_create_defaults()
+        task = ScheduledTask.objects.get(task_type='poll_analysis_jobs')
+        self.assertTrue(task.enabled)
+        self.assertEqual(task.interval_minutes, 1)
+
+    def test_one_failing_job_does_not_stop_the_rest(self):
+        from io import StringIO
+        from django.core.management import call_command
+        first = self.start()
+        original, self.ticket = self.ticket, make_ticket(self.a, assigned_to=self.tech, subject='VPN down')
+        second = self.start()
+        self.ticket = original
+        AnalysisJob.objects.filter(pk__in=[first.pk, second.pk]).update(
+            created_at=timezone.now() - timedelta(minutes=5))
+        seen = []
+
+        def poll(job, force=False):
+            seen.append(job.pk)
+            if job.pk == first.pk:
+                raise RuntimeError('broken pairing')
+            return job
+        out = StringIO()
+        with patch('psa_ai.services.processor.poll', side_effect=poll):
+            call_command('poll_analysis_jobs', stdout=out)
+        self.assertEqual(set(seen), {first.pk, second.pk})
+        self.assertIn('2 job(s) checked, 1 failed.', out.getvalue())

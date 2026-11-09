@@ -242,14 +242,27 @@ def profile_edit(request):
             # email onto the User, which commit=False would skip.
             form.save()
             messages.success(request, 'Profile updated successfully.')
+            if getattr(form, 'email_proposal', None):
+                messages.info(request, 'Your new e-mail address takes effect once another administrator '
+                                       'approves it. Your current address has been told.')
             return redirect('accounts:profile')
     else:
         form = UserProfileForm(instance=profile, user=request.user)
 
+    from tech_access.services import pending_email_change
     return render(request, 'accounts/profile_edit.html', {
         'form': form,
         'profile': profile,
+        'email_protected': form.email_change_protected(),
+        'email_pending': pending_email_change(request.user),
+        'email_needs_otp': _has_otp_device(request.user),
     })
+
+
+def _has_otp_device(user):
+    # Same devices tech_access.protected.verify_credentials checks.
+    from django_otp.plugins.otp_totp.models import TOTPDevice
+    return TOTPDevice.objects.filter(user=user, confirmed=True).exists()
 
 
 @login_required
@@ -1303,11 +1316,30 @@ def user_edit(request, user_id):
     user = get_object_or_404(User, id=user_id)
 
     if request.method == 'POST':
+        before = User.objects.get(pk=user.pk)
         form = UserEditForm(request.POST, instance=user)
         if form.is_valid():
-            user = form.save()
-            messages.success(request, f"User '{user.username}' updated successfully.")
-            return redirect('accounts:user_detail', user_id=user.id)
+            from tech_access.services import email_is_protected, propose_email_change
+            new_email = (form.cleaned_data.get('email') or '').strip()
+            proposal = None
+            if (new_email.lower() != (before.email or '').lower()
+                    and (email_is_protected(before) or form.cleaned_data.get('is_superuser'))):
+                # A protected account's address moves only with a second
+                # administrator's approval (tech_access.services).
+                try:
+                    proposal = propose_email_change(before, new_email, request.user, request=request)
+                except ValueError as exc:
+                    form.add_error('email', str(exc))
+                else:
+                    form.instance.email = before.email
+            if not form.errors:
+                user = form.save()
+                messages.success(request, f"User '{user.username}' updated successfully.")
+                if proposal:
+                    messages.info(request, 'The new e-mail address needs approval. Confirm it under '
+                                           'Settings → Security → Technician Access; a second administrator '
+                                           'then approves it.')
+                return redirect('accounts:user_detail', user_id=user.id)
     else:
         form = UserEditForm(instance=user)
 

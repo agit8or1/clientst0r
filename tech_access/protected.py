@@ -4,8 +4,9 @@ Protected changes: widening a protected setting takes two administrators.
 Protected settings: technician access above the L1 baseline (assignments,
 preset capabilities, group membership), RMM business mappings (a Rem0te
 ticket-processor pairing), the approver list, the recovery contact, AI
-provider destinations, and security limits (theft-detection thresholds and
-containment).
+provider destinations, security limits (theft-detection thresholds and
+containment), and the e-mail address of superusers, approvers and MSP
+technicians.
 
 Narrowing — revoking, lowering, tightening — applies at once and is
 audited. Widening goes through these steps:
@@ -120,6 +121,10 @@ def _notify(change, event, recovery_email=None):
     for u in (change.requested_by, change.target_user):
         if u is not None and u.email:
             recipients.add(u.email)
+    if change.kind == 'account_email' and change.payload.get('old_email'):
+        # The address being replaced hears about it at every step, including
+        # after it stops being the account's address.
+        recipients.add(change.payload['old_email'])
     if not recipients:
         return []
     who = change.requested_by.get_username() if change.requested_by else 'someone'
@@ -190,6 +195,10 @@ def approval_refusal(change, reviewer) -> str:
         new = (change.payload.get('recovery_email') or '').lower()
         if new and reviewer.email and new == reviewer.email.lower():
             return 'You cannot approve a recovery contact that is your own address.'
+    if change.kind == 'account_email':
+        new = (change.payload.get('new_email') or '').lower()
+        if new and reviewer.email and new == reviewer.email.lower():
+            return 'You cannot approve moving an account to your own address.'
     if change.kind == 'approvers' and reviewer.pk in (change.payload.get('add') or []):
         return 'You cannot approve adding yourself as an approver.'
     if not change.requester_reauth_at:

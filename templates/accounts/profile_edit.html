@@ -41,7 +41,30 @@
                         {% if form.email.errors %}
                         <div class="invalid-feedback d-block">{{ form.email.errors }}</div>
                         {% endif %}
+                        {% if email_pending %}
+                        <div class="form-text text-warning" role="status">
+                            <i class="fas fa-hourglass-half me-1" aria-hidden="true"></i>{% blocktrans with new=email_pending.payload.new_email %}Waiting for another administrator to approve {{ new }}.{% endblocktrans %}
+                        </div>
+                        {% endif %}
                     </div>
+                    {% if email_protected %}
+                    <div class="row mb-3" id="emailChangeAuth">
+                        <div class="col-12 form-text mb-1">{% trans "Changing your e-mail address? Enter your password to confirm. A second administrator then approves the change, and your current address is told." %}</div>
+                        <div class="col-md-6">
+                            <label for="{{ form.email_change_password.id_for_label }}" class="form-label">{% trans "Current password" %}</label>
+                            {{ form.email_change_password }}
+                            {% if form.email_change_password.errors %}
+                            <div class="invalid-feedback d-block">{{ form.email_change_password.errors }}</div>
+                            {% endif %}
+                        </div>
+                        {% if email_needs_otp %}
+                        <div class="col-md-6">
+                            <label for="{{ form.email_change_otp.id_for_label }}" class="form-label">{% trans "Authenticator code" %}</label>
+                            {{ form.email_change_otp }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
 
                     <div class="row mb-3">
                         <div class="col-md-6">

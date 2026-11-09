@@ -20,4 +20,5 @@ urlpatterns = [
     path('assist/job/<uuid:job_id>/', assist_views.job_status, name='assist_job'),
     path('profiles/', profile_views.profiles, name='profiles'),
     path('profiles/policy/<int:org_id>/', profile_views.policy, name='policy'),
+    path('my-keys/', profile_views.own_keys, name='own_keys'),
 ]

@@ -82,6 +82,10 @@ already queued, which the gateway re-checks before calling a model.
    - An Ollama address only works after **Propose address** is approved as a protected change.
 2. On the same page, set each customer's **AI policy**: analysis, compare, allowed models, default model,
    technician-owned keys, local-only, and daily budget. Without a policy, a customer allows no AI.
+   - With **technician-owned keys** on, technicians can add their own Claude or OpenAI key under
+     **My Profile → My AI keys**. Only its owner can use it, and only at customers that allow
+     technicians' keys and are not local-only; it doesn't have to be listed in the policy. The
+     customer's daily budget counts it at the prices the technician enters.
 3. **Integrations → RMM → the customer's Rem0te connection → Ticket analysis pairing.** Enter the key ID, the two
    secrets and the location. A second administrator approves the pairing.
 4. **Settings → Security → Technician Access.**
@@ -99,7 +103,8 @@ already queued, which the gateway re-checks before calling a model.
 ## Protected changes
 
 Widening anything — a preset above L1, preset capabilities, a group member added, a deny or restriction lifted, a
-rem0te pairing, an Ollama destination, approvers, the recovery contact, looser detection — works like this:
+rem0te pairing, an Ollama destination, approvers, the recovery contact, looser detection — and moving the e-mail
+address of a superuser, approver or MSP technician, works like this:
 
 1. The requester proposes the change. Nothing changes yet.
 2. The requester re-enters their password (plus their authenticator code, if they have one) and **Confirm**s it.
@@ -118,7 +123,21 @@ affected technician.
 
 Narrowing — revoking, lowering, restricting, denying — applies at once and is audited.
 
-**One-administrator installs can't widen access.** Add a second superuser first.
+**Account e-mail addresses.** A superuser's, approver's or technician's address is where password resets, theft
+alerts and these notices go, so it can't be moved by one person:
+
+- **From My Profile**, the owner enters their password (and authenticator code) with the new address; the change
+  is then waiting for approval, and the profile page says so.
+- **From the user editor or the Django admin**, the editing administrator confirms it under Technician Access.
+- Either way a second administrator approves it, the old address is told at every step, and an approver can't
+  move an account to their own address. A change that is out of date (the address moved meanwhile) is refused.
+- Directory sync (LDAP / Entra ID) still writes addresses from the directory, which is the source of truth there.
+  Customer portal users change their own address as before.
+
+**One-administrator installs can't widen access** or move a protected address. Add a second superuser first.
+
+Granting superuser itself is not yet a protected change: an administrator can still make another account a
+superuser from the user editor. That is planned (Phase 57.4).
 
 ## Theft detection
 

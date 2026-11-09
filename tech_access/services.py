@@ -466,3 +466,53 @@ def _apply_destination(change, reviewer):
     profile.local_approved = bool(change.payload.get('local'))
     profile.save(update_fields=['approved_destination', 'local_approved', 'updated_at'])
     _audit(change.requested_by, 'update', 'ai_model_profile', profile.pk, f'Approved: {change.summary}')
+
+
+# --- account e-mail addresses ---------------------------------------------------
+# A protected account's address is where its password resets, theft alerts
+# and protected-change notices go, so moving it takes two administrators like
+# any other protected change. Directory sync (LDAP / Entra ID) still writes
+# addresses from the directory, which is the source of truth there.
+
+def email_is_protected(user) -> bool:
+    """Superusers, approvers and MSP technicians. Customer portal users keep
+    changing their own address freely."""
+    from .protected import is_approver
+    from .resolver import is_technician
+    return bool(user is not None and user.pk and (user.is_superuser or is_technician(user) or is_approver(user)))
+
+
+def propose_email_change(user, new_email, by, request=None, confirmed=False):
+    """Record a pending e-mail change for `user`. `confirmed` marks the
+    requester as having just re-authenticated in the same form."""
+    from .protected import can_widen_at_all
+    new_email = (new_email or '').strip()
+    if not can_widen_at_all(by):
+        raise ValueError('Changing this e-mail address needs a second administrator to approve it, '
+                         'and this install has only one. Add a second superuser first.')
+    change = propose('account_email', f'Change the e-mail address of {user.get_username()} to {new_email or "(none)"}',
+                     {'user': user.pk, 'old_email': user.email or '', 'new_email': new_email},
+                     ['account e-mail'], by, target_user=user, affected=[user.pk], request=request)
+    if confirmed:
+        change.requester_reauth_at = timezone.now()
+        change.save(update_fields=['requester_reauth_at'])
+    return change
+
+
+def pending_email_change(user):
+    from .models import ProtectedChange
+    return (ProtectedChange.objects.filter(kind='account_email', target_user=user, status=ProtectedChange.PENDING,
+                                           expires_at__gt=timezone.now()).order_by('-requested_at').first())
+
+
+@applier('account_email')
+def _apply_email(change, reviewer):
+    from .protected import ProtectedChangeError
+    user = get_user_model().objects.filter(pk=change.payload.get('user')).first()
+    if user is None:
+        raise ProtectedChangeError('That account no longer exists.')
+    if (user.email or '') != change.payload.get('old_email', ''):
+        raise ProtectedChangeError('The address changed after this was proposed. Propose it again.')
+    user.email = change.payload.get('new_email', '')
+    user.save(update_fields=['email'])
+    _audit(change.requested_by, 'update', 'user', user.pk, f'Approved: {change.summary}')

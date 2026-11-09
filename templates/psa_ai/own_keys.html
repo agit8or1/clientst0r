@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}My AI keys{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <h4><i class="fas fa-key me-1"></i>My AI keys <span class="badge bg-warning text-dark">Optional AI</span></h4>
+    <p class="text-muted small mb-2">
+        Use your own Claude or OpenAI account for ticket analysis. A profile here is usable only by you, and only at
+        customers whose AI policy allows technicians' own keys. Keys are write-only: once saved they can't be shown
+        again, here or anywhere else.
+    </p>
+    {% if not ai_enabled %}
+    <div class="alert alert-warning small">AI features are turned off in Settings, so these profiles aren't used.</div>
+    {% endif %}
+    <div class="alert {% if gateway.mode == 'worker' and gateway.configured %}alert-success{% else %}alert-warning{% endif %} small">
+        <strong>Gateway:</strong> {{ gateway.text }}
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card"><div class="card-header"><strong>Your profiles</strong></div>
+                <div class="card-body small">
+                    <table class="table table-sm">
+                        <thead><tr><th>Name</th><th>Provider / model</th><th>Key</th><th>Status</th><th></th></tr></thead>
+                        <tbody>{% for p in profiles %}
+                        <tr><td>{{ p.name }}</td>
+                            <td>{{ p.get_provider_display }} {{ p.model }}</td>
+                            <td>{% if p.has_api_key %}stored (write-only){% else %}—{% endif %}</td>
+                            <td>{% if p.enabled %}enabled{% else %}disabled{% endif %}</td>
+                            <td class="text-nowrap"><a href="?edit={{ p.pk }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                <form method="post" class="d-inline" data-confirm="Delete this profile and its key?">{% csrf_token %}
+                                    <input type="hidden" name="action" value="delete"><input type="hidden" name="pk" value="{{ p.pk }}">
+                                    <button class="btn btn-sm btn-outline-danger">Delete</button></form></td></tr>
+                        {% empty %}<tr><td colspan="5" class="text-muted">No profiles yet.</td></tr>{% endfor %}</tbody>
+                    </table>
+                    <div class="text-muted">
+                        <strong>Customers you work for that allow your own keys:</strong>
+                        {% for o in allowing %}{{ o.name }}{% if not forloop.last %}, {% endif %}{% empty %}none yet — an administrator turns this on in each customer's AI policy.{% endfor %}
+                    </div>
+                </div></div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card"><div class="card-header"><strong>{% if edit %}Edit {{ edit.name }}{% else %}New profile{% endif %}</strong></div>
+                <div class="card-body small">
+                    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="save">{% if edit %}<input type="hidden" name="pk" value="{{ edit.pk }}">{% endif %}
+                        {% for f in form %}<div class="mb-2">{% if f.field.widget.input_type == 'checkbox' %}{{ f }} <label for="{{ f.id_for_label }}">{{ f.label }}</label>{% else %}<label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% endif %}
+                            {% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}{% for e in f.errors %}<div class="text-danger">{{ e }}</div>{% endfor %}</div>{% endfor %}
+                        {% for e in form.non_field_errors %}<div class="text-danger">{{ e }}</div>{% endfor %}
+                        <button class="btn btn-sm btn-primary">Save</button>
+                        {% if edit %}<a href="{% url 'psa_ai:own_keys' %}" class="btn btn-sm btn-link">New profile instead</a>{% endif %}
+                    </form>
+                </div></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
