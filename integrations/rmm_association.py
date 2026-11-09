@@ -703,6 +703,14 @@ def console_link(device):
     return ''
 
 
+def console_label(device):
+    """The console button's text: "Open in <provider>" unless the adapter names it."""
+    from .providers.rmm import RMM_PROVIDER_REGISTRY
+    provider = RMM_PROVIDER_REGISTRY.get(device.connection.provider_type)
+    return (getattr(provider, 'console_link_label', '')
+            or f'Open in {device.connection.get_provider_type_display()}')
+
+
 def summary(device, now=None):
     """Everything the asset and ticket pages show about one RMM device."""
     return {
@@ -711,6 +719,7 @@ def summary(device, now=None):
         'connection': device.connection.name,
         'status': device_status(device, now),
         'console_url': console_link(device),
+        'console_label': console_label(device),
     }
 
 

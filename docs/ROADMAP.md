@@ -1653,6 +1653,13 @@ someone else.
   marked separately from offline), its last check-in, and an "Open in" link
   where the RMM documents one. RMM alerts open a prefilled ticket. Customers
   see none of the RMM details.
+- **Connect with Rem0te from the asset or ticket** *(shipped v3.17.644)* — a
+  Rem0te connection (one per customer, since a Rem0te key covers one business)
+  syncs that business's computers and links them to the customer's assets by
+  the same matching rules as the RMMs. Technicians get a Connect with Rem0te
+  button that opens the computer in Rem0te under their own sign-in; no
+  remote access credential is stored. A key for a different business stops
+  the sync instead of filing its computers under the wrong customer.
 
 ## Phase 53 — Documentation readiness and lifecycle **(L)** [in progress]
 

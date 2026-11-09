@@ -439,6 +439,7 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         'cwa_password': ('connectwise_automate', 'password'),
         'atera_api_key': ('atera', 'api_key'),
         'tactical_api_key': ('tactical_rmm', 'api_key'),
+        'rem0te_api_key': ('rem0te', 'api_key'),
     }
 
     # NinjaOne credentials
@@ -501,6 +502,13 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Your Tactical RMM API key'})
     )
 
+    # Rem0te credentials
+    rem0te_api_key = forms.CharField(
+        label='API Key',
+        required=False,
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'rk_…'})
+    )
+
     class Meta:
         model = RMMConnection
         fields = ['provider_type', 'name', 'base_url', 'console_base_url', 'customer_scope', 'sync_enabled',
@@ -554,6 +562,8 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
                 self.fields['atera_api_key'].initial = creds.get('api_key', '')
             elif provider == 'tactical_rmm':
                 self.fields['tactical_api_key'].initial = creds.get('api_key', '')
+            elif provider == 'rem0te':
+                self.fields['rem0te_api_key'].initial = creds.get('api_key', '')
 
         self._protect_secret_fields()
 
@@ -591,6 +601,13 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         elif provider_type == 'tactical_rmm':
             if not cleaned_data.get('tactical_api_key'):
                 self.add_error('tactical_api_key', 'This field is required for Tactical RMM')
+        elif provider_type == 'rem0te':
+            if not cleaned_data.get('rem0te_api_key'):
+                self.add_error('rem0te_api_key', 'This field is required for Rem0te')
+            # A Rem0te key belongs to one business, so the connection is
+            # always one customer: this organization.
+            cleaned_data['customer_scope'] = RMMConnection.CUSTOMER_SCOPE_SINGLE
+            cleaned_data['import_organizations'] = False
 
         return cleaned_data
 
@@ -629,6 +646,10 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         elif provider_type == 'tactical_rmm':
             credentials = {
                 'api_key': self.cleaned_data.get('tactical_api_key', ''),
+            }
+        elif provider_type == 'rem0te':
+            credentials = {
+                'api_key': self.cleaned_data.get('rem0te_api_key', ''),
             }
 
         connection.set_credentials(credentials)

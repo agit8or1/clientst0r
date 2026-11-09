@@ -19,7 +19,8 @@ from assets.models import Asset
 from core.models import Organization
 from integrations.models import RMMAlert, RMMConnection, RMMDevice
 from integrations.providers.rmm import (
-    AteraProvider, ConnectWiseAutomateProvider, DattoRMMProvider, NinjaOneProvider, TacticalRMMProvider,
+    AteraProvider, ConnectWiseAutomateProvider, DattoRMMProvider, NinjaOneProvider, Rem0teProvider,
+    TacticalRMMProvider,
 )
 from integrations.providers.rmm.console import validated_console_url
 from integrations import rmm_association as ra
@@ -32,6 +33,7 @@ PROVIDERS = {
     'atera': (AteraProvider, 'https://app.atera.com/api'),
     'connectwise_automate': (ConnectWiseAutomateProvider, 'https://automate.example.com'),
     'tactical_rmm': (TacticalRMMProvider, 'https://api.trmm.example.com'),
+    'rem0te': (Rem0teProvider, 'https://remote.example.com'),
 }
 
 
@@ -78,9 +80,10 @@ class _Base(TestCase):
         cls, base_url = PROVIDERS[provider]
         kw.setdefault('sync_software', False)
         self._n = getattr(self, '_n', 0) + 1
+        kw.setdefault('base_url', base_url)
         return RMMConnection.objects.create(
-            organization=self.msp, provider_type=provider, name=f'{provider} test {self._n}',
-            base_url=base_url, customer_scope=scope, **kw)
+            organization=kw.pop('owner', self.msp), provider_type=provider, name=f'{provider} test {self._n}',
+            customer_scope=scope, **kw)
 
     def sync(self, connection, routes, alerts=True):
         cls = PROVIDERS[connection.provider_type][0]
@@ -753,3 +756,135 @@ class TicketAssetTests(_Base):
                                                {'action': 'assign_customer', 'organization': self.a.pk})
         d.refresh_from_db()
         self.assertEqual(d.organization, self.b)
+
+
+    def test_ticket_offers_connect_to_technicians_only(self):
+        conn = self.connection('rem0te', scope=RMMConnection.CUSTOMER_SCOPE_SINGLE, owner=self.a)
+        self.sync(conn, rem0te_routes('biz-a', [[rem0te_computer('c-1', 'biz-a')]]))
+        self.assertEqual(self.device(conn, 'c-1').linked_asset, self.asset_a)
+        t = self._ticket(self.asset_a)
+        staff_page = self.login(self.tech, self.a).get(f'/psa/t/{t.ticket_number}/').content.decode()
+        self.assertIn('Connect with Rem0te', staff_page)
+        self.assertIn('https://remote.example.com/endpoints/c-1', staff_page)
+
+        page = self.login(self.customer, self.a).get(f'/psa/t/{t.ticket_number}/').content.decode()
+        self.assertNotIn('Rem0te', page)
+        self.assertNotIn('remote.example.com', page)
+
+    def test_client_import_is_not_offered(self):
+        conn = self.connection('rem0te', scope=RMMConnection.CUSTOMER_SCOPE_SINGLE, owner=self.a)
+        c = self.login(self.tech, self.a)
+        self.assertNotContains(c.get(f'/integrations/rmm/{conn.pk}/'), 'Import Clients')
+        r = c.get(f'/integrations/rmm/{conn.pk}/import-clients/')
+        self.assertEqual(r.status_code, 302)
+
+
+# ---------------------------------------------------------------------------
+# Rem0te: one API key, one business, one organization
+# ---------------------------------------------------------------------------
+
+def rem0te_computer(cid, business, name='FRONTDESK', serial='', ip='192.168.1.10', status='ACTIVE',
+                    online=True, site=None):
+    return {'id': cid, 'name': name, 'hostname': name, 'status': status, 'platform': 'Windows',
+            'osVersion': 'Microsoft Windows NT 10.0.26100.0', 'ipAddress': ip, 'macAddress': '00:11:22:33:44:55',
+            'serialNumber': serial, 'isOnline': online, 'isManaged': True,
+            'lastSeenAt': '2026-11-08T09:00:00.000Z', 'customerId': business,
+            'customer': {'id': business, 'name': f'Business {business}'}, 'site': site,
+            'rustdeskNode': {'rustdeskId': '145925926', 'lastSeenAt': '2026-11-08T09:00:00.000Z',
+                             'hasPassword': True, 'permanentPassword': 'should-never-be-kept'}}
+
+
+def rem0te_routes(business, pages, scopes=('computers:read',)):
+    """`pages` is a list of computer lists, one per page."""
+    def computers(kw):
+        page = (kw.get('params') or {}).get('page', 1)
+        rows = pages[page - 1] if page <= len(pages) else []
+        return {'success': True, 'data': {'endpoints': rows, 'total': sum(map(len, pages)),
+                                          'page': page, 'limit': 200, 'pages': len(pages)}}
+    return {
+        ('GET', '/whoami'): {'success': True, 'businessId': business, 'apiKeyId': 'k', 'scopes': list(scopes)},
+        ('GET', '/computers'): computers,
+    }
+
+
+class Rem0teAdapterTests(_Base):
+
+    def rem0te(self, owner, **kw):
+        return self.connection('rem0te', scope=RMMConnection.CUSTOMER_SCOPE_SINGLE, owner=owner, **kw)
+
+    def test_each_key_files_computers_under_its_own_customer_only(self):
+        conn_a, conn_b = self.rem0te(self.a), self.rem0te(self.b)
+        asset_a = Asset.objects.create(organization=self.a, name='FRONTDESK', hostname='FRONTDESK')
+        asset_b = Asset.objects.create(organization=self.b, name='FRONTDESK', hostname='FRONTDESK')
+        # Same hostname and IP at both customers.
+        self.sync(conn_a, rem0te_routes('biz-a', [[rem0te_computer('c-a', 'biz-a')]]))
+        self.sync(conn_b, rem0te_routes('biz-b', [[rem0te_computer('c-b', 'biz-b')]]))
+        da, db = self.device(conn_a, 'c-a'), self.device(conn_b, 'c-b')
+        self.assertEqual((da.organization, da.linked_asset), (self.a, asset_a))
+        self.assertEqual((db.organization, db.linked_asset), (self.b, asset_b))
+        self.assertEqual([d.pk for d in ra.exposed_devices(asset_a)], [da.pk])
+        self.assertEqual([d.pk for d in ra.exposed_devices(asset_b)], [db.pk])
+        self.assertEqual((da.client_id, da.os_type, da.serial_number, da.is_online),
+                         ('biz-a', 'windows', '', True))
+
+    def test_pages_archived_foreign_and_credentials(self):
+        conn = self.rem0te(self.a, map_to_assets=False)
+        self.sync(conn, rem0te_routes('biz-a', [
+            [rem0te_computer('c-1', 'biz-a', serial='SN1'), rem0te_computer('c-2', 'biz-a', name='OLD',
+                                                                             status='ARCHIVED')],
+            [rem0te_computer('c-3', 'biz-a', name='LAPTOP'), rem0te_computer('c-x', 'biz-other', name='THEIRS')],
+        ]))
+        self.assertEqual(sorted(RMMDevice.objects.filter(connection=conn).values_list('external_id', flat=True)),
+                         ['c-1', 'c-3'])
+        d = self.device(conn, 'c-1')
+        self.assertEqual(d.serial_number, 'SN1')
+        self.assertNotIn('should-never-be-kept', str(d.raw_data))
+        self.assertEqual(d.raw_data['rustdeskNode']['rustdeskId'], '145925926')
+
+    def test_key_for_another_business_stops_the_sync(self):
+        conn = self.rem0te(self.a)
+        self.sync(conn, rem0te_routes('biz-a', [[rem0te_computer('c-1', 'biz-a')]]))
+        conn.refresh_from_db()
+        self.assertEqual(conn.field_mappings['rem0te_business_id'], 'biz-a')
+
+        # Someone pastes Bolt's key into Acme's connection.
+        with self.assertRaisesMessage(Exception, 'different business'):
+            self.sync(conn, rem0te_routes('biz-b', [[rem0te_computer('c-b', 'biz-b', name='BOLT-PC')]]))
+        conn.refresh_from_db()
+        self.assertEqual(conn.last_sync_status, 'error')
+        self.assertFalse(RMMDevice.objects.filter(external_id='c-b').exists())
+        self.assertIn('different business', conn.last_error)
+        self.assertEqual(conn.field_mappings['rem0te_business_id'], 'biz-a')
+
+    def test_connect_link_opens_the_computer_page_without_credentials(self):
+        conn = self.rem0te(self.a, base_url='https://remote.example.com/api/v1/pub/v1/')
+        self.sync(conn, rem0te_routes('biz-a', [[rem0te_computer('c-1', 'biz-a')]]))
+        d = self.device(conn, 'c-1')
+        self.assertEqual(ra.console_link(d), 'https://remote.example.com/endpoints/c-1')
+        self.assertEqual(ra.console_label(d), 'Connect with Rem0te')
+        RMMConnection.objects.filter(pk=conn.pk).update(base_url='http://remote.example.com')
+        d = self.device(conn, 'c-1')
+        self.assertEqual(ra.console_link(d), '')  # https only
+
+    def test_connection_test_names_a_missing_scope(self):
+        conn = self.rem0te(self.a)
+        for scopes, ok in ((('computers:read',), True), (('users:read',), False)):
+            vendor = _Vendor(rem0te_routes('biz-a', [[]], scopes=scopes))
+            with mock.patch.object(Rem0teProvider, '_make_request', side_effect=vendor):
+                self.assertEqual(Rem0teProvider(conn).test_connection(), ok)
+            self.assertEqual(vendor.calls[0], ('GET', '/whoami'))
+
+    def test_form_forces_single_customer_and_no_import(self):
+        from integrations.forms import RMMConnectionForm
+        form = RMMConnectionForm(data={
+            'provider_type': 'rem0te', 'name': 'Acme remote', 'base_url': 'https://remote.example.com',
+            'customer_scope': RMMConnection.CUSTOMER_SCOPE_MULTI, 'import_organizations': 'on',
+            'sync_enabled': 'on', 'sync_devices': 'on', 'map_to_assets': 'on', 'sync_interval_minutes': 60,
+            'rem0te_api_key': 'rk_' + '0' * 48,
+        }, organization=self.a)
+        self.assertTrue(form.is_valid(), form.errors)
+        conn = form.save()
+        self.assertEqual((conn.customer_scope, conn.import_organizations, conn.organization),
+                         (RMMConnection.CUSTOMER_SCOPE_SINGLE, False, self.a))
+        self.assertEqual(conn.get_credentials(), {'api_key': 'rk_' + '0' * 48})
+

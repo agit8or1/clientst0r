@@ -261,6 +261,7 @@ the move. Devices are never filed under the connection owner as a fallback.
 | Atera | `CustomerID` | None (Atera has no site level) | `DeviceGuid`, matched to an agent of the same customer | Yes: the agent's `AppViewUrl`, only on `app.atera.com` | Fixture tests against a published copy of the v3 API spec. Not yet checked against a live account |
 | ConnectWise Automate | Client ID | Location ID | `Computer.Id` | No documented URL. The page shows a copyable name and ID | Fixture tests against a published copy of the REST v1 spec. Not yet checked against a live server |
 | Tactical RMM | Client ID from one `/clients/` read per sync. If that read fails, the client name (needs a one-time mapping) | Site ID (site names may repeat across customers) | `agent_id` | Yes, when **Web console URL** is set on the connection: `<console>/agents/<agent id>` | Fixture tests against the Tactical RMM source. Not yet checked against a live server |
+| Rem0te | Always the connection's own organization: a Rem0te API key sees one business only. The business is recorded on the first sync and a key for a different business stops the sync | Site ID, shown for reference | No alerts in the Rem0te API | **Connect with Rem0te**: `<Rem0te>/endpoints/<computer id>`, opened with the technician's own Rem0te sign-in. No key or remote access credential is stored or put in the link | Fixture tests against the Rem0te public API docs and source. Not yet checked against a live instance |
 
 Device asset links follow the same rules for every RMM. They never cross customers:
 
@@ -401,6 +402,39 @@ https://your-tactical-instance.com
 8. Optional: set **Web console URL** to the address you open Tactical RMM at (for example `https://rmm.yourdomain.com`) to get "Open in Tactical RMM" links
 
 **API Documentation:** https://docs.tacticalrmm.com/api/
+
+### Rem0te
+
+Rem0te is a self-hosted remote support portal on RustDesk. The connection syncs a
+business's computers so they link to that customer's assets, and puts a
+**Connect with Rem0te** button on the asset and ticket pages for technicians.
+
+**Base URL Format:**
+```
+https://remote.yourdomain.com
+```
+
+**Required Credentials:**
+1. **API Key**: a Rem0te API key (`rk_…`) with the `computers:read` scope
+
+**Setup Instructions:**
+1. In Rem0te, go to **Administration → API Keys**
+2. Create a key for the customer's business with the `computers:read` scope
+3. Copy the key (shown only once)
+4. In Client St0r, switch to that customer's organization and add an RMM integration with provider **Rem0te**
+5. Use your Rem0te address as the base URL
+
+A Rem0te key belongs to exactly one business, so each connection is single
+customer and organization import doesn't apply. Add one connection per customer.
+If the key on a connection is later replaced with a key for a different business,
+the sync stops with an error instead of filing that business's computers here.
+
+The button opens the computer's page in Rem0te. The technician's own Rem0te
+account decides whether they can see it and connect. Client St0r never holds a
+RustDesk password or a session credential. Customers don't see the button or any
+Rem0te details.
+
+**API Documentation:** `docs/PUBLIC-API.md` in the Rem0te repository (https://github.com/agit8or1/rem0te)
 
 ---
 

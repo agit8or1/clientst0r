@@ -127,6 +127,16 @@
                         </a>
                     </div>
 
+                    <div id="info-rem0te" class="provider-info credential-section">
+                        <h5><i class="fas fa-info-circle"></i> Rem0te Setup</h5>
+                        <p class="mb-2">To connect to Rem0te, you'll need:</p>
+                        <ul class="mb-2">
+                            <li><strong>API Key:</strong> created in Rem0te under Administration → API Keys, for this customer's business, with the <code>computers:read</code> scope</li>
+                            <li><strong>Base URL:</strong> your Rem0te address (e.g., https://remote.example.com)</li>
+                        </ul>
+                        <p class="mb-0"><small>A Rem0te key sees one business only, so this connection always belongs to this organization; customer matching and organization import don't apply. Add one connection per customer. Technicians connect through their own Rem0te sign-in; no remote access credential is stored here.</small></p>
+                    </div>
+
                     <!-- Connection Name -->
                     <div class="mb-3">
                         <label for="{{ form.name.id_for_label }}" class="form-label">Connection Name *</label>
@@ -249,6 +259,17 @@
                             {{ form.tactical_api_key }}
                             {% if form.tactical_api_key.errors %}
                             <div class="invalid-feedback d-block">{{ form.tactical_api_key.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Rem0te Credentials -->
+                    <div id="creds-rem0te" class="credential-section">
+                        <div class="mb-3">
+                            <label for="{{ form.rem0te_api_key.id_for_label }}" class="form-label">API Key *</label>
+                            {{ form.rem0te_api_key }}
+                            {% if form.rem0te_api_key.errors %}
+                            <div class="invalid-feedback d-block">{{ form.rem0te_api_key.errors }}</div>
                             {% endif %}
                         </div>
                     </div>
@@ -389,7 +410,8 @@
         'datto_rmm': 'datto',
         'connectwise_automate': 'cw_automate',
         'atera': 'atera',
-        'tactical_rmm': 'tactical_rmm'
+        'tactical_rmm': 'tactical_rmm',
+        'rem0te': 'rem0te'
     };
 
     function updateVisibleSections() {

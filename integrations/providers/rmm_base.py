@@ -33,6 +33,8 @@ class BaseRMMProvider(BaseProvider):
     # API for a short-lived URL when the technician clicks, 'none' offers no
     # link (the page shows a copyable device name and ID instead).
     console_link_mode = 'none'
+    # Button text for the link; blank means "Open in <provider name>".
+    console_link_label = ''
 
     @classmethod
     def console_hosts(cls, connection):

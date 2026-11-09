@@ -304,6 +304,7 @@ class RMMConnection(BaseModel):
         ('connectwise_automate', 'ConnectWise Automate'),
         ('datto_rmm', 'Datto RMM'),
         ('ninjaone', 'NinjaOne'),
+        ('rem0te', 'Rem0te'),
         ('tactical_rmm', 'Tactical RMM'),
     ]
 

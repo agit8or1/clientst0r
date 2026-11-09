@@ -28,7 +28,7 @@ this from a customer-facing template.
     {% if s.status.state == 'stale' %}<p class="small text-warning-emphasis mb-1">{{ s.status.detail }}</p>{% endif %}
     {% if s.console_url %}
     <a href="{{ s.console_url }}" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener noreferrer">
-        <i class="fas fa-external-link-alt me-1"></i>Open in {{ s.provider }}
+        <i class="fas fa-external-link-alt me-1"></i>{{ s.console_label }}
     </a>
     {% else %}
     <div class="input-group input-group-sm" style="max-width: 26rem;">

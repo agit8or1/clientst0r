@@ -1106,6 +1106,12 @@ def rmm_import_clients(request, pk):
     org = get_request_organization(request)
     connection = get_object_or_404(RMMConnection.objects.for_organization(org), pk=pk)
 
+    if connection.provider_type == 'rem0te':
+        # One key, one business: its computers already belong here.
+        messages.info(request, 'A Rem0te connection covers one business, which is this organization. '
+                               'Add a separate connection for each other customer.')
+        return redirect('integrations:rmm_detail', pk=connection.pk)
+
     # GET: Show preview of what will be imported
     if request.method == 'GET':
         try:

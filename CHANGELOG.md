@@ -5,6 +5,19 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.644] - 2026-11-09
+
+### Added
+- **Rem0te integration.** Rem0te is now a provider under Integrations → RMM. A Rem0te API key covers one business, so each connection belongs to one customer: add it in that customer's organization with a `computers:read` key. Computers sync with hostname, serial, MAC, OS, IP and last check-in, and link to the customer's assets by the same rules as the other RMMs (serial or unique hostname inside the customer, never IP).
+- **Connect with Rem0te** on the asset and ticket pages, for technicians. It opens the computer's page in Rem0te, where the technician's own Rem0te sign-in decides whether they can connect. No API key, RustDesk password or session credential goes in the link or is kept by Client St0r. Customers see none of it.
+
+### Security
+- A Rem0te connection records the business behind its key on the first sync. If the key is later swapped for another business's key, the sync stops with an error and nothing is filed under this customer. Computers reported for another business are dropped, and archived computers are skipped.
+- Organization import and site analysis are not offered for Rem0te connections.
+
+### Upgrade
+- Adds migration `integrations.0033` (new provider choice only).
+
 ## [3.17.643] - 2026-11-09
 
 ### Added
