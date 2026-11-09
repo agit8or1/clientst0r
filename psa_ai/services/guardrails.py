@@ -207,10 +207,13 @@ def output_passes_filter(text: str) -> Tuple[bool, str]:
 # The model is told it MAY suggest only these action_types. Anything else
 # coming back gets dropped at parse time — and at apply time we double-
 # validate the payload.
+# v3.17.646: `run_rmm_script` is gone. ClientSt0r never runs anything on an
+# endpoint; device work is requested from rem0te, which approves and runs it
+# itself. A model naming a script is dropped like any other unknown type.
 ALLOWED_ACTION_TYPES = {
     'set_status', 'set_priority', 'assign_to', 'link_kb',
     'create_followup', 'add_internal_note', 'draft_time_entry',
-    'escalate', 'start_workflow', 'run_rmm_script',
+    'escalate', 'start_workflow',
 }
 
 LOW_RISK_ACTION_TYPES = {

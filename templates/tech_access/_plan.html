@@ -1,0 +1,11 @@
+{% load tech_access_tags %}
+<div class="border rounded p-2 mt-2 bg-body-tertiary">
+    <div><strong>{{ plan.summary }}</strong>{% if plan.expires_at %} · expires {{ plan.expires_at|date:"Y-m-d H:i" }}{% endif %}</div>
+    {% if plan.widening %}
+    <div class="text-warning-emphasis">Widens: {% for k in plan.widening %}{{ k|cap_label }}{% if not forloop.last %}, {% endif %}{% endfor %} — needs a second administrator.</div>
+    {% else %}<div class="text-success">Does not widen access; applies immediately.</div>{% endif %}
+    {% for row in plan.rows %}
+    <div class="mt-1"><strong>{{ row.user.username }}</strong>{% if row.organization %} at {{ row.organization.name }}{% endif %}:
+        {% for c in row.changes %}<span class="me-2">{{ c.label }}: {{ c.before|state_label }} → <strong>{{ c.after|state_label }}</strong></span>{% empty %}<span class="text-muted">no change</span>{% endfor %}</div>
+    {% empty %}<div class="text-muted">No technician is affected right now.</div>{% endfor %}
+</div>

@@ -35,6 +35,9 @@ Usage: {% include "core/_settings_menu.html" with active_page="general" %}
         <a href="{% url 'core:settings_security' %}" class="list-group-item list-group-item-action {% if active_page == 'security' %}active{% endif %}">
             <i class="fas fa-shield-alt"></i> Security Settings
         </a>
+        <a href="{% url 'tech_access:index' %}" class="list-group-item list-group-item-action {% if active_page == 'technician_access' %}active{% endif %}">
+            <i class="fas fa-user-shield"></i> Technician Access
+        </a>
         <a href="{% url 'core:firewall_settings' %}" class="list-group-item list-group-item-action {% if active_page == 'firewall' %}active{% endif %}">
             <i class="fas fa-shield-halved"></i> Firewall & GeoIP
         </a>
@@ -56,6 +59,9 @@ Usage: {% include "core/_settings_menu.html" with active_page="general" %}
         </a>
         <a href="{% url 'core:settings_ai' %}" class="list-group-item list-group-item-action {% if active_page == 'ai' %}active{% endif %}">
             <i class="fas fa-robot"></i> AI & LLM
+        </a>
+        <a href="{% url 'psa_ai:profiles' %}" class="list-group-item list-group-item-action {% if active_page == 'ticket_ai' %}active{% endif %}">
+            <i class="fas fa-wand-magic-sparkles"></i> Ticket AI models
         </a>
 
         <div class="list-group-item bg-light py-1">

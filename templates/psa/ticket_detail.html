@@ -206,6 +206,7 @@
                     <input type="hidden" name="last_seen_comment_id" value="{{ last_comment_id }}">
                     <input type="hidden" name="is_internal" id="composerIsInternal" value="{% if draft.is_internal %}1{% else %}0{% endif %}">
                     <input type="hidden" name="parent_id" id="composerParentId" value="">
+                    <input type="hidden" name="ai_draft" id="composerAiDraft" value="">
 
                     {% if is_msp_staff %}
                     <div class="btn-group mb-2 tc-audience" role="group" aria-label="Audience: who will see this">
@@ -1028,7 +1029,17 @@
             <div class="card-header d-flex justify-content-between align-items-center"
                  style="background: rgba(13,110,253,.08);">
                 <strong><i class="fas fa-wand-magic-sparkles me-1"></i>AI Assist</strong>
-                <div class="d-flex gap-1">
+                <div class="d-flex gap-1 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-primary" data-ai-assist="analyze"
+                            title="Preview what would be sent, then analyze this ticket with one model. Staff-only result; nothing is posted.">
+                        <i class="fas fa-magnifying-glass-chart me-1"></i>Analyze ticket
+                    </button>
+                    {% if ai_can_compare %}
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-ai-assist="compare"
+                            title="Run the same analysis on several models. Shows every recipient and the cost first.">
+                        <i class="fas fa-code-compare me-1"></i>Compare models
+                    </button>
+                    {% endif %}
                     <form method="post" action="{% url 'psa_ai:generate_reply' ticket.ticket_number %}" class="d-inline">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-sm btn-primary"
@@ -1053,6 +1064,11 @@
                     </form>
                 </div>
             </div>
+            <div id="aiAssistPanel" class="card-body border-bottom small d-none" aria-live="polite"
+                 data-preview-url="{% url 'psa_ai:assist_preview' ticket.ticket_number %}"
+                 data-submit-url="{% url 'psa_ai:assist_submit' ticket.ticket_number %}"
+                 data-job-url="{% url 'psa_ai:assist_job' '00000000-0000-0000-0000-000000000000' %}"
+                 data-can-send="{{ ai_can_send|yesno:'1,0' }}"></div>
             {% if ai_suggestions %}
             <div class="list-group list-group-flush small">
                 {% for s in ai_suggestions %}
@@ -1176,12 +1192,6 @@
                             <button type="button" class="btn btn-sm btn-outline-primary" data-action="psaAiInsert" data-args='[{{ s.id }}]'>
                                 <i class="fas fa-clipboard me-1"></i>Insert into reply box
                             </button>
-                            <form method="post" action="{% url 'psa_ai:suggestion_apply' s.id %}" class="d-inline">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-success" title="Send the AI-drafted reply as a public comment on this ticket. Your name will be on it.">
-                                    <i class="fas fa-paper-plane me-1"></i>Approve &amp; Send
-                                </button>
-                            </form>
                         {% elif s.kind == 'action' %}
                             <form method="post" action="{% url 'psa_ai:suggestion_apply' s.id %}" class="d-inline">
                                 {% csrf_token %}
@@ -1230,12 +1240,7 @@
         })();
         function psaAiInsert(id) {
             var body = (window.__aiBodies || {})[id] || '';
-            var ta = document.querySelector('textarea[name="body"]');
-            if (ta) {
-                ta.value = body;
-                ta.focus();
-                ta.scrollIntoView({behavior: 'smooth', block: 'center'});
-            }
+            if (window.ticketComposerInsert) { window.ticketComposerInsert(body, 'suggestion:' + id, {{ ai_can_send|yesno:'false,true' }}); }
         }
         </script>
         {% endif %}
@@ -1388,6 +1393,7 @@
 {% block extra_js %}{{ block.super }}
 {{ workspace_config|json_script:"ticketWorkspaceConfig" }}
 <script src="{% static 'js/psa_ticket_workspace.js' %}" defer></script>
+{% if ai_enabled %}<script src="{% static 'js/ticket_ai_assist.js' %}" defer></script>{% endif %}
 <script src="{% static 'js/ticket_conversation.js' %}" defer></script>
 <script nonce="{{ csp_nonce }}">
 (function () {

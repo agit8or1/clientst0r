@@ -1,0 +1,33 @@
+# Restricted AI gateway worker for Ticket AI Assist (OPTIONAL AI).
+# Not installed automatically. Use it with AI_GATEWAY_MODE=worker in .env.
+#
+# No EnvironmentFile on purpose: the worker must not receive APP_MASTER_KEY.
+# config/settings_ai_gateway.py drops every KEY/SECRET/TOKEN/PASSWORD
+# variable that .env would load, and ai_gateway_worker refuses to start if
+# it can still see the master key. For OS-level isolation, run it as a
+# separate user that can read the gateway private key and the database but
+# not .env or the vault backups.
+[Unit]
+Description=Client St0r AI gateway worker (restricted)
+After=network.target
+
+[Service]
+Type=simple
+User=administrator
+Group=administrator
+WorkingDirectory=/home/administrator
+Environment="PATH=/home/administrator/venv/bin"
+Environment="CLIENTST0R_PROCESS_ROLE=ai_gateway"
+Environment="DJANGO_SETTINGS_MODULE=config.settings_ai_gateway"
+UnsetEnvironment=APP_MASTER_KEY APP_MASTER_KEY_PREVIOUS SECRET_KEY API_KEY_SECRET
+ExecStart=/home/administrator/venv/bin/python manage.py ai_gateway_worker
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

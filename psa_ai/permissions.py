@@ -1,166 +1,105 @@
 """
-Permission resolvers for AI suggestions.
+Permission checks for AI Assist, answered by technician access
+(tech_access.resolver).
 
-Maps the user's role / RoleTemplate booleans onto:
-  * can_view_suggestion(user, suggestion)
-  * can_send_reply(user, suggestion)            — Phase 10b: writes the reply as a public TicketComment
-  * can_apply_action(user, suggestion)          — gated by risk_level
-  * can_approve_others(user, suggestion)        — for the approval flow
+Every AI capability is technician-only and per customer: a technician holds
+it at a customer only through a live technician-access assignment there
+(Settings → Security → Technician Access). Customer portal users never hold
+one. Staff, editor, admin and superuser flags grant nothing here on their
+own — a superuser who works tickets needs an assignment like anyone else.
 
-The granular RoleTemplate booleans (psa_ai_send_low_risk, etc.) are
-resolved best-effort with a sane fallback: if the boolean isn't yet in
-the schema, fall back to `Membership.can_admin()` / `can_write()`.
+The older psa_ai_* RoleTemplate flags no longer grant AI capabilities; the
+`tech_access_report` command lists roles that still set them so an
+administrator can choose matching presets.
 
-This lets us ship 10b/10c without first running a migration on every
-production install — the new RoleTemplate fields land as a separate,
-optional commit.
+Names used by AI code → technician-access capability:
+
+  view_output      ai_analyze or ai_draft   see AI suggestions and results
+  analyze          ai_analyze               "Analyze ticket" (one model)
+  compare          ai_compare               "Compare models"
+  draft            ai_draft                 put an AI draft into the composer
+  send_reply       ai_send                  send a reviewed AI draft (normal Send)
+  apply_change     ai_apply_change          apply an AI-suggested ticket change
+  create_workflow  ai_apply_change          start an AI-suggested workflow
+  approve_others   review_others            act on someone else's AI request
+  rmm_handoff      rmm_handoff
+  diagnose         diagnostics_readonly
+  remote_launch    remote_view
+  fix_review       fix_refer
+  profile_admin    (security administrators only)
+
+Each check reads current rows, so revoking access applies to the next call,
+including calls made on a technician's behalf for a queued job.
 """
 from __future__ import annotations
 
-
-def _is_staff_or_super(user, request=None):
-    if user.is_superuser:
-        return True
-    if request is not None and getattr(request, 'is_staff_user', False):
-        return True
-    profile = getattr(user, 'profile', None)
-    if profile is not None and hasattr(profile, 'is_staff_user'):
-        try:
-            return bool(profile.is_staff_user())
-        except Exception:
-            return False
-    return False
-
-
-def _membership_for(user, organization):
-    if not hasattr(user, 'memberships'):
-        return None
-    return user.memberships.filter(organization=organization, is_active=True).first()
+ALIASES = {
+    'analyze': 'ai_analyze',
+    'compare': 'ai_compare',
+    'draft': 'ai_draft',
+    'send_reply': 'ai_send',
+    'apply_change': 'ai_apply_change',
+    'create_workflow': 'ai_apply_change',
+    'approve_others': 'review_others',
+    'rmm_handoff': 'rmm_handoff',
+    'diagnose': 'diagnostics_readonly',
+    'remote_launch': 'remote_view',
+    'fix_review': 'fix_refer',
+}
 
 
-def _role_flag(user, organization, attr_name: str, default: bool = False) -> bool:
-    """Best-effort lookup for a RoleTemplate boolean — falls back to
-    `default` if the field doesn't exist yet (not migrated)."""
-    m = _membership_for(user, organization)
-    if m is None:
-        return False
-    template = getattr(m, 'role_template', None) or getattr(m, 'role_template_obj', None)
-    if template is None:
-        return default
-    val = getattr(template, attr_name, None)
-    if val is None:
-        return default
-    return bool(val)
+def _is_technician(user) -> bool:
+    from tech_access.resolver import is_technician
+    return is_technician(user)
 
 
-# -- View / list ------------------------------------------------------------
+def decision(user, organization, capability, ticket=None, asset=None):
+    from tech_access.resolver import Decision, decide
+    if capability == 'view_output':
+        a = decide(user, organization, 'ai_analyze', ticket=ticket)
+        return a if a.allowed else decide(user, organization, 'ai_draft', ticket=ticket)
+    if capability == 'profile_admin':
+        ok = _is_technician(user) and user.is_superuser
+        return Decision('allowed' if ok else 'off', 'Security administrators only.', '', capability)
+    return decide(user, organization, ALIASES.get(capability, capability), ticket=ticket, asset=asset)
+
+
+def has_capability(user, organization, capability: str, ticket=None, asset=None) -> bool:
+    """The one check every AI path uses. `organization` is the ticket's."""
+    return decision(user, organization, capability, ticket=ticket, asset=asset).allowed
+
+
+def _ticket_of(suggestion):
+    return suggestion.native_ticket if suggestion.native_ticket_id else None
+
 
 def can_view_suggestion(user, suggestion, request=None) -> bool:
-    """Anyone in the org (staff/superuser cross-org) can view."""
-    if _is_staff_or_super(user, request):
-        return True
-    m = _membership_for(user, suggestion.organization)
-    return m is not None
+    return has_capability(user, suggestion.organization, 'view_output', ticket=_ticket_of(suggestion))
 
-
-# -- Replies ---------------------------------------------------------------
 
 def can_send_reply(user, suggestion, request=None) -> bool:
-    """Phase 10b: a *send* turns the suggestion into a public TicketComment.
-    Risk-level gates the role:
-      low → editor+ (psa_ai_send_low_risk if present, else can_write)
-      medium → admin+
-      high → admin+ AND psa_ai_send_high_risk explicit
-    """
+    """AI replies are never sent from the suggestion itself: the draft goes
+    into the composer and the normal Send publishes it. This answers whether
+    the technician may send a reply that started as an AI draft."""
     if suggestion.kind != 'reply':
         return False
-    if _is_staff_or_super(user, request):
-        return True
-    m = _membership_for(user, suggestion.organization)
-    if m is None:
-        return False
-    risk = (suggestion.risk_level or 'medium').lower()
-    if risk == 'low':
-        return _role_flag(user, suggestion.organization, 'psa_ai_send_low_risk',
-                          default=m.can_write())
-    if risk == 'medium':
-        return _role_flag(user, suggestion.organization, 'psa_ai_send_high_risk',
-                          default=m.can_admin())
-    # high
-    return _role_flag(user, suggestion.organization, 'psa_ai_send_high_risk',
-                      default=m.can_admin())
+    return has_capability(user, suggestion.organization, 'send_reply', ticket=_ticket_of(suggestion))
 
-
-# -- Actions ----------------------------------------------------------------
 
 def can_apply_action(user, suggestion, request=None) -> bool:
-    """Phase 10b: a *direct apply* runs the action. Risk-level gates the role."""
     if suggestion.kind != 'action':
         return False
-    if _is_staff_or_super(user, request):
-        return True
-    m = _membership_for(user, suggestion.organization)
-    if m is None:
-        return False
-    risk = (suggestion.risk_level or 'medium').lower()
-    if risk == 'low':
-        return _role_flag(user, suggestion.organization, 'psa_ai_apply_low_risk',
-                          default=m.can_write())
-    if risk == 'medium':
-        return _role_flag(user, suggestion.organization, 'psa_ai_apply_low_risk',
-                          default=m.can_admin())
-    # high — requires explicit admin + the high-risk flag (with fallback to
-    # owner role)
-    if not m.can_admin():
-        return False
-    return _role_flag(user, suggestion.organization, 'psa_ai_apply_high_risk',
-                      default=m.can_manage_users())
+    return has_capability(user, suggestion.organization, 'apply_change', ticket=_ticket_of(suggestion))
 
-
-# -- Triage (read-only advisory) -------------------------------------------
 
 def can_request_triage(user, organization, request=None) -> bool:
-    """
-    Triage suggestions are read-only advisory output (the AI never acts).
-    Default: any active member of the org can request, plus
-    staff/superusers. RoleTemplate flag `psa_ai_request_triage` may
-    explicitly grant or revoke per template; falls back to
-    `psa_ai_view`, then to "is the user an active member of the org".
-
-    The role-template field is optional — installs that haven't migrated
-    the new field still get the safe default (any member, gated by
-    psa_ai_view if present).
-    """
-    if user is None or not getattr(user, 'is_authenticated', False):
-        return False
-    if _is_staff_or_super(user, request):
-        return True
-    m = _membership_for(user, organization)
-    if m is None:
-        return False
-    # Explicit per-template flag if present, else the existing
-    # psa_ai_view flag (every system template defaults this to True).
-    template = getattr(m, 'role_template', None) or getattr(m, 'role_template_obj', None)
-    if template is not None:
-        explicit = getattr(template, 'psa_ai_request_triage', None)
-        if explicit is not None:
-            return bool(explicit)
-        view_flag = getattr(template, 'psa_ai_view', None)
-        if view_flag is not None:
-            return bool(view_flag)
-    # No template / no flag — fall back to active membership.
-    return True
+    return has_capability(user, organization, 'analyze')
 
 
 def can_approve_others(user, suggestion, request=None) -> bool:
-    """Approve someone else's pending_review request."""
-    if _is_staff_or_super(user, request):
-        return True
-    m = _membership_for(user, suggestion.organization)
-    if m is None:
+    """Act on someone else's pending AI request: needs review_others and the
+    capability the request itself needs."""
+    if not has_capability(user, suggestion.organization, 'approve_others'):
         return False
-    if suggestion.kind == 'reply':
-        return _role_flag(user, suggestion.organization, 'psa_ai_approve_reply',
-                          default=m.can_admin())
-    return _role_flag(user, suggestion.organization, 'psa_ai_approve_action',
-                      default=m.can_admin())
+    need = 'send_reply' if suggestion.kind == 'reply' else 'apply_change'
+    return has_capability(user, suggestion.organization, need)

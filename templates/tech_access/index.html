@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% load tech_access_tags %}
+
+{% block title %}Technician Access - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:settings_security' %}">Security</a></li>
+        <li class="breadcrumb-item active">Technician Access</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-3">
+        {% include "core/_settings_menu.html" with active_page="technician_access" %}
+    </div>
+    <div class="col-md-9">
+        <div class="card mb-3">
+            <div class="card-header"><h5 class="mb-0"><i class="fas fa-user-shield"></i> Technician Access</h5></div>
+            <div class="card-body small">
+                <p class="mb-2">What each MSP technician may do with ticket AI and RMM tools, <strong>per customer</strong>.
+                    A technician has nothing here until assigned a preset at a customer. Staff, admin and superuser
+                    flags never grant a preset. Customer portal users are outside technician access. Ordinary ticket
+                    work — viewing, manual replies, internal notes — keeps its existing permissions.</p>
+                <p class="mb-2">Order of evaluation: locked safeguards → containment → explicit denies → customer
+                    restrictions → integration availability → the best of the technician's live assignments at that
+                    customer, each evaluated with its own scope.</p>
+                <p class="mb-0">Narrowing applies at once. Anything that widens access — a preset above L1, a group
+                    member added, a deny or restriction lifted, looser detection — becomes a <strong>protected
+                    change</strong>: you confirm it with your password, and a different administrator approves it.
+                    {% if not can_widen %}<span class="text-danger">There is no second approver yet, so nothing can be widened.
+                    Add another superuser first.</span>{% endif %}</p>
+            </div>
+        </div>
+
+        {# Fresh authentication #}
+        <div class="card mb-3" id="reauth">
+            <div class="card-body small d-flex flex-wrap align-items-center gap-2">
+                {% if fresh_auth %}
+                <span class="badge bg-success">Password confirmed for the next few minutes</span>
+                {% else %}
+                <form method="post" class="d-flex flex-wrap gap-2 align-items-center">
+                    {% csrf_token %}<input type="hidden" name="action" value="reauth"><input type="hidden" name="section" value="changes">
+                    <span>Confirming, approving or lifting containment needs your password:</span>
+                    <input type="password" name="password" class="form-control form-control-sm w-auto" placeholder="Password" autocomplete="current-password" required>
+                    <input type="text" name="otp" class="form-control form-control-sm w-auto" placeholder="Authenticator code" inputmode="numeric" autocomplete="one-time-code">
+                    <button class="btn btn-sm btn-primary">Confirm</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Protected changes #}
+        <div class="card mb-3" id="changes">
+            <div class="card-header"><strong>Protected changes</strong></div>
+            <div class="card-body small">
+                {% for row in pending %}{% with c=row.change %}
+                <div class="border rounded p-2 mb-2">
+                    <div><strong>#{{ c.pk }}</strong> {{ c.summary }}</div>
+                    <div class="text-muted">Requested by {{ c.requested_by.username|default:"?" }} {{ c.requested_at|timesince }} ago ·
+                        widens: {{ c.widening|join:", "|default:"—" }} · expires {{ c.expires_at|date:"Y-m-d H:i" }} ·
+                        {% if c.requester_reauth_at %}confirmed by requester{% else %}<span class="text-warning-emphasis">not yet confirmed by requester</span>{% endif %}</div>
+                    <div class="mt-1 d-flex gap-1">
+                        {% if c.requested_by_id == request.user.pk %}
+                            {% if not c.requester_reauth_at %}
+                            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="confirm_change"><input type="hidden" name="change" value="{{ c.pk }}"><input type="hidden" name="section" value="changes"><button class="btn btn-sm btn-primary" {% if not fresh_auth %}disabled title="Confirm your password above first"{% endif %}>Confirm</button></form>
+                            {% endif %}
+                            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="cancel_change"><input type="hidden" name="change" value="{{ c.pk }}"><input type="hidden" name="section" value="changes"><button class="btn btn-sm btn-outline-secondary">Cancel</button></form>
+                        {% else %}
+                            {% if row.refusal %}<span class="text-muted">{{ row.refusal }}</span>
+                            {% else %}
+                            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="approve_change"><input type="hidden" name="change" value="{{ c.pk }}"><input type="hidden" name="section" value="changes"><button class="btn btn-sm btn-success" {% if not fresh_auth %}disabled title="Confirm your password above first"{% endif %}>Approve and apply</button></form>
+                            {% endif %}
+                            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="reject_change"><input type="hidden" name="change" value="{{ c.pk }}"><input type="hidden" name="section" value="changes"><button class="btn btn-sm btn-outline-danger">Reject</button></form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endwith %}{% empty %}<p class="text-muted mb-1">Nothing waiting.</p>{% endfor %}
+                {% if recent_changes %}
+                <details><summary>Recent</summary>
+                    <ul class="mb-0">{% for c in recent_changes %}<li>#{{ c.pk }} {{ c.summary }} — {{ c.get_status_display }}{% if c.reviewed_by %} by {{ c.reviewed_by.username }}{% endif %}</li>{% endfor %}</ul>
+                </details>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Effective access preview #}
+        <div class="card mb-3" id="preview">
+            <div class="card-header"><strong>Preview effective access</strong></div>
+            <div class="card-body small">
+                <form method="get" class="d-flex flex-wrap gap-2 mb-2" action="#preview">
+                    <select name="preview_user" class="form-select form-select-sm w-auto">{% for u in technicians %}<option value="{{ u.pk }}" {% if effective.user.pk == u.pk %}selected{% endif %}>{{ u.username }}</option>{% endfor %}</select>
+                    <select name="preview_org" class="form-select form-select-sm w-auto">{% for o in organizations %}<option value="{{ o.pk }}" {% if effective.organization.pk == o.pk %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select>
+                    <button class="btn btn-sm btn-outline-primary">Show</button>
+                </form>
+                {% if effective %}
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Capability</th><th>State</th><th>Why</th></tr></thead>
+                    <tbody>{% for d in effective.rows %}
+                    <tr><td>{{ d.capability|cap_label }}</td><td><span class="badge {{ d.state|state_badge }}">{{ d.state|state_label }}</span></td>
+                        <td>{{ d.reason }}{% if d.notes %}<div class="text-muted">{{ d.notes|join:" · " }}</div>{% endif %}</td></tr>
+                    {% endfor %}</tbody>
+                </table>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Assignments #}
+        <div class="card mb-3" id="assignments">
+            <div class="card-header"><strong>Assignments</strong></div>
+            <div class="card-body small">
+                <table class="table table-sm">
+                    <thead><tr><th>Who</th><th>Customer</th><th>Preset</th><th>Expires</th><th></th></tr></thead>
+                    <tbody>{% for a in assignments %}
+                    <tr><td>{{ a.subject_label }}</td><td>{{ a.organization.name }}</td><td>{{ a.preset.name }}</td><td>{{ a.expires_at|date:"Y-m-d H:i"|default:"—" }}</td>
+                        <td><form method="post">{% csrf_token %}<input type="hidden" name="action" value="revoke"><input type="hidden" name="assignment" value="{{ a.pk }}"><input type="hidden" name="section" value="assignments"><button class="btn btn-sm btn-outline-danger">Revoke</button></form></td></tr>
+                    {% empty %}<tr><td colspan="5" class="text-muted">No assignments. Technicians have no ticket AI or RMM capabilities.</td></tr>{% endfor %}</tbody>
+                </table>
+                <form method="post" class="row g-2 align-items-end">
+                    {% csrf_token %}<input type="hidden" name="section" value="assignments">
+                    <div class="col-md-3"><label class="form-label">Technician</label>
+                        <select name="user" class="form-select form-select-sm"><option value="">—</option>{% for u in technicians %}<option value="{{ u.pk }}" {% if assign_form.user == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>{% endfor %}</select></div>
+                    <div class="col-md-2"><label class="form-label">or group</label>
+                        <select name="group" class="form-select form-select-sm"><option value="">—</option>{% for g in groups %}<option value="{{ g.pk }}" {% if assign_form.group == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-3"><label class="form-label">Customer</label>
+                        <select name="organization" class="form-select form-select-sm" required>{% for o in organizations %}<option value="{{ o.pk }}" {% if assign_form.organization == o.pk|stringformat:"s" %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-2"><label class="form-label">Preset</label>
+                        <select name="preset" class="form-select form-select-sm"><option value="">Customer default</option>{% for p in presets %}<option value="{{ p.pk }}" {% if assign_form.preset == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-2"><label class="form-label">Expires</label>
+                        <input type="datetime-local" name="expires_at" class="form-control form-control-sm" value="{{ assign_form.expires_at|default:'' }}"></div>
+                    <div class="col-12"><button name="action" value="preview_assign" class="btn btn-sm btn-outline-primary">Preview</button>
+                        {% if assign_plan %}<button name="action" value="save_assign" class="btn btn-sm btn-primary">{% if assign_plan.needs_review %}Propose (needs approval){% else %}Save{% endif %}</button>{% endif %}</div>
+                </form>
+                {% if assign_plan %}{% include "tech_access/_plan.html" with plan=assign_plan %}{% endif %}
+            </div>
+        </div>
+
+        {# Presets #}
+        <div class="card mb-3" id="presets">
+            <div class="card-header"><strong>Presets</strong></div>
+            <div class="card-body small">
+                <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Capability</th>{% for p in presets %}<th>{{ p.name }}{% if p.builtin %} <span class="badge bg-light text-dark border">built in</span>{% endif %}</th>{% endfor %}</tr></thead>
+                    <tbody>
+                    {% for row in catalog_optional %}
+                    <tr><td title="{{ row.3 }}">{{ row.1 }}</td>{% for p in presets %}{% with st=p.caps|get:row.0 %}<td><span class="badge {{ st|state_badge }}">{{ st|state_label }}</span></td>{% endwith %}{% endfor %}</tr>
+                    {% endfor %}
+                    {% for key, info in catalog_locked %}
+                    <tr class="text-muted"><td title="{{ info.1 }}">{{ info.0 }}</td>{% for p in presets %}<td><span class="badge bg-dark">Locked</span></td>{% endfor %}</tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                {% for p in presets %}{% with plan=drift|get:p.pk %}
+                <div class="border rounded p-2 mb-2">
+                    <strong>{{ p.name }}</strong> <span class="text-muted">{{ p.description }}</span>
+                    <div class="d-flex flex-wrap gap-1 mt-1">
+                        <form method="post" class="d-flex gap-1">{% csrf_token %}<input type="hidden" name="action" value="clone"><input type="hidden" name="preset" value="{{ p.pk }}"><input type="hidden" name="section" value="presets">
+                            <input name="name" class="form-control form-control-sm w-auto" placeholder="Name for the copy"><button class="btn btn-sm btn-outline-secondary">Clone</button></form>
+                        {% if plan.rows or plan.widening %}
+                        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="reset_preset"><input type="hidden" name="preset" value="{{ p.pk }}"><input type="hidden" name="section" value="presets"><button class="btn btn-sm btn-outline-warning">Reset to default</button></form>
+                        {% endif %}
+                    </div>
+                    {% if plan.rows %}<details class="mt-1"><summary>Reset preview</summary>{% include "tech_access/_plan.html" with plan=plan %}</details>{% endif %}
+                    {% if not p.builtin %}
+                    <details class="mt-1" {% if preset_edit.pk == p.pk %}open{% endif %}><summary>Edit</summary>
+                        <form method="post">{% csrf_token %}<input type="hidden" name="preset" value="{{ p.pk }}"><input type="hidden" name="section" value="presets">
+                            <div class="row row-cols-1 row-cols-md-2 g-1">
+                            {% for row in catalog_optional %}{% with cur=p.caps|get:row.0 %}{% with chosen=preset_caps|get:row.0 %}
+                                <div class="col"><label class="d-flex justify-content-between gap-2"><span>{{ row.1 }}</span>
+                                    <select name="cap_{{ row.0 }}" class="form-select form-select-sm w-auto">{% for st in row.4 %}<option value="{{ st }}" {% if preset_edit.pk == p.pk %}{% if chosen == st %}selected{% endif %}{% elif cur == st %}selected{% endif %}>{{ st|state_label }}</option>{% endfor %}</select></label></div>
+                            {% endwith %}{% endwith %}{% endfor %}
+                            </div>
+                            <button name="action" value="preview_preset" class="btn btn-sm btn-outline-primary mt-1">Preview</button>
+                            {% if preset_edit.pk == p.pk %}<button name="action" value="save_preset" class="btn btn-sm btn-primary mt-1">{% if preset_plan.needs_review %}Propose (needs approval){% else %}Save{% endif %}</button>{% endif %}
+                        </form>
+                        {% if preset_edit.pk == p.pk %}{% include "tech_access/_plan.html" with plan=preset_plan %}{% endif %}
+                    </details>
+                    {% endif %}
+                </div>
+                {% endwith %}{% endfor %}
+            </div>
+        </div>
+
+        {# Groups #}
+        <div class="card mb-3" id="groups">
+            <div class="card-header"><strong>Groups</strong></div>
+            <div class="card-body small">
+                {% for g in groups %}
+                <form method="post" class="border rounded p-2 mb-2">{% csrf_token %}<input type="hidden" name="action" value="group_members"><input type="hidden" name="group" value="{{ g.pk }}"><input type="hidden" name="section" value="groups">
+                    <strong>{{ g.name }}</strong>
+                    <select name="members" multiple class="form-select form-select-sm my-1" size="4">{% for u in technicians %}<option value="{{ u.pk }}" {% if u in g.members.all %}selected{% endif %}>{{ u.username }}</option>{% endfor %}</select>
+                    <button class="btn btn-sm btn-outline-primary">Save members</button>
+                </form>
+                {% endfor %}
+                <form method="post" class="d-flex gap-1">{% csrf_token %}<input type="hidden" name="action" value="create_group"><input type="hidden" name="section" value="groups">
+                    <input name="name" class="form-control form-control-sm w-auto" placeholder="New group name" required><button class="btn btn-sm btn-outline-secondary">Create group</button></form>
+            </div>
+        </div>
+
+        {# Customer defaults and restrictions #}
+        <div class="card mb-3" id="customers">
+            <div class="card-header"><strong>Customer defaults and restrictions</strong></div>
+            <div class="card-body small">
+                <p class="text-muted">The default preset is offered first when assigning at that customer (L1 if unset). A restriction switches a capability off there for every technician and always wins.</p>
+                {% for o in organizations %}{% with pol=policies|get:o.pk %}
+                <details class="mb-1"><summary>{{ o.name }}{% if pol.restricted %} — {{ pol.restricted|length }} restricted{% endif %}{% if pol.default_preset %} — default {{ pol.default_preset.name }}{% endif %}</summary>
+                    <form method="post" class="p-2">{% csrf_token %}<input type="hidden" name="action" value="customer_policy"><input type="hidden" name="organization" value="{{ o.pk }}"><input type="hidden" name="section" value="customers">
+                        <label class="form-label">Default preset</label>
+                        <select name="default_preset" class="form-select form-select-sm w-auto mb-2"><option value="">L1 (built in)</option>{% for p in presets %}<option value="{{ p.pk }}" {% if pol.default_preset_id == p.pk %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
+                        <div class="row row-cols-1 row-cols-md-2">{% for row in catalog_optional %}
+                            <div class="col"><label><input type="checkbox" name="restricted" value="{{ row.0 }}" {% if row.0 in pol.restricted %}checked{% endif %}> Switch off: {{ row.1 }}</label></div>
+                        {% endfor %}</div>
+                        <button class="btn btn-sm btn-outline-primary mt-1">Save</button>
+                    </form>
+                </details>
+                {% endwith %}{% endfor %}
+            </div>
+        </div>
+
+        {# Denies #}
+        <div class="card mb-3" id="denies">
+            <div class="card-header"><strong>Explicit denies</strong></div>
+            <div class="card-body small">
+                <ul>{% for d in denies %}<li>{{ d.user.username }}: {% if d.capability == '*' %}everything{% else %}{{ d.capability|cap_label }}{% endif %} {% if d.organization %}at {{ d.organization.name }}{% else %}at every customer{% endif %}{% if d.reason %} — {{ d.reason }}{% endif %}
+                    <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="lift_deny"><input type="hidden" name="deny" value="{{ d.pk }}"><input type="hidden" name="section" value="denies"><button class="btn btn-link btn-sm p-0">lift (needs approval)</button></form></li>
+                {% empty %}<li class="text-muted">None.</li>{% endfor %}</ul>
+                <form method="post" class="row g-1">{% csrf_token %}<input type="hidden" name="action" value="add_deny"><input type="hidden" name="section" value="denies">
+                    <div class="col-md-3"><select name="user" class="form-select form-select-sm">{% for u in technicians %}<option value="{{ u.pk }}">{{ u.username }}</option>{% endfor %}</select></div>
+                    <div class="col-md-3"><select name="capability" class="form-select form-select-sm"><option value="*">Everything</option>{% for row in catalog_optional %}<option value="{{ row.0 }}">{{ row.1 }}</option>{% endfor %}</select></div>
+                    <div class="col-md-3"><select name="organization" class="form-select form-select-sm"><option value="">Every customer</option>{% for o in organizations %}<option value="{{ o.pk }}">{{ o.name }}</option>{% endfor %}</select></div>
+                    <div class="col-md-3"><input name="reason" class="form-control form-control-sm" placeholder="Reason"></div>
+                    <div class="col-12"><button class="btn btn-sm btn-outline-danger">Add deny</button></div>
+                </form>
+            </div>
+        </div>
+
+        {# Theft detection #}
+        <div class="card mb-3" id="detection">
+            <div class="card-header"><strong>Read-only theft detection</strong> {% if detection.enabled %}<span class="badge bg-success">On</span>{% else %}<span class="badge bg-danger">Off</span>{% endif %}</div>
+            <div class="card-body small">
+                <p class="text-muted">Counts distinct tickets, customers and exports each identity reads, and diagnostic bytes received, across the web UI, REST API and mobile API. Crossing a limit alerts administrators and the recovery contact and, per level, contains the technician. Alerts never contain ticket text or secrets.</p>
+                {% if containments %}<div class="alert alert-danger py-2"><strong>Contained now:</strong>
+                    {% for c in containments %}<div>{{ c.user.username }} — {{ c.reason }} ({{ c.created_at|timesince }} ago)
+                        <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="lift_containment"><input type="hidden" name="containment" value="{{ c.pk }}"><input type="hidden" name="section" value="detection"><button class="btn btn-sm btn-outline-light" {% if not fresh_auth %}disabled title="Confirm your password above first"{% endif %}>Lift</button></form></div>{% endfor %}</div>{% endif %}
+                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="detection"><input type="hidden" name="section" value="detection">
+                    <label class="me-3"><input type="checkbox" name="enabled" {% if detection.enabled %}checked{% endif %}> Enabled</label>
+                    <label><input type="checkbox" name="notify_customers" {% if detection.notify_customers %}checked{% endif %}> Send affected customers a short report</label>
+                    <table class="table table-sm w-auto mt-2"><thead><tr><th>Limit</th><th>1 hour</th><th>24 hours</th></tr></thead><tbody>
+                        {% for rule, ws in thresholds.items %}<tr><td>{{ rule }}</td>{% for w, v in ws.items %}<td><input type="number" min="1" name="t_{{ rule }}_{{ w }}" value="{{ v }}" class="form-control form-control-sm" style="width:9rem"></td>{% endfor %}</tr>{% endfor %}
+                    </tbody></table>
+                    <div class="mb-2">On a breach: {% for lvl, mode in containment_modes.items %}
+                        <label class="me-2">{% if lvl == '0' %}no level{% else %}L{{ lvl }}{% endif %} <select name="c_{{ lvl }}" class="form-select form-select-sm d-inline w-auto"><option value="contain" {% if mode == 'contain' %}selected{% endif %}>contain</option><option value="alert" {% if mode == 'alert' %}selected{% endif %}>alert only</option></select></label>{% endfor %}</div>
+                    <label class="form-label">Extra alert recipients (one per line)</label>
+                    <textarea name="recipients" class="form-control form-control-sm mb-2" rows="2">{{ detection.recipients }}</textarea>
+                    <button class="btn btn-sm btn-outline-primary">Save (loosening needs approval)</button>
+                </form>
+                {% if alerts %}<h6 class="mt-3">Recent alerts</h6><ul class="mb-0">{% for a in alerts %}<li>{{ a.created_at|date:"Y-m-d H:i" }} {{ a.user.username }}: {{ a.observed }} {{ a.rule }} in {{ a.window }} (limit {{ a.threshold }}){% if a.contained %} — contained{% endif %}{% if not a.acknowledged_at %}
+                    <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="ack_alert"><input type="hidden" name="alert" value="{{ a.pk }}"><input type="hidden" name="section" value="detection"><button class="btn btn-link btn-sm p-0">acknowledge</button></form>{% endif %}</li>{% endfor %}</ul>{% endif %}
+            </div>
+        </div>
+
+        {# Protection settings #}
+        <div class="card mb-3" id="protection">
+            <div class="card-header"><strong>Approvers and recovery contact</strong></div>
+            <div class="card-body small">
+                <form method="post" class="mb-2">{% csrf_token %}<input type="hidden" name="action" value="approvers"><input type="hidden" name="section" value="protection">
+                    <label class="form-label">Approvers for protected changes (empty = every superuser)</label>
+                    <select name="approvers" multiple class="form-select form-select-sm" size="4">{% for u in superusers %}<option value="{{ u.pk }}" {% if u in protection.approvers.all %}selected{% endif %}>{{ u.username }}</option>{% endfor %}</select>
+                    <div class="text-muted">Currently able to approve: {% for u in approvers %}{{ u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                    <button class="btn btn-sm btn-outline-primary mt-1">Save (adding needs approval)</button>
+                </form>
+                <form method="post" class="d-flex flex-wrap gap-1 align-items-center">{% csrf_token %}<input type="hidden" name="action" value="recovery_contact"><input type="hidden" name="section" value="protection">
+                    <span>Recovery contact: <strong>{{ protection.recovery_email|default:"none" }}</strong>{% if protection.recovery_verified_at %} (verified {{ protection.recovery_verified_at|date:"Y-m-d" }}){% endif %}</span>
+                    <input type="email" name="recovery_email" class="form-control form-control-sm w-auto" placeholder="security@example.com">
+                    <button class="btn btn-sm btn-outline-primary">Propose change</button>
+                </form>
+                <p class="text-muted mt-1 mb-0">Changes are announced to the contact as it was before the change. Nobody can approve a recovery address that is their own.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

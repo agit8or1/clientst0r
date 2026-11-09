@@ -16,6 +16,22 @@ from .version import get_version
 # overwrite them — so a key saved via the UI would never take effect (#137).
 load_dotenv(override=True)
 
+# The AI gateway worker (config/settings_ai_gateway.py) runs from this same
+# file but must never hold the vault master key or any other secret: it only
+# needs the database and its own gateway private key. Its launcher sets
+# CLIENTST0R_PROCESS_ROLE=ai_gateway; every secret-looking variable that
+# .env just loaded is dropped again before anything below reads it, and the
+# few settings that must be non-empty get throwaway per-process values.
+AI_GATEWAY_ROLE = 'worker' if os.environ.get('CLIENTST0R_PROCESS_ROLE') == 'ai_gateway' else ''
+if AI_GATEWAY_ROLE:
+    import secrets as _secrets
+    for _name in list(os.environ):
+        if (any(t in _name for t in ('KEY', 'SECRET', 'TOKEN', 'PASSWORD', 'PASSWD', 'CREDENTIAL'))
+                and _name != 'AI_GATEWAY_KEY_DIR'):
+            del os.environ[_name]
+    os.environ['SECRET_KEY'] = _secrets.token_urlsafe(48)
+    os.environ['API_KEY_SECRET'] = _secrets.token_urlsafe(48)
+
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -95,6 +111,7 @@ INSTALLED_APPS = [
     'scheduling.apps.SchedulingConfig',
     'psa.apps.PsaConfig',
     'psa_ai.apps.PsaAiConfig',
+    'tech_access.apps.TechAccessConfig',
     'portal.apps.PortalConfig',
     'resourcing.apps.ResourcingConfig',
     'crm.apps.CrmConfig',
@@ -139,6 +156,7 @@ MIDDLEWARE = [
     'accounts.middleware.UserLanguageMiddleware',
     'core.ai_abuse_control.AIAbuseControlMiddleware',  # AI endpoint protection
     'audit.middleware.AuditLoggingMiddleware',
+    'tech_access.middleware.ReadTrackingMiddleware',  # theft detection + containment
 ]
 
 # Optional middleware - only add if dependencies are installed
@@ -641,13 +659,18 @@ REST_FRAMEWORK = {
 
 # Encryption settings
 APP_MASTER_KEY = os.getenv('APP_MASTER_KEY', '')
-if not APP_MASTER_KEY and not DEBUG:
+if not APP_MASTER_KEY and not DEBUG and not AI_GATEWAY_ROLE:
     raise ValueError("APP_MASTER_KEY must be set in production")
 # Key rotation: previous master key(s), comma-separated. Decryption tries
 # APP_MASTER_KEY first, then these; new ciphertext always uses APP_MASTER_KEY.
 # Set this to the old key while `manage.py rotate_encryption_key` re-encrypts,
 # then remove it.
 APP_MASTER_KEY_PREVIOUS = os.getenv('APP_MASTER_KEY_PREVIOUS', '')
+
+# AI gateway (psa_ai/services/gateway_keys.py): 'in_process' (default, not
+# isolated) or 'worker' (only the restricted worker opens provider keys).
+AI_GATEWAY_MODE = os.getenv('AI_GATEWAY_MODE', 'in_process')
+AI_GATEWAY_KEY_DIR = os.getenv('AI_GATEWAY_KEY_DIR', '')
 
 # API Key settings - must be separate from SECRET_KEY for security
 API_KEY_SECRET = os.getenv('API_KEY_SECRET')

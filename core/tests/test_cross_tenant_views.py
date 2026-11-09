@@ -213,11 +213,14 @@ class CrossTenantAccessTests(TestCase):
         )
         resp = self.client.get(reverse('psa:workflow_suggestion_list'))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'A pattern')
         self.assertNotContains(
             resp, 'B SECRET pattern',
             msg_prefix="workflow_suggestion_list leaked another tenant's AI suggestion",
         )
+        # Since v3.17.646 the list is technician material: a member who isn't
+        # MSP staff sees none, not even their own tenant's. (MSP staff are
+        # cross-tenant by design — core.tenancy.is_cross_tenant_user.)
+        self.assertNotContains(resp, 'A pattern')
 
     def test_cannot_decide_another_orgs_workflow_suggestion(self):
         self._enable_psa_ai()

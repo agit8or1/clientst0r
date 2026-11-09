@@ -440,6 +440,8 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         'atera_api_key': ('atera', 'api_key'),
         'tactical_api_key': ('tactical_rmm', 'api_key'),
         'rem0te_api_key': ('rem0te', 'api_key'),
+        'rem0te_integration_outbound_secret': ('rem0te', 'integration_outbound_secret'),
+        'rem0te_integration_inbound_secret': ('rem0te', 'integration_inbound_secret'),
     }
 
     # NinjaOne credentials
@@ -508,6 +510,24 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         required=False,
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'rk_…'})
     )
+    # Rem0te ticket-processor pairing (docs/contracts/ticket-rmm-v1). Turning
+    # it on or marking it on-premises is a protected change; see save().
+    rem0te_integration_enabled = forms.BooleanField(
+        label='Use this Rem0te to process ticket analysis', required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}))
+    rem0te_integration_key_id = forms.CharField(
+        label='Integration key ID', required=False, max_length=64,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}))
+    rem0te_integration_outbound_secret = forms.CharField(
+        label='Secret ClientSt0r signs with', required=False,
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}))
+    rem0te_integration_inbound_secret = forms.CharField(
+        label='Secret Rem0te signs with', required=False,
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}))
+    rem0te_processing_location = forms.ChoiceField(
+        label='Where this Rem0te runs', required=False,
+        choices=(('hosted', 'Hosted / off-premises'), ('local', 'On-premises')),
+        widget=forms.Select(attrs={'class': 'form-control'}))
 
     class Meta:
         model = RMMConnection
@@ -541,6 +561,14 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
+        self.pairing_request = None
+        self._pairing_before = None
+        if self.instance and self.instance.pk and self.instance.provider_type == 'rem0te':
+            from integrations.providers.rmm.rem0te import integration_secrets, integration_settings, site_root
+            p, sec = integration_settings(self.instance), integration_secrets(self.instance)
+            self._pairing_before = {'on': p['requested'], 'key_id': p['key_id'], 'location': p['location'],
+                                    'outbound': sec['outbound'], 'inbound': sec['inbound'],
+                                    'site': site_root(self.instance.base_url)}
 
         # If editing existing connection, populate credential fields
         if self.instance and self.instance.pk:
@@ -563,7 +591,14 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
             elif provider == 'tactical_rmm':
                 self.fields['tactical_api_key'].initial = creds.get('api_key', '')
             elif provider == 'rem0te':
+                from integrations.providers.rmm.rem0te import integration_settings
                 self.fields['rem0te_api_key'].initial = creds.get('api_key', '')
+                self.fields['rem0te_integration_outbound_secret'].initial = creds.get('integration_outbound_secret', '')
+                self.fields['rem0te_integration_inbound_secret'].initial = creds.get('integration_inbound_secret', '')
+                pairing = integration_settings(self.instance)
+                self.fields['rem0te_integration_enabled'].initial = pairing['requested']
+                self.fields['rem0te_integration_key_id'].initial = pairing['key_id']
+                self.fields['rem0te_processing_location'].initial = pairing['location']
 
         self._protect_secret_fields()
 
@@ -604,6 +639,17 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         elif provider_type == 'rem0te':
             if not cleaned_data.get('rem0te_api_key'):
                 self.add_error('rem0te_api_key', 'This field is required for Rem0te')
+            if cleaned_data.get('rem0te_integration_enabled'):
+                for f in ('rem0te_integration_key_id', 'rem0te_integration_outbound_secret',
+                          'rem0te_integration_inbound_secret'):
+                    if not cleaned_data.get(f):
+                        self.add_error(f, 'Required to use Rem0te for ticket analysis.')
+                o, i = (cleaned_data.get('rem0te_integration_outbound_secret') or '',
+                        cleaned_data.get('rem0te_integration_inbound_secret') or '')
+                if o and i and o == i:
+                    self.add_error('rem0te_integration_inbound_secret', 'Use two different secrets.')
+                if (o and len(o) < 32) or (i and len(i) < 32):
+                    self.add_error('rem0te_integration_outbound_secret', 'Secrets must be at least 32 characters.')
             # A Rem0te key belongs to one business, so the connection is
             # always one customer: this organization.
             cleaned_data['customer_scope'] = RMMConnection.CUSTOMER_SCOPE_SINGLE
@@ -648,9 +694,15 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
                 'api_key': self.cleaned_data.get('tactical_api_key', ''),
             }
         elif provider_type == 'rem0te':
-            credentials = {
-                'api_key': self.cleaned_data.get('rem0te_api_key', ''),
-            }
+            credentials = {'api_key': self.cleaned_data.get('rem0te_api_key', '')}
+            for field, name in (('rem0te_integration_outbound_secret', 'integration_outbound_secret'),
+                                ('rem0te_integration_inbound_secret', 'integration_inbound_secret')):
+                if self.cleaned_data.get(field):
+                    credentials[name] = self.cleaned_data[field]
+
+        self.pairing_request = None
+        if provider_type == 'rem0te':
+            self._apply_pairing(connection, credentials)
 
         connection.set_credentials(credentials)
 
@@ -658,6 +710,44 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
             connection.save()
 
         return connection
+
+
+def _rem0te_pairing_apply(self, connection, credentials):
+    """Narrowing pairing changes apply now; widening ones become
+    `self.pairing_request` for the view to propose as a protected change.
+
+    Widening: switching ticket processing on, or marking the Rem0te
+    on-premises. Re-pairing a live pairing — new secrets, key ID or address —
+    switches it off until it is approved again."""
+    from integrations.providers.rmm.rem0te import (
+        INTEGRATION_ENABLED, INTEGRATION_KEY_ID, INTEGRATION_LOCATION, site_root)
+    mappings = dict(connection.field_mappings or {})
+    before = self._pairing_before or {}
+    want_on = bool(self.cleaned_data.get('rem0te_integration_enabled'))
+    want_local = self.cleaned_data.get('rem0te_processing_location') == 'local'
+    key_id = (self.cleaned_data.get('rem0te_integration_key_id') or '').strip()
+    repaired = before.get('on') and (
+        key_id != before.get('key_id')
+        or credentials.get('integration_outbound_secret', '') != (before.get('outbound') or '')
+        or credentials.get('integration_inbound_secret', '') != (before.get('inbound') or '')
+        or site_root(connection.base_url) != before.get('site'))
+    mappings[INTEGRATION_KEY_ID] = key_id
+    if not want_on or repaired:
+        mappings[INTEGRATION_ENABLED] = False
+    if not want_local:
+        mappings[INTEGRATION_LOCATION] = 'hosted'
+    connection.field_mappings = mappings
+    widen = {}
+    if want_on and (repaired or not before.get('on')):
+        widen['enable'] = True
+    if want_local and before.get('location') != 'local':
+        widen['location'] = 'local'
+    elif want_local and widen.get('enable'):
+        widen['location'] = 'local'
+    self.pairing_request = widen or None
+
+
+RMMConnectionForm._apply_pairing = _rem0te_pairing_apply
 
 
 class UnifiConnectionForm(forms.ModelForm):

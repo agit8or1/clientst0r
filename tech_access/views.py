@@ -1,0 +1,234 @@
+"""
+Settings → Security → Technician Access.
+
+Security administrators (superusers) only. One page, sections for presets,
+assignments, groups, customer defaults and restrictions, denies, the
+effective-access preview, protected changes, theft detection and
+protection settings. Every change shows its diff first (action=preview…),
+then saves (action=save…); widening saves become protected changes.
+"""
+from __future__ import annotations
+
+from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+
+from core.models import Organization
+
+from . import catalog, detection, protected, services
+from .models import (AccessAssignment, AccessPreset, Containment, CustomerAccessPolicy, DetectionSettings,
+                     ExplicitDeny, ProtectedChange, ProtectionSettings, TechnicianGroup, TheftAlert)
+from .resolver import effective_access, is_technician
+
+
+def _admin(user):
+    return user.is_authenticated and user.is_active and user.is_superuser
+
+
+def technicians():
+    User = get_user_model()
+    return [u for u in User.objects.filter(is_active=True).select_related('profile').order_by('username')
+            if is_technician(u)]
+
+
+def _user(pk):
+    u = get_user_model().objects.filter(pk=pk, is_active=True).first() if str(pk).isdigit() else None
+    if u is None or not is_technician(u):
+        raise Http404()
+    return u
+
+
+def _expiry(value):
+    if not value:
+        return None
+    dt = parse_datetime(value) or parse_datetime(value + ':00')
+    if dt is not None and timezone.is_naive(dt):
+        dt = timezone.make_aware(dt)
+    return dt
+
+
+def _caps_from_post(post):
+    return catalog.clean_capabilities({k: post.get(f'cap_{k}', catalog.OFF) for k in catalog.OPTIONAL})
+
+
+def _report_change(request, change, applied_text):
+    if change is None:
+        messages.success(request, applied_text)
+    else:
+        messages.warning(request, f'This widens access ({", ".join(change.widening)}). Protected change '
+                                  f'#{change.pk} was created: confirm it with your password below, then a '
+                                  'different administrator approves it.')
+
+
+def _context(request, **extra):
+    orgs = Organization.objects.filter(is_active=True).order_by('name')
+    pending = ProtectedChange.objects.filter(status=ProtectedChange.PENDING).select_related(
+        'requested_by', 'target_user')
+    pending_rows = [{'change': c, 'refusal': protected.approval_refusal(c, request.user)} for c in pending]
+    ctx = {
+        'active_page': 'technician_access',
+        'presets': AccessPreset.objects.all(),
+        'assignments': AccessAssignment.objects.live().select_related('preset', 'user', 'group', 'organization'),
+        'groups': TechnicianGroup.objects.prefetch_related('members'),
+        'organizations': orgs,
+        'policies': {p.organization_id: p for p in CustomerAccessPolicy.objects.select_related('default_preset')},
+        'denies': ExplicitDeny.objects.select_related('user', 'organization'),
+        'technicians': technicians(),
+        'catalog_optional': [(k,) + v for k, v in catalog.OPTIONAL.items()],
+        'catalog_locked': list(catalog.LOCKED.items()),
+        'state_labels': catalog.STATE_LABELS,
+        'pending': pending_rows,
+        'recent_changes': ProtectedChange.objects.exclude(status=ProtectedChange.PENDING)[:15],
+        'fresh_auth': protected.has_fresh_auth(request),
+        'can_widen': protected.can_widen_at_all(request.user),
+        'detection': DetectionSettings.load(),
+        'thresholds': detection.thresholds(),
+        'containment_modes': {lvl: detection.containment_mode(lvl) for lvl in ('0', '1', '2', '3')},
+        'alerts': TheftAlert.objects.select_related('user')[:25],
+        'containments': Containment.objects.filter(lifted_at__isnull=True).select_related('user', 'alert'),
+        'protection': ProtectionSettings.load(),
+        'approvers': protected.approvers(),
+        'superusers': get_user_model().objects.filter(is_active=True, is_superuser=True).order_by('username'),
+        'drift': {p.pk: services.reset_preview(p) for p in AccessPreset.objects.all()},
+    }
+    ctx.update(extra)
+    return ctx
+
+
+@login_required
+@user_passes_test(_admin)
+def index(request):
+    services.seed_presets()
+    if request.method == 'POST':
+        result = _handle(request)
+        if result is not None:
+            return result
+        return redirect(request.path + '#' + (request.POST.get('section') or 'presets'))
+    extra = {}
+    if request.GET.get('preview_user') and request.GET.get('preview_org'):
+        u = _user(request.GET['preview_user'])
+        org = get_object_or_404(Organization, pk=request.GET['preview_org'])
+        extra['effective'] = {'user': u, 'organization': org, 'rows': effective_access(u, org)}
+    return render(request, 'tech_access/index.html', _context(request, **extra))
+
+
+def _handle(request):
+    p = request.POST
+    action = p.get('action', '')
+    me = request.user
+    try:
+        if action == 'reauth':
+            err = protected.reauthenticate(request, p.get('password', ''), p.get('otp', ''))
+            messages.error(request, err) if err else messages.success(request, 'Confirmed. Valid for 5 minutes.')
+        elif action in ('preview_assign', 'save_assign'):
+            subject = (TechnicianGroup.objects.get(pk=p['group']) if p.get('group')
+                       else _user(p.get('user')))
+            org = get_object_or_404(Organization, pk=p.get('organization'))
+            preset = get_object_or_404(AccessPreset, pk=p.get('preset')) if p.get('preset') \
+                else services.default_preset_for(org)
+            expires = _expiry(p.get('expires_at'))
+            if action == 'preview_assign':
+                plan = services.plan_assignment(subject, org, preset, expires)
+                return render(request, 'tech_access/index.html', _context(
+                    request, assign_plan=plan, assign_form=p))
+            a, change, _ = services.assign(subject, org, preset, me, expires, p.get('note', ''), request)
+            _report_change(request, change, f'Assigned {preset.name} at {org.name}.')
+        elif action == 'revoke':
+            services.revoke(get_object_or_404(AccessAssignment, pk=p.get('assignment')), me)
+            messages.success(request, 'Assignment revoked.')
+        elif action == 'clone':
+            src = get_object_or_404(AccessPreset, pk=p.get('preset'))
+            clone = services.clone_preset(src, p.get('name') or f'{src.name} (copy)', me)
+            messages.success(request, f'Created {clone.name}. Edit it below.')
+        elif action in ('preview_preset', 'save_preset'):
+            preset = get_object_or_404(AccessPreset, pk=p.get('preset'))
+            caps = _caps_from_post(p)
+            if action == 'preview_preset':
+                return render(request, 'tech_access/index.html', _context(
+                    request, preset_plan=services.plan_preset_change(preset, caps), preset_edit=preset,
+                    preset_caps=caps))
+            applied, change, _ = services.change_preset(preset, caps, me, request)
+            _report_change(request, change, f'{preset.name} updated.')
+        elif action == 'reset_preset':
+            preset = get_object_or_404(AccessPreset, pk=p.get('preset'))
+            applied, change, _ = services.reset_preset(preset, me, request)
+            _report_change(request, change, f'{preset.name} reset.')
+        elif action == 'create_group':
+            name = (p.get('name') or '').strip()
+            if name:
+                TechnicianGroup.objects.get_or_create(name=name[:100])
+                messages.success(request, f'Group {name} created.')
+        elif action == 'group_members':
+            group = get_object_or_404(TechnicianGroup, pk=p.get('group'))
+            users = [_user(pk) for pk in p.getlist('members')]
+            applied, change, _ = services.set_group_members(group, users, me, request)
+            _report_change(request, change, f'Members of {group.name} updated.')
+        elif action == 'customer_policy':
+            org = get_object_or_404(Organization, pk=p.get('organization'))
+            preset = AccessPreset.objects.filter(pk=p.get('default_preset')).first() if p.get('default_preset') else None
+            services.set_default_preset(org, preset, me)
+            change = services.set_restrictions(org, p.getlist('restricted'), me, request)
+            _report_change(request, change, f'Settings for {org.name} saved.')
+        elif action == 'add_deny':
+            u = _user(p.get('user'))
+            cap = p.get('capability')
+            if cap != '*' and cap not in catalog.OPTIONAL:
+                raise ValueError('Unknown capability.')
+            org = Organization.objects.filter(pk=p.get('organization')).first() if p.get('organization') else None
+            services.add_deny(u, cap, me, org, p.get('reason', ''), _expiry(p.get('expires_at')))
+            messages.success(request, 'Deny added. It applies immediately.')
+        elif action == 'lift_deny':
+            change = services.remove_deny(get_object_or_404(ExplicitDeny, pk=p.get('deny')), me, request)
+            _report_change(request, change, '')
+        elif action == 'confirm_change':
+            protected.confirm(get_object_or_404(ProtectedChange, pk=p.get('change')), request)
+            messages.success(request, 'Confirmed. Another administrator can now approve it.')
+        elif action == 'approve_change':
+            protected.approve(get_object_or_404(ProtectedChange, pk=p.get('change')), request)
+            messages.success(request, 'Approved and applied.')
+        elif action in ('reject_change', 'cancel_change'):
+            protected.reject(get_object_or_404(ProtectedChange, pk=p.get('change')), request,
+                             cancel=action == 'cancel_change')
+            messages.success(request, 'Done.')
+        elif action == 'detection':
+            values = {'enabled': p.get('enabled') == 'on', 'notify_customers': p.get('notify_customers') == 'on',
+                      'recipients': p.get('recipients', ''),
+                      'thresholds': {r: {w: int(p.get(f't_{r}_{w}') or v) for w, v in ws.items()}
+                                     for r, ws in detection.thresholds().items()},
+                      'containment': {lvl: ('alert' if p.get(f'c_{lvl}') == 'alert' else 'contain')
+                                      for lvl in ('0', '1', '2', '3')}}
+            change = services.propose_detection(values, me, request)
+            _report_change(request, change, 'Theft detection settings saved.')
+        elif action == 'lift_containment':
+            c = get_object_or_404(Containment, pk=p.get('containment'), lifted_at__isnull=True)
+            if c.user_id == me.pk:
+                raise ValueError('Another administrator must lift your own containment.')
+            if not protected.has_fresh_auth(request):
+                raise ValueError('Re-enter your password first.')
+            c.lifted_at, c.lifted_by = timezone.now(), me
+            c.save(update_fields=['lifted_at', 'lifted_by'])
+            services._audit(me, 'update', 'tech_access_containment', c.pk, f'Lifted containment of {c.user}')
+            messages.success(request, f'Containment of {c.user.get_username()} lifted.')
+        elif action == 'ack_alert':
+            TheftAlert.objects.filter(pk=p.get('alert'), acknowledged_at__isnull=True).update(
+                acknowledged_by=me, acknowledged_at=timezone.now())
+        elif action == 'approvers':
+            User = get_user_model()
+            current = set(ProtectionSettings.load().approvers.values_list('pk', flat=True))
+            want = set(User.objects.filter(pk__in=p.getlist('approvers'), is_superuser=True,
+                                           is_active=True).values_list('pk', flat=True))
+            change = services.propose_approvers(list(User.objects.filter(pk__in=want - current)),
+                                                list(User.objects.filter(pk__in=current - want)), me, request)
+            _report_change(request, change, 'Approvers updated.')
+        elif action == 'recovery_contact':
+            change = services.propose_recovery_contact((p.get('recovery_email') or '').strip(), me, request)
+            _report_change(request, change, '')
+        else:
+            messages.error(request, 'Unknown action.')
+    except (protected.ProtectedChangeError, ValueError) as e:
+        messages.error(request, str(e))
+    return None

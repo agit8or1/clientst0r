@@ -530,6 +530,7 @@ def rmm_create(request):
                     connection.organization = org
                 connection.save()
                 messages.success(request, f"RMM connection '{connection.name}' created successfully.")
+                _propose_pairing(request, form, connection)
                 return redirect('integrations:rmm_detail', pk=connection.pk)
             except IntegrityError as e:
                 # Handle database integrity errors (like missing organization_id)
@@ -597,6 +598,19 @@ def rmm_detail(request, pk):
     })
 
 
+def _propose_pairing(request, form, connection):
+    """A Rem0te ticket-processor pairing that widens what ClientSt0r sends
+    waits for a second administrator (tech_access.protected)."""
+    req = getattr(form, 'pairing_request', None)
+    if not req:
+        return
+    from tech_access.services import propose_pairing
+    change = propose_pairing(connection, req, request.user, request=request)
+    messages.info(request, f'Using this Rem0te for ticket analysis needs a second administrator. Protected '
+                           f'change #{change.pk} was created: confirm it with your password under Settings → '
+                           f'Security → Technician Access, then another administrator approves it.')
+
+
 @login_required
 @require_admin
 def rmm_edit(request, pk):
@@ -610,6 +624,7 @@ def rmm_edit(request, pk):
             try:
                 connection = form.save()
                 messages.success(request, f"RMM connection '{connection.name}' updated successfully.")
+                _propose_pairing(request, form, connection)
                 return redirect('integrations:rmm_detail', pk=connection.pk)
             except EncryptionError as e:
                 # Handle APP_MASTER_KEY errors - usually means Gunicorn isn't loading .env

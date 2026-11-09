@@ -174,6 +174,38 @@
         });
     }
 
+    /* AI drafts ("Use reply") go into the composer and nowhere else: an empty
+     * composer takes the text; text already there is kept and the draft is
+     * added below it. Nothing is posted — only Send does that. The composer
+     * is marked as holding an AI draft (`ai_draft`); the server also
+     * recognises draft text without the marker. When `asNote` is true (the
+     * technician can't send AI-assisted replies) the composer switches to an
+     * internal note. Returns 'inserted', 'appended' or '' without a composer. */
+    var aiDraft = document.getElementById('composerAiDraft');
+    window.ticketComposerInsert = function (text, ref, asNote) {
+        if (!body || !text) { return ''; }
+        var outcome;
+        if (body.value.trim()) {
+            body.value = body.value.replace(/\s+$/, '') + '\n\n' + text;
+            outcome = 'appended';
+        } else {
+            setMode(!!asNote);
+            body.value = text;
+            outcome = 'inserted';
+        }
+        if (asNote) { setMode(true); }
+        if (aiDraft) { aiDraft.value = ref || 'ai'; }
+        body.focus();
+        body.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        scheduleSave();
+        return outcome;
+    };
+    if (body && aiDraft) {
+        body.addEventListener('input', function () {
+            if (!body.value.trim()) { aiDraft.value = ''; }
+        });
+    }
+
     if (draftDiscard && draftUrl) {
         draftDiscard.addEventListener('click', function () {
             if (body && body.value.trim() && !window.confirm('Discard this draft?')) { return; }

@@ -75,7 +75,8 @@ class Command(BaseCommand):
                 if isinstance(f, (sf.EncryptedTextField, sf.SealedTextField,
                                   sf.EncryptedHexKeyField)):
                     continue
-                if key in hashed or key in v2rows or key in sf.ACCEPTED_PLAINTEXT_FIELDS:
+                if (key in hashed or key in v2rows or key in sf.ACCEPTED_PLAINTEXT_FIELDS
+                        or key in sf.GATEWAY_SEALED_FIELDS):
                     continue
                 self.problems.append(
                     f'{".".join(key)}: secret-named column is neither encrypted, hashed '
@@ -103,6 +104,16 @@ class Command(BaseCommand):
             if bad:
                 self.problems.append(f'{field.aad}: {len(bad)} row(s) not encrypted '
                                      f'(pk {", ".join(map(str, bad[:10]))})')
+
+        for (app_label, model_name, field_name), (prefix, _) in sorted(sf.GATEWAY_SEALED_FIELDS.items()):
+            model = self._model(app_label, model_name)
+            if model is None:
+                continue
+            col = model._meta.get_field(field_name).column
+            bad = [pk for pk, v in self._values(model, col) if v and not v.startswith(prefix)]
+            if bad:
+                self.problems.append(f'{app_label}.{model_name}.{field_name}: {len(bad)} '
+                                     f'row(s) not sealed (pk {", ".join(map(str, bad[:10]))})')
 
         for (app_label, model_name), reason in sorted(sf.RETIRED_SECRET_TABLES.items()):
             model = self._model(app_label, model_name)

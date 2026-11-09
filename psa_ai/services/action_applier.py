@@ -21,7 +21,7 @@ logger = logging.getLogger('psa_ai.action_applier')
 
 # Risk-level → which handler keys are considered low/high.
 LOW_RISK = {'set_status', 'set_priority', 'assign_to', 'link_kb', 'add_internal_note'}
-HIGH_RISK = {'start_workflow', 'run_rmm_script', 'escalate'}
+HIGH_RISK = {'start_workflow', 'escalate'}
 
 
 class UnknownAction(Exception):
@@ -259,6 +259,5 @@ _HANDLERS = {
     'add_internal_note': _add_internal_note,
     'start_workflow':    _start_workflow,   # 10c
     'escalate':          _escalate,         # 10c
-    # 'run_rmm_script' deliberately not implemented in this commit —
-    # needs the integrations.RMM script-run plumbing wired first.
+    # No endpoint execution from ClientSt0r, ever: see guardrails.ALLOWED_ACTION_TYPES.
 }

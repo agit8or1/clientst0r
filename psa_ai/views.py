@@ -23,7 +23,7 @@ from psa.views import _scoped_ticket_qs
 
 from .models import AISuggestion
 from .permissions import (
-    can_apply_action, can_approve_others, can_send_reply, can_view_suggestion,
+    can_apply_action, can_approve_others, can_view_suggestion, has_capability,
 )
 from .services.action_applier import apply_suggestion as apply_suggestion_dispatch
 from .services.action_generator import generate_actions_for_ticket
@@ -47,6 +47,28 @@ def _user_can_view_suggestion(user, suggestion: AISuggestion, request=None) -> b
     return can_view_suggestion(user, suggestion, request=request)
 
 
+def _ticket_for(request, ticket_number, capability):
+    """The ticket, if this technician may use `capability` on it; else 404.
+    Customer users never pass (permissions.has_capability)."""
+    ticket = get_object_or_404(_scoped_ticket_qs(request), ticket_number=ticket_number)
+    if not has_capability(request.user, ticket.organization, capability, ticket=ticket):
+        raise Http404()
+    return ticket
+
+
+def _suggestion_for(request, pk):
+    """A suggestion by ID, only through a ticket this user can see and only
+    with view permission for its organization. Synced-ticket suggestions have
+    no native ticket to scope by and are reachable by technicians only."""
+    suggestion = get_object_or_404(AISuggestion.objects.select_related('organization', 'native_ticket'), pk=pk)
+    if not _user_can_view_suggestion(request.user, suggestion, request=request):
+        raise Http404()
+    if suggestion.native_ticket_id and not _scoped_ticket_qs(request).filter(
+            pk=suggestion.native_ticket_id, organization_id=suggestion.organization_id).exists():
+        raise Http404()
+    return suggestion
+
+
 @login_required
 @require_write
 @require_psa_enabled
@@ -56,8 +78,7 @@ def generate_reply(request, ticket_number):
     if not _ai_on(request):
         raise Http404('AI Assist is not enabled.')
 
-    qs = _scoped_ticket_qs(request)
-    ticket = get_object_or_404(qs, ticket_number=ticket_number)
+    ticket = _ticket_for(request, ticket_number, 'draft')
 
     try:
         suggestion = generate_reply_for_ticket(
@@ -94,8 +115,7 @@ def generate_triage(request, ticket_number):
     if not _ai_on(request):
         raise Http404('AI Assist is not enabled.')
 
-    qs = _scoped_ticket_qs(request)
-    ticket = get_object_or_404(qs, ticket_number=ticket_number)
+    ticket = _ticket_for(request, ticket_number, 'analyze')
 
     try:
         suggestion = generate_triage_for_ticket(
@@ -129,9 +149,7 @@ def suggestion_detail(request, pk):
     """View a single AI suggestion."""
     if not _ai_on(request):
         raise Http404()
-    suggestion = get_object_or_404(AISuggestion, pk=pk)
-    if not _user_can_view_suggestion(request.user, suggestion):
-        raise Http404()
+    suggestion = _suggestion_for(request, pk)
     return JsonResponse({
         'id': suggestion.pk,
         'kind': suggestion.kind,
@@ -155,9 +173,7 @@ def suggestion_reject(request, pk):
     "act on a suggestion" path; approve+send lands in 10b."""
     if not _ai_on(request):
         raise Http404()
-    suggestion = get_object_or_404(AISuggestion, pk=pk)
-    if not _user_can_view_suggestion(request.user, suggestion):
-        raise Http404()
+    suggestion = _suggestion_for(request, pk)
     if suggestion.review_state not in ('draft', 'pending_review'):
         messages.info(request, 'This suggestion is already in a terminal state.')
         return _back(request, suggestion)
@@ -199,9 +215,7 @@ def triage_feedback(request, pk):
     """
     if not _ai_on(request):
         raise Http404()
-    suggestion = get_object_or_404(AISuggestion, pk=pk)
-    if not _user_can_view_suggestion(request.user, suggestion, request=request):
-        raise Http404()
+    suggestion = _suggestion_for(request, pk)
     if suggestion.kind != 'triage':
         messages.info(request, 'This action is for triage suggestions only.')
         return _back(request, suggestion)
@@ -269,8 +283,7 @@ def generate_actions(request, ticket_number):
     """Generate AI Suggested Actions for the ticket."""
     if not _ai_on(request):
         raise Http404()
-    qs = _scoped_ticket_qs(request)
-    ticket = get_object_or_404(qs, ticket_number=ticket_number)
+    ticket = _ticket_for(request, ticket_number, 'apply_change')
     try:
         results = generate_actions_for_ticket(ticket, user=request.user, request_path=request.path)
     except SafetyFailure as exc:
@@ -289,10 +302,7 @@ def generate_actions(request, ticket_number):
 
 
 def _resolve_suggestion_for_write(request, pk):
-    suggestion = get_object_or_404(AISuggestion, pk=pk)
-    if not _user_can_view_suggestion(request.user, suggestion, request=request):
-        raise Http404()
-    return suggestion
+    return _suggestion_for(request, pk)
 
 
 @login_required
@@ -331,10 +341,8 @@ def suggestion_approve_and_apply(request, pk):
     For action-suggestions: re-checks permission, dispatches to the
     action_applier, marks approved.
 
-    For reply-suggestions: re-checks send permission, posts a
-    `TicketComment` (non-internal, non-system) using the EDITED body
-    if the form supplied one; otherwise the suggested body. Marks
-    approved.
+    Reply-suggestions are refused: since v3.17.646 an AI draft is only ever
+    inserted into the composer, and the technician's normal Send publishes it.
     """
     if not _ai_on(request):
         raise Http404()
@@ -343,13 +351,13 @@ def suggestion_approve_and_apply(request, pk):
         messages.info(request, f'Suggestion is in terminal state ({suggestion.review_state}).')
         return _back(request, suggestion)
 
-    # Permission check at apply time (defence-in-depth — beyond the role
-    # check on the form button).
+    # v3.17.646: an AI reply is never published from here. It goes into the
+    # composer, and only the technician's own Send posts it.
     if suggestion.kind == 'reply':
-        if not can_send_reply(request.user, suggestion, request=request):
-            messages.error(request, "You don't have permission to send this AI-drafted reply. Use 'Request approval' instead.")
-            return _back(request, suggestion)
-    else:  # action
+        messages.info(request, 'AI replies are not sent from here. Use "Insert into reply box", '
+                               'edit it, and send it with the normal Post reply button.')
+        return _back(request, suggestion)
+    if suggestion.kind == 'action':
         if not can_apply_action(request.user, suggestion, request=request):
             messages.error(request, "You don't have permission to apply this AI-suggested action. Use 'Request approval' instead.")
             return _back(request, suggestion)
@@ -360,48 +368,10 @@ def suggestion_approve_and_apply(request, pk):
             messages.error(request, "You don't have permission to approve someone else's request.")
             return _back(request, suggestion)
 
-    if suggestion.kind == 'reply':
-        return _approve_and_send_reply(request, suggestion)
+    if suggestion.kind != 'action':
+        messages.info(request, 'This suggestion has nothing to apply.')
+        return _back(request, suggestion)
     return _approve_and_apply_action(request, suggestion)
-
-
-def _approve_and_send_reply(request, suggestion):
-    """Send the AI-drafted reply as a public TicketComment."""
-    from psa.models import TicketComment
-    ticket = suggestion.native_ticket
-    if ticket is None:
-        messages.error(request, 'Sending replies on synced PSA tickets lands in a later phase.')
-        return _back(request, suggestion)
-
-    edited = (request.POST.get('final_body') or '').strip()
-    body = edited or suggestion.suggested_body or ''
-    if not body:
-        messages.error(request, 'Reply body is empty.')
-        return _back(request, suggestion)
-    body_with_tag = f'{body}\n\n— Drafted with AI assistance, reviewed by {request.user.username}.'
-
-    comment = TicketComment.objects.create(
-        ticket=ticket, author=request.user, body=body_with_tag,
-        is_internal=False, is_system=False,
-    )
-    suggestion.review_state = 'approved'
-    suggestion.reviewer = request.user
-    suggestion.reviewed_at = timezone.now()
-    suggestion.final_body = body
-    suggestion.save(update_fields=[
-        'review_state', 'reviewer', 'reviewed_at', 'final_body',
-    ])
-
-    AuditLog.log(
-        user=request.user, action='update', organization=suggestion.organization,
-        object_type='psa_ai.AISuggestion', object_id=suggestion.pk,
-        object_repr=f'approved+sent reply suggestion {suggestion.pk}',
-        description=f'Approved AI reply on {ticket.ticket_number} (comment #{comment.pk}, edited={bool(edited)})',
-        ip_address=_client_ip(request), path=request.path,
-        extra_data={'edited': bool(edited), 'final_length': len(body)},
-    )
-    messages.success(request, 'Reply sent to the ticket comment thread.')
-    return _back(request, suggestion)
 
 
 def _approve_and_apply_action(request, suggestion):
@@ -434,23 +404,20 @@ def ai_inbox(request):
     can see. Default filter: pending my approval."""
     if not _ai_on(request):
         raise Http404()
+    from psa.visibility import is_msp_staff
+    if not is_msp_staff(request.user):
+        raise Http404()
     qs = AISuggestion.objects.select_related('organization', 'native_ticket', 'requested_review_by', 'requested_by').filter(
         review_state__in=['draft', 'pending_review'],
     )
-    # Tenant scoping
-    if not (request.user.is_superuser or getattr(request, 'is_staff_user', False)):
-        if hasattr(request.user, 'memberships'):
-            org_ids = list(request.user.memberships.filter(is_active=True).values_list('organization_id', flat=True))
-            qs = qs.filter(organization_id__in=org_ids)
-        else:
-            qs = qs.none()
 
     filter_state = request.GET.get('state') or 'pending_review'
     if filter_state in ('draft', 'pending_review', 'all'):
         if filter_state != 'all':
             qs = qs.filter(review_state=filter_state)
 
-    pending = list(qs.order_by('-created_at')[:200])
+    pending = [s for s in qs.order_by('-created_at')[:200]
+               if can_view_suggestion(request.user, s, request=request)]
     return render(request, 'psa_ai/inbox.html', {
         'suggestions': pending,
         'filter_state': filter_state,

@@ -307,6 +307,17 @@
             <div class="card-body">
                 <h3><i class="fas fa-shield-alt"></i> Security Features</h3>
 
+                <h5><i class="fas fa-user-shield"></i> Technician access safeguards</h5>
+                <table class="table table-sm small mb-3">
+                    <thead><tr><th>Safeguard</th><th>Status</th><th>Scope</th></tr></thead>
+                    <tbody>{% for f in technician_safeguards %}
+                    <tr><td><strong>{% if f.link and user.is_superuser %}<a href="{% url f.link %}">{{ f.title }}</a>{% else %}{{ f.title }}{% endif %}</strong>
+                            <div class="text-muted">{{ f.detail }}</div></td>
+                        <td><span class="badge {% if f.status == 'enforced' %}bg-success{% elif f.status == 'on_by_default' %}bg-primary{% elif f.status == 'partial' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ f.status_label }}</span></td>
+                        <td>{{ f.scope }}<div class="text-muted">Docs: <code>{{ f.doc }}</code></div></td></tr>
+                    {% endfor %}</tbody>
+                </table>
+
                 <h5><i class="fas fa-key"></i> Enhanced Encryption v2</h5>
                 <p>
                     All sensitive data is protected with <strong>military-grade AES-256-GCM encryption</strong> plus additional security layers:

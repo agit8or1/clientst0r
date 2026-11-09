@@ -272,6 +272,24 @@
                             <div class="invalid-feedback d-block">{{ form.rem0te_api_key.errors }}</div>
                             {% endif %}
                         </div>
+                        <fieldset class="border rounded p-3 mb-3">
+                            <legend class="fs-6 w-auto px-1 mb-0">Ticket analysis pairing (optional)</legend>
+                            <p class="small text-muted">Lets this Rem0te process ticket AI analysis jobs for this customer.
+                                Both sides sign every request: enter the key ID and the two secrets shown in Rem0te's
+                                integration settings. Turning this on, or marking the Rem0te on-premises, waits for a
+                                second administrator to approve it.</p>
+                            <div class="form-check mb-2">
+                                {{ form.rem0te_integration_enabled }}
+                                <label class="form-check-label" for="{{ form.rem0te_integration_enabled.id_for_label }}">{{ form.rem0te_integration_enabled.label }}</label>
+                            </div>
+                            {% for f in form %}{% if f.name == 'rem0te_integration_key_id' or f.name == 'rem0te_integration_outbound_secret' or f.name == 'rem0te_integration_inbound_secret' or f.name == 'rem0te_processing_location' %}
+                            <div class="mb-2">
+                                <label for="{{ f.id_for_label }}" class="form-label">{{ f.label }}</label>
+                                {{ f }}
+                                {% if f.errors %}<div class="invalid-feedback d-block">{{ f.errors }}</div>{% endif %}
+                            </div>
+                            {% endif %}{% endfor %}
+                        </fieldset>
                     </div>
 
                     <hr class="my-4">

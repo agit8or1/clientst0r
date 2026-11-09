@@ -585,6 +585,17 @@ ACCEPTED_PLAINTEXT_FIELDS = {
         'push service, and the server must read it back to do exactly that.',
 }
 
+# Columns sealed to a key other than the vault master key, on purpose: the
+# AI gateway worker opens them without ever holding the master key. They are
+# not re-encrypted by rotate_encryption_key; check_secrets_storage requires
+# every non-empty value to carry the given envelope prefix.
+# (app_label, Model, field) -> (prefix, reason).
+GATEWAY_SEALED_FIELDS = {
+    ('psa_ai', 'AIModelProfile', 'sealed_api_key'):
+        ('aigw1.', 'AI provider API key sealed to the AI gateway key '
+                   '(psa_ai/services/gateway_keys.py), so only the gateway can open it.'),
+}
+
 # Tables whose rows are raw credentials and must stay empty. They exist only
 # because historical migrations reference the app; check_secrets_storage
 # fails on any row. (app_label, Model) -> reason.

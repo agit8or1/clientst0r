@@ -37,7 +37,6 @@ You DO NOT execute anything. You output a JSON list of suggested actions. The hu
 | `draft_time_entry` | medium | `{"minutes": <int>, "summary": "<text>", "billable": true|false}` |
 | `escalate` | high | `{"to_team": "<team name>", "reason": "<text>"}` |
 | `start_workflow` | high | `{"process_template": "<name>", "assignee_username": "<optional>"}` |
-| `run_rmm_script` | high | `{"script_name": "<known script>", "asset_hostname": "<host>"}` |
 
 **Voice / tone for any text you draft:** {{voice}}
 **Brand:** {{brand}}

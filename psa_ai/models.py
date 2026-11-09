@@ -166,3 +166,260 @@ class AIUsageBucket(models.Model):
     @property
     def total_tokens(self):
         return self.input_tokens + self.output_tokens
+
+
+# ===========================================================================
+# Ticket AI Assist (v3.17.646): profiles, policy, analysis jobs, budgets.
+#
+# Who holds what: ClientSt0r keeps every provider credential here, sealed,
+# and calls providers only from its own inference gateway
+# (services/gateway.py). rem0te processes the job and asks the gateway for
+# each model run; it never receives a key. See docs/contracts/ticket-rmm-v1/.
+# ===========================================================================
+
+import uuid
+
+
+
+class AIModelProfile(models.Model):
+    """One provider + model the gateway may call, and whose key it uses.
+
+    Off until an administrator enables it. Credential ownership decides who
+    may spend it:
+      company    — the customer's own key; usable for that organization only
+      msp        — the MSP's key; usable only for organizations it is
+                   explicitly assigned to
+      technician — one technician's own key; usable only by them, and only
+                   for organizations whose policy allows technician keys
+    """
+    PROVIDER_CHOICES = [
+        ('anthropic', 'Claude (Anthropic)'),
+        ('openai', 'OpenAI'),
+        ('ollama', 'Ollama (local)'),
+    ]
+    OWNER_COMPANY = 'company'
+    OWNER_MSP = 'msp'
+    OWNER_TECHNICIAN = 'technician'
+    OWNER_CHOICES = [
+        (OWNER_COMPANY, 'Customer company'),
+        (OWNER_MSP, 'MSP (assigned customers only)'),
+        (OWNER_TECHNICIAN, 'Technician (only where the customer allows it)'),
+    ]
+    LOCATION_CLOUD = 'cloud'
+    LOCATION_LOCAL = 'local'
+
+    name = models.CharField(max_length=100, unique=True)
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
+    model = models.CharField(max_length=100)
+    enabled = models.BooleanField(default=False)
+    economical = models.BooleanField(
+        default=False, help_text='Default model for "Analyze ticket" when a policy names none.')
+    # Ollama only: where the model runs. A local profile must also be
+    # approved before a local-only policy will use it.
+    base_url = models.URLField(blank=True, default='')
+    local_approved = models.BooleanField(
+        default=False, help_text='An administrator confirmed this Ollama host is on-premises.')
+
+    credential_owner = models.CharField(max_length=12, choices=OWNER_CHOICES)
+    owner_organization = models.ForeignKey(
+        'core.Organization', null=True, blank=True, on_delete=models.CASCADE,
+        related_name='owned_ai_profiles')
+    owner_user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE,
+        related_name='owned_ai_profiles')
+    assigned_organizations = models.ManyToManyField(
+        'core.Organization', blank=True, related_name='assigned_ai_profiles',
+        help_text='MSP-owned keys: the customers this key may be spent on.')
+    # Sealed to the AI gateway's public key (services/gateway_keys.py). The
+    # web app can store a key but never read it back; only the gateway
+    # process, which holds the private key and not APP_MASTER_KEY, opens it.
+    sealed_api_key = models.TextField(blank=True, default='')
+    # The origin (scheme://host:port) an administrator approved for an
+    # Ollama profile through a protected change. The gateway refuses any
+    # other destination, so editing base_url alone sends nothing anywhere.
+    approved_destination = models.CharField(max_length=300, blank=True, default='')
+
+    # Pricing for estimates and budgets, in hundredths of a cent per 1k tokens.
+    input_price_per_1k = models.PositiveIntegerField(default=0, help_text='1/100 cent per 1k input tokens')
+    output_price_per_1k = models.PositiveIntegerField(default=0, help_text='1/100 cent per 1k output tokens')
+    max_output_tokens = models.PositiveIntegerField(default=1500)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_ai_model_profiles'
+        ordering = ['name']
+
+    def __str__(self):
+        return f'{self.name} ({self.get_provider_display()} {self.model})'
+
+    @property
+    def location(self):
+        return self.LOCATION_LOCAL if self.provider == 'ollama' else self.LOCATION_CLOUD
+
+    def set_api_key(self, key):
+        from psa_ai.services.gateway_keys import seal
+        self.sealed_api_key = seal(key) if key else ''
+
+    @property
+    def has_api_key(self):
+        return bool(self.sealed_api_key)
+
+
+class AIBusinessPolicy(models.Model):
+    """What AI one customer allows. Without a row, nothing is allowed."""
+    organization = models.OneToOneField(
+        'core.Organization', on_delete=models.CASCADE, related_name='ai_policy')
+    analysis_enabled = models.BooleanField(default=False)
+    compare_enabled = models.BooleanField(default=False)
+    allowed_profiles = models.ManyToManyField(AIModelProfile, blank=True, related_name='policies')
+    default_profile = models.ForeignKey(
+        AIModelProfile, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    allow_technician_credentials = models.BooleanField(default=False)
+    local_only = models.BooleanField(
+        default=False, help_text='Both the processor and the model must be on-premises.')
+    daily_budget_cents = models.PositiveIntegerField(
+        default=0, help_text='Spend ceiling per day across all AI runs, in cents. 0 = no spend.')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_ai_business_policies'
+
+    def __str__(self):
+        return f'AI policy for {self.organization}'
+
+
+class AIBudgetDay(models.Model):
+    """Per-organization spend for one day, in 1/100 cent. Reservations are
+    taken with one conditional UPDATE (services/budget.py), so concurrent
+    runs can never overshoot the ceiling."""
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    day = models.DateField()
+    reserved = models.PositiveBigIntegerField(default=0)
+    spent = models.PositiveBigIntegerField(default=0)
+
+    class Meta:
+        db_table = 'psa_ai_budget_days'
+        unique_together = [('organization', 'day')]
+
+
+class AnalysisJob(models.Model):
+    """One technician-requested analysis of one ticket, processed by rem0te.
+
+    Everything the job may touch is bound here at submit time — tenant,
+    business, ticket revision, actor, profiles, evidence digest, expiry —
+    and the gateway refuses any inference request that disagrees."""
+    KIND_ANALYZE = 'analyze'
+    KIND_COMPARE = 'compare'
+    STATUS_CHOICES = [
+        ('created', 'Created'),
+        ('submitted', 'Submitted'),
+        ('running', 'Running'),
+        ('completed', 'Completed'),
+        ('partial', 'Completed with some models failing'),
+        ('failed', 'Failed'),
+        ('unavailable', 'Processor unavailable'),
+        ('expired', 'Expired'),
+    ]
+    TERMINAL = {'completed', 'partial', 'failed', 'unavailable', 'expired'}
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    ticket = models.ForeignKey('psa.Ticket', on_delete=models.CASCADE, related_name='ai_analysis_jobs')
+    ticket_revision = models.CharField(max_length=64)
+    actor = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='+')
+    kind = models.CharField(max_length=10, choices=[(KIND_ANALYZE, 'Analyze'), (KIND_COMPARE, 'Compare')])
+    connection = models.ForeignKey(
+        'integrations.RMMConnection', on_delete=models.PROTECT, related_name='+',
+        help_text='The rem0te pairing that processes this job.')
+    business_id = models.CharField(max_length=100)
+    endpoint_device = models.ForeignKey(
+        'integrations.RMMDevice', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+
+    evidence = models.JSONField(default=dict, help_text='Redacted evidence exactly as sent.')
+    evidence_digest = models.CharField(max_length=64)
+    payload_digest = models.CharField(max_length=64)
+    idempotency_key = models.CharField(max_length=64)
+    correlation_id = models.UUIDField(default=uuid.uuid4)
+    expires_at = models.DateTimeField()
+
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='created')
+    processor_job_id = models.CharField(max_length=100, blank=True, default='')
+    last_event_sequence = models.PositiveIntegerField(default=0)
+    last_polled_at = models.DateTimeField(null=True, blank=True)
+    error = models.TextField(blank=True, default='')
+    disagreements = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_ai_analysis_jobs'
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['actor', 'idempotency_key'], name='psa_ai_job_idempotency'),
+        ]
+        indexes = [models.Index(fields=['ticket', '-created_at'])]
+
+    def __str__(self):
+        return f'AnalysisJob {self.id} ({self.kind}, {self.status})'
+
+    @property
+    def is_terminal(self):
+        return self.status in self.TERMINAL
+
+
+class AnalysisRun(models.Model):
+    """One model's run inside a job. The result is the validated structure
+    from services/analysis_result.py, never raw model text."""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('dispatched', 'Claimed, waiting for the gateway'),
+        ('executing', 'Running in the gateway'),
+        ('succeeded', 'Succeeded'),
+        ('failed', 'Failed'),
+        ('refused', 'Refused by the gateway'),
+    ]
+    job = models.ForeignKey(AnalysisJob, on_delete=models.CASCADE, related_name='runs')
+    profile = models.ForeignKey(AIModelProfile, on_delete=models.PROTECT, related_name='+')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    estimated_cost = models.PositiveIntegerField(default=0, help_text='1/100 cent')
+    reserved_cost = models.PositiveIntegerField(default=0)
+    actual_cost = models.PositiveIntegerField(default=0)
+    input_tokens = models.PositiveIntegerField(default=0)
+    output_tokens = models.PositiveIntegerField(default=0)
+    result = models.JSONField(default=dict, blank=True)
+    error = models.CharField(max_length=500, blank=True, default='')
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'psa_ai_analysis_runs'
+        unique_together = [('job', 'profile')]
+        ordering = ['pk']
+
+
+class ProcessorEvent(models.Model):
+    """A signed callback from rem0te, kept for de-duplication and audit."""
+    job = models.ForeignKey(AnalysisJob, on_delete=models.CASCADE, related_name='events')
+    event_id = models.CharField(max_length=100)
+    sequence = models.PositiveIntegerField()
+    event_type = models.CharField(max_length=40)
+    applied = models.BooleanField(default=False)
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_ai_processor_events'
+        unique_together = [('job', 'event_id')]
+
+
+class IntegrationNonce(models.Model):
+    """Request nonces seen on the integration API, so a captured signed
+    request cannot be replayed (shared across every worker, unlike a cache)."""
+    connection_id = models.PositiveIntegerField()
+    nonce = models.CharField(max_length=64)
+    seen_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = 'psa_ai_integration_nonces'
+        unique_together = [('connection_id', 'nonce')]

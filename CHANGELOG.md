@@ -5,6 +5,49 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.646] - 2026-11-09
+
+### Added
+- **Ticket AI Assist (OPTIONAL AI, needs PSA and `psa_ai_enabled`).** Technicians can click **Analyze ticket** or **Compare models** on a ticket. A preview shows the redacted evidence, what was left out, the processor and each model with its location and estimated cost. Nothing is sent until they confirm. Results are staff-only:
+  - facts tied to evidence IDs;
+  - likely causes, missing information, checks and warnings;
+  - editable draft replies.
+
+  **Use reply** never overwrites text you have already typed, and only the normal Send publishes a reply.
+- **Ticket AI models** (Settings → Ticket AI models). Model profiles for Anthropic, OpenAI or an approved local Ollama, and a per-customer AI policy covering analysis, compare, allowed models, default model, technician-owned keys, local-only and a daily budget. API keys are write-only, sealed to the gateway key, and never sent to the browser or to rem0te.
+- **Inference gateway and `ticket-rmm-v1` contract** (`docs/contracts/ticket-rmm-v1/`):
+  - signed requests in both directions;
+  - idempotent job submission (409 when the payload changes);
+  - signed, sequenced, de-duplicated events, plus polling.
+
+  Before it calls a model, the gateway re-checks the pairing, job, delegation, actor, customer, ticket revision, evidence digest, profile, expiry and budget. The budget is reserved atomically. If rem0te is down, manual ticket work carries on. The rem0te side of the contract is not built yet.
+- **Technician security levels** (Settings → Security → Technician Access):
+  - L1 Help Desk / L2 Technician / L3 Senior presets, assigned per technician or group, per customer, with optional expiry;
+  - cloned custom presets, customer defaults and restrictions, explicit denies;
+  - effective-access preview with explanations, diffs before saving, audit and reset to default.
+
+  Staff, editor, admin and superuser flags never grant a level, and customer portal users never get an AI or RMM capability. `manage.py tech_access_report` lists unassigned technicians and older role flags.
+- **Protected changes.** Widening access, pairing rem0te, approving an Ollama address, changing approvers or the recovery contact, and loosening detection all follow the same steps: the requester re-authenticates, then a different approver re-authenticates and approves. The recovery contact is e-mailed at each step.
+- **Read-only theft detection.** Distinct tickets, customers, exports and diagnostic bytes are counted per identity, per hour and per day, across the web UI, the REST API and the mobile API. Crossing a limit alerts administrators and, per level, can contain the technician until another administrator lifts it.
+- The new safeguards are listed under Security Features on the About page and in the documentation. The operator guide is `docs/TECHNICIAN_ACCESS.md`.
+
+### Changed
+- Ticket AI capabilities now come only from Technician Access. The older `psa_ai_*` role-template flags are kept, but they no longer grant anything.
+- An AI-drafted public reply needs *Send reviewed AI replies*. For L1 technicians the draft is kept as an internal note.
+- AI evidence never includes attachments, vault data, internal-note bodies or raw RMM payloads. It is redacted before it is sent, logged or stored.
+- The AI action `run_rmm_script` has been removed.
+- Workflow rule suggestions (PSA → Workflow suggestions) are shown to MSP technicians only.
+
+### Security
+- `AI_GATEWAY_MODE=worker` runs model calls in `manage.py ai_gateway_worker` (`deploy/clientst0r-ai-gateway.service`, not installed automatically). That worker drops the master key and every key, secret, token and password variable, so it can't decrypt vault data. The default `in_process` mode is not isolated, and the AI models page says so.
+- `manage.py check_secrets_storage` recognises gateway-sealed columns and fails on any AI model key that isn't sealed.
+- Model calls only go to the fixed cloud hosts, or to an Ollama address approved as a protected change. Redirects are never followed, and cloud metadata addresses are refused.
+
+### Upgrade
+- Adds migrations `psa_ai.0003` and `tech_access.0001`–`0002`. `0002` seeds the built-in presets.
+- Technicians have no AI capability until they are assigned a preset.
+- Run `python manage.py ai_gateway_keygen` once before adding model API keys.
+
 ## [3.17.645] - 2026-11-09
 
 ### Fixed

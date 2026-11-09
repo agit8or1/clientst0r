@@ -87,6 +87,10 @@ urlpatterns = [
     # is token-only and unauthenticated by design; everything else is gated.
     path('network-discovery/', include('network_discovery.urls')),
 
+    path('settings/security/technician-access/', include('tech_access.urls')),
+    # Ticket ↔ rem0te integration (ticket-rmm-v1): signed requests only.
+    path('api/integration/v1/', include('psa_ai.integration_api')),
+
     # API
     path('api/', include('api.urls')),
 

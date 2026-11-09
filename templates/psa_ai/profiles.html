@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load tech_access_tags %}
+{% block title %}Ticket AI models{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <h4><i class="fas fa-wand-magic-sparkles me-1"></i>Ticket AI Assist — models and customer policies <span class="badge bg-warning text-dark">Optional AI</span></h4>
+    <div class="alert {% if gateway.mode == 'worker' and gateway.configured %}alert-success{% else %}alert-warning{% endif %} small">
+        <strong>Gateway:</strong> {{ gateway.text }}
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card"><div class="card-header"><strong>Model profiles</strong></div>
+                <div class="card-body small">
+                    <table class="table table-sm">
+                        <thead><tr><th>Name</th><th>Provider / model</th><th>Key</th><th>Owner</th><th>Status</th><th></th></tr></thead>
+                        <tbody>{% for p in profiles %}
+                        <tr><td>{{ p.name }}{% if p.economical %} <span class="badge bg-light text-dark border">economical</span>{% endif %}</td>
+                            <td>{{ p.get_provider_display }} {{ p.model }}{% if p.provider == 'ollama' %}<div class="text-muted">{{ p.base_url }}{% if p.approved_destination %} — approved{% else %} — <span class="text-warning-emphasis">not approved</span>{% endif %}</div>{% endif %}</td>
+                            <td>{% if p.has_api_key %}stored (write-only){% else %}—{% endif %}</td>
+                            <td>{{ p.get_credential_owner_display }}</td>
+                            <td>{% if p.enabled %}enabled{% else %}disabled{% endif %}</td>
+                            <td class="text-nowrap"><a href="?edit={{ p.pk }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                {% if p.provider == 'ollama' and not p.approved_destination %}
+                                <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="approve_destination"><input type="hidden" name="pk" value="{{ p.pk }}"><button class="btn btn-sm btn-outline-warning">Propose address</button></form>{% endif %}</td></tr>
+                        {% empty %}<tr><td colspan="6" class="text-muted">No profiles yet.</td></tr>{% endfor %}</tbody>
+                    </table>
+                </div></div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card"><div class="card-header"><strong>{% if edit %}Edit {{ edit.name }}{% else %}New profile{% endif %}</strong></div>
+                <div class="card-body small">
+                    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="profile">{% if edit %}<input type="hidden" name="pk" value="{{ edit.pk }}">{% endif %}
+                        {% for f in form %}<div class="mb-2">{% if f.field.widget.input_type == 'checkbox' %}{{ f }} <label for="{{ f.id_for_label }}">{{ f.label }}</label>{% else %}<label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% endif %}
+                            {% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}{% for e in f.errors %}<div class="text-danger">{{ e }}</div>{% endfor %}</div>{% endfor %}
+                        {% for e in form.non_field_errors %}<div class="text-danger">{{ e }}</div>{% endfor %}
+                        <button class="btn btn-sm btn-primary">Save</button>
+                    </form>
+                </div></div>
+        </div>
+    </div>
+    <div class="card mt-3"><div class="card-header"><strong>Customer AI policies</strong> <span class="text-muted small">Without a policy, a customer allows no AI.</span></div>
+        <div class="card-body small">
+            <table class="table table-sm mb-0"><thead><tr><th>Customer</th><th>Analysis</th><th>Compare</th><th>Models</th><th>Local only</th><th>Daily budget</th><th></th></tr></thead>
+                <tbody>{% for o in organizations %}{% with pol=policies|get:o.pk %}
+                <tr><td>{{ o.name }}</td>
+                    {% if pol %}<td>{{ pol.analysis_enabled|yesno:"on,off" }}</td><td>{{ pol.compare_enabled|yesno:"on,off" }}</td>
+                    <td>{{ pol.allowed_profiles.all|join:", "|default:"—" }}</td><td>{{ pol.local_only|yesno:"yes,no" }}</td><td>{{ pol.daily_budget_cents }}¢</td>
+                    {% else %}<td colspan="5" class="text-muted">No policy — AI off</td>{% endif %}
+                    <td><a href="{% url 'psa_ai:policy' o.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a></td></tr>
+                {% endwith %}
+                {% endfor %}</tbody></table>
+        </div></div>
+</div>
+{% endblock %}

@@ -213,6 +213,9 @@ class GenerateReplyEndpointTests(TestCase):
             user=self.user, organization=self.org,
             defaults={'role': Role.OWNER, 'is_active': True},
         )
+        # AI capabilities come from technician access (v3.17.646).
+        from tech_access.testing import grant
+        grant(self.user, self.org, 'l3')
         self.client = Client()
         self.client.force_login(self.user)
         s = self.client.session; s['current_organization_id'] = self.org.id; s.save()
@@ -520,17 +523,23 @@ class ApprovalFlowTests(TestCase):
         _seed()
         _enable_ai()
         self.org = Organization.objects.create(name='ACME', slug='acme')
-        self.tech = User.objects.create_user('l1', password='pw', email='l1@x.com')
+        # Both are MSP technicians: L1 requests, L3 approves (v3.17.646).
+        from psa.tests._base import _make_msp_tech
+        from tech_access.testing import grant
+        self.tech = _make_msp_tech(User.objects.create_user('l1', password='pw', email='l1@x.com'))
         Membership.objects.update_or_create(
             user=self.tech, organization=self.org,
-            defaults={'role': Role.READONLY, 'is_active': True},
+            defaults={'role': Role.EDITOR, 'is_active': True},
         )
-        self.lead = User.objects.create_user('lead', password='pw', email='lead@x.com')
+        self.lead = _make_msp_tech(User.objects.create_user('lead', password='pw', email='lead@x.com'))
         Membership.objects.update_or_create(
             user=self.lead, organization=self.org,
             defaults={'role': Role.OWNER, 'is_active': True},
         )
+        grant(self.tech, self.org, 'l1')
+        grant(self.lead, self.org, 'l3')
         self.ticket = Ticket.objects.create(
+            assigned_to=self.tech,
             organization=self.org, subject='Need approval flow',
             queue=Queue.objects.first(),
             status=TicketStatus.objects.filter(slug='new').first(),
@@ -663,67 +672,62 @@ class RoleTemplateAIPermissionTests(TestCase):
             ticket_type=TicketType.objects.first(),
         )
 
-    def test_role_template_grants_send_low_risk_to_readonly_user(self):
+    def test_role_template_flags_no_longer_grant_ai_capabilities(self):
+        """Since v3.17.646 the psa_ai_* flags are kept but grant nothing:
+        AI capabilities come only from technician access."""
         from accounts.models import RoleTemplate
-        from psa_ai.permissions import can_send_reply
+        from psa.tests._base import _make_msp_tech
+        from psa_ai.permissions import can_apply_action, can_send_reply
         from psa_ai.models import AISuggestion
+        from tech_access.testing import grant
 
-        user = User.objects.create_user('grant-low', password='pw', email='gl@x.com')
+        user = _make_msp_tech(User.objects.create_user('grant-low', password='pw', email='gl@x.com'))
         template = RoleTemplate.objects.create(
-            name='Custom Helpdesk',
-            organization=self.org,
-            psa_ai_view=True,
-            psa_ai_send_low_risk=True,
+            name='Custom Helpdesk', organization=self.org,
+            psa_ai_view=True, psa_ai_send_low_risk=True, psa_ai_apply_high_risk=True,
         )
         Membership.objects.update_or_create(
             user=user, organization=self.org,
-            defaults={'role': Role.READONLY, 'role_template': template, 'is_active': True},
+            defaults={'role': Role.OWNER, 'role_template': template, 'is_active': True},
         )
-
-        sugg = AISuggestion.objects.create(
+        reply = AISuggestion.objects.create(
             organization=self.org, native_ticket=self.ticket,
             kind='reply', risk_level='low', review_state='draft',
             model_name='m', confidence=Decimal('0.9'),
             suggested_body='ok', requested_by=user,
         )
-        self.assertTrue(can_send_reply(user, sugg))
-
-        # Sanity: when we drop the flag, send is denied.
-        template.psa_ai_send_low_risk = False
-        template.save(update_fields=['psa_ai_send_low_risk'])
-        self.assertFalse(can_send_reply(user, sugg))
-
-    def test_role_template_revokes_apply_high_risk(self):
-        """An Editor can ordinarily apply low-risk actions; if their template
-        explicitly sets apply_high_risk=False they cannot apply a high-risk one."""
-        from accounts.models import RoleTemplate
-        from psa_ai.permissions import can_apply_action
-        from psa_ai.models import AISuggestion
-
-        user = User.objects.create_user('revoke-high', password='pw', email='rh@x.com')
-        template = RoleTemplate.objects.get(name='Editor', is_system_template=True,
-                                            organization__isnull=True)
-        Membership.objects.update_or_create(
-            user=user, organization=self.org,
-            defaults={'role': Role.EDITOR, 'role_template': template, 'is_active': True},
-        )
-        sugg = AISuggestion.objects.create(
+        action = AISuggestion.objects.create(
             organization=self.org, native_ticket=self.ticket,
             kind='action', risk_level='high', review_state='draft',
             model_name='m', confidence=Decimal('0.9'),
             action_type='escalate', action_payload={'reason': 'x'},
             suggested_body='escalate', requested_by=user,
         )
-        # Editor's high_risk default is True per migration; flip it off and
-        # verify the resolver respects the new value.
-        template.psa_ai_apply_high_risk = False
-        template.save(update_fields=['psa_ai_apply_high_risk'])
-        # Editor in our matrix doesn't have approve_action either, but a
-        # system Editor's role flag is can_admin()=False — so the high-risk
-        # branch's admin gate already blocks. Validate the deeper behaviour
-        # by giving them admin role but stripping the flag:
-        Membership.objects.filter(user=user, organization=self.org).update(role=Role.ADMIN)
-        self.assertFalse(can_apply_action(user, sugg))
+        self.assertFalse(can_send_reply(user, reply))
+        self.assertFalse(can_apply_action(user, action))
+        # The ticket is unassigned, so only a preset with review_others reaches it.
+        grant(user, self.org, 'l2')
+        self.assertFalse(can_send_reply(user, reply))
+        grant(user, self.org, 'l3')
+        self.assertTrue(can_send_reply(user, reply))
+        self.assertTrue(can_apply_action(user, action))
+
+    def test_customer_users_never_get_ai_capabilities(self):
+        from psa_ai.permissions import can_send_reply, has_capability
+        from psa_ai.models import AISuggestion
+        from tech_access.models import AccessAssignment
+        from tech_access.services import builtin
+        portal = User.objects.create_user('portal-owner', password='pw', email='po@x.com')
+        Membership.objects.update_or_create(
+            user=portal, organization=self.org, defaults={'role': Role.OWNER, 'is_active': True})
+        AccessAssignment.objects.create(preset=builtin('l3'), organization=self.org, user=portal)
+        sugg = AISuggestion.objects.create(
+            organization=self.org, native_ticket=self.ticket,
+            kind='reply', risk_level='low', review_state='draft',
+            model_name='m', confidence=Decimal('0.9'), suggested_body='ok', requested_by=portal,
+        )
+        self.assertFalse(has_capability(portal, self.org, 'view_output'))
+        self.assertFalse(can_send_reply(portal, sugg))
 
     def test_system_templates_match_role_matrix(self):
         """Migration backfilled per the ROADMAP matrix — confirm key rows."""

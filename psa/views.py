@@ -274,13 +274,19 @@ def ticket_detail(request, ticket_number):
     # Phase 10a — surface AI suggestions on the ticket
     ai_suggestions = []
     ai_suggestions_json = []
-    ai_enabled = False
+    ai_enabled = ai_can_send = ai_can_compare = False
     try:
         from core.models import SystemSetting
         from psa_ai.models import AISuggestion
+        from psa.visibility import is_msp_staff
+        from psa_ai.permissions import has_capability
         ss = SystemSetting.get_settings()
-        ai_enabled = bool(ss.psa_ai_enabled)
+        # AI output is internal working material: technicians only.
+        ai_enabled = (bool(ss.psa_ai_enabled) and is_msp_staff(request.user)
+                      and has_capability(request.user, ticket.organization, 'view_output', ticket=ticket))
         if ai_enabled:
+            ai_can_send = has_capability(request.user, ticket.organization, 'send_reply', ticket=ticket)
+            ai_can_compare = has_capability(request.user, ticket.organization, 'compare', ticket=ticket)
             ai_suggestions = list(
                 AISuggestion.objects
                 .filter(native_ticket=ticket)
@@ -388,6 +394,8 @@ def ticket_detail(request, ticket_number):
         'is_watcher': is_watcher,
         'canned_replies': canned_replies,
         'ai_enabled': ai_enabled,
+        'ai_can_send': ai_can_send,
+        'ai_can_compare': ai_can_compare,
         'ai_suggestions': ai_suggestions,
         'ai_suggestions_json': ai_suggestions_json,
         'ai_latest_triage_id': ai_latest_triage_id,
@@ -989,6 +997,25 @@ def ticket_post_comment(request, ticket_number):
         is_internal = False
     send_email = (request.POST.get('send_email') or '').lower() in ('1', 'true', 'on', 'yes')
 
+    # A public reply that came from an AI draft needs the ai_send technician
+    # capability (tech_access). Manual replies and internal notes are not
+    # affected; the text is kept as the draft so nothing typed is lost.
+    ai_assisted = False
+    if not is_internal and is_msp_staff(request.user):
+        from psa_ai.services.drafts import is_ai_assisted
+        ai_assisted = is_ai_assisted(ticket, body, (request.POST.get('ai_draft') or '').strip())
+        if ai_assisted:
+            from psa_ai.permissions import has_capability
+            if not has_capability(request.user, ticket.organization, 'send_reply', ticket=ticket):
+                TicketDraft.objects.update_or_create(
+                    user=request.user, ticket=ticket, defaults={'body': body, 'is_internal': False})
+                messages.error(
+                    request,
+                    "This reply came from an AI draft, and your technician access doesn't include sending "
+                    'AI-assisted replies. It was NOT sent. Post it as an internal note for a colleague to '
+                    'review, or write the reply in your own words.')
+                return redirect(detail_url + '#composer')
+
     # Optimistic concurrency — don't talk over activity the user hasn't seen.
     last_seen_raw = (request.POST.get('last_seen_comment_id') or '').strip()
     confirm_stale = (request.POST.get('confirm_stale') or '') == '1'
@@ -1044,7 +1071,7 @@ def ticket_post_comment(request, ticket_number):
         object_repr=f'{"internal note" if is_internal else "reply"} on {ticket.ticket_number}',
         description=f'Added {"internal note" if is_internal else "reply"} to {ticket.ticket_number}',
         ip_address=_client_ip(request), path=request.path,
-        extra_data={'is_internal': is_internal, 'length': len(body)},
+        extra_data={'is_internal': is_internal, 'length': len(body), 'ai_assisted': ai_assisted},
     )
     # Notify watchers (best-effort; SMTP failures don't block the request).
     _notify_watchers(ticket, comment, request.user)
@@ -3903,8 +3930,10 @@ def workflow_suggestion_list(request):
     nothing."""
     from .models import WorkflowSuggestion
     from core.models import SystemSetting
+    from psa.visibility import is_msp_staff
     ss = SystemSetting.get_settings()
-    ai_enabled = bool(getattr(ss, 'psa_ai_enabled', False))
+    # AI-derived suggestions are technician material (v3.17.646).
+    ai_enabled = bool(getattr(ss, 'psa_ai_enabled', False)) and is_msp_staff(request.user)
     # Scoped to the caller's organizations: these carry AI-derived summaries
     # and rationales about a client's ticket patterns, and the list was
     # previously rendering every tenant's to any signed-in user.
@@ -3934,6 +3963,9 @@ def workflow_suggestion_decide(request, pk):
         messages.error(request, 'AI features are disabled in System Settings.')
         return redirect('psa:workflow_suggestion_list')
     s = get_scoped_object_or_404(WorkflowSuggestion, request, pk=pk)
+    from psa_ai.permissions import has_capability
+    if not has_capability(request.user, s.organization, 'create_workflow'):
+        raise Http404()
     action = (request.POST.get('action') or '').strip()
     if action == 'accept':
         rule = s.accept(user=request.user)

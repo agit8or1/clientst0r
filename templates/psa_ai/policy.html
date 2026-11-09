@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}AI policy — {{ organization.name }}{% endblock %}
+{% block content %}
+<div class="container" style="max-width: 720px">
+    <h4>AI policy — {{ organization.name }} <span class="badge bg-warning text-dark">Optional AI</span></h4>
+    <p class="small text-muted">What Ticket AI Assist may do for this customer. Technicians still need a technician-access
+        preset here; local-only requires both an on-premises Rem0te and an approved on-premises model.</p>
+    <form method="post" class="small">{% csrf_token %}
+        {% for f in form %}<div class="mb-2">{% if f.field.widget.input_type == 'checkbox' %}{{ f }} <label for="{{ f.id_for_label }}">{{ f.label }}</label>{% else %}<label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% endif %}
+            {% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}{% for e in f.errors %}<div class="text-danger">{{ e }}</div>{% endfor %}</div>{% endfor %}
+        <button class="btn btn-primary btn-sm">Save</button> <a href="{% url 'psa_ai:profiles' %}" class="btn btn-link btn-sm">Back</a>
+    </form>
+</div>
+{% endblock %}

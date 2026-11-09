@@ -212,6 +212,11 @@ curl -H "Authorization: Bearer YOUR_API_KEY_HERE" \
         <section id="security" class="mb-5">
             <h2>Security Features</h2>
 
+            <h4>Technician access safeguards</h4>
+            <ul>{% for f in technician_safeguards %}
+                <li><strong>{{ f.title }}</strong> <span class="badge bg-secondary">{{ f.status_label }}</span> — {{ f.scope }} <span class="text-muted">({{ f.doc }})</span></li>
+            {% endfor %}</ul>
+
             <h4>Authentication</h4>
             <ul>
                 <li>Argon2 password hashing (stronger than bcrypt)</li>

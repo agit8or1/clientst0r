@@ -34,8 +34,10 @@ def documentation(request):
     """
     Platform documentation page.
     """
+    from core.security_features import catalog as security_catalog
     return render(request, 'core/documentation.html', {
         'version': get_version(),
+        'technician_safeguards': security_catalog(),
     })
 
 
@@ -236,10 +238,12 @@ def about(request):
     # Security scan and dependencies moved to System Status page for performance
     # These operations are slow (pip-audit takes 1-2 seconds) and not critical for About page
 
+    from core.security_features import catalog as security_catalog
     return render(request, 'core/about.html', {
         'version': get_version(),
         'full_version': get_full_version(),
         'equipment_stats': equipment_stats,
+        'technician_safeguards': security_catalog(),
     })
 
 

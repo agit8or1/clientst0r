@@ -1772,6 +1772,75 @@ inventory. Documentation only — nothing is pushed to devices.
   a detail panel by mouse or keyboard with a link to the device and its ports.
   *(shipped v3.17.641)*
 
+## Phase 56 — Ticket AI Assist and RMM handoff **(L · OPTIONAL AI)** [in progress]
+
+**OPTIONAL AI** — gated by `psa_ai_enabled`, the customer's PSA switch, a customer
+AI policy, an enabled model profile and technician access (Phase 57). ClientSt0r
+owns the ticket UI, AI settings, provider credentials, the inference gateway and
+customer replies; a paired rem0te processes jobs and, in later milestones,
+collects approved device evidence and independently approves and runs endpoint
+work. Contract: `docs/contracts/ticket-rmm-v1/`.
+
+- **56.1 Ticket-only analysis and drafts** — "Analyze ticket" with a preview of
+  the redacted evidence, destination and cost; staff-only facts with evidence
+  references, causes, missing information, checks, warnings and editable
+  replies; works without a device; "Use reply" never overwrites the composer
+  and only Send publishes; the old Approve & Send path and the
+  `run_rmm_script` AI action removed. *(shipped v3.17.646 — tested against a
+  fixture processor; the rem0te side of the contract is not built yet)*
+- **56.2 Model profiles, customer policies and the gateway** — Claude, OpenAI
+  and approved on-premises Ollama; company, assigned-MSP or (where the customer
+  allows) technician-owned keys, write-only and sealed to the gateway key;
+  one economical default; atomic daily budgets; local-only for both processor
+  and model; the gateway re-checks job, actor, tenant, profile, evidence digest,
+  expiry and budget on every call. *(shipped v3.17.646; isolated worker mode is
+  opt-in — the default in-process mode is reported as not isolated)*
+- **56.3 Compare models** — separately permissioned, shows every recipient and
+  its cost first, labels disagreements, returns partial results.
+  *(shipped v3.17.646)*
+- **56.4 Signed integration channel** — mutual HMAC signing, DB-backed nonces,
+  delegated short-lived identity, idempotent jobs (409 on a changed payload),
+  sequenced and de-duplicated events, polling recovery, outage leaves manual
+  work untouched. *(shipped v3.17.646 — ClientSt0r side)*
+- **56.5 Private RMM handoffs, read-only diagnostics and remote launch** —
+  targets only from verified same-business associations; "Sent" only on a
+  confirmed receipt. *(planned — needs the rem0te contract implementation)*
+- **56.6 Fix review** — only when rem0te advertises signed actions; ClientSt0r
+  refers, rem0te approves and runs. *(planned)*
+
+**Sizing:** **L** — 56.1–56.4 shipped; 56.5–56.6 wait on rem0te.
+
+## Phase 57 — Technician security levels and abuse prevention **(L · security)** [in progress]
+
+- **57.1 Presets and assignments** — L1 Help Desk / L2 Technician / L3 Senior
+  presets seeded idempotently; clone and customise; assign per technician or
+  group, per customer, with expiry; customer defaults and restrictions;
+  explicit denies; effective-access preview with explanations; diffs before
+  saving; reset-to-default preview; audit of every change. Portal users are
+  outside presets; staff/admin/superuser flags never imply a level.
+  *(shipped v3.17.646)*
+- **57.2 One resolver on every path** — ticket page, AI routes (including the
+  old inbox/apply/workflow routes), direct IDs, result reads and gateway
+  dispatch, re-checked on every request and when a queued job runs.
+  *(shipped v3.17.646)*
+- **57.3 Vault isolation for AI** — provider keys sealed to an X25519 gateway
+  key; a restricted worker without the vault master key; destination allowlist,
+  no redirects, metadata and DNS-rebinding blocked. *(partial — shipped
+  v3.17.646; worker runs as the same OS user, a separate user is a deployment
+  step)*
+- **57.4 Protected changes** — widening needs fresh authentication and a
+  distinct approver; self-promotion and own-recovery-address approvals refused;
+  the previously verified contact is notified. *(shipped v3.17.646)*
+- **57.5 Read-only theft detection** — distinct tickets, customers, exports and
+  diagnostic bytes per identity across UI, REST and mobile API, 1 h and 24 h
+  windows, on by default, tunable, containment by level, no ticket text in
+  alerts. *(shipped v3.17.646 — diagnostic bytes are counted once rem0te
+  diagnostics exist)*
+- **57.6 Remote actions with live rem0te authorization** — view, control and
+  elevation as time-limited grants from rem0te. *(planned — Phase 56.5)*
+
+**Sizing:** **L** — 57.1–57.5 shipped; 57.6 with Phase 56.5.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -1828,6 +1897,8 @@ inventory. Documentation only — nothing is pushed to devices.
 | 53 — Documentation readiness and lifecycle | L | in progress — standards, scoring, lifecycle, analytics v3.17.605; custom asset fields and types v3.17.621 | docs publish rules |
 | 54 — Guided customer service requests | L | in progress — guided requests, approvals, progress v3.17.606 | Phase 53 publish rules (KB suggestions) |
 | 55 — Hardware catalog and visual inventory | L | shipped v3.17.630 | extends `assets.Asset`, `monitoring.Rack`/`RackDevice`/`VLAN`, Phase 34 network devices |
+| 56 — Ticket AI Assist and RMM handoff (OPTIONAL AI) | L | in progress — analysis, drafts, compare, gateway and signed channel v3.17.646; handoffs, diagnostics, remote launch and fix review wait on rem0te | Phase 57; rem0te ticket-rmm-v1 |
+| 57 — Technician security levels and abuse prevention | L | in progress — presets, resolver, protected changes, theft detection, gateway isolation v3.17.646; remote grants with Phase 56.5 | none |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 
