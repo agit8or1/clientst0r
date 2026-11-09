@@ -156,9 +156,15 @@ def asset_detail(request, pk):
     # RMM device data for the RMM tab: only devices of this asset's own
     # customer whose ownership is settled, so a stale cross-customer link
     # never shows another customer's machine here.
+    # Technicians only, like the ticket page: RMM status, software, alerts
+    # and the console links are MSP working data, never shown to customers.
     from integrations.rmm_association import exposed_devices, summaries_for_asset
-    rmm_devices = exposed_devices(asset).prefetch_related('software', 'alerts')
-    rmm_summaries = summaries_for_asset(asset)
+    from psa.visibility import is_msp_staff
+    if is_msp_staff(request.user):
+        rmm_devices = exposed_devices(asset).prefetch_related('software', 'alerts')
+        rmm_summaries = summaries_for_asset(asset)
+    else:
+        rmm_devices, rmm_summaries = exposed_devices(asset).none(), []
 
     # Asset health context
     from core.models import SystemSetting

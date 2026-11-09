@@ -1625,6 +1625,15 @@ are built on top of them.
   Updates and the Apply pre-check ask whether the app may run the root helper,
   which every update uses, instead of probing old `sudo systemctl` rules. A
   failed old probe no longer shows a setup banner asking for NOPASSWD rules.
+- **Customer users on technician pages, reveal defaults, password hashing**
+  *(shipped v3.17.650)* — a customer user who opened a shared ticket's staff
+  page saw time entries, expenses, kit, workflows, similar tickets and
+  contract data, and could post to merge, quick-action, expense, kit, KB-link
+  and workflow URLs; those are now technician-only (403), and a customer's
+  attachment is always public. The asset page's RMM tab is technician-only.
+  New custom roles no longer reveal credential values unless the box is
+  ticked. Argon2 is now the active password hasher (the setting had the wrong
+  name, so PBKDF2 was used); existing hashes upgrade at next sign-in.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

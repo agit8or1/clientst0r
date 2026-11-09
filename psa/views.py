@@ -374,7 +374,7 @@ def ticket_detail(request, ticket_number):
         include_internal=workspace['is_msp_staff'],
     )
 
-    return render(request, 'psa/ticket_detail.html', {
+    context = {
         **workspace,
         **_ticket_asset_context(ticket, workspace['is_msp_staff']),
         'ticket': ticket,
@@ -422,7 +422,26 @@ def ticket_detail(request, ticket_number):
             ticket.organization).filter(is_active=True),
         'kit_inventory': InventoryItem.objects.for_organization(
             ticket.organization),
-    })
+    }
+    if not workspace['is_msp_staff']:
+        # A customer user reaching the staff ticket page gets the portal's
+        # view of the ticket: the shared conversation and their own
+        # attachments, never technician working data. Time, expenses,
+        # contract hours, problems, kit, workflow runs, canned replies and
+        # "similar tickets" (which can include tickets never shared with
+        # them) are not sent at all, not merely hidden in the template.
+        context.update(STAFF_ONLY_TICKET_CONTEXT)
+    return render(request, 'psa/ticket_detail.html', context)
+
+
+# ticket_detail context keys a customer user never receives (see above).
+STAFF_ONLY_TICKET_CONTEXT = {
+    'workflow_executions': [], 'canned_replies': [], 'time_entries': [], 'running_timer': None,
+    'total_minutes': 0, 'billable_minutes': 0, 'similar_tickets': [], 'contract': None,
+    'expenses': [], 'total_expense_billable': 0, 'problems': [], 'problem_can_create': False,
+    'kit_items': [], 'kit_packed_count': 0, 'kit_tools': [], 'kit_inventory': [],
+    'can_assign': False, 'eligible_assignees': [], 'hygiene': [],
+}
 
 
 @login_required
@@ -1297,6 +1316,7 @@ def ticket_merge(request, ticket_number):
         category 'duplicate' + duplicate_of=target.
       * Audit-log both sides.
     """
+    _staff_or_403(request)  # technician operation; customers use the portal
     source = _scoped_ticket_for_write(request, ticket_number)
     target_number = (request.POST.get('target') or '').strip()
     if not target_number or target_number == source.ticket_number:
@@ -1398,6 +1418,8 @@ def ticket_attach(request, ticket_number):
         return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
 
     is_internal = (request.POST.get('is_internal') or '').lower() in ('1', 'true', 'on', 'yes')
+    if is_internal and not is_msp_staff(request.user):
+        is_internal = False  # customers can't file internal attachments
     safe_name = (f.name or 'attachment').rsplit('/', 1)[-1].rsplit('\\', 1)[-1].replace('\x00', '')[:255]
 
     attachment = TicketAttachment.objects.create(
@@ -1519,6 +1541,7 @@ def ticket_quick_action(request, ticket_number):
     A business-rule refusal raised from a model signal (ValidationError —
     the sign-off / checklist gate) is shown as a message, never a 500.
     """
+    _staff_or_403(request)  # technician operation; customers use the portal
     from django.core.exceptions import ValidationError
     try:
         return _ticket_quick_action(request, ticket_number)
@@ -2752,6 +2775,7 @@ def kb_move_articles(request):
 @require_http_methods(['POST'])
 def ticket_kb_link(request, ticket_number):
     """Link a docs.Document KB article to a ticket."""
+    _staff_or_403(request)  # technician operation; customers use the portal
     from docs.models import Document
     org = get_request_organization(request)
     qs = Ticket.objects.all()
@@ -2789,6 +2813,7 @@ def ticket_kb_link(request, ticket_number):
 @require_psa_enabled
 @require_http_methods(['POST'])
 def ticket_kb_unlink(request, ticket_number, link_pk):
+    _staff_or_403(request)  # technician operation; customers use the portal
     org = get_request_organization(request)
     qs = TicketKBLink.objects.select_related('ticket', 'article')
     if org is not None:
@@ -3616,6 +3641,7 @@ def ticket_route_urls(request, ticket_number):
     use the ticket's `client_org` (else `organization`) address —
     fails gracefully when no street address is set.
     """
+    _staff_or_403(request)  # technician operation; customers use the portal
     from urllib.parse import quote_plus
     org = get_request_organization(request)
     qs = Ticket.objects.all()
@@ -3704,6 +3730,7 @@ def quote_send_for_approval(request, pk):
 @require_psa_enabled
 @require_http_methods(['POST'])
 def ticket_expense_add(request, ticket_number):
+    _staff_or_403(request)  # technician operation; customers use the portal
     org = get_request_organization(request)
     qs = Ticket.objects.all()
     if org is not None:
@@ -5278,6 +5305,7 @@ def ticket_launch_workflow(request, ticket_number):
     `native_psa_ticket=ticket` so the relationship is queryable from
     either side.
     """
+    _staff_or_403(request)  # technician operation; customers use the portal
     from processes.models import Process, ProcessExecution
     from django.db.models import Q
 
@@ -8137,6 +8165,7 @@ def ticket_share(request, ticket_number):
 
     Permission: outsourcing_share_tickets.
     """
+    _staff_or_403(request)  # technician operation; customers use the portal
     from accounts.permission_utils import user_has_perm
     from core.models import Organization
     from .models import TicketShare
@@ -8642,6 +8671,7 @@ def _kit_ticket(request, ticket_number):
 @require_http_methods(['POST'])
 def ticket_kit_add(request, ticket_number):
     """Add one line to the kit list."""
+    _staff_or_403(request)  # technician operation; customers use the portal
     from django.core.exceptions import ValidationError
     from django.db import IntegrityError, transaction
     from psa.models import TicketKitItem
@@ -8699,6 +8729,7 @@ def ticket_kit_add(request, ticket_number):
 @require_psa_enabled
 @require_http_methods(['POST'])
 def ticket_kit_remove(request, ticket_number, pk):
+    _staff_or_403(request)  # technician operation; customers use the portal
     ticket = _kit_ticket(request, ticket_number)
     removed = ticket.kit_items.filter(pk=pk).first()
     if removed:
@@ -8713,6 +8744,7 @@ def ticket_kit_remove(request, ticket_number, pk):
 @require_http_methods(['POST'])
 def ticket_kit_toggle_packed(request, ticket_number, pk):
     """Tick a line off while loading the van, or untick it."""
+    _staff_or_403(request)  # technician operation; customers use the portal
     from django.utils import timezone as _tz
 
     ticket = _kit_ticket(request, ticket_number)

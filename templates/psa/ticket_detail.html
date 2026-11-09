@@ -520,7 +520,9 @@
         {# Draft a KB article from the resolution — goes through KB review, never auto-published. #}
         {% if is_closed and ticket.resolution_summary %}
         <div class="card mb-3">
+            {% if is_msp_staff %}
             <div class="card-header"><strong><i class="fas fa-book me-1"></i>Knowledge base</strong></div>
+            {% endif %}
             <div class="card-body small">
                 {% for link in kb_links %}
                 <div class="mb-1">
@@ -597,6 +599,7 @@
             and shows wherever the ticket does.
         {% endcomment %}
         <div class="card mt-3">
+            {% if is_msp_staff %}
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong><i class="fas fa-toolbox"></i> Kit to take</strong>
                 {% if kit_items %}
@@ -605,6 +608,7 @@
                 </span>
                 {% endif %}
             </div>
+            {% endif %}
             <div class="card-body p-0">
                 {% if kit_items %}
                 <ul class="list-group list-group-flush">
@@ -734,10 +738,12 @@
 
         {# Time tracking (Phase 2c) #}
         <div class="card mt-3">
+            {% if is_msp_staff %}
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong><i class="fas fa-stopwatch me-1"></i>Time</strong>
                 <small class="text-muted">{{ total_minutes }}m total · {{ billable_minutes }}m billable</small>
             </div>
+            {% endif %}
             {% if not is_closed %}
             <div class="card-body small">
                 {% if running_timer %}
@@ -811,12 +817,14 @@
             .workflow-stage-meta a { text-decoration: none; }
         </style>
         <div class="card mt-3">
+            {% if is_msp_staff %}
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong><i class="fas fa-bolt me-1"></i>Workflows</strong>
                 <a href="{% url 'psa:ticket_launch_workflow' ticket.ticket_number %}" class="btn btn-sm btn-outline-primary">
                     <i class="fas fa-play"></i> Launch workflow
                 </a>
             </div>
+            {% endif %}
             {% if workflow_executions %}
             {# CSRF token for inline AJAX stage toggles #}
             {% csrf_token %}
@@ -977,12 +985,14 @@
 
         {# Expenses (Phase 5) #}
         <div class="card mt-3">
+            {% if is_msp_staff %}
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong><i class="fas fa-receipt me-1"></i>Expenses</strong>
                 {% if total_expense_billable %}
                 <span class="text-muted small">${{ total_expense_billable|floatformat:2 }} billable</span>
                 {% endif %}
             </div>
+            {% endif %}
             <div class="card-body">
                 {% if not is_closed %}
                 <form method="post" action="{% url 'psa:ticket_expense_add' ticket.ticket_number %}"

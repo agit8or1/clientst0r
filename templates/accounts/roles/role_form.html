@@ -79,8 +79,9 @@
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="vault_view_password" id="vault_view_password"
-                                       {% if role %}{% if role.vault_view_password %}checked{% endif %}{% elif copy_from %}{% if copy_from.vault_view_password %}checked{% endif %}{% else %}checked{% endif %}>
+                                       {% if role %}{% if role.vault_view_password %}checked{% endif %}{% elif copy_from %}{% if copy_from.vault_view_password %}checked{% endif %}{% endif %}>
                                 <label class="form-check-label" for="vault_view_password">View actual password values</label>
+                                <div class="form-text">Off for a new role: revealing a credential is granted on purpose, never by default.</div>
                             </div>
                         </div>
                     </div>

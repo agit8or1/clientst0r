@@ -680,7 +680,9 @@ class RoleTemplate(BaseModel):
     # until the feature exists. help_text is left alone deliberately: changing
     # it would generate a migration for a cosmetic string.
     vault_export = models.BooleanField(default=False, help_text='Export passwords')
-    vault_view_password = models.BooleanField(default=True, help_text='View actual password values')
+    # Off by default (v3.17.650): a new custom role reveals nothing until an
+    # admin grants it. Built-in templates set it explicitly.
+    vault_view_password = models.BooleanField(default=False, help_text='View actual password values')
     vault_manage_access_rules = models.BooleanField(
         default=False,
         help_text='Create / edit / delete vault GeoIP / IP / time access rules.',

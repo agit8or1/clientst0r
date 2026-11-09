@@ -86,7 +86,7 @@ class VaultPermissions(unittest.TestCase):
         self.assertTrue(can_access_password(user(profile=profile), self.password))
 
     def test_all_browser_secret_paths_deny_readonly_before_decryption(self):
-        request = NS(user=user(membership(10, vault_view_password=False)), META={}, method='POST')
+        request = NS(user=user(membership(10, vault_view_password=False)), META={}, method='POST', GET={}, POST={})
         globals_ = dict(can_access_password=can_access_password, JsonResponse=JsonResponse,
                         get_request_organization=lambda r: 10, Password=object,
                         get_org_object_or_404=lambda *a, **k: self.password)
@@ -108,7 +108,7 @@ class VaultPermissions(unittest.TestCase):
                    'vault.access_rules': NS(evaluate=evaluate)}
         handler = load_handler('api_mobile/views_vault.py', 'vault_reveal_view',
                     dict(can_access_password=can_access_password, accessible_org_ids=lambda u: {10},
-                         Response=Response, status=status))
+                         _visible_passwords=lambda u: manager, Response=Response, status=status))
         with patch.dict('sys.modules', modules):
             response = handler(request, 3)
         password.get_password.assert_not_called()

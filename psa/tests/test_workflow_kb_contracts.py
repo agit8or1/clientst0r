@@ -1789,7 +1789,8 @@ class TicketRouteUrlsTests(TestCase):
             street_address='100 Tech Way', city='Austin',
             state='TX', postal_code='78701',
         )
-        self.user = User.objects.create_user('rt-user', 'r@x.com', 'pw')
+        # Directions to the customer's site are for technicians (v3.17.650).
+        self.user = _make_msp_tech(User.objects.create_user('rt-user', 'r@x.com', 'pw'))
         Membership.objects.create(
             user=self.user, organization=self.org,
             role=Role.OWNER, is_active=True,

@@ -771,6 +771,20 @@ class TicketAssetTests(_Base):
         self.assertNotIn('Rem0te', page)
         self.assertNotIn('remote.example.com', page)
 
+    def test_asset_page_offers_rmm_to_technicians_only(self):
+        # v3.17.650: the asset page's RMM tab (status, software, alerts,
+        # console link) was built for anyone who could open the asset.
+        conn = self.connection('rem0te', scope=RMMConnection.CUSTOMER_SCOPE_SINGLE, owner=self.a)
+        self.sync(conn, rem0te_routes('biz-a', [[rem0te_computer('c-1', 'biz-a')]]))
+        url = f'/assets/{self.asset_a.pk}/'
+        staff_page = self.login(self.tech, self.a).get(url).content.decode()
+        self.assertIn('remote.example.com/endpoints/c-1', staff_page)
+        r = self.login(self.customer, self.a).get(url)
+        if r.status_code == 200:  # the customer may open the asset itself
+            page = r.content.decode()
+            self.assertNotIn('remote.example.com', page)
+            self.assertNotIn('id="rmm"', page)
+
     def test_client_import_is_not_offered(self):
         conn = self.connection('rem0te', scope=RMMConnection.CUSTOMER_SCOPE_SINGLE, owner=self.a)
         c = self.login(self.tech, self.a)

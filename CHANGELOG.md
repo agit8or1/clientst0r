@@ -5,6 +5,26 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.650] - 2026-11-09
+
+### Security
+- **Customer users on the technician ticket page.** A customer user who opened a shared ticket at `/psa/t/<number>/` saw technician working data: time entries and running timers, expenses, the kit list, workflow runs, canned replies, similar tickets, contract and problem links, assignees and hygiene hints. They could also post directly to the merge, quick-action, KB link/unlink, route-URL, expense, workflow, share and kit URLs. Those pages and actions are now technician-only (403 for customers); the customer still sees the shared conversation and can reply and watch. A customer's attachment is always public, even if the form says internal.
+- **Asset page RMM tab is technician-only.** Status, software, alerts and the console link were built for anyone who could open the asset. This corrects the 3.17.644 note ("Customers see none of it"), which was true for tickets but not for the asset page until now.
+- **New custom roles don't reveal credentials by default.** "View actual password values" was on by default for new role templates, so a custom role with otherwise default flags could reveal vault passwords. It is now off by default and unticked on the new-role form. Existing roles keep their setting; review them under Settings → Roles.
+- **Argon2 is now the password hasher.** The hasher list was assigned to `AUTH_PASSWORD_HASHERS`, a name Django ignores, so passwords were stored with PBKDF2 although the documentation said Argon2. Existing PBKDF2 hashes keep working and are re-hashed with Argon2 at each user's next sign-in.
+
+### Checked, no change needed
+- REST API reveal (`?reveal=true` and `/reveal/`) goes through the same reveal gate as the web vault (approval, break-glass, access rules, rate limit, audit); the list response masks passwords.
+- GraphQL lists only passwords in organizations where the caller has vault access and never returns the secret value.
+- The Docker Nginx config doesn't serve `/media/`; files go through Django's authorized media view.
+
+### Tests
+- `security_tests/test_vault_and_proxy.py` failed to load the mobile reveal and web reveal handlers since 3.17.600 (its harness lacked `_visible_passwords` and `request.GET`), so its reveal checks weren't running. Fixed; all of them pass.
+- The ticket route-URL tests now sign in as a technician.
+
+### Upgrade
+- Apply the update (it adds a migration).
+
 ## [3.17.649] - 2026-11-09
 
 ### Added

@@ -237,7 +237,11 @@ CACHES = {
 }
 
 # Password validation & hashing
-AUTH_PASSWORD_HASHERS = [
+# Django reads PASSWORD_HASHERS. Until v3.17.650 this list was assigned to
+# AUTH_PASSWORD_HASHERS, which Django ignores, so PBKDF2 (the default) was
+# used. Existing PBKDF2 hashes still verify and are upgraded to Argon2 at
+# each user's next sign-in.
+PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.Argon2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
 ]
