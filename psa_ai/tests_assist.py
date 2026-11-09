@@ -236,6 +236,21 @@ class PreviewAndEvidenceTests(AssistBase):
         self.ticket.save()
         self.assertEqual(self.preview(client=pc).status_code, 404)
 
+    def test_analyze_sits_beside_the_conversation_for_technicians_only(self):
+        html = self.c.get(f'/psa/t/{self.ticket.ticket_number}/').content.decode()
+        conversation = html.split('id="conversation"', 1)[1].split('id="aiAssistPanel"', 1)[0]
+        self.assertIn('data-ai-assist="analyze"', conversation)
+        self.assertIn('data-ai-assist="compare"', conversation)
+        self.assertEqual(html.count('id="aiAssistPanel"'), 1)
+        portal = User.objects.create_user('client2', password='pw')
+        Membership.objects.create(user=portal, organization=self.a, role=Role.OWNER)
+        self.ticket.client_can_view = True
+        self.ticket.save()
+        pc = sign_in(portal, self.a)
+        page = pc.get(f'/psa/t/{self.ticket.ticket_number}/').content.decode()
+        self.assertNotIn('data-ai-assist', page)
+        self.assertNotIn('aiAssistPanel', page)
+
     def test_l1_cannot_compare_and_unavailability_is_explained(self):
         l1 = make_tech('newbie')
         grant(l1, self.a, 'l1')

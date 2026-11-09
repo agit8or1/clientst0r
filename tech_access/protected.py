@@ -76,13 +76,17 @@ def verify_credentials(user, password, otp_token='') -> str:
 def reauthenticate(request, password, otp_token='') -> str:
     error = verify_credentials(request.user, password, otp_token)
     if not error:
-        request.session[SESSION_KEY] = timezone.now().timestamp()
+        request.session[SESSION_KEY] = int(timezone.now().timestamp())
     return error
 
 
 def has_fresh_auth(request) -> bool:
     ts = request.session.get(SESSION_KEY)
-    return bool(ts) and (timezone.now().timestamp() - float(ts)) <= FRESH_AUTH_SECONDS
+    # Written by reauthenticate() as whole seconds; anything else is not fresh.
+    if not isinstance(ts, int) or isinstance(ts, bool):
+        return False
+    age = int(timezone.now().timestamp()) - ts
+    return 0 <= age <= FRESH_AUTH_SECONDS
 
 
 # --- approvers and notifications ------------------------------------------

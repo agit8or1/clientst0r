@@ -5,6 +5,42 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.647] - 2026-11-09
+
+### Changed
+- **Shorter menus.** Each top-level menu now lists only each section's main page. The pages that used to sit beside it in the menu are tabs above that page. With every module on, a superuser sees:
+
+  | Menu | Before | After |
+  |---|---|---|
+  | PSA | 27 | 7 |
+  | Operations | 16 | 5 |
+  | Modules (was More) | 17 | 3 |
+  | Assets | 12 | 4 |
+  | Docs | 9 | 4 |
+  | Admin | 10 | 5 |
+  | Account | 15 | 5 |
+
+  No URLs changed, so bookmarks keep working. The full map is in `docs/navigation-map.md`.
+- **Client switcher.**
+  - It shows the current client, or Global View.
+  - Up to ten clients are listed inline. With more, it shows your recent clients plus a search, which only returns clients you may open. Recents are re-checked against your access on every request.
+  - "View all clients" replaces the PSA menu's old Clients entry.
+- **Settings sidebar** is grouped into System, Security, Organizations & Access, Integrations and Mobile.
+  - The groups are collapsible, and only the group you're in opens.
+  - Each link only appears to people who can open it.
+  - Technician Access is under Security, and Ticket AI models is under Integrations.
+- **Shortcut strip.** MSP technicians can pin up to three pages under the navbar, using the edit button at the end of the strip. It defaults to My Work and Tickets, and pins are re-checked against your permissions on every page. Customer users get no strip.
+- **Ticket page:** Analyze and Compare are now in the Conversation header, and the analysis appears directly under it.
+- **AI Inbox** only appears in the menu when `psa_ai_enabled` is on.
+- **Security Dashboard and Vulnerability Scans** are under Admin → Security.
+- On phones, an open menu no longer covers the menus below it.
+
+### Fixed
+- **Security CI (Semgrep):** the fresh-authentication check for protected changes now stores whole seconds and only accepts an integer timestamp from the past.
+
+### Upgrade
+- Adds migrations `core.0078` (recent clients) and `accounts.0037` (shortcut pins).
+
 ## [3.17.646] - 2026-11-09
 
 ### Added

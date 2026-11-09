@@ -183,8 +183,29 @@
         <div class="card" id="conversation">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong><i class="fas fa-comments me-1"></i>Conversation</strong>
-                <small class="text-muted">{{ comments|length }} entr{{ comments|length|pluralize:"y,ies" }}</small>
+                <div class="d-flex align-items-center gap-2">
+                    <small class="text-muted">{{ comments|length }} entr{{ comments|length|pluralize:"y,ies" }}</small>
+                    {% if ai_enabled and is_msp_staff %}
+                    <button type="button" class="btn btn-sm btn-outline-primary py-0" data-ai-assist="analyze"
+                            title="Preview what would be sent, then analyze this ticket with one model. Staff-only result; nothing is posted.">
+                        <i class="fas fa-magnifying-glass-chart me-1" aria-hidden="true"></i>Analyze
+                    </button>
+                    {% if ai_can_compare %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-ai-assist="compare"
+                            title="Run the same analysis on several models. Shows every recipient and the cost first.">
+                        <i class="fas fa-code-compare me-1" aria-hidden="true"></i>Compare
+                    </button>
+                    {% endif %}
+                    {% endif %}
+                </div>
             </div>
+            {% if ai_enabled and is_msp_staff %}
+            <div id="aiAssistPanel" class="card-body border-bottom small d-none" aria-live="polite"
+                 data-preview-url="{% url 'psa_ai:assist_preview' ticket.ticket_number %}"
+                 data-submit-url="{% url 'psa_ai:assist_submit' ticket.ticket_number %}"
+                 data-job-url="{% url 'psa_ai:assist_job' '00000000-0000-0000-0000-000000000000' %}"
+                 data-can-send="{{ ai_can_send|yesno:'1,0' }}"></div>
+            {% endif %}
             {% include "psa/_conversation.html" with entries=conversation staff_view=is_msp_staff allow_reply=reply_open empty_text="No description or activity yet." %}
 
             {% comment %}Reply / internal note composer — drafts autosave, posts carry the
@@ -1030,16 +1051,6 @@
                  style="background: rgba(13,110,253,.08);">
                 <strong><i class="fas fa-wand-magic-sparkles me-1"></i>AI Assist</strong>
                 <div class="d-flex gap-1 flex-wrap">
-                    <button type="button" class="btn btn-sm btn-primary" data-ai-assist="analyze"
-                            title="Preview what would be sent, then analyze this ticket with one model. Staff-only result; nothing is posted.">
-                        <i class="fas fa-magnifying-glass-chart me-1"></i>Analyze ticket
-                    </button>
-                    {% if ai_can_compare %}
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-ai-assist="compare"
-                            title="Run the same analysis on several models. Shows every recipient and the cost first.">
-                        <i class="fas fa-code-compare me-1"></i>Compare models
-                    </button>
-                    {% endif %}
                     <form method="post" action="{% url 'psa_ai:generate_reply' ticket.ticket_number %}" class="d-inline">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-sm btn-primary"
@@ -1064,11 +1075,6 @@
                     </form>
                 </div>
             </div>
-            <div id="aiAssistPanel" class="card-body border-bottom small d-none" aria-live="polite"
-                 data-preview-url="{% url 'psa_ai:assist_preview' ticket.ticket_number %}"
-                 data-submit-url="{% url 'psa_ai:assist_submit' ticket.ticket_number %}"
-                 data-job-url="{% url 'psa_ai:assist_job' '00000000-0000-0000-0000-000000000000' %}"
-                 data-can-send="{{ ai_can_send|yesno:'1,0' }}"></div>
             {% if ai_suggestions %}
             <div class="list-group list-group-flush small">
                 {% for s in ai_suggestions %}

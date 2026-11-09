@@ -1841,6 +1841,26 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
 
 **Sizing:** **L** — 57.1–57.5 shipped; 57.6 with Phase 56.5.
 
+## Phase 58 — Condensed navigation **(M · UX)** [shipped — v3.17.647]
+
+- **58.1 Section landing pages** *(shipped v3.17.647)* — each top-level menu
+  lists its sections' main pages only; the pages that used to sit beside them
+  become a row of tabs above the content (`core/navigation.py`). URLs are
+  unchanged. Item-by-item map with audiences in `docs/navigation-map.md`.
+- **58.2 Client switcher for large client lists** *(shipped v3.17.647)* —
+  current context in the pill; up to ten clients listed inline, otherwise
+  recents plus a search limited to the clients the user may open; "View all
+  clients" when the list page would show any. Recents never grant access.
+- **58.3 Grouped Settings sidebar** *(shipped v3.17.647)* — System, Security,
+  Organizations & Access, Integrations and Mobile, each collapsible, with only
+  the pages the viewer may open (`core/settings_groups.py`).
+- **58.4 Shortcut strip** *(shipped v3.17.647)* — up to three pinned pages for
+  MSP technicians, re-checked against permissions and modules on every request;
+  separate from record Favorites. Customer users get no strip.
+- **58.5 Ticket page** *(shipped v3.17.647)* — Analyze / Compare sit in the
+  Conversation header beside the thread; remote connect stays on the asset
+  card next to the device it opens.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -1899,6 +1919,7 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
 | 55 — Hardware catalog and visual inventory | L | shipped v3.17.630 | extends `assets.Asset`, `monitoring.Rack`/`RackDevice`/`VLAN`, Phase 34 network devices |
 | 56 — Ticket AI Assist and RMM handoff (OPTIONAL AI) | L | in progress — analysis, drafts, compare, gateway and signed channel v3.17.646; handoffs, diagnostics, remote launch and fix review wait on rem0te | Phase 57; rem0te ticket-rmm-v1 |
 | 57 — Technician security levels and abuse prevention | L | in progress — presets, resolver, protected changes, theft detection, gateway isolation v3.17.646; remote grants with Phase 56.5 | none |
+| 58 — Condensed navigation | M | shipped v3.17.647 | none |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 
