@@ -831,7 +831,7 @@ class SecurityAlertsStaffOnlyTests(TestCase):
 
     def test_customer_gets_no_more_menu(self):
         r = self._client(self.owner).get('/', follow=True)
-        self.assertNotContains(r, 'moreNavDropdown')
+        self.assertNotContains(r, 'modulesDropdown')
         self.assertNotContains(r, '/security/alerts/')
         self.assertNotContains(r, '/crm/')
 

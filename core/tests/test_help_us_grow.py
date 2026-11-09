@@ -163,8 +163,11 @@ class RenderedPageTests(TestCase):
         self.assertIn('aria-hidden="true"', heart)
 
     def test_the_modal_id_that_shipped_before_is_preserved(self):
-        """The account menu points at it, and so may anything else."""
-        self.assertEqual(self._html().count('data-bs-target="#supportProjectModal"'), 2)
+        """The navbar button points at it, and so do the Help page's tabs
+        (where the account menu's old entry moved)."""
+        self.assertEqual(self._html().count('data-bs-target="#supportProjectModal"'), 1)
+        help_page = self.client.get(reverse('core:help_index')).content.decode()
+        self.assertEqual(help_page.count('data-bs-target="#supportProjectModal"'), 2)
 
     # -- it is never opened for you ------------------------------------------
 

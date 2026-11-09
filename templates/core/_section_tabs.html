@@ -1,0 +1,25 @@
+{% load i18n %}
+{% comment %}
+Local navigation for the current section: the sibling pages that used to sit
+beside this one in the global menu. base.html renders it above the page
+content when the current page is one of the section's tabs; the list itself
+lives in core/navigation.py (SECTIONS).
+
+Pills, not a menu: every entry is a plain link (or, for Help, the same modal
+the old account-menu entry opened), reachable by Tab and by touch.
+{% endcomment %}
+{% if tabs %}
+<nav class="section-tabs mb-3" aria-label="{% blocktrans with name=label %}{{ name }} pages{% endblocktrans %}">
+  <ul class="nav nav-pills section-tabs__list flex-wrap">
+    {% for t in tabs %}
+    <li class="nav-item">
+      {% if t.modal %}
+      <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#{{ t.modal }}"><i class="{{ t.icon }} fa-fw" aria-hidden="true"></i> {{ t.label }}</a>
+      {% else %}
+      <a class="nav-link{% if t.active %} active{% endif %}" href="{{ t.href }}"{% if t.active %} aria-current="page"{% endif %}{% if t.dom_id %} id="{{ t.dom_id }}"{% endif %}><i class="{{ t.icon }} fa-fw" aria-hidden="true"></i> {{ t.label }}{% if t.download %} <span class="visually-hidden">({% trans "download" %})</span>{% endif %}</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</nav>
+{% endif %}
