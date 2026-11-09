@@ -169,8 +169,9 @@ def asset_detail(request, pk):
     # when the asset is in the hardware inventory, else the matching catalog model.
     art, device_url = None, None
     try:
-        from hardware.matching import artwork_context, match_equipment_model, match_names
-        hw = getattr(asset, 'hardware', None)
+        from hardware.matching import artwork_context
+        from hardware.rack_art import resolve
+        hw, hm = resolve(asset)
         if hw is not None:
             from hardware.device_art import device_faces, device_face_svg
             layout, faces = device_faces(hw)
@@ -179,9 +180,6 @@ def asset_detail(request, pk):
                              for f in faces]}
             device_url = reverse('hardware:device_detail', args=[hw.pk])
         else:
-            hm = match_equipment_model(asset.equipment_model) if asset.equipment_model_id else None
-            if hm is None and asset.manufacturer and asset.model:
-                hm = match_names(asset.manufacturer, asset.model)
             art = artwork_context(hm) if hm else None
     except Exception:  # noqa: BLE001 — the illustration must never break the asset page
         import logging

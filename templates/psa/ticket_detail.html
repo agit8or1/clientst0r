@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}PSA — {{ ticket.ticket_number }}{% endblock %}
+{% block extra_css %}{{ block.super }}<link href="{% static 'css/ticket_conversation.css' %}" rel="stylesheet">{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -36,9 +37,9 @@
 {% endwith %}
 {% endif %}
 
-<div class="d-flex justify-content-between align-items-start mb-3">
-    <div>
-        <h2 class="mb-1">
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+    <div class="min-w-0">
+        <h2 class="mb-1 text-break">
             {{ ticket.subject }}
         </h2>
         <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -53,6 +54,7 @@
         <span class="badge bg-secondary">{{ ticket.priority.code }} {{ ticket.priority.name }}</span>
         <span class="badge bg-info text-dark">{{ ticket.status.name }}</span>
         <span class="badge bg-light text-dark border">{{ ticket.queue.name }}</span>
+        <span class="badge bg-light text-dark border" title="Assignee"><i class="fas fa-user me-1"></i>{% if ticket.assigned_to %}{{ ticket.assigned_to.get_full_name|default:ticket.assigned_to.username }}{% else %}Unassigned{% endif %}</span>
         {# SLA chip — colour by state #}
         {% if sla.kind == 'breached' %}
             <span class="badge bg-danger" title="Resolution due {{ sla.due_at }}"><i class="fas fa-triangle-exclamation me-1"></i>{{ sla.label }}</span>
@@ -174,148 +176,16 @@
 </div>
 {% endif %}
 
-{# Active contract banner — surfaces hours used + remaining for this client #}
-{% if contract %}
-<div class="alert alert-light border-success mb-3">
-    <strong><i class="fas fa-file-contract me-1"></i>Active contract: {{ contract.name }}</strong>
-    <small class="text-muted ms-2">{{ contract.get_contract_type_display }}</small>
-    <div class="small mt-1">
-        Hours used: <strong>{{ contract.hours_used }}</strong>
-        {% if contract.total_hours %}
-            / {{ contract.total_hours }}
-            {% if contract.hours_remaining is not None %}
-                ({{ contract.hours_remaining }} remaining)
-                {% if contract.hours_remaining == 0 %}<span class="badge text-bg-warning ms-1">Depleted — overage rate applies</span>{% endif %}
-            {% endif %}
-        {% else %}
-            <small class="text-muted">(unlimited)</small>
-        {% endif %}
-        · Period: {{ contract.start_date }} → {{ contract.end_date|default:'open' }}
-    </div>
-</div>
-{% endif %}
-
-{# Similar / recurring tickets — flagged when token-overlap or same-asset hits exist #}
-{% if similar_tickets %}
-<div class="alert alert-light border-info mb-3">
-    <strong><i class="fas fa-redo me-1"></i>Similar tickets for this client</strong>
-    <small class="d-block text-muted">Likely recurring issue. Consider merging or linking.</small>
-    <ul class="mb-0 mt-1 small">
-        {% for t, score in similar_tickets %}
-        <li>
-            <a href="{% url 'psa:ticket_detail' t.ticket_number %}"><code>{{ t.ticket_number }}</code></a>
-            — {{ t.subject|truncatechars:80 }}
-            <span class="badge bg-secondary ms-1">match {{ score }}</span>
-            <small class="text-muted ms-1">{{ t.created_at|timesince }} ago · {{ t.status.name }}</small>
-            <form method="post" action="{% url 'psa:ticket_merge' ticket.ticket_number %}" class="d-inline ms-1">
-                {% csrf_token %}
-                <input type="hidden" name="target" value="{{ t.ticket_number }}">
-                <button type="submit" class="btn btn-sm btn-link p-0"
-                        data-confirm="Merge {{ ticket.ticket_number }} INTO {{ t.ticket_number }}? All comments/attachments move there. This ticket gets closed as duplicate.">
-                    merge into this
-                </button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
-</div>
-{% endif %}
-
-{# Phase 6.2 — Related problem records (the M2M reverse). #}
-{% if problems %}
-<div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <strong><i class="fas fa-bug me-1"></i>Related problem records</strong>
-        {% if problem_can_create %}
-        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#linkProblemForm">
-            <i class="fas fa-plus me-1"></i>Link to a problem
-        </button>
-        {% endif %}
-    </div>
-    <ul class="list-group list-group-flush">
-        {% for p in problems %}
-        <li class="list-group-item d-flex justify-content-between align-items-center gap-2 flex-wrap">
-            <div>
-                <a href="{% url 'psa:problem_detail' p.pk %}"><strong>{{ p.problem_number }}</strong></a>
-                <span class="text-muted small ms-2">{{ p.title|truncatechars:80 }}</span>
-            </div>
-            <span class="badge bg-{% if p.status == 'resolved' %}success{% elif p.status == 'known_error' %}info{% elif p.status == 'investigating' %}warning text-dark{% else %}secondary{% endif %}">
-                {{ p.get_status_display }}
-            </span>
-        </li>
-        {% endfor %}
-    </ul>
-    {% if problem_can_create %}
-    <div class="collapse" id="linkProblemForm">
-        <div class="card-body border-top">
-            {% include "psa/_link_to_problem_form.html" with form_id="linkPK1" pk_input_id="linkPK1Input" %}
-        </div>
-    </div>
-    {% endif %}
-</div>
-{% elif problem_can_create %}
-<div class="alert alert-light border d-flex justify-content-between align-items-center mb-3">
-    <span class="small text-muted"><i class="fas fa-bug me-1"></i>This ticket isn't linked to any problem record.</span>
-    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#linkProblemFormStandalone">
-        <i class="fas fa-plus me-1"></i>Link to a problem
-    </button>
-</div>
-<div class="collapse mb-3" id="linkProblemFormStandalone">
-    <div class="card card-body">
-        {% include "psa/_link_to_problem_form.html" with form_id="linkPK2" pk_input_id="linkPK2Input" %}
-    </div>
-</div>
-{% endif %}
-
-{# Hygiene flags — surface things to fix before close #}
-{% if hygiene and not is_closed %}
-<div class="alert alert-light border-warning mb-3">
-    <strong><i class="fas fa-list-check me-1"></i>Hygiene checks</strong>
-    <ul class="mb-0 mt-1 small">
-        {% for h in hygiene %}
-        <li><span class="badge bg-warning text-dark me-1">{{ h.key }}</span>{{ h.message }}</li>
-        {% endfor %}
-    </ul>
-</div>
-{% endif %}
-
 <div class="row g-3">
     <div class="col-lg-8">
-        <div class="card mb-3">
-            <div class="card-header"><strong>Description</strong></div>
-            <div class="card-body">
-                {% if ticket.description %}
-                    <pre class="mb-0" style="white-space: pre-wrap;">{{ ticket.description }}</pre>
-                {% else %}
-                    <em class="text-muted">No description.</em>
-                {% endif %}
-            </div>
-        </div>
         {% include "psa/_service_request_answers.html" %}
 
-        <div class="card">
+        <div class="card" id="conversation">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <strong>Activity</strong>
+                <strong><i class="fas fa-comments me-1"></i>Conversation</strong>
                 <small class="text-muted">{{ comments|length }} entr{{ comments|length|pluralize:"y,ies" }}</small>
             </div>
-            <div class="list-group list-group-flush">
-                {% for c in comments %}
-                <div class="list-group-item {% if c.is_internal %}bg-warning bg-opacity-10{% endif %}{% if c.id in stale_comment_ids %} border-start border-4 border-danger{% endif %}" id="c{{ c.id }}">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            {% if c.id in stale_comment_ids %}<span class="badge bg-danger me-1">new since you started writing</span>{% endif %}
-                            <strong>{{ c.author.username|default:"system" }}</strong>
-                            {% if c.is_internal %}<span class="badge bg-warning text-dark ms-1"><i class="fas fa-lock me-1"></i>internal</span>{% endif %}
-                            {% if c.is_system %}<span class="badge bg-secondary ms-1">system</span>{% endif %}
-                            <small class="text-muted ms-2">{{ c.created_at }}</small>
-                        </div>
-                    </div>
-                    <pre class="mt-2 mb-0" style="white-space: pre-wrap;">{{ c.body }}</pre>
-                </div>
-                {% empty %}
-                <div class="list-group-item text-center text-muted">No activity yet.</div>
-                {% endfor %}
-            </div>
+            {% include "psa/_conversation.html" with entries=conversation staff_view=is_msp_staff allow_reply=reply_open empty_text="No description or activity yet." %}
 
             {% comment %}Reply / internal note composer — drafts autosave, posts carry the
                newest activity id so a stale reply is held for confirmation.{% endcomment %}
@@ -331,13 +201,14 @@
                 {% endif %}
                 <form method="post" action="{% url 'psa:ticket_post_comment' ticket.ticket_number %}" id="composerForm"
                       data-draft-url="{% url 'psa:ticket_draft' ticket.ticket_number %}"
-                      data-requester-email="{{ ticket.requester_email|default:'' }}">
+                      data-requester-email="{{ ticket.requester_email|default:'' }}" data-reply-form>
                     {% csrf_token %}
                     <input type="hidden" name="last_seen_comment_id" value="{{ last_comment_id }}">
                     <input type="hidden" name="is_internal" id="composerIsInternal" value="{% if draft.is_internal %}1{% else %}0{% endif %}">
+                    <input type="hidden" name="parent_id" id="composerParentId" value="">
 
                     {% if is_msp_staff %}
-                    <div class="btn-group btn-group-sm mb-2" role="group" aria-label="Reply type">
+                    <div class="btn-group mb-2 tc-audience" role="group" aria-label="Audience: who will see this">
                         <input type="radio" class="btn-check" name="composer_mode" id="modePublic" value="public" autocomplete="off" {% if not draft.is_internal %}checked{% endif %}>
                         <label class="btn btn-outline-primary" for="modePublic"><i class="fas fa-globe me-1"></i>Public reply <kbd class="small">r</kbd></label>
                         <input type="radio" class="btn-check" name="composer_mode" id="modeInternal" value="internal" autocomplete="off" {% if draft.is_internal %}checked{% endif %}>
@@ -345,9 +216,14 @@
                     </div>
                     {% endif %}
 
-                    <div id="composerBox" class="rounded p-2 border {% if draft.is_internal %}bg-warning bg-opacity-25 border-warning{% else %}border-primary-subtle{% endif %}">
-                        <div id="composerLabel" class="small fw-bold mb-1 {% if draft.is_internal %}text-warning-emphasis{% else %}text-primary-emphasis{% endif %}">
+                    <div id="composerBox" class="tc-composer{% if draft.is_internal %} is-internal{% endif %}">
+                        <div id="composerLabel" class="tc-composer-label" aria-live="polite">
                             {% if draft.is_internal %}<i class="fas fa-lock me-1"></i>INTERNAL NOTE — staff only, never sent to the client{% else %}<i class="fas fa-globe me-1"></i>PUBLIC REPLY — visible to the client{% endif %}
+                        </div>
+                        <div class="tc-reply-context" data-reply-context hidden>
+                            <i class="fas fa-reply me-1"></i>Replying to <strong data-reply-label></strong>
+                            <span data-reply-private hidden>(an internal note — the customer will see your reply but not the note)</span>
+                            <button type="button" class="btn btn-link btn-sm p-0 align-baseline ms-1" data-reply-clear>Clear</button>
                         </div>
 
                     {% if canned_replies %}
@@ -382,7 +258,7 @@
                             <small class="text-muted" id="draftStatus" aria-live="polite">{% if draft %}Draft restored (saved {{ draft.updated_at|timesince }} ago){% endif %}</small>
                             <button type="button" class="btn btn-sm btn-link text-muted p-0{% if not draft %} d-none{% endif %}" id="draftDiscard">Discard draft</button>
                         </div>
-                        <button type="submit" class="btn btn-sm btn-primary" id="composerSubmit">{% if draft.is_internal %}Add internal note{% else %}Post reply{% endif %}</button>
+                        <button type="submit" class="btn btn-sm {% if draft.is_internal %}btn-warning{% else %}btn-primary{% endif %}" id="composerSubmit">{% if draft.is_internal %}Add internal note{% else %}Post reply{% endif %}</button>
                     </div>
                     </div>
                 </form>
@@ -450,6 +326,112 @@
     </div>
 
     <div class="col-lg-4">
+        {# Less-frequent context: contract, similar tickets, problems, hygiene. #}
+        {# Active contract banner — surfaces hours used + remaining for this client #}
+        {% if contract %}
+        <div class="alert alert-light border-success mb-3">
+            <strong><i class="fas fa-file-contract me-1"></i>Active contract: {{ contract.name }}</strong>
+            <small class="text-muted ms-2">{{ contract.get_contract_type_display }}</small>
+            <div class="small mt-1">
+                Hours used: <strong>{{ contract.hours_used }}</strong>
+                {% if contract.total_hours %}
+                    / {{ contract.total_hours }}
+                    {% if contract.hours_remaining is not None %}
+                        ({{ contract.hours_remaining }} remaining)
+                        {% if contract.hours_remaining == 0 %}<span class="badge text-bg-warning ms-1">Depleted — overage rate applies</span>{% endif %}
+                    {% endif %}
+                {% else %}
+                    <small class="text-muted">(unlimited)</small>
+                {% endif %}
+                · Period: {{ contract.start_date }} → {{ contract.end_date|default:'open' }}
+            </div>
+        </div>
+        {% endif %}
+
+        {# Similar / recurring tickets — flagged when token-overlap or same-asset hits exist #}
+        {% if similar_tickets %}
+        <div class="alert alert-light border-info mb-3">
+            <strong><i class="fas fa-redo me-1"></i>Similar tickets for this client</strong>
+            <small class="d-block text-muted">Likely recurring issue. Consider merging or linking.</small>
+            <ul class="mb-0 mt-1 small">
+                {% for t, score in similar_tickets %}
+                <li>
+                    <a href="{% url 'psa:ticket_detail' t.ticket_number %}"><code>{{ t.ticket_number }}</code></a>
+                    — {{ t.subject|truncatechars:80 }}
+                    <span class="badge bg-secondary ms-1">match {{ score }}</span>
+                    <small class="text-muted ms-1">{{ t.created_at|timesince }} ago · {{ t.status.name }}</small>
+                    <form method="post" action="{% url 'psa:ticket_merge' ticket.ticket_number %}" class="d-inline ms-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="target" value="{{ t.ticket_number }}">
+                        <button type="submit" class="btn btn-sm btn-link p-0"
+                                data-confirm="Merge {{ ticket.ticket_number }} INTO {{ t.ticket_number }}? All comments/attachments move there. This ticket gets closed as duplicate.">
+                            merge into this
+                        </button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {# Phase 6.2 — Related problem records (the M2M reverse). #}
+        {% if problems %}
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong><i class="fas fa-bug me-1"></i>Related problem records</strong>
+                {% if problem_can_create %}
+                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#linkProblemForm">
+                    <i class="fas fa-plus me-1"></i>Link to a problem
+                </button>
+                {% endif %}
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for p in problems %}
+                <li class="list-group-item d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                    <div>
+                        <a href="{% url 'psa:problem_detail' p.pk %}"><strong>{{ p.problem_number }}</strong></a>
+                        <span class="text-muted small ms-2">{{ p.title|truncatechars:80 }}</span>
+                    </div>
+                    <span class="badge bg-{% if p.status == 'resolved' %}success{% elif p.status == 'known_error' %}info{% elif p.status == 'investigating' %}warning text-dark{% else %}secondary{% endif %}">
+                        {{ p.get_status_display }}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% if problem_can_create %}
+            <div class="collapse" id="linkProblemForm">
+                <div class="card-body border-top">
+                    {% include "psa/_link_to_problem_form.html" with form_id="linkPK1" pk_input_id="linkPK1Input" %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% elif problem_can_create %}
+        <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3">
+            <span class="small text-muted"><i class="fas fa-bug me-1"></i>This ticket isn't linked to any problem record.</span>
+            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#linkProblemFormStandalone">
+                <i class="fas fa-plus me-1"></i>Link to a problem
+            </button>
+        </div>
+        <div class="collapse mb-3" id="linkProblemFormStandalone">
+            <div class="card card-body">
+                {% include "psa/_link_to_problem_form.html" with form_id="linkPK2" pk_input_id="linkPK2Input" %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# Hygiene flags — surface things to fix before close #}
+        {% if hygiene and not is_closed %}
+        <div class="alert alert-light border-warning mb-3">
+            <strong><i class="fas fa-list-check me-1"></i>Hygiene checks</strong>
+            <ul class="mb-0 mt-1 small">
+                {% for h in hygiene %}
+                <li><span class="badge bg-warning text-dark me-1">{{ h.key }}</span>{{ h.message }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
         {% if is_msp_staff %}
         {# Closeout checklist + operational sign-off (gate in psa/signals.py). #}
         <div class="card mb-3" id="closeout-checklist">
@@ -1376,6 +1358,7 @@
 {% block extra_js %}{{ block.super }}
 {{ workspace_config|json_script:"ticketWorkspaceConfig" }}
 <script src="{% static 'js/psa_ticket_workspace.js' %}" defer></script>
+<script src="{% static 'js/ticket_conversation.js' %}" defer></script>
 <script nonce="{{ csp_nonce }}">
 (function () {
     var kind = document.getElementById('kit_kind');

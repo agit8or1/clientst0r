@@ -19,6 +19,7 @@ from . import connectors as C
 from .layout import U_MM, get_layout
 from .models import Cable, CableTermination, DevicePort, HardwareDevice, PortMapping, PortVLAN
 from .payloads import vlan_color
+from .rack_art import resolve
 from .renderer import _f, esc, finish_defs, finish_for, render_face_body, shared_defs
 
 CATEGORY_RANK = {
@@ -299,7 +300,8 @@ def rack_svg(rack, face='front', for_export=False, title_prefix=''):
                     f'<text x="{_f(W - RAIL + 10)}" y="{_f(y + U_MM / 2 + 2.5)}" font-size="7" text-anchor="middle" '
                     f'font-family="DejaVu Sans, Arial, sans-serif" fill="#9aa3ab">{u}</text>')
     placements = list(RackDevice.objects.filter(rack=rack, board_position_x__isnull=True)
-                      .select_related('asset__hardware__hardware_model__manufacturer'))
+                      .select_related('asset__hardware__hardware_model__manufacturer', 'asset__equipment_model__vendor',
+                                      'equipment_model__vendor'))
     for i, rd in enumerate(placements):
         own_face = rd.face == face
         if not own_face and not rd.is_full_depth:
@@ -311,36 +313,40 @@ def rack_svg(rack, face='front', for_export=False, title_prefix=''):
                         f'{esc(rd.name)} (mounted {rd.face}, half depth)</text>')
             continue
         y = top + (units - rd.end_unit) * U_MM
-        hw = getattr(rd.asset, 'hardware', None) if rd.asset_id else None
+        # Same choice as the asset page: the inventory device, else the catalog
+        # model the placement or its asset maps to. Never a generic template.
+        hw, hm = resolve(rd.asset if rd.asset_id else None, rd.equipment_model if rd.equipment_model_id else None)
+        if hm is not None and hw is None and hm.is_generic:
+            hm = None
+        href = (reverse('hardware:device_detail', args=[hw.pk]) if hw else
+                reverse('assets:asset_detail', args=[rd.asset_id]) if rd.asset_id else
+                reverse('monitoring:rack_detail', args=[rack.pk]))
+        show = 'front' if own_face else 'rear'
         drawn = False
-        if hw is not None:
-            hm = hw.hardware_model
+        if hm is not None:
             lay = get_layout(hm)
-            show = 'front' if own_face else 'rear'
             fdata = lay.faces.get(show)
             if fdata and fdata.get('rack'):
                 uid = f'r{i}'
                 f = finish_for(hm)
                 defs.append(finish_defs(f, uid, filters=False))
                 sy = (rd.units * U_MM) / float(fdata['height'])
-                inner = render_face_body(hm, show, fdata, uid=uid, labels=not for_export or True, filters=False,
-                                         finish=f)
-                href = reverse('hardware:device_detail', args=[hw.pk])
-                body.append(f'<a href="{href}" class="hw-rack-dev" data-device="{hw.pk}">'
+                inner = render_face_body(hm, show, fdata, uid=uid, labels=True, filters=False, finish=f)
+                attrs = f' class="hw-rack-dev" data-device="{hw.pk}"' if hw else ' class="hw-rack-dev"'
+                body.append(f'<a href="{href}"{attrs}>'
                             f'<title>{esc(rd.name)} — {esc(hm)} (U{rd.start_unit}–U{rd.end_unit}, {show} face)</title>'
                             f'<g transform="translate({_f(RAIL)} {_f(y)}) scale(1 {sy:.5f})">{inner}</g></a>')
                 drawn = True
         if not drawn:
-            color = rd.color or '#0d6efd'
-            href = reverse('hardware:device_detail', args=[hw.pk]) if hw else reverse(
-                'monitoring:rack_detail', args=[rack.pk])
-            body.append(f'<a href="{href}"><rect x="{_f(RAIL + 0.5)}" y="{_f(y + 0.5)}" width="481.6" '
-                        f'height="{_f(rd.units * U_MM - 1)}" rx="1.5" fill="{esc(color)}" fill-opacity="0.85" '
-                        f'stroke="#000" stroke-opacity="0.4"/>'
+            # A plain blank panel: no ports, lights or connectors the records don't hold.
+            why = 'rear view' if hm is not None and not own_face else 'no artwork'
+            body.append(f'<a href="{href}"><title>{esc(rd.name)} (U{rd.start_unit}–U{rd.end_unit}, {why})</title>'
+                        f'<rect x="{_f(RAIL + 0.5)}" y="{_f(y + 0.5)}" width="481.6" '
+                        f'height="{_f(rd.units * U_MM - 1)}" rx="1.5" fill="#4a5058" stroke="#7d858d" '
+                        f'stroke-width="0.6" stroke-dasharray="3 2"/>'
                         f'<text x="{_f(RAIL + 241)}" y="{_f(y + rd.units * U_MM / 2 + 3)}" font-size="9" '
-                        f'text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" fill="#fff">'
-                        f'{esc(rd.name)}{" (" + ("rear view" if not own_face else "no artwork") + ")" if hw else ""}'
-                        f'</text></a>')
+                        f'text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" fill="#f1f3f5">'
+                        f'{esc(rd.name)} ({why})</text></a>')
         # On the page the name follows the theme (class), in exports it is dark on white.
         name_fill = 'fill="#333"' if for_export else 'class="hw-rack-name"'
         body.append(f'<text x="{_f(W + 6)}" y="{_f(y + rd.units * U_MM / 2 + 3)}" font-size="8" '
@@ -354,6 +360,8 @@ def rack_svg(rack, face='front', for_export=False, title_prefix=''):
     framed_w, framed_h = (W + 160) * scale + 40, H * scale + 120
     body2 = (f'<g transform="translate(20 70) scale({scale})">{inner_svg}</g>')
     legend = [('<rect x="0" y="0" width="20" height="14" fill="#cfd4d9" stroke="#888"/>', 'catalog artwork'),
+              ('<rect x="0" y="0" width="20" height="14" fill="#4a5058" stroke="#7d858d" stroke-dasharray="3 2"/>',
+               'no artwork recorded'),
               ('<rect x="0" y="0" width="20" height="14" fill="none" stroke="#6c757d" stroke-dasharray="4 3"/>',
                'half-depth device on the other face')]
     return _frame(f'{title_prefix}Rack {rack.name} — {face} elevation', sub, legend, framed_w, framed_h, body2)

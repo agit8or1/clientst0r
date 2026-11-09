@@ -7,6 +7,7 @@
  *   #composerIsInternal     hidden is_internal input (0/1)
  *   input[name=composer_mode]  Public reply / Internal note toggle (staff only)
  *   #composerBox / #composerLabel / #composerSubmit  styled per mode
+ *                          (#composerBox.is-internal = amber internal-note frame)
  *   #comment_send_email     optional "email this reply" checkbox
  *   #emailConfirmModal      recipient confirmation before an emailed reply
  *   #draftStatus / #draftDiscard
@@ -74,15 +75,9 @@
         hiddenInternal.value = internal ? '1' : '0';
         var radio = document.getElementById(internal ? 'modeInternal' : 'modePublic');
         if (radio) { radio.checked = true; }
-        if (box) {
-            box.classList.toggle('bg-warning', internal);
-            box.classList.toggle('bg-opacity-25', internal);
-            box.classList.toggle('border-warning', internal);
-            box.classList.toggle('border-primary-subtle', !internal);
-        }
+        // Composer frame turns amber for an internal note (ticket_conversation.css).
+        if (box) { box.classList.toggle('is-internal', internal); }
         if (label) {
-            label.classList.toggle('text-warning-emphasis', internal);
-            label.classList.toggle('text-primary-emphasis', !internal);
             label.innerHTML = internal
                 ? '<i class="fas fa-lock me-1"></i>INTERNAL NOTE — staff only, never sent to the client'
                 : '<i class="fas fa-globe me-1"></i>PUBLIC REPLY — visible to the client';

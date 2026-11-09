@@ -24,6 +24,57 @@ from assets.models import Asset
 import json
 
 
+def _claimed_faces(device):
+    return {'front', 'rear'} if device.is_full_depth else {device.face}
+
+
+def _overlapping(rack, start_unit, end_unit, faces, exclude_pk=None):
+    """The first placement in `rack` sharing a unit and a face with the range, or None."""
+    for other in RackDevice.objects.filter(rack=rack, start_unit__lte=end_unit).exclude(pk=exclude_pk):
+        if other.end_unit >= start_unit and _claimed_faces(other) & faces:
+            return other
+    return None
+
+
+def _device_payload(device):
+    """One RackDevice as the rack, closet and board layouts consume it."""
+    from hardware.rack_art import placement_art
+    asset = device.asset
+    # Kept for API consumers: the procurement catalog's product photo, if any.
+    equipment_image_url = None
+    if asset and asset.equipment_model:
+        image = asset.equipment_model.get_primary_image()
+        if image:
+            equipment_image_url = f'/files/attachments/{image.id}/'
+    return {
+        'id': device.id,
+        'name': device.name,
+        'start_unit': device.start_unit,
+        'units': device.units,
+        'end_unit': device.end_unit,
+        'face': device.face,
+        'is_full_depth': device.is_full_depth,
+        'color': device.color,
+        'power_draw_watts': device.power_draw_watts,
+        'asset_id': device.asset_id,
+        'asset_name': asset.name if asset else None,
+        'asset_type': asset.asset_type if asset else 'other',
+        'asset_type_display': asset.get_asset_type_display() if asset else None,
+        'ip_address': str(asset.ip_address) if asset and asset.ip_address else None,
+        'hostname': asset.hostname if asset else None,
+        'serial_number': asset.serial_number if asset else None,
+        'mac_address': asset.mac_address if asset else None,
+        'port_count': asset.port_count if asset else None,
+        'equipment_image_url': equipment_image_url,
+        'art': placement_art(device),
+        'board_position_x': device.board_position_x,
+        'board_position_y': device.board_position_y,
+        'board_width': device.board_width,
+        'board_height': device.board_height,
+        'notes': device.notes,
+    }
+
+
 @login_required
 @require_http_methods(["GET"])
 def rack_devices_list(request, pk):
@@ -34,42 +85,10 @@ def rack_devices_list(request, pk):
     org = get_request_organization(request)
     rack = _api_get_rack(pk, org)
 
-    devices = rack.rack_devices.select_related('asset', 'equipment_model').all()
-
-    devices_data = []
-    for device in devices:
-        # Get equipment image if available
-        equipment_image_url = None
-        if device.asset and device.asset.equipment_model:
-            image = device.asset.equipment_model.get_primary_image()
-            if image:
-                equipment_image_url = f'/files/attachments/{image.id}/'
-
-        asset = device.asset
-        devices_data.append({
-            'id': device.id,
-            'name': device.name,
-            'start_unit': device.start_unit,
-            'units': device.units,
-            'end_unit': device.end_unit,
-            'color': device.color,
-            'power_draw_watts': device.power_draw_watts,
-            'asset_id': device.asset_id,
-            'asset_name': asset.name if asset else None,
-            'asset_type': asset.asset_type if asset else 'other',
-            'asset_type_display': asset.get_asset_type_display() if asset else None,
-            'ip_address': str(asset.ip_address) if asset and asset.ip_address else None,
-            'hostname': asset.hostname if asset else None,
-            'serial_number': asset.serial_number if asset else None,
-            'mac_address': asset.mac_address if asset else None,
-            'port_count': asset.port_count if asset else None,
-            'equipment_image_url': equipment_image_url,
-            'board_position_x': device.board_position_x,
-            'board_position_y': device.board_position_y,
-            'board_width': device.board_width,
-            'board_height': device.board_height,
-            'notes': device.notes,
-        })
+    devices = rack.rack_devices.select_related(
+        'asset__hardware__hardware_model__manufacturer', 'asset__equipment_model__vendor',
+        'equipment_model__vendor').all()
+    devices_data = [_device_payload(device) for device in devices]
 
     return JsonResponse({
         'success': True,
@@ -123,26 +142,14 @@ def update_rack_device_position(request, pk):
                 'error': f'Device extends beyond rack capacity (U{device.rack.units})'
             }, status=400)
 
-        # Check for overlaps with other devices
-        overlapping = RackDevice.objects.filter(
-            rack=device.rack
-        ).exclude(
-            id=device.id
-        ).filter(
-            start_unit__lt=end_unit + 1,  # Other device starts before this one ends
-        ).filter(
-            start_unit__gte=start_unit - 100  # Rough filter for performance
-        )
-
-        # More precise overlap check
-        for other in overlapping:
-            other_end = other.start_unit + other.units - 1
-            # Check if ranges overlap
-            if not (end_unit < other.start_unit or start_unit > other_end):
-                return JsonResponse({
-                    'success': False,
-                    'error': f'Device overlaps with "{other.name}" at U{other.start_unit}-U{other_end}'
-                }, status=400)
+        # Check for overlaps with other devices. A half-depth device only
+        # claims its own face, so it can share units with one on the other face.
+        other = _overlapping(device.rack, start_unit, end_unit, _claimed_faces(device), exclude_pk=device.id)
+        if other is not None:
+            return JsonResponse({
+                'success': False,
+                'error': f'Device overlaps with "{other.name}" at U{other.start_unit}-U{other.end_unit}'
+            }, status=400)
 
         # Update device with transaction
         with transaction.atomic():
@@ -300,16 +307,13 @@ def create_rack_device(request, pk):
                     'error': f'Device position (U{start_unit}-U{end_unit}) is outside rack bounds (U1-U{rack.units})'
                 }, status=400)
 
-            # Check for overlaps
-            overlapping = RackDevice.objects.filter(rack=rack, start_unit__lt=end_unit + 1,
-                                                    start_unit__gte=start_unit - 100)
-            for other in overlapping:
-                other_end = other.start_unit + other.units - 1
-                if not (end_unit < other.start_unit or start_unit > other_end):
-                    return JsonResponse({
-                        'success': False,
-                        'error': f'Position overlaps with "{other.name}" at U{other.start_unit}-U{other_end}'
-                    }, status=400)
+            # Check for overlaps (a new placement is front-mounted, full depth)
+            other = _overlapping(rack, start_unit, end_unit, {'front', 'rear'})
+            if other is not None:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Position overlaps with "{other.name}" at U{other.start_unit}-U{other.end_unit}'
+                }, status=400)
 
         # Create device, saving board position if provided
         with transaction.atomic():
@@ -321,31 +325,15 @@ def create_rack_device(request, pk):
                 units=units,
                 power_draw_watts=getattr(asset, 'power_draw_watts', None),
                 color=data.get('color', '#0d6efd'),
-                board_position_x=data.get('board_position_x') or 0,
-                board_position_y=data.get('board_position_y') or 0,
-                board_width=data.get('board_width') or 150,
-                board_height=data.get('board_height') or 100,
+                # Only a board drop is a board placement; a rack drop has no
+                # board coordinates (it used to get 0,0 and show on the board).
+                board_position_x=(data.get('board_position_x') or 0) if board_only else None,
+                board_position_y=(data.get('board_position_y') or 0) if board_only else None,
+                board_width=(data.get('board_width') or 150) if board_only else None,
+                board_height=(data.get('board_height') or 100) if board_only else None,
             )
 
-        return JsonResponse({
-            'success': True,
-            'device': {
-                'id': device.id,
-                'name': device.name,
-                'start_unit': device.start_unit,
-                'units': device.units,
-                'end_unit': device.end_unit,
-                'color': device.color,
-                'power_draw_watts': device.power_draw_watts,
-                'asset_id': device.asset_id,
-                'asset_type': asset.asset_type,
-                'port_count': asset.port_count,
-                'board_position_x': device.board_position_x,
-                'board_position_y': device.board_position_y,
-                'board_width': device.board_width,
-                'board_height': device.board_height,
-            }
-        })
+        return JsonResponse({'success': True, 'device': _device_payload(device)})
 
     except json.JSONDecodeError:
         return JsonResponse({
@@ -742,10 +730,12 @@ def rack_resources_list(request, pk):
     GET /api/racks/<id>/resources/
     Return JSON list of all rack resources (patch panels, switches, etc.) with positions.
     """
+    from hardware.rack_art import placement_art
     org = get_request_organization(request)
     rack = _api_get_rack(pk, org)
 
-    resources = rack.resources.filter(rack_position__isnull=False)
+    resources = rack.resources.filter(rack_position__isnull=False).select_related(
+        'asset__hardware__hardware_model__manufacturer', 'asset__equipment_model__vendor')
 
     resources_data = []
     for resource in resources:
@@ -763,6 +753,8 @@ def rack_resources_list(request, pk):
             'board_width': resource.board_width,
             'board_height': resource.board_height,
             'equipment_image_url': None,  # Resources don't have equipment models
+            'asset_id': resource.asset_id,
+            'art': placement_art(resource),
         })
 
     return JsonResponse({

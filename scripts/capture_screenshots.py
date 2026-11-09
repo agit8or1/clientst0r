@@ -158,9 +158,45 @@ def ensure_theme(page, base: str, want: str) -> None:
         raise RuntimeError(f'theme did not settle on {want!r}')
 
 
-def capture(entry, page, base, out_dir) -> pathlib.Path:
+# What a correctly rendered page looks like before it is photographed. A
+# stylesheet that failed to load (a CDN hiccup) leaves the navigation as a bare
+# list with every dropdown expanded — that is how a broken image once reached
+# the README — so a capture that fails these checks is retried, then refused.
+PAGE_READY_JS = """() => {
+    const problems = [];
+    for (const l of document.querySelectorAll('link[rel="stylesheet"]')) {
+        if (!l.sheet) problems.push('stylesheet not applied: ' + l.href);
+    }
+    const probe = document.querySelector('.navbar .dropdown-menu');
+    if (probe && !probe.classList.contains('show') && getComputedStyle(probe).display !== 'none') {
+        problems.push('navigation dropdowns are not styled (Bootstrap CSS missing)');
+    }
+    const open = document.querySelectorAll('.dropdown-menu.show').length;
+    if (open) problems.push(open + ' dropdown menu(s) open');
+    const over = document.documentElement.scrollWidth - window.innerWidth;
+    if (over > 1) problems.push('page is ' + over + 'px wider than the viewport');
+    return problems;
+}"""
+
+
+def load_ready(page, url: str, failed: list[str], attempts: int = 3) -> None:
+    """Load `url` until its stylesheets and scripts are in and nothing is open."""
+    problems: list[str] = []
+    for attempt in range(1, attempts + 1):
+        failed.clear()
+        page.goto(url, wait_until='networkidle', timeout=60000)
+        page.keyboard.press('Escape')  # close anything a previous page left open
+        problems = failed + page.evaluate(PAGE_READY_JS)
+        if not problems:
+            return
+        print(f'    ! attempt {attempt}: ' + '; '.join(problems[:4]))
+    raise RuntimeError('page did not render correctly: ' + '; '.join(problems[:4]))
+
+
+def capture(entry, page, base, out_dir, failed=None) -> pathlib.Path:
     url = base + entry['route']
-    page.goto(url, wait_until='networkidle', timeout=60000)
+    failed = [] if failed is None else failed
+    load_ready(page, url, failed)
     ensure_theme(page, base, entry.get('theme', 'light'))
     page.add_style_tag(content=CAPTURE_CSS)
 
@@ -192,6 +228,9 @@ def capture(entry, page, base, out_dir) -> pathlib.Path:
     except Exception:
         pass
     page.wait_for_timeout(entry.get('settle_ms', 1600))
+    late = page.evaluate(PAGE_READY_JS)
+    if failed or late:
+        raise RuntimeError('page changed before capture: ' + '; '.join((failed + late)[:4]))
 
     path = out_dir / f"{entry['name']}.png"
     width = entry.get('width', 1440)
@@ -281,12 +320,17 @@ def main() -> int:
                               'domain': '127.0.0.1', 'path': '/'}])
             page = ctx.new_page()
             bad: list[str] = []
+            # Requests that never got a response (blocked, reset, timed out)
+            # for anything that shapes the page.
+            failed: list[str] = []
+            page.on('requestfailed', lambda r: failed.append(f'{r.resource_type} failed: {r.url} ({r.failure})')
+                    if r.resource_type in ('stylesheet', 'script', 'font', 'document') else None)
             page.on('response', lambda r: bad.append(f'HTTP {r.status} {r.url}')
                     if r.status >= 400 else None)
             for entry in group:
                 bad.clear()
                 try:
-                    path = capture(entry, page, args.base, args.out)
+                    path = capture(entry, page, args.base, args.out, failed)
                     if not args.no_optimise:
                         optimise(path, entry.get('optimise_width'))
                     size_kb = path.stat().st_size // 1024

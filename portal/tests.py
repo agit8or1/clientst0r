@@ -929,3 +929,143 @@ class PortalVaultRevealTests(TestCase):
         html = r.content.decode()
         self.assertContains(r, 'Wi-Fi')
         self.assertLess(html.index('bootstrap.bundle'), html.index('new bootstrap.Modal'))
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class PortalConversationPrivacyTests(TestCase):
+    """The portal ticket page is a conversation, and nothing private reaches
+    it: no internal note text, no attachment of an internal note (by name or
+    URL), and no reply-to preview quoting an internal parent."""
+
+    @classmethod
+    def setUpClass(cls):
+        import tempfile
+        # MEDIA_ROOT must be overridden before setUpTestData saves files.
+        cls._media = tempfile.mkdtemp()
+        cls._media_override = override_settings(MEDIA_ROOT=cls._media)
+        cls._media_override.enable()
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        super().tearDownClass()
+        cls._media_override.disable()
+        shutil.rmtree(cls._media, ignore_errors=True)
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.core.management import call_command
+        from accounts.models import Membership, Role, UserProfile, UserType
+        from core.models import Organization, SystemSetting
+        from psa.models import (
+            ClientPSASettings, Queue, Ticket, TicketAttachment, TicketComment,
+            TicketPriority, TicketStatus, TicketType,
+        )
+        call_command('psa_seed_defaults', verbosity=0)
+        s = SystemSetting.get_settings()
+        s.psa_enabled = True
+        s.save()
+        cls.org = Organization.objects.create(name='PrivCo', slug='priv-co')
+        ClientPSASettings.objects.create(organization=cls.org, portal_enabled=True)
+        cls.customer = User.objects.create_user('priv-cust', 'dana@priv.test', 'pw',
+                                                first_name='Dana', last_name='Priv')
+        profile, _ = UserProfile.objects.get_or_create(user=cls.customer)
+        profile.user_type = UserType.ORG_USER
+        profile.save()
+        Membership.objects.create(user=cls.customer, organization=cls.org,
+                                  role=Role.READONLY, is_active=True)
+        cls.tech = User.objects.create_user('priv-tech', 'jt@msp.test', 'pw',
+                                            first_name='Jordan', last_name='Tech')
+        tprof, _ = UserProfile.objects.get_or_create(user=cls.tech)
+        tprof.user_type = UserType.STAFF
+        tprof.save()
+        cls.ticket = Ticket.objects.create(
+            organization=cls.org, subject='Privacy ticket',
+            queue=Queue.objects.first(), priority=TicketPriority.objects.first(),
+            ticket_type=TicketType.objects.first(),
+            status=TicketStatus.objects.filter(slug='new').first(),
+            client_can_view=True,
+        )
+        TicketComment.objects.create(
+            ticket=cls.ticket, author=cls.customer, source='portal',
+            body='CUSTOMER-MSG scanners keep dropping')
+        TicketComment.objects.create(
+            ticket=cls.ticket, author=cls.tech, body='TECH-REPLY checking the AP now')
+        cls.note = TicketComment.objects.create(
+            ticket=cls.ticket, author=cls.tech, is_internal=True,
+            body='NOTE-SECRET firmware is out of support, do not tell them yet')
+        # Not flagged internal itself — only its comment is. Must still stay hidden.
+        cls.note_file = TicketAttachment.objects.create(
+            ticket=cls.ticket, comment=cls.note, filename='note-capture.pcap',
+            file=SimpleUploadedFile('note-capture.pcap', b'pcap'))
+        cls.internal_file = TicketAttachment.objects.create(
+            ticket=cls.ticket, is_internal=True, filename='internal-only.txt',
+            file=SimpleUploadedFile('internal-only.txt', b'x'))
+        cls.public_file = TicketAttachment.objects.create(
+            ticket=cls.ticket, filename='public-log.txt',
+            file=SimpleUploadedFile('public-log.txt', b'x'))
+        TicketComment.objects.create(
+            ticket=cls.ticket, author=cls.tech, parent_comment=cls.note,
+            body='THREADED-PUBLIC we are scheduling a replacement')
+        TicketComment.objects.create(
+            ticket=cls.ticket, author=cls.tech, is_system=True,
+            body='SYSTEM-EVENT Closed (Resolved). Resolution: replaced AP')
+
+    def _client(self):
+        c = Client()
+        c.force_login(self.customer)
+        s = c.session
+        s['2fa_prompted'] = True
+        s.save()
+        return c
+
+    def test_portal_page_shows_public_conversation_only(self):
+        r = self._client().get(f'/portal/t/{self.ticket.ticket_number}/')
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        for public in ('CUSTOMER-MSG', 'TECH-REPLY', 'THREADED-PUBLIC', 'SYSTEM-EVENT',
+                       'public-log.txt'):
+            self.assertIn(public, html)
+        # Roles, identical vocabulary to the staff page.
+        self.assertIn('tc-msg tc-msg--customer', html)
+        self.assertIn('tc-msg tc-msg--technician', html)
+        self.assertIn('>Customer<', html)
+        self.assertIn('>Technician<', html)
+        self.assertIn('class="tc-event', html)
+        # Nothing private: note text, its attachment, internal attachments,
+        # and no reply-to preview of the internal parent.
+        self.assertNotIn('NOTE-SECRET', html)
+        self.assertNotIn('out of support', html)
+        self.assertNotIn('note-capture', html)
+        self.assertNotIn(self.note_file.file.url, html)
+        self.assertNotIn('internal-only', html)
+        self.assertNotIn(self.internal_file.file.url, html)
+        self.assertNotIn('class="tc-replyto', html)
+        self.assertNotIn('do not tell them', html)
+        self.assertNotIn(f'comment-{self.note.pk}"', html)
+        self.assertNotIn('Internal note', html)
+        self.assertNotIn('tc-msg--note', html)
+
+    def test_context_carries_no_private_rows(self):
+        r = self._client().get(f'/portal/t/{self.ticket.ticket_number}/')
+        self.assertNotIn(self.note.pk, [e.id for e in r.context['conversation']])
+        self.assertEqual([a.filename for a in r.context['attachments']], ['public-log.txt'])
+        threaded = next(e for e in r.context['conversation']
+                        if e.body.startswith('THREADED-PUBLIC'))
+        self.assertIsNone(threaded.reply_to)
+
+    def test_internal_attachment_downloads_are_refused(self):
+        c = self._client()
+        for att in (self.note_file, self.internal_file):
+            r = c.get(att.file.url)
+            self.assertIn(r.status_code, (403, 404), att.filename)
+        self.assertEqual(c.get(self.public_file.file.url).status_code, 200)
+
+    def test_portal_reply_cannot_thread_under_internal_note(self):
+        from psa.models import TicketComment
+        self._client().post(f'/portal/t/{self.ticket.ticket_number}/reply/', {
+            'body': 'customer threaded attempt', 'parent_id': str(self.note.pk)})
+        c = TicketComment.objects.get(body='customer threaded attempt')
+        self.assertIsNone(c.parent_comment_id)

@@ -1,0 +1,232 @@
+/* Rack / cabinet elevation and board equipment, shared by the rack and
+   network-closet pages (static/js/rack_elevation.js draws it).
+
+   One U is --rk-u tall and the slot keeps a real 19" panel's proportions
+   (482.6 mm wide, 44.45 mm per U), so catalog artwork fills a device's whole
+   U span without stretching. */
+.rk {
+    --rk-u: 40px;
+    --rk-gutter: 30px;
+    --rk-slot: calc(var(--rk-u) * 10.857);
+    --rk-label: 300px;
+    display: inline-block;
+    max-width: 100%;
+    overflow-x: auto;
+    vertical-align: top;
+}
+.rk-face-tabs { margin-bottom: 8px; }
+.rk-stage {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: max-content;
+}
+.rk-frame {
+    position: relative;
+    padding: 10px 0;
+    background: #23272c;
+    border: 2px solid #3d434a;
+    border-radius: 6px;
+    box-shadow: inset 0 0 0 1px #15181b;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+}
+.rk-row {
+    display: flex;
+    align-items: stretch;
+    height: var(--rk-u);
+}
+.rk-num {
+    width: var(--rk-gutter);
+    flex: 0 0 var(--rk-gutter);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font: 600 11px/1 var(--bs-font-monospace, monospace);
+    color: #c3cad1;
+    user-select: none;
+}
+.rk-slot {
+    width: var(--rk-slot);
+    flex: 0 0 var(--rk-slot);
+    border-top: 1px solid #343a40;
+    background: repeating-linear-gradient(90deg, #191c20 0 6px, #1d2125 6px 12px);
+    background-size: 100% 100%;
+}
+.rk-row:last-child .rk-slot { border-bottom: 1px solid #343a40; }
+.rk-slot.rk-empty-action { cursor: pointer; }
+.rk-slot.rk-empty-action:hover,
+.rk-slot.rk-drop-target { background: #2b4a75; }
+.rk-devices {
+    position: absolute;
+    top: 10px;
+    left: var(--rk-gutter);
+    width: var(--rk-slot);
+    height: calc(100% - 20px);
+    pointer-events: none;
+}
+.rk-dev {
+    position: absolute;
+    left: 0;
+    right: 0;
+    pointer-events: auto;
+    cursor: pointer;
+    outline: none;
+    border-radius: 2px;
+    background: #2c3137;
+    overflow: hidden;
+}
+.rk-dev[draggable="true"] { cursor: grab; }
+.rk-dev:hover { box-shadow: 0 0 0 2px rgba(143, 180, 232, .75); z-index: 2; }
+.rk-dev:focus-visible,
+.rk-dev.rk-selected { box-shadow: 0 0 0 3px #ffc107; z-index: 3; }
+.rk-dev.rk-dragging { opacity: .45; }
+.rk-art {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
+}
+/* A device that is not drawn as a full-width rack panel (e.g. a desktop unit
+   on a shelf) sits on a plain shelf rather than being stretched. */
+.rk-dev.rk-shelf { background: linear-gradient(#2c3137 0 calc(100% - 4px), #5b636b calc(100% - 4px)); }
+/* No exact artwork: a deliberately plain face — no ports, lights or vents. */
+.rk-generic {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 0 10px;
+    background: #4a5058;
+    border: 1px dashed #868e96;
+    color: #f1f3f5;
+    text-align: center;
+    line-height: 1.15;
+}
+.rk-generic-name {
+    font-size: 12px;
+    font-weight: 600;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.rk-generic-note { font-size: 10px; opacity: .8; }
+/* A 1U face at phone or print size only has room for the name. */
+.rk-generic { container-type: size; }
+@container (max-height: 30px) { .rk-generic-note { display: none; } }
+/* Half-depth device mounted on the other face: outline only. */
+.rk-dev.rk-ghost {
+    background: transparent;
+    border: 1px dashed #7d858d;
+    cursor: default;
+}
+.rk-dev.rk-ghost .rk-generic { background: transparent; border: 0; color: #adb5bd; }
+.rk-resize {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 6px;
+    cursor: ns-resize;
+    background: rgba(255, 255, 255, .35);
+    opacity: 0;
+}
+.rk-dev:hover .rk-resize { opacity: 1; }
+/* Names beside the rack, so they never cover the ports. */
+.rk-labels {
+    position: relative;
+    width: var(--rk-label);
+    flex: 0 0 var(--rk-label);
+    align-self: stretch;
+    margin-top: 12px;
+}
+.rk-label {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-left: 10px;
+    border-left: 2px solid var(--border-color, #dee2e6);
+    line-height: 1.2;
+    color: var(--text-primary, #212529);
+    cursor: pointer;
+}
+.rk-label:hover .rk-label-name { text-decoration: underline; }
+.rk-label-name {
+    font-size: 13px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.rk-label-meta {
+    font-size: 11.5px;
+    color: var(--text-secondary, #6c757d);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.rk-label.rk-ghost-label { opacity: .7; font-style: italic; }
+.rk-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-secondary, #6c757d);
+}
+.rk-legend i {
+    display: inline-block;
+    width: 18px;
+    height: 11px;
+    margin-right: 5px;
+    vertical-align: -1px;
+    border-radius: 2px;
+}
+.rk-legend .rk-key-art { background: linear-gradient(#cfd4d9, #8f979e); }
+.rk-legend .rk-key-generic { background: #4a5058; border: 1px dashed #868e96; }
+.rk-legend .rk-key-ghost { border: 1px dashed #7d858d; }
+
+/* Board equipment artwork */
+.board-device .rk-board-art {
+    position: absolute;
+    inset: 6px 6px 24px 6px;
+    width: calc(100% - 12px);
+    height: calc(100% - 30px);
+    object-fit: contain;
+    pointer-events: none;
+}
+.board-device:focus-visible { outline: 3px solid #ffc107; outline-offset: 2px; }
+
+/* Device detail panel */
+.rk-detail-art {
+    background: radial-gradient(ellipse at top, #3a4048 0%, #22262b 70%);
+    border-radius: .5rem;
+    padding: 10px;
+    margin-bottom: 12px;
+}
+.rk-detail-art img { display: block; width: 100%; max-height: 160px; object-fit: contain; }
+
+@media (max-width: 576px) {
+    .rk { --rk-u: 26px; --rk-gutter: 22px; --rk-label: 170px; }
+}
+@media print {
+    /* fits a portrait page: the chassis keeps its proportions and the names
+       take whatever width is left (one line each, ellipsised) */
+    .rk { display: block; overflow: visible; --rk-u: 22px; --rk-gutter: 22px; }
+    .rk-stage { width: auto; }
+    .rk-labels { flex: 1 1 auto; width: auto; min-width: 0; }
+    .rk-label-name { font-size: 11px; }
+    .rk-label-meta { font-size: 10px; }
+    .rk-resize, .rk-face-tabs .btn:not(.active) { display: none !important; }
+    .rk-label { color: #000; }
+}

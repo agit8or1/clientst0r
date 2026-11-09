@@ -5,6 +5,31 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.641] - 2026-11-08
+
+### Changed
+- **Racks show the real equipment.** The monitoring rack, the cabinet/closet elevation and the free-position board now draw each device from the same catalog artwork as its asset and hardware pages, served through the existing access-controlled artwork routes. Before this, the rack page looked only for procurement product photos, so almost every device fell back to coloured strips with made-up port rows and blinking lights.
+  - A device is drawn as one chassis across its whole U span. A 2U server used to be split into two strips.
+  - U numbers stay on both rails. Names and models sit in a column beside the rack, so they never cover ports.
+  - Front and Rear views follow placement rules: a full-depth device occupies both faces, and a half-depth one appears as a dashed outline on the other face. Drag, drop and resize checks use the same face rules on the server.
+  - Placements from before the catalog are still drawn. Artwork comes from the linked hardware device, else the placement's or asset's model, else a catalog match on the asset's make and model. Generic templates are never used. With nothing to go on, the device is a plain face with its saved name, without invented ports or lights.
+  - Click a device, or focus it and press Enter, to open a panel with its name, model, position and artwork, plus links to the device and its ports, the asset, and the placement editor. Closing the panel keeps the rack's position and zoom.
+  - Board tiles show the model artwork. Clicking a tile no longer saves its position; a position is saved only after a real drag.
+  - The hardware rack view and its SVG, PNG and PDF exports use the same resolution. A placement with a model but no inventory device now draws that model's artwork, and the plain face is labelled "no artwork".
+  - The rack's Reset button no longer throws an error. The print view fits the rack and its names on a portrait page.
+- **Tickets read as a conversation.** The staff and portal ticket pages share one thread layout:
+  - Customer messages: left-hand bubbles labelled Customer.
+  - Technician replies: right-hand bubbles labelled Technician.
+  - Internal notes: amber, marked "Internal note · staff only".
+  - Status changes: compact rows.
+  - The composer shows which audience is selected.
+  - The role comes from how an entry was recorded (signed-in staff, a customer membership, the portal, or an email from the requester or contact), not from whether it is internal. Anything unclear is shown neutrally. Drafts, shortcuts, threading, attachments, stale-reply warnings and email history are unchanged.
+
+### Fixed
+- **Portal attachment names on internal notes.** The portal listed any attachment not flagged internal, including the filename and link of a file attached to an internal note, for example by an inbound email. The file itself could not be downloaded. The portal now lists only attachments a customer may see. Replies in the portal never quote an internal parent.
+- **Client switcher clipped in the navigation bar** between 1400 and about 1800 px wide, and the selected client's name showed only four or five letters. Navigation items now give way to the client name.
+- **README dashboard screenshot rendered without styles.** The capture ran while the Bootstrap stylesheet from the CDN had failed to load, and the script only checked HTTP error codes. `scripts/capture_screenshots.py` now refuses a page whose stylesheets, scripts or fonts failed, or that has an open menu or horizontal overflow, and retries it. The dashboard, rack and ticket screenshots were re-taken from the demo instance, and their alt text was rewritten.
+
 ## [3.17.640] - 2026-11-07
 
 ### Security

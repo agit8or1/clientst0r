@@ -1006,8 +1006,11 @@ body {
     }
 }
 
-@media (max-width: 1849px) {
-    /* Ensure navbar collapses properly below 1850px */
+@media (max-width: 1399.98px) {
+    /* Collapsed (drawer) navbar only. The bar expands at Bootstrap's xxl
+       breakpoint (navbar-expand-xxl, 1400px); these rules used to reach up to
+       1849px, where their !important link padding overrode the fit-to-width
+       rules in ui.css and pushed the client switcher off the right edge. */
     .navbar-collapse {
         margin-top: 1rem;
     }

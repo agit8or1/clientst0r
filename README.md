@@ -17,7 +17,7 @@ Keep customer documentation, assets, credentials and support workflows on your o
 
 ---
 
-[![The ClientSt0r dashboard for a managed client: quick actions, record counts, and panels for the next seven days of scheduled work, outstanding tasks and website monitor status](docs/images/github/client-dashboard-light.png)](docs/images/github/client-dashboard-light.png)
+[![The ClientSt0r dashboard for Northwind Logistics in light theme: the navigation bar with the selected client, quick actions, record counts, the next seven days of scheduled work, outstanding tasks with due badges, monitor status and a site map](docs/images/github/client-dashboard-light.png)](docs/images/github/client-dashboard-light.png)
 
 ## Watch it work
 
@@ -66,10 +66,11 @@ organizations and per-client PSA settings are first-class, not bolted on.
 
 ## See it in action
 
-A ticket that already knows the customer — contract, SLA countdown, internal notes kept
-apart from client replies, and the credentials the job needs, listed but never revealed.
+A ticket that reads as a conversation — the customer on one side, technicians on the other,
+internal notes in amber and marked staff only — beside the contract, SLA countdown and the
+credentials the job needs, listed but never revealed.
 
-[![Ticket detail showing the client's active contract, SLA countdown, internal and client-visible activity, the linked asset, vault context with every secret hidden, and logged time](docs/images/github/ticket-detail-light.png)](docs/images/github/ticket-detail-light.png)
+[![Ticket detail laid out as a conversation: customer messages in left-hand bubbles, technician replies in blue right-hand bubbles, an amber internal note marked staff only, a status-change row and a composer set to Public reply, beside the client's contract, details and vault context with every secret hidden](docs/images/github/ticket-detail-light.png)](docs/images/github/ticket-detail-light.png)
 
 <table>
 <tr>
@@ -84,8 +85,8 @@ apart from client replies, and the credentials the job needs, listed but never r
 </tr>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/rack-elevation-dark.png"><img src="docs/images/github/rack-elevation-dark.png" alt="Rack elevation in dark theme showing a 42U rack populated with firewall, core switch, patch panel, servers, NAS and UPS at their unit positions"></a>
-<b>What is actually in the rack</b> · Dark<br>Each device linked to its asset record.
+<a href="docs/images/github/rack-elevation-dark.png"><img src="docs/images/github/rack-elevation-dark.png" alt="Rack elevation in dark theme drawn from catalog artwork: a FortiGate firewall, an HPE Aruba 6300M core switch, a 2U Panduit patch panel, a legacy KVM console placement shown as a plain face with its saved name, Dell PowerEdge R650 and 2U R750xs servers and a 2U Synology NAS, each named beside the rack with its model and units"></a>
+<b>What is actually in the rack</b> · Dark<br>Drawn from each model's artwork across its real U span; click a device for its ports.
 </td>
 <td width="50%" valign="top">
 <a href="docs/images/github/project-timeline-light.png"><img src="docs/images/github/project-timeline-light.png" alt="Project timeline in light theme: a Gantt chart of seven tasks with milestones marked"></a>

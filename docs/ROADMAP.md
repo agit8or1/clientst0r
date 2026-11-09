@@ -1626,6 +1626,12 @@ someone else.
   ticket merge run the same resolution, checklist, sign-off and time rules
   as the Close button (merge skips the time rule); partner status updates
   no longer close or reopen local tickets.
+- **Tickets read as a conversation** *(shipped v3.17.641)* — staff and portal
+  pages share one thread: customer messages on the left, technician replies on
+  the right, internal notes in amber marked staff only, and system events as
+  compact rows. The sender's role comes from how the entry was recorded, not
+  from its visibility; the portal never receives internal notes, internal
+  attachments or private reply previews.
 
 ## Phase 53 — Documentation readiness and lifecycle **(L)** [in progress]
 
@@ -1726,6 +1732,13 @@ inventory. Documentation only — nothing is pushed to devices.
   release MP4s replaced v3.17.637)*
   A GitHub social preview image built from the same screenshots *(shipped v3.17.638)*
   The repository description and topics name the hardware inventory *(v3.17.639)*
+- **55.9 Catalog artwork in every rack view** — the monitoring rack, cabinet /
+  closet elevation and free-position board draw each device from the same
+  artwork as its asset and device pages, as one chassis across its U span, with
+  front/rear faces and half-depth rules, names beside the rack and a plain face
+  (saved name only, no invented ports) where no model is recorded. Devices open
+  a detail panel by mouse or keyboard with a link to the device and its ports.
+  *(shipped v3.17.641)*
 
 ## Sizing
 

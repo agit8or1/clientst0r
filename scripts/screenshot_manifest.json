@@ -22,7 +22,7 @@
       "group": "overview",
       "heading": "Client dashboard",
       "caption": "Open a client and see the week ahead: scheduled tickets, maintenance falling due, monitor status, and where their sites are.",
-      "alt": "Client dashboard in light theme with quick actions, record counts, a seven-day schedule, outstanding tasks, monitor status and a site map",
+      "alt": "Client dashboard for Northwind Logistics in light theme: the navigation bar with the selected client, quick actions, record counts, the next seven days of scheduled work, outstanding tasks with due badges, monitor status and a site map",
       "max_h": 1200
     },
     {
@@ -121,8 +121,8 @@
       "theme": "dark",
       "group": "insights",
       "heading": "Rack elevation",
-      "caption": "What is in the comms room, at which U, drawing how much power — linked to the asset record for each device.",
-      "alt": "Rack elevation view in dark theme showing a 42U rack populated with a firewall, core switch, patch panel, servers, NAS and UPS at their unit positions",
+      "caption": "Each device is drawn from the same catalog artwork as its device page, across its real unit span — a 2U server reads as one 2U chassis. Front and rear faces, half-depth rules, and a plain face where no artwork is recorded.",
+      "alt": "Rack elevation in dark theme drawn from catalog artwork: a FortiGate firewall at U40, an HPE Aruba 6300M core switch at U37, a 2U Panduit patch panel, a legacy KVM console placement with no model shown as a plain face with its saved name, Dell PowerEdge R650 and 2U R750xs servers and a 2U Synology NAS, each named beside the rack with its model and units",
       "max_h": 1400
     },
     {
@@ -172,8 +172,8 @@
       "theme": "light",
       "group": "workflows",
       "heading": "A ticket that knows the customer",
-      "caption": "Contract and hours used, the SLA countdown, internal notes kept apart from client replies, the linked asset, and the credentials this job needs — listed, never revealed.",
-      "alt": "Ticket detail in light theme showing the client's active contract, SLA countdown, internal and client-visible activity, the linked asset, vault context with secrets hidden, and logged time",
+      "caption": "The ticket reads as a conversation: the customer on the left, technicians on the right, internal notes in amber marked staff only, and status changes as compact rows. Contract hours, the SLA countdown and the credentials this job needs sit alongside — listed, never revealed.",
+      "alt": "Ticket detail in light theme laid out as a conversation: customer messages in left-hand bubbles labelled Customer, technician replies in blue right-hand bubbles labelled Technician, an amber internal note marked staff only, a status-change row, and a composer set to Public reply, beside the client's active contract, details and vault context with secrets hidden",
       "wait_for_text": [
         "Vault Context"
       ],

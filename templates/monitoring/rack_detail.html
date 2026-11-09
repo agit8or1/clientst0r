@@ -1,10 +1,13 @@
 {% extends "base.html" %}
-{% load asset_tags %}
+{% load asset_tags static %}
 
 {% block title %}{{ rack.name }} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/rack_elevation.css' %}">
 <style>
+#rack-visual { position: relative; }
+.rack-main-area { min-width: 0; }
 .rack-visual-container {
     display: flex;
     gap: 20px;
@@ -543,18 +546,15 @@
 
     .tab-content > .tab-pane.show.active { display: block !important; }
 
-    .rack-visual-container { max-width: 400px; }
-    .rack-visual, .rack-unit { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-    .rack-device { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .rack-visual-container { max-width: none; }
 
     body { font-size: 11pt; }
     h2 { font-size: 16pt; margin-bottom: 6pt; }
     .card { border: 1px solid #ccc !important; break-inside: avoid; }
     .card-header { background: #f8f9fa !important; color: #000 !important; }
 
-    /* Show rack info + visual tab side by side on print */
-    .col-lg-3 { width: 30% !important; float: left; }
-    .col-lg-9 { width: 68% !important; float: right; }
+    /* Info above, the elevation (chassis + names) across the full page width */
+    .col-lg-3, .col-lg-9 { width: 100% !important; float: none; }
 }
 
 /* No-backdrop modals: keep content scrollable, prevent body shift */
@@ -641,22 +641,7 @@
   box-shadow:0 4px 20px rgba(0,0,0,0.45);"></div>
 
 <!-- Device Detail Modal -->
-<div class="modal fade" id="deviceDetailModal" tabindex="-1" data-bs-backdrop="false" data-bs-keyboard="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header" id="deviceDetailModalHeader" style="background:#1e293b;color:#e2e8f0;">
-        <h5 class="modal-title" id="deviceDetailModalTitle"><i class="fas fa-server me-2"></i>Device Details</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" id="deviceDetailModalBody"></div>
-      <div class="modal-footer">
-        <button id="deviceDetailEditLink" type="button" class="btn btn-primary btn-sm"><i class="fas fa-edit"></i> Edit Device</button>
-        <a id="deviceDetailAssetLink" href="#" class="btn btn-outline-secondary btn-sm" target="_blank"><i class="fas fa-external-link-alt"></i> View Full Asset</a>
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
+{% include "monitoring/_rack_device_panel.html" %}
 
 <!-- Device Inline Edit Modal -->
 <div class="modal fade" id="deviceEditModal" tabindex="-1" data-bs-backdrop="false" data-bs-keyboard="true">
@@ -828,9 +813,10 @@
                             <div class="rack-main-area">
                                 <!-- Toolbar -->
                                 <div class="rack-toolbar">
-                                    <button id="toggle-grid" class="btn btn-sm btn-outline-secondary" style="display: none;">
-                                        <i class="fas fa-border-all"></i> Snap to Grid
-                                    </button>
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Rack face">
+                                        <button type="button" class="btn btn-outline-secondary active" data-rack-face="front" aria-pressed="true">Front</button>
+                                        <button type="button" class="btn btn-outline-secondary" data-rack-face="rear" aria-pressed="false">Rear</button>
+                                    </div>
                                     <button id="zoom-in" class="btn btn-sm btn-outline-secondary">
                                         <i class="fas fa-search-plus"></i> Zoom In
                                     </button>
@@ -844,7 +830,7 @@
 
                                 <!-- Rack Container -->
                                 <div id="rack-container" class="rack-container" data-rack-id="{{ rack.id }}">
-                                    <div id="rack-visual" class="rack-visual" data-units="{{ rack.units }}">
+                                    <div id="rack-visual" data-units="{{ rack.units }}">
                                         <!-- Units rendered by JavaScript -->
                                     </div>
                                 </div>
@@ -1129,6 +1115,7 @@
 {% block extra_js %}
 <!-- SortableJS Library -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="{% static 'js/rack_elevation.js' %}"></script>
 
 <script nonce="{{ csp_nonce }}">
 // Configuration
@@ -1141,9 +1128,6 @@ const GRID_SIZE = 50; // Grid cell size in pixels
 let rackDevices = [];
 let rackResources = [];
 let draggedAsset = null;
-let currentView = 'rack'; // 'rack' or 'board'
-let snapToGrid = false;
-let boardDragState = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -1198,44 +1182,26 @@ function loadRackDevices() {
         });
 }
 
-// Render current view (rack or board)
+// Render current view
 function renderCurrentView() {
-    if (currentView === 'rack') {
-        renderRack();
-    } else {
-        renderBoard();
-    }
+    renderRack();
 }
 
-// Render the rack visualization
+// Render the rack elevation: one element per device across its whole U span,
+// drawn from the same artwork as the device and asset pages.
+let rackFace = 'front';
+let rackView = null;
 function renderRack() {
-    console.log('Rendering rack with', rackDevices.length, 'devices');
     const rackVisual = document.getElementById('rack-visual');
-
-    if (!rackVisual) {
-        console.error('rack-visual element not found!');
-        return;
-    }
-
-    rackVisual.innerHTML = '';
-
-    // Create unit divs (top to bottom)
-    for (let unit = RACK_UNITS; unit >= 1; unit--) {
-        const device = getDeviceAtUnit(unit);
-        const unitDiv = createUnitDiv(unit, device);
-        rackVisual.appendChild(unitDiv);
-    }
-
-    // Initialize drag-and-drop
-    try {
-        setupDragListeners();
-        console.log('Drag-and-drop initialized successfully');
-    } catch (error) {
-        console.error('Error initializing drag-and-drop:', error);
-        showToast('Error initializing drag-and-drop: ' + error.message, 'danger');
-    }
-
-    // Render wiring diagram
+    if (!rackVisual) return;
+    rackView = RackElevation.render(rackVisual, {
+        units: RACK_UNITS,
+        face: rackFace,
+        devices: rackDevices,
+        editable: true,
+        onSelect: (device, el) => showDeviceDetailModal(device, el),
+    });
+    setupDragListeners();
     renderWiring();
 }
 
@@ -1306,298 +1272,82 @@ function renderWiring() {
     rackVisual.appendChild(svg);
 }
 
-// Create a unit div element
-function createUnitDiv(unitNumber, device) {
-    const div = document.createElement('div');
-    div.classList.add('rack-unit');
-    div.dataset.unit = unitNumber;
-
-    if (device) {
-        // Device occupies this unit
-        const isStart = device.start_unit === unitNumber;
-        div.classList.add('rack-device');
-        div.style.backgroundColor = device.color;
-        div.dataset.deviceId = device.id;
-        div.dataset.startUnit = device.start_unit;
-        div.dataset.units = device.units;
-
-        if (isStart) {
-            // Enhanced visual representation
-            const visual = getDeviceVisualHTML(device);
-            div.innerHTML = `
-                <span class="rack-unit-number">${unitNumber}</span>
-                ${visual}
-                <span class="device-name"><i class="fas ${deviceIcon(device.asset_type)}" style="opacity:.7;margin-right:4px;font-size:.75em;"></i>${device.name}</span>
-                <i class="fas fa-edit device-edit-icon" title="Edit device" data-device-id="${device.id}"></i>
-                <div class="device-resize-handle"></div>
-            `;
-            // Make the start unit draggable
-            div.classList.add('draggable');
-
-            // Edit icon → navigate to edit page
-            const editIcon = div.querySelector('.device-edit-icon');
-            if (editIcon) {
-                editIcon.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    window.location.href = `/monitoring/devices/${device.id}/edit/`;
-                });
-            }
-
-            // Hover tooltip
-            div.addEventListener('mouseenter', function(e) { showRackDeviceTooltip(e, device); });
-            div.addEventListener('mousemove',  function(e) { positionTooltip(e); });
-            div.addEventListener('mouseleave', hideRackDeviceTooltip);
-
-            // Click body → detail modal (ignore edit icon and resize handle)
-            div.addEventListener('click', function(e) {
-                if (e.target.classList.contains('device-edit-icon') ||
-                    e.target.classList.contains('device-resize-handle')) return;
-                showDeviceDetailModal(device);
-            });
-        } else {
-            div.innerHTML = `<span class="rack-unit-number">${unitNumber}</span>`;
-            div.classList.add('device-continuation');
-        }
-    } else {
-        // Empty unit
-        div.classList.add('rack-unit-empty');
-        div.innerHTML = `
-            <span class="rack-unit-number">${unitNumber}</span>
-            <span class="empty-indicator"><i class="fas fa-plus"></i></span>
-        `;
-    }
-
-    return div;
+// Placements that claim a unit on the face being viewed. A half-depth device
+// only claims its own face; a full-depth one claims both.
+function claimsFace(d, face) {
+    return d.is_full_depth !== false || (d.face || 'front') === face;
 }
 
-// Get visual HTML for device based on equipment type
-function getDeviceVisualHTML(device) {
-    const assetType = device.asset_type || 'other';
-    const units = device.units || 1;
-
-    // Check if device has equipment image
-    if (device.equipment_image_url) {
-        return `<img src="${device.equipment_image_url}" class="device-image" alt="${device.name}" style="height: ${units * 22}px; object-fit: contain; margin-right: 4px;">`;
-    }
-
-    // Generate visual indicators based on equipment type
-    let indicators = '';
-
-    switch(assetType) {
-        case 'server':
-            // Server with drive bays and status LEDs
-            indicators = `<div class="device-visual server-visual">
-                <div class="led-row">
-                    <span class="led led-green"></span>
-                    <span class="led led-amber"></span>
-                </div>
-                <div class="drive-bays">${'▯'.repeat(Math.min(units * 2, 8))}</div>
-            </div>`;
-            break;
-
-        case 'switch':
-        case 'router':
-        case 'firewall':
-            // Network device with port indicators
-            const portCount = device.port_count || 24;
-            const displayPorts = Math.min(portCount, units * 12);
-            indicators = `<div class="device-visual switch-visual">
-                <div class="port-indicators">${'●'.repeat(displayPorts)}</div>
-                <div class="led-row">
-                    <span class="led led-green"></span>
-                </div>
-            </div>`;
-            break;
-
-        case 'patch_panel':
-        case 'fiber_panel':
-            // Patch panel with port grid
-            const panelPorts = device.port_count || 24;
-            indicators = `<div class="device-visual patch-panel-visual">
-                <div class="port-grid">${'◯'.repeat(Math.min(panelPorts, units * 24))}</div>
-            </div>`;
-            break;
-
-        case 'ups':
-        case 'pdu':
-            // Power device with outlet indicators
-            indicators = `<div class="device-visual power-visual">
-                <div class="led-row">
-                    <span class="led led-green"></span>
-                    <span class="led led-green"></span>
-                </div>
-                <div class="outlet-indicators">⚡ ${'◼'.repeat(8)}</div>
-            </div>`;
-            break;
-
-        case 'storage':
-        case 'nas':
-        case 'san':
-            // Storage device with drive indicators
-            indicators = `<div class="device-visual storage-visual">
-                <div class="drive-bays">${'▯'.repeat(units * 4)}</div>
-                <div class="led-row">
-                    <span class="led led-blue"></span>
-                    <span class="led led-green"></span>
-                </div>
-            </div>`;
-            break;
-
-        default:
-            // Generic device with LED
-            indicators = `<div class="device-visual generic-visual">
-                <span class="led led-green"></span>
-            </div>`;
-    }
-
-    return indicators;
+function getDeviceAtUnit(unitNumber, face = rackFace, ignoreId = null) {
+    return rackDevices.find(d => d.id !== ignoreId && claimsFace(d, face) &&
+        d.start_unit <= unitNumber && unitNumber <= (d.start_unit + d.units - 1));
 }
 
-// Get device occupying a specific unit
-function getDeviceAtUnit(unitNumber) {
-    return rackDevices.find(d =>
-        d.start_unit <= unitNumber &&
-        unitNumber <= (d.start_unit + d.units - 1)
-    );
-}
-
-// Initialize native HTML5 drag-and-drop for rack
+// Drag a device to a new start unit. The drop position is read from the
+// pointer, keeping the unit that was grabbed under the pointer.
 let draggedDevice = null;
+let grabOffset = 0;
 
-function initializeSortable() {
-    const rackVisual = document.getElementById('rack-visual');
-    console.log('Initializing native drag-and-drop on rack-visual');
-
-    if (!rackVisual) {
-        console.error('rack-visual element not found');
-        return;
-    }
-
-    // Set up drag event listeners on all rack units
-    setupDragListeners();
-
-    // Log draggable elements count
-    const draggableCount = rackVisual.querySelectorAll('.draggable').length;
-    console.log(`Found ${draggableCount} draggable devices in rack`);
-}
-
-// Set up drag listeners on rack units
 function setupDragListeners() {
-    const rackVisual = document.getElementById('rack-visual');
-    const allUnits = rackVisual.querySelectorAll('.rack-unit');
+    if (!rackView) return;
+    const frame = rackView.frame;
+    const clearTarget = () => frame.querySelectorAll('.rk-drop-target').forEach(el => el.classList.remove('rk-drop-target'));
+    const targetStart = e => rackView.unitAt(e.clientY) - grabOffset;
 
-    allUnits.forEach(unit => {
-        // Make draggable devices draggable
-        if (unit.classList.contains('draggable')) {
-            unit.setAttribute('draggable', 'true');
-
-            // Drag start - remember what we're dragging
-            unit.addEventListener('dragstart', function(e) {
-                const deviceId = parseInt(this.dataset.deviceId);
-                const device = rackDevices.find(d => d.id === deviceId);
-
-                if (device) {
-                    draggedDevice = device;
-                    this.style.opacity = '0.4';
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('text/html', this.innerHTML);
-                    console.log('Dragging device:', device.name, 'from unit', device.start_unit);
-                }
-            });
-
-            // Drag end - reset styling
-            unit.addEventListener('dragend', function(e) {
-                this.style.opacity = '1';
-                draggedDevice = null;
-
-                // Remove all drop indicators
-                document.querySelectorAll('.drag-over').forEach(el => {
-                    el.classList.remove('drag-over');
-                });
-            });
-        }
-
-        // All units can be drop targets
-        unit.addEventListener('dragover', function(e) {
-            if (draggedDevice) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                return false;
-            }
-        });
-
-        unit.addEventListener('dragenter', function(e) {
-            if (draggedDevice && !this.classList.contains('device-continuation')) {
-                this.classList.add('drag-over');
-            }
-        });
-
-        unit.addEventListener('dragleave', function(e) {
-            this.classList.remove('drag-over');
-        });
-
-        // Handle drop
-        unit.addEventListener('drop', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-
-            this.classList.remove('drag-over');
-
+    frame.querySelectorAll('.rk-dev[draggable="true"]').forEach(el => {
+        el.addEventListener('dragstart', function(e) {
+            if (e.target.classList.contains('rk-resize')) { e.preventDefault(); return; }
+            draggedDevice = rackDevices.find(d => d.id === parseInt(this.dataset.deviceId, 10));
             if (!draggedDevice) return;
-
-            // Get the target unit number
-            const targetUnit = parseInt(this.dataset.unit);
-            const oldStartUnit = draggedDevice.start_unit;
-
-            console.log('Dropped at unit:', targetUnit);
-
-            // Can't drop on continuation units
-            if (this.classList.contains('device-continuation')) {
-                console.log('Cannot drop on continuation unit');
-                showToast('Cannot drop on occupied space', 'warning');
-                return false;
-            }
-
-            // Check if target unit is valid (not occupied by another device)
-            const targetDevice = getDeviceAtUnit(targetUnit);
-            if (targetDevice && targetDevice.id !== draggedDevice.id) {
-                console.log('Target unit occupied by another device');
-                showToast('Target unit is occupied', 'warning');
-                return false;
-            }
-
-            // Check if device would fit (no overlap with other devices)
-            const deviceFits = checkDeviceFits(targetUnit, draggedDevice.units, draggedDevice.id);
-            if (!deviceFits) {
-                showToast('Device would not fit at this location', 'warning');
-                return false;
-            }
-
-            // Update position
-            if (targetUnit !== oldStartUnit) {
-                updateDevicePosition(draggedDevice.id, oldStartUnit, targetUnit);
-            }
-
-            return false;
+            hideRackDeviceTooltip();
+            grabOffset = rackView.unitAt(e.clientY) - draggedDevice.start_unit;
+            this.classList.add('rk-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', String(draggedDevice.id));
         });
+        el.addEventListener('dragend', function() {
+            this.classList.remove('rk-dragging');
+            draggedDevice = null;
+            clearTarget();
+        });
+    });
+
+    frame.addEventListener('dragover', function(e) {
+        if (!draggedDevice) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        clearTarget();
+        const start = targetStart(e);
+        for (let u = start; u < start + draggedDevice.units; u++) {
+            const slot = frame.querySelector(`.rk-slot[data-unit="${u}"]`);
+            if (slot) slot.classList.add('rk-drop-target');
+        }
+    });
+    frame.addEventListener('dragleave', function(e) {
+        if (!frame.contains(e.relatedTarget)) clearTarget();
+    });
+    frame.addEventListener('drop', function(e) {
+        e.preventDefault();
+        clearTarget();
+        if (!draggedDevice) return;
+        const start = targetStart(e);
+        if (start === draggedDevice.start_unit) return;
+        if (!checkDeviceFits(start, draggedDevice.units, draggedDevice.id, draggedDevice)) {
+            showToast('Device would not fit at this location', 'warning');
+            return;
+        }
+        updateDevicePosition(draggedDevice.id, draggedDevice.start_unit, start);
     });
 }
 
-// Check if device would fit at target unit
-function checkDeviceFits(targetUnit, units, deviceId) {
-    // Check if device extends beyond rack boundaries
-    if (targetUnit + units - 1 > RACK_UNITS || targetUnit < 1) {
-        return false;
-    }
-
-    // Check for overlaps with other devices
+// Check if a device would fit at a start unit, by the same face/depth rules
+// the server applies.
+function checkDeviceFits(targetUnit, units, deviceId, device) {
+    if (targetUnit < 1 || targetUnit + units - 1 > RACK_UNITS) return false;
+    const faces = device && device.is_full_depth === false ? [device.face || 'front'] : ['front', 'rear'];
     for (let u = targetUnit; u < targetUnit + units; u++) {
-        const existing = getDeviceAtUnit(u);
-        if (existing && existing.id !== deviceId) {
-            return false;
-        }
+        if (faces.some(f => getDeviceAtUnit(u, f, deviceId))) return false;
     }
-
     return true;
 }
 
@@ -1704,607 +1454,73 @@ function createDeviceFromAsset(assetId, startUnit, units) {
 }
 
 // ============================================================================
-// BOARD LAYOUT FUNCTIONS
-// ============================================================================
-
-// Render board layout view
-function renderBoard() {
-    const boardCanvas = document.getElementById('board-canvas');
-    boardCanvas.innerHTML = '';
-
-    // Render devices on board
-    rackDevices.forEach(device => {
-        if (device.board_position_x !== null && device.board_position_y !== null) {
-            createBoardDevice(device, 'device');
-        }
-    });
-
-    // Render resources on board
-    rackResources.forEach(resource => {
-        if (resource.board_position_x !== null && resource.board_position_y !== null) {
-            createBoardDevice(resource, 'resource');
-        }
-    });
-
-    // Initialize drag-and-drop for board
-    initializeBoardDragDrop();
-}
-
-// Create a board device element
-function createBoardDevice(item, type) {
-    const boardCanvas = document.getElementById('board-canvas');
-    const div = document.createElement('div');
-    div.classList.add('board-device');
-    div.dataset.itemId = item.id;
-    div.dataset.itemType = type;
-
-    // Position and size
-    div.style.left = item.board_position_x + 'px';
-    div.style.top = item.board_position_y + 'px';
-    div.style.width = (item.board_width || 150) + 'px';
-    div.style.height = (item.board_height || 100) + 'px';
-    div.style.backgroundColor = item.color || '#6c757d';
-
-    // Enhanced visual content
-    const content = getBoardDeviceContent(item);
-    div.innerHTML = `
-        <button class="board-device-edit-btn" title="Edit device"><i class="fas fa-pencil-alt"></i></button>
-        <div class="board-device-content">
-            ${content}
-            <div class="board-device-label">${item.name}</div>
-        </div>
-        <div class="board-resize-handle"></div>
-    `;
-
-    // Edit button → open edit modal directly
-    div.querySelector('.board-device-edit-btn').addEventListener('click', function(e) {
-        e.stopPropagation();
-        showDeviceEditModal(item);
-    });
-
-    // Hover tooltip
-    div.addEventListener('mouseenter', function(e) { showRackDeviceTooltip(e, item); });
-    div.addEventListener('mousemove',  function(e) { positionTooltip(e); });
-    div.addEventListener('mouseleave', hideRackDeviceTooltip);
-
-    // Click body → detail modal
-    div.addEventListener('click', function(e) {
-        if (e.target.classList.contains('board-resize-handle')) return;
-        if (e.target.closest('.board-device-edit-btn')) return;
-        showDeviceDetailModal(item);
-    });
-
-    boardCanvas.appendChild(div);
-}
-
-// Get enhanced content for board device
-function getBoardDeviceContent(item) {
-    const assetType = item.asset_type || 'other';
-
-    // If equipment has image, show it
-    if (item.equipment_image_url) {
-        return `<img src="${item.equipment_image_url}" class="board-device-image" alt="${item.name}">`;
-    }
-
-    // Generate visual representation based on type
-    let visual = '';
-
-    switch(assetType) {
-        case 'server':
-            visual = `
-                <div class="led-row" style="margin-bottom: 4px;">
-                    <span class="led led-green"></span>
-                    <span class="led led-amber"></span>
-                    <span class="led led-blue"></span>
-                </div>
-                <div class="drive-bays" style="font-size: 0.7rem;">
-                    ${'▯▯▯▯<br>'.repeat(3)}
-                </div>
-            `;
-            break;
-
-        case 'switch':
-        case 'router':
-        case 'firewall':
-            const portCount = item.port_count || 24;
-            const rows = Math.ceil(portCount / 12);
-            let portHTML = '';
-            for (let i = 0; i < rows; i++) {
-                portHTML += '<div class="board-device-ports">';
-                for (let j = 0; j < Math.min(12, portCount - (i * 12)); j++) {
-                    const active = Math.random() > 0.5 ? 'active' : '';
-                    portHTML += `<span class="board-port-indicator ${active}"></span>`;
-                }
-                portHTML += '</div>';
-            }
-            visual = `
-                <div class="led-row" style="margin-bottom: 4px;">
-                    <span class="led led-green"></span>
-                    <span style="font-size: 0.6rem; margin-left: 4px;">${portCount} Ports</span>
-                </div>
-                ${portHTML}
-            `;
-            break;
-
-        case 'patch_panel':
-        case 'fiber_panel':
-            const panelPorts = item.port_count || 24;
-            let panelHTML = '<div class="board-device-ports" style="grid-template-columns: repeat(12, 8px);">';
-            for (let i = 0; i < panelPorts; i++) {
-                panelHTML += '<span class="board-port-indicator"></span>';
-            }
-            panelHTML += '</div>';
-            visual = `
-                <div style="font-size: 0.6rem; margin-bottom: 4px;">${panelPorts} Port Panel</div>
-                ${panelHTML}
-            `;
-            break;
-
-        case 'ups':
-        case 'pdu':
-            visual = `
-                <div class="led-row" style="margin-bottom: 4px;">
-                    <span class="led led-green"></span>
-                    <span class="led led-green"></span>
-                    <span style="font-size: 0.6rem; margin-left: 4px;">AC Power</span>
-                </div>
-                <div style="font-size: 0.7rem;">⚡ ${'◼ '.repeat(4)}</div>
-            `;
-            break;
-
-        case 'wireless_ap':
-            visual = `
-                <div class="led-row" style="margin-bottom: 4px;">
-                    <span class="led led-blue"></span>
-                    <span class="led led-green"></span>
-                </div>
-                <div style="font-size: 1.5rem; text-align: center;">📡</div>
-            `;
-            break;
-
-        case 'security_camera':
-        case 'camera':
-            visual = `
-                <div class="led-row" style="margin-bottom: 4px;">
-                    <span class="led led-red"></span>
-                </div>
-                <div style="font-size: 1.5rem; text-align: center;">📹</div>
-            `;
-            break;
-
-        case 'phone':
-            visual = `
-                <div class="led-row" style="margin-bottom: 4px;">
-                    <span class="led led-green"></span>
-                </div>
-                <div style="font-size: 1.5rem; text-align: center;">📞</div>
-            `;
-            break;
-
-        default:
-            visual = `
-                <div class="led-row">
-                    <span class="led led-green"></span>
-                </div>
-            `;
-    }
-
-    return visual;
-}
-
-// Initialize board drag-and-drop
-function initializeBoardDragDrop() {
-    const boardCanvas = document.getElementById('board-canvas');
-
-    // Make existing devices draggable (event attached in createBoardDevice)
-    boardCanvas.querySelectorAll('.board-device').forEach(deviceEl => {
-        deviceEl.style.cursor = 'move';
-        deviceEl.addEventListener('mousedown', handleBoardDeviceDragStart);
-    });
-
-    // Handle asset drops from sidebar (use once: false for persistent listeners)
-    boardCanvas.addEventListener('dragover', handleBoardDragOver);
-    boardCanvas.addEventListener('drop', handleBoardAssetDrop);
-
-    // Make assets in sidebar draggable
-    document.querySelectorAll('.asset-item').forEach(asset => {
-        if (!asset.hasAttribute('draggable')) {
-            asset.setAttribute('draggable', 'true');
-            asset.addEventListener('dragstart', handleAssetDragStart);
-        }
-    });
-}
-
-// Handle drag start for assets from sidebar
-function handleAssetDragStart(e) {
-    if (currentView !== 'board') return;
-
-    draggedAsset = {
-        id: parseInt(e.target.dataset.assetId),
-        units: parseInt(e.target.dataset.units)
-    };
-    e.dataTransfer.effectAllowed = 'copy';
-}
-
-// Handle drag over board canvas
-function handleBoardDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-}
-
-// Handle asset drop on board
-function handleBoardAssetDrop(e) {
-    e.preventDefault();
-
-    if (!draggedAsset) return;
-
-    const rect = e.target.getBoundingClientRect();
-    let x = e.clientX - rect.left;
-    let y = e.clientY - rect.top;
-
-    // Apply snap to grid if enabled
-    if (snapToGrid) {
-        x = Math.round(x / GRID_SIZE) * GRID_SIZE;
-        y = Math.round(y / GRID_SIZE) * GRID_SIZE;
-    }
-
-    // Create device on board
-    createDeviceOnBoard(draggedAsset.id, x, y, 150, 100);
-    draggedAsset = null;
-}
-
-// Create device from asset on board
-function createDeviceOnBoard(assetId, x, y, width, height) {
-    showToast('Adding asset to board...', 'info');
-
-    fetch(`/monitoring/api/racks/${RACK_ID}/devices/create/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: JSON.stringify({
-            asset_id: assetId,
-            start_unit: 1, // Default for board view
-            units: 1,
-            board_position_x: x,
-            board_position_y: y,
-            board_width: width,
-            board_height: height
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error || !data.success) {
-            showToast(data.error || 'Failed to add asset', 'danger');
-        } else {
-            rackDevices.push(data.device);
-            showToast('Asset added to board', 'success');
-            renderBoard();
-            setTimeout(() => location.reload(), 1500);
-        }
-    })
-    .catch(error => {
-        console.error('Failed to create device:', error);
-        showToast('Failed to add asset', 'danger');
-    });
-}
-
-// Handle board device drag start
-function handleBoardDeviceDragStart(e) {
-    // Ignore if clicking resize handle
-    if (e.target.classList.contains('board-resize-handle')) {
-        handleBoardDeviceResizeStart(e);
-        return;
-    }
-
-    const deviceEl = e.target.closest('.board-device');
-    if (!deviceEl) return;
-
-    e.preventDefault();
-    deviceEl.classList.add('dragging');
-
-    const rect = deviceEl.getBoundingClientRect();
-    const canvas = document.getElementById('board-canvas');
-    const canvasRect = canvas.getBoundingClientRect();
-
-    boardDragState = {
-        element: deviceEl,
-        itemId: parseInt(deviceEl.dataset.itemId),
-        itemType: deviceEl.dataset.itemType,
-        offsetX: e.clientX - rect.left,
-        offsetY: e.clientY - rect.top,
-        canvasRect: canvasRect
-    };
-
-    document.addEventListener('mousemove', handleBoardDeviceDragMove);
-    document.addEventListener('mouseup', handleBoardDeviceDragEnd);
-}
-
-// Handle board device drag move
-function handleBoardDeviceDragMove(e) {
-    if (!boardDragState) return;
-
-    let x = e.clientX - boardDragState.canvasRect.left - boardDragState.offsetX;
-    let y = e.clientY - boardDragState.canvasRect.top - boardDragState.offsetY;
-
-    // Apply snap to grid if enabled
-    if (snapToGrid) {
-        x = Math.round(x / GRID_SIZE) * GRID_SIZE;
-        y = Math.round(y / GRID_SIZE) * GRID_SIZE;
-    }
-
-    // Constrain to canvas bounds
-    x = Math.max(0, Math.min(x, boardDragState.canvasRect.width - boardDragState.element.offsetWidth));
-    y = Math.max(0, Math.min(y, boardDragState.canvasRect.height - boardDragState.element.offsetHeight));
-
-    boardDragState.element.style.left = x + 'px';
-    boardDragState.element.style.top = y + 'px';
-}
-
-// Handle board device drag end
-function handleBoardDeviceDragEnd(e) {
-    if (!boardDragState) return;
-
-    document.removeEventListener('mousemove', handleBoardDeviceDragMove);
-    document.removeEventListener('mouseup', handleBoardDeviceDragEnd);
-
-    boardDragState.element.classList.remove('dragging');
-
-    const x = parseInt(boardDragState.element.style.left);
-    const y = parseInt(boardDragState.element.style.top);
-    const width = parseInt(boardDragState.element.style.width);
-    const height = parseInt(boardDragState.element.style.height);
-
-    // Update position via API
-    updateBoardPosition(boardDragState.itemId, boardDragState.itemType, x, y, width, height);
-
-    boardDragState = null;
-}
-
-// Handle board device resize start
-function handleBoardDeviceResizeStart(e) {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const deviceEl = e.target.closest('.board-device');
-    if (!deviceEl) return;
-
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startWidth = deviceEl.offsetWidth;
-    const startHeight = deviceEl.offsetHeight;
-    const itemId = parseInt(deviceEl.dataset.itemId);
-    const itemType = deviceEl.dataset.itemType;
-
-    function onMouseMove(e) {
-        let newWidth = startWidth + (e.clientX - startX);
-        let newHeight = startHeight + (e.clientY - startY);
-
-        // Apply snap to grid if enabled
-        if (snapToGrid) {
-            newWidth = Math.round(newWidth / GRID_SIZE) * GRID_SIZE;
-            newHeight = Math.round(newHeight / GRID_SIZE) * GRID_SIZE;
-        }
-
-        // Minimum size
-        newWidth = Math.max(50, newWidth);
-        newHeight = Math.max(50, newHeight);
-
-        deviceEl.style.width = newWidth + 'px';
-        deviceEl.style.height = newHeight + 'px';
-    }
-
-    function onMouseUp(e) {
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-
-        const x = parseInt(deviceEl.style.left);
-        const y = parseInt(deviceEl.style.top);
-        const width = parseInt(deviceEl.style.width);
-        const height = parseInt(deviceEl.style.height);
-
-        // Update via API
-        updateBoardPosition(itemId, itemType, x, y, width, height);
-    }
-
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-}
-
-// Update board position via API
-function updateBoardPosition(itemId, itemType, x, y, width, height) {
-    const endpoint = itemType === 'device'
-        ? `/monitoring/api/rack-devices/${itemId}/update-board-position/`
-        : `/monitoring/api/rack-resources/${itemId}/update-board-position/`;
-
-    fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: JSON.stringify({
-            x: x,
-            y: y,
-            width: width,
-            height: height
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error || !data.success) {
-            showToast(data.error || 'Failed to update position', 'danger');
-            loadRackDevices(); // Reload to reset
-        } else {
-            showToast('Position updated', 'success');
-
-            // Update local state
-            if (itemType === 'device') {
-                const device = rackDevices.find(d => d.id === itemId);
-                if (device) {
-                    device.board_position_x = x;
-                    device.board_position_y = y;
-                    device.board_width = width;
-                    device.board_height = height;
-                }
-            } else {
-                const resource = rackResources.find(r => r.id === itemId);
-                if (resource) {
-                    resource.board_position_x = x;
-                    resource.board_position_y = y;
-                    resource.board_width = width;
-                    resource.board_height = height;
-                }
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Failed to update position:', error);
-        showToast('Failed to update position', 'danger');
-    });
-}
-
-// ============================================================================
 // TOOLBAR FUNCTIONS
 // ============================================================================
 
 // Toolbar functions
 function initializeToolbar() {
-    document.getElementById('toggle-grid').addEventListener('click', toggleSnapToGrid);
     document.getElementById('zoom-in').addEventListener('click', () => setZoom(ZOOM_LEVEL + 0.1));
     document.getElementById('zoom-out').addEventListener('click', () => setZoom(ZOOM_LEVEL - 0.1));
     document.getElementById('reset-view').addEventListener('click', resetView);
-}
-
-// Switch to rack view
-function switchToRackView() {
-    currentView = 'rack';
-    document.getElementById('rack-container').style.display = 'block';
-    document.getElementById('board-container').style.display = 'none';
-    document.getElementById('toggle-grid').style.display = 'none';
-
-    if (document.getElementById('toggle-rack-view')) document.getElementById('toggle-rack-view').classList.add('active');
-    if (document.getElementById('toggle-board-view')) document.getElementById('toggle-board-view').classList.remove('active');
-
-    // Remove draggable from assets
-    document.querySelectorAll('.asset-item').forEach(asset => {
-        asset.removeAttribute('draggable');
+    document.querySelectorAll('[data-rack-face]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            rackFace = btn.dataset.rackFace;
+            document.querySelectorAll('[data-rack-face]').forEach(b => {
+                b.classList.toggle('active', b === btn);
+                b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+            });
+            renderRack();
+        });
     });
-
-    renderRack();
-}
-
-// Switch to board view
-function switchToBoardView() {
-    currentView = 'board';
-    document.getElementById('rack-container').style.display = 'none';
-    document.getElementById('board-container').style.display = 'block';
-    document.getElementById('toggle-grid').style.display = 'inline-block';
-
-    if (document.getElementById('toggle-rack-view')) document.getElementById('toggle-rack-view').classList.remove('active');
-    if (document.getElementById('toggle-board-view')) document.getElementById('toggle-board-view').classList.remove('active');
-
-    // Destroy rack sortables (guard against null/uninitialized elements)
-    try {
-        const rackVisual = document.getElementById('rack-visual');
-        if (rackVisual) {
-            const rackSortable = Sortable.get(rackVisual);
-            if (rackSortable) rackSortable.destroy();
-        }
-        const assetsSidebar = document.getElementById('available-assets');
-        if (assetsSidebar) {
-            const sidebarSortable = Sortable.get(assetsSidebar);
-            if (sidebarSortable) sidebarSortable.destroy();
-        }
-    } catch(e) { /* ignore if Sortable not yet initialized */ }
-
-    // Enable draggable on assets for board view
-    document.querySelectorAll('.asset-item').forEach(asset => {
-        asset.setAttribute('draggable', 'true');
-    });
-
-    renderBoard();
-}
-
-// Toggle snap to grid
-function toggleSnapToGrid() {
-    snapToGrid = !snapToGrid;
-    const btn = document.getElementById('toggle-grid');
-    const overlay = document.getElementById('board-grid-overlay');
-
-    if (snapToGrid) {
-        btn.classList.add('active');
-        overlay.classList.add('active');
-        showToast('Snap to grid enabled', 'info');
-    } else {
-        btn.classList.remove('active');
-        overlay.classList.remove('active');
-        showToast('Snap to grid disabled', 'info');
-    }
 }
 
 function setZoom(level) {
     ZOOM_LEVEL = Math.max(0.5, Math.min(2.0, level));
-
-    if (currentView === 'rack') {
-        const container = document.getElementById('rack-container');
-        container.style.transform = `scale(${ZOOM_LEVEL})`;
-    } else {
-        const container = document.getElementById('board-container');
-        container.style.transform = `scale(${ZOOM_LEVEL})`;
-    }
+    document.getElementById('rack-container').style.transform = `scale(${ZOOM_LEVEL})`;
 }
 
 function resetView() {
     ZOOM_LEVEL = 1.0;
-    snapToGrid = false;
-
-    const rackContainer = document.getElementById('rack-container');
-    const boardContainer = document.getElementById('board-container');
-    const gridOverlay = document.getElementById('board-grid-overlay');
-    const toggleGridBtn = document.getElementById('toggle-grid');
-
-    rackContainer.style.transform = 'scale(1.0)';
-    boardContainer.style.transform = 'scale(1.0)';
-    gridOverlay.classList.remove('active');
-    toggleGridBtn.classList.remove('active');
-
+    document.getElementById('rack-container').style.transform = 'scale(1.0)';
     showToast('View reset', 'info');
 }
 
-// Resize handle functionality
+// Resize handle functionality: the handle is on the top edge, because a
+// device's start unit is its bottom one and it grows upward.
 document.addEventListener('mousedown', function(e) {
-    if (e.target.classList.contains('device-resize-handle')) {
+    if (e.target.classList.contains('rk-resize')) {
         startResize(e);
     }
 });
 
 function startResize(e) {
     e.preventDefault();
-    const handle = e.target;
-    const deviceDiv = handle.closest('.rack-device');
-    const deviceId = parseInt(deviceDiv.dataset.deviceId);
+    e.stopPropagation();
+    const deviceDiv = e.target.closest('.rk-dev');
+    const deviceId = parseInt(deviceDiv.dataset.deviceId, 10);
+    const device = rackDevices.find(d => d.id === deviceId);
     const startY = e.clientY;
-    const originalUnits = parseInt(deviceDiv.dataset.units);
+    const originalUnits = parseInt(deviceDiv.dataset.units, 10);
+    const unitPx = deviceDiv.getBoundingClientRect().height / originalUnits;
+    const originalTop = deviceDiv.offsetTop;
+    const unitsFor = y => Math.max(1, originalUnits + Math.round((startY - y) / unitPx));
 
-    function onMouseMove(e) {
-        const deltaY = e.clientY - startY;
-        const newUnits = Math.max(1, originalUnits + Math.round(deltaY / 22));  // 22px per unit
+    function onMouseMove(ev) {
         // Visual feedback only - don't commit until mouseup
-        deviceDiv.style.height = `${newUnits * 22}px`;
+        const n = unitsFor(ev.clientY);
+        const each = deviceDiv.offsetHeight / originalUnits;
+        deviceDiv.style.top = `${originalTop - (n - originalUnits) * each}px`;
+        deviceDiv.style.height = `${n * each}px`;
     }
 
-    function onMouseUp(e) {
+    function onMouseUp(ev) {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
-
-        const deltaY = e.clientY - startY;
-        const newUnits = Math.max(1, originalUnits + Math.round(deltaY / 22));
-
-        if (newUnits !== originalUnits) {
+        const newUnits = unitsFor(ev.clientY);
+        if (newUnits !== originalUnits && checkDeviceFits(device.start_unit, newUnits, deviceId, device)) {
             updateDeviceSize(deviceId, newUnits);
         } else {
+            if (newUnits !== originalUnits) showToast('Device would not fit at that height', 'warning');
             renderRack();  // Revert visual
         }
     }
@@ -2654,42 +1870,10 @@ function deviceIcon(assetType) {
     return DEVICE_ICONS[assetType] || 'fa-box';
 }
 
-// ── Device detail modal ───────────────────────────────────────────────────────
-function showDeviceDetailModal(device) {
+// ── Device detail modal (shared panel: templates/monitoring/_rack_device_panel.html) ──
+function showDeviceDetailModal(device, trigger) {
     hideRackDeviceTooltip();
-
-    document.getElementById('deviceDetailModalTitle').innerHTML =
-        `<i class="fas ${deviceIcon(device.asset_type)} me-2"></i>${device.name}`;
-
-    const editBtn   = document.getElementById('deviceDetailEditLink');
-    const assetLink = document.getElementById('deviceDetailAssetLink');
-    editBtn.onclick = () => showDeviceEditModal(device);
-    assetLink.href = device.asset_id ? `/assets/${device.asset_id}/` : '#';
-    assetLink.style.display = device.asset_id ? '' : 'none';
-
-    const rows = [];
-    const row = (label, val, mono) => val
-        ? `<tr><th style="width:35%;color:#6c757d;">${label}</th><td>${mono ? `<code>${val}</code>` : val}</td></tr>`
-        : '';
-
-    rows.push(row('Asset Name',   device.asset_name));
-    rows.push(row('Type',         device.asset_type_display));
-    rows.push(row('Status',       device.status_display));
-    rows.push(row('U Position',   device.units > 1
-        ? `U${device.start_unit} – U${device.end_unit} (${device.units}U)`
-        : `U${device.start_unit}`));
-    rows.push(row('IP Address',   device.ip_address,    true));
-    rows.push(row('Hostname',     device.hostname,      true));
-    rows.push(row('MAC Address',  device.mac_address,   true));
-    rows.push(row('Serial No.',   device.serial_number, true));
-    rows.push(row('Port Count',   device.port_count ? `${device.port_count} ports` : null));
-    rows.push(row('Power Draw',   device.power_draw_watts ? `${device.power_draw_watts} W` : null));
-    rows.push(row('Notes',        device.notes));
-
-    document.getElementById('deviceDetailModalBody').innerHTML =
-        `<table class="table table-sm table-borderless mb-0"><tbody>${rows.join('')}</tbody></table>`;
-
-    new bootstrap.Modal(document.getElementById('deviceDetailModal')).show();
+    RackElevation.showDetail(device, {onEdit: showDeviceEditModal, trigger});
 }
 
 // ── Device edit modal (tabbed: Details + Ports) ───────────────────────────────
@@ -2708,7 +1892,7 @@ function showDeviceEditModal(device) {
 
     // Update title
     document.getElementById('deviceEditModalTitle').innerHTML =
-        `<i class="fas ${deviceIcon(device.asset_type)} me-2"></i>${device.name}`;
+        `<i class="fas ${deviceIcon(device.asset_type)} me-2"></i>${RackElevation.esc(device.name)}`;
 
     // Pre-fill Details tab
     document.getElementById('editDeviceId').value        = device.id;

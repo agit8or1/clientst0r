@@ -1,4 +1,6 @@
 {% extends "portal/base.html" %}
+{% load static %}
+{% block extra_css %}<link href="{% static 'css/ticket_conversation.css' %}" rel="stylesheet">{% endblock %}
 {% block title %}{{ ticket.ticket_number }} — {{ ticket.subject|truncatechars:50 }}{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -61,105 +63,42 @@
         {% if service_request %}
         <hr>
         {% include "portal/_service_request_answers.html" with sr=service_request %}
-        {% elif ticket.description %}
-        <hr>
-        <p>{{ ticket.description|linebreaksbr }}</p>
         {% endif %}
         {% if attachments %}
-        <hr>
-        <h6>Attachments</h6>
-        <ul>
-            {% for a in attachments %}
-            <li><a href="{{ a.file.url }}">{{ a.filename }}</a> <small class="text-muted">({{ a.size_bytes|filesizeformat }})</small></li>
-            {% endfor %}
-        </ul>
+        <details class="mt-2">
+            <summary class="small text-muted">Attachments ({{ attachments|length }})</summary>
+            <ul class="mt-2 mb-0">
+                {% for a in attachments %}
+                <li><a href="{{ a.file.url }}">{{ a.filename }}</a> <small class="text-muted">({{ a.size_bytes|filesizeformat }})</small></li>
+                {% endfor %}
+            </ul>
+        </details>
         {% endif %}
     </div>
 </div>
 
-<h4 class="mb-3">Conversation</h4>
+<div class="card mb-3">
+    <div class="card-header"><h2 class="h5 mb-0">Conversation</h2></div>
+    {% include "psa/_conversation.html" with entries=conversation staff_view=False allow_reply=reply_open stale_comment_ids=None empty_text="No replies yet." %}
 
-{% for c in threads %}
-<div class="card mb-2" id="comment-{{ c.id }}">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-            <strong>
-                {% if c.author %}{{ c.author.get_full_name|default:c.author.username }}
-                {% elif c.author_name %}{{ c.author_name }}
-                {% else %}Support{% endif %}
-            </strong>
-            <small class="text-muted"><span data-utc="{{ c.created_at|date:'c' }}">{{ c.created_at|date:'Y-m-d H:i' }}</span></small>
-        </div>
-        <div>{{ c.body|linebreaksbr }}</div>
-        {% if not ticket.status.is_terminal %}
-        <button type="button" class="btn btn-link btn-sm p-0 mt-1 js-reply-btn" data-parent-id="{{ c.id }}">
-            <i class="fas fa-reply"></i> Reply
-        </button>
-        {% endif %}
-    </div>
-    {% if c.replies_in_thread %}
-    <div class="ms-4 ps-3 border-start">
-        {% for r in c.replies_in_thread %}
-        <div class="card mb-2 mt-2" id="comment-{{ r.id }}">
-            <div class="card-body py-2">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <strong class="small">
-                        <i class="fas fa-reply text-muted me-1"></i>
-                        {% if r.author %}{{ r.author.get_full_name|default:r.author.username }}
-                        {% elif r.author_name %}{{ r.author_name }}
-                        {% else %}Support{% endif %}
-                    </strong>
-                    <small class="text-muted"><span data-utc="{{ r.created_at|date:'c' }}">{{ r.created_at|date:'Y-m-d H:i' }}</span></small>
-                </div>
-                <div class="small">{{ r.body|linebreaksbr }}</div>
+    {% if not ticket.status.is_terminal %}
+    <form method="post" action="{% url 'portal:post_reply' ticket.ticket_number %}" class="card-body border-top" id="reply-form" data-reply-form>
+        {% csrf_token %}
+        <input type="hidden" name="parent_id" id="reply-parent-id" value="">
+        <div class="tc-composer">
+            <label for="reply-body" class="tc-composer-label d-block" id="reply-heading"><i class="fas fa-reply me-1"></i>Reply to the support team</label>
+            <div class="tc-reply-context" id="reply-context" data-reply-context hidden>
+                Replying to <strong data-reply-label id="reply-parent-label"></strong>.
+                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="reply-clear-parent" data-reply-clear>Clear</button>
+            </div>
+            <textarea name="body" rows="4" class="form-control mb-2" maxlength="50000" required placeholder="Your reply..." id="reply-body"></textarea>
+            <div class="text-end">
+                <button type="submit" class="btn btn-primary">Send reply</button>
             </div>
         </div>
-        {% endfor %}
-    </div>
+    </form>
     {% endif %}
 </div>
-{% empty %}
-<p class="text-muted">No replies yet.</p>
-{% endfor %}
-
-{% if not ticket.status.is_terminal %}
-<form method="post" action="{% url 'portal:post_reply' ticket.ticket_number %}" class="card mt-3" id="reply-form">
-    {% csrf_token %}
-    <input type="hidden" name="parent_id" id="reply-parent-id" value="">
-    <div class="card-body">
-        <h6 id="reply-heading">Add a reply</h6>
-        <div id="reply-context" class="text-muted small mb-2" style="display: none;">
-            Replying to comment <span id="reply-parent-label"></span>.
-            <button type="button" class="btn btn-link btn-sm p-0" id="reply-clear-parent">Clear</button>
-        </div>
-        <textarea name="body" rows="4" class="form-control" maxlength="50000" required placeholder="Your reply..." id="reply-body"></textarea>
-    </div>
-    <div class="card-footer">
-        <button type="submit" class="btn btn-primary">Send reply</button>
-    </div>
-</form>
-<script nonce="{{ csp_nonce }}">
-(function() {
-    var parentInput = document.getElementById('reply-parent-id');
-    var ctx = document.getElementById('reply-context');
-    var label = document.getElementById('reply-parent-label');
-    var clear = document.getElementById('reply-clear-parent');
-    var body = document.getElementById('reply-body');
-    document.querySelectorAll('.js-reply-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var id = btn.dataset.parentId;
-            if (parentInput) parentInput.value = id;
-            if (label) label.textContent = '#' + id;
-            if (ctx) ctx.style.display = '';
-            if (body) body.focus();
-            window.location.hash = 'reply-form';
-        });
-    });
-    if (clear) clear.addEventListener('click', function() {
-        if (parentInput) parentInput.value = '';
-        if (ctx) ctx.style.display = 'none';
-    });
-})();
-</script>
-{% endif %}
 {% endblock %}
+
+{% block extra_js %}{% if not ticket.status.is_terminal %}<script src="{% static 'js/ticket_conversation.js' %}" defer></script>{% endif %}{% endblock %}

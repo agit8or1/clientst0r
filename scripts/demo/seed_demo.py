@@ -953,6 +953,14 @@ def seed_my_work():
              'contractor is back on Friday, so it would be good to finish before then.')
     TicketComment.objects.filter(pk=c.pk).update(created_at=reply_at)
     Ticket.objects.filter(pk=hero.pk).update(last_client_response_at=reply_at)
+    # A status-change system event after the internal note, so the hero
+    # conversation shows every entry kind (customer, technician, note, event).
+    status_body = 'Status changed: Assigned → In Progress'
+    if not TicketComment.objects.filter(ticket=hero, is_system=True, body=status_body).exists():
+        ev = TicketComment.objects.create(ticket=hero, author=hero.assigned_to or lead,
+                                          body=status_body, is_internal=True, is_system=True)
+        TicketComment.objects.filter(pk=ev.pk).update(
+            created_at=hero.created_at + timedelta(hours=2, minutes=5))
 
     # Running timer on the hero ticket.
     if not TicketTimeEntry.objects.filter(ticket=hero, user=lead, ended_at__isnull=True).exists():
@@ -1263,11 +1271,79 @@ def seed_scheduler_history():
     print('  scheduler: tasks', Job.objects.count())
 
 
+def seed_rack_artwork():
+    """Rack A as the README shows it: one mixed rack covering every way a
+    placement finds its artwork.
+
+    - NWL-SW-CORE is documented in the hardware inventory (ports and all), so
+      the rack draws that device and links to its port view;
+    - the firewall, DC01 and the NAS are plain assets whose manufacturer and
+      model match a catalog model, as on their asset pages;
+    - NWL-FS01 becomes a 2U PowerEdge R750xs, drawn across both units;
+    - the patch panel is a legacy placement linked only to an equipment model;
+    - the UPS is a legacy placement with neither, so it gets the plain face.
+    """
+    from assets.models import Asset, EquipmentModel, Vendor
+    from hardware import services as HS
+    from hardware.models import HardwareDevice, HardwareModel
+    from monitoring.models import Rack, RackDevice
+
+    nwl = org('Northwind Logistics')
+    rack = Rack.objects.get(organization=nwl, name='HQ Comms Room — Rack A')
+
+    def placement(old, new):
+        return (RackDevice.objects.filter(rack=rack, name=new).first()
+                or RackDevice.objects.filter(rack=rack, name=old).first())
+
+    # Core switch → a documented inventory device built from the catalog model.
+    sw_model = HardwareModel.objects.get(manufacturer__name='HPE', model='Aruba 6300M-48G-4SFP56')
+    sw = Asset.objects.get(organization=nwl, name='NWL-SW-CORE')
+    sw.manufacturer, sw.model, sw.rack_units, sw.is_rackmount = 'HPE', 'Aruba 6300M-48G-4SFP56 (JL663A)', 1, True
+    sw.save()
+    if not HardwareDevice.objects.filter(asset=sw).exists():
+        hw = HardwareDevice.objects.create(organization=nwl, asset=sw, hardware_model=sw_model,
+                                           template_revision=sw_model.revision, platform='AOS-CX')
+        by_tpl = HS._ports_from_templates(hw, list(sw_model.components.all()))
+        HS._mappings_from_templates(hw, sw_model, by_tpl)
+    rd = placement('NWL-SW-CORE — Aruba CX 6300M', 'NWL-SW-CORE — Aruba 6300M')
+    rd.name, rd.start_unit, rd.units, rd.is_full_depth = 'NWL-SW-CORE — Aruba 6300M', 37, 1, sw_model.is_full_depth
+    rd.save()
+
+    # File server → a 2U chassis.
+    fs = Asset.objects.get(organization=nwl, name='NWL-FS01')
+    fs.model, fs.rack_units, fs.is_rackmount = 'PowerEdge R750xs', 2, True
+    fs.save()
+    rd = placement('NWL-FS01 — PowerEdge R450', 'NWL-FS01 — PowerEdge R750xs')
+    rd.name, rd.start_unit, rd.units = 'NWL-FS01 — PowerEdge R750xs', 27, 2
+    rd.save()
+
+    # Patch panel → linked only to a procurement equipment model, as older
+    # placements were; that model maps to the catalog's panel.
+    pp_model = HardwareModel.objects.get(manufacturer__name='Panduit', part_number='DP48688TGY')
+    vendor, _ = Vendor.objects.get_or_create(name='Panduit', defaults={'slug': 'panduit'})
+    em, _ = EquipmentModel.objects.get_or_create(
+        vendor=vendor, model_name='Cat 6 Punchdown Patch Panel, 48 port, 2U',
+        defaults=dict(model_number='DP48688TGY', slug='panduit-dp48688tgy', equipment_type='patch_panel',
+                      is_rackmount=True, rack_units=2))
+    if pp_model.equipment_model_id is None:
+        pp_model.equipment_model = em
+        pp_model.save(update_fields=['equipment_model'])
+    rd = placement('Patch panel — 48 port', 'Patch panel — 48 port')
+    rd.equipment_model, rd.start_unit, rd.units, rd.is_full_depth = em, 35, 2, pp_model.is_full_depth
+    rd.save()
+
+    # The UPS and a KVM console stay legacy placements with no asset and no
+    # model: plain faces with their saved names.
+    RackDevice.objects.get_or_create(rack=rack, name='KVM console — 1U',
+                                     defaults=dict(start_unit=33, units=1, color='#6c757d'))
+    print('  rack artwork: rack pk', rack.pk, '|', rack.rack_devices.count(), 'placements')
+
+
 def main():
     steps = [seed_showcase, seed_presentation, seed_asset_detail, seed_commercial,
              rename_msp_tenant, seed_project_work, seed_visual, seed_dispatch,
              seed_my_work, seed_document_lifecycle, seed_readiness, seed_portal_request,
-             seed_scheduler_history]
+             seed_scheduler_history, seed_rack_artwork]
     only = set(sys.argv[1:])
     for step in steps:
         if only and step.__name__ not in only:

@@ -1,0 +1,72 @@
+{% load ticket_conversation %}{% comment %}
+Shared ticket conversation — technician page (psa/ticket_detail.html) and
+customer portal (portal/ticket_detail.html) render the same markup and the
+same stylesheet (static/css/ticket_conversation.css).
+
+Context:
+  entries            list of psa.conversation.ConversationEntry, already
+                     narrowed to what the viewer may see (the view decides;
+                     internal entries only reach this template on the staff
+                     page)
+  staff_view         True on the technician page
+  allow_reply        show "Reply" buttons (wired by static/js/ticket_conversation.js)
+  stale_comment_ids  ids to flag "new since you started writing" (staff page)
+  empty_text         shown when there is nothing yet
+{% endcomment %}
+<div class="tc-thread" role="log" aria-label="Ticket conversation">
+{% for e in entries %}
+{% if e.kind == 'event' %}
+    <div class="tc-event{% if e.id in stale_comment_ids %} tc-stale{% endif %}" id="{{ e.dom_id }}">
+        <i class="fas fa-circle-info tc-event-icon" aria-hidden="true"></i>
+        <span class="visually-hidden">System event:</span>
+        <span class="tc-event-text">{{ e.body }}</span>
+        {% if e.sender.name and e.sender.name != 'System' %}<span class="tc-event-by">· {{ e.sender.name }}</span>{% endif %}
+        {% if staff_view and e.is_internal %}<span class="tc-event-private" title="Not shown to the customer"><i class="fas fa-lock" aria-hidden="true"></i><span class="visually-hidden">staff only</span></span>{% endif %}
+        <time class="tc-time" datetime="{{ e.created_at|date:'c' }}" data-utc="{{ e.created_at|date:'c' }}">{{ e.created_at|date:'M j, Y H:i' }}</time>
+        {% if e.id in stale_comment_ids %}<span class="tc-stale-badge">new since you started writing</span>{% endif %}
+    </div>
+{% else %}
+    <article class="tc-msg tc-msg--{% if e.kind == 'note' %}note{% else %}{{ e.role }}{% endif %}{% if e.id in stale_comment_ids %} tc-stale{% endif %}"
+             id="{{ e.dom_id }}"
+             aria-label="{% if e.kind == 'note' %}Internal note{% else %}Message{% endif %} from {{ e.sender.name }}{% if e.sender.label and e.kind != 'note' %} ({{ e.sender.label }}){% endif %}">
+        <div class="tc-bubble">
+            <header class="tc-meta">
+                {% if e.kind == 'note' %}
+                <span class="tc-note-label"><i class="fas fa-lock" aria-hidden="true"></i> Internal note · staff only</span>
+                {% endif %}
+                <span class="tc-name">{{ e.sender.name }}</span>
+                {% if e.sender.label %}<span class="tc-role tc-role--{{ e.role }}">{{ e.sender.label }}</span>{% endif %}
+                {% if e.sender.via %}<span class="tc-via">via {{ e.sender.via }}</span>{% endif %}
+                {% if e.is_opening %}<span class="tc-via">original request</span>{% endif %}
+                <time class="tc-time" datetime="{{ e.created_at|date:'c' }}" data-utc="{{ e.created_at|date:'c' }}">{{ e.created_at|date:'M j, Y H:i' }}</time>
+                {% if e.id in stale_comment_ids %}<span class="tc-stale-badge">new since you started writing</span>{% endif %}
+            </header>
+            {% if e.reply_to %}
+            <a class="tc-replyto{% if e.reply_to.is_internal %} tc-replyto--note{% endif %}" href="#comment-{{ e.reply_to.id }}">
+                <i class="fas fa-reply" aria-hidden="true"></i>
+                <span>Replying to <strong>{{ e.reply_to.name }}</strong>{% if e.reply_to.is_internal %} <span class="tc-replyto-private">(internal note — not shown to the customer)</span>{% endif %}:</span>
+                <span class="tc-replyto-excerpt">{{ e.reply_to.excerpt }}</span>
+            </a>
+            {% endif %}
+            <div class="tc-body">{{ e.body|conversation_body }}</div>
+            {% if e.attachments %}
+            <ul class="tc-files" aria-label="Attachments">
+                {% for a in e.attachments %}
+                <li><a href="{{ a.file.url }}" target="_blank" rel="noopener"><i class="fas fa-paperclip" aria-hidden="true"></i> {{ a.filename }}</a> <span class="tc-file-size">{{ a.size_bytes|filesizeformat }}</span>{% if staff_view and a.is_internal %} <span class="tc-file-private"><i class="fas fa-lock" aria-hidden="true"></i> internal</span>{% endif %}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% if allow_reply and e.id %}
+            <div class="tc-actions">
+                <button type="button" class="tc-reply-btn js-reply-btn" data-parent-id="{{ e.id }}" data-parent-name="{{ e.sender.name }}"{% if e.is_internal %} data-parent-internal="1"{% endif %}>
+                    <i class="fas fa-reply" aria-hidden="true"></i> Reply
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </article>
+{% endif %}
+{% empty %}
+    <p class="tc-empty">{{ empty_text|default:"No messages yet." }}</p>
+{% endfor %}
+</div>

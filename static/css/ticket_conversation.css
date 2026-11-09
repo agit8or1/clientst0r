@@ -1,0 +1,293 @@
+/*
+ * Ticket conversation — shared by the technician ticket page and the
+ * customer portal (markup: templates/psa/_conversation.html).
+ *
+ * Colours come from the theme variables in themes.css (staff app). The
+ * portal does not load themes.css, so every variable has a light fallback,
+ * and the portal's brand colour (--bs-primary) tints technician bubbles.
+ *
+ *   customer      left bubble, neutral surface
+ *   technician    right bubble, primary-tinted surface
+ *   note          inset amber panel with lock (staff page only)
+ *   unknown       centred neutral bubble, no role label
+ *   event         compact timestamped row (status change, assignment, ...)
+ */
+.tc-thread {
+    --tc-card: var(--card-bg, #ffffff);
+    --tc-text: var(--text-primary, #212529);
+    --tc-meta: var(--text-secondary, #5c636a);
+    --tc-border: var(--border-color, #dee2e6);
+    --tc-primary: var(--primary-color, var(--bs-primary, #0d6efd));
+    --tc-amber: var(--warning-color, #ffc107);
+    --tc-customer-bg: var(--background-alt, #f1f3f5);
+    --tc-tech-bg: color-mix(in srgb, var(--tc-primary) 13%, var(--tc-card));
+    --tc-tech-border: color-mix(in srgb, var(--tc-primary) 40%, var(--tc-card));
+    --tc-note-bg: color-mix(in srgb, var(--tc-amber) 14%, var(--tc-card));
+    --tc-note-border: color-mix(in srgb, var(--tc-amber) 70%, var(--tc-card));
+    --tc-code-bg: color-mix(in srgb, var(--tc-text) 7%, var(--tc-card));
+
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    padding: 1rem;
+    color: var(--tc-text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+    .tc-thread {
+        --tc-tech-bg: var(--primary-light, #e7f0ff);
+        --tc-tech-border: var(--tc-primary);
+        --tc-note-bg: var(--background-alt, #fff8e1);
+        --tc-note-border: var(--tc-amber);
+        --tc-code-bg: var(--background-alt, #f1f3f5);
+    }
+}
+
+/* ---- messages ---------------------------------------------------------- */
+.tc-msg { display: flex; }
+.tc-msg--customer { justify-content: flex-start; }
+.tc-msg--technician { justify-content: flex-end; }
+.tc-msg--unknown { justify-content: center; }
+.tc-msg--note { justify-content: center; }
+
+.tc-bubble {
+    max-width: min(78%, 46rem);
+    min-width: 0;
+    padding: .6rem .85rem .55rem;
+    border: 1px solid var(--tc-border);
+    border-radius: .9rem;
+    background: var(--tc-card);
+    color: var(--tc-text);
+    box-shadow: 0 1px 2px var(--card-shadow, rgba(0, 0, 0, .06));
+}
+.tc-msg--customer .tc-bubble {
+    background: var(--tc-customer-bg);
+    border-top-left-radius: .25rem;
+}
+.tc-msg--technician .tc-bubble {
+    background: var(--tc-tech-bg);
+    border-color: var(--tc-tech-border);
+    border-top-right-radius: .25rem;
+}
+.tc-msg--unknown .tc-bubble {
+    background: var(--tc-card);
+    border-style: dashed;
+}
+.tc-msg--note .tc-bubble {
+    width: 100%;
+    max-width: calc(100% - 2rem);
+    border-radius: .5rem;
+    border: 1px solid var(--tc-note-border);
+    border-left: 4px solid var(--tc-amber);
+    background: var(--tc-note-bg);
+    box-shadow: inset 0 1px 3px var(--card-shadow, rgba(0, 0, 0, .06));
+}
+
+.tc-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .15rem .5rem;
+    margin-bottom: .3rem;
+    font-size: .8125rem;
+    color: var(--tc-meta);
+}
+.tc-name { font-weight: 600; color: var(--tc-text); }
+.tc-role {
+    display: inline-block;
+    padding: 0 .45rem;
+    border-radius: 999px;
+    border: 1px solid var(--tc-border);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--tc-text);
+    background: var(--tc-card);
+}
+.tc-role--technician { border-color: var(--tc-tech-border); }
+.tc-time { margin-left: auto; white-space: nowrap; }
+.tc-note-label {
+    flex-basis: 100%;
+    font-weight: 700;
+    font-size: .75rem;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--tc-text);
+}
+.tc-note-label .fa-lock { color: var(--tc-amber); }
+
+.tc-body {
+    font-size: .95rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+.tc-text { white-space: pre-wrap; }
+.tc-text + .tc-code, .tc-code + .tc-text { margin-top: .4rem; }
+.tc-body code {
+    font-size: .85em;
+    padding: .05rem .3rem;
+    border-radius: .25rem;
+    background: var(--tc-code-bg);
+    color: var(--tc-text);
+    overflow-wrap: anywhere;
+}
+.tc-body pre.tc-code {
+    margin: 0;
+    padding: .5rem .65rem;
+    border-radius: .4rem;
+    background: var(--tc-code-bg);
+    color: var(--tc-text);
+    font-size: .82rem;
+    line-height: 1.4;
+    white-space: pre;
+    overflow-x: auto;
+    max-width: 100%;
+}
+.tc-body pre.tc-code code { padding: 0; background: none; font-size: inherit; }
+
+.tc-replyto {
+    display: block;
+    margin: 0 0 .4rem;
+    padding: .3rem .55rem;
+    border-left: 3px solid var(--tc-border);
+    border-radius: .25rem;
+    background: color-mix(in srgb, var(--tc-text) 4%, transparent);
+    font-size: .8125rem;
+    color: var(--tc-meta);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+.tc-replyto:hover, .tc-replyto:focus { color: var(--tc-text); }
+.tc-replyto--note { border-left-color: var(--tc-amber); }
+.tc-replyto-excerpt { display: block; color: var(--tc-text); opacity: .85; }
+.tc-replyto-private { font-style: italic; }
+
+.tc-files { list-style: none; margin: .45rem 0 0; padding: 0; font-size: .85rem; }
+.tc-files li { overflow-wrap: anywhere; }
+.tc-file-size, .tc-file-private { color: var(--tc-meta); font-size: .78rem; }
+
+.tc-actions { margin-top: .3rem; }
+.tc-reply-btn {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: .8rem;
+    color: var(--tc-meta);
+}
+.tc-reply-btn:hover, .tc-reply-btn:focus { color: var(--tc-text); text-decoration: underline; }
+
+/* ---- system events ------------------------------------------------------ */
+.tc-event {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: .1rem .45rem;
+    padding: .15rem .5rem;
+    font-size: .8rem;
+    color: var(--tc-meta);
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+.tc-event::before, .tc-event::after {
+    content: "";
+    flex: 1 1 1.5rem;
+    max-width: 4rem;
+    align-self: center;
+    border-top: 1px solid var(--tc-border);
+}
+.tc-event-text { color: var(--tc-text); }
+.tc-event .tc-time { margin-left: 0; }
+
+/* ---- stale indicator (staff composer concurrency check) ------------------ */
+.tc-stale .tc-bubble, .tc-event.tc-stale {
+    outline: 2px solid var(--danger-color, #dc3545);
+    outline-offset: 2px;
+}
+.tc-stale-badge {
+    display: inline-block;
+    padding: 0 .4rem;
+    border-radius: .25rem;
+    background: var(--danger-color, #dc3545);
+    color: #fff;
+    font-size: .72rem;
+    font-weight: 600;
+}
+
+.tc-empty { margin: 0; text-align: center; color: var(--tc-meta); }
+
+/* ---- composer audience (public reply vs internal note) ------------------ */
+.tc-composer {
+    --tc-card: var(--card-bg, #ffffff);
+    --tc-primary: var(--primary-color, var(--bs-primary, #0d6efd));
+    --tc-amber: var(--warning-color, #ffc107);
+    border: 2px solid var(--tc-primary);
+    border-radius: .6rem;
+    padding: .6rem;
+    background: var(--tc-card);
+}
+.tc-composer.is-internal {
+    border-color: var(--tc-amber);
+    border-style: dashed;
+    background: color-mix(in srgb, var(--tc-amber) 14%, var(--tc-card));
+}
+.tc-composer-label {
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    margin-bottom: .35rem;
+    color: var(--text-primary, #212529);
+}
+.tc-composer-label .fa-globe { color: var(--tc-primary); }
+.tc-composer-label .fa-lock { color: var(--tc-amber); }
+.tc-audience .btn { font-weight: 600; }
+.tc-audience .btn-check:checked + .btn-outline-warning { color: #1f1600; }
+.tc-reply-context {
+    font-size: .8125rem;
+    padding: .25rem .5rem;
+    margin-bottom: .4rem;
+    border-left: 3px solid var(--border-color, #dee2e6);
+    color: var(--text-secondary, #5c636a);
+    overflow-wrap: anywhere;
+}
+
+/* ---- phones ------------------------------------------------------------- */
+@media (max-width: 576px) {
+    .tc-thread { padding: .6rem .5rem; gap: .6rem; }
+    .tc-bubble { max-width: 94%; }
+    .tc-msg--note .tc-bubble { max-width: 100%; }
+    .tc-time { margin-left: 0; }
+}
+
+/* The unselected "Internal note" choice must read clearly before it is
+   picked: Bootstrap's outline-warning is #ffc107 text, about 1.6:1 on white. */
+.tc-audience .btn-check:not(:checked) + .btn-outline-warning {
+    color: #7a5200;
+    border-color: #b07d00;
+}
+[data-theme="dark"] .tc-audience .btn-check:not(:checked) + .btn-outline-warning,
+[data-theme="dracula"] .tc-audience .btn-check:not(:checked) + .btn-outline-warning,
+[data-theme="monokai"] .tc-audience .btn-check:not(:checked) + .btn-outline-warning,
+[data-theme="nord"] .tc-audience .btn-check:not(:checked) + .btn-outline-warning {
+    color: #ffcd39;
+    border-color: #ffcd39;
+}
+
+/* Shortcut hints on the audience toggle: dark chip, light letter, in every theme. */
+.tc-audience kbd {
+    background: rgba(0, 0, 0, .55);
+    /* themes.css paints every .small with !important */
+    color: #fff !important;
+    border: 0;
+}
+
+/* On dark themes the primary colour is muted, so the technician surface needs
+   a stronger tint to stay distinct from the customer bubble. */
+[data-theme="dark"] .tc-thread, [data-theme="dracula"] .tc-thread,
+[data-theme="monokai"] .tc-thread, [data-theme="nord"] .tc-thread {
+    --tc-tech-bg: color-mix(in srgb, var(--tc-primary) 38%, var(--tc-card));
+    --tc-tech-border: color-mix(in srgb, var(--tc-primary) 85%, #ffffff);
+}

@@ -29,6 +29,7 @@
         a { color: {{ organization.portal_primary_color }}; }
         {% endif %}
     </style>
+    {% block extra_css %}{% endblock %}
     <script src="{% static 'js/csp-events.js' %}"></script>
 </head>
 <body>

@@ -564,7 +564,7 @@ html, body { overflow-x: hidden; }
 
 /* Between the expand breakpoint and a wide desktop, trim to fit. Every label
    and destination stays; only decoration goes. */
-@media (min-width: 1400px) and (max-width: 1749.98px) {
+@media (min-width: 1400px) and (max-width: 1799.98px) {
     .navbar .navbar-brand img { height: 26px; }
     .navbar .navbar-brand { margin-right: var(--ui-2); }
     /* The wall clock is decoration and goes first; the brand keeps its
@@ -574,8 +574,13 @@ html, body { overflow-x: hidden; }
        matching item inside the dropdown. */
     .navbar .navbar-nav > .nav-item > .nav-link:not(.nav-util) > i:first-child { display: none; }
     .navbar .navbar-nav > .nav-item > .nav-link { padding: 6px 5px; gap: 0; }
-    .navbar .nav-search { max-width: 190px; margin: 0 var(--ui-1); }
-    .navbar .org-pill { max-width: 130px; }
+    /* The search box gives up width to the client pill: which client is
+       selected must stay readable (at 130px the pill showed four letters). */
+    .navbar .navbar-nav .nav-search { max-width: 150px; margin: 0 var(--ui-1); }
+    .navbar .navbar-nav #orgDropdown { max-width: 210px; }
+}
+@media (min-width: 1500px) and (max-width: 1799.98px) {
+    .navbar .navbar-nav #orgDropdown { max-width: 250px; }
 }
 
 .navbar .navbar-nav > .nav-item > .nav-link:hover,
@@ -662,7 +667,7 @@ html, body { overflow-x: hidden; }
 
    Measured in the browser: at 1920 the bar was already exactly full, and
    three 34px buttons in place of one 51px ellipsis overflowed it. The trim
-   below reclaims more than that, and between 1400 and 1749 the existing trim
+   below reclaims more than that, and between 1400 and 1799 the existing trim
    media query does the same job. Wrapping was tried first and is worse: the
    right-hand group is squeezed to roughly 600px at 1536, so wrapping put one
    control per row and made the navbar 345px tall. Below 1400 the whole navbar
@@ -704,6 +709,13 @@ html, body { overflow-x: hidden; }
     font-size: var(--ui-text-sm);
     font-weight: 600;
     border: 1px solid transparent;
+}
+/* The selected client's name is the one label that must not be cut to a few
+   letters. This outranks the older per-breakpoint #orgDropdown caps
+   (100–150px) in custom.css, which were sized for a layout that collapsed
+   below 1850px. */
+@media (min-width: 1800px) {
+    .navbar .navbar-nav #orgDropdown { max-width: 220px; }
 }
 .navbar .org-pill .org-pill-name {
     overflow: hidden;
@@ -772,7 +784,7 @@ html, body { overflow-x: hidden; }
    its own — the accessible name and the tooltip both still say "Help Us
    Grow", so nothing is lost but the pixels. */
 .navbar .nav-help-grow__label { display: none; }
-@media (min-width: 1750px) {
+@media (min-width: 1800px) {
     .navbar .nav-help-grow__label { display: inline; }
     .navbar .nav-link.nav-help-grow { min-width: 0; padding: 0 var(--ui-3); }
 }

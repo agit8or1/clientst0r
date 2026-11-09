@@ -1,9 +1,10 @@
 {% extends "base.html" %}
-{% load asset_tags %}
+{% load asset_tags static %}
 
 {% block title %}{{ closet.name }} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/rack_elevation.css' %}">
 <style>
 /* ── Rack view ─────────────────────────────────────────────────── */
 .closet-visual {
@@ -208,6 +209,8 @@
         </div>
     </div>
 </div>
+
+{% include "monitoring/_rack_device_panel.html" %}
 
 <!-- Device Inline Edit Modal -->
 <div class="modal fade" id="closetDeviceEditModal" tabindex="-1" data-bs-backdrop="false" data-bs-keyboard="true">
@@ -480,29 +483,17 @@
 
                     <!-- Visual Representation -->
                     <div class="mt-4">
-                        <h6><i class="fas fa-th"></i> Visual Layout</h6>
-                        <div class="closet-visual">
-                            {% for unit_num, device in unit_map.items reversed %}
-                            {% if device %}
-                            <a href="{% url 'monitoring:rack_device_edit' device.pk %}" style="text-decoration: none; display: block;">
-                                <div class="closet-unit closet-device {% if device.units > 1 %}closet-device-multi{% endif %}"
-                                     style="background-color: {{ device.color }};"
-                                     title="{{ device.name }} - Click to edit">
-                                    <span class="closet-unit-number">{{ unit_num }}</span>
-                                    {% if device.asset %}<i class="fas {{ device.asset.asset_type|asset_icon_fa }} me-1" style="opacity:.8;font-size:.75rem;"></i>{% endif %}<span class="flex-grow-1 text-truncate">{{ device.name }}</span>
-                                </div>
-                            </a>
-                            {% else %}
-                            <a href="{% url 'monitoring:rack_device_create' closet.pk %}?start_unit={{ unit_num }}" style="text-decoration: none; display: block;">
-                                <div class="closet-unit closet-unit-empty">
-                                    <span class="closet-unit-number">{{ unit_num }}</span>
-                                    <span class="flex-grow-1 text-end" style="font-size: 0.6rem; opacity: 0.5;">
-                                        <i class="fas fa-plus"></i>
-                                    </span>
-                                </div>
-                            </a>
-                            {% endif %}
-                            {% endfor %}
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                            <h6 class="mb-0"><i class="fas fa-th"></i> Visual Layout</h6>
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Closet face">
+                                <button type="button" class="btn btn-outline-secondary active" data-closet-face="front" aria-pressed="true">Front</button>
+                                <button type="button" class="btn btn-outline-secondary" data-closet-face="rear" aria-pressed="false">Rear</button>
+                            </div>
+                        </div>
+                        <div id="closet-elevation" data-units="{{ closet.units }}"
+                             data-create-url="{% url 'monitoring:rack_device_create' closet.pk %}"
+                             data-edit-url="{% url 'monitoring:rack_device_edit' 0 %}">
+                            <div class="text-muted small py-3"><span class="spinner-border spinner-border-sm me-2"></span>Loading layout…</div>
                         </div>
                     </div>
                     {% else %}
@@ -616,6 +607,7 @@
 [data-bs-theme="dark"] .port-box.empty { background: #1a1d23; }
 </style>
 {% if patch_panels %}{{ patch_panels_data|json_script:"patch-panels-data" }}{% endif %}
+<script src="{% static 'js/rack_elevation.js' %}"></script>
 <script nonce="{{ csp_nonce }}">
 // ── Patch panel port map ──────────────────────────────────────────
 {% if patch_panels %}
@@ -656,6 +648,44 @@ function showClosetBoardView() {
 
 // Restore last view on load
 if (location.hash === '#board') showClosetBoardView();
+
+// ── Elevation (shared renderer: static/js/rack_elevation.js) ─────
+let _closetFace    = 'front';
+let _closetDevices = [];
+
+function renderClosetElevation() {
+    const host = document.getElementById('closet-elevation');
+    if (!host) return;
+    RackElevation.render(host, {
+        units: parseInt(host.dataset.units, 10),
+        face: _closetFace,
+        // Board placements live on the board, not in the unit grid.
+        devices: _closetDevices.filter(d => d.board_position_x === null || d.board_position_x === undefined),
+        onSelect: (d, el) => RackElevation.showDetail(d, {trigger: el, onEdit: openClosetEditModal}),
+        onEmptyClick: u => { location.href = `${host.dataset.createUrl}?start_unit=${u}`; },
+    });
+}
+
+function loadClosetElevation() {
+    const host = document.getElementById('closet-elevation');
+    if (!host) return;
+    fetch('/monitoring/api/racks/{{ closet.pk }}/devices/')
+        .then(r => r.json())
+        .then(data => { _closetDevices = data.devices || []; renderClosetElevation(); })
+        .catch(e => { host.innerHTML = `<div class="alert alert-danger">Failed to load the layout: ${RackElevation.esc(e.message)}</div>`; });
+}
+
+document.querySelectorAll('[data-closet-face]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        _closetFace = btn.dataset.closetFace;
+        document.querySelectorAll('[data-closet-face]').forEach(b => {
+            b.classList.toggle('active', b === btn);
+            b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+        });
+        renderClosetElevation();
+    });
+});
+loadClosetElevation();
 
 // ── CSRF helper ───────────────────────────────────────────────────
 function getCookie(name) {
@@ -800,6 +830,9 @@ let _dragEl        = null;
 let _dragItem      = null;
 let _dragOffX      = 0;
 let _dragOffY      = 0;
+let _dragStartX    = 0;
+let _dragStartY    = 0;
+let _dragMoved     = false;
 let _lastBoardDragEnd = 0;  // timestamp of last drag release, used to suppress post-drag clicks
 let _resizeEl      = null;
 let _resizeItem    = null;
@@ -875,15 +908,32 @@ function createBoardDevice(item) {
     el.style.top    = (item.board_position_y || 20) + 'px';
     el.style.width  = (item.board_width  || 150) + 'px';
     el.style.height = (item.board_height || 100) + 'px';
-    el.style.backgroundColor = item.color || '#475569';
+    // The same artwork as the device page; with none, the saved colour, a
+    // type icon and the label — never invented ports or lights.
+    const artUrl = RackElevation.boardArt(item);
+    el.style.backgroundColor = artUrl ? '#22262b' : (item.color || '#475569');
 
     const icon = DEVICE_ICONS[item.asset_type] || DEVICE_ICONS.other;
+    const visual = artUrl
+        ? `<img class="rk-board-art" src="${RackElevation.esc(artUrl)}" alt="" draggable="false">`
+        : `<i class="fas ${icon} board-device-icon"></i>`;
     el.innerHTML = `
         <button class="board-device-edit-btn" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-        <i class="fas ${icon} board-device-icon"></i>
-        <div class="board-device-label">${item.name}</div>
+        ${visual}
+        <div class="board-device-label">${RackElevation.esc(item.name)}</div>
         <div class="board-resize-handle"></div>
     `;
+    el.tabIndex = 0;
+    el.setAttribute('role', 'button');
+    el.setAttribute('aria-label', [item.name, item.art && item.art.model].filter(Boolean).join(', '));
+    el.title = [item.name, item.art && item.art.model].filter(Boolean).join(' — ');
+    el.addEventListener('keydown', function(e) {
+        if (e.target !== el) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            RackElevation.showDetail(item, {trigger: el, onEdit: openClosetEditModal});
+        }
+    });
 
     // Edit button
     el.querySelector('.board-device-edit-btn').addEventListener('click', function(e) {
@@ -891,14 +941,14 @@ function createBoardDevice(item) {
         openClosetEditModal(item);
     });
 
-    // Click body → also open edit (ignore click fired immediately after drop or drag)
+    // Click body → detail panel (ignore click fired immediately after drop or drag)
     const _created = Date.now();
     el.addEventListener('click', function(e) {
         if (Date.now() - _created < 400) return;       // ignore click right after element creation
         if (Date.now() - _lastBoardDragEnd < 400) return; // ignore click right after drag release
         if (e.target.classList.contains('board-resize-handle')) return;
         if (e.target.closest('.board-device-edit-btn')) return;
-        openClosetEditModal(item);
+        RackElevation.showDetail(item, {trigger: el, onEdit: openClosetEditModal});
     });
 
     // Drag start
@@ -925,6 +975,9 @@ function createBoardDevice(item) {
         const canvasRect = document.getElementById('closet-board-canvas').getBoundingClientRect();
         _dragOffX   = e.clientX - rect.left;
         _dragOffY   = e.clientY - rect.top;
+        _dragStartX = e.clientX;
+        _dragStartY = e.clientY;
+        _dragMoved  = false;
         el.classList.add('dragging');
         el.style.zIndex = 100;
     });
@@ -935,6 +988,8 @@ function createBoardDevice(item) {
 // ── Global mouse move / up ────────────────────────────────────────
 document.addEventListener('mousemove', function(e) {
     if (_isDragging && _dragEl) {
+        if (!_dragMoved && Math.abs(e.clientX - _dragStartX) + Math.abs(e.clientY - _dragStartY) < 4) return;
+        _dragMoved = true;
         const canvasRect = document.getElementById('closet-board-canvas').getBoundingClientRect();
         let x = e.clientX - canvasRect.left - _dragOffX;
         let y = e.clientY - canvasRect.top  - _dragOffY;
@@ -959,10 +1014,13 @@ document.addEventListener('mouseup', function() {
         const h = parseInt(_dragEl.style.height);
         _dragEl.classList.remove('dragging');
         _dragEl.style.zIndex = '';
-        saveBoardPosition(_dragItem.id, x, y, w, h);
-        _dragItem.board_position_x = x;
-        _dragItem.board_position_y = y;
-        _lastBoardDragEnd = Date.now(); // suppress click event that fires right after mouseup
+        if (_dragMoved) {
+            // A real move: keep the saved size, store the new position.
+            saveBoardPosition(_dragItem.id, x, y, w, h);
+            _dragItem.board_position_x = x;
+            _dragItem.board_position_y = y;
+            _lastBoardDragEnd = Date.now(); // suppress click event that fires right after mouseup
+        }
         _isDragging = false; _dragEl = null; _dragItem = null;
     }
     if (_isResizing && _resizeEl) {
@@ -997,7 +1055,7 @@ function openClosetEditModal(item) {
     _closetPorts      = [];
     _closetActivePort = null;
 
-    document.getElementById('closetEditModalTitle').innerHTML = `<i class="fas ${DEVICE_ICONS[item.asset_type] || 'fa-box'} me-2"></i>${item.name}`;
+    document.getElementById('closetEditModalTitle').innerHTML = `<i class="fas ${DEVICE_ICONS[item.asset_type] || 'fa-box'} me-2"></i>${RackElevation.esc(item.name)}`;
     document.getElementById('closetEditDeviceId').value   = item.id;
     document.getElementById('closetEditName').value       = item.name || '';
     document.getElementById('closetEditStartUnit').value  = item.start_unit || 1;

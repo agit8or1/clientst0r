@@ -1,0 +1,18 @@
+{# Detail panel for one mounted device; filled by RackElevation.showDetail (static/js/rack_elevation.js). #}
+<div class="modal fade" id="deviceDetailModal" tabindex="-1" aria-labelledby="deviceDetailModalTitle" aria-hidden="true" data-bs-backdrop="false" data-bs-keyboard="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" id="deviceDetailModalHeader" style="background:#1e293b;color:#e2e8f0;">
+        <h5 class="modal-title" id="deviceDetailModalTitle">Device</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="deviceDetailModalBody"></div>
+      <div class="modal-footer">
+        <a id="deviceDetailDeviceLink" href="#" class="btn btn-primary btn-sm d-none"><i class="fas fa-network-wired"></i> Device &amp; ports</a>
+        <a id="deviceDetailAssetLink" href="#" class="btn btn-outline-secondary btn-sm d-none"><i class="fas fa-external-link-alt"></i> Asset record</a>
+        <button id="deviceDetailEditLink" type="button" class="btn btn-outline-primary btn-sm d-none"><i class="fas fa-edit"></i> Edit placement</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

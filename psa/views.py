@@ -354,12 +354,28 @@ def ticket_detail(request, ticket_number):
 
     workspace = _ticket_workspace_context(request, ticket)
 
+    # Conversation: same presentation + sender classification as the portal
+    # (psa/conversation.py). Customer users reaching this page get the
+    # customer rule from visible_comments / visible_attachments, and
+    # build_conversation re-applies it.
+    from .conversation import build_conversation
+    comments = list(visible_comments(ticket, request.user)
+                    .select_related('author', 'author__profile').order_by('created_at'))
+    attachments = list(visible_attachments(ticket, request.user)
+                       .select_related('uploaded_by').order_by('-created_at'))
+    conversation = build_conversation(
+        ticket, comments, attachments=attachments,
+        include_internal=workspace['is_msp_staff'],
+    )
+
     return render(request, 'psa/ticket_detail.html', {
         **workspace,
         'ticket': ticket,
         'workflow_executions': workflow_executions,
-        'comments': visible_comments(ticket, request.user).select_related('author').order_by('created_at'),
-        'attachments': visible_attachments(ticket, request.user).select_related('uploaded_by').order_by('-created_at'),
+        'comments': comments,
+        'conversation': conversation,
+        'reply_open': not is_closed,
+        'attachments': attachments,
         'vault_entries': vault_entries,
         'vault_count': vault_count,
         'can_view_vault': can_view_vault,
@@ -913,9 +929,20 @@ def ticket_post_comment(request, ticket_number):
                 qs += '&send_email=1'
             return redirect(detail_url + qs + '#composer')
 
+    # Threaded reply: the parent must be a non-system comment on this ticket
+    # that the poster can see; anything else posts top-level. A public reply
+    # may answer an internal note — the conversation renderer only quotes a
+    # parent the reader may see, so the note never reaches the customer.
+    parent = None
+    parent_raw = (request.POST.get('parent_id') or '').strip()
+    if parent_raw.isdigit():
+        parent = (visible_comments(ticket, request.user)
+                  .filter(pk=int(parent_raw), is_system=False).first())
+
     comment = TicketComment.objects.create(
         ticket=ticket, author=request.user,
         body=body, is_internal=is_internal, is_system=False,
+        parent_comment=parent,
     )
 
     now = timezone.now()

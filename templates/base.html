@@ -521,7 +521,10 @@
             text-overflow: ellipsis;
             white-space: nowrap;
             min-width: 0;
-            flex: 1 1 0;
+            /* Natural width up to the pill's max-width, then an ellipsis. A
+               zero basis made the pill shrink-wrap to its padding and caret,
+               so only the first few letters of the client ever showed. */
+            flex: 0 1 auto;
             font-weight: 600;
             font-size: 13px;
             line-height: 1.2;

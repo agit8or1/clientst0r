@@ -620,3 +620,120 @@ class LabelAndExportTests(Fixture):
         foreign_rack = Rack.objects.create(organization=self.other, name='R2', units=4)
         with self.assertRaisesRegex(ValidationError, 'different client'):
             S.place_in_rack(b, foreign_rack, 1)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class RackArtworkTests(Fixture):
+    """Rack, cabinet and board placements show the artwork the device and asset pages show."""
+
+    def setUp(self):
+        from assets.models import Asset, EquipmentModel, Vendor
+        from monitoring.models import RackDevice
+        self.RackDevice = RackDevice
+        User = get_user_model()
+        self.tech = User.objects.create_user('rack_tech', password='x')
+        Membership.objects.create(user=self.tech, organization=self.org, role=Role.EDITOR, is_active=True)
+        self.outsider = User.objects.create_user('rack_outsider', password='x')
+        Membership.objects.create(user=self.outsider, organization=self.other, role=Role.EDITOR, is_active=True)
+        self.rack = Rack.objects.create(organization=self.org, name='R1', units=12)
+        self.sw = self.dev(self.switch, 'core-sw')                       # in the hardware inventory
+        S.place_in_rack(self.sw, self.rack, 10)
+        vendor = Vendor.objects.create(name='PanelCo', slug='panelco')
+        self.em = EquipmentModel.objects.create(vendor=vendor, model_name='PP4 panel', model_number='PP4-X',
+                                                slug='panelco-pp4', equipment_type='patch_panel')
+        self.panel.equipment_model = self.em
+        self.panel.save(update_fields=['equipment_model'])
+        self.legacy_model = RackDevice.objects.create(rack=self.rack, name='Panel (model only)', start_unit=8,
+                                                      units=1, equipment_model=self.em)
+        make_model('EdgeServer 4800X', [(C.CLASS_INTERFACE, 'nic1', '1000base-t')], u=2)
+        self.named = Asset.objects.create(organization=self.org, name='srv', asset_type='server',
+                                          manufacturer='TestCo', model='EdgeServer 4800X')
+        self.legacy_asset = RackDevice.objects.create(rack=self.rack, name='srv (asset only)', start_unit=5,
+                                                      units=2, asset=self.named)
+        self.bare = RackDevice.objects.create(rack=self.rack, name='Old UPS', start_unit=1, units=2)
+
+    def login(self, user, org):
+        self.client.force_login(user)
+        s = self.client.session
+        s['current_organization_id'] = org.pk
+        s.save()
+
+    def test_resolution_order_and_fallback(self):
+        from .rack_art import placement_art
+        dev = placement_art(self.sw.asset.rack_devices.get())
+        self.assertEqual(dev['source'], 'device')
+        self.assertEqual(dev['faces']['front'], reverse('hardware:device_art', args=[self.sw.pk, 'front']))
+        self.assertEqual(dev['device_url'], reverse('hardware:device_detail', args=[self.sw.pk]))
+        model_only = placement_art(self.legacy_model)
+        self.assertEqual(model_only['source'], 'model')
+        self.assertEqual(model_only['faces']['front'], reverse('hardware:model_art', args=[self.panel.pk, 'front']))
+        asset_only = placement_art(self.legacy_asset)
+        self.assertEqual((asset_only['source'], asset_only['model']), ('model', 'TestCo EdgeServer 4800X'))
+        bare = placement_art(self.bare)
+        self.assertEqual((bare['source'], bare['faces'], bare['model'], bare['device_url']), ('none', {}, '', None))
+
+    def test_generic_template_is_never_matched_for_a_placement(self):
+        from .rack_art import placement_art
+        self.panel.is_generic = True
+        self.panel.save(update_fields=['is_generic'])
+        art = placement_art(self.legacy_model)
+        self.assertEqual(art['source'], 'none', 'a template would invent ports this panel may not have')
+        self.assertEqual(art['model'], 'PanelCo PP4 panel', 'the recorded model is still shown')
+
+    def test_asset_page_and_rack_choose_the_same_model(self):
+        self.login(self.tech, self.org)
+        art = self.client.get(reverse('assets:asset_detail', args=[self.named.pk])).context['art']
+        from .rack_art import placement_art
+        self.assertEqual(f'{art["hm"].manufacturer.name} {art["hm"].model}', placement_art(self.legacy_asset)['model'])
+
+    def test_rack_api_carries_artwork_face_and_depth(self):
+        self.login(self.tech, self.org)
+        data = self.client.get(reverse('monitoring:api_rack_devices_list', args=[self.rack.pk])).json()
+        by_name = {d['name']: d for d in data['devices']}
+        self.assertEqual(by_name['core-sw']['art']['source'], 'device')
+        self.assertEqual(by_name['Old UPS']['art']['source'], 'none')
+        self.assertEqual(by_name['Old UPS']['units'], 2)
+        self.assertIn('face', by_name['core-sw'])
+        self.assertIn('is_full_depth', by_name['core-sw'])
+
+    def test_artwork_route_is_tenant_scoped(self):
+        url = reverse('hardware:device_art', args=[self.sw.pk, 'front'])
+        self.login(self.tech, self.org)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.login(self.outsider, self.other)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_position_api_honours_half_depth_faces(self):
+        RD = self.RackDevice
+        front = RD.objects.create(rack=self.rack, name='front half', start_unit=3, units=1, face='front',
+                                  is_full_depth=False)
+        rear = RD.objects.create(rack=self.rack, name='rear half', start_unit=4, units=1, face='rear',
+                                 is_full_depth=False)
+        self.login(self.tech, self.org)
+        move = lambda d, u: self.client.post(reverse('monitoring:api_update_rack_device_position', args=[d.pk]),
+                                             json.dumps({'start_unit': u, 'units': 1}),
+                                             content_type='application/json')
+        self.assertEqual(move(rear, 3).status_code, 200, 'half-depth devices on opposite faces share a unit')
+        self.assertEqual(move(rear, 1).status_code, 400, 'a full-depth device claims both faces')
+        front.refresh_from_db()
+        self.assertEqual(front.start_unit, 3)
+
+    def test_rack_drop_is_not_a_board_placement(self):
+        from assets.models import Asset
+        a = Asset.objects.create(organization=self.org, name='new box', asset_type='server')
+        self.login(self.tech, self.org)
+        r = self.client.post(reverse('monitoring:api_create_rack_device', args=[self.rack.pk]),
+                             json.dumps({'asset_id': a.pk, 'start_unit': 12, 'units': 1}),
+                             content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        self.assertIsNone(self.RackDevice.objects.get(asset=a).board_position_x)
+        self.assertIn('art', r.json()['device'])
+
+    def test_rack_svg_draws_model_artwork_and_a_plain_face_otherwise(self):
+        from .diagrams import rack_svg
+        svg = rack_svg(self.rack, 'front')
+        self.assertIn('Panel (model only) — TestCo PP4', svg)
+        self.assertIn('Old UPS (no artwork)', svg)
+        plain = svg[svg.index('Old UPS (U1'):]
+        plain = plain[:plain.index('</a>')]
+        self.assertNotIn('hw-port', plain, 'no ports drawn without a record of them')

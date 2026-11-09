@@ -230,9 +230,12 @@ def ticket_detail(request, ticket_number):
         Ticket.objects.filter(organization=m.organization, client_can_view=True),
         ticket_number=ticket_number,
     )
+    # Customer rule, whoever is asking (a staff account can hold a portal
+    # membership): no internal comments, no internal attachments, no
+    # attachments of internal comments. build_conversation re-applies it.
     raw_comments = list(
         ticket.comments.filter(is_internal=False)
-            .select_related('parent_comment').order_by('created_at')
+            .select_related('author', 'author__profile').order_by('created_at')
     )
     # v3.17.237: build a top-level + replies tree so the template can
     # render indented threads. Replies whose parent is internal/missing
@@ -246,7 +249,8 @@ def ticket_detail(request, ticket_number):
             by_id[c.parent_comment_id].replies_in_thread.append(c)
         else:
             threads.append(c)
-    attachments = ticket.attachments.filter(is_internal=False)
+    from psa.conversation import build_conversation, customer_visible_attachments
+    attachments = list(customer_visible_attachments(ticket).order_by('-created_at'))
     voting_enabled = _portal_feature_enabled('psa_portal_voting_enabled')
     vote_count = TicketVote.objects.filter(ticket=ticket).count() if voting_enabled else 0
     user_voted = (TicketVote.objects.filter(ticket=ticket, user=request.user).exists()
@@ -269,11 +273,19 @@ def ticket_detail(request, ticket_number):
     for a in pending_approvals:
         a.can_decide = (approvals_enabled and a.status == 'pending'
                         and can_decide_client_approval(a, m, request.user))
+    service_request = service_request_context(ticket)
+    conversation = build_conversation(
+        ticket, raw_comments, attachments=attachments, include_internal=False,
+        # A guided request shows its answers instead of the generated text.
+        include_opening=not service_request,
+    )
     return render(request, 'portal/ticket_detail.html', {
+        'conversation': conversation,
+        'reply_open': not (ticket.status_id and ticket.status.is_terminal),
         'progress': progress,
         'pending_approvals': pending_approvals,
         'waiting_question': waiting_question,
-        'service_request': service_request_context(ticket),
+        'service_request': service_request,
         'ticket': ticket,
         'threads': threads,
         'attachments': attachments,
