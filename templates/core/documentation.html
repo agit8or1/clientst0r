@@ -204,50 +204,23 @@ curl -H "Authorization: Bearer YOUR_API_KEY_HERE" \
             <h4>Rate Limits</h4>
             <ul>
                 <li>1000 requests per hour per user</li>
-                <li>100 requests per hour per anonymous IP</li>
-                <li>Lower limits on sensitive endpoints</li>
+                <li>50 requests per hour per anonymous IP</li>
+                <li>Lower limits on sign-in (10/hour), token (20/hour) and vault reveal (30/hour) endpoints</li>
             </ul>
         </section>
 
         <section id="security" class="mb-5">
             <h2>Security Features</h2>
-
-            <h4>Technician access safeguards</h4>
-            <ul>{% for f in technician_safeguards %}
-                <li><strong>{{ f.title }}</strong> <span class="badge bg-secondary">{{ f.status_label }}</span> — {{ f.scope }} <span class="text-muted">({{ f.doc }})</span></li>
+            <p class="text-muted">What each safeguard protects and its default. Administrators can see whether each
+                one is in effect at a given customer under Settings &rarr; Security &rarr; Security Features. The
+                full explanation, with limitations, is <code>docs/CLIENT_DATA_PROTECTION.md</code>.</p>
+            {% for label, items in security_groups %}
+            <h4>{{ label }}</h4>
+            <ul>{% for f in items %}
+                <li><strong>{{ f.title }}</strong> <span class="badge bg-secondary">{{ f.status_label }}</span> &mdash;
+                    {{ f.protects }} {{ f.default }} <span class="text-muted">Needs: {{ f.prerequisites }} ({{ f.doc }})</span></li>
             {% endfor %}</ul>
-
-            <h4>Authentication</h4>
-            <ul>
-                <li>Argon2 password hashing (stronger than bcrypt)</li>
-                <li>Enforced TOTP two-factor authentication</li>
-                <li>5-attempt login lockout with 1-hour cooldown</li>
-                <li>Session timeout and secure cookies</li>
-            </ul>
-
-            <h4>Encryption</h4>
-            <ul>
-                <li>AES-GCM for password vault (256-bit key)</li>
-                <li>PSA credentials encrypted at rest</li>
-                <li>API keys stored as HMAC-SHA256 hashes only</li>
-                <li>Master key never stored in database</li>
-            </ul>
-
-            <h4>Access Control</h4>
-            <ul>
-                <li>Organization-based isolation (true multi-tenancy)</li>
-                <li>Role-based permissions (Owner/Admin/Editor/Read-Only)</li>
-                <li>All API calls require authentication</li>
-                <li>File access requires permission check before serving</li>
-            </ul>
-
-            <h4>Audit Logging</h4>
-            <ul>
-                <li>All actions logged (create/read/update/delete)</li>
-                <li>Includes user, IP address, user agent, timestamp</li>
-                <li>Password reveals specially logged</li>
-                <li>Logs immutable (admin read-only)</li>
-            </ul>
+            {% endfor %}
 
             <h4>Best Practices</h4>
             <ol>

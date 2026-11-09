@@ -149,15 +149,15 @@
 
                 <h5>Security Highlights</h5>
                 <ul>
-                    <li>Enforced TOTP two-factor authentication</li>
+                    <li>Two-factor sign-in required by default (TOTP)</li>
                     <li>Argon2 password hashing</li>
-                    <li>AES-GCM encryption for sensitive data</li>
+                    <li>AES-256-GCM encryption for vault passwords, TOTP seeds and stored credentials</li>
+                    <li>Per-customer roles; credential reveal is a separate permission and every reveal is audited</li>
                     <li>Password breach detection (HaveIBeenPwned with k-anonymity)</li>
                     <li>HMAC-SHA256 hashed API keys</li>
-                    <li>Brute-force protection (django-axes)</li>
-                    <li>Rate limiting on all endpoints</li>
-                    <li>Comprehensive security headers</li>
-                    <li>Private file serving (X-Accel-Redirect)</li>
+                    <li>Failed sign-in lockout (django-axes)</li>
+                    <li>Rate limits on the REST API, sign-in and vault reveals</li>
+                    <li>Uploaded files served only after a permission check</li>
                 </ul>
             </div>
         </div>
@@ -238,8 +238,8 @@
                         </tr>
                         <tr>
                             <td><strong>Database</strong></td>
-                            <td>MariaDB</td>
-                            <td><code>10.5+</code></td>
+                            <td>MariaDB / MySQL or SQLite</td>
+                            <td><code>MariaDB 10.5+</code></td>
                         </tr>
                         <tr>
                             <td><strong>Password Hashing</strong></td>
@@ -307,20 +307,25 @@
             <div class="card-body">
                 <h3><i class="fas fa-shield-alt"></i> Security Features</h3>
 
-                <h5><i class="fas fa-user-shield"></i> Technician access safeguards</h5>
+                <p class="small text-muted">What each safeguard protects, its default and what it needs. Details and
+                    limitations: <code>docs/CLIENT_DATA_PROTECTION.md</code>.{% if user.is_superuser %} Whether each is in
+                    effect at a customer: <a href="{% url 'core:security_features' %}">Security Features</a>.{% endif %}</p>
+                {% for label, items in security_groups %}
+                <h5>{{ label }}</h5>
                 <table class="table table-sm small mb-3">
-                    <thead><tr><th>Safeguard</th><th>Status</th><th>Scope</th></tr></thead>
-                    <tbody>{% for f in technician_safeguards %}
-                    <tr><td><strong>{% if f.link and user.is_superuser %}<a href="{% url f.link %}">{{ f.title }}</a>{% else %}{{ f.title }}{% endif %}</strong>
-                            <div class="text-muted">{{ f.detail }}</div></td>
+                    <thead><tr><th class="w-25">Safeguard</th><th>Status</th><th>Default and prerequisites</th></tr></thead>
+                    <tbody>{% for f in items %}
+                    <tr><td><strong>{{ f.title }}</strong><div class="text-muted">{{ f.protects }}</div></td>
                         <td><span class="badge {% if f.status == 'enforced' %}bg-success{% elif f.status == 'on_by_default' %}bg-primary{% elif f.status == 'partial' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ f.status_label }}</span></td>
-                        <td>{{ f.scope }}<div class="text-muted">Docs: <code>{{ f.doc }}</code></div></td></tr>
+                        <td>{{ f.default }}<div class="text-muted">Needs: {{ f.prerequisites }}</div><div class="text-muted">Docs: <code>{{ f.doc }}</code></div></td></tr>
                     {% endfor %}</tbody>
                 </table>
+                {% endfor %}
 
                 <h5><i class="fas fa-key"></i> Enhanced Encryption v2</h5>
                 <p>
-                    All sensitive data is protected with <strong>military-grade AES-256-GCM encryption</strong> plus additional security layers:
+                    Vault passwords, TOTP seeds and stored integration credentials are encrypted with <strong>AES-256-GCM</strong>.
+                    Ticket text and attachments are not encrypted by the app; protect the database and backups accordingly.
                 </p>
                 <ul class="mb-3">
                     <li><strong>HKDF Key Derivation</strong>: Purpose-specific keys for passwords, TOTP secrets, API credentials</li>
@@ -328,12 +333,8 @@
                     <li><strong>Version Tagging</strong>: Graceful key rotation support with backward compatibility</li>
                     <li><strong>Memory Clearing</strong>: Best-effort clearing of sensitive data from memory</li>
                 </ul>
-                <div class="alert alert-info mb-3">
-                    <small>
-                        <strong>Standards Compliance:</strong> NIST SP 800-38D (GCM), NIST SP 800-108 (HKDF), FIPS 197 (AES),
-                        NSA Suite B (TOP SECRET), OWASP ASVS Level 2
-                    </small>
-                </div>
+                <p class="small text-muted mb-3">Built on NIST-specified primitives (AES-GCM, SP 800-38D; HKDF). Client St0r has
+                    not been certified or independently assessed against a compliance standard.</p>
 
                 <h5><i class="fas fa-shield-virus"></i> Password Breach Detection</h5>
                 <p>
@@ -344,16 +345,16 @@
                     <li>Automatic breach detection on password save</li>
                     <li>Scheduled scanning at configurable intervals (2-24 hours)</li>
                     <li>Visual indicators: 🟢 Safe, 🔴 Compromised, ⚪ Unchecked</li>
-                    <li>Zero-knowledge privacy protection</li>
+                    <li>Only the first 5 characters of a SHA-1 hash are sent</li>
                 </ul>
 
                 <h5><i class="fas fa-bug"></i> Vulnerability Scanning</h5>
                 <ul class="mb-3">
                     <li><strong>CVE Scanning</strong>: All dependencies scanned against known vulnerability databases</li>
                     <li><strong>Live Scan Results</strong>: View real-time CVE scan on <a href="{% url 'core:system_status' %}">System Status</a> page</li>
-                    <li><strong>AI-Assisted Detection</strong>: Automated code analysis for SQL injection, XSS, CSRF, and more</li>
+                    <li><strong>Static analysis</strong>: Semgrep and CodeQL run on pushes; new high-severity findings block</li>
                     <li><strong>Alert-Only Mode</strong>: Findings generate alerts for human review (no automatic changes)</li>
-                    <li><strong>Regular Updates</strong>: Weekly manual audits plus automated scanning on every commit</li>
+                    <li><strong>Secret scanning</strong>: Gitleaks checks pushed commits</li>
                 </ul>
 
                 <h5><i class="fas fa-file-shield"></i> Security Documentation</h5>
@@ -403,7 +404,7 @@
 
                     <dt class="col-sm-4">2FA Status:</dt>
                     <dd class="col-sm-8">
-                        <span class="badge bg-success">Enabled</span>
+                        {% if not user.is_authenticated %}&mdash;{% elif two_factor_enabled %}<span class="badge bg-success">Enabled</span>{% else %}<span class="badge bg-warning text-dark">Not set up</span>{% endif %}
                     </dd>
                 </dl>
             </div>
@@ -417,8 +418,8 @@
                     Bootstrap 5, and other open-source technologies.
                 </p>
                 <p class="mb-0">
-                    <strong>Deployment:</strong> Self-hosted on Ubuntu with MariaDB + Nginx + systemd<br>
-                    <strong>Architecture:</strong> No Docker, no Redis - pure Python + systemd timers
+                    <strong>Deployment:</strong> Self-hosted on Ubuntu (install script, Nginx + systemd) or with Docker Compose<br>
+                    <strong>Architecture:</strong> Python + systemd timers; MariaDB/MySQL or SQLite; Redis optional
                 </p>
             </div>
         </div>

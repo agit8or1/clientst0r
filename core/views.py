@@ -34,10 +34,10 @@ def documentation(request):
     """
     Platform documentation page.
     """
-    from core.security_features import catalog as security_catalog
+    from core.security_features import grouped
     return render(request, 'core/documentation.html', {
         'version': get_version(),
-        'technician_safeguards': security_catalog(),
+        'security_groups': grouped(),
     })
 
 
@@ -238,12 +238,17 @@ def about(request):
     # Security scan and dependencies moved to System Status page for performance
     # These operations are slow (pip-audit takes 1-2 seconds) and not critical for About page
 
-    from core.security_features import catalog as security_catalog
+    from core.security_features import grouped
+    two_factor_enabled = False
+    if request.user.is_authenticated:
+        from django_otp import user_has_device
+        two_factor_enabled = user_has_device(request.user)
     return render(request, 'core/about.html', {
         'version': get_version(),
         'full_version': get_full_version(),
         'equipment_stats': equipment_stats,
-        'technician_safeguards': security_catalog(),
+        'security_groups': grouped(),
+        'two_factor_enabled': two_factor_enabled,
     })
 
 

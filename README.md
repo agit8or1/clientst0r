@@ -224,9 +224,48 @@ the vault entries and stored credentials in a backup cannot be decrypted. Docker
   Syncro, Atera and others) are supported for teams that already run one — but the service
   desk here is native, not a front end for someone else's.
 
+## How ClientSt0r protects client data
+
+ClientSt0r holds your customers' credentials, tickets and device data. These are the
+protections that ship today, with their defaults. The full walkthrough, with the evidence
+behind each one and the known gaps, is [docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md).
+Administrators can check whether each one is in effect at a given customer under
+**Settings → Security → Security Features**.
+
+- **A customer sees the shared conversation, never your working notes.** When Example
+  Dental's office manager opens "Printer offline at front desk", they see the description
+  and public replies, and can reply and attach a photo. The technician's internal note,
+  time entries, expenses, kit list, workflows and the RMM's view of the PC stay with
+  technicians. Posting directly to technician-only URLs returns 403.
+- **Revealing a credential is its own permission, and every reveal is recorded.** Owners,
+  Admins and Editors of a customer may reveal; Read-only members and new custom roles may
+  not. Optional per-entry approval and access rules (country, address range, time) come
+  first; reveals are limited to 30 an hour. Each reveal writes an audit event naming the
+  user, entry, customer and address. The web vault, REST and mobile
+  APIs and the browser extension use the same check.
+- **Sign-in defaults:** two-factor (TOTP) required for everyone, Argon2 password hashes,
+  12+ character passwords, lockout after 5 failures for 30 minutes, sign-out after 60
+  minutes idle or 8 hours. Environment variables override the Settings page.
+- **Encryption:** vault passwords, TOTP seeds and stored integration credentials use
+  AES-256-GCM with a separate HKDF-derived key per purpose; tokens are stored as
+  HMAC-SHA256 hashes. Ticket text and attachments are not encrypted by the app.
+- **MSP staff get broader access than customers, by design.** Staff and superusers reach
+  every customer; a staff global role narrows what they can do. Ticket AI and RMM tools are
+  different: they need an L1/L2/L3 technician assignment *at each customer*, whatever the
+  user's flags.
+- **Ticket AI (OPTIONAL AI) is off** until a superuser enables it and sets each customer's
+  AI policy. Vault data, attachments and internal notes are never sent; secrets in the
+  ticket text are redacted. Nothing AI produces is sent to a customer until a technician
+  presses Send, and ClientSt0r sends no commands to devices.
+
+Setup checklist and limitations (audit log deletable by superusers, Azure AD sign-in skips
+TOTP, mobile tokens last until revoked, CSP report-only by default):
+[docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md#limitations). Reporting a
+vulnerability: [SECURITY.md](SECURITY.md).
+
 ## Security
 
-- Enforced TOTP 2FA, Argon2 password hashing, brute-force lockout, idle and maximum
+- Two-factor (TOTP) sign-in required by default, Argon2 password hashing, brute-force lockout, idle and maximum
   session length — all set in Settings → Security, with environment variables taking
   precedence when set.
 - AES-256-GCM encryption at rest for vault entries and every other stored secret
@@ -260,6 +299,7 @@ rather than a public issue. Full policy and response timelines: [SECURITY.md](SE
 | [Changelog](CHANGELOG.md) | Release history |
 | [Integrations](docs/INTEGRATION_SETUP_GUIDE.md) | Connecting PSA, RMM, M365, accounting and distributors |
 | [API](API_V2_GRAPHQL.md) | REST and GraphQL endpoints |
+| [Client data protection](docs/CLIENT_DATA_PROTECTION.md) | Who sees what, vault reveals, ticket AI, RMM, limitations |
 | [Security](SECURITY.md) | Policy, supported versions, reporting |
 | [FAQ](docs/faq.md) | Common questions |
 | [More docs](docs/README.md) | Everything else |

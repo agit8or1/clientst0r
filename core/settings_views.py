@@ -3369,3 +3369,30 @@ def validate_vonage_credentials(request):
             'message': f'Validation error: {str(e)}',
             'details': {}
         }, status=500)
+
+
+@login_required
+def security_features(request):
+    """What each safeguard protects, its default, and its effective state at
+    one customer (?org=<id>, else the current organization). Superusers only:
+    the effective state names members, rules and environment overrides."""
+    from django.core.exceptions import PermissionDenied
+    from core.middleware import get_request_organization
+    from core.models import Organization
+    from core.security_features import grouped, effective_states, STATUS_LABELS
+    if not request.user.is_superuser:
+        raise PermissionDenied
+    orgs = Organization.objects.filter(is_active=True).order_by('name')
+    org = None
+    raw = request.GET.get('org', '')
+    if raw.isdigit():
+        org = orgs.filter(pk=int(raw)).first()
+    if org is None:
+        org = get_request_organization(request) or orgs.first()
+    features = effective_states(org) if org else None
+    return render(request, 'core/security_features.html', {
+        'organizations': orgs,
+        'selected_org': org,
+        'groups': grouped(features) if features else grouped(),
+        'status_labels': STATUS_LABELS,
+    })

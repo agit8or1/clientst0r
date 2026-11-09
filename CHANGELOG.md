@@ -5,6 +5,31 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.651] - 2026-11-09
+
+### Added
+- **Settings → Security → Security Features** (superusers). Every safeguard, grouped as Sign-in, Client access, Vault and secrets, Tickets and AI, and Audit. Each one says what it protects, its default, what it needs and where to configure it. Pick a customer to see whether each one is actually in effect there, for example "1 of 2 members here may reveal", "No assignments here: no technician can use ticket AI or RMM tools", "Report-only". Values fixed by an environment variable are named. A check that can't be read shows Unknown, never On. Customer users get 403.
+- **`docs/CLIENT_DATA_PROTECTION.md`** and a README section, "How ClientSt0r protects client data". They cover:
+  - who sees what (customers vs MSP staff, and staff get broader access by design);
+  - the role and reveal table and the L1/L2/L3 capability table;
+  - a shared ticket seen by the customer, and a vault reveal step by step;
+  - encryption;
+  - what ticket AI (OPTIONAL AI) sends and never sends;
+  - the difference between an RMM connect link, a handoff, a remote-session request and an endpoint change, and who enforces each;
+  - a setup checklist and known limitations.
+
+### Changed
+- The About and documentation pages show the same grouped catalog. Removed or corrected unsupported claims:
+  - "military-grade", "NSA Suite B (TOP SECRET)" and "OWASP ASVS Level 2";
+  - "Logs immutable" (superusers can delete audit entries) and "All actions logged";
+  - "1-hour cooldown" (it is 30 minutes) and the anonymous API rate (50/hour, not 100);
+  - "Rate limiting on all endpoints", "AI-Assisted Detection" and "weekly manual audits";
+  - "No Docker" and "MariaDB" only.
+- The About page's 2FA status now reflects your account instead of always saying Enabled.
+
+### Upgrade
+- Apply the update. No migration.
+
 ## [3.17.650] - 2026-11-09
 
 ### Security

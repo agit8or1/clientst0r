@@ -1634,6 +1634,17 @@ are built on top of them.
   New custom roles no longer reveal credential values unless the box is
   ticked. Argon2 is now the active password hasher (the setting had the wrong
   name, so PBKDF2 was used); existing hashes upgrade at next sign-in.
+- **Security Features: what ships, and what is on at each customer**
+  *(shipped v3.17.651)* — the catalog is grouped into Sign-in, Client access,
+  Vault and secrets, Tickets and AI, and Audit, and each entry states what it
+  protects, its default, what it needs and where it is configured. The About
+  and documentation pages show that description; Settings → Security →
+  Security Features (superusers) adds the effective state at a chosen
+  customer, read from the settings the code enforces, with environment
+  overrides named. Unsupported claims (compliance standards, "immutable" logs,
+  a 1-hour lockout, a fixed "2FA enabled" badge) are gone.
+  `docs/CLIENT_DATA_PROTECTION.md` explains who sees what, vault reveals,
+  ticket AI, RMM enforcement and known limitations.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 
