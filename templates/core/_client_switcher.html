@@ -1,0 +1,73 @@
+{% load i18n %}
+{% comment %}
+The client switcher: the active client / Global View pill in the navbar's
+right-hand cluster, and the dropdown that changes it.
+
+Integration point. base.html includes this file inside its right-hand
+`<ul class="navbar-nav">`, so it must render zero or more `<li class="nav-item">`
+elements. This is the switcher markup as it stood in base.html (v3.17.645),
+moved here unchanged apart from the "All clients" link at the bottom, which is
+where the PSA menu's old "Clients" entry (accounts:organization_list) now
+lives. A rebuild of the switcher should keep:
+  * id="orgDropdown" on the toggle (custom.css / ui.css size it by id);
+  * the pill visible in both states (selected client / Global View);
+  * the "All clients" link, gated `psa_enabled or user.is_superuser` as the
+    old PSA "Clients" and Admin "Organizations" entries were.
+{% endcomment %}
+{% if current_organization or user.is_superuser or is_staff_user %}
+<li class="nav-item dropdown">
+    {% if current_organization %}
+    <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-active" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" title="{{ current_organization.name }}">
+        <span class="org-pulse-dot flex-shrink-0"></span>
+        <span class="org-pill-name">{{ current_organization.name }}</span>
+        <i class="fas fa-chevron-down org-pill-caret flex-shrink-0 ms-1"></i>
+    </a>
+    {% else %}
+    <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-global" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown">
+        <i class="fas fa-globe flex-shrink-0" style="font-size:.75rem;"></i>
+        <span class="org-pill-name">{% trans "Global View" %}</span>
+        <i class="fas fa-chevron-down org-pill-caret flex-shrink-0 ms-1"></i>
+    </a>
+    {% endif %}
+    <ul class="dropdown-menu dropdown-menu-end shadow" style="min-width: 260px;">
+        <li class="px-3 py-2">
+            <div class="small fw-semibold text-muted text-uppercase" style="letter-spacing:.05em; font-size:.7rem;">
+                <i class="fas fa-exchange-alt me-1"></i>{% trans "Switch Client" %}
+            </div>
+        </li>
+        <li><hr class="dropdown-divider my-1"></li>
+        {% if user.is_superuser or is_staff_user %}
+        <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 {% if not current_organization %}fw-semibold{% endif %}" href="{% url 'accounts:switch_to_global_view' %}">
+                {% if not current_organization %}
+                <i class="fas fa-check-circle text-success flex-shrink-0"></i>
+                {% else %}
+                <i class="fas fa-globe text-muted flex-shrink-0"></i>
+                {% endif %}
+                <span>{% trans "Global View" %}</span>
+                {% if not current_organization %}<span class="badge bg-success ms-auto">Active</span>{% endif %}
+            </a>
+        </li>
+        <li><hr class="dropdown-divider my-1"></li>
+        <li class="px-3 pb-1"><span class="small text-muted text-uppercase fw-semibold" style="letter-spacing:.05em; font-size:.7rem;">{% trans "Clients" %}</span></li>
+        {% endif %}
+        {% for org in user_organizations %}
+        <li>
+            <a class="dropdown-item d-flex align-items-center gap-2 {% if current_organization and org.id == current_organization.id %}fw-semibold{% endif %}" href="{% url 'accounts:switch_organization' org.id %}">
+                {% if current_organization and org.id == current_organization.id %}
+                <i class="fas fa-check-circle text-success flex-shrink-0"></i>
+                {% else %}
+                <i class="fas fa-building text-muted flex-shrink-0"></i>
+                {% endif %}
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ org.name }}</span>
+                {% if current_organization and org.id == current_organization.id %}<span class="badge bg-warning text-dark ms-auto">Active</span>{% endif %}
+            </a>
+        </li>
+        {% endfor %}
+        {% if psa_enabled or user.is_superuser %}
+        <li><hr class="dropdown-divider my-1"></li>
+        <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'accounts:organization_list' %}" data-nav="all-clients"><i class="fas fa-building flex-shrink-0"></i><span>{% trans "All clients" %}</span></a></li>
+        {% endif %}
+    </ul>
+</li>
+{% endif %}

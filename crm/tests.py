@@ -684,10 +684,10 @@ class FeatureToggleTests(TestCase):
         # base.html's nav rendered.
         r = c.get('/core/dashboard/', follow=True)
         self.assertEqual(r.status_code, 200)
-        # v3.17.580 — CRM is a section of the More menu rather than its own
-        # top-level dropdown, so the check is on the destination rather than
-        # on a container id that no longer exists.
-        self.assertNotIn(b'/crm/pipeline/', r.content)
+        # CRM is one entry of the Modules menu (its pages are tabs on the CRM
+        # overview), so the check is on that entry's destination rather than
+        # on a container id.
+        self.assertNotIn(b'href="/crm/"', r.content)
 
     def test_crm_dropdown_shown_when_enabled(self):
         from core.models import SystemSetting
@@ -703,9 +703,9 @@ class FeatureToggleTests(TestCase):
         _bypass_2fa(c)
         r = c.get('/core/dashboard/', follow=True)
         self.assertEqual(r.status_code, 200)
-        # v3.17.580 — see the note in the sibling test: CRM lives under More.
-        self.assertIn(b'/crm/pipeline/', r.content)
-        self.assertIn(b'moreNavDropdown', r.content)
+        # CRM is an entry of the Modules menu (formerly More); see the sibling test.
+        self.assertIn(b'href="/crm/"', r.content)
+        self.assertIn(b'modulesDropdown', r.content)
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)

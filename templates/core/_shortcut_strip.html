@@ -1,0 +1,9 @@
+{% comment %}
+Shortcut strip: a compact row of the signed-in user's shortcuts, rendered by
+base.html directly below the navbar for authenticated users.
+
+Integration point: intentionally renders nothing yet. Whatever replaces this
+must render nothing at all when there is nothing to show (no empty bar), must
+not expose staff-only destinations to customer users (`is_staff_user`,
+psa.visibility.is_msp_staff), and must stay on one line at 390px.
+{% endcomment %}

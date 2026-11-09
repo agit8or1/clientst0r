@@ -7,8 +7,9 @@ can see is a control nobody uses, and v3.17.580 freed the room by grouping
 Security, CRM and Reports under the main navigation's More menu.
 
 They are now individual buttons in their original order, with their original
-icons and behaviour. This is deliberately NOT the main navigation's More menu
-(`moreNavDropdown`), which stays a dropdown — see `test_navbar_grouping.py`.
+icons and behaviour. This is deliberately NOT the main navigation's Modules
+menu (`modulesDropdown`, formerly More), which stays a dropdown — see
+`test_navbar_grouping.py`.
 """
 from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
@@ -135,8 +136,8 @@ class UtilityControlsAreVisibleTests(TestCase):
 
     # -- the main navigation is untouched -------------------------------------
 
-    def test_the_main_navigation_more_menu_is_still_a_dropdown(self):
-        """A different control entirely — this change must not touch it."""
+    def test_the_main_navigation_modules_menu_is_still_a_dropdown(self):
+        """A different control entirely (the old "More", now "Modules")."""
         html = self._html()
-        self.assertIn('moreNavDropdown', html)
+        self.assertIn('id="modulesDropdown"', html)
         self.assertIn('id="adminDropdown"', html)

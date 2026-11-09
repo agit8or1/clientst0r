@@ -1,0 +1,64 @@
+/* Section tabs: the local navigation rendered above page content
+   (templates/core/_section_tabs.html, core/navigation.py).
+
+   Same footprint as the hardware sub-nav so the two read as one pattern.
+   Colours come from Bootstrap variables, so every theme (light, dark,
+   dracula, monokai, ...) carries them without per-theme rules. */
+/* The strip sits on its own surface, like the breadcrumb card below it, so the
+   pills stay legible over a custom background image or colour. */
+.section-tabs {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    padding: 4px;
+}
+.section-tabs__list {
+    gap: 4px;
+}
+.section-tabs__list .nav-link {
+    padding: .35rem .7rem;
+    font-size: .9rem;
+    white-space: nowrap;
+}
+.section-tabs__list .nav-link:not(.active) {
+    color: var(--bs-body-color) !important;
+}
+.section-tabs__list .nav-link:not(.active):hover {
+    color: var(--bs-link-color) !important;
+    background: var(--bs-tertiary-bg);
+}
+.section-tabs__list .nav-link:focus-visible {
+    outline: 2px solid var(--bs-link-color);
+    outline-offset: 1px;
+}
+/* On a phone the pills scroll sideways in one row instead of stacking into
+   a tall block above the content; each stays a full-size touch target. */
+@media (max-width: 575.98px) {
+    .section-tabs__list {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        padding-bottom: 2px;
+    }
+    .section-tabs__list .nav-link { padding: .5rem .75rem; }
+}
+
+/* In the collapsed drawer (below the xxl expand breakpoint) an open menu
+   pushes the entries below it down instead of covering them: themes.css makes
+   every .dropdown-menu absolute, which on a phone hid Operations…Admin under
+   the open PSA menu. */
+@media (max-width: 1399.98px) {
+    .navbar .navbar-collapse .navbar-nav .dropdown-menu {
+        position: static !important;
+        transform: none !important;
+        width: 100%;
+        margin-top: 2px;
+    }
+}
+
+/* The navbar's active entry inside an open dropdown. */
+.navbar .dropdown-item.active,
+.navbar .dropdown-item[aria-current="page"] {
+    font-weight: 600;
+}

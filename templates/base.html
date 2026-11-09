@@ -1,4 +1,4 @@
-{% load static %}{% load i18n %}
+{% load static %}{% load i18n %}{% load navigation %}
 <!DOCTYPE html>
 <html lang="{{ user_locale_code }}" data-theme="{{ user_theme }}" data-bs-theme="{% if user_theme == 'dark' or user_theme == 'dracula' or user_theme == 'monokai' %}dark{% else %}light{% endif %}">
 <head>
@@ -35,6 +35,7 @@
     <!-- Shared UI layer — loaded last so it settles conflicts rather than adding
          a fourth opinion. See the header of ui.css before extending it. -->
     <link href="{% static 'css/ui.css' %}" rel="stylesheet">
+    <link href="{% static 'css/navigation.css' %}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
     <script src="{% static 'js/csp-events.js' %}"></script>
 </head>
@@ -49,6 +50,7 @@
     </div>
 
     <a href="#main-content" class="skip-to-main">Skip to main content</a>
+    {% nav_state as nav %}
     <nav class="navbar navbar-expand-xxl navbar-dark">
         <div class="container-fluid navbar-container">
             <a class="navbar-brand" href="{% url 'home' %}">
@@ -63,226 +65,126 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 {% if user.is_authenticated %}
-                <ul class="navbar-nav mx-auto">
-                    <li class="nav-item"><a class="nav-link" href="{% url 'core:dashboard' %}"><i class="fas fa-tachometer-alt"></i> {% trans "Dashboard" %}</a></li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="assetsDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-box"></i> {% trans "Assets" %}
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'assets:asset_list' %}"><i class="fas fa-box"></i> {% trans "All Assets" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'hardware:device_list' %}"><i class="fas fa-network-wired"></i> {% trans "Hardware & Ports" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'hardware:cable_list' %}"><i class="fas fa-ethernet"></i> {% trans "Cables" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'hardware:diagram' 'connectivity' %}"><i class="fas fa-project-diagram"></i> {% trans "Connectivity Diagram" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'hardware:labels' %}"><i class="fas fa-tags"></i> {% trans "Labels" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'hardware:catalog' %}"><i class="fas fa-book"></i> {% trans "Hardware Catalog" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">{% trans "Infrastructure" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'monitoring:rack_list' %}"><i class="fas fa-server"></i> {% trans "Racks" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'monitoring:network_closet_list' %}"><i class="fas fa-network-wired"></i> {% trans "Network Closets" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'monitoring:subnet_list' %}"><i class="fas fa-sitemap"></i> {% trans "IPAM" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'monitoring:vlan_list' %}"><i class="fas fa-layer-group"></i> {% trans "VLANs" %}</a></li>
-                            {% if is_staff_user or user.is_superuser or user.is_staff %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">{% trans "Setup" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'assets:vendor_list' %}"><i class="fas fa-database"></i> {% trans "Equipment Catalog" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'assets:custom_field_list' %}"><i class="fas fa-sliders-h"></i> {% trans "Custom Fields & Types" %}</a></li>
-                            {% endif %}
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="vaultDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-key"></i> {% trans "Vault" %}
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'vault:password_list' %}"><i class="fas fa-key"></i> {% trans "Passwords" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'vault:personal_vault_list' %}"><i class="fas fa-sticky-note"></i> {% trans "My Vault" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'core:secure_note_inbox' %}"><i class="fas fa-lock"></i> {% trans "Secure Notes" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'vault:access_rule_list' %}"><i class="fas fa-shield-halved"></i> {% trans "Access Rules" %}</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="docsDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-file-alt"></i> {% trans "Docs" %}
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'docs:document_list' %}"><i class="fas fa-file-alt"></i> {% trans "Documents" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'docs:diagram_list' %}"><i class="fas fa-project-diagram"></i> {% trans "Diagrams" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'locations:floor_plan_import' %}"><i class="fas fa-file-upload"></i> {% trans "Import Floor Plans" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'docs:document_drafts_list' %}"><i class="fas fa-pen-ruler"></i> {% trans "Drafts" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'docs:kb_approval_queue' %}"><i class="fas fa-check-double"></i> {% trans "Approval Queue" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'docs:kb_review_queue' %}"><i class="fas fa-calendar-check"></i> {% trans "Review Queue" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'docs:document_archived_list' %}"><i class="fas fa-box-archive"></i> {% trans "Archived" %}</a></li>
-                            {% if is_staff_user or user.is_superuser %}
-                            <li><a class="dropdown-item" href="{% url 'docs:kb_analytics' %}"><i class="fas fa-chart-line"></i> {% trans "KB Analytics" %}</a></li>
-                            {% endif %}
-                            <li><a class="dropdown-item" href="{% url 'readiness:overview' %}"><i class="fas fa-clipboard-check"></i> {% trans "Documentation Readiness" %}</a></li>
-                        </ul>
-                    </li>
+                {% comment %}
+                Condensed navigation. Each dropdown holds three to
+                seven entries, one per section; a section's sibling pages are
+                tabs on its landing page (core/navigation.py renders them above
+                the content via core/_section_tabs.html). Every destination the
+                old menus carried is still reachable by ordinary clicks; the
+                before → after map is docs/navigation-map.md. Gates are the
+                ones the old menus used, entry for entry.
+                {% endcomment %}
+                <ul class="navbar-nav mx-auto" id="primaryNav">
+                    <li class="nav-item"><a class="nav-link{% if request.resolver_match.view_name == 'core:dashboard' %} active{% endif %}" href="{% url 'core:dashboard' %}"{% if request.resolver_match.view_name == 'core:dashboard' %} aria-current="page"{% endif %}><i class="fas fa-tachometer-alt"></i> {% trans "Dashboard" %}</a></li>
                     {% if psa_enabled %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="psaDropdown" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle{% if nav.menu == 'psa' %} active{% endif %}" href="#" id="psaDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-ticket-alt"></i> {% trans "PSA" %}
                         </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item fw-semibold" href="{% url 'psa:my_work' %}"><i class="fas fa-user-check"></i> {% trans "My Work" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:ticket_list' %}"><i class="fas fa-list"></i> {% trans "Tickets" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:ticket_create' %}"><i class="fas fa-plus"></i> {% trans "New Ticket" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'accounts:organization_list' %}"><i class="fas fa-building"></i> {% trans "Clients" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:service_catalog' %}"><i class="fas fa-th"></i> {% trans "Service Catalog" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:catalog_change_list' %}"><i class="fas fa-clipboard-check"></i> {% trans "Catalog Changes" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:project_list' %}"><i class="fas fa-diagram-project"></i> {% trans "Projects" %}</a></li>
-                            {# Phase 35.1 (v3.17.548) #}
-                            <li><a class="dropdown-item" href="{% url 'psa:project_template_list' %}"><i class="fas fa-clipboard-list"></i> {% trans "Project Templates" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:recurring_list' %}"><i class="fas fa-repeat"></i> {% trans "Recurring Tickets" %}</a></li>
-                            {% if is_staff_user or user.is_superuser or user.is_staff %}
-                            <li><a class="dropdown-item" href="{% url 'psa:kb_browse' %}"><i class="fas fa-book"></i> {% trans "Knowledge Base" %}</a></li>
-                            {% endif %}
-                            {% if is_staff_user or user.is_superuser or user.is_staff %}
-                            <li><a class="dropdown-item" href="{% url 'psa:approval_list' %}"><i class="fas fa-circle-check"></i> {% trans "Approvals" %}</a></li>
-                            {% endif %}
-                            <li><a class="dropdown-item" href="{% url 'psa:change_request_list' %}"><i class="fas fa-code-branch"></i> {% trans "Change Requests" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:problem_list' %}"><i class="fas fa-bug"></i> {% trans "Problems" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:release_list' %}"><i class="fas fa-rocket"></i> {% trans "Releases" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:contract_list' %}"><i class="fas fa-file-contract"></i> {% trans "Contracts" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:quote_list' %}"><i class="fas fa-file-invoice-dollar"></i> {% trans "Quotes" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:invoice_list' %}"><i class="fas fa-file-invoice"></i> {% trans "Invoices" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:aging_report' %}"><i class="fas fa-chart-column"></i> {% trans "Aging Report" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:dispatch_board' %}"><i class="fas fa-table-list"></i> {% trans "Dispatch Board" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">{% trans "Procurement" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:requisition_list' %}"><i class="fas fa-clipboard-list"></i> {% trans "Requisitions" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:po_list' %}"><i class="fas fa-file-invoice"></i> {% trans "Purchase Orders" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:back_order_list' %}"><i class="fas fa-hourglass-half"></i> {% trans "Back-orders" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:vendor_list' %}"><i class="fas fa-truck"></i> {% trans "Vendors" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:workflow_rule_list' %}"><i class="fas fa-bolt"></i> {% trans "Workflow Rules" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:canned_reply_list' %}"><i class="fas fa-magic"></i> {% trans "Canned Replies" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa:email_config_list' %}"><i class="fas fa-envelope-open-text"></i> {% trans "Email Ingestion" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'psa_ai:inbox' %}"><i class="fas fa-wand-magic-sparkles"></i> {% trans "AI Inbox" %}</a></li>
+                        <ul class="dropdown-menu" aria-labelledby="psaDropdown">
+                            <li><a class="dropdown-item fw-semibold{% if nav.section == 'psa_my_work' %} active{% endif %}" href="{% url 'psa:my_work' %}"{% if nav.section == 'psa_my_work' %} aria-current="page"{% endif %}><i class="fas fa-user-check"></i> {% trans "My Work" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'psa_tickets' %} active{% endif %}" href="{% url 'psa:ticket_list' %}"{% if nav.section == 'psa_tickets' %} aria-current="page"{% endif %}><i class="fas fa-list"></i> {% trans "Tickets" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'psa_dispatch' %} active{% endif %}" href="{% url 'psa:dispatch_board' %}"{% if nav.section == 'psa_dispatch' %} aria-current="page"{% endif %}><i class="fas fa-table-list"></i> {% trans "Dispatch Board" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'psa_projects' %} active{% endif %}" href="{% url 'psa:project_list' %}"{% if nav.section == 'psa_projects' %} aria-current="page"{% endif %}><i class="fas fa-diagram-project"></i> {% trans "Projects" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'psa_service' %} active{% endif %}" href="{% url 'psa:service_catalog' %}"{% if nav.section == 'psa_service' %} aria-current="page"{% endif %}><i class="fas fa-th"></i> {% trans "Service Management" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'psa_billing' %} active{% endif %}" href="{% url 'psa:contract_list' %}"{% if nav.section == 'psa_billing' %} aria-current="page"{% endif %}><i class="fas fa-file-invoice-dollar"></i> {% trans "Billing" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'psa_procurement' %} active{% endif %}" href="{% url 'psa:requisition_list' %}"{% if nav.section == 'psa_procurement' %} aria-current="page"{% endif %}><i class="fas fa-truck"></i> {% trans "Procurement" %}</a></li>
                         </ul>
                     </li>
                     {% endif %}
                     {% if workflows_enabled or inventory_enabled or scheduling_enabled or monitoring_enabled or vehicles_enabled %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="opsDropdown" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle{% if nav.menu == 'ops' %} active{% endif %}" href="#" id="opsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-cogs"></i> {% trans "Operations" %}
                         </a>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu" aria-labelledby="opsDropdown">
                             {% if workflows_enabled %}
-                            <li><a class="dropdown-item" href="{% url 'processes:process_list' %}"><i class="fas fa-tasks"></i> {% trans "Workflows" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'ops_workflows' %} active{% endif %}" href="{% url 'processes:process_list' %}"{% if nav.section == 'ops_workflows' %} aria-current="page"{% endif %}><i class="fas fa-tasks"></i> {% trans "Workflows" %}</a></li>
                             {% endif %}
                             {% if inventory_enabled %}
-                            {% if workflows_enabled %}<li><hr class="dropdown-divider"></li>{% endif %}
-                            <li><h6 class="dropdown-header">{% trans "Inventory" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'inventory:inventory_dashboard' %}"><i class="fas fa-tachometer-alt"></i> {% trans "Dashboard" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'inventory:item_list' %}"><i class="fas fa-boxes"></i> {% trans "All Items" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'inventory:low_stock_report' %}"><i class="fas fa-exclamation-triangle"></i> {% trans "Low Stock" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'inventory:tool_list' %}"><i class="fas fa-screwdriver-wrench"></i> {% trans "Tools" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'ops_inventory' %} active{% endif %}" href="{% url 'inventory:inventory_dashboard' %}"{% if nav.section == 'ops_inventory' %} aria-current="page"{% endif %}><i class="fas fa-boxes"></i> {% trans "Inventory" %}</a></li>
                             {% endif %}
                             {% if scheduling_enabled %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">{% trans "Scheduling" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'scheduling:task_list' %}"><i class="fas fa-tasks"></i> {% trans "All Tasks" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'scheduling:wallboard_settings' %}"><i class="fas fa-tv"></i> {% trans "Wallboard" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'scheduling:my_tasks' %}"><i class="fas fa-user-check"></i> {% trans "My Tasks" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'scheduling:task_calendar' %}"><i class="fas fa-calendar-alt"></i> {% trans "Calendar" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'ops_scheduling' %} active{% endif %}" href="{% url 'scheduling:task_list' %}"{% if nav.section == 'ops_scheduling' %} aria-current="page"{% endif %}><i class="fas fa-calendar-alt"></i> {% trans "Scheduling" %}</a></li>
                             {% endif %}
                             {% if monitoring_enabled %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">{% trans "Monitoring" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'monitoring:website_monitor_list' %}"><i class="fas fa-globe"></i> {% trans "Website Monitors" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'monitoring:wan_monitor_list' %}"><i class="fas fa-network-wired"></i> {% trans "WAN Connections" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'monitoring:expiration_list' %}"><i class="fas fa-calendar-times"></i> {% trans "Expirations" %}</a></li>
-                            {# Phase 40.2 (v3.17.540) — status pages publish monitor state, so they live with Monitoring. #}
-                            <li><a class="dropdown-item" href="{% url 'statuspage:list' %}"><i class="fas fa-heart-pulse"></i> {% trans "Status Pages" %}</a></li>
-                            {# Phase 34.1 (v3.17.544) — device config snapshots sit with the other network-facing tools. #}
-                            <li><a class="dropdown-item" href="{% url 'netconfig:device_list' %}"><i class="fas fa-file-code"></i> {% trans "Config Backups" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'ops_monitoring' %} active{% endif %}" href="{% url 'monitoring:website_monitor_list' %}"{% if nav.section == 'ops_monitoring' %} aria-current="page"{% endif %}><i class="fas fa-globe"></i> {% trans "Monitoring" %}</a></li>
                             {% endif %}
                             {% if vehicles_enabled %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">{% trans "Vehicles" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'vehicles:vehicle_list' %}"><i class="fas fa-truck"></i> {% trans "All Vehicles" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'vehicles:service_alert_list' %}"><i class="fas fa-bell"></i> {% trans "Service Alerts" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'ops_vehicles' %} active{% endif %}" href="{% url 'vehicles:vehicle_list' %}"{% if nav.section == 'ops_vehicles' %} aria-current="page"{% endif %}><i class="fas fa-truck"></i> {% trans "Vehicles" %}</a></li>
                             {% endif %}
                         </ul>
                     </li>
                     {% endif %}
                     {% comment %}
-                    v3.17.580 — Security, CRM and Reports were three more
-                    top-level menus than the bar could hold: ten of them plus
-                    the search box, org pill and user menu overflowed at any
-                    realistic width. They are sections of this one menu now,
-                    grouped with headers the way the Admin menu already is.
-                    Operations stays top-level — nineteen children is too many
-                    to nest behind another click. Nothing was removed; every
-                    destination below is the same URL it was.
-                    v3.17.619 — every section here (Security Alerts, CRM,
-                    Reports) is MSP staff only (SectionPermissionMiddleware),
-                    so customer users don't get the menu at all.
+                    Modules replaces the old "More" menu. Security Alerts, CRM
+                    and Reports are MSP staff only (SectionPermissionMiddleware,
+                    v3.17.619), so customer users don't get the menu at all.
+                    Security Dashboard and Vulnerability Scans (superuser) live
+                    under Admin → Security only.
                     {% endcomment %}
                     {% if is_staff_user or user.is_superuser or user.is_staff %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="moreNavDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-layer-group"></i> {% trans "More" %}
+                        <a class="nav-link dropdown-toggle{% if nav.menu == 'modules' %} active{% endif %}" href="#" id="modulesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-layer-group"></i> {% trans "Modules" %}
                         </a>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu" aria-labelledby="modulesDropdown">
                             {% if psa_enabled %}
-                            <li><h6 class="dropdown-header"><i class="fas fa-shield-halved fa-fw"></i> {% trans "Security" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'security_alerts:alert_list' %}"><i class="fas fa-triangle-exclamation fa-fw"></i> {% trans "Security Alerts" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'security_alerts:connection_list' %}"><i class="fas fa-plug fa-fw"></i> {% trans "Vendor Connections" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'security_alerts:rule_list' %}"><i class="fas fa-bolt fa-fw"></i> {% trans "Auto-Ticket Rules" %}</a></li>
-                            {% if user.is_superuser %}
-                            <li><a class="dropdown-item" href="{% url 'core:security_dashboard' %}"><i class="fas fa-shield-alt fa-fw"></i> {% trans "Security Dashboard" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'core:snyk_scans' %}"><i class="fas fa-bug fa-fw"></i> {% trans "Vulnerability Scans" %}</a></li>
-                            {% endif %}
-                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item{% if nav.section == 'mod_security' %} active{% endif %}" href="{% url 'security_alerts:alert_list' %}"{% if nav.section == 'mod_security' %} aria-current="page"{% endif %}><i class="fas fa-shield-halved fa-fw"></i> {% trans "Security" %}</a></li>
                             {% endif %}
                             {% if crm_enabled %}
-                            <li><h6 class="dropdown-header"><i class="fas fa-chart-pie fa-fw"></i> {% trans "CRM" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:home' %}"><i class="fas fa-home fa-fw"></i> {% trans "Overview" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:pipeline' %}"><i class="fas fa-columns fa-fw"></i> {% trans "Pipeline" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:lead_list' %}"><i class="fas fa-user-plus fa-fw"></i> {% trans "Leads" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:opportunity_list' %}"><i class="fas fa-handshake fa-fw"></i> {% trans "Opportunities" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:campaign_list' %}"><i class="fas fa-bullhorn fa-fw"></i> {% trans "Campaigns" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:commission_list' %}"><i class="fas fa-hand-holding-usd fa-fw"></i> {% trans "Commissions" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'crm:commission_rule_list' %}"><i class="fas fa-cogs fa-fw"></i> {% trans "Commission Rules" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item{% if nav.section == 'mod_crm' %} active{% endif %}" href="{% url 'crm:home' %}"{% if nav.section == 'mod_crm' %} aria-current="page"{% endif %}><i class="fas fa-chart-pie fa-fw"></i> {% trans "CRM" %}</a></li>
                             {% endif %}
-                            <li><h6 class="dropdown-header"><i class="fas fa-chart-bar fa-fw"></i> {% trans "Reports" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'reports:home' %}"><i class="fas fa-home fa-fw"></i> {% trans "Reports Home" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'reports:dashboard_list' %}"><i class="fas fa-th-large fa-fw"></i> {% trans "Dashboards" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'reports:wallboard_list' %}"><i class="fas fa-tv fa-fw"></i> {% trans "Wallboards" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'reports:template_list' %}"><i class="fas fa-file-pdf fa-fw"></i> {% trans "Generate Reports" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'reports:generated_list' %}"><i class="fas fa-history fa-fw"></i> {% trans "Report History" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'mod_reports' %} active{% endif %}" href="{% url 'reports:home' %}"{% if nav.section == 'mod_reports' %} aria-current="page"{% endif %}><i class="fas fa-chart-bar fa-fw"></i> {% trans "Reports" %}</a></li>
                         </ul>
                     </li>
                     {% endif %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle{% if nav.menu == 'assets' %} active{% endif %}" href="#" id="assetsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-box"></i> {% trans "Assets" %}
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="assetsDropdown">
+                            <li><a class="dropdown-item{% if nav.section == 'assets_all' %} active{% endif %}" href="{% url 'assets:asset_list' %}"{% if nav.section == 'assets_all' %} aria-current="page"{% endif %}><i class="fas fa-box"></i> {% trans "All Assets" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'assets_hardware' %} active{% endif %}" href="{% url 'hardware:device_list' %}"{% if nav.section == 'assets_hardware' %} aria-current="page"{% endif %}><i class="fas fa-network-wired"></i> {% trans "Hardware & Ports" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'assets_infra' %} active{% endif %}" href="{% url 'monitoring:rack_list' %}"{% if nav.section == 'assets_infra' %} aria-current="page"{% endif %}><i class="fas fa-server"></i> {% trans "Infrastructure" %}</a></li>
+                            {% if is_staff_user or user.is_superuser or user.is_staff %}
+                            <li><a class="dropdown-item{% if nav.section == 'assets_setup' %} active{% endif %}" href="{% url 'assets:vendor_list' %}"{% if nav.section == 'assets_setup' %} aria-current="page"{% endif %}><i class="fas fa-sliders-h"></i> {% trans "Asset Setup" %}</a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle{% if nav.menu == 'docs' %} active{% endif %}" href="#" id="docsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-file-alt"></i> {% trans "Docs" %}
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="docsDropdown">
+                            <li><a class="dropdown-item{% if nav.section == 'docs_documents' %} active{% endif %}" href="{% url 'docs:document_list' %}"{% if nav.section == 'docs_documents' %} aria-current="page"{% endif %}><i class="fas fa-file-alt"></i> {% trans "Documents" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'docs_diagrams' %} active{% endif %}" href="{% url 'docs:diagram_list' %}"{% if nav.section == 'docs_diagrams' %} aria-current="page"{% endif %}><i class="fas fa-project-diagram"></i> {% trans "Diagrams" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'docs_review' %} active{% endif %}" href="{% url 'docs:document_drafts_list' %}"{% if nav.section == 'docs_review' %} aria-current="page"{% endif %}><i class="fas fa-check-double"></i> {% trans "Review & Publishing" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'docs_readiness' %} active{% endif %}" href="{% url 'readiness:overview' %}"{% if nav.section == 'docs_readiness' %} aria-current="page"{% endif %}><i class="fas fa-clipboard-check"></i> {% trans "Documentation Readiness" %}</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle{% if nav.menu == 'vault' %} active{% endif %}" href="#" id="vaultDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-key"></i> {% trans "Vault" %}
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="vaultDropdown">
+                            <li><a class="dropdown-item{% if nav.section == 'vault_passwords' %} active{% endif %}" href="{% url 'vault:password_list' %}"{% if nav.section == 'vault_passwords' %} aria-current="page"{% endif %}><i class="fas fa-key"></i> {% trans "Passwords" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'vault_personal' %} active{% endif %}" href="{% url 'vault:personal_vault_list' %}"{% if nav.section == 'vault_personal' %} aria-current="page"{% endif %}><i class="fas fa-sticky-note"></i> {% trans "My Vault" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'vault_notes' %} active{% endif %}" href="{% url 'core:secure_note_inbox' %}"{% if nav.section == 'vault_notes' %} aria-current="page"{% endif %}><i class="fas fa-lock"></i> {% trans "Secure Notes" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'vault_rules' %} active{% endif %}" href="{% url 'vault:access_rule_list' %}"{% if nav.section == 'vault_rules' %} aria-current="page"{% endif %}><i class="fas fa-shield-halved"></i> {% trans "Access Rules" %}</a></li>
+                        </ul>
+                    </li>
                     {% if user.is_superuser %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle{% if nav.menu == 'admin' %} active{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-cog"></i> {% trans "Admin" %}
                         </a>
-                        <ul class="dropdown-menu">
-                            <li><h6 class="dropdown-header">{% trans "System" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'core:settings_general' %}" data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'System settings and configuration' %}"><i class="fas fa-sliders-h"></i> {% trans "Settings" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'core:system_status' %}" data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Health monitoring and scheduled tasks' %}"><i class="fas fa-heartbeat"></i> {% trans "System Status" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'core:system_updates' %}" data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Check for and apply system updates' %}"><i class="fas fa-sync-alt"></i> {% trans "System Updates" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header text-danger">{% trans "Security" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'core:security_dashboard' %}" data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Security overview and vulnerability status' %}"><i class="fas fa-shield-alt"></i> {% trans "Security Dashboard" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'core:snyk_scans' %}" data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'View Snyk vulnerability scan history' %}"><i class="fas fa-bug"></i> {% trans "Vulnerability Scans" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'core:settings_snyk' %}" data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Configure security scanning settings' %}"><i class="fas fa-cog"></i> {% trans "Scan Configuration" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">{% trans "Management" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'accounts:organization_list' %}" data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Manage organizations and tenants' %}"><i class="fas fa-building"></i> {% trans "Organizations" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'accounts:access_management' %}" data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'User management, roles, and permissions' %}"><i class="fas fa-users-cog"></i> {% trans "Access Management" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'core:webhook_list' %}" data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Configure webhooks for event notifications' %}"><i class="fas fa-bolt"></i> {% trans "Webhooks" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">{% trans "Mobile" %}</h6></li>
-                            <li><a class="dropdown-item" href="{% url 'core:mobile_apps_admin' %}" data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Download Android APK + iOS sideload instructions' %}"><i class="fas fa-mobile-alt"></i> {% trans "Mobile Apps" %}</a></li>
+                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                            <li><a class="dropdown-item{% if nav.section == 'admin_system' %} active{% endif %}" href="{% url 'core:settings_general' %}"{% if nav.section == 'admin_system' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Settings, system status and updates' %}"><i class="fas fa-sliders-h"></i> {% trans "System" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'admin_security' %} active{% endif %}" href="{% url 'core:security_dashboard' %}"{% if nav.section == 'admin_security' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Security overview, vulnerability scans and scan configuration' %}"><i class="fas fa-shield-alt"></i> {% trans "Security" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'admin_access' %} active{% endif %}" href="{% url 'accounts:organization_list' %}"{% if nav.section == 'admin_access' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Organizations, users, roles and permissions' %}"><i class="fas fa-users-cog"></i> {% trans "Organizations & Access" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'admin_integrations' %} active{% endif %}" href="{% url 'integrations:integration_list' %}"{% if nav.section == 'admin_integrations' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Integrations and webhooks' %}"><i class="fas fa-plug"></i> {% trans "Integrations" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'admin_mobile' %} active{% endif %}" href="{% url 'core:mobile_apps_admin' %}"{% if nav.section == 'admin_mobile' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="right" title="{% trans 'Mobile app builds and beta tester requests' %}"><i class="fas fa-mobile-alt"></i> {% trans "Mobile" %}</a></li>
                         </ul>
                     </li>
                     {% endif %}
@@ -301,7 +203,8 @@
                     icons and behaviour — Support still opens the same modal —
                     and wrap onto a second row rather than collapsing back into
                     an overflow menu. Do not confuse this cluster with the main
-                    navigation's More menu, which is a different thing.
+                    navigation's Modules menu (formerly More), which is a
+                    different thing.
                     {% endcomment %}
                     <li class="nav-item">
                         <a class="nav-link nav-util" href="{% url 'core:favorite_list' %}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Favorites' %}" aria-label="{% trans 'Favorites' %}">
@@ -322,7 +225,7 @@
                         </a>
                     </li>
                     {% include "core/_help_us_grow_button.html" %}
-                    <!-- Global KB lives under PSA → KB when PSA is enabled; otherwise stays in the primary navbar -->
+                    <!-- Global KB lives under PSA → Service Management → Knowledge Base when PSA is enabled; otherwise stays in the primary navbar -->
                     {% if global_kb_enabled and not psa_enabled %}
                         {% if is_staff_user or user.is_superuser %}
                         <li class="nav-item"><a class="nav-link" href="{% url 'docs:global_kb_list' %}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans 'Staff-only knowledge base shared across all organizations' %}"><i class="fas fa-book"></i> {% trans "Global KB" %}</a></li>
@@ -348,88 +251,19 @@
                     <li class="nav-item d-none d-md-flex align-items-center px-2">
                         <span id="nav-clock" class="text-white-50" style="font-size: 0.8rem; font-variant-numeric: tabular-nums; letter-spacing: 0.05em; cursor: default;" data-bs-toggle="tooltip" data-bs-placement="bottom" title=""></span>
                     </li>
-                    {% if current_organization or user.is_superuser or is_staff_user %}
+                    {% include "core/_client_switcher.html" %}
                     <li class="nav-item dropdown">
-                        {% if current_organization %}
-                        <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-active" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown" title="{{ current_organization.name }}">
-                            <span class="org-pulse-dot flex-shrink-0"></span>
-                            <span class="org-pill-name">{{ current_organization.name }}</span>
-                            <i class="fas fa-chevron-down org-pill-caret flex-shrink-0 ms-1"></i>
-                        </a>
-                        {% else %}
-                        <a class="nav-link dropdown-toggle d-flex align-items-center gap-1 org-pill org-pill-global" href="#" id="orgDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-globe flex-shrink-0" style="font-size:.75rem;"></i>
-                            <span class="org-pill-name">{% trans "Global View" %}</span>
-                            <i class="fas fa-chevron-down org-pill-caret flex-shrink-0 ms-1"></i>
-                        </a>
-                        {% endif %}
-                        <ul class="dropdown-menu dropdown-menu-end shadow" style="min-width: 260px;">
-                            <li class="px-3 py-2">
-                                <div class="small fw-semibold text-muted text-uppercase" style="letter-spacing:.05em; font-size:.7rem;">
-                                    <i class="fas fa-exchange-alt me-1"></i>{% trans "Switch Client" %}
-                                </div>
-                            </li>
-                            <li><hr class="dropdown-divider my-1"></li>
-                            {% if user.is_superuser or is_staff_user %}
-                            <li>
-                                <a class="dropdown-item d-flex align-items-center gap-2 {% if not current_organization %}fw-semibold{% endif %}" href="{% url 'accounts:switch_to_global_view' %}">
-                                    {% if not current_organization %}
-                                    <i class="fas fa-check-circle text-success flex-shrink-0"></i>
-                                    {% else %}
-                                    <i class="fas fa-globe text-muted flex-shrink-0"></i>
-                                    {% endif %}
-                                    <span>{% trans "Global View" %}</span>
-                                    {% if not current_organization %}<span class="badge bg-success ms-auto">Active</span>{% endif %}
-                                </a>
-                            </li>
-                            <li><hr class="dropdown-divider my-1"></li>
-                            <li class="px-3 pb-1"><span class="small text-muted text-uppercase fw-semibold" style="letter-spacing:.05em; font-size:.7rem;">{% trans "Clients" %}</span></li>
-                            {% endif %}
-                            {% for org in user_organizations %}
-                            <li>
-                                <a class="dropdown-item d-flex align-items-center gap-2 {% if current_organization and org.id == current_organization.id %}fw-semibold{% endif %}" href="{% url 'accounts:switch_organization' org.id %}">
-                                    {% if current_organization and org.id == current_organization.id %}
-                                    <i class="fas fa-check-circle text-success flex-shrink-0"></i>
-                                    {% else %}
-                                    <i class="fas fa-building text-muted flex-shrink-0"></i>
-                                    {% endif %}
-                                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ org.name }}</span>
-                                    {% if current_organization and org.id == current_organization.id %}<span class="badge bg-warning text-dark ms-auto">Active</span>{% endif %}
-                                </a>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </li>
-                    {% endif %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle{% if nav.menu == 'account' %} active{% endif %}" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             {{ user.username }}
                             {% if is_staff_user %}
                             <span class="badge bg-primary ms-1">Staff</span>
                             {% endif %}
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{% url 'accounts:profile' %}" data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'View and edit your user profile' %}"><i class="fas fa-user"></i> {% trans "My Profile" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'resourcing:my_resourcing' %}" data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Manage your skills, certifications, and working hours' %}"><i class="fas fa-user-graduate"></i> {% trans "My Resources" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'resourcing:my_leave' %}" data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Submit and track time-off requests' %}"><i class="fas fa-umbrella-beach"></i> {% trans "My Leave" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'resourcing:my_billable_target' %}" data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Weekly billable hours target' %}"><i class="fas fa-bullseye"></i> {% trans "My Billable Target" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'core:help_index' %}" data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Integrated help and documentation' %}"><i class="fas fa-book"></i> {% trans "Documentation & Help" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'core:about' %}" data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'System information and version details' %}"><i class="fas fa-info-circle"></i> {% trans "About" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'core:roadmap' %}" data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Public roadmap of planned features' %}"><i class="fas fa-map"></i> {% trans "Roadmap" %}</a></li>
-                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#reportBugModal" title="{% trans 'Report an issue to GitHub' %}"><i class="fas fa-bug"></i> {% trans "Report Bug" %}</a></li>
-                            <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#supportProjectModal" title="{% trans 'Help us grow — share the project, star it, or sponsor development' %}"><i class="fas fa-heart"></i> {% trans "Help Us Grow" %}</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li class="dropdown-header"><i class="fas fa-mobile-alt me-2"></i>{% trans "Mobile &amp; Browser Access" %}</li>
-                            <li><a class="dropdown-item" href="{% url 'core:install_app' %}" id="menu-install-pwa" title="{% trans 'Add Client St0r to your phone or desktop home screen' %}"><i class="fas fa-download"></i> {% trans "Install App / Add to Home Screen" %}</a></li>
-                            <li><small class="dropdown-item-text text-muted" style="font-size: 0.75em; padding: 0 1rem;">{% trans "Android, iPhone, iPad, desktop" %}</small></li>
-                            <li><a class="dropdown-item" href="{% url 'core:download_mobile_app' 'android' %}" title="{% trans 'Download the native Android APK' %}"><i class="fab fa-android"></i> {% trans "Android App (APK)" %}</a></li>
-                            {# v3.17.473 — beta tester invite, available to all auth'd users so they can refer colleagues #}
-                            <li><a class="dropdown-item" href="{% url 'core:beta_test_signup' %}" title="{% trans 'Invite someone to beta-test the Android app' %}"><i class="fas fa-flask"></i> {% trans "Beta test the Android app" %}</a></li>
-                            {% if user.is_superuser %}
-                            <li><a class="dropdown-item" href="{% url 'core:beta_test_admin' %}" title="{% trans 'Review and approve beta tester requests' %}"><i class="fas fa-user-check"></i> {% trans "Beta tester requests" %}</a></li>
-                            {% endif %}
-                            <li><a class="dropdown-item" href="{% url 'core:download_browser_extension' %}" title="{% trans 'Download the browser extension for Chrome, Edge, and Firefox' %}"><i class="fas fa-puzzle-piece"></i> {% trans "Browser Extension" %}</a></li>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item{% if nav.section == 'account_profile' %} active{% endif %}" href="{% url 'accounts:profile' %}"{% if nav.section == 'account_profile' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'View and edit your user profile' %}"><i class="fas fa-user"></i> {% trans "My Profile" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'account_work' %} active{% endif %}" href="{% url 'resourcing:my_resourcing' %}"{% if nav.section == 'account_work' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Skills, certifications, working hours, leave and billable target' %}"><i class="fas fa-user-graduate"></i> {% trans "My Work Details" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'account_help' %} active{% endif %}" href="{% url 'core:help_index' %}"{% if nav.section == 'account_help' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Documentation, about, roadmap and bug reports' %}"><i class="fas fa-book"></i> {% trans "Help" %}</a></li>
+                            <li><a class="dropdown-item{% if nav.section == 'account_apps' %} active{% endif %}" href="{% url 'core:install_app' %}"{% if nav.section == 'account_apps' %} aria-current="page"{% endif %} data-bs-toggle="tooltip" data-bs-placement="left" title="{% trans 'Install the app, Android APK, beta testing and browser extension' %}"><i class="fas fa-download"></i> {% trans "Apps & Downloads" %}</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form method="post" action="{% url 'logout' %}" style="margin: 0;">
@@ -457,6 +291,7 @@
             </div>
         </div>
     </nav>
+    {% if user.is_authenticated %}{% include "core/_shortcut_strip.html" %}{% endif %}
 
     <main id="main-content" class="container mt-4">
         {% csrf_token %}
@@ -469,6 +304,7 @@
             {% endfor %}
         {% endif %}
 
+        {% include "core/_section_tabs.html" with tabs=nav.tabs label=nav.section_label %}
         {% block content %}{% endblock %}
     </main>
 
