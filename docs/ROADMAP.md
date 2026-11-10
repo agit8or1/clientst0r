@@ -1679,7 +1679,7 @@ are built on top of them.
   authenticator code. Audit clean-up keeps at least 30 days, and new installs
   no longer write `REQUIRE_2FA=False`.
 - **Scheduled UniFi asset sync places and types devices correctly**
-  *(in progress)* — the scheduled `sync_network_assets` run and the manual
+  *(in progress — on the development branch, not yet released)* — the scheduled `sync_network_assets` run and the manual
   Import to Assets page share one implementation
   (`integrations/network_assets.py`): device type from the controller's
   product type, features or model (gateway, switch, AP, UPS ...); each
@@ -1693,7 +1693,7 @@ are built on top of them.
   them is a separate, confirmed action that records each asset's previous
   values in the audit log. Existing assets are left as they are until an
   admin applies a correction.
-- **Standard integration sync health** *(in progress)* — PSA, RMM, Microsoft
+- **Standard integration sync health** *(in progress — on the development branch, not yet released)* — PSA, RMM, Microsoft
   365, UniFi, Omada and Grandstream connections record last attempt, last
   successful sync, created / updated / skipped / failed counts, affected
   customers and sites, and a specific next step (re-enter credentials, check
@@ -1703,8 +1703,7 @@ are built on top of them.
   errors saved before this change. Shown on Integrations and on each
   connection's page. Distributor and accounting connections show their
   existing status fields (redacted) until they adopt the same recorder.
-- **Edit forms keep what they don't submit** *(in progress — not yet
-  released)* — extends the bundled-services fix (shipped v3.17.584, #147).
+- **Edit forms keep what they don't submit** *(in progress — on the development branch, not yet released)* — extends the bundled-services fix (shipped v3.17.584, #147).
   Contract, invoice and quote edits keep a field the submission does not carry
   or carries malformed (reported, never a 500); a blank value, an unticked
   checkbox or a removed row still clears. A contract saved before its bundle
@@ -1797,7 +1796,7 @@ Know what's missing, why it matters and who owns the fix.
   they apply to, with the empty ones listed and fixed from the asset's Custom
   Fields section.
 - **Version-specific agreements: MSAs, SOWs and policy acknowledgments**
-  *(shipped vX.Y.Z — version set at release)* — extends the document approval
+  *(in progress — on the development branch, not yet released)* — extends the document approval
   workflow (shipped v3.17.605) and the customer signing pattern of quote
   e-signature: a signature or acknowledgment binds to one issued revision
   (content hash, version number, HTML snapshot and PDF), signer identity,
@@ -1952,14 +1951,13 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
   the contract pinned to a Rem0te revision with incompatible peers refused,
   specific secret-free Check pairing reasons, and a reversible migration that
   marks HMAC Rem0te pairings for re-pairing. HMAC pairing stays for every
-  other provider. *(in progress — built on a development branch, not released)*
+  other provider. *(in progress — on the development branch, not yet released)*
 - **56.8 Rem0te alerts, jobs and action proposals** — Rem0te monitoring alerts
   open exactly one staff-only ticket and the ticket is linked back in Rem0te;
   analysis jobs run through Rem0te with signed results; L2+ technicians
   propose Rem0te catalog actions that Rem0te approves and runs. A cross-peer
   end-to-end run against a real Rem0te (`scripts/e2e/cross_peer/`, CI
-  workflow `cross-peer-e2e`). *(in progress — built on a development branch,
-  not released)*
+  workflow `cross-peer-e2e`). *(in progress — on the development branch, not yet released)*
 - **56.6 Fix review** — only when the RMM advertises signed actions; ClientSt0r
   refers, the RMM approves and runs. *(partial — ClientSt0r referral and signed
   status shipped v3.17.658; rem0te approval and execution not built yet)*
@@ -2011,7 +2009,7 @@ v3.17.658; the RMM side waits on rem0te.
   each and when, expiry, links to the assignment record and the approving
   protected change, and audit history with before/after. Assignments record
   their approving change and revoker; role changes are audited.
-  *(shipped vX.Y.Z — version set at release)*
+  *(in progress — on the development branch, not yet released)*
 
 **Sizing:** **L** — 57.1–57.5 and 57.7 shipped; 57.6 partial with Phase 56.5.
 
@@ -2045,35 +2043,35 @@ doesn't migrate without a backup that has been proven to restore, and an
 upgrade that stops partway can be recognised and recovered.
 Guide: `docs/UPGRADE_AND_RECOVERY.md`.
 
-- **59.1 Release channels** *(implemented, unreleased)*: **Stable** (the
+- **59.1 Release channels** *(in progress — on the development branch, not yet released)*: **Stable** (the
   latest signed published release, the default) and opt-in **Preview** (newer
   commits on main, labelled unreleased). Settings → Updates and the update
   badge show the installed build, the recommended release, and main's
   unreleased commits (count and list). They show which channel the instance
   follows and exactly what Apply would install. If GitHub is unreachable or
   rate-limited, the page shows the last good answer, marked stale.
-- **59.2 Pinned, verified Apply** *(implemented, unreleased)*: Apply carries
+- **59.2 Pinned, verified Apply** *(in progress — on the development branch, not yet released)*: Apply carries
   the reviewed commit sha. It refuses if origin moved, fetches that commit,
   and verifies the release tag signature against the trusted release key. It
   then runs the update script from that revision. The same pipeline backs
   `manage.py upgrade_apply`, `update.sh`, `install.sh` option 1 and the
   nightly timer.
-- **59.3 Preflight checks** *(implemented, unreleased)*: disk space, database
+- **59.3 Preflight checks** *(in progress — on the development branch, not yet released)*: disk space, database
   reachable, pending migrations, media writable, required keys, backup
   destination, dependency resolution. Results are shown in the UI before
   Apply and logged.
-- **59.4 Verified pre-upgrade backups** *(implemented, unreleased)*: the
+- **59.4 Verified pre-upgrade backups** *(in progress — on the development branch, not yet released)*: the
   database, uploaded files and keys, kept in an owner-only directory. Each
   backup is restore-tested into a scratch database, including a vault decrypt
   with the stored key, before any migration. There is restore, plus
   passphrase-encrypted export and import. The Docker entrypoint takes one
   before migrating an existing database.
-- **59.5 Interrupted-upgrade recovery** *(implemented, unreleased)*: an
+- **59.5 Interrupted-upgrade recovery** *(in progress — on the development branch, not yet released)*: an
   upgrade journal, `upgrade_status`, `upgrade_apply --resume`,
   `upgrade_restore`, and `migration_doctor`. The doctor tells a half-applied
   MySQL/MariaDB migration apart from one that ran but wasn't recorded (#128,
   #129). The recovery panel replaces Apply while recovery is needed.
-- **59.6 Install and upgrade rehearsals in CI** *(implemented, unreleased)*:
+- **59.6 Install and upgrade rehearsals in CI** *(in progress — on the development branch, not yet released)*:
   fresh native and Docker installs; a multi-release upgrade with
   representative data; a killed upgrade recovered by restore and by resume;
   a half-applied migration on MariaDB. Checks after each step cover login
@@ -2084,6 +2082,70 @@ Guide: `docs/UPGRADE_AND_RECOVERY.md`.
 - **59.7 LTS channel** *(planned)*: only once there is a published support
   window and a backport policy for security fixes. Until then there is no
   LTS.
+
+## Phase 60 — Optional ticket routing **(M · PSA)** [in progress]
+
+Routing that assigns new and changed tickets by rule, off unless an
+administrator turns it on. Extends the workflow engine's round-robin,
+skill-match and load-balanced actions (shipped v3.17.287), email routing
+rules and service-catalog defaults. Works with AI disabled, never starts a
+remote session or authorizes an endpoint action, and never changes a
+ticket's customer, access or SLA clock.
+
+- **60.1 Modes and inheritance** *(in progress — on the development branch, not yet released)*: Off / Suggest only / Automatic in
+  Settings → PSA, an MSP-wide default and per-customer inherit or override.
+  Off on fresh installs and upgrades; email intake, catalog defaults, manual
+  assignment and existing workflow rules behave as before while it is off.
+- **60.2 Visual rules** *(in progress — on the development branch, not yet released)*: conditions on customer, intake source, ticket
+  type, priority, tags, service or contract, business hours and on-call,
+  and SLA risk; destinations queue, named technician, team, round-robin,
+  skill match, least-loaded or on-call; a fallback queue or visible triage.
+  A plain-language review before saving, versioned rules, conflict and
+  shadowing warnings before activation, and how each rule interacts with
+  email rules, catalog defaults and workflow rules.
+- **60.3 Safe routing** *(in progress — on the development branch, not yet released)*: the customer is verified at intake; only
+  active MSP technicians authorized for that customer qualify, with skills,
+  on-call and availability honoured and every skipped candidate recorded;
+  one decision per ticket and trigger (duplicate email, simultaneous
+  arrivals); a dispatcher's manual assignment is kept by default;
+  rerouting on customer reply, reopen or SLA threshold is configured
+  individually; publishing a rule never reassigns existing tickets.
+- **60.4 Test routing, suggestions and history** *(in progress — on the development branch, not yet released)*: Test routing on a
+  sample or historical ticket changes nothing and sends nothing; Suggest
+  only waits for a dispatcher to accept; Automatic records rule version,
+  trigger, previous and new assignment and reason in staff-only ticket
+  history. Separate role permissions to manage rules, test, and override.
+- **60.5 Visual builder actions** *(in progress — on the development branch, not yet released)*: the workflow rule builder offers
+  round-robin, skill-group and least-loaded assignment; raw JSON rules keep
+  working.
+- **60.6 Site conditions** *(planned)*: tickets carry no site yet.
+
+## Phase 61 — One-customer migration rehearsals (IT Glue, Hudu) **(M · imports)** [in progress]
+
+Extends the IT Glue and Hudu importers with a rehearsal for one customer at
+a time.
+
+- **61.1 More of the source** *(in progress — on the development branch, not yet released)*: contacts, locations, networks (IT Glue
+  network flexible assets; Hudu networks and IP addresses), attachments, and
+  relationships between them where the source provides them.
+- **61.2 Plan before writing** *(in progress — on the development branch, not yet released)*: per type, what will be created,
+  updated, left unchanged, skipped as a duplicate or conflict, or can't be
+  read, broken links, and why anything is skipped; representative records
+  shown source vs proposed vs current, with corrections stored on the plan.
+- **61.3 Apply exactly what was reviewed** *(in progress — on the development branch, not yet released)*: the plan and staged data are
+  frozen and hashed; apply refuses if either changed and never re-reads the
+  source; reruns are idempotent and an interrupted apply resumes; every
+  lookup is scoped by customer, source account and source ID. Runs in the
+  background on the scheduler.
+- **61.4 Rollback that keeps later edits** *(in progress — on the development branch, not yet released)*: only records still exactly
+  as imported are removed or restored; everything kept is reported with the
+  reason.
+- **61.5 Reconciliation and inventory export** *(in progress — on the development branch, not yet released)*: a redacted
+  reconciliation report (JSON/CSV) with source vs destination counts per
+  customer, and a permission-checked per-customer inventory export
+  (metadata only, audit-logged).
+- **61.6 Remaining source types** *(planned)*: Hudu procedures, IT Glue
+  domains and non-network flexible assets.
 
 ## Sizing
 
@@ -2138,13 +2200,15 @@ Guide: `docs/UPGRADE_AND_RECOVERY.md`.
 | 50 — "Help Us Grow" call to action | S | shipped v3.17.586 | none — `config/support_links.py` + `templates/core/_help_us_grow_*.html`; reuses the existing GitHub Sponsors link |
 | 51 — Reliability and customer-boundary hardening | M | in progress — PSA customer boundaries, token revocation and scheduler coverage v3.17.599; role view permissions, protected downloads and customer ticket visibility v3.17.600; billing correctness v3.17.601; staff technicians v3.17.602; imports v3.17.603; encrypted secrets v3.17.607; LDAP sign-in v3.17.608; alerts and webhooks v3.17.609; security settings and CSP v3.17.610; documentation v3.17.611; tokens, share links and 2FA keys v3.17.612; dispatch technicians only v3.17.613; no inline event handlers v3.17.614; monitoring docs v3.17.616; scheduled WAN checks v3.17.617; API key levels and staff-only reports v3.17.618; staff-only CRM and Security Alerts v3.17.619; drafts for editors only v3.17.620; global KB staff only v3.17.625 | none — touches PSA, docs, accounts, API, vault and the scheduler |
 | 52 — Technician workspace | L | in progress — My Work, drafts, collisions, closeout, KB drafts v3.17.604 | Phase 51 (customer ticket visibility, staff techs) |
-| 53 — Documentation readiness and lifecycle | L | shipped — standards, scoring, lifecycle, analytics v3.17.605; custom asset fields and types v3.17.621; prefilled fix links, custom-field requirements v3.17.656; version-specific agreements vX.Y.Z | docs publish rules |
+| 53 — Documentation readiness and lifecycle | L | shipped — standards, scoring, lifecycle, analytics v3.17.605; custom asset fields and types v3.17.621; prefilled fix links, custom-field requirements v3.17.656; version-specific agreements in progress (unreleased) | docs publish rules |
 | 54 — Guided customer service requests | L | shipped — guided requests, approvals, progress v3.17.606; named approvers v3.17.656 | Phase 53 publish rules (KB suggestions) |
 | 55 — Hardware catalog and visual inventory | L | shipped v3.17.630 | extends `assets.Asset`, `monitoring.Rack`/`RackDevice`/`VLAN`, Phase 34 network devices |
 | 56 — Ticket AI Assist and RMM handoff (OPTIONAL AI) | L | in progress — analysis, drafts, compare, gateway and signed channel v3.17.646; handoffs, diagnostics, remote launch and fix review wait on rem0te | Phase 57; rem0te ticket-rmm-v1 |
-| 57 — Technician security levels and abuse prevention | L | in progress — presets, resolver, protected changes, theft detection, gateway isolation v3.17.646; why-a-technician-can view vX.Y.Z; remote grants with Phase 56.5 | none |
+| 57 — Technician security levels and abuse prevention | L | in progress — presets, resolver, protected changes, theft detection, gateway isolation v3.17.646; why-a-technician-can view in progress (unreleased); remote grants with Phase 56.5 | none |
 | 58 — Condensed navigation | M | shipped v3.17.647 | none |
 | 59 — Verified installs and upgrades | M | in progress — channels, pinned Apply, preflight, verified backups, recovery, CI rehearsals implemented (unreleased); LTS planned | updater, root helper (release signing key), Docker entrypoint |
+| 60 — Optional ticket routing | M | in progress (unreleased) | extends the workflow engine (Phase 14), email routing rules, service catalog, dispatch |
+| 61 — One-customer migration rehearsals | M | in progress (unreleased) | extends the IT Glue / Hudu importers and import rollback; scheduler |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 
