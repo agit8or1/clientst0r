@@ -254,6 +254,10 @@ class ImportJob(BaseModel):
         """
         if self.rolled_back_at or self.dry_run:
             return False
+        plan = self.rehearsal_plan if self.pk else None
+        if plan is not None:
+            from imports.migration.undo import ROLLBACK_STATUSES
+            return plan.status in ROLLBACK_STATUSES
         if self.status in self.ROLLBACK_STATUSES:
             return True
         if self.status == 'failed' and self.pk:
@@ -272,8 +276,23 @@ class ImportJob(BaseModel):
         """
         if not self.can_rollback():
             raise ValueError(f"Cannot rollback import {self.id}: status={self.status}, rolled_back={bool(self.rolled_back_at)}, dry_run={self.dry_run}")
+        plan = self.rehearsal_plan
+        if plan is not None:
+            # Rehearsal jobs track every change with before-values; their
+            # rollback restores fields instead of only deleting records.
+            from imports.migration.undo import legacy_report, rollback_plan
+            return legacy_report(rollback_plan(plan, user))
         from imports.rollback import rollback_import
         return rollback_import(self, user)
+
+    @property
+    def rehearsal_plan(self):
+        """The MigrationPlan of a one-customer rehearsal job, else None."""
+        from django.core.exceptions import ObjectDoesNotExist
+        try:
+            return self.migration_plan
+        except ObjectDoesNotExist:
+            return None
 
 
 # Every model an importer can create, keyed by the ``target_model`` string stored
