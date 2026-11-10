@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}On call — Ticket Routing{% endblock %}
+{% block content %}
+{% include "ticket_routing/_nav.html" with tab="oncall" crumb="On call" %}
+<h4 class="mb-3">On-call shifts</h4>
+<p class="small text-muted">Rules with "Only technicians on call now" pick from technicians with a shift covering the moment the ticket is routed. A shift for a team counts only for rules that name that team (a shift with no team counts for every team). On call overrides working hours; approved leave still excludes someone.</p>
+<form method="post" class="card mb-3">{% csrf_token %}
+    <div class="card-body d-flex flex-wrap gap-2 align-items-end small">
+        <div><label class="form-label">Technician</label><select name="user" class="form-select form-select-sm">{% for u in technicians %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+        <div><label class="form-label">Team</label><select name="team" class="form-select form-select-sm"><option value="">Every team</option>{% for g in teams %}<option value="{{ g.pk }}">{{ g.name }}</option>{% endfor %}</select></div>
+        <div><label class="form-label">Starts</label><input type="datetime-local" name="starts_at" class="form-control form-control-sm" required></div>
+        <div><label class="form-label">Ends</label><input type="datetime-local" name="ends_at" class="form-control form-control-sm" required></div>
+        <div><label class="form-label">Note</label><input type="text" name="note" class="form-control form-control-sm"></div>
+        <button class="btn btn-sm btn-primary">Add shift</button>
+    </div>
+</form>
+<table class="table table-sm small">
+    <thead><tr><th>Technician</th><th>Team</th><th>From</th><th>Until</th><th>Note</th><th></th></tr></thead>
+    <tbody>
+    {% for s in shifts %}
+    <tr {% if s.starts_at <= now %}class="table-success"{% endif %}>
+        <td>{{ s.user.get_full_name|default:s.user.username }}</td><td>{{ s.team.name|default:"Every team" }}</td>
+        <td>{{ s.starts_at|date:"Y-m-d H:i" }}</td><td>{{ s.ends_at|date:"Y-m-d H:i" }}</td><td>{{ s.note }}</td>
+        <td><form method="post">{% csrf_token %}<input type="hidden" name="delete" value="{{ s.pk }}"><button class="btn btn-sm btn-link text-danger p-0">Remove</button></form></td>
+    </tr>
+    {% empty %}<tr><td colspan="6" class="text-muted">No current or upcoming shifts.</td></tr>{% endfor %}
+    </tbody>
+</table>
+{% endblock %}

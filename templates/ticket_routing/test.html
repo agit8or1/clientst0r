@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Test routing — PSA{% endblock %}
+{% block content %}
+{% include "ticket_routing/_nav.html" with tab="test" crumb="Test routing" %}
+<h4 class="mb-1">Test routing</h4>
+<p class="small text-muted">A dry run: nothing is saved, no ticket changes, no one is notified, and round-robin turns are not used up.</p>
+
+<div class="row g-3">
+<div class="col-lg-5">
+<form method="get" class="card mb-3"><div class="card-body small">
+    <h6>An existing ticket</h6>
+    <div class="d-flex gap-2"><input type="text" name="ticket_number" class="form-control form-control-sm" placeholder="PSA-2026-000123" value="{{ params.ticket_number|default:'' }}">
+    <button class="btn btn-sm btn-primary">Test</button></div>
+    <div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="ignore_mode" value="1" id="im1" {% if params.ignore_mode == '1' %}checked{% endif %}><label class="form-check-label" for="im1">Evaluate even if routing is Off for the customer</label></div>
+</div></form>
+
+<form method="get" class="card"><div class="card-body small">
+    <h6>A sample ticket</h6>
+    <div class="row g-2">
+        <div class="col-12"><label class="form-label">Customer</label><select name="organization" class="form-select form-select-sm">{% for o in organizations %}<option value="{{ o.pk }}" {% if params.organization == o.pk|stringformat:'s' %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label">Intake source</label><select name="source" class="form-select form-select-sm">{% for code, label in sources %}<option value="{{ code }}" {% if params.source == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label">Priority</label><select name="priority" class="form-select form-select-sm">{% for p in priorities %}<option value="{{ p.code }}" {% if params.priority == p.code %}selected{% endif %}>{{ p.code }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label">Type</label><select name="ticket_type" class="form-select form-select-sm">{% for t in ticket_types %}<option value="{{ t.slug }}" {% if params.ticket_type == t.slug %}selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label">Queue</label><select name="queue" class="form-select form-select-sm">{% for q in queues %}<option value="{{ q.pk }}" {% if params.queue == q.pk|stringformat:'s' %}selected{% endif %}>{{ q.name }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label">Service</label><select name="service" class="form-select form-select-sm"><option value="">—</option>{% for s in services %}<option value="{{ s.slug }}" {% if params.service == s.slug %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select></div>
+        <div class="col-6"><label class="form-label">Tags</label><input type="text" name="tags" class="form-control form-control-sm" value="{{ params.tags|default:'' }}"></div>
+        <div class="col-12"><label class="form-label">Subject</label><input type="text" name="subject" class="form-control form-control-sm" value="{{ params.subject|default:'' }}"></div>
+        <div class="col-12"><label class="form-label">As if it arrived at <span class="text-muted">(blank = now)</span></label><input type="datetime-local" name="at" class="form-control form-control-sm" value="{{ params.at|default:'' }}"></div>
+    </div>
+    <div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="ignore_mode" value="1" id="im2" {% if params.ignore_mode == '1' %}checked{% endif %}><label class="form-check-label" for="im2">Evaluate even if routing is Off for the customer</label></div>
+    <button class="btn btn-sm btn-primary mt-2">Test</button>
+</div></form>
+</div>
+
+<div class="col-lg-7">
+{% if error %}<div class="alert alert-warning">{{ error }}</div>{% endif %}
+{% if result %}
+<div class="card" id="routing-result"><div class="card-body">
+    <h6>{% if is_sample %}Sample ticket for {{ ticket.organization.name }}{% else %}{{ ticket.ticket_number }} — {{ ticket.subject }}{% endif %}</h6>
+    <dl class="row small mb-0">
+        <dt class="col-4">Mode</dt><dd class="col-8">{{ result.mode }} ({% if result.mode_source == 'customer' %}customer override{% else %}MSP default{% endif %})</dd>
+        <dt class="col-4">Customer check</dt><dd class="col-8">{{ result.verification|default:"—" }}</dd>
+        <dt class="col-4">Winning rule</dt><dd class="col-8">{% if result.rule %}{{ result.version.name }} v{{ result.version.number }}{% else %}None{% endif %}</dd>
+        <dt class="col-4">Destination</dt><dd class="col-8">
+            {% if result.assignee %}<strong>{{ result.assignee.get_full_name|default:result.assignee.username }}</strong>{% elif result.leave_in_triage %}Unassigned, in triage{% elif result.team %}Team {{ result.team }}{% else %}No technician{% endif %}
+            {% if result.queue %} · queue {{ result.queue.name }}{% endif %}{% if result.used_fallback %} <span class="badge text-bg-warning">fallback</span>{% endif %}</dd>
+        <dt class="col-4">Reason</dt><dd class="col-8">{{ result.reason }}</dd>
+    </dl>
+    {% if result.considered %}
+    <h6 class="mt-3 small text-muted">Rules evaluated (in order)</h6>
+    <ul class="small mb-0">{% for rule, version, failures in result.considered %}
+        <li>{{ version.name }} v{{ version.number }}{% if rule.organization_id %} (customer rule){% endif %}: {% if failures %}skipped — {{ failures|join:'; ' }}{% else %}<strong>matched</strong>{% endif %}</li>
+    {% endfor %}</ul>
+    {% endif %}
+    {% if result.eligible %}
+    <h6 class="mt-3 small text-muted">Eligible technicians</h6>
+    <p class="small mb-0">{% for u in result.eligible %}{{ u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
+    {% if result.skipped %}
+    <h6 class="mt-3 small text-muted">Skipped candidates</h6>
+    <ul class="small mb-0">{% for s in result.skipped %}<li>{{ s.username }} — {{ s.reason }}</li>{% endfor %}</ul>
+    {% endif %}
+    <p class="small text-muted mt-3 mb-0"><i class="fas fa-shield-alt"></i> No data changed. No notifications sent.</p>
+</div></div>
+{% endif %}
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Review routing rule — PSA{% endblock %}
+{% block content %}
+{% include "ticket_routing/_nav.html" with tab="overview" crumb="Review" %}
+<h4 class="mb-3">Review "{{ payload.name|default:'(unnamed rule)' }}"</h4>
+
+<div class="card mb-3"><div class="card-body">
+    <h6 class="text-muted">In plain words</h6>
+    <p class="mb-1">{{ summary }}</p>
+    <p class="small text-muted mb-0">Applies to {% if org %}{{ org.name }} (customer rule — evaluated before rules for every customer){% else %}every customer{% endif %} · priority {{ payload.priority }} ·
+        {% if payload.activate %}will be <strong>active</strong>{% else %}will be saved <strong>inactive</strong>{% endif %}.
+        Saving creates a new version; tickets that already exist are not reassigned.</p>
+</div></div>
+
+{% if errors %}
+<div class="alert alert-danger"><strong>Must be fixed before this rule can be active:</strong>
+    <ul class="mb-0">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+{% endif %}
+{% if warnings %}
+<div class="alert alert-warning"><strong>Conflicts and things to check:</strong>
+    <ul class="mb-0">{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>
+{% endif %}
+{% if interactions %}
+<div class="alert alert-info"><strong>How this interacts with other automation</strong> (these run first):
+    <ul class="mb-0">{% for i in interactions %}<li>{{ i }}</li>{% endfor %}</ul></div>
+{% endif %}
+
+<form method="post" class="d-flex gap-2">
+    {% csrf_token %}
+    <input type="hidden" name="step" value="confirm">
+    <input type="hidden" name="payload" value="{{ payload_json }}">
+    <button type="submit" class="btn btn-primary" {% if not payload.name %}disabled{% endif %}>
+        {% if errors and payload.activate %}Save inactive{% else %}Confirm and save{% endif %}</button>
+    <button type="button" class="btn btn-outline-secondary" id="back-btn">Back to the form</button>
+</form>
+<script nonce="{{ csp_nonce }}">document.getElementById('back-btn').addEventListener('click', function () { history.back(); });</script>
+{% endblock %}

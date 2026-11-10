@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Ticket Routing — PSA{% endblock %}
+{% block content %}
+{% include "ticket_routing/_nav.html" with tab="overview" %}
+
+<h4 class="mb-1"><i class="fas fa-route me-2"></i>Ticket Routing</h4>
+<p class="text-muted small mb-3">Decides which queue, team or technician a ticket goes to. Works without AI. Off by default:
+with routing Off, email intake, catalog defaults, manual assignment and workflow rules behave exactly as before.</p>
+
+<div class="row g-3">
+<div class="col-lg-7">
+<form method="post" class="card">
+    {% csrf_token %}
+    <div class="card-header"><strong>MSP-wide default</strong> <small class="text-muted">— every customer inherits this unless overridden</small></div>
+    <div class="card-body">
+        <div class="mb-3">
+            {% for code, label in mode_choices %}
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="mode" id="mode-{{ code }}" value="{{ code }}" {% if msp.mode == code %}checked{% endif %}>
+                <label class="form-check-label" for="mode-{{ code }}"><strong>{{ label }}</strong></label>
+            </div>
+            {% endfor %}
+            <small class="text-muted d-block">Suggest only: a dispatcher must accept each suggestion before anything changes. Automatic: routing assigns and records why in the ticket's staff-only history.</small>
+        </div>
+        <h6 class="text-muted">When to route</h6>
+        <p class="small mb-1"><i class="fas fa-check text-success"></i> On ticket creation (always, when routing is on)</p>
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="reroute_on_reply" id="rr-reply" {% if msp.reroute_on_reply %}checked{% endif %}><label class="form-check-label" for="rr-reply">Reroute when the customer replies</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" name="reroute_on_reopen" id="rr-reopen" {% if msp.reroute_on_reopen %}checked{% endif %}><label class="form-check-label" for="rr-reopen">Reroute when a closed ticket is reopened</label></div>
+        <div class="form-check d-flex align-items-center gap-2"><input class="form-check-input" type="checkbox" name="reroute_on_sla" id="rr-sla" {% if msp.reroute_on_sla %}checked{% endif %}><label class="form-check-label" for="rr-sla">Reroute once when the resolution SLA reaches</label>
+            <input type="number" min="1" max="100" name="sla_reroute_pct" value="{{ msp.sla_reroute_pct }}" class="form-control form-control-sm" style="width:5rem">%</div>
+        <div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="preserve_manual_assignment" id="rr-preserve" {% if msp.preserve_manual_assignment %}checked{% endif %}><label class="form-check-label" for="rr-preserve">Preserve a dispatcher's manual assignment when rerouting <small class="text-muted">(recommended)</small></label></div>
+        <div class="d-flex align-items-center gap-2 mt-2 small">Loop guard: at most <input type="number" min="0" max="50" name="max_reroutes" value="{{ msp.max_reroutes }}" class="form-control form-control-sm" style="width:5rem"> automatic reroutes per ticket.</div>
+
+        <h6 class="text-muted mt-3">Business hours <small>(for "business hours / after hours" conditions; Resourcing holidays count as after hours)</small></h6>
+        <div class="d-flex flex-wrap gap-2 align-items-center small">
+            {% for num, label in weekdays %}
+            <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="business_days" value="{{ num }}" id="bd-{{ num }}" {% if num in msp.business_days %}checked{% endif %}><label class="form-check-label" for="bd-{{ num }}">{{ label }}</label></div>
+            {% endfor %}
+            <input type="time" name="business_start" value="{{ msp.business_start|time:'H:i' }}" class="form-control form-control-sm" style="width:7rem"> to
+            <input type="time" name="business_end" value="{{ msp.business_end|time:'H:i' }}" class="form-control form-control-sm" style="width:7rem">
+            <input type="text" name="business_timezone" value="{{ msp.business_timezone }}" placeholder="Server time zone" class="form-control form-control-sm" style="width:12rem">
+        </div>
+    </div>
+    <div class="card-footer"><button class="btn btn-primary btn-sm" type="submit">Save settings</button></div>
+</form>
+
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>Rules</strong>
+        <a href="{% url 'ticket_routing:rule_new' %}" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> New rule</a>
+    </div>
+    <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>Applies to</th><th>Priority</th><th>Rule</th><th>Version</th><th>State</th></tr></thead>
+        <tbody>
+        {% for r in rules %}
+        <tr>
+            <td>{% if r.organization %}{{ r.organization.name }}{% else %}<span class="text-muted">Every customer</span>{% endif %}</td>
+            <td>{{ r.priority }}</td>
+            <td><a href="{% url 'ticket_routing:rule_detail' r.pk %}">{{ r.name }}</a><div class="small text-muted">{{ r.summary|truncatechars:160 }}</div></td>
+            <td>{% if r.current_version %}v{{ r.current_version.number }}{% else %}—{% endif %}</td>
+            <td>{% if r.is_active %}<span class="badge text-bg-success">Active</span>{% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-muted small p-3">No rules yet. With no matching rule, routing changes nothing.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+</div>
+
+<div class="col-lg-5">
+<div class="card">
+    <div class="card-header"><strong>Customers</strong></div>
+    <div class="card-body small">
+        <form method="get" class="d-flex gap-2 mb-2" id="cust-pick">
+            <select class="form-select form-select-sm" name="org" id="cust-org">
+                {% for o in organizations %}<option value="{{ o.pk }}">{{ o.name }}</option>{% endfor %}
+            </select>
+            <button class="btn btn-sm btn-outline-primary" type="submit">Configure</button>
+        </form>
+        {% if overrides %}
+        <ul class="list-unstyled mb-0">
+            {% for c in overrides %}
+            <li><a href="{% url 'ticket_routing:customer' c.organization_id %}">{{ c.organization.name }}</a>: {{ c.get_mode_display }}{% if c.restrict_technicians %}, restricted technician list{% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% else %}<p class="text-muted mb-0">Every customer inherits the MSP default.</p>{% endif %}
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><strong>How routing fits with other automation</strong></div>
+    <ol class="list-group list-group-numbered list-group-flush small">
+        {% for title, text in precedence %}
+        <li class="list-group-item"><strong>{{ title }}.</strong> {{ text }}</li>
+        {% endfor %}
+    </ol>
+    <div class="card-body small text-muted">
+        Routing writes only the ticket's assignee, queue and team. It never changes the customer, never resets the SLA clock,
+        never grants access, and never starts a remote session or an endpoint action.
+        Saving or activating a rule never reassigns tickets that already exist.
+    </div>
+</div>
+
+<div class="card mt-3"><div class="card-body small">
+    <a href="{% url 'ticket_routing:on_call' %}">{{ shift_count }} current or upcoming on-call shift{{ shift_count|pluralize }}</a> ·
+    <a href="{% url 'ticket_routing:triage' %}">Triage</a>{% if suggested_count %} ({{ suggested_count }} suggestion{{ suggested_count|pluralize }} waiting){% endif %}
+    {% if can_test %} · <a href="{% url 'ticket_routing:test' %}">Test routing</a>{% endif %}
+    · <a href="{% url 'psa:workflow_rule_list' %}">Workflow rules</a>
+</div></div>
+</div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+document.getElementById('cust-pick').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var id = document.getElementById('cust-org').value;
+    if (id) { window.location = '{% url "ticket_routing:overview" %}customers/' + encodeURIComponent(id) + '/'; }
+});
+</script>
+{% endblock %}

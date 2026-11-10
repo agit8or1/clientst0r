@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Routing triage — PSA{% endblock %}
+{% block content %}
+{% include "ticket_routing/_nav.html" with tab="triage" crumb="Triage" %}
+<h4 class="mb-1">Triage</h4>
+<p class="small text-muted">Open, unassigned tickets where routing fell back (nobody qualified, or the customer could not be verified) or a suggestion is waiting for a dispatcher.</p>
+<table class="table table-sm small align-middle">
+    <thead><tr><th>Ticket</th><th>Customer</th><th>Priority</th><th>Queue</th><th>Routing</th></tr></thead>
+    <tbody>
+    {% for t in tickets %}
+    <tr>
+        <td><a href="{% url 'psa:ticket_detail' t.ticket_number %}">{{ t.ticket_number }}</a> {{ t.subject|truncatechars:60 }}</td>
+        <td>{{ t.organization.name }}</td><td>{{ t.priority.code }}</td><td>{{ t.queue.name }}</td>
+        <td>{% if t.routing_status == 'suggested' %}<span class="badge text-bg-info">Suggestion waiting</span>{% else %}<span class="badge text-bg-warning">Fallback</span>{% endif %}
+            <div class="text-muted">{{ t.routing_reason|truncatechars:200 }}</div></td>
+    </tr>
+    {% empty %}<tr><td colspan="5" class="text-muted">Nothing waiting.</td></tr>{% endfor %}
+    </tbody>
+</table>
+{% endblock %}
