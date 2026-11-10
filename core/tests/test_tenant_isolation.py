@@ -197,11 +197,14 @@ class TenantIsolationTestCase(TestCase):
             description='Org2 action',
         )
 
-        logs = AuditLog.objects.filter(organization=self.org1)
+        # Membership creation in setUp is itself audited for its customer
+        # (who was granted what); leave those rows out here.
+        own = AuditLog.objects.exclude(object_type='membership')
+        logs = own.filter(organization=self.org1)
         self.assertEqual(logs.count(), 1)
         self.assertEqual(logs.first().description, 'Org1 action')
 
-        logs = AuditLog.objects.filter(organization=self.org2)
+        logs = own.filter(organization=self.org2)
         self.assertEqual(logs.count(), 1)
         self.assertEqual(logs.first().description, 'Org2 action')
 
