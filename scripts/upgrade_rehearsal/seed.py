@@ -59,7 +59,7 @@ def make_user(username, *, superuser=False, device=True):
     info = {'id': u.id, 'username': username}
     if device:
         d = TOTPDevice.objects.filter(user=u).first() or TOTPDevice.objects.create(
-            user=u, name='rehearsal', confirmed=True)
+            user=u, name='default', confirmed=True)   # two_factor prompts for the 'default' device
         info['totp_key'] = d.key
     state['users'][username] = info
     return u

@@ -41,8 +41,13 @@ for name, info in state['users'].items():
     u = User.objects.filter(id=info['id'], username=name).first()
     check(u is not None and u.check_password(state['password']), f'user {name} present, password still valid')
     if 'totp_key' in info:
-        check(TOTPDevice.objects.filter(user_id=info['id'], key=info['totp_key'], confirmed=True).exists(),
-              f'user {name} 2FA device intact')
+        # The seed is stored encrypted (accounts/otp_storage.py) on newer
+        # releases: compare the decrypted value, not the column.
+        try:
+            dev = TOTPDevice.objects.filter(user_id=info['id'], confirmed=True).first()
+            check(dev is not None and dev.key == info['totp_key'], f'user {name} 2FA device seed intact')
+        except Exception as ex:
+            check(False, f'user {name} 2FA device seed readable ({ex.__class__.__name__}: {ex})')
 check(Membership.objects.filter(user__username='rh_client_a', organization=orgs['a'], is_active=True).exists()
       and not Membership.objects.filter(user__username='rh_client_a', organization=orgs['b']).exists(),
       'memberships: client A belongs to org A only')

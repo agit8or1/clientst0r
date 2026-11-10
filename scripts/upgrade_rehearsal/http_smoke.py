@@ -87,7 +87,12 @@ class Browser:
 
     def logged_in(self):
         r = self.get('/core/dashboard/', allow_redirects=False)
-        return r.status_code == 200, r
+        loc = r.headers.get('Location', '')
+        # 200, or sent somewhere other than the login / 2FA pages (customer
+        # users land on the portal).
+        ok = r.status_code == 200 or (r.status_code in (301, 302) and 'login' not in loc
+                                      and 'two_factor' not in loc)
+        return ok, r
 
 
 def main():
@@ -163,7 +168,7 @@ def main():
     ca = Browser(args.base)
     ca.login('rh_client_a', pw, users['rh_client_a']['totp_key'])
     ok, r = ca.logged_in()
-    check(ok or r.status_code in (301, 302), f'org A user logs in with password + TOTP ({r.status_code})')
+    check(ok, f'org A user logs in with password + TOTP ({r.status_code} {r.headers.get("Location", "")})')
     r = ca.get(f"/files/serve/{att['b']['id']}/", allow_redirects=False)
     check(not (r.status_code == 200 and hashlib.sha256(r.content).hexdigest() == att['b']['sha256']),
           f"org A user cannot fetch org B's file ({r.status_code})")
@@ -177,7 +182,8 @@ def main():
     r = ca.post(f"/vault/{vault['b']['id']}/reveal/")
     check(vault['b']['password'] not in r.text, f"org A user cannot reveal org B's password ({r.status_code})")
     r = ca.get(f"/files/serve/{att['a']['id']}/", allow_redirects=False)
-    print(f'  info  org A user fetching its own org file: HTTP {r.status_code}')
+    check(r.status_code == 200 and hashlib.sha256(r.content).hexdigest() == att['a']['sha256'],
+          f'org A user gets its own file intact ({r.status_code})')
 
     if args.require_2fa:
         nd = Browser(args.base)

@@ -544,6 +544,10 @@ def _verify_mysql(snap, manifest, key_values, checks):
     _, mysql_bin = mysql_tools()
     db = _db()
     scratch = getattr(settings, 'UPGRADE_VERIFY_DB_NAME', '') or f"{db['NAME']}_verify"
+    if scratch == db['NAME'] or '`' in scratch:
+        # The restore test empties the scratch database first: never the live one.
+        return _verify_mysql_structural(path, manifest, key_values, checks,
+                                        reason='CLIENTST0R_VERIFY_DB_NAME must name a separate database')
     work = Path(tempfile.mkdtemp(prefix='clientst0r-verify-'))
     defaults = _mysql_defaults_file(work)
     created = False

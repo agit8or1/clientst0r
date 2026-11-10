@@ -207,9 +207,11 @@ start_server() {
 }
 
 stop_server() {
+    local pid
     if [ -f "$WORK/gunicorn.pid" ]; then
-        kill "$(cat "$WORK/gunicorn.pid")" 2>/dev/null || true
-        for _ in $(seq 1 20); do kill -0 "$(cat "$WORK/gunicorn.pid")" 2>/dev/null || break; sleep 0.5; done
+        pid=$(cat "$WORK/gunicorn.pid")
+        kill "$pid" 2>/dev/null || true
+        for _ in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
         rm -f "$WORK/gunicorn.pid"
     fi
 }
@@ -311,27 +313,19 @@ interrupt_upgrade() {   # start the legacy-mode upgrade, SIGKILL it during migra
     say "killed the upgrade mid-migration: $(grep 'Applying ' "$log" | tail -1 | sed 's/^ *//' | cut -c1-100)"
 }
 
-partial_migration() {   # apply only the first statement of the first new migration
-    local first app name sql
-    first=$(cd "$APP" && GIT diff --name-only --diff-filter=A HEAD "$HEAD_SHA" -- '*/migrations/0*.py' | sort | head -1)
-    app=$(echo "$first" | cut -d/ -f1); name=$(basename "$first" .py)
-    say "simulating a crash inside $app.$name: applying only its first SQL statement"
-    GIT -C "$APP" show "$HEAD_SHA:$first" > /dev/null
-    # sqlmigrate needs the new code; run it from a throwaway checkout of HEAD.
-    rm -rf "$WORK/head-src"; GIT clone -q "$REMOTE" "$WORK/head-src"; GIT -C "$WORK/head-src" checkout -q "$HEAD_SHA"
-    cp "$APP/.env" "$WORK/head-src/.env"
-    sql=$(cd "$WORK/head-src" && "$(venv_python)" manage.py sqlmigrate "$app" "$name" 2>/dev/null \
-          | grep -v '^--' | grep -v '^BEGIN;$' | grep -v '^COMMIT;$' | awk 'BEGIN{RS=";\n"} NR==1{print; exit}')
-    [ -n "$sql" ] || die "could not get SQL for $app.$name"
-    (cd "$WORK/head-src" && echo "$sql;" | "$(venv_python)" manage.py dbshell >/dev/null 2>&1) || \
-    (cd "$WORK/head-src" && "$(venv_python)" -c "
-import os, django, sys
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings'); django.setup()
-from django.db import connection
-with connection.cursor() as c: c.execute(sys.stdin.read())
-" <<< "$sql") || die "applying the first statement of $app.$name"
+partial_migration() {   # leave one new migration half applied (sets PARTIAL)
+    local out
     rm -rf "$WORK/head-src"
-    PARTIAL="$app.$name"
+    GIT clone -q "$REMOTE" "$WORK/head-src"
+    GIT -C "$WORK/head-src" checkout -q "$HEAD_SHA"
+    cp "$APP/.env" "$WORK/head-src/.env"
+    # sqlmigrate runs in the new checkout; the statement runs against $APP's database.
+    out=$("$(venv_python)" "$HERE/partial_migration.py" "$WORK/head-src" "$APP" \
+          $(GIT -C "$APP" diff --name-only --diff-filter=A HEAD "$HEAD_SHA" -- '*/migrations/0*.py')) \
+        || die "could not set up a half-applied migration: $out"
+    rm -rf "$WORK/head-src"
+    PARTIAL=$(printf '%s\n' "$out" | tail -1)
+    say "simulated a crash inside $PARTIAL: $(printf '%s\n' "$out" | head -1)"
 }
 
 # ---------------------------------------------------------------------------
@@ -401,6 +395,10 @@ case "$MODE" in
         checks "restored-after-partial-$start"
         legacy_upgrade_to_head
         checks head-after-recovery
+        ;;
+    recheck)   # re-run the checks on the install a previous run left behind
+        [ -x "$APP/venv/bin/python" ] || die "no install in $APP"
+        checks recheck
         ;;
     *) die "unknown mode $MODE" ;;
 esac

@@ -485,6 +485,10 @@ fi
 # stuck at 4/5 forever in the UI. By writing the JSON ourselves we
 # decouple the front-end from the Python reader's lifetime.
 PROGRESS_FILE="/tmp/clientst0r_update_progress_current.json"
+if [ "$SANDBOX" = "1" ]; then
+    # A rehearsal must not write the progress file a real install's UI reads.
+    PROGRESS_FILE="$BASE_DIR/.update_progress_sandbox.json"
+fi
 PYTHON_BIN=$(command -v python3 || command -v python || true)
 if [ -n "$PYTHON_BIN" ] && [ -f "$PROGRESS_FILE" ]; then
     "$PYTHON_BIN" - <<EOF || true
@@ -631,10 +635,10 @@ else
     fi
 fi
 
-journal stage=complete
 log ""
 log "=================================================="
 log "Update complete! Please wait 10 seconds then refresh."
 log "=================================================="
+journal stage=complete
 
 exit 0
