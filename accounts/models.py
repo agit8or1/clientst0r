@@ -912,6 +912,15 @@ class RoleTemplate(BaseModel):
     tickets_delete = models.BooleanField(default=False,
         help_text='Hard-delete a ticket.')
 
+    # Ticket routing (optional, off by default). MSP technicians only; a
+    # customer membership never grants these whatever its role says.
+    routing_manage_rules = models.BooleanField(default=False,
+        help_text='Ticket routing: change settings, customer overrides, rules and on-call shifts.')
+    routing_test = models.BooleanField(default=False,
+        help_text='Ticket routing: use Test routing (read-only dry run).')
+    routing_override = models.BooleanField(default=False,
+        help_text='Ticket routing: accept or reject routing suggestions.')
+
     class Meta:
         db_table = 'role_templates'
         ordering = ['name']
@@ -1057,6 +1066,10 @@ class RoleTemplate(BaseModel):
                 'tickets_view_all': True,
                 'tickets_close': True,
                 'tickets_delete': True,
+                # Ticket routing — all True
+                'routing_manage_rules': True,
+                'routing_test': True,
+                'routing_override': True,
             },
             {
                 'name': 'Administrator',
@@ -1173,6 +1186,10 @@ class RoleTemplate(BaseModel):
                 'tickets_view_all': True,
                 'tickets_close': True,
                 'tickets_delete': True,
+                # Ticket routing — all True
+                'routing_manage_rules': True,
+                'routing_test': True,
+                'routing_override': True,
             },
             {
                 'name': 'Editor',
@@ -1519,6 +1536,10 @@ class RoleTemplate(BaseModel):
                 'tickets_view_all': True,
                 'tickets_close': True,
                 'tickets_delete': True,
+                # Ticket routing — all True
+                'routing_manage_rules': True,
+                'routing_test': True,
+                'routing_override': True,
             },
             {
                 'name': 'Documentation Writer',

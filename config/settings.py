@@ -110,6 +110,7 @@ INSTALLED_APPS = [
     'inventory.apps.InventoryConfig',
     'scheduling.apps.SchedulingConfig',
     'psa.apps.PsaConfig',
+    'psa.routing.apps.TicketRoutingConfig',
     'psa_ai.apps.PsaAiConfig',
     'tech_access.apps.TechAccessConfig',
     'portal.apps.PortalConfig',
