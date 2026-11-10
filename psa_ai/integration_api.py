@@ -58,9 +58,75 @@ def _run_view(run):
             'error': run.error if run.status in ('failed', 'refused') else ''}
 
 
+def _rem0te_error(code, message, status):
+    return JsonResponse({'error': {'code': code, 'message': message}}, status=status)
+
+
+def _rem0te_inference(request):
+    """Rem0te's signed inference request (integrations/rem0te). The 200
+    answer is signed over this request's nonce."""
+    from django.http import HttpResponse
+    from integrations.rem0te import inbound, jobs
+    try:
+        verified, _kid, nonce = inbound.authenticate(request)
+    except inbound.InboundRefused as e:
+        logger.warning('Rem0te inference refused: %s', e.reason)
+        return _rem0te_error(e.code, 'Request signature not accepted.' if e.status == 401 else e.reason, e.status)
+    data = _json(request)
+    if data is None:
+        return _rem0te_error('INVALID_REQUEST', 'Expected a JSON object.', 400)
+    conn = inbound.connection_for(verified, str(data.get('organization_id') or ''))
+    if conn is None:
+        return _rem0te_error('FORBIDDEN', 'No Rem0te pairing here serves that organization.', 403)
+    try:
+        status, body = jobs.handle_inference(conn, data)
+    except Exception:
+        logger.exception('Rem0te inference failed')
+        status, body = 500, {'error': {'code': 'INTERNAL', 'message': 'The gateway failed.'}}
+    raw = jobs.json_bytes(body)
+    response = HttpResponse(raw, status=status, content_type='application/json')
+    for k, v in inbound.response_headers(nonce, raw).items():
+        response[k] = v
+    return response
+
+
+def _rem0te_events(request):
+    """Rem0te's signed job or alert event: {event, signature} or
+    {alert_event, signature}. 2xx is Rem0te's acknowledgement."""
+    from integrations.rem0te import alerts, inbound, jobs
+    try:
+        verified, _kid, _nonce = inbound.authenticate(request)
+    except inbound.InboundRefused as e:
+        logger.warning('Rem0te event refused: %s', e.reason)
+        return _rem0te_error(e.code, 'Request signature not accepted.' if e.status == 401 else e.reason, e.status)
+    data = _json(request)
+    if data is None:
+        return _rem0te_error('INVALID_REQUEST', 'Expected a JSON object.', 400)
+    inner = data.get('event') if 'event' in data else data.get('alert_event')
+    org = str((inner or {}).get('organization_id') or '') if isinstance(inner, dict) else ''
+    conn = inbound.connection_for(verified, org)
+    if conn is None:
+        return _rem0te_error('NOT_FOUND', 'No Rem0te pairing here serves that organization.', 404)
+    try:
+        if 'alert_event' in data:
+            status, outcome = alerts.apply_signed_alert_event(conn, data, via='push')
+        else:
+            status, outcome = jobs.apply_signed_event(conn, data, via='push')
+    except Exception:
+        logger.exception('Rem0te event failed')
+        return _rem0te_error('INTERNAL', 'The event could not be processed.', 500)
+    if status >= 400:
+        return _rem0te_error({400: 'INVALID_REQUEST', 401: 'UNAUTHENTICATED', 404: 'NOT_FOUND',
+                              503: 'UNAVAILABLE'}.get(status, 'INTERNAL'), outcome[:200], status)
+    return JsonResponse({'status': outcome})
+
+
 @csrf_exempt
 @require_POST
 def inference(request):
+    from integrations.rem0te.inbound import is_rem0te_request
+    if is_rem0te_request(request):
+        return _rem0te_inference(request)
     try:
         conn = _authenticated(request)
     except integration_auth.AuthError as e:
@@ -92,6 +158,9 @@ def events(request):
     from .models import AnalysisJob, ProcessorEvent
     from .services.processor import EVENT_TYPES, apply_event
     from django.db import IntegrityError, transaction
+    from integrations.rem0te.inbound import is_rem0te_request
+    if is_rem0te_request(request):
+        return _rem0te_events(request)
     if len(request.body) > MAX_BODY:
         return _error('too_large', f'Event bodies are limited to {MAX_BODY // 1024} KiB.', 413)
     try:
