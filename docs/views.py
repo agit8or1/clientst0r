@@ -138,6 +138,43 @@ def document_list(request):
     })
 
 
+class AmbiguousDocument(Exception):
+    """Slugs are unique per customer, not across customers: in Global View a
+    bare slug can name several documents (v3.17.657)."""
+
+    def __init__(self, matches):
+        super().__init__(f'{len(matches)} documents share this slug')
+        self.matches = matches
+
+
+def _any_org_document(slug):
+    """The one document with this slug in any customer, for Global View and
+    staff cross-customer lookups. Raises Http404 or AmbiguousDocument."""
+    from django.http import Http404
+    matches = list(Document.objects.filter(slug=slug)
+                   .select_related('organization').order_by('organization__name')[:50])
+    if not matches:
+        raise Http404('No Document matches the given query.')
+    if len(matches) > 1:
+        raise AmbiguousDocument(matches)
+    return matches[0]
+
+
+def _document_chooser(request, matches, view_name='docs:document_detail'):
+    """Ask which customer's document was meant; each choice switches to that
+    customer (core.org_handoff) and opens it."""
+    from django.urls import reverse
+    from core.org_handoff import with_org
+    choices = []
+    for doc in matches:
+        if doc.organization_id:
+            url = with_org(reverse(view_name, kwargs={'slug': doc.slug}), doc.organization_id)
+        else:
+            url = reverse('docs:global_kb_detail', kwargs={'slug': doc.slug})
+        choices.append({'document': doc, 'url': url})
+    return render(request, 'docs/document_choose.html', {'choices': choices, 'slug': matches[0].slug})
+
+
 @login_required
 @org_handoff
 def document_detail(request, slug):
@@ -153,7 +190,10 @@ def document_detail(request, slug):
 
     if in_global_view:
         # Global view: access document from any organization
-        document = get_object_or_404(Document, slug=slug)
+        try:
+            document = _any_org_document(slug)
+        except AmbiguousDocument as many:
+            return _document_chooser(request, many.matches)
     else:
         # Organization view: filter by current org
         document = get_org_object_or_404(Document, org, slug=slug)
@@ -384,19 +424,19 @@ def document_edit(request, slug):
             document = Document.objects.get(slug=slug, organization=org)
         else:
             # Global view or no org: get any matching document
-            document = Document.objects.get(slug=slug)
+            document = _any_org_document(slug)
+    except AmbiguousDocument as many:
+        return _document_chooser(request, many.matches, 'docs:document_edit')
     except Document.DoesNotExist:
         # If not found in current org, check if user is staff and document exists elsewhere
         if request.user.is_superuser or getattr(request, 'is_staff_user', False):
             try:
-                document = Document.objects.get(slug=slug)
-                # Found in different org - switch context temporarily for this edit
-                org = document.organization
-                messages.info(request, f"Editing document from organization: {org.name if org else 'Global KB'}")
-            except Document.DoesNotExist:
-                # Document truly doesn't exist
-                from django.http import Http404
-                raise Http404("No Document matches the given query.")
+                document = _any_org_document(slug)
+            except AmbiguousDocument as many:
+                return _document_chooser(request, many.matches, 'docs:document_edit')
+            # Found in different org - switch context temporarily for this edit
+            org = document.organization
+            messages.info(request, f"Editing document from organization: {org.name if org else 'Global KB'}")
         else:
             # Regular user can't access documents outside their org
             from django.http import Http404
@@ -2474,7 +2514,7 @@ def _resolve_document_for_export(request, slug):
     is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
     in_global_view = not org and (request.user.is_superuser or is_staff)
     if in_global_view:
-        document = get_object_or_404(Document, slug=slug)
+        document = _any_org_document(slug)
     else:
         document = get_org_object_or_404(Document, org, slug=slug)
     return _require_live_or_editor(request, document)
@@ -2493,7 +2533,10 @@ def document_export(request, slug, fmt):
     from django.http import Http404
     from .services.document_export import export_document
 
-    document = _resolve_document_for_export(request, slug)
+    try:
+        document = _resolve_document_for_export(request, slug)
+    except AmbiguousDocument as many:
+        return _document_chooser(request, many.matches)
 
     # An uploaded blob (PDF/DOCX/image) has no body to re-render — hand the
     # original file back rather than exporting an empty shell.

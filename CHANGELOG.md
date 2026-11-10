@@ -5,6 +5,14 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.657] - 2026-11-10
+
+### Fixed
+- **Opening a document from Global View could fail with a server error (500).** Document addresses are unique per customer, not across customers. When several customers had a document with the same name (the demo data's "Security Policy" and "Network Documentation", for example), the document, edit and export pages crashed.
+  - Links in the Global View document list now name the customer, so they open that customer's document and switch to that customer.
+  - An address that matches several customers now asks which one you meant.
+  - The same applies to links from KB analytics.
+
 ## [3.17.656] - 2026-11-10
 
 ### Added

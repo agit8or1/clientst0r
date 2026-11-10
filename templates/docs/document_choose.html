@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Choose a document - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-file-alt" aria-hidden="true"></i> Which customer's document?</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">More than one customer has a document at <code>{{ slug }}</code>. Pick one; you'll switch to that customer and the document opens.</p>
+                <div class="list-group">
+                    {% for c in choices %}
+                    <a href="{{ c.url }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <span><strong>{{ c.document.title }}</strong></span>
+                        <span class="text-muted small">{% if c.document.organization %}{{ c.document.organization.name }}{% else %}Global KB{% endif %}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                <a href="{% url 'docs:document_list' %}" class="btn btn-secondary mt-3">Back to documents</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

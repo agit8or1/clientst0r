@@ -1332,3 +1332,53 @@ class TemplateEditBoundaryTests(TestCase):
         c = self._client(self.tech)
         r = c.get(f'/docs/templates/{self.global_tpl.pk}/edit/')
         self.assertEqual(r.status_code, 200)
+
+
+@override_settings(MIDDLEWARE=_TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class GlobalViewSharedSlugTests(TestCase):
+    """v3.17.657: slugs are unique per customer, so in Global View a bare
+    /docs/<slug>/ can match several documents. It used to answer 500
+    (MultipleObjectsReturned); now it asks which customer's document."""
+
+    def setUp(self):
+        from core.models import Organization
+        self.a = Organization.objects.create(name='Alpha Co', slug='alpha-657')
+        self.b = Organization.objects.create(name='Beta Co', slug='beta-657')
+        self.doc_a = Document.objects.create(organization=self.a, title='Security Policy',
+                                             slug='security-policy', body='<p>Alpha</p>', is_published=True)
+        self.doc_b = Document.objects.create(organization=self.b, title='Security Policy',
+                                             slug='security-policy', body='<p>Beta</p>', is_published=True)
+        self.only = Document.objects.create(organization=self.a, title='Only one', slug='only-one',
+                                            body='<p>One</p>', is_published=True)
+        su = User.objects.create_superuser('su657', 'su657@x.com', 'pw-657-su!')
+        self.client = Client()
+        self.client.force_login(su)
+        s = self.client.session
+        s['global_view_mode'] = True
+        s.pop('current_organization_id', None)
+        s.save()
+
+    def test_shared_slug_shows_a_chooser_not_an_error(self):
+        for url in ('/docs/security-policy/', '/docs/security-policy/edit/'):
+            with self.subTest(url):
+                r = self.client.get(url)
+                self.assertEqual(r.status_code, 200)
+                self.assertContains(r, 'More than one customer has a document')
+                self.assertContains(r, f'?org={self.a.pk}')
+                self.assertContains(r, f'?org={self.b.pk}')
+
+    def test_choice_opens_that_customers_document(self):
+        r = self.client.get(f'/docs/security-policy/?org={self.b.pk}')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Beta')
+        self.assertNotContains(r, 'Alpha</p>')
+
+    def test_unique_slug_still_opens_directly(self):
+        r = self.client.get('/docs/only-one/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'One')
+
+    def test_global_view_list_links_name_the_customer(self):
+        r = self.client.get('/docs/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, f'/docs/security-policy/?org={self.b.pk}')
