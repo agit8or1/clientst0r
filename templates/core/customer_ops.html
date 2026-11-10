@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Customer operations" %} - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">{% trans "Dashboard" %}</a></li>
+        <li class="breadcrumb-item">{{ organization.name }}</li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans "Customer operations" %}</li>
+    </ol>
+</nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-binoculars" aria-hidden="true"></i> {% trans "Customer operations" %}: {{ organization.name }}</h1>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:organization_detail' organization.pk %}"><i class="fas fa-building" aria-hidden="true"></i> {% trans "Customer page" %}</a>
+</div>
+
+{% if sections %}
+<div class="row g-2 mb-3" id="customer-ops-totals">
+    {% for s in sections %}
+    <div class="col-6 col-md">
+        <a class="card h-100 text-decoration-none" href="#ops-{{ s.key }}" data-section="{{ s.key }}">
+            <div class="card-body py-2">
+                <div class="small text-muted"><i class="fas {{ s.icon }}" aria-hidden="true"></i> {{ s.title }}</div>
+                <div class="h4 mb-0" data-total="{{ s.key }}">{{ s.total }}{% if s.truncated %}+{% endif %}</div>
+                {% if s.danger_count %}<span class="badge bg-danger">{{ s.danger_count }} {% trans "act now" %}</span>{% endif %}
+                {% for currency, amount in s.amounts %}<div class="small" data-amount="{{ currency }}">{{ currency }} {{ amount|floatformat:2 }}</div>{% endfor %}
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+{% for s in sections %}
+<div class="card mb-3" id="ops-{{ s.key }}">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <h2 class="h6 mb-0"><i class="fas {{ s.icon }}" aria-hidden="true"></i> {{ s.title }} <span class="badge bg-secondary">{{ s.total }}{% if s.truncated %}+{% endif %}</span></h2>
+        <div class="d-flex gap-1">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'core:customer_ops_section' organization.pk s.key %}">{% trans "Show all" %}</a>
+            {% if s.list_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ s.list_url }}">{{ s.list_label }}</a>{% endif %}
+        </div>
+    </div>
+    {% if s.note %}<div class="px-3 pt-2 small text-muted">{{ s.note }}</div>{% endif %}
+    {% if s.items %}
+    <ul class="list-group list-group-flush">
+        {% for item in s.summary_items %}{% include "core/_customer_ops_item.html" %}{% endfor %}
+    </ul>
+    {% if s.more_count %}
+    <div class="card-footer small"><a href="{% url 'core:customer_ops_section' organization.pk s.key %}">{% blocktrans count n=s.more_count %}and {{ n }} more{% plural %}and {{ n }} more{% endblocktrans %}</a></div>
+    {% endif %}
+    {% else %}
+    <div class="card-body text-muted small">{% trans "Nothing needs attention here." %}</div>
+    {% endif %}
+</div>
+{% endfor %}
+{% else %}
+<div class="alert alert-info">{% trans "There is nothing on this page your role can show for this customer." %}</div>
+{% endif %}
+
+{% if hidden_any %}
+<p class="small text-muted">{% trans "Some sections are not shown: either the module is turned off, or your role does not include that information for this customer." %}</p>
+{% endif %}
+{% endblock %}

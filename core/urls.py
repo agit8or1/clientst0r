@@ -15,12 +15,20 @@ from . import webhook_views
 from . import security_views
 from . import help_views
 from . import client_switcher
+from . import customer_ops_views
+from . import modules_views
 
 app_name = 'core'
 
 urlpatterns = [
     path('clients/switcher-search/', client_switcher.client_switcher_search, name='client_switcher_search'),
     path('dashboard/', dashboard_views.dashboard, name='dashboard'),
+    # Customer operations: SLA risks, uptime, renewals, overdue invoices,
+    # aging assets for one customer (core/customer_ops.py).
+    path('customers/operations/', customer_ops_views.customer_ops_current, name='customer_ops_current'),
+    path('customers/<int:org_id>/operations/', customer_ops_views.customer_ops, name='customer_ops'),
+    path('customers/<int:org_id>/operations/<slug:section>/', customer_ops_views.customer_ops_section,
+         name='customer_ops_section'),
     path('global-dashboard/', dashboard_views.global_dashboard, name='global_dashboard'),
     path('documentation/', views.documentation, name='documentation'),
     path('about/', views.about, name='about'),
@@ -138,6 +146,7 @@ urlpatterns = [
     path('settings/general/', settings_views.settings_general, name='settings_general'),
     path('settings/security/', settings_views.settings_security, name='settings_security'),
     path('settings/features/', settings_views.settings_features, name='settings_features'),
+    path('settings/modules/', modules_views.settings_modules, name='settings_modules'),
     # PSA settings — view lives in psa.views; aliased here so it appears
     # under the same /core/settings/ tree as the rest of admin settings.
     path('settings/psa/', __import__('psa.views', fromlist=['psa_global_settings_view']).psa_global_settings_view, name='settings_psa'),

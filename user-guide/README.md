@@ -10,7 +10,7 @@ ClientSt0r is a self-hosted IT management platform for MSPs and IT teams — com
 
 | Section | Description |
 |---------|-------------|
-| [Getting Started](getting-started.md) | Organizations, users, roles, the service desk at a glance, API keys |
+| [Getting Started](getting-started.md) | Organizations, users, roles, the service desk at a glance, customer operations, optional modules, API keys |
 | [Asset Management](asset-management.md) | Hardware inventory, networks, racks, port configuration |
 | [Service Vehicles](service-vehicles.md) | Fleet tracking, maintenance, fuel logs, damage reports |
 | [Password Vault](password-vault.md) | AES-256 encrypted credentials, TOTP, breach detection |

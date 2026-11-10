@@ -54,7 +54,7 @@ If you use LDAP sign-in, the optional MSP staff group in Settings → Directory 
 
 ## Service desk at a glance
 
-Once the service desk is on (`psa_enabled` in *Settings → Feature Toggles*):
+Once the service desk is on (`psa_enabled` in *Settings → Feature Toggles* or *Settings → Optional Modules*):
 
 - **My Work** (`/psa/my-work/`, first item in the PSA menu, and a button on the dashboard) is
   each technician's starting point: open tickets in SLA order, running timers with a stop
@@ -69,6 +69,49 @@ Once the service desk is on (`psa_enabled` in *Settings → Feature Toggles*):
   service catalog marked as visible in the portal, with guided forms and optional approval
   by the customer's admin. `python manage.py psa_seed_portal_requests` adds sample request
   types.
+
+---
+
+## Customer operations
+
+**Operations** on a customer's page, or **Customer operations** in the client switcher,
+opens `/core/customers/<id>/operations/`: what needs attention for that customer, with a
+total per section and a link to the page where you act.
+
+| Section | What it lists | Actions | Needs |
+|---|---|---|---|
+| SLA risks | Open tickets past or close to their SLA (under 25% of the window left) | Open ticket | PSA on, `tickets_view` |
+| Uptime incidents | Monitors down or warning now, monitors that failed checks in the last 7 days, ongoing or recent status-page incidents | Open monitor, open ticket, open status page (staff) | Monitoring on, `monitoring_view` |
+| Contract renewals | Active contracts ending within 60 days; contracts ended in the last 90 days with no renewal | Open contract, renew / edit (staff) | PSA on, `billing_view_invoices` or `reports_view_financial` |
+| Overdue invoices | Invoices past their due date with a balance left, and the total outstanding | Open invoice, send reminder (staff; sending needs `billing_send_invoices`) | PSA on, `billing_view_invoices` |
+| Aging assets | Warranty expired or ending within 90 days, past vendor end of support, end of life passed or within 180 days, and assets over the critical age when asset age warnings are on | Open asset, plan replacement (a new ticket with the asset filled in) | `assets_view` |
+
+A section your role doesn't include for that customer is not shown, and neither is its
+total. Customer users see only their own customer, only tickets shared with them and only
+published incidents. Opening the page for a different customer than the one you are in
+switches you to it, so the links open the right records; Global View stays as it is.
+
+---
+
+## Optional modules (administrators)
+
+**Settings → System → Optional Modules** (`/core/settings/modules/`, superusers) lists
+every optional module: whether it is on, what it needs, what people see once it is on, its
+default and where its settings are.
+
+- **Turn on / Turn off** switches the modules that have an install-wide switch. A module
+  can't be turned on while something it needs is off (for example Ticket AI, CSAT and the
+  portal extras need PSA); the button is disabled and the page says what to turn on first.
+- Turning a module off leaves the modules that need it switched on, but they stop working
+  until it is back; the page and the confirmation say which ones. The same warning appears
+  on Feature Toggles when you turn PSA off there.
+- Ticket routing (its mode), the customer portal (per customer) and status pages (per page)
+  are switched on their own pages; the row links there and shows their current state.
+- Ticket AI is **OPTIONAL AI**: it also needs an AI provider key on Settings → AI.
+- A short list at the bottom names switches that are saved but not read by anything yet,
+  so nobody relies on them.
+
+Nothing on the page changes a default; every change is recorded in the audit log.
 
 ---
 

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ section.title }} - {{ organization.name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">{% trans "Dashboard" %}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:customer_ops' organization.pk %}">{% trans "Customer operations" %}: {{ organization.name }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ section.title }}</li>
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <h1 class="h5 mb-0"><i class="fas {{ section.icon }}" aria-hidden="true"></i> {{ section.title }} <span class="badge bg-secondary" data-total="{{ section.key }}">{{ section.total }}{% if section.truncated %}+{% endif %}</span></h1>
+        {% for currency, amount in section.amounts %}<span data-amount="{{ currency }}">{{ currency }} {{ amount|floatformat:2 }}</span>{% endfor %}
+        {% if section.list_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ section.list_url }}">{{ section.list_label }}</a>{% endif %}
+    </div>
+    {% if section.note %}<div class="px-3 pt-2 small text-muted">{{ section.note }}</div>{% endif %}
+    {% if section.truncated %}<div class="px-3 pt-2 small text-warning">{% trans "Only the first rows were checked; open the full list for the rest." %}</div>{% endif %}
+    {% if section.items %}
+    <ul class="list-group list-group-flush">
+        {% for item in section.items %}{% include "core/_customer_ops_item.html" %}{% endfor %}
+    </ul>
+    {% else %}
+    <div class="card-body text-muted small">{% trans "Nothing needs attention here." %}</div>
+    {% endif %}
+</div>
+{% endblock %}

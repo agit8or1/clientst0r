@@ -52,6 +52,11 @@ accounts:switch_organization, which re-checks access and records the recent.
                 <span class="text-truncate">{% trans "Global View" %}</span>
                 {% endif %}
             </div>
+            {% if current_organization %}
+            <a class="small d-inline-flex align-items-center gap-1 mt-1" href="{% url 'core:customer_ops' current_organization.pk %}" data-nav="customer-ops">
+                <i class="fas fa-binoculars" aria-hidden="true"></i> {% trans "Customer operations" %}
+            </a>
+            {% endif %}
         </div>
 
         {% if cs and cs.search_enabled %}

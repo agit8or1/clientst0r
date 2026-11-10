@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Customer operations" %}{% endblock %}
+
+{% block content %}
+<h1 class="h3"><i class="fas fa-binoculars" aria-hidden="true"></i> {% trans "Customer operations" %}</h1>
+<p class="text-muted">{% trans "Pick a customer to see its SLA risks, uptime incidents, contract renewals, overdue invoices and aging assets." %}</p>
+{% if customers %}
+<div class="list-group mb-2">
+    {% for c in customers %}
+    <a class="list-group-item list-group-item-action" href="{% url 'core:customer_ops' c.pk %}">{{ c.name }}</a>
+    {% endfor %}
+</div>
+{% if more %}<p class="small text-muted">{% trans "Showing the first 50 customers. Switch to a customer with the client switcher to go straight to its page." %}</p>{% endif %}
+{% else %}
+<div class="alert alert-info">{% trans "You have no customers to show." %}</div>
+{% endif %}
+{% endblock %}
