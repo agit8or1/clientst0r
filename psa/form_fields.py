@@ -47,8 +47,8 @@ class PostedFields:
         self.malformed.append(name)
         return current
 
-    def decimal(self, name, current, blank=Decimal('0'), minimum=None):
-        """Absent → ``current``; blank → ``blank``; malformed → ``current``."""
+    def decimal(self, name, current, blank=Decimal('0'), minimum=None, maximum=None):
+        """Absent → ``current``; blank → ``blank``; malformed or out of range → ``current``."""
         if name not in self.post:
             return current
         raw = self._raw(name)
@@ -59,7 +59,8 @@ class PostedFields:
         except (InvalidOperation, ValueError):
             self.malformed.append(name)
             return current
-        if not value.is_finite() or (minimum is not None and value < minimum):
+        if (not value.is_finite() or (minimum is not None and value < minimum)
+                or (maximum is not None and value > maximum)):
             self.malformed.append(name)
             return current
         return value

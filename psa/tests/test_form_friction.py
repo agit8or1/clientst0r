@@ -338,3 +338,97 @@ class QuoteEditTests(_Base):
         self.c.post(self.url, {'title': 'Firewall refresh', 'li_description': ['Firewall', 'Install'],
                                'li_quantity': ['2', '1'], 'li_unit_price': ['900', '200']})
         self.assertEqual(self.quote.line_items.count(), 2)
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class ProcurementEditTests(_Base):
+    """Requisitions and purchase orders: same rules as invoices and quotes."""
+
+    def setUp(self):
+        super().setUp()
+        from psa.models import PurchaseOrder, PurchaseOrderLineItem
+        self.po = PurchaseOrder.objects.create(
+            organization=self.org, client_org=self.org, title='Switches', vendor_name='Acme Dist',
+            vendor_email='sales@acme.test', notes='Keep me', status='sent',
+            issue_date=date(2026, 3, 1), expected_delivery_date=date(2026, 3, 15),
+            is_drop_ship=True, ship_to_name='Branch', tax_rate=Decimal('8.75'),
+            shipping_cost=Decimal('25'), currency='EUR')
+        PurchaseOrderLineItem.objects.create(po=self.po, sort_order=0, description='24-port switch',
+                                             quantity=Decimal('2'), unit_price=Decimal('300'))
+        self.url = reverse('psa:po_edit', kwargs={'pk': self.po.pk})
+
+    def _lines(self):
+        return list(self.po.line_items.order_by('sort_order').values_list('description', 'quantity'))
+
+    def test_a_post_with_only_the_required_fields_keeps_everything_else(self):
+        r = self.c.post(self.url, {'title': 'Switches (renamed)', 'vendor_name': 'Acme Dist'})
+        self.assertEqual(r.status_code, 302)
+        self.po.refresh_from_db()
+        self.assertEqual(self.po.title, 'Switches (renamed)')
+        self.assertEqual((self.po.status, self.po.notes, self.po.currency), ('sent', 'Keep me', 'EUR'))
+        self.assertEqual(self.po.client_org_id, self.org.pk)
+        self.assertEqual(self.po.issue_date, date(2026, 3, 1))
+        self.assertEqual(self.po.expected_delivery_date, date(2026, 3, 15))
+        self.assertTrue(self.po.is_drop_ship)
+        self.assertEqual(self.po.tax_rate, Decimal('8.75'))
+        self.assertEqual(self.po.shipping_cost, Decimal('25'))
+        self.assertEqual(self.po.vendor_email, 'sales@acme.test')
+        self.assertEqual(self._lines(), [('24-port switch', Decimal('2'))])
+
+    def test_malformed_values_keep_the_saved_ones_and_warn(self):
+        r = self.c.post(self.url, {'title': 'Switches', 'vendor_name': 'Acme Dist', 'tax_rate': '150',
+                                   'shipping_cost': 'abc', 'status': 'bogus', 'issue_date': 'tomorrow'})
+        self.assertEqual(r.status_code, 302)
+        self.po.refresh_from_db()
+        self.assertEqual(self.po.tax_rate, Decimal('8.75'))
+        self.assertEqual(self.po.shipping_cost, Decimal('25'))
+        self.assertEqual(self.po.status, 'sent')
+        self.assertEqual(self.po.issue_date, date(2026, 3, 1))
+        self.assertTrue(any('kept the saved value' in w for w in self._warnings(r)))
+
+    def test_bad_line_rows_leave_the_lines_alone(self):
+        for data in ({'li_description': ['24-port switch', 'Rack'], 'li_quantity': ['3'],
+                      'li_unit_price': ['300', '50']},
+                     {'li_description': ['24-port switch'], 'li_quantity': ['three'],
+                      'li_unit_price': ['300']}):
+            with self.subTest(data=data):
+                r = self.c.post(self.url, {'title': 'Switches', 'vendor_name': 'Acme Dist', **data})
+                self.assertEqual(self._lines(), [('24-port switch', Decimal('2'))])
+                self.assertTrue(any('Line items were not changed' in w for w in self._warnings(r)))
+
+    def test_intentional_changes_still_apply(self):
+        self.c.post(self.url, {'title': 'Switches', 'vendor_name': 'Acme Dist', 'po_flags': '1',
+                               'notes': '', 'client_org': '', 'li_description': ['48-port switch'],
+                               'li_quantity': ['1'], 'li_unit_price': ['500']})
+        self.po.refresh_from_db()
+        self.assertFalse(self.po.is_drop_ship)  # rendered and unticked
+        self.assertEqual(self.po.notes, '')
+        self.assertIsNone(self.po.client_org_id)
+        self.assertEqual(self._lines(), [('48-port switch', Decimal('1'))])
+        self.c.post(self.url, {'title': 'Switches', 'vendor_name': 'Acme Dist', 'li_description': [''],
+                               'li_quantity': [''], 'li_unit_price': ['']})
+        self.assertEqual(self._lines(), [])  # last row removed
+
+    def test_requisition_keeps_absent_fields_and_range_checks_tax(self):
+        from psa.models import PurchaseRequisition
+        pr = PurchaseRequisition.objects.create(organization=self.org, client_org=self.org, title='Laptops',
+                                                description='For new starters', notes='Urgent',
+                                                tax_rate=Decimal('5'), currency='GBP',
+                                                requested_by=self.admin)
+        url = reverse('psa:requisition_edit', kwargs={'pk': pr.pk})
+        self.c.post(url, {'title': 'Laptops', 'tax_rate': '-3'})
+        pr.refresh_from_db()
+        self.assertEqual((pr.description, pr.notes, pr.currency, pr.tax_rate, pr.client_org_id),
+                         ('For new starters', 'Urgent', 'GBP', Decimal('5'), self.org.pk))
+
+
+@override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
+class TaxRateRangeTests(_Base):
+    def test_invoice_tax_rate_above_100_percent_is_refused(self):
+        inv = Invoice.objects.create(organization=self.org, client_org=self.org, title='November services',
+                                     invoice_date=date(2026, 11, 1), due_date=date(2026, 11, 30),
+                                     tax_rate=Decimal('0.0875'))
+        r = self.c.post(reverse('psa:invoice_edit', kwargs={'pk': inv.pk}), {'tax_rate': '15'})
+        inv.refresh_from_db()
+        self.assertEqual(inv.tax_rate, Decimal('0.0875'))
+        self.assertTrue(any('tax rate' in w for w in self._warnings(r)))

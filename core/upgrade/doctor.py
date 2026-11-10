@@ -137,7 +137,18 @@ def diagnose():
     """Findings for the first unapplied migration of every app that has one."""
     executor = MigrationExecutor(connection)
     loader = executor.loader
-    plan = executor.migration_plan(loader.graph.leaf_nodes())
+    # Walk the whole graph rather than executor.migration_plan(): the plan
+    # treats a leaf that is recorded as applied as reached, so a gap before it
+    # (a later migration recorded, an earlier one not; #128/#129) would be
+    # missed.
+    applied = set(loader.applied_migrations)
+    order, seen_nodes = [], set()
+    for leaf in loader.graph.leaf_nodes():
+        for node in loader.graph.forwards_plan(leaf):
+            if node not in seen_nodes:
+                seen_nodes.add(node)
+                order.append(node)
+    plan = [(loader.graph.nodes[node], False) for node in order if node not in applied]
     tables = _schema()
     seen_apps, findings = set(), []
     for migration, backwards in plan:

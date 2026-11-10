@@ -109,6 +109,9 @@ SECTIONS = (
     )),
     Section('psa_dispatch', 'psa', _('Dispatch Board'), gate=_psa, tabs=(
         Tab(_('Dispatch Board'), 'psa:dispatch_board', 'fa-table-list'),
+        # Routing pages check their own permissions (manage / test / override).
+        Tab(_('Routing Triage'), 'ticket_routing:triage', 'fa-inbox', gate=_msp_staff),
+        Tab(_('Ticket Routing'), 'ticket_routing:overview', 'fa-route', gate=_msp_staff),
     )),
     Section('psa_projects', 'psa', _('Projects'), gate=_psa, tabs=(
         Tab(_('Projects'), 'psa:project_list', 'fa-diagram-project'),

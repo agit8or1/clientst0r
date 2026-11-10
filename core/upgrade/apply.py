@@ -305,6 +305,10 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     if data.get('status') != 'complete':
         journal.stage('complete')
     result['success'] = True
+    try:
+        snapshot.prune(out=say)
+    except Exception as e:  # pruning must never fail a finished upgrade
+        say(f'Could not prune old upgrade backups: {e}', 'warning')
 
 
 def _audit(user, result):
