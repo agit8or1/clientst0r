@@ -96,7 +96,7 @@ class SettingsMenuStructureTests(TestCase):
         self.assertEqual(positions, sorted(positions))
         self.assertEqual(
             {k: len(v) for k, v in settings_groups.SETTINGS_GROUPS.items()},
-            {'system': 11, 'security': 6, 'access': 3, 'integrations': 5, 'mobile': 2},
+            {'system': 12, 'security': 6, 'access': 3, 'integrations': 5, 'mobile': 2},
         )
 
     def test_priority_entries_head_their_group(self):
@@ -137,7 +137,7 @@ class SettingsMenuStructureTests(TestCase):
         self.assertIn(url, hrefs(render_menu(self.su, psa_enabled=True)))
         html = render_menu(self.su, psa_enabled=False)
         self.assertNotIn(url, hrefs(html))
-        self.assertRegex(html, r'(?s)data-settings-group="system">.*?badge[^>]*>10<')
+        self.assertRegex(html, r'(?s)data-settings-group="system">.*?badge[^>]*>11<')
 
     def test_superuser_entries_hidden_for_non_superuser(self):
         html = render_menu(self.staff)
