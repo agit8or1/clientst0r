@@ -771,6 +771,8 @@ AUTO_UPDATE_CHECK_INTERVAL = int(os.getenv('AUTO_UPDATE_CHECK_INTERVAL', '21600'
 # Owner-only; keep it on a disk with room for a full copy of the database
 # and uploads.
 UPGRADE_BACKUP_DIR = Path(os.getenv('CLIENTST0R_BACKUP_DIR', str(BASE_DIR / 'backups' / 'upgrades')))
+# Verified pre-upgrade backups kept after a successful upgrade (older ones are removed).
+UPGRADE_BACKUPS_KEEP = int(os.getenv('UPGRADE_BACKUPS_KEEP', '5'))
 # Trusted release signers. Empty: /etc/clientst0r/allowed_signers (root
 # helper), else the allowed_signers committed in the installed revision.
 RELEASE_SIGNERS_FILE = os.getenv('CLIENTST0R_RELEASE_SIGNERS_FILE', '')

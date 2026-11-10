@@ -832,3 +832,55 @@ class UpdateScriptOrderTests(SimpleTestCase):
     def test_sandbox_leaves_the_host_alone(self):
         self.assertIn('.update_progress_sandbox.json', self.script)
         self.assertIn('[sandbox] skipping root helper', self.script)
+
+
+class ChannelUpgradeDefaultTests(TestCase):
+    """Installs upgraded into channels keep following main (Preview); a fresh
+    install starts on Stable."""
+
+    def _run(self):
+        import importlib
+        from django.apps import apps as live_apps
+        mod = importlib.import_module('core.migrations.0083_existing_installs_follow_main')
+        mod.keep_existing_installs_on_main(live_apps, None)
+
+    def test_fresh_install_stays_stable(self):
+        from django.contrib.auth.models import User
+        from core.models import SystemSetting
+        User.objects.all().delete()
+        SystemSetting.get_settings()
+        self._run()
+        self.assertEqual(SystemSetting.get_settings().update_channel, 'stable')
+
+    def test_existing_install_keeps_following_main(self):
+        from django.contrib.auth.models import User
+        from core.models import SystemSetting
+        User.objects.create_user('existing-admin', password='pw-existing-660!')
+        SystemSetting.get_settings()
+        self._run()
+        self.assertEqual(SystemSetting.get_settings().update_channel, 'preview')
+
+
+class BackupPruneTests(TestCase):
+    """After a successful upgrade only the newest verified backups are kept;
+    the journal's backup and unverified ones are never removed."""
+
+    def test_prune_keeps_newest_pinned_and_unverified(self):
+        from unittest import mock
+        from core.upgrade import snapshot
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
+        snaps = []
+        for i in range(5):
+            d = root / f'snapshot-2026111{i}'
+            d.mkdir()
+            snaps.append({'path': str(d), 'verified': i != 1})
+        snaps.reverse()  # newest first, like list_snapshots()
+        pinned = str(root / 'snapshot-20261110')  # oldest, but the journal points at it
+        with mock.patch.object(snapshot, 'list_snapshots', return_value=snaps), \
+                mock.patch.object(snapshot.journal, 'read', return_value={'backup': pinned}):
+            removed = snapshot.prune(keep=2)
+        self.assertEqual(removed, [str(root / 'snapshot-20261112')])
+        left = sorted(p.name for p in root.iterdir())
+        self.assertEqual(left, ['snapshot-20261110', 'snapshot-20261111', 'snapshot-20261113',
+                                'snapshot-20261114'])
