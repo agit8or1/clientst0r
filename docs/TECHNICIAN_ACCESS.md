@@ -1,7 +1,8 @@
 # Technician access and Ticket AI Assist — operator guide
 
 *Since v3.17.646. Ticket AI Assist is **OPTIONAL AI**: it requires PSA to be on and the master AI switch
-(`psa_ai_enabled`, Settings → AI & LLM).*
+(`psa_ai_enabled`, Settings → AI & LLM). The RMM tools on a ticket (v3.17.658, [below](#rmm-tools-on-a-ticket))
+are not AI features: they work with AI off, but need PSA, a preset and a paired RMM.*
 
 ## What it governs
 
@@ -34,8 +35,8 @@ flags never imply a preset — superusers who work tickets need an assignment li
 | Export ticket data | Off | Off | Off |
 | Unattended access / clipboard / file transfer | Off | Off | Off |
 
-**Request** means the technician may ask for time-limited access. The grant comes from rem0te, per session —
-never from ClientSt0r.
+**Request** means the technician may ask for time-limited access. The grant comes from the paired RMM, per
+session — never from ClientSt0r.
 
 **Locked** for everyone, whatever the preset:
 
@@ -47,8 +48,12 @@ never from ClientSt0r.
 - security administration;
 - publishing without Send.
 
-RMM, remote-access and fix capabilities show **Unavailable** until a paired rem0te advertises them. Today that
-means always: the rem0te side of the contract is not built yet (`docs/contracts/ticket-rmm-v1/`).
+RMM, remote-access and fix capabilities show **Unavailable** at a customer until that customer's paired RMM
+advertises the matching capability in its ticket-rmm-v1 capabilities document (`docs/contracts/ticket-rmm-v1/`).
+Low- and higher-risk fix requests and "Refer a fix" all need `signed_actions`. Advanced diagnostics and elevation
+can be granted, but no ticket action uses them yet.
+
+[![Preview effective access for demo.tech at Ridgeline Dental Group: handoff, read-only diagnostics and low-risk fix requests allowed, view and control sessions by request, and capabilities the paired RMM doesn't advertise shown as Unavailable](images/github/technician-access-rmm-light.png)](images/github/technician-access-rmm-light.png)
 
 Built-in presets can't be edited; clone one to customise it. Built-ins are seeded by a migration and by
 `manage.py init_role_templates`. Seeding is idempotent and never overwrites a preset that already exists. When a
@@ -86,8 +91,11 @@ already queued, which the gateway re-checks before calling a model.
      **My Profile → My AI keys**. Only its owner can use it, and only at customers that allow
      technicians' keys and are not local-only; it doesn't have to be listed in the policy. The
      customer's daily budget counts it at the prices the technician enters.
-3. **Integrations → RMM → the customer's Rem0te connection → Ticket analysis pairing.** Enter the key ID, the two
-   secrets and the location. A second administrator approves the pairing.
+3. **Integrations → RMM → the customer's connection → Configure → Ticket integration pairing (ticket-rmm-v1).**
+   Any RMM that implements the contract can be paired; the connection must serve a single customer. Enter the
+   key ID, the two secrets, where the RMM runs and, if it differs from the connection's address, the integration
+   address. A second administrator approves the pairing; then **Check pairing** on the connection page fetches
+   the RMM's capabilities and pins its tenant. The scheduler re-checks hourly (every 10 minutes after a failure).
 4. **Settings → Security → Technician Access.**
    - Assign presets per technician or group, per customer, optionally with an expiry. **Preview** shows the diff,
      the affected technicians and the expiry before you save.
@@ -102,8 +110,8 @@ already queued, which the gateway re-checks before calling a model.
 
 ## Protected changes
 
-Widening anything — a preset above L1, preset capabilities, a group member added, a deny or restriction lifted, a
-rem0te pairing, an Ollama destination, approvers, the recovery contact, looser detection — and moving the e-mail
+Widening anything — a preset above L1, preset capabilities, a group member added, a deny or restriction lifted, an
+RMM pairing (or marking the RMM on-premises), an Ollama destination, approvers, the recovery contact, looser detection — and moving the e-mail
 address of a superuser, approver or MSP technician, works like this:
 
 1. The requester proposes the change. Nothing changes yet.
@@ -136,9 +144,22 @@ alerts and these notices go, so it can't be moved by one person:
 
 **One-administrator installs can't widen access** or move a protected address. Add a second superuser first.
 
-**Granting superuser** is a protected change when Admin → Security → Superuser Approval is on (since
-v3.17.653; off on upgrade, needs two eligible administrators to turn on, and turning it off is itself protected).
-See `docs/CLIENT_DATA_PROTECTION.md#granting-superuser`, including how host-level commands are handled.
+**Granting superuser** is a protected change when **Admin → Security → Superuser Approval** is on (since
+v3.17.653; off on upgrade):
+
+- One administrator requests the grant (from the user page, the user editor or Django admin) and confirms it with
+  their password and authenticator code; a **different** administrator approves it the same way. The account is
+  not a superuser until then.
+- Turning the policy on needs two eligible administrators; turning it off is itself a protected change.
+- The target can't approve their own grant, and nobody approves their own request. Revoking superuser is never
+  held.
+- Grants made outside the approval (`manage.py createsuperuser`, the Django shell) are recorded and, while the
+  policy is on, e-mailed to the other superusers and the recovery contact.
+
+[![Superuser Approval page in dark theme](images/github/superuser-approval-dark.png)](images/github/superuser-approval-dark.png)
+
+See [CLIENT_DATA_PROTECTION.md](CLIENT_DATA_PROTECTION.md#granting-superuser), including how host-level commands
+are handled.
 
 ## Theft detection
 
@@ -224,3 +245,27 @@ Results are staff-only:
 **Use reply** puts a draft into the composer without overwriting your text. Only the normal Send publishes it.
 Sending a reply that came from an AI draft needs *Send reviewed AI replies*; L1 technicians get the draft as an
 internal note instead.
+
+## RMM tools on a ticket
+
+*v3.17.658.* When a ticket's asset is linked to a device of a paired RMM at the same customer, the ticket's Asset
+card shows a **Paired RMM** block with what the technician's assignment allows on that device:
+
+- **Send to RMM** — a preview of exactly what leaves (the redacted ticket context, the same evidence as Analyze
+  ticket, and what was left out), then a private handoff. It shows as Sent only when the RMM confirms receipt.
+- **Run read-only** — one diagnostic from the RMM's advertised list, on standard workstations only. The result is
+  sanitised, limited to 32 KiB, staff-only, and counts toward theft detection's diagnostic bytes.
+- **View session / Control session** (or **Request …** on presets where they are by request) — the RMM returns a
+  short-lived launch address, which ClientSt0r checks against the connection's console hosts, opens and forgets.
+- **Refer a fix** — a title and description (or one of the ticket's analysis suggestions) for the RMM to approve
+  and run. Its status — received, approved, rejected, running, succeeded, failed — comes only from the RMM's signed
+  events.
+
+The block lists the requests already sent, with the RMM's own status notes. No RMM event can close the ticket or
+send a customer reply, and customers see none of it. Only the ticket's own asset is reachable; the browser can't
+name another device.
+
+[![Asset card on a ticket with the Paired RMM block and its requests](images/github/ticket-rmm-light.png)](images/github/ticket-rmm-light.png)
+
+Source: `psa_ai/services/rmm_actions.py`, `psa_ai/rmm_views.py`, `integrations/ticket_rmm.py`; tests
+`psa_ai/tests_rmm.py`.

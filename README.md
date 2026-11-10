@@ -70,13 +70,13 @@ A ticket that reads as a conversation — the customer on one side, technicians 
 internal notes in amber and marked staff only — beside the contract, SLA countdown and the
 credentials the job needs, listed but never revealed.
 
-[![Ticket detail laid out as a conversation: customer messages in left-hand bubbles, technician replies in blue right-hand bubbles, an amber internal note marked staff only, a status-change row and a composer set to Public reply, beside the client's contract, details and vault context with every secret hidden](docs/images/github/ticket-detail-light.png)](docs/images/github/ticket-detail-light.png)
+[![Ticket detail laid out as a conversation: customer messages in left-hand bubbles, technician replies in blue right-hand bubbles, an amber internal note marked staff only, a status-change row and a composer set to Public reply, beside the Cc list, the client's active contract, the closeout checklist, details and the asset card](docs/images/github/ticket-detail-light.png)](docs/images/github/ticket-detail-light.png)
 
 <table>
 <tr>
 <td width="50%" valign="top">
-<a href="docs/images/github/ticket-queue-dark.png"><img src="docs/images/github/ticket-queue-dark.png" alt="Service desk queue in dark theme listing twelve tickets across four clients with subject, client, priority, status, queue, assignee and age"></a>
-<b>One queue, every client</b> · Dark<br>Filter by status, priority, queue or technician.
+<a href="docs/images/github/ticket-queue-dark.png"><img src="docs/images/github/ticket-queue-dark.png" alt="Service desk queue in dark theme listing 36 tickets across five clients with subject, client, priority, status, queue, assignee, a Needs reply flag, last activity and age"></a>
+<b>One queue, every client</b> · Dark<br>Filter by status, priority, queue or technician; see who acted last.
 </td>
 <td width="50%" valign="top">
 <a href="docs/images/github/dispatch-board-dark.png"><img src="docs/images/github/dispatch-board-dark.png" alt="Dispatch board in dark theme showing a week of scheduled work by technician with an SLA-at-risk banner"></a>
@@ -123,10 +123,20 @@ credentials the job needs, listed but never revealed.
 <b>What the month earned</b> · Light<br>Revenue against cost of delivery, from logged time.
 </td>
 </tr>
+<tr>
+<td width="50%" valign="top">
+<a href="docs/images/github/ticket-rmm-requests-dark.png"><img src="docs/images/github/ticket-rmm-requests-dark.png" alt="Requests to the RMM on a ticket in dark theme: a handoff with receipt confirmed, a completed read-only disk-space diagnostic with its staff-only result, and a fix referral approved in the RMM"></a>
+<b>Work the device from the ticket</b> · Dark<br>Hand off, run a read-only check or refer a fix to a paired RMM.
+</td>
+<td width="50%" valign="top">
+<a href="docs/images/github/technician-access-light.png"><img src="docs/images/github/technician-access-light.png" alt="Technician Access settings in light theme with protected changes waiting, an effective-access preview, L1 and L2 assignments per customer and the preset capability table"></a>
+<b>Who may do what, per customer</b> · Light<br>L1/L2/L3 presets; widening needs a second administrator.
+</td>
+</tr>
 </table>
 
-**[See all screenshots →](docs/screenshots.md)** — light and dark, across documentation,
-the service desk, dispatch, projects, reporting and administration.
+**[See all screenshots →](docs/screenshots.md)** — 83 views, light and dark, across documentation,
+the service desk, the paired RMM, dispatch, projects, reporting, security and administration.
 
 ## Quick Start
 
@@ -230,7 +240,7 @@ ClientSt0r holds your customers' credentials, tickets and device data. These are
 protections that ship today, with their defaults. The full walkthrough, with the evidence
 behind each one and the known gaps, is [docs/CLIENT_DATA_PROTECTION.md](docs/CLIENT_DATA_PROTECTION.md).
 Administrators can check whether each one is in effect at a given customer under
-**Settings → Security → Security Features**.
+**Admin → Security → Security Features**.
 
 - **A customer sees the shared conversation, never your working notes.** When Example
   Dental's office manager opens "Printer offline at front desk", they see the description
@@ -259,6 +269,12 @@ Administrators can check whether each one is in effect at a given customer under
   AI policy. Vault data, attachments and internal notes are never sent; secrets in the
   ticket text are redacted. Nothing AI produces is sent to a customer until a technician
   presses Send, and ClientSt0r sends no commands to devices.
+- **A paired RMM does the device work (from 3.17.658).** Any RMM that implements the
+  ticket-rmm-v1 contract can be paired to a single-customer connection; pairing is a
+  protected change a second administrator approves, and it is pinned to one RMM tenant.
+  From a ticket, technicians whose assignment allows it can send a redacted handoff, run a
+  read-only diagnostic the RMM advertises, launch a view or control session, or refer a fix
+  — which the RMM approves and runs, never ClientSt0r.
 - **Optional Superuser Approval.** With two or more administrators, granting superuser can
   require a second administrator's approval (Admin → Security → Superuser Approval).
 
@@ -303,7 +319,8 @@ rather than a public issue. Full policy and response timelines: [SECURITY.md](SE
 | [Changelog](CHANGELOG.md) | Release history |
 | [Integrations](docs/INTEGRATION_SETUP_GUIDE.md) | Connecting PSA, RMM, M365, accounting and distributors |
 | [API](API_V2_GRAPHQL.md) | REST and GraphQL endpoints |
-| [Client data protection](docs/CLIENT_DATA_PROTECTION.md) | Who sees what, vault reveals, ticket AI, RMM, limitations |
+| [Client data protection](docs/CLIENT_DATA_PROTECTION.md) | Who sees what, vault reveals, secure messages, ticket AI, RMM pairing, limitations |
+| [Technician access](docs/TECHNICIAN_ACCESS.md) | Per-customer L1/L2/L3 presets, protected changes, Superuser Approval, RMM tools on a ticket |
 | [Security](SECURITY.md) | Policy, supported versions, reporting |
 | [FAQ](docs/faq.md) | Common questions |
 | [More docs](docs/README.md) | Everything else |

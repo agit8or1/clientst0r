@@ -27,6 +27,8 @@ GROUPS = [
      'Each client\'s physical network as panel artwork, cables, racks, diagrams and labels.'),
     ('workflows',  'Everyday workflows',
      'Ticket to resolution, quote to invoice, and the documentation that hangs off both.'),
+    ('rmm',        'Tickets and the paired RMM',
+     'Pairing an RMM for ticket-rmm-v1, then handoffs, read-only diagnostics and fix referrals from a ticket.'),
     ('management', 'Management and configuration',
      'The commercial side: what is quoted, what is billed, and what each client is entitled to.'),
     ('access',     'Access and administration',

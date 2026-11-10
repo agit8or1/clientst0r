@@ -1,10 +1,11 @@
 # How ClientSt0r protects client data
 
-This page describes what ClientSt0r does today (v3.17.651). Planned work is
-in [ROADMAP.md](ROADMAP.md), not here. Every statement below points to the
-code or test that backs it. Administrators can see whether each safeguard is
-actually in effect at a given customer under **Settings → Security → Security
-Features** (`/core/security/features/`).
+This page describes what ClientSt0r does as of v3.17.656, plus the
+ticket-to-RMM integration that ships in v3.17.658 (marked where it applies).
+Planned work is in [ROADMAP.md](ROADMAP.md), not here. Every statement below
+points to the code or test that backs it. Administrators can see whether each
+safeguard is actually in effect at a given customer under **Admin → Security →
+Security Features** (`/core/security/features/`).
 
 The examples use made-up customers, people and tickets.
 
@@ -68,17 +69,19 @@ detail: [TECHNICIAN_ACCESS.md](TECHNICIAN_ACCESS.md). Source:
 | Compare models | – | yes | yes | ClientSt0r (customer policy must allow it) |
 | Apply AI-suggested ticket changes | – | yes | yes | The technician |
 | Other technicians' tickets | – | – | yes | ClientSt0r |
-| Private RMM handoff | – | yes | yes | ClientSt0r *(planned — not built yet)* |
-| Read-only diagnostics | – | standard workstations | + servers | rem0te *(planned)* |
-| Remote session (view / control / elevation) | – | may **request** view or control | may request view, control or elevation | **rem0te** *(planned)* |
-| Request a catalog fix | – | low-risk | low- and higher-risk | **rem0te** approves and runs it *(planned)* |
-| Approve an endpoint fix | locked | locked | locked | Only rem0te, on its own approval page |
+| Private RMM handoff | – | yes | yes | ClientSt0r sends it; the RMM confirms receipt |
+| Read-only diagnostics | – | standard workstations | standard workstations (advanced diagnostics: see below) | The RMM runs only diagnostics it advertises |
+| Remote session (view / control / elevation) | – | may **request** view or control | may request view, control or elevation | **The paired RMM** grants each session |
+| Request a catalog fix | – | low-risk | low- and higher-risk | **The paired RMM** approves and runs it |
+| Approve an endpoint fix | locked | locked | locked | Only the paired RMM, on its own approval page |
 | Vault data, bulk export, cross-customer access, security administration | locked | locked | locked | Never through a preset |
 
-Today only the first six rows do anything. The RMM, diagnostics, remote
-session and fix rows are capability switches waiting for rem0te's side of the
-contract ([ticket-rmm-v1](contracts/ticket-rmm-v1/README.md), "Later
-milestones"); they show **Unavailable** until a paired rem0te advertises them.
+The RMM, diagnostics, remote-session and fix rows act only through a paired
+RMM (v3.17.658, [below](#rmm-pairing-and-ticket-actions)). Each shows
+**Unavailable** at a customer until that customer's paired RMM advertises the
+matching capability. Read-only diagnostics cover standard workstations only;
+advanced diagnostics (servers) and elevation are capability switches with no
+ticket action yet.
 
 ## Sign-in
 
@@ -120,6 +123,29 @@ Evidence: `psa/views.py` (`ticket_detail`, `STAFF_ONLY_TICKET_CONTEXT`,
 `psa/tests/test_internal_ticket_visibility.py`,
 `integrations/tests_rmm_association.py`
 (`test_asset_page_offers_rmm_to_technicians_only`).
+
+## A secret sent with a ticket reply
+
+*Example.* Ridgeline's new starter needs a temporary password. The
+technician ticks "Email this reply", opens **Add a secure message** and types
+it.
+
+- The secret is stored encrypted as a link-only Secure Note. It opens once by
+  default and expires after 1, 3 or 7 days (3 by default).
+- The link goes only into the e-mail to the requester, so a secure message
+  can't be combined with Cc. Only a hash of the link token is stored, and
+  stored copies of the sent e-mail have the link replaced with a placeholder.
+  If the e-mail fails, the message is withdrawn.
+- The ticket never shows the secret, only its state: sent and not opened yet,
+  opened by the recipient, expired unopened, or withdrawn. The customer's
+  portal view says it was sent to their e-mail.
+- The link opens a page with a **Show the message** button, so mail scanners
+  and link previews that fetch links don't use up a one-time message (this
+  applies to every read-once or view-limited Secure Note link since
+  v3.17.654).
+
+Evidence: `psa/ticket_secure.py` (`create_secure_message`, `secure_status`,
+`scrub_secret_links`); tests `psa/tests/test_ticket_cc_secure.py`.
 
 ## Revealing a vault credential
 
@@ -214,23 +240,44 @@ refuses to start without it. Tests: `vault/tests_secrets_at_rest.py`.
 Evidence: `psa_ai/services/evidence.py`, `psa_ai/services/profiles.py`,
 `psa_ai/profile_views.py`; tests `psa_ai/tests.py`, `psa_ai/tests_assist.py`.
 
-## RMM: three different things
+## RMM pairing and ticket actions
+
+These are not AI features: they work with `psa_ai_enabled` off. They need the
+service desk, a technician access assignment at the customer, and a paired
+RMM.
 
 | What | What it is | Who enforces it | Status |
 |---|---|---|---|
-| **Connect link** ("Connect with Rem0te" on asset and ticket pages) | Opens the computer's page in rem0te. No key, password or session credential is in the link | **rem0te**, with the technician's own rem0te sign-in | Shipped (v3.17.644), technicians only |
-| **Handoff** | A private note about the ticket to the RMM that manages the device | ClientSt0r (preset) | Planned |
-| **Remote-session request** | Asking for a view or control session | **rem0te** grants each session; ClientSt0r only asks | Planned |
-| **Endpoint change** (a fix) | Work on the device | **rem0te** approves and runs it; ClientSt0r never sends commands | Planned |
+| **Console link** ("Open in …" / "Connect with Rem0te" on asset and ticket pages) | Opens the device's page in the RMM. No key, password or session credential is in the link | **The RMM**, with the technician's own RMM sign-in | Shipped (v3.17.644), technicians only |
+| **Pairing** | Any RMM that implements [ticket-rmm-v1](contracts/ticket-rmm-v1/README.md), on a single-customer connection: a key ID and two shared secrets (stored encrypted), signed requests both ways, pinned to the RMM tenant named in its first capabilities check | A second administrator approves turning it on (protected change) | v3.17.658 |
+| **Handoff** | The ticket's redacted context, previewed first, sent privately to the RMM | ClientSt0r (preset); marked Sent only on the RMM's signed receipt | v3.17.658 |
+| **Read-only diagnostic** | One named diagnostic from the RMM's advertised list, on a standard workstation | The RMM runs it; the result is sanitised, limited to 32 KiB and staff-only | v3.17.658 |
+| **Remote session** | A view or control session | **The RMM** grants each session; ClientSt0r checks the launch address is on the connection's console hosts and expires within 10 minutes, then forgets it | v3.17.658 |
+| **Fix referral** | A request for work on the device | **The RMM** approves and runs it; ClientSt0r never sends commands | v3.17.658 |
 
-An AI suggestion, a ClientSt0r approval or a technician's preset is **not**
-proof that rem0te authorized or ran anything. Only rem0te's own records show
-that. ClientSt0r has no endpoint command path: the old `run_rmm_script` AI
-action was removed, and the RMM adapters only read.
+- **Which devices.** Only the ticket's own asset, through an RMM device
+  linked to it at the same customer, on a live pairing of that customer. The
+  browser can't name any other device.
+- **Pairing changes.** Turning pairing on, or marking the RMM on-premises,
+  waits for a second administrator. Changing a secret, the key ID, the
+  address or the provider of a live pairing switches it off until it is
+  approved again. If the RMM ever answers for a different tenant, the pairing
+  stops.
+- **What comes back.** Signed status events update the request row only. No
+  status can close the ticket or send a customer reply, and customers see
+  none of it.
+- **Audit.** Every request and every remote launch is audited; the launch
+  address itself is never stored or logged.
 
-Evidence: `tech_access/catalog.py` (`LOCKED`, `NEEDS_LIVE_REMOTE`),
-`integrations/rmm_association.py`,
-[contracts/ticket-rmm-v1](contracts/ticket-rmm-v1/README.md).
+An AI suggestion, a ClientSt0r referral or a technician's preset is **not**
+proof that the RMM authorized or ran anything. Only the RMM's own records
+show that. ClientSt0r has no endpoint command path: the old `run_rmm_script`
+AI action was removed, and the RMM adapters only read.
+
+Evidence: `integrations/ticket_rmm.py`, `psa_ai/services/rmm_actions.py`,
+`psa_ai/rmm_views.py`, `tech_access/catalog.py` (`LOCKED`,
+`NEEDS_LIVE_REMOTE`, `INTEGRATION_REQUIRES`),
+`integrations/rmm_association.py`; tests `psa_ai/tests_rmm.py`.
 
 ## Granting superuser
 
@@ -292,6 +339,9 @@ Known gaps, stated plainly:
   [Granting superuser](#granting-superuser). Commands run on the host
   bypass it; they are recorded and announced.
 - **Ticket text and attachments aren't encrypted** by the app.
+- **RMM request status is the RMM's word.** A fix shown as approved or
+  succeeded reflects the RMM's signed events, not something ClientSt0r
+  checked on the device.
 - **Browser-extension offline cache.** Restricted entries are synced without
   their secret (see above), but a disconnected device keeps what it already
   had until it reconnects, and offline use isn't rate-limited. Leave that
@@ -310,7 +360,9 @@ Known gaps, stated plainly:
 6. With two or more administrators, turn on Superuser Approval.
 7. If you use ticket AI, set `AI_GATEWAY_MODE=worker` and set each customer's
    AI policy deliberately.
-8. Check Settings → Security → Security Features for each customer.
+8. If you pair an RMM, pair one single-customer connection per customer and
+   give technicians the lowest preset that covers their work.
+9. Check Admin → Security → Security Features for each customer.
 
 ## Reporting a vulnerability
 

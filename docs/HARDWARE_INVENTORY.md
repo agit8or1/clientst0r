@@ -160,6 +160,13 @@ bottom for a ceiling access point. The same artwork appears on the asset record.
 </tr>
 </table>
 
+These are the exported SVGs themselves (from the demo data, `…/art/front.svg`),
+not screenshots — the same vector drawing the device page and labels use:
+
+![Front panel of the Dell PowerConnect 3448P switch XYZ-SW-01 as exported SVG: 48 copper ports in two rows numbered odd over even, two SFP ports G1 and G2, the copper G3 and G4 stacking ports and the status LEDs](images/hardware/switch-xyz-sw-01-front.svg)
+
+![Front of the 2U, 48-port copper patch panel PP-01 as exported SVG, ports numbered 1 to 48](images/hardware/patch-panel-pp-01-front.svg)
+
 A correct port count does not make an arrangement verified. Accuracy is stored
 per face, and specification provenance (where the component list comes from)
 is recorded separately from layout provenance.
@@ -179,6 +186,12 @@ document.
 <td width="50%" valign="top"><a href="images/github/hardware-connectivity-dark.png"><img src="images/github/hardware-connectivity-dark.png" alt="Connectivity diagram drawn from documented cables, with undocumented continuations flagged"></a></td>
 </tr>
 </table>
+
+The front of Northwind Logistics' HQ Comms Room — Rack A, exported as SVG
+(`/hardware/racks/<id>/front.svg`). A placement whose model has no artwork, such
+as the legacy KVM console or the UPS, is drawn as a plain face with its saved name:
+
+<img src="images/hardware/rack-northwind-hq-rack-a-front.svg" width="480" alt="Front elevation of HQ Comms Room — Rack A as exported SVG: a Fortinet FortiGate 91G at U40, an HPE Aruba 6300M core switch at U37, a 2U Panduit 48-port patch panel at U35–36, a KVM console placement with no artwork at U33, then Dell PowerEdge R650 and R750xs servers, a Synology RS2423+ NAS and a UPS with no artwork, each named beside the rack">
 
 * **Rack elevations** (`/hardware/racks/<id>/`): front and rear, drawn from
   catalog artwork; full-depth devices occupy both faces, a half-depth device

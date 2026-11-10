@@ -923,7 +923,7 @@ def seed_my_work():
         TicketPriority, TicketStatus, TicketTimeEntry, TicketType,
     )
 
-    lead, priya = user('demo.tech'), user('demo.ipatel')
+    lead = user('demo.tech')
     S = {s.name: s for s in TicketStatus.objects.all()}
     P = {p.name: p for p in TicketPriority.objects.all()}
     T = {t.name: t for t in TicketType.objects.all()}
@@ -1538,8 +1538,8 @@ def seed_rmm_fixture():
     linked to RDG-SRV01, and the open backup-verification ticket pointed at
     that asset — so the ticket page shows its RMM card without any network.
 
-    The hook for the RMM ticket-integration screens: extend this fixture
-    (pairing, cached capabilities) rather than adding a live connection.
+    seed_rmm_pairing pairs this same connection for ticket-rmm-v1 (cached
+    capabilities, no network) for the RMM ticket-integration screens.
     """
     from assets.models import Asset
     from integrations.models import RMMConnection, RMMDevice
@@ -1566,13 +1566,136 @@ def seed_rmm_fixture():
     print('  rmm fixture: connection', conn.pk, '| device', dev.pk, '| ticket', ticket and ticket.ticket_number)
 
 
+RMM_PAIRING_CAPS = ['rmm_handoff', 'diagnostics_readonly', 'remote_view', 'remote_control',
+                    'signed_actions']
+RMM_PAIRING_DIAGNOSTICS = [
+    {'key': 'disk_space', 'label': 'Disk space', 'description': 'Free space per volume',
+     'device_classes': ['workstation', 'laptop', 'desktop']},
+    {'key': 'pending_reboot', 'label': 'Pending reboot', 'description': 'Whether Windows is waiting to restart',
+     'device_classes': ['workstation', 'laptop', 'desktop']},
+    {'key': 'top_processes', 'label': 'Top processes', 'description': 'The ten busiest processes right now',
+     'device_classes': ['workstation', 'laptop', 'desktop']},
+]
+RMM_DIAG_RESULT = """Volume  Label     Size     Free     Free %
+C:      OS        237 GB   9.8 GB   4%
+D:      Imaging   931 GB   612 GB   66%
+
+Largest folders on C:
+  C:\\ProgramData\\XrayBridge\\cache   148 GB
+  C:\\Windows\\WinSxS                  11 GB
+  C:\\Users                            19 GB"""
+
+
+def seed_rmm_pairing():
+    """Pair the Ridgeline Tactical RMM connection for ticket-rmm-v1 — by
+    writing the rows an approved pairing and a successful capabilities check
+    leave behind (placeholder secrets, an invented key ID, a cached
+    capabilities document) — and give one open workstation ticket three RMM
+    requests in finished states. Nothing calls the RMM: the connection's
+    host is a .example name and sync stays off.
+    """
+    import hashlib
+    from assets.models import Asset
+    from integrations import ticket_rmm
+    from integrations.models import RMMConnection, RMMDevice
+    from psa.models import Ticket, TicketComment
+    from psa_ai.models import RMMRequest, RMMRequestEvent
+    from tech_access.models import AccessAssignment
+    from tech_access.services import builtin
+
+    rdg = org('Ridgeline Dental Group')
+    lead = user('demo.tech')
+    conn = RMMConnection.objects.get(organization=rdg, name='Ridgeline — Tactical RMM')
+    conn.customer_scope = RMMConnection.CUSTOMER_SCOPE_SINGLE
+    creds = dict(conn.get_credentials() or {})
+    creds.update({'api_key': 'demo-placeholder-not-a-key',
+                  ticket_rmm.OUTBOUND: 'demo-outbound-placeholder-secret-not-real-0001',
+                  ticket_rmm.INBOUND: 'demo-inbound-placeholder-secret-not-real-00001'})
+    conn.set_credentials(creds)
+    conn.field_mappings = dict(conn.field_mappings or {}, **{
+        ticket_rmm.ENABLED: True, ticket_rmm.KEY_ID: 'kid-ridgeline-demo', ticket_rmm.LOCATION: 'hosted',
+        ticket_rmm.URL: 'https://rmm.beaconmanaged.example/ticket-rmm'})
+    conn.save()
+    if not ticket_rmm.is_processor(conn):
+        ticket_rmm.record_capabilities(conn, {
+            'contract': ticket_rmm.CONTRACT, 'tenant': {'id': 'beacon-ridgeline', 'name': 'Ridgeline Dental Group'},
+            'capabilities': RMM_PAIRING_CAPS, 'diagnostics': RMM_PAIRING_DIAGNOSTICS})
+        conn.refresh_from_db()
+    assert ticket_rmm.is_processor(conn), ticket_rmm.status(conn)
+
+    pc = Asset.objects.get(organization=rdg, name='RDG-OP3-PC')
+    dev, _ = RMMDevice.objects.get_or_create(
+        connection=conn, external_id='agent-2b91e4', defaults=dict(
+            organization=rdg, device_name='RDG-OP3-PC', hostname='op3', device_type='workstation',
+            manufacturer='Dell', model='OptiPlex 7010', serial_number=pc.serial_number or 'DLOP3DEMO',
+            os_type='windows', os_version='Windows 11 Pro 23H2', ip_address='10.20.1.43',
+            client_id='3', client_name='Ridgeline Dental Group', site_id='5', site_name='Boise clinic',
+            is_online=True, last_seen=now - timedelta(minutes=2), linked_asset=pc, link_status='auto',
+            data_refreshed_at=now - timedelta(minutes=25)))
+
+    # demo.tech works Ridgeline tickets on the L2 preset (handoffs, read-only
+    # diagnostics and low-risk fix referrals; remote sessions on request).
+    if not AccessAssignment.objects.filter(user=lead, organization=rdg).exists():
+        AccessAssignment.objects.create(preset=builtin('l2'), organization=rdg, user=lead)
+
+    subject = 'Operatory 3 PC slow to open X-rays'
+    ticket = Ticket.objects.filter(organization=rdg, subject=subject).first()
+    if ticket is None:
+        model = Ticket.objects.get(organization=rdg, subject='Backup restore verification — February')
+        created = now - timedelta(hours=5)
+        ticket = Ticket.objects.create(
+            organization=rdg, subject=subject, related_asset=pc, assigned_to=lead,
+            description='Since yesterday the imaging bridge takes over a minute to open each X-ray in '
+                        'operatory 3. The other operatories are fine. — front desk',
+            status=model.status, priority=model.priority, ticket_type=model.ticket_type, queue=model.queue,
+            client_can_view=True, source='portal',
+            first_response_due_at=created + timedelta(hours=1),
+            resolution_due_at=created + timedelta(hours=24),
+            first_response_at=created + timedelta(minutes=18))
+        Ticket.objects.filter(pk=ticket.pk).update(created_at=created)
+        note = TicketComment.objects.create(
+            ticket=ticket, author=lead, is_internal=True,
+            body='Handed off to the RMM and ran a disk check: C: is 96% full, almost all of it the '
+                 'X-ray bridge cache. Referred the cache clean-up fix.')
+        TicketComment.objects.filter(pk=note.pk).update(created_at=now - timedelta(minutes=90))
+
+    def add(kind, status, minutes_ago, events, **fields):
+        if RMMRequest.objects.filter(ticket=ticket, kind=kind).exists():
+            return
+        payload = {'contract': ticket_rmm.CONTRACT, 'kind': kind, 'ticket': ticket.ticket_number,
+                   'device_id': dev.external_id, **{k: v for k, v in fields.items()
+                                                    if k in ('diagnostic_key', 'fix_title', 'fix_risk')}}
+        digest = hashlib.sha256(repr(sorted(payload.items())).encode()).hexdigest()
+        at = now - timedelta(minutes=minutes_ago)
+        req = RMMRequest.objects.create(
+            organization=rdg, ticket=ticket, connection=conn, device=dev, device_external_id=dev.external_id,
+            device_name=dev.device_name, tenant_id=ticket_rmm.settings(conn)['tenant_id'], actor=lead,
+            kind=kind, status=status, payload=payload, payload_digest=digest,
+            idempotency_key=hashlib.sha256(f'demo-{kind}-{ticket.pk}'.encode()).hexdigest()[:64],
+            remote_id='tr-' + digest[:8], last_event_sequence=len(events), confirmed_at=at, **fields)
+        RMMRequest.objects.filter(pk=req.pk).update(created_at=at, updated_at=at + timedelta(minutes=3))
+        for seq, event_type in enumerate(events, 1):
+            RMMRequestEvent.objects.create(request=req, event_id=f'{event_type}-{seq}', sequence=seq,
+                                           event_type=event_type, applied=True)
+
+    add('handoff', 'sent', 140, ['handoff.received'],
+        status_note='Ticket context received; queued for the Ridgeline team.')
+    add('diagnostic', 'completed', 120, ['diagnostic.accepted', 'diagnostic.running', 'diagnostic.completed'],
+        diagnostic_key='disk_space', diagnostic_label='Disk space', result_text=RMM_DIAG_RESULT,
+        result_bytes=len(RMM_DIAG_RESULT.encode()), status_note='Finished in 6 s.')
+    add('fix_referral', 'approved', 95, ['fix.received', 'fix.approved'],
+        fix_title='Clear the X-ray bridge image cache (keep the last 7 days)', fix_risk='low',
+        status_note='Approved by R. Okafor in the RMM; scheduled for 12:30 between patients.')
+    print('  rmm pairing:', ticket_rmm.status(conn)['label'], '| device', dev.pk, '| ticket', ticket.ticket_number)
+
+
 def main():
     steps = [seed_showcase, seed_presentation, seed_asset_detail, seed_commercial,
              rename_msp_tenant, seed_project_work, seed_visual, seed_dispatch,
              seed_my_work, seed_document_lifecycle, seed_readiness, seed_portal_request,
              seed_scheduler_history, seed_rack_artwork, seed_named_approvers,
              seed_readiness_custom_fields, seed_secure_link, seed_ticket_ai, seed_superuser_approval,
-             seed_rmm_fixture]
+             seed_rmm_fixture, seed_rmm_pairing]
     only = set(sys.argv[1:])
     for step in steps:
         if only and step.__name__ not in only:

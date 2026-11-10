@@ -60,7 +60,7 @@ automatic rollback.
 No. Since v3.17.599 every periodic job (recurring invoices, email-to-ticket polling,
 recurring tickets, contract renewals, SLA checks, reminders and the rest) runs from the
 built-in scheduler. You can see each job's last run and last error, and turn jobs on or
-off, at **Settings → Scheduler** (`/core/settings/scheduler/`). Native installs drive it with
+off, at **Settings → Task Scheduler** (`/core/settings/scheduler/`). Native installs drive it with
 `clientst0r-scheduler.timer`; Docker installs run a `scheduler` service.
 
 ## Users and access
@@ -134,6 +134,35 @@ after two failed checks in a row and once when it recovers, and fires `monitor.d
 **Are AI features required?**
 No. AI-assisted features are optional. Nothing calls an AI provider until you configure
 one. Documentation AI and receipt scanning can use Anthropic, OpenAI, Moonshot, MiniMax or
-a local Ollama model; the service desk AI features currently use Anthropic only. The
+a local Ollama model; Ticket AI Assist (OPTIONAL AI) uses Anthropic, OpenAI or an approved
+on-premises Ollama, through model profiles under **Settings → Ticket AI models**. The
 service desk AI, documentation AI and vehicle receipt scanning are additionally gated by
-`psa_ai_enabled`, which is off by default.
+`psa_ai_enabled`, which is off by default, and ticket AI also needs a technician access
+preset at each customer. See [TECHNICIAN_ACCESS.md](TECHNICIAN_ACCESS.md).
+
+**How do I send a customer a password without leaving it in the ticket?**
+Tick *Email this reply*, open **Add a secure message** and type it. It is stored encrypted
+and e-mailed to the requester as a one-time link (expiring after 1, 3 or 7 days); the ticket
+only shows whether it was opened. It can't be combined with Cc. See
+[CLIENT_DATA_PROTECTION.md](CLIENT_DATA_PROTECTION.md#a-secret-sent-with-a-ticket-reply).
+
+**Can I copy other people on ticket replies?**
+Yes. The ticket's *Copied on replies (Cc)* card holds the list; people the customer copied
+on their e-mail are added automatically, and the reply box shows the Cc field whenever
+*Email this reply* is ticked.
+
+**Does ClientSt0r work with my RMM from a ticket?**
+The ticket's Asset card shows what each connected RMM last reported about the ticket's
+asset (technicians only), with a link to the device in the RMM's console where the
+connection has one. From v3.17.658, an RMM that implements the ticket-rmm-v1 contract can
+also be paired to a single-customer connection; technicians whose access preset allows it
+can then send the RMM a redacted handoff, run a read-only diagnostic it offers, launch a
+view or control session, or refer a fix for the RMM to approve and run. ClientSt0r never
+sends commands to devices itself. See
+[CLIENT_DATA_PROTECTION.md](CLIENT_DATA_PROTECTION.md#rmm-pairing-and-ticket-actions).
+
+**Can one administrator make someone a superuser alone?**
+Not if **Admin → Security → Superuser Approval** is on: a second administrator has to
+approve each grant. It is off by default and needs two eligible administrators to turn on.
+Grants made from the server's shell are recorded and announced. See
+[CLIENT_DATA_PROTECTION.md](CLIENT_DATA_PROTECTION.md#granting-superuser).

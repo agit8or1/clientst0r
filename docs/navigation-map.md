@@ -159,6 +159,9 @@ Help Us Grow, Global KB, search, theme, clock, client switcher, account menu).
 | Security Dashboard | Admin → Security (landing, tab) | su |
 | Vulnerability Scans | Admin → Security → tab | su |
 | Scan Configuration | Admin → Security → tab (also in the Settings sidebar) | su |
+| *(new, v3.17.651)* Security Features | Admin → Security → tab | su |
+| *(new, v3.17.653)* Vault Visibility | Admin → Security → tab | su |
+| *(new, v3.17.653)* Superuser Approval | Admin → Security → tab | su |
 | Organizations | Admin → Organizations & Access (landing, tab) | su (page also reached by All clients) |
 | Access Management | Admin → Organizations & Access → tab | su |
 | Webhooks | Admin → Integrations → tab | su |
@@ -193,7 +196,19 @@ Help Us Grow, Global KB, search, theme, clock, client switcher, account menu).
 | Global KB link | global_kb and not psa, staff/su |
 | Search form, theme toggle, clock | auth |
 | Client switcher (`core/_client_switcher.html`, `#orgDropdown`): active client / Global View pill, switch list, new "All clients" link | `current_organization or su or is_staff_user`; Global View entry su or is_staff_user; All clients psa or su |
-| Shortcut strip (`core/_shortcut_strip.html`, below the navbar) | auth; renders nothing yet |
+| Shortcut strip (`core/_shortcut_strip.html`, below the navbar): up to three pinned pages, My Work and Tickets by default, edited with the pencil | MSP staff only (`core/shortcut_strip.py`) |
+| Update badge (links to Settings → Updates) when the scheduled check found a newer release | su |
+
+## Settings sidebar additions
+
+Pages reached from the Settings sidebar (`templates/core/_settings_menu.html`)
+rather than a top-level menu:
+
+| Page | Sidebar entry | Gate |
+|---|---|---|
+| Technician Access (`/settings/security/technician-access/`) | Security → Technician Access | su |
+| Ticket AI models and customer AI policies (OPTIONAL AI; used only while `psa_ai_enabled` is on) | Integrations → Ticket AI models | su |
+| RMM pairing for ticket integration (v3.17.658) | Integrations → Integrations (or Admin → Integrations), then the RMM connection → Configure | admin (Owner or Admin of that customer, staff or su); turning pairing on is a protected change |
 
 ## Customer users
 

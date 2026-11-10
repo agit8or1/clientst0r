@@ -18,6 +18,14 @@ What it does per entry
   empty background;
 * writes an optimised PNG.
 
+Entry options beyond route / theme / user / organization: ``selector`` (crop
+to that element, full width; ``"tight": true`` crops to its width too),
+``pad``, ``extend_up``, ``max_h``, ``actions`` (fill / check / select / click
+before capture — nothing is submitted), ``wait_for_text``. ``"user": ""``
+captures signed out. ``"system_settings": {field: value}`` sets SystemSetting
+fields for the entries that share it (one pass each) and restores the old
+values afterwards.
+
 Usage
 -----
     DEMO_DIR=/path/to/demo \\
@@ -246,8 +254,13 @@ def capture(entry, page, base, out_dir, failed=None) -> pathlib.Path:
         pad = entry.get('pad', 24)
         top = max(0, box['y'] + scroll_y - pad - entry.get('extend_up', 0))
         height = min(box['height'] + 2 * pad + entry.get('extend_up', 0), entry.get('max_h', 1400))
+        left, clip_w = 0, width
+        if entry.get('tight'):
+            # A narrow card (e.g. a side column): crop to it horizontally too.
+            left = max(0, box['x'] - pad)
+            clip_w = min(width - left, box['width'] + 2 * pad)
         page.screenshot(path=str(path), full_page=True,
-                        clip={'x': 0, 'y': top, 'width': width, 'height': height})
+                        clip={'x': left, 'y': top, 'width': clip_w, 'height': height})
         return path
 
     height = int(page.evaluate(CONTENT_HEIGHT_JS)) + 28

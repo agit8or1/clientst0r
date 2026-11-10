@@ -58,6 +58,37 @@ python manage.py seed_all --quick
 
 Creates limited data for testing (5 articles per category).
 
+### Demo and evaluation samples
+
+For a demo or evaluation install only — never on a server with real customers.
+The two sample commands are additive, send no mail and are safe to re-run.
+
+```bash
+python manage.py seed_demo_data                   # a demo company with users and sample records
+python manage.py psa_seed_sample_conversations    # ten tickets with real-looking conversations
+python manage.py seed_module_samples              # inventory, scheduling, CRM, status pages, security incidents…
+```
+
+- **`psa_seed_sample_conversations`** adds demo customer people (portal accounts
+  that can't sign in) and tickets they opened by e-mail or the portal: threads,
+  internal notes, Cc, files, logged time, secure messages in each state and
+  every "Next" state on the ticket list. `--tech USERNAME` sets who replies.
+  `--org-map SAMPLE=TARGET` (repeatable) files one sample customer's tickets
+  under another organization instead, e.g.
+  `--org-map demo-globex=northwind-logistics`; names and e-mail domains in the
+  text are rewritten to the target's, and only mapped samples are created.
+- **`seed_module_samples`** fills modules the other seeders leave empty
+  (groups `psa_extras`, `operations`, `security_customer`; `--only GROUP`,
+  repeatable). By default it uses the built-in demo customers and the Demo MSP
+  and creates three demo technicians. To point it at other organizations:
+  `--customers slug1,slug2`, `--msp slug`, `--techs user1,user2` (existing
+  staff, instead of creating demo technicians) and `--owner USERNAME` (an
+  active superuser who owns the created rows). An unknown slug or user is
+  refused.
+
+The documentation screenshots are built from a separate, isolated demo
+instance; see [scripts/demo/README.md](../scripts/demo/README.md).
+
 ## Deleting Existing Data
 
 To replace existing seed data:
@@ -265,8 +296,10 @@ All seed data can be safely deleted by users:
 ### Customizing Seed Data
 
 To customize what gets seeded, edit:
-- `/home/administrator/assets/management/commands/seed_vendor_data.py` (equipment)
-- `/home/administrator/docs/management/commands/seed_kb_articles.py` (KB articles)
+- `assets/management/commands/seed_vendor_data.py` (equipment)
+- `docs/management/commands/seed_kb_articles.py` (KB articles)
+
+(paths relative to the application directory).
 
 ## Best Practices
 
@@ -300,7 +333,7 @@ Increase available RAM or use `--quick` mode.
 
 For issues with seed data:
 1. Check logs: `tail -f /var/log/itdocs/gunicorn-error.log`
-2. Report issues: https://github.com/anthropics/clientst0r/issues
+2. Report issues: https://github.com/agit8or1/clientst0r/issues
 3. Community support: Check documentation wiki
 
 ## Version Information

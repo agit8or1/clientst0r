@@ -7,7 +7,15 @@
 Creates the SQLite schema under $DEMO_DIR, then fills it with the invented
 dataset: the application's own seed commands (sample tenant, PSA reference
 data, compliance frameworks, the sample readiness standard and portal request
-types) plus scripts/demo/seed_demo.py and scripts/demo/seed_compliance.py.
+types, the hardware catalog and its demo client) plus scripts/demo/seed_demo.py
+and scripts/demo/seed_compliance.py. After the hardware demo it runs the rack
+artwork step, the sample conversations and module samples pointed at this
+instance's customers, and the late seed_demo steps (named approvers, readiness
+custom fields, the secure-message link, ticket AI, superuser approval and the
+RMM fixture and pairing) — all rows written directly; nothing calls out.
+
+HARDWARE_CATALOG_SOURCE=<devicetype-library checkout> reuses an existing
+checkout instead of cloning one.
 
 Refuses to run unless the configured database is the demo SQLite file under
 $DEMO_DIR. Start from an empty $DEMO_DIR: the screenshot manifest refers to
@@ -77,7 +85,7 @@ call_command('psa_seed_sample_conversations', tech='demo.tech', org_map=seed_dem
 call_command('seed_module_samples', **seed_demo.MODULE_SAMPLE_OPTIONS)
 for step in (seed_demo.seed_named_approvers, seed_demo.seed_readiness_custom_fields,
              seed_demo.seed_secure_link, seed_demo.seed_ticket_ai, seed_demo.seed_superuser_approval,
-             seed_demo.seed_rmm_fixture):
+             seed_demo.seed_rmm_fixture, seed_demo.seed_rmm_pairing):
     print(step.__name__)
     step()
 print(f"demo instance ready: {db['NAME']}")

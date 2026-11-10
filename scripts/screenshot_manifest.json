@@ -32,7 +32,7 @@
       "group": "overview",
       "heading": "My Work",
       "caption": "Everything waiting on one technician: a running timer with a stop button, open tickets in SLA order, tickets where the customer has replied, the waiting-on-us and waiting-on-customer queues, pending approvals and the week's appointments. Each count matches the list its link opens.",
-      "alt": "My Work page in light theme with a running timer, open tickets sorted by SLA, a customer-replied list, waiting-on-us and waiting-on-customer tabs, pending approvals and upcoming appointments",
+      "alt": "My Work page in light theme: a running timer, eleven open tickets sorted by SLA due time, upcoming appointments, and pending approvals for an expense, three timesheets, change votes and invoices on hold",
       "organization": "Beacon Managed IT",
       "max_h": 1500
     },
@@ -162,7 +162,7 @@
       "group": "workflows",
       "heading": "Service desk queue",
       "caption": "Every client in one queue. Filter by status, priority, queue or technician; the subject is what you scan, not the badges.",
-      "alt": "Service desk queue in dark theme listing twelve tickets across four clients with subject, client, priority, status, queue, assignee and age",
+      "alt": "Service desk queue in dark theme listing 36 tickets across five clients with subject and ticket number, client, priority, status, queue, assignee, a Needs reply flag, last activity with who acted, and age",
       "organization": "Beacon Managed IT",
       "max_h": 1100
     },
@@ -173,7 +173,7 @@
       "group": "workflows",
       "heading": "A ticket that knows the customer",
       "caption": "The ticket reads as a conversation: the customer on the left, technicians on the right, internal notes in amber marked staff only, and status changes as compact rows. Contract hours, the SLA countdown and the credentials this job needs sit alongside — listed, never revealed.",
-      "alt": "Ticket detail in light theme laid out as a conversation: customer messages in left-hand bubbles labelled Customer, technician replies in blue right-hand bubbles labelled Technician, an amber internal note marked staff only, a status-change row, and a composer set to Public reply, beside the client's active contract, details and vault context with secrets hidden",
+      "alt": "Ticket detail in light theme laid out as a conversation: customer messages in left-hand bubbles labelled Customer, technician replies in blue right-hand bubbles labelled Technician, an amber internal note marked staff only, a status-change row and a composer set to Public reply, beside the Cc list, the active contract, problem link, closeout checklist, details and the asset card",
       "wait_for_text": [
         "Vault Context"
       ],
@@ -748,17 +748,90 @@
       "alt": "Customer portal Approvals page in light theme: an access request from Dana Whitfield for read and write access to the inventory share, labelled Approver: Aaron Lindqvist, with a comment box and Approve and Deny buttons"
     },
     {
-      "name": "ticket-rmm-light",
-      "route": "/psa/t/PSA-2026-000006/",
+      "name": "rmm-pairing-form-light",
+      "route": "/integrations/rmm/2/edit/",
       "theme": "light",
-      "group": "workflows",
+      "group": "rmm",
+      "organization": "Ridgeline Dental Group",
+      "selector": "#ticket-rmm-pairing",
+      "pad": 32,
+      "max_h": 1300,
+      "heading": "Pairing an RMM for ticket integration",
+      "caption": "Any RMM that implements the ticket-rmm-v1 contract can be paired from its connection form: an integration key ID, two shared secrets, where requests are processed and an optional integration address. The connection must serve a single customer, and switching pairing on is a protected change that a second administrator approves.",
+      "alt": "Ticket integration pairing section of the Tactical RMM connection form in light theme, with the pairing switch, integration key ID, outbound and inbound secret fields, processing location and integration address",
+      "tight": true
+    },
+    {
+      "name": "rmm-pairing-status-dark",
+      "route": "/integrations/rmm/2/",
+      "theme": "dark",
+      "group": "rmm",
+      "organization": "Ridgeline Dental Group",
+      "selector": "#ticket-rmm-pairing-status",
+      "pad": 32,
+      "heading": "Pairing status on the connection",
+      "caption": "The connection page says in plain words whether the pairing is live, which tenant it is pinned to, what the RMM advertised in its last capabilities check and which read-only diagnostics it offers. If the RMM ever answers for a different tenant, the pairing stops.",
+      "alt": "Ticket integration pairing card in dark theme marked Paired: contract address, key ID, hosted processing, the pinned tenant beacon-ridgeline, the advertised capabilities, three read-only diagnostics, the time of the last check and a Check pairing button",
+      "tight": true
+    },
+    {
+      "name": "ticket-rmm-light",
+      "route": "/psa/t/PSA-2026-000036/",
+      "theme": "light",
+      "group": "rmm",
       "organization": "Ridgeline Dental Group",
       "selector": "#ticket-asset-card",
-      "extend_up": 260,
-      "max_h": 900,
-      "heading": "What the RMM reports about the ticket's asset",
-      "caption": "A ticket can name the asset it is about, chosen from that customer's assets only. Technicians then see what each RMM that manages it last reported — status, last check-in and when the data was refreshed. Customers see none of it.",
-      "alt": "Asset card on a ticket in light theme for server RDG-SRV01, showing the RMM that reports it with provider, connection, customer and site, online status and last check-in, above an asset picker with a Set button"
+      "tight": true,
+      "max_h": 1500,
+      "heading": "The ticket's asset and its paired RMM",
+      "caption": "A ticket names the asset it is about, chosen from that customer's assets only. Technicians see what the RMM last reported and, when the RMM is paired, the actions their Technician Access allows on that device: send the ticket, run a read-only diagnostic, open a view or control session, or refer a fix. Customers see none of it.",
+      "alt": "Asset card on a ticket in light theme for workstation RDG-OP3-PC: the RMM's online status and last check-in, then a Paired RMM block with Send to RMM, Request view and Request control buttons, a Disk space read-only diagnostic picker, Refer a fix, and three requests already sent: an approved fix referral, a completed diagnostic and a handoff with receipt confirmed"
+    },
+    {
+      "name": "rmm-handoff-preview-dark",
+      "route": "/psa/rmm/PSA-2026-000036/handoff/?device=3",
+      "theme": "dark",
+      "group": "rmm",
+      "organization": "Ridgeline Dental Group",
+      "max_h": 1500,
+      "heading": "Reviewing a handoff before it is sent",
+      "caption": "Send to RMM shows exactly what will leave: the destination, its tenant and device, and the redacted ticket context — the same evidence document ticket analysis uses, with what was left out and what was redacted. Nothing is sent until the technician confirms, and it counts as sent only when the RMM confirms receipt.",
+      "alt": "Send to RMM preview in dark theme for ticket PSA-2026-000036, naming Ridgeline — Tactical RMM, its integration address, tenant beacon-ridgeline and device RDG-OP3-PC, the four redacted items that would be sent, what was left out (one internal note), an optional note field and Send to RMM and Cancel buttons"
+    },
+    {
+      "name": "ticket-rmm-requests-dark",
+      "route": "/psa/t/PSA-2026-000036/",
+      "theme": "dark",
+      "group": "rmm",
+      "organization": "Ridgeline Dental Group",
+      "selector": "[data-rmm-requests]",
+      "tight": true,
+      "extend_up": 36,
+      "max_h": 1100,
+      "actions": [
+        {
+          "click": "[data-rmm-requests] details summary",
+          "wait_ms": 600
+        }
+      ],
+      "heading": "What the RMM said back",
+      "caption": "Every request keeps the RMM's signed status callbacks: a handoff counts as sent once receipt is confirmed, a read-only diagnostic's sanitised, size-limited result is shown to staff only, and a fix referral shows the RMM's approval. ClientSt0r only refers a fix; the RMM approves and runs it.",
+      "alt": "Requests to the RMM list on a ticket in dark theme: a handoff marked Sent with receipt confirmed, a Disk space diagnostic marked Completed with its staff-only result expanded showing C: at 4% free, and a fix referral to clear the X-ray bridge cache marked Approved in the RMM",
+      "pad": 16
+    },
+    {
+      "name": "technician-access-rmm-light",
+      "route": "/settings/security/technician-access/?preview_user=4&preview_org=3",
+      "theme": "light",
+      "group": "rmm",
+      "organization": "Beacon Managed IT",
+      "selector": "#preview",
+      "pad": 24,
+      "max_h": 2400,
+      "heading": "Effective access with a paired RMM",
+      "caption": "The effective-access preview shows, for one technician at one customer, each capability's result and why. RMM, remote-access and fix capabilities stay Unavailable until the customer's paired RMM advertises them; remote sessions on the L2 preset are by request.",
+      "alt": "Preview effective access in light theme for demo.tech at Ridgeline Dental Group: ticket AI, Private RMM handoff, read-only diagnostics and low-risk fix requests allowed in scope; view and control sessions by time-limited request; advanced diagnostics, elevation, unattended access, clipboard and file transfer unavailable because the paired RMM does not advertise them; and locked rows such as approving an endpoint fix and running commands from ClientSt0r",
+      "tight": true
     },
     {
       "name": "change-cab-dark",
