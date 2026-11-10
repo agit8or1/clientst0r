@@ -485,7 +485,7 @@ def _check_asset_fields(req, std, org, data, now):
                 [], None, None)
     labels = dict(asset_field_choices())
     fields = req.params.get('fields') or []
-    # Custom fields (v3.17.655): values live in Asset.custom_fields[key]. A
+    # Custom fields (v3.17.656): values live in Asset.custom_fields[key]. A
     # field counts only for assets of a type it applies to; deactivated or
     # deleted definitions are off the asset form, so they are skipped.
     custom = []

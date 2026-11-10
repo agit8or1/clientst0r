@@ -13,7 +13,7 @@ Parameters for each requirement kind, and their validation.
       asset_type      Asset.asset_type (blank = the standard's asset scope, or every asset)
       fields          built-in Asset field names that must be non-empty
       custom_fields   AssetCustomField keys that must be filled in, on assets
-                      of a type each field applies to (optional; v3.17.655).
+                      of a type each field applies to (optional; v3.17.656).
                       At least one built-in or custom field is required.
   contact_role
       title_contains  Text in Contact.title; "a|b" means a OR b

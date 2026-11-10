@@ -1,5 +1,5 @@
 """
-Org handoff for links that name the customer they are about (v3.17.655).
+Org handoff for links that name the customer they are about (v3.17.656).
 
 Readiness is read across customers, but create / edit forms work in the
 session's current organization. A link built for customer B carries

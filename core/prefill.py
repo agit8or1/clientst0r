@@ -1,5 +1,5 @@
 """
-Initial values for create forms from GET params (v3.17.655).
+Initial values for create forms from GET params (v3.17.656).
 
 Readiness "Create it" links put `?title=…&category=…&tags=…` on create URLs.
 These helpers turn them into form `initial` values only — nothing is saved —

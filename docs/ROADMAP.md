@@ -1717,7 +1717,7 @@ someone else.
   vulnerabilities), for the demo customers only. It adds three demo
   technicians who can't sign in and is safe to re-run.
 
-## Phase 53 — Documentation readiness and lifecycle **(L)** [in progress]
+## Phase 53 — Documentation readiness and lifecycle **(L)** [shipped — v3.17.656]
 
 Know what's missing, why it matters and who owns the fix.
 
@@ -1728,18 +1728,23 @@ Know what's missing, why it matters and who owns the fix.
   view/diff/restore, archive** *(shipped v3.17.605)*.
 - **Template version tracking and drift view** *(shipped v3.17.605)*.
 - **KB analytics** *(shipped v3.17.605)*.
-- **"Create it" links prefill the new record** *(planned)* — readiness links
-  open the right form but don't prefill title, tags or category yet.
+- **"Create it" links prefill the new record** *(shipped v3.17.656)* — fix
+  links open the document, contact, vault and relationship forms filled in
+  (title, category, tags, role, the asset to link; only the customer's own
+  categories and tags) and switch to the customer the gap belongs to first;
+  a form opened for one customer never saves into another.
 - **Custom asset fields and types** *(shipped v3.17.621)* — MSP-defined custom
   fields (per asset type, required, eight field types) on the asset form and
   the Custom Fields tab; custom asset types alongside the built-in list; REST
   API `custom_fields` and `asset_type_display`; equipment catalog relabelled
   and its changes limited to MSP staff.
-- **Per-asset-type custom fields as readiness requirements** *(planned)* —
-  extends custom asset fields (shipped v3.17.621); readiness requirements
-  still check built-in asset fields only.
+- **Per-asset-type custom fields as readiness requirements**
+  *(shipped v3.17.656)* — extends custom asset fields (shipped v3.17.621): an
+  asset-fields requirement can name custom fields, checked on the asset types
+  they apply to, with the empty ones listed and fixed from the asset's Custom
+  Fields section.
 
-## Phase 54 — Guided customer service requests **(L)** [in progress]
+## Phase 54 — Guided customer service requests **(L)** [shipped — v3.17.656]
 
 Collect what technicians need up front and show customers where things stand.
 
@@ -1751,8 +1756,11 @@ Collect what technicians need up front and show customers where things stand.
   *(shipped v3.17.606)*.
 - **Per-customer catalog availability, PSA opt-out, customer switcher**
   *(shipped v3.17.606)*.
-- **Named approvers per request type** *(planned)* — approval currently goes
-  to the customer's admins.
+- **Named approvers per request type** *(shipped v3.17.656)* — per customer,
+  staff name the people who approve a request type; any one of them approves.
+  Without names, or when the requester is the only one named, the customer's
+  admins approve as before. Approvers are e-mailed and shown on the portal
+  approvals list.
 
 ---
 
@@ -1979,8 +1987,8 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
 | 50 — "Help Us Grow" call to action | S | shipped v3.17.586 | none — `config/support_links.py` + `templates/core/_help_us_grow_*.html`; reuses the existing GitHub Sponsors link |
 | 51 — Reliability and customer-boundary hardening | M | in progress — PSA customer boundaries, token revocation and scheduler coverage v3.17.599; role view permissions, protected downloads and customer ticket visibility v3.17.600; billing correctness v3.17.601; staff technicians v3.17.602; imports v3.17.603; encrypted secrets v3.17.607; LDAP sign-in v3.17.608; alerts and webhooks v3.17.609; security settings and CSP v3.17.610; documentation v3.17.611; tokens, share links and 2FA keys v3.17.612; dispatch technicians only v3.17.613; no inline event handlers v3.17.614; monitoring docs v3.17.616; scheduled WAN checks v3.17.617; API key levels and staff-only reports v3.17.618; staff-only CRM and Security Alerts v3.17.619; drafts for editors only v3.17.620; global KB staff only v3.17.625 | none — touches PSA, docs, accounts, API, vault and the scheduler |
 | 52 — Technician workspace | L | in progress — My Work, drafts, collisions, closeout, KB drafts v3.17.604 | Phase 51 (customer ticket visibility, staff techs) |
-| 53 — Documentation readiness and lifecycle | L | in progress — standards, scoring, lifecycle, analytics v3.17.605; custom asset fields and types v3.17.621 | docs publish rules |
-| 54 — Guided customer service requests | L | in progress — guided requests, approvals, progress v3.17.606 | Phase 53 publish rules (KB suggestions) |
+| 53 — Documentation readiness and lifecycle | L | shipped — standards, scoring, lifecycle, analytics v3.17.605; custom asset fields and types v3.17.621; prefilled fix links, custom-field requirements v3.17.656 | docs publish rules |
+| 54 — Guided customer service requests | L | shipped — guided requests, approvals, progress v3.17.606; named approvers v3.17.656 | Phase 53 publish rules (KB suggestions) |
 | 55 — Hardware catalog and visual inventory | L | shipped v3.17.630 | extends `assets.Asset`, `monitoring.Rack`/`RackDevice`/`VLAN`, Phase 34 network devices |
 | 56 — Ticket AI Assist and RMM handoff (OPTIONAL AI) | L | in progress — analysis, drafts, compare, gateway and signed channel v3.17.646; handoffs, diagnostics, remote launch and fix review wait on rem0te | Phase 57; rem0te ticket-rmm-v1 |
 | 57 — Technician security levels and abuse prevention | L | in progress — presets, resolver, protected changes, theft detection, gateway isolation v3.17.646; remote grants with Phase 56.5 | none |

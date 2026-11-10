@@ -5,6 +5,31 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.656] - 2026-11-10
+
+### Added
+- **Named approvers per request type.** For each customer, a request type can have named approvers. For example, "New starter" at Globex is approved by Dana Whitfield, and at Initech by Priya Raman.
+  - Set them from the catalog item's "Named approvers per customer" link (staff only).
+  - Any one named approver can approve, and other customer admins can't.
+  - Without names, the customer's admins approve as before. Nobody approves their own request: if the requester is the only one named, the admins approve.
+  - Only active people at that customer can be named. People who have left are ignored and flagged until removed.
+  - Requests that need approval now e-mail the people who can approve them, and the portal approvals list shows who each request is waiting on.
+  - Approver changes are audited, and so are refused approval attempts.
+- **Readiness "Create it" links fill in the form.**
+  - Documents get title, category and tags; contacts get the role; vault entries get title and tags; links get the asset to link. Only that customer's categories and tags are used, and nothing is saved until you click Save.
+  - Fix links switch you to the customer the gap belongs to before opening the form. The form shows which customer it saves in.
+  - If you switch customers in another tab before saving, nothing is saved in the wrong customer. A link for a customer you can't access gives "not found".
+- **Custom asset fields as readiness requirements.** An asset-fields requirement can name custom fields (Assets → Custom Fields). Assets with them empty are listed, and the fix opens the asset's Custom Fields section. Existing requirements score exactly as before.
+
+### Fixed
+- **The document form offered tags and categories from every customer.** It now offers only the current customer's; a document being edited keeps the ones it already has.
+- **Adding a contact failed.**
+- **Linking an asset to a contact always said "not found".**
+- **The "Link records" page didn't open.**
+
+### Upgrade
+- Apply the update. One migration (`psa.0076`).
+
 ## [3.17.655] - 2026-11-10
 
 ### Added
