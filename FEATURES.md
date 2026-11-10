@@ -427,9 +427,27 @@ The built-in service desk is off until an administrator turns on `psa_enabled`
 |---|---|---|---|
 | Triggers | Available | Ticket created / updated, status changed, comment added, SLA threshold crossed. | `/psa/rules/` |
 | MSP-wide or per-client rules | Available | | Rule form |
-| Visual rule builder | Limited | Six actions in the builder (priority, queue, assign, watcher, internal note, tag). Round-robin / skill / load-balanced assignment, charges and rule chaining are available only in raw JSON. | `/psa/rules/new/` |
+| Visual rule builder | Limited | Nine actions in the builder: priority, queue, assign, watcher, internal note, tag, and round-robin / skill-group / least-loaded assignment. Charges and rule chaining are available only in raw JSON; a rule using them opens in raw JSON so saving never drops them. | `/psa/rules/new/` |
 | Rule chaining safety | Limited | No guard against one rule re-triggering another in a loop; avoid circular `fire_rule` chains. | — |
 | Per-rule last fired / count / error, sample rules | Available | | `/psa/rules/templates/` |
+
+### Ticket routing
+
+Optional, not AI, Off on fresh installs and upgrades. Guide: [docs/TICKET_ROUTING.md](docs/TICKET_ROUTING.md).
+
+| Capability | Status | Notes | Where |
+|---|---|---|---|
+| Modes | Available | Off / Suggest only / Automatic. MSP-wide default; each customer inherits or overrides. With Off, intake, catalog defaults, manual assignment and workflow rules are unchanged. | `/psa/settings/` card, `/psa/routing/` |
+| Rule conditions | Available | Customer, intake source, ticket type, priority, queue, tags, subject/description words, catalog service, contract (has / type), business hours or after hours, SLA risk. Site is not available (tickets have no site link). | `/psa/routing/rules/new/` |
+| Destinations | Available | Queue only, named technician, team, round-robin, skill match (Resourcing skills), least-loaded. Optional team, on-call and availability filters. Fallback: a queue, or unassigned in Triage. | Rule form |
+| Review, conflicts, versions | Available | Plain-language summary and conflict check before saving; blocking problems prevent activation; every save is a new version. Saving never reassigns existing tickets. | Rule review |
+| Candidates | Available | Active MSP technicians with ticket access at the customer; optional per-customer technician list; contained or explicitly denied technicians excluded; leave, working hours and on-call honoured. Skipped technicians are recorded with reasons. | — |
+| Triggers | Available | On creation (every intake path); reroute on customer reply, reopen and SLA threshold, each optional. Manual assignments preserved by default; loop guard. | `/psa/routing/` |
+| Test routing | Available | Dry run for an authorized existing ticket or a sample: winning rule, rules skipped and why, skipped candidates, destination, reason. Changes nothing, sends nothing. | `/psa/routing/test/` |
+| History and suggestions | Available | Staff-only routing panel on the ticket (rule version, trigger, previous and new assignment, reason, manual overrides); Accept / Dismiss for suggestions; Triage list for fallbacks. Never shown in the portal. | Ticket page, `/psa/routing/triage/` |
+| Duplicates and concurrency | Available | One routing pass per ticket and trigger (unique claim); round-robin turns reserved under a lock; a repeated e-mail Message-ID is ignored by the poller. | — |
+| Permissions | Available | Separate role flags: manage rules, test routing, accept/reject suggestions. MSP technicians only. Routing never changes the customer, the SLA clock or access, and never starts a remote session or endpoint action. | `/accounts/roles/` |
+| Business hours per customer | Not built | One MSP-wide business-hours definition (plus Resourcing holidays). | — |
 
 ### Contracts, quotes and invoices
 
