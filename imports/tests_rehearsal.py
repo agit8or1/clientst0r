@@ -9,28 +9,33 @@ customers or accounts.
 from __future__ import annotations
 
 import copy
+import io
 import json
 import shutil
 import tempfile
+from datetime import timedelta
 from unittest import mock
 
 from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.db import connection
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from assets.models import Asset, Contact, Relationship
 from audit.models import AuditLog
 from core.models import Organization
 from docs.models import Document
 from files.models import Attachment
-from imports.migration import planner
+from imports.migration import planner, tasks
 from imports.migration.applier import apply_plan
 from imports.migration.planner import PlanChanged, PlanError, build_plan, freeze
 from imports.migration.report import build_report, records_csv, summary_csv
 from imports.migration.sources import stager_for
 from imports.migration.targets import SPECS
+from imports.migration.tasks import run_pending
 from imports.migration.transport import DownloadRejected, SourceUnavailable
 from imports.migration.undo import rollback_plan
 from imports.models import (ImportJob, ImportMapping, MigrationPlan, PlanChange, PlanItem,
@@ -771,9 +776,17 @@ class RehearsalViewTests(RehearsalTestBase):
         routes, files = itglue_routes()
         with mock.patch('imports.migration.sources.RequestsTransport',
                         lambda *a, **k: FakeTransport(routes, files)):
-            self.client.post(reverse('imports:rehearsal_stage', args=[plan.pk]))
+            resp = self.client.post(reverse('imports:rehearsal_stage', args=[plan.pk]))
+            self.assertEqual(resp.status_code, 302)
+            plan.refresh_from_db()
+            # The request only queued the fetch; nothing was fetched yet.
+            self.assertEqual((plan.status, plan.task_action, plan.task_state), ('draft', 'stage', 'queued'))
+            detail = self.client.get(reverse('imports:rehearsal_detail', args=[plan.pk]))
+            self.assertContains(detail, 'rehearsal-autorefresh')
+            self.assertContains(detail, 'Background work')
+            self.assertEqual(run_pending(), [(plan.pk, 'done')])
         plan.refresh_from_db()
-        self.assertEqual(plan.status, 'planned')
+        self.assertEqual((plan.status, plan.task_state), ('planned', 'done'))
         detail = self.client.get(reverse('imports:rehearsal_detail', args=[plan.pk]))
         self.assertContains(detail, 'What will transfer')
         self.assertContains(self.client.get(reverse('imports:rehearsal_items', args=[plan.pk])), 'Jane Doe')
@@ -790,7 +803,13 @@ class RehearsalViewTests(RehearsalTestBase):
         self.client.post(reverse('imports:rehearsal_freeze', args=[plan.pk]))
         self.client.post(reverse('imports:rehearsal_apply', args=[plan.pk]))
         plan.refresh_from_db()
+        self.assertEqual((plan.status, plan.task_state), ('reviewed', 'queued'))
+        self.assertFalse(Asset.objects.filter(organization=self.org_a).exists())
+        call_command('run_migration_rehearsals', stdout=io.StringIO())
+        plan.refresh_from_db()
         self.assertEqual(plan.status, 'applied')
+        self.assertNotContains(self.client.get(reverse('imports:rehearsal_detail', args=[plan.pk])),
+                               'rehearsal-autorefresh')
         self.assertTrue(Asset.objects.filter(organization=self.org_a, name='ACME-FW-01').exists())
         self.assertTrue(AuditLog.objects.filter(object_type='migration_rehearsal', object_id=plan.pk,
                                                 action='import', success=True).exists())
@@ -800,6 +819,7 @@ class RehearsalViewTests(RehearsalTestBase):
         json_resp = self.client.get(reverse('imports:rehearsal_report', args=[plan.pk]))
         self.assertNotIn('KEY-ui', json_resp.content.decode())
         self.client.post(reverse('imports:rehearsal_rollback', args=[plan.pk]))
+        run_pending()
         plan.refresh_from_db()
         self.assertEqual(plan.status, 'rolled_back')
         self.assertTrue(AuditLog.objects.filter(object_type='migration_rehearsal', object_id=plan.pk,
@@ -826,9 +846,147 @@ class RehearsalViewTests(RehearsalTestBase):
         for name in ('rehearsal_list', 'rehearsal_create'):
             self.assertNotEqual(c.get(reverse(f'imports:{name}')).status_code, 200)
         self.assertNotEqual(c.get(reverse('imports:rehearsal_detail', args=[plan.pk])).status_code, 200)
-        c.post(reverse('imports:rehearsal_apply', args=[plan.pk]))
+        for name in ('rehearsal_stage', 'rehearsal_apply', 'rehearsal_rollback'):
+            c.post(reverse(f'imports:{name}', args=[plan.pk]))
         plan.refresh_from_db()
-        self.assertEqual(plan.status, 'draft')
+        self.assertEqual((plan.status, plan.task_state), ('draft', 'idle'))
+
+    def test_double_post_queues_once_and_edits_wait(self):
+        plan = self.make_plan(self.org_a)
+        self.stage(plan, itglue_routes())
+        self.client.post(reverse('imports:rehearsal_build', args=[plan.pk]))
+        self.client.post(reverse('imports:rehearsal_build', args=[plan.pk]))
+        self.assertEqual(AuditLog.objects.filter(object_id=plan.pk, description__startswith='Queued').count(), 1)
+        self.client.post(reverse('imports:rehearsal_freeze', args=[plan.pk]))
+        plan.refresh_from_db()
+        self.assertEqual((plan.status, plan.task_state), ('planned', 'queued'))
+        self.assertEqual(run_pending(), [(plan.pk, 'done')])
+        self.client.post(reverse('imports:rehearsal_freeze', args=[plan.pk]))
+        plan.refresh_from_db()
+        self.assertEqual(plan.status, 'reviewed')
+
+
+class BackgroundTaskTests(RehearsalTestBase):
+    """enqueue -> run -> resume after a crash -> never run twice."""
+
+    def reviewed_plan(self):
+        plan = self.make_plan(self.org_a)
+        self.stage(plan, itglue_routes())
+        freeze(plan, self.user)
+        return plan
+
+    def test_enqueue_then_run(self):
+        plan = self.reviewed_plan()
+        self.assertTrue(tasks.enqueue(plan, 'apply', self.user))
+        self.assertEqual(plan.task_state, 'queued')
+        self.assertFalse(Asset.objects.filter(organization=self.org_a).exists())
+        out = io.StringIO()
+        call_command('run_migration_rehearsals', stdout=out)
+        self.assertIn(f'rehearsal {plan.pk}: done', out.getvalue())
+        plan.refresh_from_db()
+        self.assertEqual((plan.status, plan.task_state, plan.task_attempts), ('applied', 'done', 1))
+        self.assertEqual(plan.task_result['applied'], plan.items.filter(outcome='applied').count())
+        self.assertTrue(AuditLog.objects.filter(object_id=plan.pk, action='import', success=True,
+                                                path='scheduler:run_migration_rehearsals').exists())
+        out = io.StringIO()
+        call_command('run_migration_rehearsals', stdout=out)
+        self.assertIn('no rehearsal work queued', out.getvalue())
+
+    def test_second_enqueue_and_second_claim_are_refused(self):
+        plan = self.reviewed_plan()
+        self.assertTrue(tasks.enqueue(plan, 'apply', self.user))
+        self.assertFalse(tasks.enqueue(plan, 'rollback', self.user))
+        plan.refresh_from_db()
+        self.assertEqual(plan.task_action, 'apply')
+        token = tasks.claim(plan.pk)
+        self.assertIsNotNone(token)
+        self.assertIsNone(tasks.claim(plan.pk))      # second worker gets nothing
+        self.assertFalse(tasks.enqueue(plan, 'apply', self.user))  # still running
+        self.assertEqual(tasks.run_pending(), [])     # fresh lease: not claimable
+        self.assertEqual(tasks.run_claimed(plan.pk, token), 'done')
+        before = self.counts(self.org_a)
+        self.assertIsNone(tasks.claim(plan.pk))      # finished tasks are not rerun
+        self.assertEqual(tasks.run_pending(), [])
+        self.assertEqual(self.counts(self.org_a), before)
+
+    def test_crash_mid_apply_resumes_after_stale_lease(self):
+        plan = self.reviewed_plan()
+        tasks.enqueue(plan, 'apply', self.user)
+        with mock.patch.object(SPECS['password'], 'new', side_effect=_Crash()):
+            with self.assertRaises(_Crash):
+                tasks.run_pending()
+        plan.refresh_from_db()
+        self.assertEqual((plan.status, plan.task_state), ('applying', 'running'))
+        self.assertEqual(Password.objects.filter(organization=self.org_a).count(), 0)
+        assets = Asset.objects.filter(organization=self.org_a).count()
+        self.assertEqual(assets, 2)
+        # The dead worker's lease is still fresh: nobody may take over yet.
+        self.assertEqual(tasks.run_pending(), [])
+        MigrationPlan.objects.filter(pk=plan.pk).update(
+            task_heartbeat_at=timezone.now() - timedelta(seconds=tasks.lease_seconds() + 5))
+        self.assertEqual(tasks.run_pending(), [(plan.pk, 'done')])
+        plan.refresh_from_db()
+        self.assertEqual((plan.status, plan.task_state, plan.task_attempts), ('applied', 'done', 2))
+        self.assertEqual(Asset.objects.filter(organization=self.org_a).count(), assets)
+        self.assertEqual(self.counts(self.org_a), {'location': 1, 'contact': 2, 'asset': 2, 'network': 1,
+                                                    'password': 1, 'document': 1, 'relationship': 3,
+                                                    'attachment': 1})
+        self.assertEqual(SourceMapping.objects.filter(organization=self.org_a).count(),
+                         plan.items.filter(outcome='applied').count())
+
+    def test_worker_that_lost_its_lease_stops(self):
+        plan = self.reviewed_plan()
+        tasks.enqueue(plan, 'apply', self.user)
+        old = tasks.claim(plan.pk)
+        MigrationPlan.objects.filter(pk=plan.pk).update(task_heartbeat_at=None)  # looks stale
+        new = tasks.claim(plan.pk)
+        self.assertNotEqual(old, new)
+        self.assertEqual(tasks.run_claimed(plan.pk, old), 'lost')
+        self.assertFalse(Asset.objects.filter(organization=self.org_a).exists())
+        self.assertEqual(tasks.run_claimed(plan.pk, new), 'done')
+        plan.refresh_from_db()
+        self.assertEqual(plan.status, 'applied')
+
+    def test_long_apply_is_sliced_and_requeued(self):
+        plan = self.reviewed_plan()
+        tasks.enqueue(plan, 'apply', self.user)
+        total = plan.items.count()
+        with override_settings(IMPORT_REHEARSAL_SLICE_SECONDS=0):
+            self.assertEqual(tasks.run_pending(), [(plan.pk, 'queued')])
+            plan.refresh_from_db()
+            self.assertEqual(plan.task_state, 'queued')
+            self.assertLess(plan.task_progress['done'], plan.task_progress['total'])
+            runs = 1
+            while plan.task_state == 'queued' and runs < 100:
+                tasks.run_pending()
+                plan.refresh_from_db()
+                runs += 1
+        self.assertEqual((plan.status, plan.task_state), ('applied', 'done'))
+        self.assertGreater(runs, 2)
+        self.assertLessEqual(runs, total + 1)
+        self.assertEqual(self.counts(self.org_a)['password'], 1)
+
+    def test_failure_is_recorded_without_secrets(self):
+        plan = self.make_plan(self.org_a)
+        tasks.enqueue(plan, 'stage', self.user)
+        with mock.patch('imports.migration.sources.RequestsTransport',
+                        side_effect=SourceUnavailable('error', f'boom {plan.import_job.source_api_key}')):
+            self.assertEqual(tasks.run_pending(), [(plan.pk, 'failed')])
+        plan.refresh_from_db()
+        self.assertEqual(plan.task_state, 'failed')
+        self.assertIn('SourceUnavailable', plan.task_error)
+        self.assertNotIn('do-not-leak', plan.task_error)
+        self.assertTrue(tasks.enqueue(plan, 'stage', self.user))  # retry is allowed after failure
+
+    def test_rollback_runs_in_background(self):
+        plan = self.reviewed_plan()
+        tasks.enqueue(plan, 'apply', self.user)
+        tasks.run_pending()
+        tasks.enqueue(plan, 'rollback', self.user)
+        self.assertEqual(tasks.run_pending(), [(plan.pk, 'done')])
+        plan.refresh_from_db()
+        self.assertEqual(plan.status, 'rolled_back')
+        self.assertEqual(self.counts(self.org_a)['asset'], 0)
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
