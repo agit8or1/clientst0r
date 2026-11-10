@@ -148,9 +148,31 @@ def _hold_reason(ticket, trigger, msp):
     return ''
 
 
+# SQLite (the default database) refuses a write while another connection
+# holds the write lock; a routing pass rolls back completely, so it can
+# simply be run again.
+LOCK_RETRIES = 5
+
+
 def route(ticket_id, trigger, key, *, now=None):
     """One routing pass. Returns the RoutingDecision, or None when routing is
-    off or this trigger was already handled."""
+    off or this trigger was already handled.
+
+    Retried when the database reports a lock, unless the caller's own
+    transaction is open (it then has to roll back as a whole)."""
+    import time
+    from django.db import OperationalError, connection
+    for attempt in range(LOCK_RETRIES):
+        try:
+            return _route_once(ticket_id, trigger, key, now=now)
+        except OperationalError as exc:
+            if ('locked' not in str(exc) or connection.in_atomic_block
+                    or attempt == LOCK_RETRIES - 1):
+                raise
+            time.sleep(0.05 * (attempt + 1))
+
+
+def _route_once(ticket_id, trigger, key, *, now=None):
     from psa.models import Ticket
     msp = RoutingSettings.load()
     head = Ticket.objects.select_related('organization').filter(pk=ticket_id).first()
