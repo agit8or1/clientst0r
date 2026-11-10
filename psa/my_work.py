@@ -208,4 +208,12 @@ def record_customer_reply(ticket, *, via: str = 'portal', when=None):
             ticket=ticket, is_internal=True, is_system=True, source=via,
             body=f'Customer replied via {via}; status moved to {moved_to.name}.',
         )
+    # Optional ticket routing: reroute on customer reply when configured.
+    # No-op while routing is Off; never raises into the reply path.
+    try:
+        from psa.routing.service import on_customer_reply
+        on_customer_reply(ticket)
+    except Exception:  # noqa: BLE001
+        import logging
+        logging.getLogger('psa.routing').exception('routing reply hook failed')
     return moved_to
