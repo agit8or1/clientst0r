@@ -70,6 +70,8 @@ urlpatterns = [
     path('scheduling/', include('scheduling.urls')),
     # Ticket → paired RMM (ticket-rmm-v1 56.5/56.6). Not AI; works with AI off.
     path('psa/rmm/', include('psa_ai.rmm_views')),
+    # Optional ticket routing (off by default). Not AI.
+    path('psa/routing/', include('psa.routing.urls')),
     path('psa/', include('psa.urls')),
     path('psa/ai/', include('psa_ai.urls')),
     path('portal/', include('portal.urls')),

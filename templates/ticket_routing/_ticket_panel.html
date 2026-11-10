@@ -1,0 +1,34 @@
+{% if show %}
+<div class="card mt-3" id="routing-history">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong><i class="fas fa-route me-1"></i>Routing</strong>
+        <small class="text-muted">Staff only — never shown in the portal</small>
+    </div>
+    <ul class="list-group list-group-flush small">
+        {% for d in decisions %}
+        <li class="list-group-item">
+            <div class="d-flex justify-content-between flex-wrap gap-1">
+                <span><strong>{{ d.get_status_display }}</strong> · {{ d.get_trigger_display }}{% if d.mode %} · {{ d.get_mode_display }}{% endif %}{% if d.rule_version %} · {{ d.rule_version.name }} v{{ d.rule_version.number }}{% endif %}</span>
+                <span class="text-muted">{{ d.created_at|date:"Y-m-d H:i" }}</span>
+            </div>
+            <div>{{ d.previous_assignee.username|default:"unassigned" }}{% if d.previous_queue %} ({{ d.previous_queue.name }}){% endif %}
+                → {{ d.new_assignee.username|default:"unassigned" }}{% if d.new_queue %} ({{ d.new_queue.name }}){% endif %}{% if d.new_team %} · team {{ d.new_team }}{% endif %}</div>
+            <div class="text-muted">{{ d.reason }}</div>
+            {% if d.decided_by %}<div class="text-muted">By {{ d.decided_by.username }} {{ d.decided_at|date:"Y-m-d H:i" }}</div>{% endif %}
+            {% if d.skipped_candidates %}
+            <details><summary class="text-muted">{{ d.skipped_candidates|length }} skipped candidate{{ d.skipped_candidates|length|pluralize }}</summary>
+                <ul class="mb-0">{% for s in d.skipped_candidates %}<li>{{ s.username }} — {{ s.reason }}</li>{% endfor %}</ul></details>
+            {% endif %}
+            {% if d.status == 'suggested' and can_override %}
+            <form method="post" action="{% url 'ticket_routing:decide' d.pk %}" class="d-flex gap-2 mt-1">
+                <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                <input type="hidden" name="next" value="{{ next }}">
+                <button name="decision" value="accept" class="btn btn-sm btn-success">Accept</button>
+                <button name="decision" value="reject" class="btn btn-sm btn-outline-secondary">Dismiss</button>
+            </form>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}

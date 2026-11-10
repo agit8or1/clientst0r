@@ -1,0 +1,20 @@
+{% if show %}
+<div class="card mt-3" id="ticket-routing-card">
+    <div class="card-header"><h6 class="mb-0"><i class="fas fa-route me-2"></i>Ticket Routing</h6></div>
+    <div class="card-body small">
+        <p class="text-muted">Decides which queue, team or technician a ticket goes to. Off by default; with routing Off, intake,
+            catalog defaults, manual assignments and workflow rules work exactly as before. Each customer inherits this
+            default unless overridden ({{ override_count }} override{{ override_count|pluralize }}, {{ active_rules }} active rule{{ active_rules|pluralize }}).</p>
+        <form method="post" action="{% url 'ticket_routing:quick_mode' %}" class="d-flex flex-wrap gap-2 align-items-center">
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+            <input type="hidden" name="next" value="{{ next }}">
+            <label for="routing-mode" class="mb-0">MSP default</label>
+            <select name="mode" id="routing-mode" class="form-select form-select-sm" style="width:auto">
+                {% for code, label in mode_choices %}<option value="{{ code }}" {% if msp.mode == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <button class="btn btn-sm btn-primary">Save</button>
+            <a href="{% url 'ticket_routing:overview' %}" class="btn btn-sm btn-outline-primary">Rules, customers &amp; reroute options</a>
+        </form>
+    </div>
+</div>
+{% endif %}

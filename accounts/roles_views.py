@@ -118,6 +118,11 @@ def role_create(request):
         role.kb_manage_categories = request.POST.get('kb_manage_categories') == 'on'
         role.kb_publish_articles = request.POST.get('kb_publish_articles') == 'on'
 
+        # Ticket routing permissions (MSP technicians only)
+        role.routing_manage_rules = request.POST.get('routing_manage_rules') == 'on'
+        role.routing_test = request.POST.get('routing_test') == 'on'
+        role.routing_override = request.POST.get('routing_override') == 'on'
+
         # Reports & dashboards permissions (v3.17.145)
         role.reports_view_dashboards = request.POST.get('reports_view_dashboards') == 'on'
         role.reports_view_financial = request.POST.get('reports_view_financial') == 'on'
@@ -223,6 +228,11 @@ def role_edit(request, pk):
         role.kb_move_articles = request.POST.get('kb_move_articles') == 'on'
         role.kb_manage_categories = request.POST.get('kb_manage_categories') == 'on'
         role.kb_publish_articles = request.POST.get('kb_publish_articles') == 'on'
+
+        # Ticket routing permissions (MSP technicians only)
+        role.routing_manage_rules = request.POST.get('routing_manage_rules') == 'on'
+        role.routing_test = request.POST.get('routing_test') == 'on'
+        role.routing_override = request.POST.get('routing_override') == 'on'
 
         # Reports & dashboards permissions (v3.17.145)
         role.reports_view_dashboards = request.POST.get('reports_view_dashboards') == 'on'

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ticket_routing %}
 {% block title %}PSA Settings - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -169,6 +170,7 @@
                 {% endif %}
             </div>
         </div>
+        {% routing_settings_card %}
     </div>
 </div>
 {% endblock %}

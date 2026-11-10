@@ -351,6 +351,33 @@
                     </div>
                 </div>
 
+                <!-- Ticket routing permissions -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-route"></i> Ticket Routing</h6>
+                        </div>
+                        <div class="card-body">
+                            <small class="text-muted d-block mb-2">MSP technicians only. Routing never starts remote sessions or endpoint actions.</small>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="routing_manage_rules" id="routing_manage_rules"
+                                       {% if role %}{% if role.routing_manage_rules %}checked{% endif %}{% elif copy_from %}{% if copy_from.routing_manage_rules %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="routing_manage_rules">Manage routing settings, rules and on-call</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="routing_test" id="routing_test"
+                                       {% if role %}{% if role.routing_test %}checked{% endif %}{% elif copy_from %}{% if copy_from.routing_test %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="routing_test">Test routing (read-only dry run)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="routing_override" id="routing_override"
+                                       {% if role %}{% if role.routing_override %}checked{% endif %}{% elif copy_from %}{% if copy_from.routing_override %}checked{% endif %}{% endif %}>
+                                <label class="form-check-label" for="routing_override">Accept / reject routing suggestions</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Reports & Dashboards Permissions (v3.17.145) -->
                 <div class="col-md-6 mb-4">
                     <div class="card">

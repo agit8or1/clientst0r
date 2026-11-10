@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Routing for {{ org.name }} — PSA{% endblock %}
+{% block content %}
+{% include "ticket_routing/_nav.html" with tab="overview" crumb=org.name %}
+<h4 class="mb-3">Routing for {{ org.name }}</h4>
+<p class="small">Currently effective: <strong>{% for code, label in customer_mode_choices %}{% if code == effective.0 %}{{ label }}{% endif %}{% endfor %}</strong>
+    ({% if effective.1 == 'customer' %}set for this customer{% else %}inherited from the MSP default{% endif %}).</p>
+<form method="post" class="card">
+    {% csrf_token %}
+    <div class="card-body">
+        <label class="form-label">Mode</label>
+        <select name="mode" class="form-select mb-3" style="max-width:20rem">
+            {% for code, label in customer_mode_choices %}
+            <option value="{{ code }}" {% if cust and cust.mode == code or not cust and code == 'inherit' %}selected{% endif %}>{{ label }}{% if code == 'inherit' %} ({{ msp.get_mode_display }}){% endif %}</option>
+            {% endfor %}
+        </select>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" name="restrict_technicians" id="restrict" {% if cust.restrict_technicians %}checked{% endif %}>
+            <label class="form-check-label" for="restrict">Only these technicians may be chosen by routing for {{ org.name }}</label>
+        </div>
+        <select name="authorized_technicians" multiple size="8" class="form-select" style="max-width:24rem">
+            {% for u in technicians %}<option value="{{ u.pk }}" {% if u.pk in authorized_ids %}selected{% endif %}>{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>{% endfor %}
+        </select>
+        <small class="text-muted d-block mt-1">Technicians whose role gives them no ticket access at this customer, who are contained, or who are explicitly denied here are never chosen, whatever this list says.</small>
+    </div>
+    <div class="card-footer"><button class="btn btn-primary btn-sm">Save</button>
+        <a href="{% url 'ticket_routing:rule_new' %}?organization={{ org.pk }}" class="btn btn-sm btn-outline-primary">New rule for {{ org.name }}</a></div>
+</form>
+{% if rules %}
+<div class="card mt-3"><div class="card-header"><strong>Rules for this customer</strong> <small class="text-muted">— evaluated before rules for every customer</small></div>
+<ul class="list-group list-group-flush small">{% for r in rules %}<li class="list-group-item"><a href="{% url 'ticket_routing:rule_detail' r.pk %}">{{ r.name }}</a> · priority {{ r.priority }} · {% if r.is_active %}active{% else %}inactive{% endif %}</li>{% endfor %}</ul></div>
+{% endif %}
+{% endblock %}

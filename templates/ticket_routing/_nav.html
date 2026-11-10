@@ -1,0 +1,13 @@
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb mb-2">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'ticket_routing:overview' %}">Ticket Routing</a></li>
+        {% if crumb %}<li class="breadcrumb-item active">{{ crumb }}</li>{% endif %}
+    </ol>
+</nav>
+<ul class="nav nav-tabs mb-3 small">
+    <li class="nav-item"><a class="nav-link {% if tab == 'overview' %}active{% endif %}" href="{% url 'ticket_routing:overview' %}">Settings &amp; rules</a></li>
+    <li class="nav-item"><a class="nav-link {% if tab == 'oncall' %}active{% endif %}" href="{% url 'ticket_routing:on_call' %}">On call</a></li>
+    <li class="nav-item"><a class="nav-link {% if tab == 'test' %}active{% endif %}" href="{% url 'ticket_routing:test' %}">Test routing</a></li>
+    <li class="nav-item"><a class="nav-link {% if tab == 'triage' %}active{% endif %}" href="{% url 'ticket_routing:triage' %}">Triage</a></li>
+</ul>

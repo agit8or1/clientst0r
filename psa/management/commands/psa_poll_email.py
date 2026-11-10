@@ -33,6 +33,7 @@ from email.utils import parseaddr, getaddresses
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
+from django.db import transaction
 from django.utils import timezone
 
 from psa.email_parsing import (
@@ -491,118 +492,133 @@ class Command(BaseCommand):
         target_priority = (routing_rule.priority_override if routing_rule and routing_rule.priority_override
                            else config.default_priority)
 
-        # Threading order:
-        # 1. In-Reply-To / References against existing EmailMessage rows
-        # 2. Subject-regex fallback (legacy tickets without captured headers)
-        # 3. New ticket
-        target = _thread_target(msg, target_org)
-        if target is None:
-            m = ticket_pattern.search(subject)
-            if m:
-                target = Ticket.objects.filter(
-                    ticket_number=m.group(0),
+        with transaction.atomic():
+            # Duplicate delivery guard. The (organization, message_id) row is
+            # claimed before any ticket or comment is written, inside one
+            # transaction: the same Message-ID seen again (a re-fetched unread
+            # message, two pollers at once) finds the claim and is skipped, so it
+            # never makes a second ticket, comment, assignment or notification.
+            # Rolled back with everything else if processing fails. Messages with
+            # no Message-ID are processed as before.
+            claim = None
+            if message_id_hdr:
+                claim, fresh = EmailMessage.objects.get_or_create(
                     organization=target_org,
-                ).first()
+                    message_id=message_id_hdr,
+                    defaults={
+                        'ticket': None,
+                        'ingestion_config': config,
+                        'direction': 'in',
+                        'in_reply_to': in_reply_to_hdr,
+                        'references': references_hdr[:8000],
+                        'from_email': (from_email or '')[:320],
+                        'subject': subject[:998],
+                        'headers_raw': '\n'.join(f'{k}: {v}' for k, v in msg.items())[:16000],
+                        'body_text': text_body[:50000],
+                        'body_html': sanitize_html(html_body)[:200000],
+                        'graph_message_id': graph_message_id or '',
+                        'transport': 'graph' if graph_message_id else '',
+                    },
+                )
+                if not fresh:
+                    logger.info('duplicate inbound msg=%r skipped (already processed)', message_id_hdr)
+                    return 'skipped'
 
-        comment = None
-        if target is not None:
-            # Replies to an existing thread: drop the customer's signature +
-            # the quoted history so the comment shows only what's new.
-            cleaned_reply = clean_reply_body(body)[:50000].strip()
-            comment = TicketComment.objects.create(
-                ticket=target,
-                body=cleaned_reply or body or '(empty email body)',
-                is_internal=False,
-                is_system=False,
-                author_name=from_name or from_email or 'email',
-                author_email=from_email or '',
-                source='email',
-            )
-            result = 'replied'
-            # A reply from the customer (not from one of our own staff
-            # addresses) puts the ticket back in the technician's court:
-            # stamp last_client_response_at and leave any waiting-on-client
-            # status — the same bookkeeping the portal reply path does.
-            if not _is_staff_sender(from_email):
-                try:
-                    from psa.my_work import record_customer_reply
-                    record_customer_reply(target, via='email')
-                except Exception:
-                    logger.exception('customer-reply bookkeeping failed for %s',
-                                     target.ticket_number)
-        else:
-            # New tickets keep the full body so context (quoted screenshots /
-            # FYI) isn't lost.
-            target = Ticket.objects.create(
-                organization=target_org,
-                subject=subject or '(no subject)',
-                description=body,
-                queue=target_queue,
-                priority=target_priority,
-                ticket_type=config.default_type,
-                status=new_status,
-                source='email',
-                visibility='client',
-                client_can_view=True,
-                requester_name=from_name[:200] if from_name else '',
-                requester_email=from_email[:254] if from_email else '',
-            )
-            result = 'created'
+            # Threading order:
+            # 1. In-Reply-To / References against existing EmailMessage rows
+            # 2. Subject-regex fallback (legacy tickets without captured headers)
+            # 3. New ticket
+            target = _thread_target(msg, target_org)
+            if target is None:
+                m = ticket_pattern.search(subject)
+                if m:
+                    target = Ticket.objects.filter(
+                        ticket_number=m.group(0),
+                        organization=target_org,
+                    ).first()
 
-        # v3.17.654: people the customer copied stay copied on our replies.
-        # Our own mailbox addresses and the sender are left out.
-        try:
-            from psa.ticket_secure import merge_cc, parse_addresses
-            cc_raw = [addr for _, addr in getaddresses([_decode_header(msg.get('Cc', ''))]) if addr]
-            cc_valid, _ = parse_addresses(cc_raw)
-            own = {(getattr(config, a, '') or '') for a in ('email_address', 'username', 'graph_mailbox')}
-            if cc_valid and not _is_staff_sender(from_email):
-                merge_cc(target, cc_valid, exclude=own | {from_email or ''})
-        except Exception:
-            logger.exception('cc capture failed for ticket %s', target.ticket_number)
+            comment = None
+            if target is not None:
+                # Replies to an existing thread: drop the customer's signature +
+                # the quoted history so the comment shows only what's new.
+                cleaned_reply = clean_reply_body(body)[:50000].strip()
+                comment = TicketComment.objects.create(
+                    ticket=target,
+                    body=cleaned_reply or body or '(empty email body)',
+                    is_internal=False,
+                    is_system=False,
+                    author_name=from_name or from_email or 'email',
+                    author_email=from_email or '',
+                    source='email',
+                )
+                result = 'replied'
+                # A reply from the customer (not from one of our own staff
+                # addresses) puts the ticket back in the technician's court:
+                # stamp last_client_response_at and leave any waiting-on-client
+                # status — the same bookkeeping the portal reply path does.
+                if not _is_staff_sender(from_email):
+                    try:
+                        from psa.my_work import record_customer_reply
+                        record_customer_reply(target, via='email')
+                    except Exception:
+                        logger.exception('customer-reply bookkeeping failed for %s',
+                                         target.ticket_number)
+            else:
+                # New tickets keep the full body so context (quoted screenshots /
+                # FYI) isn't lost.
+                target = Ticket.objects.create(
+                    organization=target_org,
+                    subject=subject or '(no subject)',
+                    description=body,
+                    queue=target_queue,
+                    priority=target_priority,
+                    ticket_type=config.default_type,
+                    status=new_status,
+                    source='email',
+                    visibility='client',
+                    client_can_view=True,
+                    requester_name=from_name[:200] if from_name else '',
+                    requester_email=from_email[:254] if from_email else '',
+                )
+                result = 'created'
 
-        # Phase 10.2: ingest attachments (allowlist + size capped).
-        # Logged-only on rejection — never crash the poll loop.
-        try:
-            _ingest_attachments(msg, ticket=target, comment=comment)
-        except Exception:
-            logger.exception('attachment ingest failed for ticket %s',
-                             target.ticket_number)
+            # v3.17.654: people the customer copied stay copied on our replies.
+            # Our own mailbox addresses and the sender are left out.
+            try:
+                from psa.ticket_secure import merge_cc, parse_addresses
+                cc_raw = [addr for _, addr in getaddresses([_decode_header(msg.get('Cc', ''))]) if addr]
+                cc_valid, _ = parse_addresses(cc_raw)
+                own = {(getattr(config, a, '') or '') for a in ('email_address', 'username', 'graph_mailbox')}
+                if cc_valid and not _is_staff_sender(from_email):
+                    merge_cc(target, cc_valid, exclude=own | {from_email or ''})
+            except Exception:
+                logger.exception('cc capture failed for ticket %s', target.ticket_number)
 
-        # Persist the inbound EmailMessage so the NEXT reply threads cleanly.
-        # Skip silently when Message-ID is missing or already seen — we don't
-        # want a single buggy mail client to crash the poll loop. body_html is
-        # sanitized at write time so the Phase 10.4 conversation panel can
-        # render it directly.
-        if message_id_hdr:
-            to_addrs = [addr for _, addr in
-                        getaddresses([_decode_header(msg.get('To', '')),
-                                      _decode_header(msg.get('Cc', ''))])
-                        if addr]
-            # The unique-together is (organization, message_id) — use the
-            # *post-routing* target_org so a client-routed reply can later
-            # thread cleanly off the same Message-ID inside the right tenant.
-            EmailMessage.objects.get_or_create(
-                organization=target_org,
-                message_id=message_id_hdr,
-                defaults={
-                    'ticket': target,
-                    'ingestion_config': config,
-                    'direction': 'in',
-                    'in_reply_to': in_reply_to_hdr,
-                    'references': references_hdr[:8000],
-                    'from_email': (from_email or '')[:320],
-                    'to_emails': to_addrs[:50],
-                    'subject': subject[:998],
-                    'headers_raw': '\n'.join(f'{k}: {v}' for k, v in msg.items())[:16000],
-                    'body_text': text_body[:50000],
-                    'body_html': sanitize_html(html_body)[:200000],
-                    'graph_message_id': graph_message_id or '',
-                    'transport': 'graph' if graph_message_id else '',
-                },
-            )
-            if target.last_inbound_message_id != message_id_hdr:
-                target.last_inbound_message_id = message_id_hdr
-                target.save(update_fields=['last_inbound_message_id'])
+            # Phase 10.2: ingest attachments (allowlist + size capped).
+            # Logged-only on rejection — never crash the poll loop.
+            try:
+                _ingest_attachments(msg, ticket=target, comment=comment)
+            except Exception:
+                logger.exception('attachment ingest failed for ticket %s',
+                                 target.ticket_number)
 
-        return result
+            # Persist the inbound EmailMessage so the NEXT reply threads cleanly.
+            # Skip silently when Message-ID is missing or already seen — we don't
+            # want a single buggy mail client to crash the poll loop. body_html is
+            # sanitized at write time so the Phase 10.4 conversation panel can
+            # render it directly.
+            if claim is not None:
+                to_addrs = [addr for _, addr in
+                            getaddresses([_decode_header(msg.get('To', '')),
+                                          _decode_header(msg.get('Cc', ''))])
+                            if addr]
+                # The claim row was created up front (ticket empty); fill it in
+                # now that the ticket is known. Same fields as before.
+                claim.ticket = target
+                claim.to_emails = to_addrs[:50]
+                claim.save(update_fields=['ticket', 'to_emails'])
+                if target.last_inbound_message_id != message_id_hdr:
+                    target.last_inbound_message_id = message_id_hdr
+                    target.save(update_fields=['last_inbound_message_id'])
+
+            return result

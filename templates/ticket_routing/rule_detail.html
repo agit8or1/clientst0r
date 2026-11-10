@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ rule.name }} — Ticket Routing{% endblock %}
+{% block content %}
+{% include "ticket_routing/_nav.html" with tab="overview" crumb=rule.name %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+    <div>
+        <h4 class="mb-0">{{ rule.name }} {% if rule.is_active %}<span class="badge text-bg-success">Active</span>{% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}</h4>
+        <small class="text-muted">{% if rule.organization %}{{ rule.organization.name }}{% else %}Every customer{% endif %} · priority {{ rule.priority }}{% if rule.current_version %} · v{{ rule.current_version.number }}{% endif %}</small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'ticket_routing:rule_edit' rule.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+        <form method="post" action="{% url 'ticket_routing:rule_toggle' rule.pk %}">{% csrf_token %}
+            <input type="hidden" name="activate" value="{% if rule.is_active %}0{% else %}1{% endif %}">
+            <button class="btn btn-sm {% if rule.is_active %}btn-outline-secondary{% else %}btn-success{% endif %}">{% if rule.is_active %}Deactivate{% else %}Activate{% endif %}</button></form>
+        <form method="post" action="{% url 'ticket_routing:rule_delete' rule.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Delete</button></form>
+        {% if can_test %}<a href="{% url 'ticket_routing:test' %}" class="btn btn-sm btn-outline-secondary">Test routing</a>{% endif %}
+    </div>
+</div>
+{% if rule.description %}<p>{{ rule.description }}</p>{% endif %}
+<div class="card mb-3"><div class="card-body"><h6 class="text-muted">In plain words</h6><p class="mb-0">{{ rule.current_version.summary|default:"Not saved through review yet." }}</p></div></div>
+{% if errors %}<div class="alert alert-danger"><ul class="mb-0">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+{% if warnings %}<div class="alert alert-warning"><ul class="mb-0">{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>{% endif %}
+{% if interactions %}<div class="alert alert-info"><ul class="mb-0">{% for i in interactions %}<li>{{ i }}</li>{% endfor %}</ul></div>{% endif %}
+
+<div class="row g-3">
+<div class="col-lg-6"><div class="card"><div class="card-header"><strong>Versions</strong></div>
+<ul class="list-group list-group-flush small">
+    {% for v in versions %}<li class="list-group-item"><strong>v{{ v.number }}</strong> · {{ v.published_at|date:"Y-m-d H:i" }} · {{ v.published_by.username|default:"—" }}<div class="text-muted">{{ v.summary }}</div></li>{% endfor %}
+</ul></div></div>
+<div class="col-lg-6"><div class="card"><div class="card-header"><strong>Recent decisions</strong></div>
+<ul class="list-group list-group-flush small">
+    {% for d in recent %}<li class="list-group-item"><a href="{% url 'psa:ticket_detail' d.ticket.ticket_number %}">{{ d.ticket.ticket_number }}</a> · {{ d.get_status_display }}{% if d.new_assignee %} → {{ d.new_assignee.username }}{% endif %} · {{ d.created_at|date:"Y-m-d H:i" }}</li>
+    {% empty %}<li class="list-group-item text-muted">None yet.</li>{% endfor %}
+</ul></div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}{% if rule %}Edit{% else %}New{% endif %} routing rule — PSA{% endblock %}
+{% block content %}
+{% include "ticket_routing/_nav.html" with tab="overview" crumb=rule.name|default:"New rule" %}
+<h4 class="mb-3"><i class="fas fa-route me-2"></i>{% if rule %}Edit "{{ rule.name }}"{% else %}New routing rule{% endif %}</h4>
+<p class="small text-muted">Every condition you set must match; leave a condition empty to ignore it. You'll see a plain-language summary and any conflicts before anything is saved. Saving never reassigns existing tickets.</p>
+
+<form method="post" class="card" id="routing-rule-form">
+    {% csrf_token %}
+    <input type="hidden" name="step" value="review">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Name</label>
+                <input type="text" name="name" class="form-control" required value="{{ data.name }}" placeholder="e.g. Acme after-hours network outages"></div>
+            <div class="col-md-4"><label class="form-label">Applies to</label>
+                <select name="organization" class="form-select">
+                    <option value="">Every customer (inherited)</option>
+                    {% for o in organizations %}<option value="{{ o.pk }}" {% if data.organization_id == o.pk %}selected{% endif %}>{{ o.name }}</option>{% endfor %}
+                </select>
+                <small class="text-muted">Customer rules are evaluated before rules for every customer.</small></div>
+            <div class="col-md-2"><label class="form-label">Priority</label>
+                <input type="number" min="0" name="priority" class="form-control" value="{{ data.priority }}">
+                <small class="text-muted">Lower runs first.</small></div>
+            <div class="col-12"><label class="form-label">Description</label>
+                <input type="text" name="description" class="form-control" value="{{ data.description }}"></div>
+        </div>
+
+        <hr><h6><i class="fas fa-filter me-1"></i>When a ticket…</h6>
+        <div class="row g-3 small">
+            <div class="col-md-4"><label class="form-label">Arrives by (intake source)</label>
+                <select name="sources" multiple size="6" class="form-select form-select-sm">
+                    {% for code, label in sources %}<option value="{{ code }}" {% if code in data.conditions.sources %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select></div>
+            <div class="col-md-4"><label class="form-label">Ticket type</label>
+                <select name="ticket_types" multiple size="6" class="form-select form-select-sm">
+                    {% for t in ticket_types %}<option value="{{ t.slug }}" {% if t.slug in data.conditions.ticket_types %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+                </select></div>
+            <div class="col-md-4"><label class="form-label">Priority</label>
+                <select name="priorities" multiple size="6" class="form-select form-select-sm">
+                    {% for p in priorities %}<option value="{{ p.code }}" {% if p.code in data.conditions.priorities %}selected{% endif %}>{{ p.code }} — {{ p.name }}</option>{% endfor %}
+                </select></div>
+            <div class="col-md-4"><label class="form-label">Is in queue</label>
+                <select name="queues" multiple size="5" class="form-select form-select-sm">
+                    {% for q in queues %}<option value="{{ q.name }}" {% if q.name in data.conditions.queues %}selected{% endif %}>{{ q.name }}</option>{% endfor %}
+                </select></div>
+            <div class="col-md-4"><label class="form-label">Requests service (catalog item)</label>
+                <select name="services" multiple size="5" class="form-select form-select-sm">
+                    {% for s in services %}<option value="{{ s.slug }}" {% if s.slug in data.conditions.services %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+                </select></div>
+            <div class="col-md-4"><label class="form-label">Contract</label>
+                <select name="contract" class="form-select form-select-sm mb-1">
+                    <option value="any">Any</option>
+                    <option value="yes" {% if data.conditions.contract == 'yes' %}selected{% endif %}>Customer has an active contract</option>
+                    <option value="no" {% if data.conditions.contract == 'no' %}selected{% endif %}>Customer has no active contract</option>
+                </select>
+                <select name="contract_types" multiple size="3" class="form-select form-select-sm">
+                    {% for code, label in contract_types %}<option value="{{ code }}" {% if code in data.conditions.contract_types %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select></div>
+            <div class="col-md-4"><label class="form-label">Has any of these tags</label>
+                <input type="text" name="tags_any" class="form-control form-control-sm" value="{{ data.conditions.tags_any|join:', ' }}" placeholder="network, vip"></div>
+            <div class="col-md-4"><label class="form-label">Subject or description mentions any of</label>
+                <input type="text" name="keywords_any" class="form-control form-control-sm" value="{{ data.conditions.keywords_any|join:', ' }}" placeholder="outage, down"></div>
+            <div class="col-md-2"><label class="form-label">Time</label>
+                <select name="hours" class="form-select form-select-sm">
+                    <option value="any">Any time</option>
+                    <option value="business" {% if data.conditions.hours == 'business' %}selected{% endif %}>Business hours</option>
+                    <option value="after" {% if data.conditions.hours == 'after' %}selected{% endif %}>After hours</option>
+                </select></div>
+            <div class="col-md-2"><label class="form-label">SLA risk ≥ %</label>
+                <input type="number" min="0" name="sla_pct_at_least" class="form-control form-control-sm" value="{{ data.conditions.sla_pct_at_least|default_if_none:'' }}" placeholder="—"></div>
+        </div>
+        <small class="text-muted d-block mt-1">Site is not offered: tickets are not linked to a site yet.</small>
+
+        <hr><h6><i class="fas fa-location-arrow me-1"></i>…send it to</h6>
+        <div class="row g-3 small">
+            <div class="col-md-4"><label class="form-label">Destination</label>
+                <select name="destination_type" id="dest-type" class="form-select form-select-sm">
+                    {% for code, label in destination_choices %}<option value="{{ code }}" {% if data.destination.type == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select></div>
+            <div class="col-md-4" data-dest="queue team technician round_robin skill_match least_loaded"><label class="form-label">Queue <span class="text-muted" data-dest-note>(optional; blank keeps the current queue)</span></label>
+                <select name="dest_queue_id" class="form-select form-select-sm">
+                    <option value="">—</option>
+                    {% for q in queues %}<option value="{{ q.pk }}" {% if data.destination.queue_id == q.pk %}selected{% endif %}>{{ q.name }}</option>{% endfor %}
+                </select></div>
+            <div class="col-md-4" data-dest="technician"><label class="form-label">Technician</label>
+                <select name="dest_user_id" class="form-select form-select-sm">
+                    <option value="">—</option>
+                    {% for u in technicians %}<option value="{{ u.pk }}" {% if data.destination.user_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+                </select></div>
+            <div class="col-md-4" data-dest="team round_robin skill_match least_loaded"><label class="form-label">Team <span class="text-muted">(user group)</span></label>
+                <select name="dest_team_id" class="form-select form-select-sm">
+                    <option value="">Any team</option>
+                    {% for g in teams %}<option value="{{ g.pk }}" {% if data.destination.team_id == g.pk %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+                </select></div>
+            <div class="col-md-4" data-dest="round_robin skill_match least_loaded"><label class="form-label">Required skills <span class="text-muted">(Resourcing → skills)</span></label>
+                <input type="text" name="dest_skills" list="skill-list" class="form-control form-control-sm" value="{{ data.destination.skills|join:', ' }}" placeholder="Networking">
+                <datalist id="skill-list">{% for s in skills %}<option value="{{ s }}">{% endfor %}</datalist>
+                <select name="dest_min_proficiency" class="form-select form-select-sm mt-1">
+                    {% for code, label in proficiencies %}<option value="{{ code }}" {% if data.destination.min_proficiency == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select></div>
+            <div class="col-md-4" data-dest="technician round_robin skill_match least_loaded">
+                <div class="form-check mt-4"><input class="form-check-input" type="checkbox" name="dest_require_on_call" id="oncall" {% if data.destination.require_on_call %}checked{% endif %}><label class="form-check-label" for="oncall">Only technicians on call now</label></div>
+                <div class="form-check"><input class="form-check-input" type="checkbox" name="dest_require_available" id="avail" {% if data.destination.require_available is not False %}checked{% endif %}><label class="form-check-label" for="avail">Skip anyone on leave or outside their working hours</label></div>
+            </div>
+        </div>
+        <p class="small text-muted mt-2 mb-0">Only active MSP technicians authorized for the ticket's customer are ever candidates.</p>
+
+        <div class="row g-3 small mt-1" data-dest="technician round_robin skill_match least_loaded">
+            <div class="col-md-4"><label class="form-label">If nobody qualifies</label>
+                <select name="fallback_type" class="form-select form-select-sm">
+                    {% for code, label in fallback_choices %}<option value="{{ code }}" {% if data.fallback.type == code %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select></div>
+            <div class="col-md-4"><label class="form-label">Fallback queue</label>
+                <select name="fallback_queue_id" class="form-select form-select-sm">
+                    <option value="">—</option>
+                    {% for q in queues %}<option value="{{ q.pk }}" {% if data.fallback.queue_id == q.pk %}selected{% endif %}>{{ q.name }}</option>{% endfor %}
+                </select></div>
+        </div>
+
+        <div class="form-check mt-3"><input class="form-check-input" type="checkbox" name="activate" id="activate" {% if data.activate %}checked{% endif %}><label class="form-check-label" for="activate">Active (applies to tickets routed from now on)</label></div>
+    </div>
+    <div class="card-footer"><button type="submit" class="btn btn-primary">Review…</button>
+        <a href="{% if rule %}{% url 'ticket_routing:rule_detail' rule.pk %}{% else %}{% url 'ticket_routing:overview' %}{% endif %}" class="btn btn-outline-secondary">Cancel</a></div>
+</form>
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+    var sel = document.getElementById('dest-type');
+    function sync() {
+        var t = sel.value;
+        document.querySelectorAll('#routing-rule-form [data-dest]').forEach(function (el) {
+            el.style.display = el.getAttribute('data-dest').split(' ').indexOf(t) >= 0 ? '' : 'none';
+        });
+    }
+    sel.addEventListener('change', sync);
+    sync();
+})();
+</script>
+{% endblock %}

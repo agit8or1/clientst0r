@@ -65,6 +65,15 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(
                     f'{ticket.ticket_number}: {exc}'))
 
+            # Optional ticket routing: one reroute per ticket per SLA
+            # threshold when configured. No-op while routing is Off.
+            try:
+                from psa.routing.service import on_sla_tick
+                on_sla_tick(ticket)
+            except Exception as exc:  # pragma: no cover — service catches its own
+                self.stdout.write(self.style.ERROR(
+                    f'{ticket.ticket_number}: routing: {exc}'))
+
         self.stdout.write(self.style.SUCCESS(
             f'{"[dry] " if dry else ""}Evaluated {evaluated} ticket(s); '
             f'{fired_total} rule(s) fired; {flagged} breach flag(s) updated.'
