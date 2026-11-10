@@ -3,7 +3,6 @@ Auto-update service for Client St0r.
 
 Checks GitHub for new releases and performs automated updates.
 """
-import requests
 import subprocess
 import os
 import logging
@@ -164,9 +163,6 @@ class UpdateService:
 
         return headers
 
-    # v3.17.482 — cache TTL for /tags polls. GitHub's anonymous limit
-    # is 60/hour; with TTL=300 we touch GitHub at most 12 times/hour
-    # even if Settings → Updates is open in 10 browser tabs.
     @staticmethod
     def _record_latest(latest_version):
         """Persist what this check found for every process to see (the
@@ -180,395 +176,100 @@ class UpdateService:
         except Exception:
             logger.exception('could not record the latest release version')
 
-    _CACHE_KEY_SUCCESS = 'system_update_check'
-    _CACHE_KEY_LAST_GOOD = 'system_update_check_last_good'
-    _CACHE_TTL_SUCCESS = 300       # 5 min — successful result
-    _CACHE_TTL_RATELIMITED = 600   # 10 min — back off harder on 403
-
     def check_for_updates(self, *, force_refresh=False):
-        """
-        Check GitHub for new versions by comparing git tags.
+        """What this instance's release channel offers.
 
-        v3.17.482 — short-TTL cache stops the GitHub /tags endpoint from
-        being hammered on every Settings → Updates page load. The
-        previous "Uses caching" docstring was aspirational; this is the
-        first version that actually does it.
+        Since the install/upgrade hardening this asks core.upgrade.channels:
+        Stable is the newest *published, signed* GitHub release (it used to
+        be the highest version tag, which includes every unreleased build);
+        Preview is the head of main. The legacy keys below are kept for the
+        callers that read them (system warnings, `manage.py check_updates`);
+        `channels` carries the full picture for Settings -> Updates.
 
         Returns:
             dict with 'update_available', 'latest_version', 'current_version',
-            'release_url', 'release_notes'
+            'release_url', 'release_notes', 'target', 'channels', 'error'
         """
-        from django.core.cache import cache
+        from core.upgrade import channels
+        state = channels.resolve(force_refresh=force_refresh)
+        stable = state.get('stable') or {}
+        target = state.get('target')
+        if state['channel'] == 'preview' and state.get('preview'):
+            latest = (state['preview'].get('version') or self.current_version)
+        else:
+            latest = stable.get('version')
+        return {
+            'update_available': bool(target),
+            'latest_version': (target or {}).get('version') or latest,
+            'current_version': self.current_version,
+            'release_url': stable.get('url'),
+            'release_notes': stable.get('notes') or 'No release notes available',
+            'published_at': stable.get('published_at'),
+            'checked_at': state.get('checked_at'),
+            'error': state.get('error'),
+            'stale': state.get('stale'),
+            'from_cache': state.get('from_cache'),
+            'target': target,
+            'channel': state['channel'],
+            'channels': state,
+        }
 
-        if not force_refresh:
-            cached = cache.get(self._CACHE_KEY_SUCCESS)
-            if cached is not None:
-                cached = dict(cached)
-                cached['from_cache'] = True
-                return cached
-
-        logger.info(f"Starting update check. Current version: {self.current_version}")
-
-        try:
-            # Get all tags from GitHub API (sorted by date, most recent first)
-            url = f'{self.github_api}/{self.repo_owner}/{self.repo_name}/tags'
-            logger.info(f"Fetching tags from: {url}")
-
-            response = requests.get(url, headers=self._get_github_headers(), timeout=30)
-            logger.info(f"GitHub API response status: {response.status_code}")
-
-            # Check for rate limit before raising
-            if response.status_code == 403:
-                rate_limit_remaining = response.headers.get('X-RateLimit-Remaining', '0')
-                if rate_limit_remaining == '0':
-                    reset_time = response.headers.get('X-RateLimit-Reset', 'unknown')
-                    logger.error(f"GitHub API rate limit exceeded. Resets at: {reset_time}")
-                    # If we have a recent good result cached, return that
-                    # with a stale flag so the UI keeps working through
-                    # the rate-limit window.
-                    last_good = cache.get(self._CACHE_KEY_LAST_GOOD)
-                    if last_good is not None:
-                        out = dict(last_good)
-                        out['from_cache'] = True
-                        out['stale'] = True
-                        out['rate_limit'] = True
-                        return out
-                    # Cache the rate-limit response too so we don't
-                    # immediately retry and burn another request.
-                    payload = {
-                        'update_available': False,
-                        'latest_version': None,
-                        'current_version': self.current_version,
-                        'error': 'GitHub API rate limit exceeded. Please try again later or set GITHUB_TOKEN environment variable for higher limits.',
-                        'checked_at': timezone.now().isoformat(),
-                        'rate_limit': True,
-                    }
-                    cache.set(self._CACHE_KEY_SUCCESS, payload,
-                              self._CACHE_TTL_RATELIMITED)
-                    return payload
-
-            response.raise_for_status()
-
-            tags = response.json()
-            if not tags:
-                logger.warning("No tags found in repository")
-                return {
-                    'update_available': False,
-                    'latest_version': None,
-                    'current_version': self.current_version,
-                    'error': 'No tags found',
-                    'checked_at': timezone.now().isoformat(),
-                }
-
-            # Find the latest semantic version tag
-            latest_tag = None
-            latest_version_parsed = None
-
-            for tag in tags:
-                tag_name = tag['name'].lstrip('v')
-                try:
-                    # Parse as semantic version
-                    tag_version = version.parse(tag_name)
-                    if latest_version_parsed is None or tag_version > latest_version_parsed:
-                        latest_version_parsed = tag_version
-                        latest_tag = tag
-                except Exception:
-                    # Skip non-semantic version tags
-                    continue
-
-            if not latest_tag:
-                logger.warning("No valid semantic version tags found")
-                return {
-                    'update_available': False,
-                    'latest_version': None,
-                    'current_version': self.current_version,
-                    'error': 'No valid version tags found',
-                    'checked_at': timezone.now().isoformat(),
-                }
-
-            latest_version = latest_tag['name'].lstrip('v')
-            logger.info(f"Latest tag from GitHub: {latest_version}")
-
-            # Compare versions
-            update_available = version.parse(latest_version) > version.parse(self.current_version)
-            logger.info(f"Version comparison: {latest_version} > {self.current_version} = {update_available}")
-
-            # Try to get release notes if a release exists for this tag
-            release_notes = 'No release notes available'
-            release_url = f'https://github.com/{self.repo_owner}/{self.repo_name}/releases/tag/v{latest_version}'
-            published_at = None
-
-            try:
-                release_response = requests.get(
-                    f'{self.github_api}/{self.repo_owner}/{self.repo_name}/releases/tags/v{latest_version}',
-                    headers=self._get_github_headers(),
-                    timeout=15
-                )
-                if release_response.status_code == 200:
-                    release_data = release_response.json()
-                    release_notes = release_data.get('body', 'No release notes available')
-                    published_at = release_data.get('published_at')
-            except Exception as e:
-                logger.debug(f"Could not fetch release notes: {e}")
-                pass  # Release doesn't exist or network issue, that's ok
-
-            result = {
-                'update_available': update_available,
-                'latest_version': latest_version,
-                'current_version': self.current_version,
-                'release_url': release_url,
-                'release_notes': release_notes,
-                'published_at': published_at,
-                'checked_at': timezone.now().isoformat(),
-            }
-            # v3.17.482 — cache the success so subsequent polls within
-            # 5 min are answered from memory; ALSO cache as the
-            # "last good" so a future 403 can return stale-but-useful.
-            cache.set(self._CACHE_KEY_SUCCESS, result, self._CACHE_TTL_SUCCESS)
-            cache.set(self._CACHE_KEY_LAST_GOOD, result, 24 * 3600)
-            self._record_latest(latest_version)
-            return result
-
-        except requests.Timeout as e:
-            logger.warning(f"GitHub API timeout while checking for updates: {e}")
-            return {
-                'update_available': False,
-                'latest_version': None,
-                'current_version': self.current_version,
-                'error': 'Unable to reach GitHub API (connection timeout). Please check your internet connection or try again later.',
-                'error_type': 'timeout',
-                'checked_at': timezone.now().isoformat(),
-            }
-        except requests.ConnectionError as e:
-            logger.warning(f"GitHub API connection error while checking for updates: {e}")
-            return {
-                'update_available': False,
-                'latest_version': None,
-                'current_version': self.current_version,
-                'error': 'Unable to connect to GitHub. Please check your internet connection or firewall settings.',
-                'error_type': 'connection',
-                'checked_at': timezone.now().isoformat(),
-            }
-        except requests.RequestException as e:
-            logger.error(f"Failed to check for updates: {e}")
-            return {
-                'update_available': False,
-                'latest_version': None,
-                'current_version': self.current_version,
-                'error': f'Error checking for updates: {str(e)}',
-                'error_type': 'general',
-                'checked_at': timezone.now().isoformat(),
-            }
-
-    def perform_update(self, user=None, progress_tracker=None):
-        """
-        Perform full system update.
-
-        Downloads update_instructions.sh from GitHub and executes it, streaming
-        output line-by-line.  If the script has a bug, push a fix to GitHub —
-        the next update attempt downloads the fixed script automatically without
-        needing a code-version bump.
+    def perform_update(self, user=None, progress_tracker=None, target=None):
+        """Install `target` (a core.upgrade.revision.Target) -- or, when None,
+        what this instance's channel offers -- through the verified pipeline
+        in core.upgrade.apply: pinned sha, signature check for releases,
+        preflight checks, a verified backup before migrating, and the update
+        script taken from the target revision itself.
 
         Returns:
             dict with 'success', 'steps_completed', 'output', 'error'
         """
-        result = {
-            'success': False,
-            'steps_completed': [],
-            'output': [],
-            'error': None,
-        }
+        from core.upgrade import apply as upgrade_apply
+        from core.upgrade.revision import Target
 
-        script_path = None
-
+        result = {'success': False, 'steps_completed': [], 'output': [], 'error': None}
         try:
-            # Pre-check: Verify passwordless sudo is configured (if running under systemd)
-            if self._is_systemd_service():
-                if not self._check_passwordless_sudo():
-                    # v3.17.645: used to print sudoers lines to add. Root
-                    # actions go through the root helper now; never ask for
-                    # new NOPASSWD rules.
-                    from . import root_helper
-                    raise Exception(
-                        "This account can't run the root helper without a password, so the "
-                        "update can't reload the app. Run the one-time setup on the server, "
-                        f"then try again:\n\n{root_helper.bootstrap_command()}\n\n"
-                        "Or update manually via command line (see instructions below)."
-                    )
-
-            # Step 1: Download update instructions from GitHub
-            script_url = (
-                f'https://raw.githubusercontent.com/'
-                f'{self.repo_owner}/{self.repo_name}/main/deploy/update_instructions.sh'
-            )
-            logger.info(f"Downloading update instructions from: {script_url}")
-            result['output'].append(f"Downloading update instructions from GitHub...")
-
-            response = requests.get(script_url, headers=self._get_github_headers(), timeout=30)
-            response.raise_for_status()
-            script_content = response.text
-
-            if not script_content.startswith('#!/'):
-                raise Exception('Downloaded content is not a valid shell script')
-
-            result['output'].append("Update instructions downloaded successfully")
-            result['steps_completed'].append('download_script')
-
-            # Step 2: Write to temp file and make executable
-            script_path = f'/tmp/clientst0r_update_{os.getpid()}.sh'
-            with open(script_path, 'w') as f:
-                f.write(script_content)
-            os.chmod(script_path, 0o700)
-            logger.info(f"Update script written to: {script_path}")
-
-            # Step 3: Execute — pass context via environment variables
-
-            # Clear cache NOW — before the subprocess runs and restarts the service.
-            # The service restart (scheduled inside the script) kills this process,
-            # so any cache.delete placed after process.wait() would never run.
-            from django.core.cache import cache
-            cache.delete('system_update_check')
-            logger.info("Cleared system_update_check cache (pre-execution)")
-
-            env = os.environ.copy()
-            env['CLIENTST0R_BASE_DIR'] = str(self.base_dir)
-            env['CLIENTST0R_SERVICE_NAME'] = self.service_name or ''
-
-            logger.info(
-                f"Executing update script with BASE_DIR={self.base_dir}, "
-                f"SERVICE={self.service_name}"
-            )
-            result['output'].append(f"Base directory: {self.base_dir}")
-
-            # Map shell script log markers to the step names the UI progress bar expects.
-            # Each tuple: (substring to match, 'start'|'complete', step_name)
-            step_triggers = [
-                ('Step 1/5: Fetching',               'start',    'Git Pull'),
-                ('Step 1/5: Code updated',           'complete', 'Git Pull'),
-                ('Step 2/5: Installing',             'start',    'Install Dependencies'),
-                ('Step 2/5: Core dependencies',      'complete', 'Install Dependencies'),
-                ('Step 3/5: Running database',       'start',    'Run Migrations'),
-                ('Step 3/5: Migrations completed',   'complete', 'Run Migrations'),
-                ('Step 4/5: Collecting static',      'start',    'Collect Static Files'),
-                ('Step 4/5: Static files collected', 'complete', 'Collect Static Files'),
-                # v3.17.421 — bash script now writes status=completed to
-                # the progress JSON directly before the reload, so the
-                # front-end is safe even if `systemctl reload` SIGHUPs
-                # this Python reader before it processes the final lines.
-                # These triggers are still useful for the live progress
-                # log as long as the reader survives.
-                ('Step 5/5: Scheduling',             'start',    'Restart Service'),
-                ('Step 5/5: Marked progress',        'complete', 'Restart Service'),
-                ('Step 5/5: Graceful reload',        'complete', 'Restart Service'),
-                ('Update complete!',                 'complete', 'Restart Service'),
-            ]
-
-            process = subprocess.Popen(
-                ['/bin/bash', script_path],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, bufsize=1,  # line-buffered: emit each line as it arrives
-                env=env, cwd=str(self.base_dir)
-            )
-            for line in iter(process.stdout.readline, ''):
-                stripped = line.rstrip()
-                if stripped:
-                    if progress_tracker:
-                        # Single read+write per line: log + step change atomically
-                        progress_tracker.process_log_line(stripped, step_triggers)
-                    result['output'].append(stripped)
-            process.wait()
-
-            if process.returncode != 0:
+            if self._is_systemd_service() and not self._check_passwordless_sudo():
+                # v3.17.645: root actions go through the root helper; never
+                # ask for new NOPASSWD rules.
+                from . import root_helper
                 raise Exception(
-                    f"Update script exited with code {process.returncode}"
+                    "This account can't run the root helper without a password, so the "
+                    "update can't reload the app. Run the one-time setup on the server, "
+                    f"then try again:\n\n{root_helper.bootstrap_command()}\n\n"
+                    "Or update manually via command line (see instructions below)."
                 )
-
-            result['steps_completed'].append('execute_script')
-
-            result['success'] = True
-
+            if target is None:
+                info = self.check_for_updates(force_refresh=True)
+                t = info.get('target')
+                if not t:
+                    raise Exception(info.get('error') or 'Nothing newer to install on this channel.')
+                target = Target(t['kind'], t['ref'], t['sha'], t.get('version') or '')
         except Exception as e:
-            logger.error(f"Update failed: {e}")
-            error_msg = str(e)
-
-            result['error'] = error_msg
-            result['output'].append(f"ERROR: {error_msg}")
-
+            result['error'] = str(e)
+            result['output'].append(f'ERROR: {e}')
             if progress_tracker:
-                progress_tracker.finish(success=False, error=error_msg)
-
-            # v3.17.284 (issue #128): persist the script's recent output
-            # into AuditLog.extra_data so superusers can see WHICH migration
-            # / step failed without SSHing in. Cap at last 200 lines + 50KB
-            # to keep the audit row reasonable.
-            recent_output = (result.get('output') or [])[-200:]
-            output_blob = '\n'.join(recent_output)
-            if len(output_blob) > 50_000:
-                output_blob = output_blob[-50_000:]
-
-            # Log failure to audit trail
+                progress_tracker.finish(success=False, error=str(e))
             AuditLog.objects.create(
-                action='system_update_failed',
-                description=f'System update failed: {str(e)}',
-                user=user,
-                username=user.username if user else 'system',
-                success=False,
-                extra_data={
-                    'current_version': self.current_version,
-                    'steps_completed': result['steps_completed'],
-                    'error': str(e),
-                    'output_tail': output_blob,
-                }
-            )
+                action='system_update_failed', description=f'System update failed: {e}',
+                user=user, username=user.username if user else 'system', success=False,
+                extra_data={'current_version': self.current_version, 'error': str(e)})
+            return result
 
-        finally:
-            # Always clean up the temp script
-            if script_path and os.path.exists(script_path):
-                try:
-                    os.unlink(script_path)
-                    logger.info(f"Cleaned up temp script: {script_path}")
-                except Exception as cleanup_err:
-                    logger.warning(f"Failed to clean up temp script: {cleanup_err}")
-
-        if result['success']:
-            # Cache was already cleared before the subprocess ran (see above)
-
-            # Force reload version module to display new version immediately
+        run = upgrade_apply.run(target, user=user, progress=progress_tracker)
+        result.update(success=run['success'], output=run['output'], error=run['error'],
+                      backup=run.get('backup'), refused=run.get('refused'))
+        if run['success']:
+            result['steps_completed'] = list(upgrade_apply.PRE_STEPS + upgrade_apply.SCRIPT_STEPS)
             try:
                 import sys
                 import importlib
                 if 'config.version' in sys.modules:
                     importlib.reload(sys.modules['config.version'])
                     from config.version import VERSION
-                    self.current_version = VERSION
-                    logger.info(f"Reloaded version module: {VERSION}")
-                    result['output'].append("")
-                    result['output'].append("UPDATE SUCCESSFUL!")
-                    result['output'].append(f"New version: {VERSION}")
-                    result['output'].append(f"Location: {self.base_dir}")
-                    result['output'].append("")
                     result['new_version'] = VERSION
             except Exception as e:
                 logger.warning(f"Failed to reload version module: {e}")
-
-            if progress_tracker:
-                progress_tracker.finish(success=True)
-
-            # Log to audit trail
-            AuditLog.objects.create(
-                action='system_update',
-                description=f'System updated from {self.current_version} by {user.username if user else "system"}',
-                user=user,
-                username=user.username if user else 'system',
-                success=True,
-                extra_data={
-                    'previous_version': self.current_version,
-                    'steps_completed': result['steps_completed'],
-                }
-            )
-
-            logger.info("Update completed successfully")
-
         return result
 
     def _find_sudo(self):

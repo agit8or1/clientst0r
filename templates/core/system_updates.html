@@ -167,91 +167,200 @@
     </div>
     {% endif %}
 
-    <!-- Current Version -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card update-card">
+    <!-- Interrupted / failed upgrade (core/upgrade/journal.py) -->
+    {% if upgrade_state.needs_recovery or upgrade_state.state == 'running' %}
+    <div class="row mb-4" id="upgrade-recovery">
+        <div class="col-12">
+            <div class="card update-card danger">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Current Version</h5>
+                    <h5 class="mb-0"><i class="fas fa-life-ring"></i>
+                        {% if upgrade_state.state == 'running' %}An upgrade is running{% else %}The last upgrade did not finish{% endif %}
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <h2 class="mb-0">
-                        <span class="badge bg-primary version-badge">v{{ version }}</span>
-                    </h2>
-                    <p class="text-muted mt-2 mb-0">
-                        Branch: <span class="git-status">{{ git_status.branch }}</span> |
-                        Commit: <span class="git-status">{{ git_status.commit }}</span>
-                        {% if git_status.clean %}
-                        <span class="badge bg-success ms-2"><i class="fas fa-check"></i> Clean</span>
-                        {% else %}
-                        <span class="badge bg-warning ms-2"><i class="fas fa-exclamation-triangle"></i> Modified</span>
-                        {% endif %}
-                    </p>
+                    <p class="mb-2">{{ upgrade_state.message }}</p>
+                    {% with j=upgrade_state.journal %}
+                    <table class="table table-sm mb-3">
+                        <tr><th style="width: 220px;">From</th><td class="git-status">v{{ j.prev_version }} @ {{ j.prev_sha|slice:":12" }}</td></tr>
+                        <tr><th>To</th><td class="git-status">{{ j.target.ref }} @ {{ j.target.sha|slice:":12" }}</td></tr>
+                        <tr><th>Stopped at stage</th><td>{{ j.stage }} ({{ j.status }})</td></tr>
+                        {% if j.error %}<tr><th>Error</th><td>{{ j.error }}</td></tr>{% endif %}
+                        {% if j.backup %}<tr><th>Verified pre-upgrade backup</th><td class="git-status">{{ j.backup }}</td></tr>{% endif %}
+                    </table>
+                    {% if upgrade_state.needs_recovery %}
+                    <p class="mb-2">Apply is disabled until this is resolved. On the server, as the user that runs Client St0r:</p>
+                    <div class="bg-dark text-light p-3 rounded" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
+                        <div class="text-white-50"># 1. see what the migration left behind</div>
+                        <div class="text-white mb-2">venv/bin/python manage.py migration_doctor</div>
+                        <div class="text-white-50"># 2a. finish the same reviewed revision once the cause is fixed</div>
+                        <div class="text-white mb-2">venv/bin/python manage.py upgrade_apply --resume</div>
+                        <div class="text-white-50"># 2b. or go back to exactly before the upgrade (stop the service first)</div>
+                        <div class="text-white">venv/bin/python manage.py upgrade_restore {{ j.backup|default:"PATH" }}</div>
+                    </div>
+                    <p class="mt-2 mb-0 small text-muted">Step by step, including partially applied MySQL/MariaDB migrations: <code>docs/UPGRADE_AND_RECOVERY.md</code>.</p>
+                    {% endif %}
+                    {% endwith %}
                 </div>
             </div>
         </div>
+    </div>
+    {% endif %}
 
-        <div class="col-md-6">
-            <div class="card {% if update_info.update_available %}update-card warning{% else %}update-card{% endif %}">
+    <!-- Installed / recommended release / main -->
+    <div class="row mb-4">
+        <div class="col-lg-4 mb-3 mb-lg-0">
+            <div class="card update-card h-100">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-cloud-download-alt"></i> Latest Available Version</h5>
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Installed</h5>
                 </div>
                 <div class="card-body">
-                    {% if update_info.error %}
-                    <div class="alert alert-danger mb-0">
-                        <i class="fas fa-exclamation-circle"></i> {{ update_info.error }}
-                    </div>
-                    {% elif update_info.update_available %}
-                    <h2 class="mb-0">
-                        <span class="badge bg-warning version-badge">v{{ update_info.latest_version }}</span>
-                        <span class="badge bg-success ms-2">Update Available</span>
-                    </h2>
-                    <p class="text-muted mt-2 mb-0">
-                        <small>Last checked: {{ update_info.checked_at|default:"Never" }}</small>
+                    <h2 class="mb-0"><span class="badge bg-primary version-badge">v{{ version }}</span></h2>
+                    <p class="text-muted mt-2 mb-1">
+                        Commit: <span class="git-status" id="installedSha">{{ channels.installed.sha|default:git_status.commit }}</span>
                     </p>
+                    <p class="text-muted mb-0">
+                        Branch: <span class="git-status">{{ git_status.branch }}</span>
+                        {% if git_status.clean %}
+                        <span class="badge bg-success ms-2"><i class="fas fa-check"></i> Clean</span>
+                        {% else %}
+                        <span class="badge bg-warning text-dark ms-2"><i class="fas fa-exclamation-triangle"></i> Modified</span>
+                        {% endif %}
+                    </p>
+                    {% if channels.relation_to_stable == 'ahead' %}
+                    <p class="small mt-2 mb-0"><span class="badge bg-info text-dark">Newer than the latest release</span>
+                        This build came from <code>main</code> (a preview build).</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-3 mb-lg-0">
+            <div class="card update-card h-100 {% if channels.relation_to_stable == 'behind' %}warning{% endif %}">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-tag"></i> Recommended release <small class="text-muted">(Stable)</small></h5>
+                </div>
+                <div class="card-body">
+                    {% if channels.stable %}
+                    <h2 class="mb-0"><span class="badge {% if channels.relation_to_stable == 'behind' %}bg-warning text-dark{% else %}bg-success{% endif %} version-badge">{{ channels.stable.tag }}</span></h2>
+                    <p class="text-muted mt-2 mb-1">Commit: <span class="git-status">{{ channels.stable.sha|default:"unknown" }}</span></p>
+                    <p class="text-muted mb-1 small">Published {{ channels.stable.published_at|default:"" }} &middot;
+                        {% if channels.stable.has_signature %}signed tag{% else %}<strong>no tag signature</strong>{% endif %}
+                        (the signature is verified on this server when you apply)</p>
+                    {% if channels.stable.url %}<a href="{{ channels.stable.url }}" target="_blank" rel="noopener" class="small">Release notes on GitHub</a>{% endif %}
                     {% else %}
-                    <h2 class="mb-0">
-                        <span class="badge bg-success version-badge"><i class="fas fa-check"></i> Up to Date</span>
-                    </h2>
-                    <p class="text-muted mt-2 mb-0">
-                        <small>Last checked: {{ update_info.checked_at|default:"Never" }}</small>
+                    <p class="mb-0 text-muted">{% if channels.error %}Unknown: the release list could not be read.{% else %}No published release found.{% endif %}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card update-card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-code-branch"></i> Newer on main <small class="text-muted">(not a release)</small></h5>
+                </div>
+                <div class="card-body">
+                    {% if channels.preview %}
+                    <p class="mb-1">
+                        {% if channels.preview.ahead_of_stable %}
+                        <strong>{{ channels.preview.ahead_of_stable }}</strong> unreleased commit{{ channels.preview.ahead_of_stable|pluralize }} after {{ channels.stable.tag|default:"the latest release" }}.
+                        {% elif channels.preview.ahead_of_stable == 0 %}
+                        main has nothing that is not in {{ channels.stable.tag }}.
+                        {% endif %}
                     </p>
+                    <p class="text-muted mb-1">Head: <span class="git-status">{{ channels.preview.sha }}</span>{% if channels.preview.version %} (v{{ channels.preview.version }}){% endif %}</p>
+                    {% if channels.preview.sha == channels.installed.sha %}<p class="small mb-1"><span class="badge bg-success">Installed</span> this instance runs main's head.</p>{% endif %}
+                    {% if channels.preview.commits %}
+                    <details class="small">
+                        <summary>Unreleased commits</summary>
+                        <ul class="mb-0 mt-1 ps-3">
+                            {% for c in channels.preview.commits %}
+                            <li><span class="git-status">{{ c.sha|slice:":8" }}</span> {{ c.message }}</li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                    {% endif %}
+                    <p class="small text-muted mt-2 mb-0">Unsigned work in progress. Installed only when this instance follows the Preview channel.</p>
+                    {% else %}
+                    <p class="mb-0 text-muted">{% if channels.error %}Unknown: main could not be read.{% else %}No data.{% endif %}</p>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Update Actions -->
+    <!-- Channel + what Apply installs -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-cog"></i> Update Actions</h5>
+                    <h5 class="mb-0"><i class="fas fa-cog"></i> Release channel and Apply</h5>
                 </div>
                 <div class="card-body">
+                    {% if channels.error %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> {{ channels.error }}
+                        {% if channels.stale %}Showing the last successful check ({{ channels.checked_at }}).{% endif %}
+                    </div>
+                    {% endif %}
+                    <form method="POST" action="{% url 'core:set_update_channel' %}" class="mb-3">
+                        {% csrf_token %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="channel" id="chStable" value="stable" {% if channels.channel != 'preview' %}checked{% endif %}>
+                            <label class="form-check-label" for="chStable"><strong>Stable</strong> &mdash; the latest published release, installed only if its tag carries a valid release signature.</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="channel" id="chPreview" value="preview" {% if channels.channel == 'preview' %}checked{% endif %}>
+                            <label class="form-check-label" for="chPreview"><strong>Preview</strong> &mdash; the newest commit on main. Unreleased and unsigned; pinned to the exact commit shown.</label>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary mt-2">Save channel</button>
+                        <span class="small text-muted ms-2">This instance follows <strong>{{ channels.channel|default:"stable"|capfirst }}</strong>. There is no LTS channel.</span>
+                    </form>
+
+                    <div class="mb-3">
+                        {% if update_info.target %}
+                        <p class="mb-1"><strong>Apply would install:</strong>
+                            {% if update_info.target.kind == 'release' %}release{% else %}preview build (not a release){% endif %}
+                            <span class="git-status">{{ update_info.target.ref }}</span>
+                            {% if update_info.target.version %}(v{{ update_info.target.version }}){% endif %}
+                            at commit <span class="git-status" id="targetSha">{{ update_info.target.sha }}</span>
+                        </p>
+                        <p class="small text-muted mb-0">Exactly this commit is fetched and checked{% if update_info.target.kind == 'release' %}, the tag signature is verified,{% endif %} preflight checks run and a verified backup is taken before anything changes. If the {% if update_info.target.kind == 'release' %}tag{% else %}branch{% endif %} moves before you click, Apply refuses and asks you to review again.</p>
+                        {% else %}
+                        <p class="mb-0"><span class="badge bg-success"><i class="fas fa-check"></i> Nothing newer on this channel</span>
+                            <small class="text-muted ms-2">Last checked: {{ update_info.checked_at|default:"Never" }}</small></p>
+                        {% endif %}
+                    </div>
+
                     <form method="POST" action="{% url 'core:check_updates_now' %}" class="d-inline">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-sync"></i> Check for Updates Now
                         </button>
                     </form>
-
-                    {% if update_info.update_available %}
+                    <button type="button" class="btn btn-outline-primary" data-action="runPreflight" id="preflightBtn">
+                        <i class="fas fa-clipboard-check"></i> Run preflight checks
+                    </button>
+                    {% if update_info.target and not upgrade_state.needs_recovery and upgrade_state.state != 'running' %}
                     <button type="button" class="btn btn-success" data-action="showUpdateModal">
-                        <i class="fas fa-download"></i> Apply Update
+                        <i class="fas fa-download"></i> Apply {{ update_info.target.ref }}
                     </button>
                     {% endif %}
+                    <div id="preflightResult" class="mt-3" style="display:none;"></div>
 
                     <div class="alert alert-info mt-3 mb-0">
                         <i class="fas fa-info-circle"></i>
-                        <strong>Note:</strong> Updates are automatically checked every hour.
-                        The system will notify you when a new version is available.
+                        Updates are checked every hour. Pre-upgrade backups (database, uploaded files and the keys needed to read them) are kept in <code>{{ backup_dir }}</code>, owner-only.
+                        {% if recent_backups %}
+                        <details class="mt-2"><summary>Recent backups</summary>
+                            <ul class="small mb-0 mt-1">
+                            {% for b in recent_backups %}
+                                <li><span class="git-status">{{ b.path }}</span> &mdash; v{{ b.app_version }}, {{ b.created_at }}, {% if b.verified %}verified{% else %}<strong>not verified</strong>{% endif %}</li>
+                            {% endfor %}
+                            </ul>
+                        </details>
+                        {% endif %}
                         {% if not git_status.clean %}
-                        <br><br>
-                        <i class="fas fa-exclamation-triangle text-warning"></i>
-                        <strong>Warning:</strong> Your working directory has uncommitted changes.
-                        These changes may be lost when applying updates.
+                        <br><i class="fas fa-exclamation-triangle text-warning"></i>
+                        <strong>Warning:</strong> tracked files were modified locally. Apply checks out the reviewed revision exactly, which replaces them.
                         {% endif %}
                     </div>
                 </div>
@@ -298,8 +407,12 @@
                             <td>{{ update_info.current_version }}</td>
                         </tr>
                         <tr>
-                            <th>Latest Version:</th>
-                            <td>{{ update_info.latest_version|default:"Unknown" }}</td>
+                            <th>Channel:</th>
+                            <td>{{ channels.channel|default:"stable"|capfirst }}</td>
+                        </tr>
+                        <tr>
+                            <th>Latest stable release:</th>
+                            <td>{{ channels.stable.tag|default:"Unknown" }}</td>
                         </tr>
                         <tr>
                             <th>Update Available:</th>
@@ -325,7 +438,7 @@
                     <p class="text-muted mb-0">
                         <small>
                             <i class="fas fa-lightbulb"></i>
-                            Update checks query GitHub tags via API. If checks fail, verify internet connectivity and GitHub availability.
+                            Update checks read the published releases and the head of main from GitHub (cached for 10 minutes; set GITHUB_TOKEN for a higher API limit). If GitHub cannot be reached the last good answer is shown and marked as such.
                         </small>
                     </p>
                 </div>
@@ -347,31 +460,18 @@
                     <!-- Automated Script Method (Recommended) -->
                     <div class="alert alert-success mb-4">
                         <h6 class="alert-heading">
-                            <i class="fas fa-star"></i> Recommended: Use the Update Script
+                            <i class="fas fa-star"></i> Recommended: the same verified upgrade, from the command line
                         </h6>
                         <p class="mb-2">
-                            The easiest way to update is using our automated update script. It checks everything first, then runs the update safely:
+                            <code>upgrade_apply</code> runs exactly what Apply runs: it shows the revision, pins it by commit, verifies a release's signature, runs the preflight checks, takes a verified backup and then upgrades.
                         </p>
                         <div class="bg-dark text-light p-3 rounded mt-3" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
                             <div class="mb-2 text-white">cd /path/to/your/clientst0r</div>
-                            <div class="mb-2"><span class="text-white-50" style="font-size: 0.85em;"># (use find command below if you don't know the path)</span></div>
-                            <div class="mb-3"></div>
-                            <div class="mb-2 text-white">./update.sh</div>
+                            <div class="mb-2 text-white">venv/bin/python manage.py upgrade_apply</div>
+                            <div class="mb-2"><span class="text-white-50" style="font-size: 0.85em;"># or name the reviewed revision exactly:</span></div>
+                            <div class="mb-2 text-white">venv/bin/python manage.py upgrade_apply --ref {{ update_info.target.ref|default:"vX.Y.Z" }} --sha {{ update_info.target.sha|default:"FULL_COMMIT_SHA" }}</div>
                         </div>
-                        <p class="mt-3 mb-0 small">
-                            <strong>The script will:</strong>
-                        </p>
-                        <ul class="small mb-0">
-                            <li>✓ Check you're in the correct directory</li>
-                            <li>✓ Verify git repository and virtual environment</li>
-                            <li>✓ Warn about uncommitted changes</li>
-                            <li>✓ Pull updates from GitHub</li>
-                            <li>✓ Install dependencies</li>
-                            <li>✓ Run migrations</li>
-                            <li>✓ Collect static files</li>
-                            <li>✓ Restart the service</li>
-                            <li>✓ Show current version</li>
-                        </ul>
+                        <p class="mt-3 mb-0 small">Interrupted or failed? <code>manage.py upgrade_status</code> says what happened and how to resume or restore (<code>docs/UPGRADE_AND_RECOVERY.md</code>).</p>
                     </div>
 
                     <!-- Manual Step-by-Step Method -->
@@ -409,9 +509,17 @@
                         <div class="mb-2"><span class="text-white-50" style="font-size: 0.85em;"># Both should exist. If not, you're in the wrong directory!</span></div>
                     </div>
 
-                    <h6 class="mb-2"><i class="fas fa-download"></i> Step 3: Pull Updates</h6>
+                    <h6 class="mb-2"><i class="fas fa-shield-alt"></i> Step 3: Take a verified backup (database, uploads, keys)</h6>
                     <div class="bg-dark text-light p-3 rounded mb-3" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
-                        <div class="mb-2 text-white">git pull origin main</div>
+                        <div class="mb-2 text-white">venv/bin/python manage.py upgrade_backup</div>
+                        <div class="mb-2"><span class="text-white-50" style="font-size: 0.85em;"># must end with "Backup verified" -- do not migrate without it</span></div>
+                    </div>
+
+                    <h6 class="mb-2"><i class="fas fa-download"></i> Step 3b: Check out the release</h6>
+                    <div class="bg-dark text-light p-3 rounded mb-3" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
+                        <div class="mb-2 text-white">git fetch origin tag {{ channels.stable.tag|default:"vX.Y.Z" }}</div>
+                        <div class="mb-2 text-white">git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile=deploy/root-helper/allowed_signers verify-tag {{ channels.stable.tag|default:"vX.Y.Z" }}</div>
+                        <div class="mb-2 text-white">git reset --hard {{ channels.stable.tag|default:"vX.Y.Z" }}</div>
                     </div>
 
                     <h6 class="mb-2"><i class="fas fa-play-circle"></i> Step 4: Apply Updates</h6>
@@ -652,15 +760,18 @@
             </div>
             <div class="modal-body">
                 <p>
-                    <strong>You are about to update Client St0r from v{{ version }} to v{{ update_info.latest_version }}</strong>
+                    <strong>You are about to update Client St0r from v{{ version }} to
+                    {% if update_info.target.kind == 'release' %}release{% else %}the preview build{% endif %}
+                    {{ update_info.target.ref }}{% if update_info.target.version %} (v{{ update_info.target.version }}){% endif %}</strong><br>
+                    <span class="small">Commit <span class="git-status">{{ update_info.target.sha }}</span></span>
                 </p>
                 <p>The update process will:</p>
                 <ul>
-                    <li>Pull the latest code from GitHub</li>
-                    <li>Install updated Python dependencies</li>
-                    <li>Run database migrations</li>
-                    <li>Collect static files</li>
-                    <li>Restart the application</li>
+                    <li>Check that {{ update_info.target.ref }} still points at that commit, fetch it{% if update_info.target.kind == 'release' %} and verify the release signature{% endif %}</li>
+                    <li>Run the preflight checks (disk, database, keys, dependencies)</li>
+                    <li>Back up the database, uploaded files and keys, and verify the backup restores</li>
+                    <li>Run the update script from that revision: code, dependencies, migrations, static files</li>
+                    <li>Reload the application</li>
                 </ul>
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle"></i>
@@ -700,6 +811,15 @@
                     </div>
                 </div>
                 <div id="updateSteps">
+                    <div class="step-item" data-step="verify">
+                        <i class="fas fa-circle text-muted"></i> <span>Verify Revision</span>
+                    </div>
+                    <div class="step-item" data-step="preflight">
+                        <i class="fas fa-circle text-muted"></i> <span>Preflight Checks</span>
+                    </div>
+                    <div class="step-item" data-step="backup">
+                        <i class="fas fa-circle text-muted"></i> <span>Verified Backup</span>
+                    </div>
                     <div class="step-item" data-step="git_pull">
                         <i class="fas fa-circle text-muted"></i> <span>Git Pull</span>
                     </div>
@@ -722,7 +842,11 @@
                 </div>
                 <div id="updateError" style="display: none;" class="alert alert-danger mt-3">
                     <i class="fas fa-exclamation-circle"></i> <strong>Update failed:</strong> <span id="updateErrorMessage"></span>
+                    <div class="small mt-2">The log of this run is kept under <em>Recent Updates</em> below. Recovery steps: <code>docs/UPGRADE_AND_RECOVERY.md</code> (or <code>manage.py upgrade_status</code> on the server).</div>
                 </div>
+                <details class="mt-2 small"><summary>Live log</summary>
+                    <pre id="updateLog" class="mb-0" style="max-height: 240px; overflow-y: auto; white-space: pre-wrap;"></pre>
+                </details>
             </div>
         </div>
     </div>
@@ -776,7 +900,41 @@
 {% endblock %}
 
 {% block extra_js %}
+{{ update_info.target|json_script:"reviewed-target" }}
 <script nonce="{{ csp_nonce }}">
+const REVIEWED_TARGET = JSON.parse(document.getElementById('reviewed-target').textContent) || {};
+
+function runPreflight() {
+    const btn = document.getElementById('preflightBtn');
+    const box = document.getElementById('preflightResult');
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    btn.disabled = true;
+    box.style.display = 'block';
+    box.innerHTML = '<div class="text-muted"><i class="fas fa-spinner fa-spin"></i> Running preflight checks (the dependency check can take a minute)...</div>';
+    fetch('{% url "core:upgrade_preflight_api" %}', {method: 'POST', headers: {'X-CSRFToken': csrftoken}})
+        .then(r => r.json())
+        .then(data => {
+            const table = document.createElement('table');
+            table.className = 'table table-sm mb-0';
+            (data.checks || []).forEach(function (c) {
+                const tr = table.insertRow();
+                const badge = {ok: 'bg-success', warn: 'bg-warning text-dark', fail: 'bg-danger'}[c.status] || 'bg-secondary';
+                const s = tr.insertCell(); s.innerHTML = '<span class="badge ' + badge + '"></span>';
+                s.firstChild.textContent = c.status.toUpperCase();
+                tr.insertCell().textContent = c.name;
+                const d = tr.insertCell(); d.textContent = c.detail + (c.hint && c.status !== 'ok' ? ' -- ' + c.hint : '');
+            });
+            box.innerHTML = '';
+            const head = document.createElement('div');
+            head.className = 'mb-2 fw-bold';
+            head.textContent = data.ok ? 'Preflight passed.' : 'Preflight failed: Apply would stop before changing anything.';
+            box.appendChild(head);
+            box.appendChild(table);
+        })
+        .catch(e => { box.textContent = 'Preflight request failed: ' + e.message; })
+        .finally(() => { btn.disabled = false; });
+}
+
 function showUpdateModal() {
     var modal = new bootstrap.Modal(document.getElementById('updateConfirmModal'));
     modal.show();
@@ -800,7 +958,9 @@ function startUpdate() {
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': csrftoken
-        }
+        },
+        // The exact revision this page showed; the server refuses anything else.
+        body: JSON.stringify(REVIEWED_TARGET)
     })
     .then(response => response.json())
     .then(data => {
@@ -808,7 +968,7 @@ function startUpdate() {
             // Start polling for progress
             pollProgress();
         } else {
-            showError('Failed to start update');
+            showError(data.message || 'Failed to start update');
         }
     })
     .catch(error => {
@@ -905,6 +1065,11 @@ function pollProgress() {
 }
 
 function updateProgressUI(data) {
+    const logEl = document.getElementById('updateLog');
+    if (logEl && data.logs) {
+        logEl.textContent = data.logs.slice(-150).map(l => l.message).join('\n');
+        logEl.scrollTop = logEl.scrollHeight;
+    }
     const completed = data.steps_completed || [];
     const totalSteps = data.total_steps || 5;
     const currentStep = data.current_step || '';
@@ -917,6 +1082,9 @@ function updateProgressUI(data) {
 
     // Update step icons
     const stepMap = {
+        'Verify Revision': 'verify',
+        'Preflight Checks': 'preflight',
+        'Verified Backup': 'backup',
         'Git Pull': 'git_pull',
         'Install Dependencies': 'install',
         'Run Migrations': 'migrate',

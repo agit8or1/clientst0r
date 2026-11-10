@@ -76,6 +76,16 @@ if [ -z "$VENV_DIR" ]; then
 fi
 success "Found virtual environment at: $VENV_DIR"
 
+# The verified pipeline (same as Settings -> Updates -> Apply): pinned
+# revision, signature check for releases, preflight checks, a verified backup
+# before migrating, and recovery via `manage.py upgrade_status`. This script's
+# old pull-and-migrate path below is kept only for checkouts that predate it,
+# or when asked for explicitly with --legacy.
+if [ "${1:-}" != "--legacy" ] && "$VENV_DIR/bin/python" manage.py help upgrade_apply >/dev/null 2>&1; then
+    info "Using manage.py upgrade_apply (see docs/UPGRADE_AND_RECOVERY.md)"
+    exec "$VENV_DIR/bin/python" manage.py upgrade_apply "$@"
+fi
+
 # Check if this is a git repository
 info "Checking git repository..."
 if [ ! -d ".git" ]; then

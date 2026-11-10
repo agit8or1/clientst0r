@@ -25,6 +25,26 @@ log "Client St0r Auto-Update Script"
 log "=========================================="
 log "Project directory: $PROJECT_DIR"
 
+# Since the install/upgrade hardening the nightly run goes through the same
+# pipeline as Settings -> Updates -> Apply: it follows this instance's release
+# channel (Stable by default: signed, published releases only), pins the
+# revision by commit, runs the preflight checks and refuses to migrate without
+# a verified backup. Only an older checkout without that command falls back to
+# downloading the update script from main.
+PY="$PROJECT_DIR/venv/bin/python"
+[ -x "$PY" ] || PY="$(command -v python3)"
+if "$PY" "$PROJECT_DIR/manage.py" help upgrade_apply >/dev/null 2>&1; then
+    log "Running the verified upgrade pipeline (manage.py upgrade_apply --auto)"
+    "$PY" "$PROJECT_DIR/manage.py" upgrade_apply --auto 2>&1 | tee -a "$LOG_FILE"
+    EXIT_CODE=${PIPESTATUS[0]}
+    if [ "$EXIT_CODE" -eq 0 ]; then
+        log "Auto-update finished (nothing to do, or upgraded)."
+    else
+        log "Auto-update did NOT complete (exit $EXIT_CODE); see the log above and manage.py upgrade_status."
+    fi
+    exit "$EXIT_CODE"
+fi
+
 # Detect GitHub repo from git remote
 REPO_URL=$(git -C "$PROJECT_DIR" remote get-url origin 2>/dev/null || echo "")
 if echo "$REPO_URL" | grep -q "github.com"; then
