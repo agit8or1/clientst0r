@@ -198,6 +198,7 @@ Help Us Grow, Global KB, search, theme, clock, client switcher, account menu).
 | Client switcher (`core/_client_switcher.html`, `#orgDropdown`): active client / Global View pill, switch list, new "All clients" link | `current_organization or su or is_staff_user`; Global View entry su or is_staff_user; All clients psa or su |
 | Shortcut strip (`core/_shortcut_strip.html`, below the navbar): up to three pinned pages, My Work and Tickets by default, edited with the pencil | MSP staff only (`core/shortcut_strip.py`) |
 | Update badge (links to Settings → Updates) when the scheduled check found a newer release | su |
+| Customer operations link in the client switcher's current-context block (`core:customer_ops`); also an Operations button on the customer page | `current_organization`; the page itself gates each section by role |
 
 ## Settings sidebar additions
 
@@ -209,6 +210,7 @@ rather than a top-level menu:
 | Technician Access (`/settings/security/technician-access/`) | Security → Technician Access | su |
 | Ticket AI models and customer AI policies (OPTIONAL AI; used only while `psa_ai_enabled` is on) | Integrations → Ticket AI models | su |
 | RMM pairing for ticket integration (v3.17.658) | Integrations → Integrations (or Admin → Integrations), then the RMM connection → Configure | admin (Owner or Admin of that customer, staff or su); turning pairing on is a protected change |
+| Optional Modules (`/core/settings/modules/`): every optional module, its dependencies, what users see, links to its settings | System → Optional Modules (next to Feature Toggles) | su |
 
 ## Customer users
 

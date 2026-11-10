@@ -1758,6 +1758,22 @@ someone else.
   playbooks, portal announcements, asset services, groups and
   vulnerabilities), for the demo customers only. It adds three demo
   technicians who can't sign in and is safe to re-run.
+- **Customer operations page** *(in progress — built, not yet released)* —
+  one page per customer (`/core/customers/<id>/operations/`, from the
+  customer page and the client switcher) listing SLA risks, uptime
+  incidents (down monitors, recent outages, status-page incidents),
+  contract renewals, overdue invoices and aging assets, each with a link to
+  the page where the work is done (open ticket, renew contract, send
+  reminder, open asset, plan replacement). Every section and total follows
+  the user's role for that customer; customer users see only their own
+  customer and only what their role allows.
+- **Optional modules settings page** *(in progress — built, not yet
+  released)* — Settings → System → Optional Modules lists every optional
+  module with whether it is on, what it needs (Ticket AI, portal, routing
+  and CSAT need PSA; status pages need monitoring), what people see when it
+  is on and a link to its settings. Turning a module on while what it needs
+  is off is refused; turning a dependency off says which modules stop
+  working. No default changes. Ticket AI is listed as **OPTIONAL AI**.
 
 ## Phase 53 — Documentation readiness and lifecycle **(L)** [shipped — v3.17.656]
 
