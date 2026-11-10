@@ -252,3 +252,5 @@ walkthrough-raw/
 
 # Pre-upgrade snapshots (database, uploads, keys): never commit
 /backups/
+/.update-trigger
+/.update_progress_sandbox.json

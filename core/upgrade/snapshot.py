@@ -210,6 +210,14 @@ def mysql_tools():
     return (_mysql_tool('mysqldump', 'mariadb-dump'), _mysql_tool('mysql', 'mariadb'))
 
 
+def _db_vendor_is_mariadb():
+    from django.db import connection
+    try:
+        return bool(connection.mysql_is_mariadb)
+    except Exception:
+        return False
+
+
 def _live_tables():
     from django.db import connection
     with connection.cursor() as cursor:
@@ -346,10 +354,20 @@ def create(*, reason='', target=None, out=None, code_sha=None, code_version=None
             try:
                 manifest['tables'] = _live_tables()
                 manifest['applied_migrations'] = _live_applied_migrations()
+                extra = []
+                # MySQL 8's mysqldump queries COLUMN_STATISTICS, which a MariaDB
+                # server does not have; MariaDB's mysqldump has no such option.
+                try:
+                    helptext = subprocess.run([dump_bin, '--help'], capture_output=True, text=True,
+                                              timeout=30).stdout
+                    if '--column-statistics' in helptext and _db_vendor_is_mariadb():
+                        extra.append('--column-statistics=0')
+                except (OSError, subprocess.SubprocessError):
+                    pass
                 r = subprocess.run(
                     [dump_bin, f'--defaults-extra-file={defaults}', '--single-transaction',
                      '--quick', '--routines', '--triggers', '--hex-blob', '--no-tablespaces',
-                     '--default-character-set=utf8mb4', f'--result-file={dst_path}',
+                     '--default-character-set=utf8mb4', *extra, f'--result-file={dst_path}',
                      _db()['NAME']],
                     capture_output=True, text=True, timeout=3600)
             finally:
