@@ -3800,7 +3800,7 @@ def quote_form(request, pk=None):
             default_tax = SystemSetting.get_settings().psa_default_tax_rate or Decimal('0')
         else:
             default_tax = item.tax_rate
-        item.tax_rate = f.decimal('tax_rate', default_tax, minimum=Decimal('0'))
+        item.tax_rate = f.decimal('tax_rate', default_tax, minimum=Decimal('0'), maximum=Decimal('1'))
         item.save()
 
         # Replace line items if posted. No `li_description` at all leaves
@@ -4904,7 +4904,7 @@ def invoice_form(request, pk=None):
             default_currency = getattr(_settings, 'psa_default_currency', None) or 'USD'
             default_tax = getattr(_settings, 'psa_default_tax_rate', None) or Decimal('0')
         item.currency = (f.text('currency', default_currency) or default_currency)[:8]
-        item.tax_rate = f.decimal('tax_rate', default_tax, minimum=Decimal('0'))
+        item.tax_rate = f.decimal('tax_rate', default_tax, minimum=Decimal('0'), maximum=Decimal('1'))
         item.notes = f.text('notes', item.notes or '')
         total_before = item.total if pk else None
         item.save()
@@ -5948,34 +5948,52 @@ from accounts.permission_utils import require_perm, user_has_perm  # noqa: E402
 
 
 def _procurement_save_lines(item, line_model, request):
-    """Replace line_items on a PR/PO from POSTed lists, returning total."""
+    """Replace line_items on a PR/PO from POSTed lists.
+
+    No line fields posted → lines untouched. Columns of different lengths or
+    a malformed quantity/price → lines untouched and the problem returned, so
+    the caller can warn; rows carry no ids, so a bad row can't be matched to
+    the saved line it would replace. Every row blank → lines cleared.
+    Returns a list of problem descriptions (empty when saved).
+    """
+    from decimal import Decimal, InvalidOperation
     descs = request.POST.getlist('li_description')
+    if not descs:
+        return []
     skus = request.POST.getlist('li_sku')
     providers = request.POST.getlist('li_provider')
     qtys = request.POST.getlist('li_quantity')
     prices = request.POST.getlist('li_unit_price')
-    if descs:
-        item.line_items.all().delete()
-        for i, d in enumerate(descs):
-            if not (d or '').strip():
-                continue
-            try:
-                qf = float(qtys[i] if i < len(qtys) and qtys[i] else 1)
-                pf = float(prices[i] if i < len(prices) and prices[i] else 0)
-            except (ValueError, IndexError):
-                qf, pf = 1, 0
-            kwargs = dict(
-                sort_order=i,
-                description=d.strip()[:300],
-                sku=(skus[i] if i < len(skus) else '')[:80],
-                distributor_provider=(providers[i] if i < len(providers) else '')[:40],
-                quantity=qf, unit_price=pf,
-            )
-            if line_model.__name__ == 'PurchaseOrderLineItem':
-                kwargs['po'] = item
-            else:
-                kwargs['requisition'] = item
-            line_model.objects.create(**kwargs)
+    if any(len(col) != len(descs) for col in (qtys, prices)) or \
+            any(col and len(col) != len(descs) for col in (skus, providers)):
+        return ['the line columns did not line up']
+    rows = []
+    for i, d in enumerate(descs):
+        if not (d or '').strip():
+            continue
+        try:
+            qf = Decimal(qtys[i].strip() or '1')
+            pf = Decimal(prices[i].strip() or '0')
+        except (InvalidOperation, ValueError):
+            return [f'line {i + 1} has a quantity or price that is not a number']
+        if not (qf.is_finite() and pf.is_finite()) or qf < 0 or pf < 0:
+            return [f'line {i + 1} has a quantity or price that is not a number']
+        kwargs = dict(
+            sort_order=i,
+            description=d.strip()[:300],
+            sku=(skus[i] if i < len(skus) else '')[:80],
+            distributor_provider=(providers[i] if i < len(providers) else '')[:40],
+            quantity=qf, unit_price=pf,
+        )
+        if line_model.__name__ == 'PurchaseOrderLineItem':
+            kwargs['po'] = item
+        else:
+            kwargs['requisition'] = item
+        rows.append(kwargs)
+    item.line_items.all().delete()
+    for kwargs in rows:
+        line_model.objects.create(**kwargs)
+    return []
 
 
 @login_required
@@ -6040,6 +6058,7 @@ def requisition_detail(request, pk):
 @require_perm('procurement_create_pr')
 @require_http_methods(['GET', 'POST'])
 def requisition_form(request, pk=None):
+    from decimal import Decimal
     from .models import PurchaseRequisition, PurchaseRequisitionLineItem
     from core.models import Organization
     if pk:
@@ -6080,13 +6099,19 @@ def requisition_form(request, pk=None):
             messages.error(request, 'Title is required.')
             return _render()
 
-        client_org = None
-        client_org_id = (request.POST.get('client_org') or '').strip()
-        if client_org_id:
-            try:
-                client_org = _customer_orgs(request).get(pk=int(client_org_id))
-            except (Organization.DoesNotExist, ValueError, TypeError):
-                client_org = None
+        from .form_fields import PostedFields
+        f = PostedFields(request.POST)
+        # Absent keeps the saved client; blank clears it; unknown keeps it.
+        client_org = item.client_org if item else None
+        if f.has('client_org'):
+            client_org_id = (request.POST.get('client_org') or '').strip()
+            client_org = None
+            if client_org_id:
+                try:
+                    client_org = _customer_orgs(request).get(pk=int(client_org_id))
+                except (Organization.DoesNotExist, ValueError, TypeError):
+                    f.malformed.append('client_org')
+                    client_org = item.client_org if item else None
 
         if item is None:
             item = PurchaseRequisition(
@@ -6097,19 +6122,20 @@ def requisition_form(request, pk=None):
         item.organization = item_org
         item.client_org = client_org
         item.title = title
-        item.description = (request.POST.get('description') or '').strip()
-        item.notes = (request.POST.get('notes') or '').strip()
+        item.description = f.text('description', item.description)
+        item.notes = f.text('notes', item.notes)
         # status only changeable if approve/reject — drafts stay draft from form
         if not pk:
             item.status = 'draft'
-        try:
-            item.tax_rate = request.POST.get('tax_rate') or 0
-        except (TypeError, ValueError):
-            item.tax_rate = 0
-        item.currency = (request.POST.get('currency') or 'USD')[:8]
+        # A percentage (8.75 = 8.75%).
+        item.tax_rate = f.decimal('tax_rate', item.tax_rate, minimum=Decimal('0'), maximum=Decimal('100'))
+        item.currency = (f.text('currency', item.currency or 'USD') or 'USD')[:8]
         item.save()
+        f.warn(request, 'Requisition saved')
 
-        _procurement_save_lines(item, PurchaseRequisitionLineItem, request)
+        line_problems = _procurement_save_lines(item, PurchaseRequisitionLineItem, request)
+        if line_problems:
+            messages.warning(request, 'Line items were not changed: ' + '; '.join(line_problems) + '.')
         item.recompute_totals()
         item.save(update_fields=['subtotal', 'tax_amount', 'total', 'updated_at'])
 
@@ -6321,6 +6347,7 @@ def po_detail(request, pk):
 @require_perm('procurement_create_po')
 @require_http_methods(['GET', 'POST'])
 def po_form(request, pk=None):
+    from decimal import Decimal
     from .models import PurchaseOrder, PurchaseOrderLineItem
     from core.models import Organization
     if pk:
@@ -6380,13 +6407,18 @@ def po_form(request, pk=None):
             messages.error(request, 'Title and vendor name are required.')
             return _render()
 
-        client_org = None
-        client_org_id = (request.POST.get('client_org') or '').strip()
-        if client_org_id:
-            try:
-                client_org = _customer_orgs(request).get(pk=int(client_org_id))
-            except (Organization.DoesNotExist, ValueError, TypeError):
-                client_org = None
+        from .form_fields import PostedFields
+        f = PostedFields(request.POST)
+        client_org = item.client_org if item else None
+        if f.has('client_org'):
+            client_org_id = (request.POST.get('client_org') or '').strip()
+            client_org = None
+            if client_org_id:
+                try:
+                    client_org = _customer_orgs(request).get(pk=int(client_org_id))
+                except (Organization.DoesNotExist, ValueError, TypeError):
+                    f.malformed.append('client_org')
+                    client_org = item.client_org if item else None
 
         if item is None:
             item = PurchaseOrder(
@@ -6399,9 +6431,9 @@ def po_form(request, pk=None):
         item.title = title[:200]
         item.vendor_name = vendor_name[:200]
         # Auto-fill snapshot fields from the vendor when the form field is blank
-        posted_vendor_email = (request.POST.get('vendor_email') or '').strip()
-        posted_vendor_phone = (request.POST.get('vendor_phone') or '').strip()
-        posted_vendor_address = (request.POST.get('vendor_address') or '').strip()
+        posted_vendor_email = f.text('vendor_email', item.vendor_email or '')
+        posted_vendor_phone = f.text('vendor_phone', item.vendor_phone or '')
+        posted_vendor_address = f.text('vendor_address', item.vendor_address or '')
         if vendor_obj:
             posted_vendor_email = posted_vendor_email or (vendor_obj.contact_email or '')
             posted_vendor_phone = posted_vendor_phone or (vendor_obj.contact_phone or '')
@@ -6409,12 +6441,13 @@ def po_form(request, pk=None):
         item.vendor_email = posted_vendor_email[:254]
         item.vendor_phone = posted_vendor_phone[:40]
         item.vendor_address = posted_vendor_address
-        item.notes = (request.POST.get('notes') or '').strip()
-        item.status = request.POST.get('status') or 'draft'
-        item.issue_date = request.POST.get('issue_date') or None
+        item.notes = f.text('notes', item.notes)
+        item.status = f.choice('status', item.status or 'draft',
+                               {c[0] for c in PurchaseOrder.STATUS_CHOICES})
+        item.issue_date = f.date('issue_date', item.issue_date)
         # Auto-fill expected delivery from issue_date + vendor lead time when
         # blank and a vendor is set.
-        expected = request.POST.get('expected_delivery_date') or None
+        expected = f.date('expected_delivery_date', item.expected_delivery_date)
         if not expected and vendor_obj and item.issue_date:
             from datetime import timedelta as _td
             try:
@@ -6426,21 +6459,19 @@ def po_form(request, pk=None):
             from datetime import date as _d, timedelta as _td
             expected = (_d.today() + _td(days=vendor_obj.default_lead_time_days)).isoformat()
         item.expected_delivery_date = expected or None
-        item.is_drop_ship = request.POST.get('is_drop_ship') == 'on'
-        item.ship_to_name = (request.POST.get('ship_to_name') or '').strip()[:200]
-        item.ship_to_address = (request.POST.get('ship_to_address') or '').strip()
-        try:
-            item.tax_rate = request.POST.get('tax_rate') or 0
-        except (TypeError, ValueError):
-            item.tax_rate = 0
-        try:
-            item.shipping_cost = request.POST.get('shipping_cost') or 0
-        except (TypeError, ValueError):
-            item.shipping_cost = 0
-        item.currency = (request.POST.get('currency') or 'USD')[:8]
+        # `po_flags` marks that the drop-ship checkbox was rendered.
+        item.is_drop_ship = f.flag('is_drop_ship', item.is_drop_ship, 'po_flags')
+        item.ship_to_name = f.text('ship_to_name', item.ship_to_name or '')[:200]
+        item.ship_to_address = f.text('ship_to_address', item.ship_to_address or '')
+        item.tax_rate = f.decimal('tax_rate', item.tax_rate, minimum=Decimal('0'), maximum=Decimal('100'))
+        item.shipping_cost = f.decimal('shipping_cost', item.shipping_cost, minimum=Decimal('0'))
+        item.currency = (f.text('currency', item.currency or 'USD') or 'USD')[:8]
         item.save()
+        f.warn(request, 'Purchase order saved')
 
-        _procurement_save_lines(item, PurchaseOrderLineItem, request)
+        line_problems = _procurement_save_lines(item, PurchaseOrderLineItem, request)
+        if line_problems:
+            messages.warning(request, 'Line items were not changed: ' + '; '.join(line_problems) + '.')
         item.recompute_totals()
         item.save(update_fields=['subtotal', 'tax_amount', 'total', 'updated_at'])
 
