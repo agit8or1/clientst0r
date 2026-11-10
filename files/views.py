@@ -11,6 +11,7 @@ from django.http import HttpResponse, Http404, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from core.middleware import get_request_organization
+from . import upload_rules
 from .models import Attachment
 
 
@@ -103,18 +104,12 @@ def upload_attachment(request):
             return JsonResponse({'error': 'Maximum of 20 images allowed per item'}, status=400)
 
     # Security: Validate file size (max 25MB)
-    MAX_FILE_SIZE = 25 * 1024 * 1024  # 25MB
+    MAX_FILE_SIZE = upload_rules.MAX_FILE_SIZE
     if uploaded_file.size > MAX_FILE_SIZE:
         return HttpResponse(f"File too large: maximum size is {MAX_FILE_SIZE // (1024*1024)}MB", status=400)
 
     # Security: Validate file extension against whitelist
-    ALLOWED_EXTENSIONS = {
-        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',  # Documents
-        'txt', 'csv', 'md', 'log',  # Text files
-        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp',  # Images
-        'zip', '7z', 'tar', 'gz', 'rar',  # Archives
-        'json', 'xml', 'yaml', 'yml',  # Data files
-    }
+    ALLOWED_EXTENSIONS = upload_rules.ALLOWED_EXTENSIONS
 
     filename = uploaded_file.name.lower()
     file_ext = filename.rsplit('.', 1)[-1] if '.' in filename else ''
@@ -123,7 +118,7 @@ def upload_attachment(request):
         return HttpResponse("File type not allowed", status=400)
 
     # Security: Block dangerous filenames
-    DANGEROUS_PATTERNS = ['.exe', '.bat', '.cmd', '.sh', '.php', '.jsp', '.asp', '.aspx', '.js', '.vbs', '.scr']
+    DANGEROUS_PATTERNS = upload_rules.DANGEROUS_PATTERNS
     for pattern in DANGEROUS_PATTERNS:
         if pattern in filename:
             return HttpResponse("File type not allowed", status=400)
@@ -134,20 +129,7 @@ def upload_attachment(request):
     uploaded_file.seek(0)  # Reset again for later processing
 
     # Magic bytes signatures for common file types
-    MAGIC_BYTES = {
-        'pdf': [b'%PDF'],
-        'png': [b'\x89PNG\r\n\x1a\n'],
-        'jpg': [b'\xff\xd8\xff'],
-        'jpeg': [b'\xff\xd8\xff'],
-        'gif': [b'GIF87a', b'GIF89a'],
-        'zip': [b'PK\x03\x04', b'PK\x05\x06', b'PK\x07\x08'],
-        'docx': [b'PK\x03\x04'],  # DOCX is a ZIP archive
-        'xlsx': [b'PK\x03\x04'],  # XLSX is a ZIP archive
-        'pptx': [b'PK\x03\x04'],  # PPTX is a ZIP archive
-        '7z': [b'7z\xbc\xaf\x27\x1c'],
-        'gz': [b'\x1f\x8b'],
-        'bmp': [b'BM'],
-    }
+    MAGIC_BYTES = upload_rules.MAGIC_BYTES
 
     # Verify magic bytes if we have a signature for this file type
     if file_ext in MAGIC_BYTES:
