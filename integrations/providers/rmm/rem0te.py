@@ -223,7 +223,7 @@ class Rem0teProvider(BaseRMMProvider):
 
 # --- Ticket integration pairing (docs/contracts/ticket-rmm-v1) -------------
 #
-# Pairing is provider-neutral since v3.17.657 and lives in
+# Pairing is provider-neutral since v3.17.658 and lives in
 # integrations/ticket_rmm.py; rem0te is the contract's reference
 # implementation. These names stay for code that still imports them.
 

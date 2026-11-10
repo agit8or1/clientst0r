@@ -446,7 +446,7 @@ def _apply_pairing(change, reviewer):
     from integrations.ticket_rmm import ENABLED, LOCATION
     conn = RMMConnection.objects.get(pk=change.payload['connection'])
     want = change.payload.get('fingerprint')
-    # Proposals made before v3.17.657 carry no fingerprint and apply as before.
+    # Proposals made before v3.17.658 carry no fingerprint and apply as before.
     if want and want != pairing_fingerprint(conn):
         from .protected import ProtectedChangeError
         raise ProtectedChangeError('The pairing\'s provider, address, key ID or secrets changed after this was '

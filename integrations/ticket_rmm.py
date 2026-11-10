@@ -19,7 +19,7 @@ Where the pairing lives:
                           ticket_rmm_tenant_id         the pinned remote tenant
                           ticket_rmm_capabilities      the last capabilities check
 
-(Before v3.17.657 the field_mappings keys were rem0te_integration_enabled,
+(Before v3.17.658 the field_mappings keys were rem0te_integration_enabled,
 rem0te_integration_key_id, rem0te_processing_location and
 rem0te_capabilities, and the pin was rem0te's inventory pin
 rem0te_business_id. Migration integrations 0034 moved them.)
@@ -51,7 +51,7 @@ TENANT_PIN = 'ticket_rmm_tenant_id'
 CAPS = 'ticket_rmm_capabilities'
 OUTBOUND, INBOUND = 'integration_outbound_secret', 'integration_inbound_secret'
 
-# Pre-3.17.657 field_mappings keys → current ones (migration 0034).
+# Pre-3.17.658 field_mappings keys → current ones (migration 0034).
 LEGACY_KEYS = {
     'rem0te_integration_enabled': ENABLED,
     'rem0te_integration_key_id': KEY_ID,

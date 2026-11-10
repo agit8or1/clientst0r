@@ -5,6 +5,27 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.658] - 2026-11-10
+
+### Added
+- **Ticket integration pairing works with any RMM** that implements the ticket-rmm-v1 contract (`docs/contracts/ticket-rmm-v1/`); rem0te is the reference implementation.
+  - The pairing section is now on every RMM connection form.
+  - The remote tenant is pinned from the RMM's signed capabilities answer and never re-pinned. A different tenant stops the pairing.
+  - The connection page shows the pairing status, the advertised capabilities and diagnostics, and has a **Check pairing** button. Capabilities are refreshed hourly (every 10 minutes while failing).
+  - Existing rem0te pairings move to the new settings automatically, with no re-approval.
+  - Second-administrator approval applies to every provider. An approval is refused if the pairing changed after it was proposed.
+- **Ticket → RMM, on the ticket's Asset card (technicians only).** None of these are AI features; they work with AI switched off.
+  - **Send to RMM:** previewed with the same redacted evidence as Analyze. It shows as Sent only once the RMM confirms receipt.
+  - **Read-only diagnostics:** only the ones the RMM advertises. Results are staff-only, capped at 32 KiB, sanitised and never posted as a ticket comment.
+  - **Remote view / control:** opens a launch link the RMM issues for that device. The link is validated against the connection's hosts, never stored, and the launch is audited.
+  - **Fix referral:** the RMM approves and runs the fix. ClientSt0r only shows the RMM's signed status updates, which can never close the ticket or reply to the customer.
+  - Targets are only devices linked to the ticket's own asset at the same customer.
+- **Technician access:** the RMM, Remote access and Fixes capabilities stop showing Unavailable exactly when the paired RMM advertises them.
+- Tested against a test processor. **The rem0te side of the contract is not built yet**, so these features do nothing with a real rem0te until it is.
+
+### Upgrade
+- Apply the update. Migrations: `integrations.0034` (renames pairing settings, keeping their values) and `psa_ai.0004`.
+
 ## [3.17.657] - 2026-11-10
 
 ### Fixed

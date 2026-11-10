@@ -1837,7 +1837,8 @@ inventory. Documentation only — nothing is pushed to devices.
 **OPTIONAL AI** — gated by `psa_ai_enabled`, the customer's PSA switch, a customer
 AI policy, an enabled model profile and technician access (Phase 57). ClientSt0r
 owns the ticket UI, AI settings, provider credentials, the inference gateway and
-customer replies; a paired rem0te processes jobs and, in later milestones,
+customer replies; a paired RMM (any that implements ticket-rmm-v1; rem0te is the
+reference implementation) processes jobs and, in later milestones,
 collects approved device evidence and independently approves and runs endpoint
 work. Contract: `docs/contracts/ticket-rmm-v1/`.
 
@@ -1865,14 +1866,22 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
   delegated short-lived identity, idempotent jobs (409 on a changed payload),
   sequenced and de-duplicated events, polling recovery, outage leaves manual
   work untouched. *(shipped v3.17.646 — ClientSt0r side; the recovery poll runs
-  every minute from the in-app scheduler since v3.17.648)*
+  every minute from the in-app scheduler since v3.17.648)* Pairing works with
+  any RMM provider, the remote tenant is pinned from the RMM's signed
+  capabilities answer, and the connection page shows pairing status with a
+  Check pairing button. *(shipped v3.17.658)*
 - **56.5 Private RMM handoffs, read-only diagnostics and remote launch** —
   targets only from verified same-business associations; "Sent" only on a
-  confirmed receipt. *(planned — needs the rem0te contract implementation)*
-- **56.6 Fix review** — only when rem0te advertises signed actions; ClientSt0r
-  refers, rem0te approves and runs. *(planned)*
+  confirmed receipt. *(partial — ClientSt0r side shipped v3.17.658: Send to
+  RMM, advertised read-only diagnostics with staff-only results, remote
+  view/control launch; works with AI off; tested against a fixture processor —
+  the RMM side is still to be built in rem0te)*
+- **56.6 Fix review** — only when the RMM advertises signed actions; ClientSt0r
+  refers, the RMM approves and runs. *(partial — ClientSt0r referral and signed
+  status shipped v3.17.658; rem0te approval and execution not built yet)*
 
-**Sizing:** **L** — 56.1–56.4 shipped; 56.5–56.6 wait on rem0te.
+**Sizing:** **L** — 56.1–56.4 shipped; ClientSt0r side of 56.5–56.6 shipped
+v3.17.658; the RMM side waits on rem0te.
 
 ## Phase 57 — Technician security levels and abuse prevention **(L · security)** [in progress]
 
@@ -1904,12 +1913,14 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
 - **57.5 Read-only theft detection** — distinct tickets, customers, exports and
   diagnostic bytes per identity across UI, REST and mobile API, 1 h and 24 h
   windows, on by default, tunable, containment by level, no ticket text in
-  alerts. *(shipped v3.17.646 — diagnostic bytes are counted once rem0te
-  diagnostics exist)*
-- **57.6 Remote actions with live rem0te authorization** — view, control and
-  elevation as time-limited grants from rem0te. *(planned — Phase 56.5)*
+  alerts. *(shipped v3.17.646; diagnostic bytes counted from RMM diagnostic
+  results since v3.17.658)*
+- **57.6 Remote actions with live RMM authorization** — view, control and
+  elevation as time-limited grants from the RMM. *(partial — view/control
+  launch with an allowed or on-request grant shipped v3.17.658; time-limited
+  grants are the RMM's to implement; elevation not wired)*
 
-**Sizing:** **L** — 57.1–57.5 shipped; 57.6 with Phase 56.5.
+**Sizing:** **L** — 57.1–57.5 shipped; 57.6 partial with Phase 56.5.
 
 ## Phase 58 — Condensed navigation **(M · UX)** [shipped — v3.17.647]
 

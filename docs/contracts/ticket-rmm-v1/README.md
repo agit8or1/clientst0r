@@ -8,10 +8,10 @@ Status:
 
 | Part | ClientSt0r side | RMM side (rem0te) |
 |---|---|---|
-| Pairing, signing, capabilities, tenant pin | implemented (v3.17.646, provider-neutral since v3.17.657) | not yet implemented |
+| Pairing, signing, capabilities, tenant pin | implemented (v3.17.646, provider-neutral since v3.17.658) | not yet implemented |
 | Analysis jobs + inference gateway (56.1–56.4) | implemented (v3.17.646) | not yet implemented |
-| Handoffs, read-only diagnostics, remote launch (56.5) | implemented (v3.17.657) | not yet implemented |
-| Fix referral + signed status (56.6) | implemented (v3.17.657) | not yet implemented |
+| Handoffs, read-only diagnostics, remote launch (56.5) | implemented (v3.17.658) | not yet implemented |
+| Fix referral + signed status (56.6) | implemented (v3.17.658) | not yet implemented |
 
 Everything ClientSt0r does here has been tested against a test processor (a fixture that plays the RMM —
 `psa_ai/tests_assist.py`, `psa_ai/tests_rmm.py`), not against a real RMM.
@@ -383,7 +383,7 @@ limit for the technician who asked.
 ## Where it lives in ClientSt0r
 
 - Pairing: `integrations/ticket_rmm.py` (field_mappings `ticket_rmm_*`; secrets in the connection's encrypted
-  credentials as `integration_outbound_secret` / `integration_inbound_secret`). Before v3.17.657 the keys were
+  credentials as `integration_outbound_secret` / `integration_inbound_secret`). Before v3.17.658 the keys were
   `rem0te_integration_enabled`, `rem0te_integration_key_id`, `rem0te_processing_location`, `rem0te_capabilities`;
   migration `integrations/0034_ticket_rmm_pairing_keys` moved them with no change of state.
 - Outbound requests: `psa_ai/services/processor.py`; handoffs, diagnostics, launch, fixes:
