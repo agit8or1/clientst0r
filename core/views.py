@@ -673,13 +673,9 @@ def system_updates(request):
     """
     updater = UpdateService()
 
-    # Get cached update check or perform new check
-    cache_key = 'system_update_check'
-    update_info = cache.get(cache_key)
-
-    if not update_info:
-        update_info = updater.check_for_updates()
-        cache.set(cache_key, update_info, 300)  # Cache for 5 minutes
+    # core.upgrade.channels caches the GitHub answer itself (and keeps the
+    # last good one for when GitHub is unreachable).
+    update_info = updater.check_for_updates()
 
     # Get git status
     git_status = updater.get_git_status()
@@ -709,9 +705,16 @@ def system_updates(request):
     if update_info.get('error'):
         debug_info = {
             'error': update_info.get('error'),
-            'github_api_url': f'https://api.github.com/repos/{updater.repo_owner}/{updater.repo_name}/tags',
+            'github_api_url': f'https://api.github.com/repos/{updater.repo_owner}/{updater.repo_name}/releases',
             'current_version': get_version(),
         }
+
+    from core.upgrade import journal as upgrade_journal, snapshot as upgrade_snapshot
+    upgrade_state = upgrade_journal.assess()
+    try:
+        recent_backups = upgrade_snapshot.list_snapshots()[:5]
+    except Exception:
+        recent_backups = []
 
     # Get last OS package scan
     from core.models import SystemPackageScan
@@ -729,7 +732,60 @@ def system_updates(request):
         'last_package_scan': last_package_scan,
         'root_helper_needed': root_helper.needs_bootstrap(),
         'root_helper_command': root_helper.bootstrap_command(),
+        'channels': update_info.get('channels') or {},
+        'upgrade_state': upgrade_state,
+        'recent_backups': recent_backups,
+        'backup_dir': str(upgrade_journal.backup_root()),
     })
+
+
+@login_required
+@user_passes_test(is_superuser)
+@require_http_methods(["POST"])
+def set_update_channel(request):
+    """Switch between the Stable and Preview release channels."""
+    from core.models import SystemSetting
+    from core.upgrade import channels
+    channel = request.POST.get('channel', '')
+    if channel not in channels.CHANNELS:
+        messages.error(request, 'Unknown release channel.')
+        return redirect('core:system_updates')
+    s = SystemSetting.get_settings()
+    if s.update_channel != channel:
+        SystemSetting.objects.filter(pk=1).update(update_channel=channel)
+        AuditLog.objects.create(
+            user=request.user, username=request.user.username, action='update',
+            object_type='system_setting', object_repr='Release channel',
+            description=f'Release channel set to {channel}')
+    messages.success(request, 'Following the Preview channel: Apply offers the newest commit on main '
+                     '(unreleased, unsigned).' if channel == 'preview' else
+                     'Following the Stable channel: Apply offers signed published releases only.')
+    return redirect('core:system_updates')
+
+
+@login_required
+@user_passes_test(is_superuser)
+@require_http_methods(["POST"])
+@ratelimit(key='user', rate='20/h', method='POST', block=True)
+def upgrade_preflight_api(request):
+    """Run the preflight checks Apply runs first and return them as JSON."""
+    from core.upgrade import preflight
+    from core.upgrade.revision import RevisionError, Target, fetch, head_sha
+    target = None
+    t = (UpdateService().check_for_updates().get('target'))
+    if t:
+        target = Target(t['kind'], t['ref'], t['sha'], t.get('version') or '')
+        try:
+            fetch(target)   # needed to list the migrations / requirements it brings
+        except RevisionError as e:
+            return JsonResponse({'checks': [{'name': 'target revision', 'status': 'fail',
+                                             'detail': str(e), 'hint': ''}], 'ok': False})
+        except Exception as e:
+            logger.warning('preflight could not fetch %s: %s', t.get('ref'), e)
+    checks = preflight.run(target, installed_sha=head_sha())
+    return JsonResponse({'checks': [c.as_dict() for c in checks],
+                         'ok': not preflight.failed(checks),
+                         'target': t})
 
 
 @login_required
@@ -776,10 +832,7 @@ def check_updates_now(request):
     Staff-only access.
     """
     updater = UpdateService()
-    update_info = updater.check_for_updates()
-
-    # Update cache
-    cache.set('system_update_check', update_info, 300)  # Cache for 5 minutes
+    update_info = updater.check_for_updates(force_refresh=True)
 
     # Log the check (best-effort — older DB schemas may not have extra_data column yet)
     try:
@@ -788,7 +841,7 @@ def check_updates_now(request):
             description=f'Manual update check by {request.user.username}',
             user=request.user,
             username=request.user.username,
-            extra_data=update_info
+            extra_data={k: v for k, v in update_info.items() if k != 'channels'}
         )
     except Exception:
         # Likely the legacy schema without `extra_data`. Try the slim row;
@@ -805,14 +858,17 @@ def check_updates_now(request):
             logger.exception('Failed to write update_check audit log')
 
     if update_info.get('error'):
-        messages.error(request, f"Failed to check for updates: {update_info['error']}")
+        messages.error(request, f"Failed to check for updates: {update_info['error']}"
+                       + (' Showing the last successful check.' if update_info.get('stale') else ''))
     elif update_info['update_available']:
+        t = update_info['target']
         messages.success(
             request,
-            f"Update available: v{update_info['latest_version']}"
+            f"{'Release' if t['kind'] == 'release' else 'Preview build'} available: "
+            f"{t['ref']} @ {t['sha'][:12]}"
         )
     else:
-        messages.info(request, "System is up to date")
+        messages.info(request, "Nothing newer on this channel")
 
     return redirect('core:system_updates')
 
@@ -827,24 +883,51 @@ def apply_update(request):
     try:
         from core.updater import UpdateService
         from core.update_progress import UpdateProgress
+        from core.upgrade import apply as upgrade_apply
+        from core.upgrade import journal as upgrade_journal
+        from core.upgrade.revision import RevisionError, Target
+        import json as _json
         import threading
 
-        # Clear cache
-        cache.delete('system_update_check')
+        # The page shows a specific revision; Apply must install exactly that
+        # one. The browser sends back what it showed, and it has to match what
+        # this server resolves now -- otherwise the admin reviewed something
+        # else, and nothing is started.
+        try:
+            body = _json.loads(request.body or b'{}')
+        except ValueError:
+            body = {}
+        try:
+            reviewed = Target(str(body.get('kind', '')), str(body.get('ref', '')),
+                              str(body.get('sha', ''))).validate()
+        except RevisionError as e:
+            return JsonResponse({'status': 'error', 'message':
+                                 f'No reviewed revision was sent ({e}). Reload the page.'}, status=400)
+        updater = UpdateService()
+        current = (updater.check_for_updates().get('target') or {})
+        if (current.get('kind'), current.get('ref'), current.get('sha')) != \
+                (reviewed.kind, reviewed.ref, reviewed.sha):
+            return JsonResponse({'status': 'error', 'message':
+                                 'What this channel offers has changed since the page was loaded '
+                                 f"(now: {current.get('ref') or 'nothing'} "
+                                 f"{(current.get('sha') or '')[:12]}). Reload the page and review it "
+                                 'again.'}, status=409)
+        assessment = upgrade_journal.assess()
+        if assessment['state'] == 'running' or assessment['needs_recovery']:
+            return JsonResponse({'status': 'error', 'message': assessment['message']}, status=409)
+        reviewed.version = current.get('version') or ''
 
         # Initialize progress tracker
         progress = UpdateProgress()
-        progress.start()
-
-        # Start update in background thread
-        updater = UpdateService()
+        progress.start(total_steps=upgrade_apply.TOTAL_STEPS)
 
         def run_update():
             try:
-                updater.perform_update(user=request.user, progress_tracker=progress)
+                updater.perform_update(user=request.user, progress_tracker=progress,
+                                       target=reviewed)
             except Exception as e:
                 logger.error(f"Update failed: {e}")
-                progress.fail(str(e))
+                progress.finish(success=False, error=str(e))
 
         update_thread = threading.Thread(target=run_update)
         update_thread.daemon = True
@@ -854,7 +937,8 @@ def apply_update(request):
         try:
             AuditLog.objects.create(
                 action='system_update',
-                description=f'Update triggered by {request.user.username}',
+                description=(f'Update to {reviewed.ref} @ {reviewed.sha[:12]} triggered by '
+                             f'{request.user.username}'),
                 user=request.user,
                 username=request.user.username
             )
@@ -881,15 +965,8 @@ def update_status_api(request):
     API endpoint for checking update status (for AJAX polling).
     Staff-only access.
     """
-    cache_key = 'system_update_check'
-    update_info = cache.get(cache_key)
-
-    if not update_info:
-        updater = UpdateService()
-        update_info = updater.check_for_updates()
-        cache.set(cache_key, update_info, 300)  # Cache for 5 minutes (consistent with system_updates view)
-
-    return JsonResponse(update_info)
+    update_info = UpdateService().check_for_updates()
+    return JsonResponse({k: v for k, v in update_info.items() if k != 'channels'})
 
 
 @login_required

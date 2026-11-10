@@ -39,11 +39,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     DJANGO_SETTINGS_MODULE=config.settings
 
-# Runtime libs only: mariadb client, curl (used by HEALTHCHECK) and ping
-# (scheduled WAN connection checks; Docker's default ping_group_range lets the
-# non-root user send ICMP echo).
+# Runtime libs only: mariadb client library, the mariadb client tools
+# (mysqldump / mysql: the pre-upgrade backup and its restore test), curl (used
+# by HEALTHCHECK) and ping (scheduled WAN connection checks; Docker's default
+# ping_group_range lets the non-root user send ICMP echo).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libmariadb3 \
+        mariadb-client \
         curl \
         iputils-ping \
     && rm -rf /var/lib/apt/lists/*
@@ -54,7 +56,7 @@ COPY --from=builder /opt/venv /opt/venv
 # Non-root runtime user. uid 1000 is the common host-default — matches
 # typical bind-mount ownership without extra chown gymnastics.
 RUN useradd -m -u 1000 clientst0r \
-    && mkdir -p /app /app/logs /app/media /app/static_collected /var/lib/itdocs/uploads \
+    && mkdir -p /app /app/logs /app/media /app/static_collected /app/backups /var/lib/itdocs/uploads \
     && chown -R clientst0r:clientst0r /app /var/lib/itdocs
 
 WORKDIR /app

@@ -1,8 +1,7 @@
 """Tests for the GUI updater (`core.updater.UpdateService`).
 
-Focused on v3.17.284 (issue #128): when the update script exits non-zero,
-the captured stdout/stderr lines must land in `AuditLog.extra_data.output_tail`
-so superusers can diagnose without SSHing in.
+perform_update() hands the work to the verified pipeline in core/upgrade/;
+the root-helper precheck still runs first.
 """
 from __future__ import annotations
 
@@ -14,94 +13,48 @@ from audit.models import AuditLog
 from core.updater import UpdateService
 
 
-class UpdateServiceFailureCaptureTests(TestCase):
-    """Phase / issue-128 (v3.17.284): persist failed-update output."""
+class UpdateServiceDelegationTests(TestCase):
+    """perform_update() runs the verified pipeline (core/upgrade/apply.py).
 
-    def _fake_response(self, script_text: str = '#!/bin/bash\necho hi\n'):
-        r = mock.MagicMock()
-        r.text = script_text
-        r.raise_for_status.return_value = None
-        return r
+    The #128 guarantee (v3.17.284) -- a failed run's output lands in
+    AuditLog.extra_data.output_tail -- is tested on the pipeline itself in
+    core/tests/test_upgrade_pipeline.py.
+    """
 
-    def _fake_process(self, lines, returncode):
-        proc = mock.MagicMock()
-        # `iter(process.stdout.readline, '')` is what the updater uses
-        # to consume output. A list iterator works as a stand-in.
-        proc.stdout.readline.side_effect = list(lines) + ['']
-        proc.wait.return_value = None
-        proc.returncode = returncode
-        return proc
-
-    def test_failed_run_persists_output_tail_to_audit_log(self):
-        updater = UpdateService()
-        fake_lines = [
-            'Step 1/5: Fetching latest code...\n',
-            'Step 1/5: Code updated. New version: 3.17.999\n',
-            'Step 2/5: Installing Python dependencies...\n',
-            'Step 2/5: Core dependencies installed\n',
-            'Step 3/5: Running database migrations...\n',
-            'Traceback (most recent call last):\n',
-            '  File "/srv/venv/bin/django-admin", line 8, in <module>\n',
-            'django.db.utils.ProgrammingError: column "x" of relation does not exist\n',
-            'ERROR: command failed at line 99: migrate (exit 1)\n',
-        ]
-        proc = self._fake_process(fake_lines, returncode=1)
-
-        with mock.patch.object(updater, '_is_systemd_service', return_value=False), \
-             mock.patch('core.updater.requests.get',
-                         return_value=self._fake_response()), \
-             mock.patch('core.updater.subprocess.Popen', return_value=proc):
-            result = updater.perform_update(user=None, progress_tracker=None)
-
-        self.assertFalse(result['success'])
-        self.assertIn('exited with code 1', result['error'])
-
-        # Audit row must exist + carry the full output tail
-        row = AuditLog.objects.filter(action='system_update_failed').first()
-        self.assertIsNotNone(row)
-        tail = row.extra_data.get('output_tail', '')
-        self.assertIn('ProgrammingError', tail)
-        self.assertIn('Traceback', tail)
-        # Steps that DID complete should be reflected
-        self.assertIn('Step 2/5: Core dependencies installed', tail)
-
-    def test_output_tail_capped_at_50kb(self):
-        updater = UpdateService()
-        # Generate ~120kb of fake output
-        big_lines = [f'noisy line {i}: ' + ('x' * 200) + '\n' for i in range(600)]
-        proc = self._fake_process(big_lines, returncode=1)
-
-        with mock.patch.object(updater, '_is_systemd_service', return_value=False), \
-             mock.patch('core.updater.requests.get',
-                         return_value=self._fake_response()), \
-             mock.patch('core.updater.subprocess.Popen', return_value=proc):
-            updater.perform_update(user=None, progress_tracker=None)
-
-        row = AuditLog.objects.filter(action='system_update_failed').first()
-        self.assertIsNotNone(row)
-        tail = row.extra_data.get('output_tail', '')
-        self.assertLessEqual(len(tail), 50_000)
-
-    def test_successful_run_does_not_create_failure_audit(self):
-        updater = UpdateService()
-        proc = self._fake_process(
-            ['Step 1/5: Fetching latest code...\n',
-             'Step 5/5: Scheduling restart...\n',
-             'Update complete!\n'],
-            returncode=0,
-        )
-
-        with mock.patch.object(updater, '_is_systemd_service', return_value=False), \
-             mock.patch('core.updater.requests.get',
-                         return_value=self._fake_response()), \
-             mock.patch('core.updater.subprocess.Popen', return_value=proc):
-            result = updater.perform_update(user=None, progress_tracker=None)
-
+    def test_reviewed_target_is_passed_through(self):
+        from core.upgrade.revision import Target
+        t = Target('release', 'v9.9.9', '1' * 40)
+        with mock.patch.object(UpdateService, '_is_systemd_service', return_value=False), \
+                mock.patch('core.upgrade.apply.run', return_value={
+                    'success': True, 'refused': False, 'error': None, 'output': ['ok'],
+                    'backup': '/b', 'target': t.as_dict()}) as run:
+            result = UpdateService().perform_update(target=t)
         self.assertTrue(result['success'])
-        # Failed-update audit row must NOT exist for a successful run
-        self.assertFalse(
-            AuditLog.objects.filter(action='system_update_failed').exists()
-        )
+        self.assertIs(run.call_args.args[0], t)
+        self.assertEqual(result['backup'], '/b')
+
+    def test_nothing_to_install_is_an_error_not_a_crash(self):
+        with mock.patch.object(UpdateService, '_is_systemd_service', return_value=False), \
+                mock.patch.object(UpdateService, 'check_for_updates',
+                                  return_value={'target': None, 'error': None}), \
+                mock.patch('core.upgrade.apply.run') as run:
+            result = UpdateService().perform_update()
+        self.assertFalse(result['success'])
+        self.assertIn('Nothing newer', result['error'])
+        run.assert_not_called()
+        self.assertTrue(AuditLog.objects.filter(action='system_update_failed').exists())
+
+    def test_failure_from_the_pipeline_is_returned(self):
+        from core.upgrade.revision import Target
+        t = Target('release', 'v9.9.9', '1' * 40)
+        with mock.patch.object(UpdateService, '_is_systemd_service', return_value=False), \
+                mock.patch('core.upgrade.apply.run', return_value={
+                    'success': False, 'refused': True, 'error': 'not signed', 'output': [],
+                    'backup': None, 'target': t.as_dict()}):
+            result = UpdateService().perform_update(target=t)
+        self.assertFalse(result['success'])
+        self.assertTrue(result['refused'])
+        self.assertEqual(result['error'], 'not signed')
 
 
 # ---------------------------------------------------------------------------

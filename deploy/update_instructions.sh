@@ -5,6 +5,27 @@
 # Environment variables (passed by caller):
 #   CLIENTST0R_BASE_DIR      - absolute path to the project root
 #   CLIENTST0R_SERVICE_NAME  - systemd service name (or empty if none)
+#
+# Pinned mode (core/upgrade/apply.py; Settings -> Updates and
+# `manage.py upgrade_apply`):
+#   CLIENTST0R_TARGET_SHA      - the exact commit the admin reviewed. The caller
+#                                has already fetched it, checked that origin
+#                                still points at it and (for a release) verified
+#                                the tag signature. This script is the copy from
+#                                that very revision (git show <sha>:...).
+#   CLIENTST0R_TARGET_REF      - vX.Y.Z or main (for the log)
+#   CLIENTST0R_PREV_SHA        - the revision installed before, for rollback
+#   CLIENTST0R_VERIFIED_BACKUP - the verified pre-upgrade snapshot directory
+#   CLIENTST0R_JOURNAL         - core/upgrade/journal.py's JSON file
+#
+# Without CLIENTST0R_TARGET_SHA (an older Client St0r downloaded this script
+# from main) it runs in legacy mode: fetch main and reset to it, as before, but
+# it still takes and verifies a backup before migrating, and records the run
+# in the journal.
+#
+#   CLIENTST0R_UPDATE_SANDBOX=1 - rehearsal/CI only: skip everything that
+#                                touches the host outside BASE_DIR (root helper,
+#                                crontab, sudoers, systemd, signalling gunicorn).
 
 set -euo pipefail
 
@@ -29,6 +50,11 @@ fi
 # v3.17.597: root actions go through this one root-owned program, installed
 # once by deploy/root-helper/install-root-helper.sh. See that directory.
 ROOT_HELPER=/usr/local/sbin/clientst0r-root-helper
+
+SANDBOX="${CLIENTST0R_UPDATE_SANDBOX:-0}"
+TARGET_SHA="${CLIENTST0R_TARGET_SHA:-}"
+TARGET_REF="${CLIENTST0R_TARGET_REF:-main}"
+VERIFIED_BACKUP="${CLIENTST0R_VERIFIED_BACKUP:-}"
 
 # Trap: log exactly which command failed and on which line
 trap 'log "ERROR: command failed at line $LINENO: $BASH_COMMAND (exit $?)"' ERR
@@ -73,6 +99,65 @@ if [ -z "$VENV_DIR" ] || [ ! -f "$VENV_DIR/bin/python" ]; then
 fi
 
 log "Using virtual environment: $VENV_DIR"
+PY="$VENV_DIR/bin/python"
+
+JOURNAL="${CLIENTST0R_JOURNAL:-${CLIENTST0R_BACKUP_DIR:-$BASE_DIR/backups/upgrades}/journal.json}"
+
+# journal key=value ... | key:json=<json>  -- update the upgrade journal
+# (core/upgrade/journal.py). stage=X and status=X also append to history.
+journal() {
+    "$PY" -I - "$JOURNAL" "$@" <<'JOURNAL_EOF' || log "[WARN] could not update the upgrade journal"
+import json, os, sys, tempfile, time
+path, args = sys.argv[1], sys.argv[2:]
+try:
+    with open(path) as f:
+        d = json.load(f)
+except Exception:
+    d = {}
+for a in args:
+    k, _, v = a.partition('=')
+    if k.endswith(':json'):
+        d[k[:-5]] = json.loads(v)
+    elif k in ('stage', 'status'):
+        d[k] = v
+        d.setdefault('history', []).append({k: v, 'at': time.time()})
+        if k == 'stage' and v == 'complete':
+            d['status'] = 'complete'
+    else:
+        d[k] = v
+d['updated_at'] = time.time()
+os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix='.journal.')
+with os.fdopen(fd, 'w') as f:
+    json.dump(d, f, indent=2, sort_keys=True)
+os.chmod(tmp, 0o600)
+os.replace(tmp, path)
+JOURNAL_EOF
+}
+
+RECOVERY_DOC="docs/UPGRADE_AND_RECOVERY.md"
+
+# Put the code (and its dependencies) back to the revision that was installed
+# before. Only used while the database is still untouched.
+rollback_code() {
+    local reason="$1"
+    log "ERROR: $reason"
+    if [ -n "${PREV_SHA:-}" ]; then
+        log "Rolling the code back to ${PREV_SHA:0:12} (the database was not changed)..."
+        if $GIT -C "$BASE_DIR" reset --hard "$PREV_SHA" >/dev/null 2>&1; then
+            "$VENV_DIR/bin/pip" install -q -r "$BASE_DIR/requirements.txt" >/dev/null 2>&1 \
+                || log "[WARN] reinstalling the previous requirements failed; run: $VENV_DIR/bin/pip install -r $BASE_DIR/requirements.txt"
+            journal status=rolled_back "error=$reason"
+            log "Rolled back. The running service was never reloaded, so it is unaffected."
+        else
+            journal status=failed "error=$reason; rollback to $PREV_SHA failed"
+            log "ERROR: rollback failed. Recover with: $PY $BASE_DIR/manage.py upgrade_status"
+        fi
+    else
+        journal status=failed "error=$reason"
+    fi
+    exit 1
+}
 
 # --- Service detection (if not provided by caller) ---
 if [ -z "$SERVICE" ]; then
@@ -88,20 +173,49 @@ fi
 # Step 1: Git fetch + reset
 # =====================================================================
 log ""
-log "Step 1/5: Fetching latest code from GitHub..."
-$GIT -C "$BASE_DIR" fetch origin main
-$GIT -C "$BASE_DIR" reset --hard origin/main
+PREV_SHA="${CLIENTST0R_PREV_SHA:-$($GIT -C "$BASE_DIR" rev-parse HEAD 2>/dev/null || true)}"
+if [ -n "$TARGET_SHA" ]; then
+    log "Step 1/5: Fetching the reviewed revision $TARGET_REF @ $TARGET_SHA..."
+    if ! [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+        log "ERROR: CLIENTST0R_TARGET_SHA is not a full commit sha"
+        journal status=aborted "error=bad target sha"
+        exit 1
+    fi
+    if ! $GIT -C "$BASE_DIR" cat-file -e "${TARGET_SHA}^{commit}" 2>/dev/null; then
+        log "ERROR: $TARGET_SHA is not in the repository (the caller fetches it first)"
+        journal status=aborted "error=target commit missing"
+        exit 1
+    fi
+    $GIT -C "$BASE_DIR" reset --hard "$TARGET_SHA"
+    if [ "$($GIT -C "$BASE_DIR" rev-parse HEAD)" != "$TARGET_SHA" ]; then
+        rollback_code "checked-out revision is not $TARGET_SHA"
+    fi
+else
+    log "Step 1/5: Fetching latest code from GitHub..."
+    log "[legacy mode] an older Client St0r started this update; installing main as before"
+    $GIT -C "$BASE_DIR" fetch origin main
+    $GIT -C "$BASE_DIR" reset --hard origin/main
+    TARGET_SHA=$($GIT -C "$BASE_DIR" rev-parse HEAD)
+    PREV_VERSION=$($GIT -C "$BASE_DIR" show "$PREV_SHA:config/version.py" 2>/dev/null | grep "VERSION = " | cut -d"'" -f2 || true)
+    journal status=running stage=started "prev_sha=$PREV_SHA" "prev_version=$PREV_VERSION" \
+        "target:json={\"kind\": \"preview\", \"ref\": \"main\", \"sha\": \"$TARGET_SHA\"}" \
+        "script_pid:json=$$" "user=legacy-updater"
+fi
+journal stage=code_checked_out
 
 NEW_VERSION=$(grep "VERSION = " "$BASE_DIR/config/version.py" 2>/dev/null | cut -d"'" -f2 || echo "unknown")
-log "Step 1/5: Code updated. New version: $NEW_VERSION"
+log "Step 1/5: Code updated. New version: $NEW_VERSION (revision ${TARGET_SHA:0:12})"
 
 # =====================================================================
 # Step 2: Install Python dependencies
 # =====================================================================
 log ""
 log "Step 2/5: Installing Python dependencies..."
-"$VENV_DIR/bin/pip" install -q -r "$BASE_DIR/requirements.txt"
+if ! "$VENV_DIR/bin/pip" install -q -r "$BASE_DIR/requirements.txt"; then
+    rollback_code "installing the new Python dependencies failed (see the pip output above)"
+fi
 log "Step 2/5: Core dependencies installed"
+journal stage=deps_installed
 
 # Optional requirements (non-critical)
 for req_file in requirements-graphql.txt requirements-optional.txt; do
@@ -116,8 +230,54 @@ done
 # Step 3: Database migrations
 # =====================================================================
 log ""
+# A pending migration that is already partly (or wholly) in the schema -- left by
+# an earlier crash on MySQL/MariaDB, #128/#129 -- makes migrate fail half way,
+# and a backup taken now would capture that damage. Stop and say so.
+if ! DOCTOR_OUT=$("$PY" "$BASE_DIR/manage.py" migration_doctor --check 2>&1); then
+    log "ERROR: the database already contains part of a migration this release would apply:"
+    printf '%s\n' "$DOCTOR_OUT" | while IFS= read -r line; do log "  $line"; done
+    log "ERROR: not migrating. Restore the backup taken before the earlier failed upgrade"
+    log "ERROR: (manage.py upgrade_backup --list), or follow the advice above; see $RECOVERY_DOC."
+    journal status=failed "error=pending migration already partly applied"
+    exit 3
+fi
+
+# No verified backup, no migration. In pinned mode the caller took and verified
+# it; re-check it with the new code. In legacy mode take it now: the database
+# is still the old one, untouched.
+if [ -n "$VERIFIED_BACKUP" ]; then
+    if ! "$PY" "$BASE_DIR/manage.py" upgrade_backup --check-verified "$VERIFIED_BACKUP"; then
+        rollback_code "the pre-upgrade backup $VERIFIED_BACKUP is not verified; refusing to migrate"
+    fi
+else
+    log "Taking and verifying a pre-upgrade backup (database, uploads, keys)..."
+    if BACKUP_OUT=$("$PY" "$BASE_DIR/manage.py" upgrade_backup --reason "before upgrade to $TARGET_REF" --print-path \
+            --code-sha "$PREV_SHA" ${PREV_VERSION:+--code-version "$PREV_VERSION"} 2>&1); then
+        VERIFIED_BACKUP=$(printf '%s\n' "$BACKUP_OUT" | tail -1)
+        printf '%s\n' "$BACKUP_OUT" | sed '$d' | while IFS= read -r line; do log "$line"; done
+        journal stage=backup_verified "backup=$VERIFIED_BACKUP"
+        log "Verified backup: $VERIFIED_BACKUP"
+    else
+        printf '%s\n' "$BACKUP_OUT" | while IFS= read -r line; do log "$line"; done
+        rollback_code "could not take a verified backup; refusing to migrate"
+    fi
+fi
+
 log "Step 3/5: Running database migrations..."
-"$VENV_DIR/bin/python" "$BASE_DIR/manage.py" migrate --noinput
+journal stage=migrating
+if ! "$VENV_DIR/bin/python" "$BASE_DIR/manage.py" migrate --noinput; then
+    log "ERROR: Database migration failed. The code is at ${TARGET_SHA:0:12}; the database may be"
+    log "ERROR: partly migrated (MySQL/MariaDB cannot roll back schema changes)."
+    log "ERROR: The service was NOT reloaded and still runs the previous code."
+    log "Migration diagnosis (manage.py migration_doctor):"
+    "$PY" "$BASE_DIR/manage.py" migration_doctor 2>&1 | while IFS= read -r line; do log "  $line"; done || true
+    log "Recovery -- see $RECOVERY_DOC:"
+    log "  restore the verified backup:  $PY $BASE_DIR/manage.py upgrade_restore $VERIFIED_BACKUP"
+    log "  or, once the cause is fixed:  $PY $BASE_DIR/manage.py upgrade_apply --resume"
+    journal status=failed "error=database migration failed" "backup=$VERIFIED_BACKUP"
+    exit 3
+fi
+journal stage=migrated
 log "Step 3/5: Migrations completed"
 
 # =====================================================================
@@ -125,7 +285,13 @@ log "Step 3/5: Migrations completed"
 # =====================================================================
 log ""
 log "Step 4/5: Collecting static files..."
-"$VENV_DIR/bin/python" "$BASE_DIR/manage.py" collectstatic --noinput
+if ! "$VENV_DIR/bin/python" "$BASE_DIR/manage.py" collectstatic --noinput; then
+    log "ERROR: collectstatic failed. The database is already migrated; fix the error and run"
+    log "ERROR:   $PY $BASE_DIR/manage.py upgrade_apply --resume"
+    journal status=failed "error=collectstatic failed"
+    exit 1
+fi
+journal stage=static_collected
 log "Step 4/5: Static files collected"
 
 # v3.17.597: keep the root helper and the root-owned config it manages current.
@@ -133,7 +299,9 @@ log "Step 4/5: Static files collected"
 # signed by a trusted release key; apply-system-config rewrites the units and
 # sudoers rules the helper owns. Neither ever reads files from $BASE_DIR.
 log ""
-if [ -x "$ROOT_HELPER" ]; then
+if [ "$SANDBOX" = "1" ]; then
+    log "[sandbox] skipping root helper, crontab, sudoers and host configuration"
+elif [ -x "$ROOT_HELPER" ]; then
     for helper_step in "self-update v$NEW_VERSION" "apply-system-config"; do
         # shellcheck disable=SC2086
         if HELPER_OUT=$(sudo -n "$ROOT_HELPER" $helper_step 2>&1); then
@@ -156,13 +324,15 @@ log ""
 log "Running optional update steps..."
 
 # v3.17.598: local country database for the GeoIP firewall (monthly refresh).
-if "$VENV_DIR/bin/python" "$BASE_DIR/manage.py" update_geoip_db --max-age-days 25 2>&1 | tail -1 | sed "s/^/[$(date '+%Y-%m-%d %H:%M:%S')] /"; then
+if [ "$SANDBOX" = "1" ]; then
+    log "[sandbox] skipping the GeoIP database download"
+elif "$VENV_DIR/bin/python" "$BASE_DIR/manage.py" update_geoip_db --max-age-days 25 2>&1 | tail -1 | sed "s/^/[$(date '+%Y-%m-%d %H:%M:%S')] /"; then
     :
 fi
 
 # Gunicorn environment fix
 FIX_SCRIPT="$BASE_DIR/scripts/fix_gunicorn_env.sh"
-if [ -f "$FIX_SCRIPT" ]; then
+if [ "$SANDBOX" != "1" ] && [ -f "$FIX_SCRIPT" ]; then
     log "Applying gunicorn environment fix..."
     ( chmod +x "$FIX_SCRIPT" && "$FIX_SCRIPT" ) \
         || log "[WARN] Gunicorn env fix failed (non-critical)"
@@ -170,7 +340,7 @@ fi
 
 # Mobile build setup
 MOBILE_SETUP="$BASE_DIR/deploy/setup_mobile_build.sh"
-if [ -f "$MOBILE_SETUP" ]; then
+if [ "$SANDBOX" != "1" ] && [ -f "$MOBILE_SETUP" ]; then
     log "Running mobile build setup..."
     ( chmod +x "$MOBILE_SETUP" && "$MOBILE_SETUP" ) \
         || log "[WARN] Mobile build setup failed (non-critical)"
@@ -207,7 +377,7 @@ fi
     || log "[WARN] Default dashboard seed failed (non-critical)"
 
 # fail2ban sudoers (install if fail2ban present and sudoers not yet configured)
-if command -v fail2ban-client >/dev/null 2>&1; then
+if [ "$SANDBOX" != "1" ] && command -v fail2ban-client >/dev/null 2>&1; then
     FB_SRC="$BASE_DIR/deploy/clientst0r-fail2ban-sudoers"
     FB_DEST="/etc/sudoers.d/clientst0r-fail2ban"
     if [ -f "$FB_SRC" ] && [ ! -f "$FB_DEST" ]; then
@@ -220,7 +390,9 @@ if command -v fail2ban-client >/dev/null 2>&1; then
     fi
 fi
 
-if [ "$NO_NEW_PRIVS" -eq 1 ]; then
+if [ "$SANDBOX" = "1" ]; then
+    log "[sandbox] crontab left alone"
+elif [ "$NO_NEW_PRIVS" -eq 1 ]; then
     log "[WARN] Skipping cron job setup: this process has no_new_privs set, so"
     log "[WARN] crontab cannot run. Existing cron jobs are untouched — including any"
     log "[WARN] legacy manage.py psa_* lines, which now duplicate the in-app scheduler"
@@ -325,6 +497,10 @@ fi
 # stuck at 4/5 forever in the UI. By writing the JSON ourselves we
 # decouple the front-end from the Python reader's lifetime.
 PROGRESS_FILE="/tmp/clientst0r_update_progress_current.json"
+if [ "$SANDBOX" = "1" ]; then
+    # A rehearsal must not write the progress file a real install's UI reads.
+    PROGRESS_FILE="$BASE_DIR/.update_progress_sandbox.json"
+fi
 PYTHON_BIN=$(command -v python3 || command -v python || true)
 if [ -n "$PYTHON_BIN" ] && [ -f "$PROGRESS_FILE" ]; then
     "$PYTHON_BIN" - <<EOF || true
@@ -342,7 +518,7 @@ for s in ('Git Pull','Install Dependencies','Run Migrations','Collect Static Fil
 d['status'] = 'completed'
 d['steps_completed'] = steps
 d['current_step'] = ''
-d['total_steps'] = 5
+d['total_steps'] = max(int(d.get('total_steps') or 5), len(steps))
 d['finished_at'] = time.time()
 tmp = p + '.tmp'
 with open(tmp, 'w') as f:
@@ -375,13 +551,18 @@ if [ -n "$SERVICE" ] && [ -f "$UNIT_SRC" ] && [ -f "$UNIT_DEST" ]; then
     fi
 fi
 
+journal stage=reloading
+
 # v3.17.595: if nothing below manages a reload or restart, the run must fail.
 # Before this, the last fallback backgrounded `sudo systemctl restart` and
 # logged it as scheduled; under NoNewPrivileges that sudo always failed
 # unseen, so every nightly run since at least 2026-10-03 left gunicorn on the
 # old code while reporting "Update completed successfully!".
 RELOADED=0
-if [ -n "$SERVICE" ] && [ -n "$SYSTEMCTL" ]; then
+if [ "${SANDBOX:-0}" = "1" ]; then
+    log "Step 5/5: [sandbox] not reloading any service"
+    RELOADED=1
+elif [ -n "$SERVICE" ] && [ -n "$SYSTEMCTL" ]; then
     # Graceful reload: sends SIGHUP to the gunicorn master (ExecReload=kill -HUP $MAINPID).
     # Workers are replaced one-by-one while the master stays alive — zero downtime.
     if [ -x "$ROOT_HELPER" ] && sudo -n "$ROOT_HELPER" reload >/dev/null 2>&1; then
@@ -446,11 +627,23 @@ EOF
         exit 1
     fi
 else
-    # No systemd service — send SIGHUP to gunicorn master for graceful reload.
-    if pkill -HUP -f 'gunicorn.*wsgi:application' 2>/dev/null; then
+    # No systemd service — send SIGHUP to the gunicorn master serving THIS
+    # directory. A bare `pkill -f gunicorn` would also reload every other
+    # install (or unrelated gunicorn app) this user runs on the host.
+    SIGNALLED=0
+    for pid in $(pgrep -u "$(id -u)" -f 'gunicorn.*wsgi:application' 2>/dev/null || true); do
+        [ "$(readlink -f "/proc/$pid/cwd" 2>/dev/null)" = "$(readlink -f "$BASE_DIR")" ] || continue
+        ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+        # Masters only: a worker's parent is a gunicorn process in the same dir.
+        if [ -n "$ppid" ] && grep -q gunicorn "/proc/$ppid/cmdline" 2>/dev/null; then
+            continue
+        fi
+        kill -HUP "$pid" 2>/dev/null && SIGNALLED=1
+    done
+    if [ "$SIGNALLED" -eq 1 ]; then
         log "Step 5/5: Graceful reload signal sent to gunicorn master"
     else
-        log "[WARN] Could not send SIGHUP to gunicorn — workers may be stale"
+        log "[WARN] No gunicorn master found for $BASE_DIR — restart it by hand to load the new code"
     fi
 fi
 
@@ -458,5 +651,6 @@ log ""
 log "=================================================="
 log "Update complete! Please wait 10 seconds then refresh."
 log "=================================================="
+journal stage=complete
 
 exit 0

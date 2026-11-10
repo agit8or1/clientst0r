@@ -2038,6 +2038,53 @@ v3.17.658; the RMM side waits on rem0te.
   release is out, from the scheduled update check, linking to Settings →
   Updates; it disappears once that version is running.
 
+## Phase 59 — Verified installs and upgrades **(M · reliability)** [in progress]
+
+An upgrade installs exactly the revision the administrator reviewed. It
+doesn't migrate without a backup that has been proven to restore, and an
+upgrade that stops partway can be recognised and recovered.
+Guide: `docs/UPGRADE_AND_RECOVERY.md`.
+
+- **59.1 Release channels** *(implemented, unreleased)*: **Stable** (the
+  latest signed published release, the default) and opt-in **Preview** (newer
+  commits on main, labelled unreleased). Settings → Updates and the update
+  badge show the installed build, the recommended release, and main's
+  unreleased commits (count and list). They show which channel the instance
+  follows and exactly what Apply would install. If GitHub is unreachable or
+  rate-limited, the page shows the last good answer, marked stale.
+- **59.2 Pinned, verified Apply** *(implemented, unreleased)*: Apply carries
+  the reviewed commit sha. It refuses if origin moved, fetches that commit,
+  and verifies the release tag signature against the trusted release key. It
+  then runs the update script from that revision. The same pipeline backs
+  `manage.py upgrade_apply`, `update.sh`, `install.sh` option 1 and the
+  nightly timer.
+- **59.3 Preflight checks** *(implemented, unreleased)*: disk space, database
+  reachable, pending migrations, media writable, required keys, backup
+  destination, dependency resolution. Results are shown in the UI before
+  Apply and logged.
+- **59.4 Verified pre-upgrade backups** *(implemented, unreleased)*: the
+  database, uploaded files and keys, kept in an owner-only directory. Each
+  backup is restore-tested into a scratch database, including a vault decrypt
+  with the stored key, before any migration. There is restore, plus
+  passphrase-encrypted export and import. The Docker entrypoint takes one
+  before migrating an existing database.
+- **59.5 Interrupted-upgrade recovery** *(implemented, unreleased)*: an
+  upgrade journal, `upgrade_status`, `upgrade_apply --resume`,
+  `upgrade_restore`, and `migration_doctor`. The doctor tells a half-applied
+  MySQL/MariaDB migration apart from one that ran but wasn't recorded (#128,
+  #129). The recovery panel replaces Apply while recovery is needed.
+- **59.6 Install and upgrade rehearsals in CI** *(implemented, unreleased)*:
+  fresh native and Docker installs; a multi-release upgrade with
+  representative data; a killed upgrade recovered by restore and by resume;
+  a half-applied migration on MariaDB. Checks after each step cover login
+  with 2FA, tenant isolation, file serving, vault decryption, clean
+  migrations and a scheduler tick. Workflow:
+  `.github/workflows/install-upgrade.yml`; scripts:
+  `scripts/upgrade_rehearsal/`.
+- **59.7 LTS channel** *(planned)*: only once there is a published support
+  window and a backport policy for security fixes. Until then there is no
+  LTS.
+
 ## Sizing
 
 | Phase | Size | Estimated effort | Dependencies |
@@ -2097,6 +2144,7 @@ v3.17.658; the RMM side waits on rem0te.
 | 56 — Ticket AI Assist and RMM handoff (OPTIONAL AI) | L | in progress — analysis, drafts, compare, gateway and signed channel v3.17.646; handoffs, diagnostics, remote launch and fix review wait on rem0te | Phase 57; rem0te ticket-rmm-v1 |
 | 57 — Technician security levels and abuse prevention | L | in progress — presets, resolver, protected changes, theft detection, gateway isolation v3.17.646; why-a-technician-can view vX.Y.Z; remote grants with Phase 56.5 | none |
 | 58 — Condensed navigation | M | shipped v3.17.647 | none |
+| 59 — Verified installs and upgrades | M | in progress — channels, pinned Apply, preflight, verified backups, recovery, CI rehearsals implemented (unreleased); LTS planned | updater, root helper (release signing key), Docker entrypoint |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.
 

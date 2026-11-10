@@ -766,6 +766,19 @@ GITHUB_REPO_NAME = os.getenv('GITHUB_REPO_NAME', 'clientst0r')
 AUTO_UPDATE_ENABLED = os.getenv('AUTO_UPDATE_ENABLED', 'True').lower() == 'true'
 AUTO_UPDATE_CHECK_INTERVAL = int(os.getenv('AUTO_UPDATE_CHECK_INTERVAL', '21600'))  # 6 hours in seconds (reduced API calls)
 
+# Upgrade safety (core/upgrade/, docs/UPGRADE_AND_RECOVERY.md).
+# Pre-upgrade backups (database + uploads + keys) and the upgrade journal.
+# Owner-only; keep it on a disk with room for a full copy of the database
+# and uploads.
+UPGRADE_BACKUP_DIR = Path(os.getenv('CLIENTST0R_BACKUP_DIR', str(BASE_DIR / 'backups' / 'upgrades')))
+# Trusted release signers. Empty: /etc/clientst0r/allowed_signers (root
+# helper), else the allowed_signers committed in the installed revision.
+RELEASE_SIGNERS_FILE = os.getenv('CLIENTST0R_RELEASE_SIGNERS_FILE', '')
+# MySQL/MariaDB: scratch database the backup is restore-tested into. Empty:
+# <DB_NAME>_verify, created and dropped if the account may; otherwise a
+# structural check of the dump is done instead.
+UPGRADE_VERIFY_DB_NAME = os.getenv('CLIENTST0R_VERIFY_DB_NAME', '')
+
 # GraphQL Configuration
 GRAPHENE = {
     'SCHEMA': 'api.graphql.schema.schema',

@@ -4,7 +4,7 @@ It shows superusers a newer release than the one running, from what the
 scheduled update check stored on SystemSetting — never from a network call
 while rendering a page — and disappears once that version is running.
 """
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
@@ -41,7 +41,8 @@ class UpdateBadgeTests(TestCase):
     def _page(self, user):
         self.client.force_login(user)
         # Rendering the navbar must not reach GitHub.
-        with patch('core.updater.requests.get', side_effect=AssertionError('network call while rendering')):
+        with patch('core.upgrade.channels.requests.get',
+                   side_effect=AssertionError('network call while rendering')):
             return self.client.get(reverse('core:about')).content.decode()
 
     def test_superuser_sees_newer_release_linking_to_updates(self):
@@ -62,11 +63,15 @@ class UpdateBadgeTests(TestCase):
         self.assertNotIn('navUpdateBadge', self._page(self.plain))
 
     def test_update_check_records_the_latest_release_for_every_process(self):
+        """The badge shows the latest published (stable) release."""
+        from django.core.cache import cache
+        from core.upgrade import channels
+        cache.delete(channels.CACHE_KEY)
+        cache.delete(channels.CACHE_KEY_LAST_GOOD)
         newer = _bump(get_version(), 3)
-        tags = MagicMock(status_code=200)
-        tags.json.return_value = [{'name': f'v{newer}'}, {'name': f'v{get_version()}'}]
-        release = MagicMock(status_code=404)
-        with patch('core.updater.requests.get', side_effect=[tags, release]):
+        remote = {'stable': {'tag': f'v{newer}', 'version': newer, 'sha': 'a' * 40},
+                  'preview': None}
+        with patch('core.upgrade.channels._fetch_remote_state', return_value=remote):
             info = UpdateService().check_for_updates(force_refresh=True)
         self.assertTrue(info['update_available'])
         s = SystemSetting.objects.get(pk=1)

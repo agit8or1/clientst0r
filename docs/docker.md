@@ -247,10 +247,14 @@ docker compose up -d              # restarts on the new image
 ```
 
 The entrypoint re-runs `migrate --noinput` on every boot, so schema
-changes are applied automatically. The web update path
-(`Settings → Updates`) in the Django app **does not work in
-container** — use the commands above instead, or wire a CI hook to
-your registry.
+changes are applied automatically. When the new image brings migrations
+and the database already holds data, it first takes and verifies a
+backup (database, uploads, keys) in the `clientst0r-backups` volume, and
+does not migrate without one. Restoring, the restore-test database grant
+for stacks created before this, and the rest of the recovery steps are in
+[UPGRADE_AND_RECOVERY.md](UPGRADE_AND_RECOVERY.md#docker). The web update
+path (`Settings → Updates`) **does not apply upgrades in a container**
+(there is no git checkout), so use the commands above.
 
 ---
 

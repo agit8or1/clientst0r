@@ -16,7 +16,7 @@
 #                                          # locmem in your .env)
 #
 # Persistent volumes (clientst0r-db-data, clientst0r-media,
-# clientst0r-static) survive `docker compose down`. Use
+# clientst0r-static, clientst0r-backups) survive `docker compose down`. Use
 # `docker compose down -v` to wipe them — DESTRUCTIVE.
 #
 # Compose v2+ doesn't need a `version:` field; intentionally omitted.
@@ -43,6 +43,9 @@ services:
     volumes:
       - db_data:/var/lib/mysql
       - ./docker/mariadb/conf.d:/etc/mysql/conf.d:ro
+      # First start only: lets the app account use <DB_NAME>_verify, the
+      # scratch database the pre-upgrade backup is restore-tested into.
+      - ./docker/mariadb/initdb:/docker-entrypoint-initdb.d:ro
     networks:
       - clientst0r-net
     healthcheck:
@@ -88,10 +91,15 @@ services:
       DB_NAME: ${DB_NAME:-clientst0r}
       DB_USER: ${DB_USER:-clientst0r}
       DB_PASSWORD: ${DB_PASSWORD}
+      # Pre-upgrade backups (database dump, uploads, keys) taken before a new
+      # image migrates the database. Owner-only files; see
+      # docs/UPGRADE_AND_RECOVERY.md.
+      CLIENTST0R_BACKUP_DIR: /app/backups/upgrades
     volumes:
       - media_files:/app/media
       - static_files:/app/static_collected
       - uploads:/var/lib/itdocs/uploads
+      - backups:/app/backups
       - ./logs:/app/logs
     ports:
       - "${WEB_PORT:-8000}:8000"
@@ -224,6 +232,8 @@ volumes:
     name: clientst0r-static
   uploads:
     name: clientst0r-uploads
+  backups:
+    name: clientst0r-backups
 
 networks:
   clientst0r-net:

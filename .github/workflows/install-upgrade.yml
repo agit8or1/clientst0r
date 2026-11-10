@@ -1,0 +1,272 @@
+# Install and upgrade rehearsals on disposable runners.
+#
+#   rehearsal       scripts/upgrade_rehearsal/rehearse.sh on SQLite and MariaDB:
+#                   fresh install; upgrade v3.17.558 -> v3.17.640 -> this commit
+#                   (legacy and pinned/signed paths, refusals); an upgrade killed
+#                   mid-migration recovered by restore and by resume, and a
+#                   half-applied migration (what MySQL/MariaDB leave behind,
+#                   issues #128/#129) diagnosed and recovered
+#   native-install  the real `bash install.sh` on a clean Ubuntu runner, then the
+#                   same data/HTTP checks with 2FA required, then install.sh's
+#                   upgrade option
+#   docker-fresh    `docker compose up -d` from this commit, checks
+#   docker-upgrade  compose stack of v3.17.640 with data, then this commit's image
+#                   on the same volumes: the entrypoint must take a verified
+#                   backup before migrating; checks again
+#
+# Every check after an install or upgrade: migrate --check / showmigrations
+# clean, vault entries (passwords, TOTP secrets, secure notes) decrypt,
+# uploaded files intact and served only to their organization, tickets /
+# assets / documents present, a scheduler tick runs a task, two-factor login
+# (and 2FA-required enforcement), tenant isolation.
+name: Install and upgrade
+
+on:
+  pull_request:
+    paths:
+      - install.sh
+      - setup.py
+      - update.sh
+      - Dockerfile
+      - docker-compose.yml
+      - docker-entrypoint.sh
+      - docker/**
+      - deploy/**
+      - scripts/**
+      - core/upgrade/**
+      - core/updater.py
+      - core/management/commands/upgrade_*.py
+      - core/management/commands/migration_doctor.py
+      - requirements*.txt
+      - '**/migrations/**'
+      - .github/workflows/install-upgrade.yml
+  push:
+    branches: [main]
+    paths:
+      - install.sh
+      - setup.py
+      - update.sh
+      - Dockerfile
+      - docker-compose.yml
+      - docker-entrypoint.sh
+      - docker/**
+      - deploy/**
+      - scripts/**
+      - core/upgrade/**
+      - core/updater.py
+      - core/management/commands/upgrade_*.py
+      - core/management/commands/migration_doctor.py
+      - requirements*.txt
+      - '**/migrations/**'
+      - .github/workflows/install-upgrade.yml
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: install-upgrade-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FROM_OLDEST: v3.17.558
+  FROM_STABLE: v3.17.640
+
+jobs:
+  rehearsal:
+    name: rehearsal (${{ matrix.db }}, ${{ matrix.mode }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, mysql]
+        mode: [fresh, upgrade, interrupt]
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: rehearsal-root
+          MARIADB_DATABASE: clientst0r
+          MARIADB_USER: clientst0r
+          MARIADB_PASSWORD: rehearsal-app
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch release tags
+        run: git fetch --force --tags origin
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: System packages
+        run: |
+          sudo apt-get update -q
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+            mariadb-client libmariadb-dev pkg-config libldap2-dev libsasl2-dev
+      - name: Scratch database grants
+        if: matrix.db == 'mysql'
+        run: |
+          mysql -h127.0.0.1 -uroot -prehearsal-root -e \
+            "GRANT ALL PRIVILEGES ON \`clientst0r\`.* TO 'clientst0r'@'%';
+             GRANT ALL PRIVILEGES ON \`clientst0r_verify\`.* TO 'clientst0r'@'%'; FLUSH PRIVILEGES;"
+      - name: Rehearse
+        env:
+          REHEARSAL_WORK: ${{ runner.temp }}/rehearsal
+          REHEARSAL_DB: ${{ matrix.db }}
+          REHEARSAL_PYTHON: python3
+          REHEARSAL_MYSQL_HOST: 127.0.0.1
+          REHEARSAL_MYSQL_PORT: '3306'
+          REHEARSAL_MYSQL_USER: clientst0r
+          REHEARSAL_MYSQL_PASSWORD: rehearsal-app
+          REHEARSAL_MYSQL_DATABASE: clientst0r
+          REHEARSAL_MYSQL_ROOT_PASSWORD: rehearsal-root
+        run: |
+          case "${{ matrix.mode }}" in
+            fresh)     bash scripts/upgrade_rehearsal/rehearse.sh fresh ;;
+            upgrade)   bash scripts/upgrade_rehearsal/rehearse.sh upgrade "$FROM_OLDEST" "$FROM_STABLE" ;;
+            interrupt) bash scripts/upgrade_rehearsal/rehearse.sh interrupt "$FROM_STABLE" ;;
+          esac
+      - name: Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rehearsal-${{ matrix.db }}-${{ matrix.mode }}
+          path: ${{ runner.temp }}/rehearsal/logs
+          if-no-files-found: ignore
+
+  native-install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch release tags
+        run: git fetch --force --tags origin
+      - name: Remove the runner's preinstalled MySQL (install.sh sets up MariaDB)
+        run: |
+          sudo systemctl stop mysql || true
+          sudo DEBIAN_FRONTEND=noninteractive apt-get purge -y -q 'mysql-server*' 'mysql-client*' mysql-common || true
+          sudo rm -rf /var/lib/mysql /etc/mysql
+          sudo apt-get autoremove -y -q || true
+      - name: bash install.sh
+        env:
+          CLIENTST0R_ORG_NAME: CI Organization
+          CLIENTST0R_DEMO_FLOORPLAN: n
+        run: bash install.sh < /dev/null
+      - name: .env is owner-only
+        run: test "$(stat -c %a .env)" = 600
+      - name: Require 2FA for the checks
+        run: |
+          if grep -q '^REQUIRE_2FA=' .env; then sed -i 's/^REQUIRE_2FA=.*/REQUIRE_2FA=True/' .env; else echo 'REQUIRE_2FA=True' >> .env; fi
+          sudo systemctl restart clientst0r-gunicorn.service
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:8000/health/ && break; sleep 2; done
+      - name: Migrations clean
+        run: |
+          venv/bin/python manage.py migrate --check
+          ! venv/bin/python manage.py showmigrations --plan | grep -q '^\[ \]'
+      - name: Seed, verify, smoke
+        run: |
+          export REHEARSAL_STATE="$RUNNER_TEMP/state.json"
+          venv/bin/python manage.py shell -c "exec(open('scripts/upgrade_rehearsal/seed.py').read())"
+          venv/bin/python manage.py shell -c "exec(open('scripts/upgrade_rehearsal/verify_data.py').read())"
+          venv/bin/python scripts/upgrade_rehearsal/http_smoke.py --base http://127.0.0.1:8000 \
+            --state "$REHEARSAL_STATE" --require-2fa \
+            --expect-version "$(venv/bin/python -c 'from config.version import VERSION; print(VERSION)')"
+      - name: Scheduler timer installed and running a tick
+        run: |
+          systemctl list-timers --all | grep clientst0r-scheduler
+          sudo systemctl start clientst0r-scheduler.service
+          sudo journalctl -u clientst0r-scheduler.service -n 30 --no-pager
+      - name: Verified backup on a native MariaDB install
+        run: |
+          venv/bin/python manage.py upgrade_backup --reason ci | tee "$RUNNER_TEMP/backup.log"
+          grep -q 'Backup verified (restore-test)' "$RUNNER_TEMP/backup.log"
+          d=$(ls -d backups/upgrades/snapshot-* | tail -1)
+          test "$(stat -c %a "$d")" = 700
+          for f in "$d"/*; do test "$(stat -c %a "$f")" = 600; done
+      - name: install.sh upgrade option (verified pipeline; nothing newer on Stable is fine)
+        run: |
+          printf '1\nn\n' | bash install.sh | tee "$RUNNER_TEMP/upgrade.log"
+          grep -Eq 'Nothing newer|Upgrade complete|Not applied' "$RUNNER_TEMP/upgrade.log"
+          ! grep -q 'makemigrations' "$RUNNER_TEMP/upgrade.log"
+      - name: Logs
+        if: always()
+        run: |
+          sudo journalctl -u clientst0r-gunicorn.service -n 200 --no-pager || true
+          sudo tail -n 100 /var/log/itdocs/gunicorn-error.log || true
+
+  docker-fresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate .env
+        run: bash scripts/upgrade_rehearsal/ci_docker_env.sh > .env && chmod 600 .env
+      - name: docker compose up
+        env:
+          CLIENTST0R_IMAGE: clientst0r-ci:head
+        run: |
+          docker compose up -d --build
+          bash scripts/upgrade_rehearsal/ci_docker_wait.sh
+      - name: Checks
+        run: bash scripts/upgrade_rehearsal/ci_docker_checks.sh seed
+      - name: Verified backup (restore test into the scratch database the initdb script grants)
+        run: |
+          docker exec clientst0r-app python manage.py upgrade_backup --reason ci | tee "$RUNNER_TEMP/backup.log"
+          grep -q 'Backup verified (restore-test)' "$RUNNER_TEMP/backup.log"
+      - name: Logs
+        if: always()
+        run: docker compose logs --no-color --tail=300 app db || true
+
+  docker-upgrade:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch release tags
+        run: git fetch --force --tags origin
+      - name: Generate .env
+        run: bash scripts/upgrade_rehearsal/ci_docker_env.sh > .env && chmod 600 .env
+      - name: Start ${{ env.FROM_STABLE }} with its own compose file
+        env:
+          CLIENTST0R_IMAGE: clientst0r-ci:old
+        run: |
+          git worktree add "$RUNNER_TEMP/old" "$FROM_STABLE"
+          cp .env "$RUNNER_TEMP/old/.env"
+          (cd "$RUNNER_TEMP/old" && docker compose up -d --build)
+          bash scripts/upgrade_rehearsal/ci_docker_wait.sh
+      - name: Seed and check on ${{ env.FROM_STABLE }}
+        run: bash scripts/upgrade_rehearsal/ci_docker_checks.sh seed
+      - name: Grant the restore-test database (documented step for existing stacks)
+        run: |
+          set -a; . ./.env; set +a
+          docker exec clientst0r-db mariadb -uroot -p"$DB_ROOT_PASSWORD" -e \
+            "GRANT ALL PRIVILEGES ON \`clientst0r_verify\`.* TO 'clientst0r'@'%'; FLUSH PRIVILEGES;"
+      - name: Upgrade to this commit's image on the same volumes
+        env:
+          CLIENTST0R_IMAGE: clientst0r-ci:head
+        run: |
+          (cd "$RUNNER_TEMP/old" && docker compose down)
+          docker compose up -d --build
+          bash scripts/upgrade_rehearsal/ci_docker_wait.sh
+          docker compose logs --no-color app | tee "$RUNNER_TEMP/app.log"
+          grep -q 'Backup verified (restore-test)' "$RUNNER_TEMP/app.log"
+      - name: Checks after the upgrade
+        run: bash scripts/upgrade_rehearsal/ci_docker_checks.sh verify
+      - name: Backup is owner-only inside the backups volume
+        run: |
+          docker compose exec -T app sh -c 'd=$(ls -d /app/backups/upgrades/snapshot-* | tail -1); stat -c "%a %n" "$d" "$d"/*' | tee "$RUNNER_TEMP/perms.txt"
+          ! grep -vE '^(700|600) ' "$RUNNER_TEMP/perms.txt"
+      - name: Logs
+        if: always()
+        run: docker compose logs --no-color --tail=300 app db || true

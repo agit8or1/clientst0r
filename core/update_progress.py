@@ -21,13 +21,13 @@ class UpdateProgress:
         # Store progress in /tmp which persists across gunicorn restarts
         self.progress_file = Path(f'/tmp/clientst0r_update_progress_{update_id}.json')
 
-    def start(self):
+    def start(self, total_steps=5):
         """Initialize progress tracking."""
         self.set_progress({
             'status': 'running',
             'current_step': '',
             'steps_completed': [],
-            'total_steps': 5,
+            'total_steps': total_steps,
             'logs': [],
             'started_at': time.time()
         })

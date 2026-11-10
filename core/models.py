@@ -1043,6 +1043,14 @@ class SystemSetting(models.Model):
     latest_release_version = models.CharField(max_length=32, blank=True, default='')
     latest_release_checked_at = models.DateTimeField(null=True, blank=True)
 
+    # Release channel (core/upgrade/channels.py). Stable installs signed,
+    # published releases only; Preview also offers unreleased commits on main.
+    UPDATE_CHANNEL_CHOICES = [
+        ('stable', 'Stable: latest signed published release'),
+        ('preview', 'Preview: newest commit on main (unreleased)'),
+    ]
+    update_channel = models.CharField(max_length=10, choices=UPDATE_CHANNEL_CHOICES, default='stable')
+
     # Metadata
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='system_settings_updates')

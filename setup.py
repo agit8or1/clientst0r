@@ -18,6 +18,17 @@ from django.db import IntegrityError
 from django.utils.text import slugify
 
 
+def _ask(prompt, default=''):
+    """input() that does not crash when stdin is closed (unattended runs)."""
+    try:
+        return input(prompt).strip()
+    except EOFError:
+        if default:
+            return default
+        print("\n❌ No answer (stdin closed). Set CLIENTST0R_ORG_NAME for unattended installs.")
+        sys.exit(1)
+
+
 def setup_organization():
     """Create default organization with user input."""
     print("\n" + "="*60)
@@ -31,13 +42,18 @@ def setup_organization():
         print(f"  Default organization: {org.name}")
         return org
 
-    # Ask for business name
+    # Ask for business name (CLIENTST0R_ORG_NAME answers it for unattended
+    # installs, e.g. CI or provisioning scripts)
     print("Let's create your organization...")
-    business_name = input("\nBusiness Name (Organization): ").strip()
+    business_name = os.environ.get('CLIENTST0R_ORG_NAME', '').strip()
+    if business_name:
+        print(f"\nBusiness Name (Organization): {business_name}  (from CLIENTST0R_ORG_NAME)")
+    else:
+        business_name = _ask("\nBusiness Name (Organization): ")
 
     while not business_name:
         print("❌ Business name cannot be empty")
-        business_name = input("Business Name (Organization): ").strip()
+        business_name = _ask("Business Name (Organization): ")
 
     # Generate slug
     slug = slugify(business_name)
@@ -70,7 +86,9 @@ def create_demo_floorplan(org):
     from django.core.management import call_command
 
     print("\n" + "-"*60)
-    create_demo = input("Create demo office floor plan? (y/n) [y]: ").strip().lower()
+    create_demo = os.environ.get('CLIENTST0R_DEMO_FLOORPLAN', '').strip().lower()
+    if not create_demo:
+        create_demo = _ask("Create demo office floor plan? (y/n) [y]: ", default='y').lower()
 
     if create_demo in ['', 'y', 'yes']:
         print("\nCreating demo office floor plan...")
