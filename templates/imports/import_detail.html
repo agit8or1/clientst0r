@@ -45,6 +45,12 @@
         </div>
     </div>
 
+    {% if job.rehearsal_plan %}
+    <div class="alert alert-info">
+        This job is a one-customer migration rehearsal. Review, apply and roll it back from
+        <a href="{% url 'imports:rehearsal_detail' job.rehearsal_plan.pk %}">rehearsal #{{ job.rehearsal_plan.pk }}</a>.
+    </div>
+    {% endif %}
     <div class="row">
         <div class="col-md-8">
             <!-- Status Card -->

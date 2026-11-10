@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Rehearsal #{{ plan.pk }} record - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1><i class="fas fa-vial"></i> {{ item.display_name|default:"(no name)" }}</h1>
+    <nav aria-label="breadcrumb"><ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'imports:rehearsal_list' %}">Rehearsals</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'imports:rehearsal_detail' plan.pk %}">#{{ plan.pk }}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'imports:rehearsal_items' plan.pk %}?kind={{ item.target_kind }}">Records</a></li>
+        <li class="breadcrumb-item active">{{ item.source_type }} {{ item.source_id }}</li>
+    </ol></nav>
+    <p>Source <code>{{ item.source_type }} {{ item.source_id }}</code> &rarr; {{ spec.model_name }} ({{ item.target_kind }}).
+        Category <span class="badge bg-secondary">{{ item.category }}</span>, action <strong>{{ item.get_action_display }}</strong>{% if item.target_id %} on #{{ item.target_id }}{% endif %}.
+        {% if item.reason %}<br><span class="text-muted">{{ item.reason }}</span>{% endif %}</p>
+
+    <div class="row">
+        <div class="col-xl-7">
+            <div class="card mb-3">
+                <div class="card-header"><h5 class="mb-0">Proposed vs current</h5></div>
+                <div class="card-body table-responsive">
+                    <form method="post">{% csrf_token %}
+                    <table class="table table-sm">
+                        <thead><tr><th>Field</th><th>Proposed (from source)</th><th>Current ClientSt0r value{% if target %} (#{{ target.pk }}){% endif %}</th><th>Override</th></tr></thead>
+                        <tbody>
+                        {% for row in rows %}
+                        <tr {% if row.changed %}class="table-warning"{% endif %}>
+                            <td><code>{{ row.name }}</code></td>
+                            <td class="small text-break">{{ row.proposed|truncatechars:300 }}</td>
+                            <td class="small text-break">{{ row.current|truncatechars:300 }}</td>
+                            <td>{% if row.editable and can_edit %}<input class="form-control form-control-sm" name="field_{{ row.name }}" value="{{ row.override }}" placeholder="keep">{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                    {% if item.skipped_fields %}<p class="small text-muted">Not imported: {{ item.skipped_fields|join:", " }}</p>{% endif %}
+                    {% if can_edit %}
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4"><label class="form-label small">Action</label>
+                            <select name="action" class="form-select form-select-sm">{% for value, label in actions %}<option value="{{ value }}" {% if value == item.action %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                        <div class="col-md-3"><label class="form-label small">Existing record ID (map / update)</label>
+                            <input class="form-control form-control-sm" name="target_id" value="{{ item.target_id|default:'' }}" list="candidates"></div>
+                        <datalist id="candidates">{% for c in item.candidates %}<option value="{{ c.id }}">{{ c.label }}</option>{% endfor %}</datalist>
+                        <div class="col-md-5"><label class="form-label small">Note</label><input class="form-control form-control-sm" name="note" value="{{ item.correction_note }}"></div>
+                    </div>
+                    {% if item.candidates %}<p class="small mt-2 mb-0">Candidates in this customer: {% for c in item.candidates %}#{{ c.id }} {{ c.label }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+                    <button class="btn btn-primary btn-sm mt-3" type="submit">Save correction</button>
+                    {% else %}
+                    <p class="small text-muted">This plan can no longer be changed.</p>
+                    {% endif %}
+                    </form>
+                </div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-header"><h5 class="mb-0">Links</h5></div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                    {% for l in item.links %}
+                        <li><strong>{{ l.role }}</strong> &rarr; {{ l.source_type }} {{ l.source_id }}: {{ l.status }}{% if l.target_kind %} ({{ l.target_kind }}{% if l.target_id %} #{{ l.target_id }}{% endif %}){% endif %}{% if l.reason %} &mdash; <span class="text-danger">{{ l.reason }}</span>{% endif %}</li>
+                    {% empty %}<li class="text-muted">None</li>{% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-5">
+            <div class="card mb-3">
+                <div class="card-header"><h5 class="mb-0">Source record (secrets removed)</h5></div>
+                <div class="card-body"><pre class="small mb-0" style="max-height: 600px; overflow: auto;">{{ source_json }}</pre></div>
+            </div>
+            {% if item.outcome != 'pending' %}
+            <div class="card mb-3"><div class="card-body small">Outcome: <strong>{{ item.outcome }}</strong>{% if item.result_target_id %} &rarr; #{{ item.result_target_id }}{% endif %}{% if item.outcome_message %}<br>{{ item.outcome_message }}{% endif %}</div></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

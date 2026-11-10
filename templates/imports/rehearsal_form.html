@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}New Migration Rehearsal - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1><i class="fas fa-vial"></i> New migration rehearsal</h1>
+    <nav aria-label="breadcrumb"><ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'imports:rehearsal_list' %}">Rehearsals</a></li>
+        <li class="breadcrumb-item active">New</li>
+    </ol></nav>
+    <div class="card" style="max-width: 760px;">
+        <div class="card-body">
+            <p class="text-muted">One source organization goes to one ClientSt0r customer. Creating the rehearsal and fetching the source data writes nothing to the customer.</p>
+            <form method="post">
+                {% csrf_token %}
+                {% for field in form %}
+                <div class="mb-3">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                    {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-primary">Create rehearsal</button>
+                <a href="{% url 'imports:rehearsal_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

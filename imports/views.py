@@ -113,6 +113,9 @@ def import_edit(request, pk):
     """Edit import job (only if not started)."""
     job = get_object_or_404(ImportJob, pk=pk)
 
+    if job.rehearsal_plan is not None:
+        return redirect('imports:rehearsal_detail', pk=job.rehearsal_plan.pk)
+
     if job.status != 'pending':
         messages.error(request, 'Cannot edit import job that has already started.')
         return redirect('imports:import_detail', pk=job.pk)
@@ -184,6 +187,14 @@ def import_rollback(request, pk):
             # Perform rollback (atomic; partial outcomes are reported)
             stats = job.rollback(request.user)
             report_rollback_outcome(request, stats)
+            from audit.models import AuditLog
+            from core.client_ip import get_client_ip
+            AuditLog.log(user=request.user, action='delete', organization=job.target_organization,
+                         object_type='import_job', object_id=job.pk, object_repr=str(job)[:255],
+                         description=('Rolled back import job' if stats.get('complete')
+                                      else 'Partially rolled back import job'),
+                         ip_address=get_client_ip(request), path=request.path,
+                         extra_data={'total_deleted': stats.get('total_deleted', 0)})
             return redirect('imports:import_detail', pk=job.pk)
 
         except Exception as e:
@@ -205,6 +216,10 @@ def import_rollback(request, pk):
 def import_start(request, pk):
     """Start an import job."""
     job = get_object_or_404(ImportJob, pk=pk)
+
+    if job.rehearsal_plan is not None:
+        # Rehearsal jobs are applied from their reviewed plan only.
+        return redirect('imports:rehearsal_detail', pk=job.rehearsal_plan.pk)
 
     if job.status not in ['pending', 'failed']:
         messages.error(request, f'Cannot start import job with status: {job.get_status_display()}')
@@ -238,6 +253,9 @@ def import_promote(request, pk):
     then redirects to the start page so the user can confirm and run it.
     """
     job = get_object_or_404(ImportJob, pk=pk)
+
+    if job.rehearsal_plan is not None:
+        return redirect('imports:rehearsal_detail', pk=job.rehearsal_plan.pk)
 
     if not (job.status in ImportJob.SUCCESS_STATUSES and job.dry_run):
         messages.error(request, 'Only completed dry-run jobs can be promoted to an actual import.')
