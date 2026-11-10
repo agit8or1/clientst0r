@@ -78,6 +78,9 @@ class Stager:
         self.unavailable = []
         self.records = {}  # (source_type, source_id) -> dict
         self.staged_bytes = 0
+        # Called between requests by the background runner: keeps the
+        # task lease alive and reports progress; raises if the lease is lost.
+        self.heartbeat = lambda message='': None
 
     # -- helpers ----------------------------------------------------------
     def auth_headers(self):
@@ -99,6 +102,7 @@ class Stager:
 
     def collect(self, source_type, fn):
         """Run one endpoint, recording it as unavailable instead of failing."""
+        self.heartbeat(f'fetching {source_type} ({len(self.records)} records so far)')
         try:
             return fn()
         except SourceUnavailable as exc:
@@ -121,6 +125,7 @@ class Stager:
             return None, '', 'staging size limit reached'
         if not url:
             return None, '', 'source did not provide a download URL'
+        self.heartbeat(f'downloading attachment {file_name}')
         try:
             content, ctype = self.transport.get_bytes(url, cap)
         except DownloadRejected as exc:
@@ -153,6 +158,7 @@ class Stager:
     def stage(self):
         """Fetch everything, then replace the plan's staging in one transaction."""
         org_name = self.fetch()
+        self.heartbeat(f'saving {len(self.records)} staged records')
         plan = self.plan
         with transaction.atomic():
             plan.delete_staged_files()

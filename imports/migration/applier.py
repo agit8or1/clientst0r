@@ -233,8 +233,15 @@ def _apply_item(plan, item, user):
     item.save(update_fields=['outcome', 'result_target_id', 'outcome_message', 'applied_at'])
 
 
-def apply_plan(plan, user):
-    """Apply (or resume applying) a reviewed plan. Returns a counts dict."""
+def apply_plan(plan, user, heartbeat=None, deadline=None):
+    """Apply (or resume applying) a reviewed plan. Returns a counts dict.
+
+    ``heartbeat(done, total)`` is called before each item (the background
+    runner uses it to keep its lease and report progress; it raises to stop).
+    With ``deadline`` (a ``time.monotonic()`` value) the run stops between
+    items once it is reached and returns ``{'paused': True, ...}``; the plan
+    stays "applying" and the next run resumes it."""
+    import time
     if plan.status not in APPLY_STATUSES:
         raise PlanError(f'a plan in status "{plan.get_status_display()}" cannot be applied')
     if plan.organization is None:
@@ -251,8 +258,21 @@ def apply_plan(plan, user):
     job.save(update_fields=['dry_run', 'status', 'started_at'])
     job.add_log(f'Applying reviewed plan (attempt {plan.apply_attempts})')
 
-    pending = plan.items.exclude(outcome__in=('applied', 'skipped')).select_related('staged')
-    for item in pending.order_by('order', 'id'):
+    pending = list(plan.items.exclude(outcome__in=('applied', 'skipped'))
+                   .select_related('staged').order_by('order', 'id'))
+    total = plan.items.count()
+    done = total - len(pending)
+    processed = 0
+    for item in pending:
+        if heartbeat is not None:
+            heartbeat(done, total)
+        if deadline is not None and processed and time.monotonic() >= deadline:
+            return {'paused': True, 'done': done, 'total': total}
+        done += 1
+        processed += 1
+        # Another worker may have applied it meanwhile (lease taken over).
+        if type(item).objects.filter(pk=item.pk, outcome__in=('applied', 'skipped')).exists():
+            continue
         if item.action == 'skip':
             item.outcome = 'skipped'
             item.outcome_message = item.reason
@@ -260,6 +280,11 @@ def apply_plan(plan, user):
             continue
         try:
             with transaction.atomic():
+                # Row lock (where the database supports it) so two workers
+                # can never write the same item.
+                locked = type(item).objects.select_for_update().get(pk=item.pk)
+                if locked.outcome == 'applied':
+                    continue
                 _apply_item(plan, item, user)
         except Exception as exc:  # noqa: BLE001 - recorded per item, run continues
             secrets = list((item.staged.secret_data or {}).values()) if item.staged_id else []

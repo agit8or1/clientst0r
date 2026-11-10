@@ -491,6 +491,28 @@ class MigrationPlan(BaseModel):
     # Type-level mapping corrections, e.g. {"hudu_layouts": {"People": "contact"}}
     type_overrides = models.JSONField(default=dict, blank=True)
 
+    # Background work (imports.migration.tasks): fetch / build / apply /
+    # rollback run in the scheduler, never in the web request. One task per
+    # plan at a time; a running task holds a lease (token + heartbeat) that
+    # another worker may take over only once the heartbeat is stale.
+    TASK_ACTIONS = [('stage', 'Fetch source data and build plan'), ('build', 'Rebuild plan'),
+                    ('apply', 'Apply reviewed plan'), ('rollback', 'Roll back')]
+    TASK_STATES = [('idle', 'Idle'), ('queued', 'Queued'), ('running', 'Running'),
+                   ('done', 'Finished'), ('failed', 'Failed')]
+    task_action = models.CharField(max_length=10, choices=TASK_ACTIONS, blank=True)
+    task_state = models.CharField(max_length=10, choices=TASK_STATES, default='idle')
+    task_requested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                          related_name='+')
+    task_queued_at = models.DateTimeField(null=True, blank=True)
+    task_started_at = models.DateTimeField(null=True, blank=True)
+    task_heartbeat_at = models.DateTimeField(null=True, blank=True)
+    task_finished_at = models.DateTimeField(null=True, blank=True)
+    task_lease = models.CharField(max_length=64, blank=True)
+    task_attempts = models.PositiveIntegerField(default=0)
+    task_progress = models.JSONField(default=dict, blank=True)
+    task_error = models.TextField(blank=True)
+    task_result = models.JSONField(default=dict, blank=True)
+
     class Meta:
         db_table = 'import_migration_plans'
         ordering = ['-created_at']
