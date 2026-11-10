@@ -234,3 +234,14 @@ Re-push anyway?">
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+{# Customer operations' "Send reminder" links here with #send-reminder: open the email form. #}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function () {
+    if (window.location.hash !== '#send-reminder' || !window.bootstrap) return;
+    var el = document.getElementById('emailInvoiceModal');
+    if (el) bootstrap.Modal.getOrCreateInstance(el).show();
+});
+</script>
+{% endblock %}

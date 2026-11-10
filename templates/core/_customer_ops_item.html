@@ -1,0 +1,17 @@
+{% comment %}One row of a customer operations section. Context: item.{% endcomment %}
+<li class="list-group-item d-flex flex-wrap align-items-start gap-2 customer-ops-item" data-severity="{{ item.severity }}">
+    <span class="badge {% if item.severity == 'danger' %}bg-danger{% elif item.severity == 'warning' %}bg-warning text-dark{% else %}bg-secondary{% endif %} mt-1">
+        {% if item.severity == 'danger' %}Act now{% elif item.severity == 'warning' %}Soon{% else %}Info{% endif %}
+    </span>
+    <div class="flex-grow-1 min-w-0">
+        <div class="fw-semibold text-break">{{ item.title }}</div>
+        <div class="small text-muted text-break">{{ item.detail }}</div>
+    </div>
+    {% if item.actions %}
+    <div class="d-flex flex-wrap gap-1">
+        {% for action in item.actions %}{% if action.url %}
+        <a class="btn btn-sm btn-outline-primary" href="{{ action.url }}">{% if action.icon %}<i class="fas {{ action.icon }}" aria-hidden="true"></i> {% endif %}{{ action.label }}</a>
+        {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+</li>

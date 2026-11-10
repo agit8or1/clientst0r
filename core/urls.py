@@ -15,12 +15,19 @@ from . import webhook_views
 from . import security_views
 from . import help_views
 from . import client_switcher
+from . import customer_ops_views
 
 app_name = 'core'
 
 urlpatterns = [
     path('clients/switcher-search/', client_switcher.client_switcher_search, name='client_switcher_search'),
     path('dashboard/', dashboard_views.dashboard, name='dashboard'),
+    # Customer operations: SLA risks, uptime, renewals, overdue invoices,
+    # aging assets for one customer (core/customer_ops.py).
+    path('customers/operations/', customer_ops_views.customer_ops_current, name='customer_ops_current'),
+    path('customers/<int:org_id>/operations/', customer_ops_views.customer_ops, name='customer_ops'),
+    path('customers/<int:org_id>/operations/<slug:section>/', customer_ops_views.customer_ops_section,
+         name='customer_ops_section'),
     path('global-dashboard/', dashboard_views.global_dashboard, name='global_dashboard'),
     path('documentation/', views.documentation, name='documentation'),
     path('about/', views.about, name='about'),

@@ -30,6 +30,10 @@
         <a href="{% url 'accounts:organization_list' %}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left"></i> Back to list
         </a>
+        <a href="{% url 'core:customer_ops' organization.id %}" class="btn btn-outline-secondary"
+           title="SLA risks, uptime incidents, contract renewals, overdue invoices and aging assets for this customer">
+            <i class="fas fa-binoculars"></i> Operations
+        </a>
         {% if user_membership.role == 'owner' or user_membership.role == 'admin' or user.is_superuser or user.is_staff %}
         <a href="{% url 'compliance:evidence_pack' organization.id %}" class="btn btn-outline-secondary"
            title="One-click compliance evidence packet — 2FA status, user access, password access history, asset inventory, ticket/SLA history">

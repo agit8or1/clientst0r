@@ -688,6 +688,26 @@ def ticket_create(request):
             if (linked is not None and linked.organization_id == alert.device.organization_id
                     and alert.device.link_status in (RMMDevice.LINK_AUTO, RMMDevice.LINK_CONFIRMED)):
                 preselected_asset_id = linked.pk
+    # From customer operations ("Plan replacement", "Open ticket"):
+    # ?asset=<id> preselects that asset and its customer, only when the
+    # customer is one this user may file for and their role there includes
+    # assets_view; ?subject= prefills the subject. Nothing is saved.
+    from core.prefill import text_param
+    asset_param = (request.GET.get('asset') or '').strip()
+    if not alert_id and asset_param.isdigit() and len(asset_param) <= 12:
+        from accounts.permission_utils import has_perm_for_org
+        from assets.models import Asset as _Asset
+        asset = (_Asset.objects.filter(pk=int(asset_param), organization__in=eligible_clients)
+                 .select_related('organization').first())
+        if asset is not None and has_perm_for_org(request.user, asset.organization, 'assets_view'):
+            preselected_id = asset.organization_id
+            preselected_asset_id = asset.pk
+    client_param = (request.GET.get('client') or '').strip()
+    if (not alert_id and preselected_asset_id is None and client_param.isdigit()
+            and len(client_param) <= 12 and eligible_clients.filter(id=int(client_param)).exists()):
+        preselected_id = int(client_param)
+    if not prefill_subject:
+        prefill_subject = text_param(request, 'subject', max_length=300)
     from assets.models import Asset
     client_assets = (list(Asset.objects.filter(organization_id=preselected_id).order_by('name')
                           .only('id', 'name', 'hostname')[:500]) if preselected_id else [])
