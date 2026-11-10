@@ -127,7 +127,9 @@
                     var first = results && !results.hidden && results.querySelector('.dropdown-item');
                     if (first && input.value.trim() === lastQuery) {
                         ev.preventDefault();
-                        window.location.href = first.href;
+                        // A click rather than a location change, so the
+                        // unsaved-changes guard (form_guard.js) sees it.
+                        first.click();
                     }
                 }
             });
