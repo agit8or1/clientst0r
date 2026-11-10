@@ -102,6 +102,8 @@ logs/
 
 # Certificates and keys
 *.pem
+# Rem0te's contract fixtures: public test keys only
+!integrations/rem0te/contract/fixtures/*.pub.pem
 *.key
 *.crt
 *.cer

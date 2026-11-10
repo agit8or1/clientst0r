@@ -215,6 +215,11 @@ def _asset_photo(user, asset):
     return bool(set(allowed) & (descendant_org_ids(asset.organization_id) - {asset.organization_id}))
 
 
+def _never(user, obj):
+    """Files that are never served over HTTP."""
+    return False
+
+
 def _profile_owner_or_staff(user, profile):
     return profile.user_id == user.pk or is_msp_staff(user)
 
@@ -271,6 +276,8 @@ MEDIA_REGISTRY = (
     MediaRule('assets.Asset', 'photo', _asset_photo, ('assets/photos/',)),
     # Imports, racks, reports
     MediaRule('imports.ImportJob', 'source_file', _staff_only, ('imports/',)),
+    # Migration rehearsal staging: source attachments held until apply; never served.
+    MediaRule('imports.StagedRecord', 'blob', _never, ('imports/staging/',)),
     MediaRule('monitoring.Rack', 'closet_diagram', _rack, ('rack_diagrams/',)),
     MediaRule('monitoring.RackDevice', 'photo', _rack_child, ('rack_devices/',)),
     MediaRule('monitoring.RackResource', 'photo', _rack_child, ('rack_resources/',)),
