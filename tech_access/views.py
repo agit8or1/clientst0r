@@ -51,8 +51,22 @@ def _expiry(value):
     return dt
 
 
-def _caps_from_post(post):
-    return catalog.clean_capabilities({k: post.get(f'cap_{k}', catalog.OFF) for k in catalog.OPTIONAL})
+def _caps_from_post(post, current):
+    """The posted capability map. A capability the POST does not carry keeps
+    its current state: a partial submission is not a request to switch
+    everything it left out to Off. Each select always posts its value, so
+    choosing Off still posts `off`."""
+    current = catalog.clean_capabilities(current)
+    return catalog.clean_capabilities({k: post.get(f'cap_{k}', current.get(k, catalog.OFF))
+                                       for k in catalog.OPTIONAL})
+
+
+def _require_rendered(post, sentinel, what):
+    """Multi-selects and checkbox groups post nothing when emptied, so
+    "nothing posted" only means "clear" when the form's hidden `sentinel`
+    shows the control was rendered and submitted."""
+    if sentinel not in post:
+        raise ValueError(f'{what} were not part of the submission; nothing was changed.')
 
 
 def _report_change(request, change, applied_text):
@@ -146,7 +160,7 @@ def _handle(request):
             messages.success(request, f'Created {clone.name}. Edit it below.')
         elif action in ('preview_preset', 'save_preset'):
             preset = get_object_or_404(AccessPreset, pk=p.get('preset'))
-            caps = _caps_from_post(p)
+            caps = _caps_from_post(p, preset.capabilities)
             if action == 'preview_preset':
                 return render(request, 'tech_access/index.html', _context(
                     request, preset_plan=services.plan_preset_change(preset, caps), preset_edit=preset,
@@ -164,14 +178,24 @@ def _handle(request):
                 messages.success(request, f'Group {name} created.')
         elif action == 'group_members':
             group = get_object_or_404(TechnicianGroup, pk=p.get('group'))
+            _require_rendered(p, 'members_present', 'Group members')
             users = [_user(pk) for pk in p.getlist('members')]
             applied, change, _ = services.set_group_members(group, users, me, request)
             _report_change(request, change, f'Members of {group.name} updated.')
         elif action == 'customer_policy':
             org = get_object_or_404(Organization, pk=p.get('organization'))
-            preset = AccessPreset.objects.filter(pk=p.get('default_preset')).first() if p.get('default_preset') else None
-            services.set_default_preset(org, preset, me)
-            change = services.set_restrictions(org, p.getlist('restricted'), me, request)
+            # Each part is applied only when the POST carries it: a missing
+            # default preset is not "reset to L1", and a missing restriction
+            # list is not "lift every restriction".
+            if 'default_preset' in p:
+                raw = p.get('default_preset')
+                preset = AccessPreset.objects.filter(pk=raw).first() if str(raw).isdigit() else None
+                if raw and preset is None:
+                    raise ValueError('Unknown preset.')
+                services.set_default_preset(org, preset, me)
+            change = None
+            if 'restricted_present' in p:
+                change = services.set_restrictions(org, p.getlist('restricted'), me, request)
             _report_change(request, change, f'Settings for {org.name} saved.')
         elif action == 'add_deny':
             u = _user(p.get('user'))
@@ -195,11 +219,19 @@ def _handle(request):
                              cancel=action == 'cancel_change')
             messages.success(request, 'Done.')
         elif action == 'detection':
-            values = {'enabled': p.get('enabled') == 'on', 'notify_customers': p.get('notify_customers') == 'on',
-                      'recipients': p.get('recipients', ''),
+            # Anything the POST does not carry keeps its current setting: the
+            # two checkboxes only read as "off" when `detection_flags` shows
+            # they were rendered, and a missing containment mode is not
+            # "contain".
+            current = DetectionSettings.load()
+            flags = 'detection_flags' in p
+            values = {'enabled': (p.get('enabled') == 'on') if flags else current.enabled,
+                      'notify_customers': (p.get('notify_customers') == 'on') if flags else current.notify_customers,
+                      'recipients': p.get('recipients', current.recipients),
                       'thresholds': {r: {w: int(p.get(f't_{r}_{w}') or v) for w, v in ws.items()}
                                      for r, ws in detection.thresholds().items()},
-                      'containment': {lvl: ('alert' if p.get(f'c_{lvl}') == 'alert' else 'contain')
+                      'containment': {lvl: (p.get(f'c_{lvl}') if p.get(f'c_{lvl}') in ('alert', 'contain')
+                                            else detection.containment_mode(lvl))
                                       for lvl in ('0', '1', '2', '3')}}
             change = services.propose_detection(values, me, request)
             _report_change(request, change, 'Theft detection settings saved.')
@@ -218,6 +250,7 @@ def _handle(request):
                 acknowledged_by=me, acknowledged_at=timezone.now())
         elif action == 'approvers':
             User = get_user_model()
+            _require_rendered(p, 'approvers_present', 'Approvers')
             current = set(ProtectionSettings.load().approvers.values_list('pk', flat=True))
             want = set(User.objects.filter(pk__in=p.getlist('approvers'), is_superuser=True,
                                            is_active=True).values_list('pk', flat=True))

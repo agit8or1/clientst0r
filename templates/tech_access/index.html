@@ -190,7 +190,7 @@
             <div class="card-header"><strong>Groups</strong></div>
             <div class="card-body small">
                 {% for g in groups %}
-                <form method="post" class="border rounded p-2 mb-2">{% csrf_token %}<input type="hidden" name="action" value="group_members"><input type="hidden" name="group" value="{{ g.pk }}"><input type="hidden" name="section" value="groups">
+                <form method="post" class="border rounded p-2 mb-2">{% csrf_token %}<input type="hidden" name="action" value="group_members"><input type="hidden" name="group" value="{{ g.pk }}"><input type="hidden" name="members_present" value="1"><input type="hidden" name="section" value="groups">
                     <strong>{{ g.name }}</strong>
                     <select name="members" multiple class="form-select form-select-sm my-1" size="4">{% for u in technicians %}<option value="{{ u.pk }}" {% if u in g.members.all %}selected{% endif %}>{{ u.username }}</option>{% endfor %}</select>
                     <button class="btn btn-sm btn-outline-primary">Save members</button>
@@ -208,7 +208,7 @@
                 <p class="text-muted">The default preset is offered first when assigning at that customer (L1 if unset). A restriction switches a capability off there for every technician and always wins.</p>
                 {% for o in organizations %}{% with pol=policies|get:o.pk %}
                 <details class="mb-1"><summary>{{ o.name }}{% if pol.restricted %} — {{ pol.restricted|length }} restricted{% endif %}{% if pol.default_preset %} — default {{ pol.default_preset.name }}{% endif %}</summary>
-                    <form method="post" class="p-2">{% csrf_token %}<input type="hidden" name="action" value="customer_policy"><input type="hidden" name="organization" value="{{ o.pk }}"><input type="hidden" name="section" value="customers">
+                    <form method="post" class="p-2">{% csrf_token %}<input type="hidden" name="action" value="customer_policy"><input type="hidden" name="organization" value="{{ o.pk }}"><input type="hidden" name="restricted_present" value="1"><input type="hidden" name="section" value="customers">
                         <label class="form-label">Default preset</label>
                         <select name="default_preset" class="form-select form-select-sm w-auto mb-2"><option value="">L1 (built in)</option>{% for p in presets %}<option value="{{ p.pk }}" {% if pol.default_preset_id == p.pk %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
                         <div class="row row-cols-1 row-cols-md-2">{% for row in catalog_optional %}
@@ -246,7 +246,7 @@
                 {% if containments %}<div class="alert alert-danger py-2"><strong>Contained now:</strong>
                     {% for c in containments %}<div>{{ c.user.username }} — {{ c.reason }} ({{ c.created_at|timesince }} ago)
                         <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="lift_containment"><input type="hidden" name="containment" value="{{ c.pk }}"><input type="hidden" name="section" value="detection"><button class="btn btn-sm btn-outline-light" {% if not fresh_auth %}disabled title="Confirm your password above first"{% endif %}>Lift</button></form></div>{% endfor %}</div>{% endif %}
-                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="detection"><input type="hidden" name="section" value="detection">
+                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="detection"><input type="hidden" name="section" value="detection"><input type="hidden" name="detection_flags" value="1">
                     <label class="me-3"><input type="checkbox" name="enabled" {% if detection.enabled %}checked{% endif %}> Enabled</label>
                     <label><input type="checkbox" name="notify_customers" {% if detection.notify_customers %}checked{% endif %}> Send affected customers a short report</label>
                     <table class="table table-sm w-auto mt-2"><thead><tr><th>Limit</th><th>1 hour</th><th>24 hours</th></tr></thead><tbody>
@@ -267,7 +267,7 @@
         <div class="card mb-3" id="protection">
             <div class="card-header"><strong>Approvers and recovery contact</strong></div>
             <div class="card-body small">
-                <form method="post" class="mb-2">{% csrf_token %}<input type="hidden" name="action" value="approvers"><input type="hidden" name="section" value="protection">
+                <form method="post" class="mb-2">{% csrf_token %}<input type="hidden" name="action" value="approvers"><input type="hidden" name="section" value="protection"><input type="hidden" name="approvers_present" value="1">
                     <label class="form-label">Approvers for protected changes (empty = every superuser)</label>
                     <select name="approvers" multiple class="form-select form-select-sm" size="4">{% for u in superusers %}<option value="{{ u.pk }}" {% if u in protection.approvers.all %}selected{% endif %}>{{ u.username }}</option>{% endfor %}</select>
                     <div class="text-muted">Currently able to approve: {% for u in approvers %}{{ u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
