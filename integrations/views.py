@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_POST, require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
-from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest
+from django.http import Http404, JsonResponse, HttpResponse, HttpResponseBadRequest
 from django.db import IntegrityError
 from core.middleware import get_request_organization
 from core.decorators import require_admin, require_write
@@ -625,8 +625,11 @@ def rmm_pairing_check(request, pk):
     connection = get_org_object_or_404(RMMConnection, org, pk=pk)
     from integrations.ticket_rmm import settings as pairing_settings, status as pairing_status
     from psa_ai.services.processor import refresh_capabilities
-    if not pairing_settings(connection)['enabled']:
-        messages.warning(request, 'The pairing is not switched on and approved yet, so there is nothing to check.')
+    ps = pairing_settings(connection)
+    if not ps['enabled']:
+        why = ps.get('incomplete') if connection.provider_type == 'rem0te' else ''
+        messages.warning(request, 'The pairing is not switched on and approved yet, so there is nothing to check.'
+                         + (f' {why}' if why else ''))
         return redirect('integrations:rmm_detail', pk=connection.pk)
     refresh_capabilities(connection)
     connection.refresh_from_db()
@@ -637,6 +640,46 @@ def rmm_pairing_check(request, pk):
                  description=f'Ticket integration pairing check: {st["label"]}', path=request.path,
                  extra_data={'capabilities': st['capabilities'], 'state': st['state']})
     (messages.success if st['state'] == 'ok' else messages.warning)(request, f'{st["label"]}. {st["detail"]}')
+    return redirect('integrations:rmm_detail', pk=connection.pk)
+
+
+@login_required
+@require_admin
+@require_POST
+def rmm_rem0te_identity(request, pk):
+    """ClientSt0r's own Rem0te identity (instance-wide: one peer entry in
+    Rem0te's peers file serves every Rem0te connection): generate or rotate
+    its Ed25519 keys, or set its peer id, audience and public address.
+    Superusers only, because it affects every organization's pairing.
+    Private keys are encrypted at rest and never shown."""
+    org = get_request_organization(request)
+    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
+    if connection.provider_type != 'rem0te':
+        raise Http404
+    if not request.user.is_superuser:
+        messages.error(request, "ClientSt0r's Rem0te identity serves every organization; only a superuser can "
+                                'change it.')
+        return redirect('integrations:rmm_detail', pk=connection.pk)
+    from integrations.rem0te import identity
+    op = request.POST.get('op', '')
+    try:
+        if op in ('generate', 'rotate'):
+            if op == 'generate' and identity.has_keys():
+                messages.info(request, 'ClientSt0r already has Rem0te keys; use Rotate to replace them.')
+            else:
+                identity.generate_keys(by=request.user, rotate=op == 'rotate')
+                messages.success(request, 'New Rem0te keys generated. Put the new public keys in Rem0te\'s peers '
+                                          'file and restart Rem0te before pressing Check pairing.'
+                                 if op == 'rotate' else 'ClientSt0r\'s Rem0te keys were generated.')
+        elif op == 'update':
+            identity.update(identity.get(), peer_id=request.POST.get('peer_id', ''),
+                            audience=request.POST.get('audience', ''),
+                            public_base_url=request.POST.get('public_base_url', ''), by=request.user)
+            messages.success(request, 'ClientSt0r\'s Rem0te identity was saved.')
+        else:
+            messages.error(request, 'Unknown action.')
+    except identity.IdentityError as e:
+        messages.error(request, str(e))
     return redirect('integrations:rmm_detail', pk=connection.pk)
 
 

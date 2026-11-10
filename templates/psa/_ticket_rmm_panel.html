@@ -67,6 +67,15 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
                 {% endif %}
                 <input type="text" name="title" maxlength="200" class="form-control form-control-sm mb-1" placeholder="Title">
                 <textarea name="description" rows="3" maxlength="2000" class="form-control form-control-sm mb-1" placeholder="What should be fixed, and why"></textarea>
+                {% if t.catalog %}
+                <div class="d-flex gap-1">
+                    <select name="action" class="form-select form-select-sm" aria-label="Catalog action" data-rmm-catalog>
+                        {% for c in t.catalog %}<option value="{{ c.key }}">{{ c.label }}</option>{% endfor %}
+                    </select>
+                    <button class="btn btn-sm btn-outline-primary text-nowrap" data-rmm-action="fix">Propose</button>
+                </div>
+                <p class="small text-muted mb-0 mt-1">Rem0te checks your access to this computer and shows the proposal on its approval page; its approvers approve it there, by passkey. ClientSt0r never runs or approves it, and nothing Rem0te reports closes this ticket or replies to the customer.</p>
+                {% else %}
                 <div class="d-flex gap-1">
                     <select name="risk" class="form-select form-select-sm" aria-label="Risk">
                         {% if a.fix_low.ok %}<option value="low">Low-risk catalog fix</option>{% endif %}
@@ -75,6 +84,7 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
                     <button class="btn btn-sm btn-outline-primary text-nowrap" data-rmm-action="fix">Refer</button>
                 </div>
                 <p class="small text-muted mb-0 mt-1">The RMM approves and runs fixes on its own approval page. ClientSt0r never runs or approves them, and nothing the RMM reports closes this ticket or replies to the customer.</p>
+                {% endif %}
             </form>
         </details>
         {% else %}
@@ -96,6 +106,7 @@ autoescaped text; diagnostic output is shown in <pre>, never as HTML.
             {% else %}<span class="badge bg-warning text-dark">{{ r.get_status_display }}</span>{% endif %}
             <div class="text-muted">{{ r.device_name }} · {{ r.actor.username }} · {{ r.created_at|date:"Y-m-d H:i" }}</div>
             {% if r.error %}<div class="text-danger">{{ r.error }}</div>{% elif r.status_note %}<div class="text-muted">{{ r.status_note }}</div>{% endif %}
+            {% if r.approval_url and r.status == 'received' %}<div><a href="{{ r.approval_url }}" target="_blank" rel="noopener noreferrer" data-rmm-approval>Approval page in Rem0te</a> <span class="text-muted">(approvers approve there; nothing here approves)</span></div>{% endif %}
             {% if r.kind == 'diagnostic' and r.result_text %}
             <details>
                 <summary>Result ({{ r.result_bytes|filesizeformat }}{% if r.result_truncated %}, truncated{% endif %}) — staff only</summary>

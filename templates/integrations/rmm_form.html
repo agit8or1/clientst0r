@@ -292,8 +292,12 @@
                             {{ form.ticket_rmm_enabled }}
                             <label class="form-check-label" for="{{ form.ticket_rmm_enabled.id_for_label }}">{{ form.ticket_rmm_enabled.label }}</label>
                         </div>
-                        {% for f in form %}{% if f.name == 'ticket_rmm_url' or f.name == 'ticket_rmm_key_id' or f.name == 'ticket_rmm_outbound_secret' or f.name == 'ticket_rmm_inbound_secret' or f.name == 'ticket_rmm_location' %}
-                        <div class="mb-2">
+                        <div class="alert alert-info small py-2 mb-2" data-pairing-mode="ed25519">
+                            Rem0te pairs with Ed25519 keys, never shared secrets: enter Rem0te's audience and public
+                            signing key here, then add ClientSt0r's entry (shown on the connection page) to Rem0te's
+                            peers file. ClientSt0r's own keys are generated on the connection page.</div>
+                        {% for f in form %}{% if f.name == 'ticket_rmm_url' or f.name == 'ticket_rmm_key_id' or f.name == 'ticket_rmm_outbound_secret' or f.name == 'ticket_rmm_inbound_secret' or f.name == 'ticket_rmm_location' or f.name == 'rem0te_audience' or f.name == 'rem0te_signing_keys' %}
+                        <div class="mb-2"{% if f.name == 'ticket_rmm_key_id' or f.name == 'ticket_rmm_outbound_secret' or f.name == 'ticket_rmm_inbound_secret' %} data-pairing-mode="hmac"{% elif f.name == 'rem0te_audience' or f.name == 'rem0te_signing_keys' %} data-pairing-mode="ed25519"{% endif %}>
                             <label for="{{ f.id_for_label }}" class="form-label">{{ f.label }}</label>
                             {{ f }}
                             {% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}
@@ -444,6 +448,11 @@
 
     function updateVisibleSections() {
         const selectedProvider = providerSelect.value;
+        // Rem0te pairs with Ed25519 keys; every other provider with HMAC secrets.
+        document.querySelectorAll('[data-pairing-mode]').forEach(el => {
+            const ed = el.dataset.pairingMode === 'ed25519';
+            el.hidden = ed !== (selectedProvider === 'rem0te');
+        });
         const mappedProvider = providerMapping[selectedProvider];
 
         // Hide all credential sections
