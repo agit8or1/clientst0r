@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Agreement: {{ document.title }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'docs:agreement_list' %}">Agreements</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'docs:document_detail' document.slug %}">{{ document.title }}</a></li>
+    <li class="breadcrumb-item active">Agreement</li>
+</ol></nav>
+
+<h1 class="h3">{{ document.title }} {% if agreement %}{% include "docs/agreements/_status.html" %}{% endif %}</h1>
+<p class="text-muted small">{{ document.organization.name }}. Customer portal users of this customer only can read the
+    current version and {% if agreement %}{{ agreement.verb }}{% else %}sign or acknowledge{% endif %} it under
+    <strong>Portal → Agreements</strong>. A version is issued from the live document only: published, approved and not
+    archived. While an edit waits for approval, the last issued version stays the one to sign.</p>
+{% if not live %}<div class="alert alert-warning small">This document is not live (unpublished, awaiting approval or archived), so no new version is issued{% if status.current %}; customers still see version {{ status.current.version_number }}{% endif %}.</div>{% endif %}
+
+<div class="card mb-3">
+    <div class="card-header"><strong>{% if agreement %}Settings{% else %}Make this document an agreement{% endif %}</strong></div>
+    <div class="card-body small">
+        {% if can_publish_doc %}
+        <form method="post" class="row g-2 align-items-end">{% csrf_token %}<input type="hidden" name="action" value="setup">
+            <div class="col-md-4"><label class="form-label" for="ag-kind">Type</label>
+                <select id="ag-kind" name="kind" class="form-select form-select-sm">{% for k, l in kinds %}<option value="{{ k }}" {% if agreement.kind == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label" for="ag-mode">How</label>
+                <select id="ag-mode" name="mode" class="form-select form-select-sm">{% for k, l in modes %}<option value="{{ k }}" {% if agreement.mode == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+            <div class="col-md-4"><label class="form-label" for="ag-aud">Who</label>
+                <select id="ag-aud" name="audience" class="form-select form-select-sm">{% for k, l in audiences %}<option value="{{ k }}" {% if agreement.audience == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+            <div class="col-12"><button class="btn btn-sm btn-primary">{% if agreement %}Save{% else %}Make agreement{% endif %}</button></div>
+        </form>
+        {% if agreement %}
+        <form method="post" class="mt-2">{% csrf_token %}<input type="hidden" name="action" value="{% if agreement.is_active %}close{% else %}reopen{% endif %}">
+            <button class="btn btn-sm btn-outline-secondary">{% if agreement.is_active %}Close for signing{% else %}Reopen for signing{% endif %}</button></form>
+        {% endif %}
+        {% else %}<p class="mb-0 text-muted">Making or closing an agreement needs permission to publish this document.</p>{% endif %}
+    </div>
+</div>
+
+{% if agreement %}
+<div class="card mb-3">
+    <div class="card-header"><strong>Outstanding for version {{ status.current.version_number|default:"—" }}</strong></div>
+    <div class="card-body small">
+        {% if status.outstanding %}<ul class="mb-0">{% for u in status.outstanding %}<li>{% if u %}{{ u.get_full_name|default:u.username }} <span class="text-muted">{{ u.email }}</span>{% else %}{{ agreement.organization_name }} — any one person may {{ agreement.verb }} for the customer{% endif %}</li>{% endfor %}</ul>
+        {% elif status.current %}<p class="mb-0">Nobody outstanding.</p>
+        {% else %}<p class="mb-0 text-muted">No version issued yet.</p>{% endif %}
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header"><strong>Versions and signatures</strong></div>
+    <div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>Version</th><th>Issued</th><th>SHA-256</th><th>Signed / acknowledged by</th></tr></thead>
+        <tbody>{% for rev, sigs in status.revisions %}
+        <tr><td><a href="{% url 'docs:agreement_revision' rev.pk %}">v{{ rev.version_number }}</a>{% if rev.pk == status.current.pk %} <span class="badge bg-primary">current</span>{% endif %}</td>
+            <td>{{ rev.issued_at|date:"Y-m-d H:i" }}{% if rev.issued_by %} by {{ rev.issued_by.username }}{% endif %}</td>
+            <td><code>{{ rev.content_hash|slice:":16" }}…</code></td>
+            <td>{% for s in sigs %}<div>{{ s.signed_by_name }} &lt;{{ s.signed_by_email }}&gt; — {{ s.signed_at|date:"Y-m-d H:i" }}, {{ s.ip_address|default:"no IP" }} · <a href="{% url 'docs:agreement_evidence' s.pk %}">evidence</a></div>{% empty %}<span class="text-muted">none</span>{% endfor %}</td></tr>
+        {% empty %}<tr><td colspan="4" class="text-muted">No version issued yet.</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+{% endblock %}

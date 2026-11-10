@@ -770,3 +770,7 @@ class DiagramAnnotation(BaseModel):
 
     def __str__(self):
         return f"{self.annotation_type}: {self.text[:50]}"
+
+
+# Version-specific agreements (MSAs, SOWs, policy acknowledgments).
+from .agreement_models import Agreement, AgreementRevision, AgreementSignature  # noqa: E402,F401

@@ -317,3 +317,71 @@ def superuser_policy(request):
         'fresh_auth': protected.has_fresh_auth(request),
         'is_approver': protected.is_approver(request.user),
     })
+
+
+# --- "why": the chain behind one decision ------------------------------------
+
+def _all_capabilities():
+    return [(k, v[0]) for k, v in catalog.OPTIONAL.items()] + [(k, v[0]) for k, v in catalog.LOCKED.items()]
+
+
+@login_required
+@user_passes_test(_admin)
+def why(request):
+    """Why can this technician do this for this customer, who granted it,
+    and when does it expire? Security administrators only; reads only rows
+    at the chosen customer (see tech_access.explain)."""
+    from .explain import explain
+    result = None
+    g = request.GET
+    user_pk, org_pk, cap = g.get('user', ''), g.get('organization', ''), g.get('capability', '')
+    if user_pk and org_pk and cap:
+        if cap not in catalog.OPTIONAL and cap not in catalog.LOCKED:
+            raise Http404()
+        if not (user_pk.isdigit() and org_pk.isdigit()):
+            raise Http404()
+        tech = get_object_or_404(get_user_model(), pk=user_pk)
+        org = get_object_or_404(Organization, pk=org_pk)
+        result = explain(tech, org, cap)
+    return render(request, 'tech_access/why.html', {
+        'active_page': 'technician_access',
+        'result': result,
+        'technicians': technicians(),
+        'organizations': Organization.objects.filter(is_active=True).order_by('name'),
+        'capabilities': _all_capabilities(),
+        'sel': {'user': user_pk, 'organization': org_pk, 'capability': cap},
+    })
+
+
+@login_required
+@user_passes_test(_admin)
+def assignment_detail(request, pk):
+    """One assignment record: who, where, preset, granted by/at, expiry,
+    revocation, the approving protected change and its audit history."""
+    from .explain import _approval_for_assignment, _audit, _change_history
+    a = get_object_or_404(AccessAssignment.objects.select_related(
+        'preset', 'user', 'group', 'organization', 'granted_by', 'revoked_by'), pk=pk)
+    approval = _approval_for_assignment(a)
+    history = sorted({e.pk: e for e in _audit('tech_access_assignment', a.pk, limit=100)
+                      + _change_history(approval)}.values(),
+                     key=lambda e: (e.timestamp, e.pk), reverse=True)
+    caps = a.preset.caps()
+    return render(request, 'tech_access/assignment_detail.html', {
+        'active_page': 'technician_access', 'a': a, 'status': a.status(), 'approval': approval,
+        'history': history, 'caps': [(k, v[0], caps.get(k, catalog.OFF)) for k, v in catalog.OPTIONAL.items()],
+    })
+
+
+@login_required
+@user_passes_test(_admin)
+def change_detail(request, pk):
+    """One protected change: requester, confirmation, reviewer, what it
+    widened, its status and its audit trail."""
+    from .explain import _change_history
+    change = get_object_or_404(ProtectedChange.objects.select_related('requested_by', 'reviewed_by', 'target_user'),
+                               pk=pk)
+    return render(request, 'tech_access/change_detail.html', {
+        'active_page': 'technician_access', 'change': change, 'history': _change_history(change),
+        'assignments': AccessAssignment.objects.filter(approved_change=change).select_related(
+            'organization', 'preset'),
+    })

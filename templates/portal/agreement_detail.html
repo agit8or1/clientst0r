@@ -1,0 +1,63 @@
+{% extends "portal/base.html" %}
+{% block title %}{{ rev.title }} — version {{ rev.version_number }}{% endblock %}
+{% block content %}
+<p class="mb-2"><a href="{% url 'portal:agreement_list' %}">&larr; Agreements</a></p>
+<h4 class="mb-1">{{ rev.title }}</h4>
+<p class="text-muted small mb-3">{{ agreement.get_kind_display }} · version {{ rev.version_number }} · issued
+    {{ rev.issued_at|date:"Y-m-d H:i" }} · SHA-256 <code>{{ rev.content_hash|slice:":16" }}…</code></p>
+
+<div class="card mb-3"><div class="card-body agreement-body">{{ rev.rendered_html|safe }}</div></div>
+
+{% if needs %}
+<div class="card mb-3">
+    <div class="card-header"><strong>{% if agreement.mode == 'signature' %}Sign version {{ rev.version_number }}{% else %}Acknowledge version {{ rev.version_number }}{% endif %}</strong></div>
+    <form method="post" id="sign-form">
+        {% csrf_token %}
+        <input type="hidden" name="revision" value="{{ rev.pk }}">
+        <input type="hidden" name="content_hash" value="{{ rev.content_hash }}">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label" for="ag-name">Your full name</label>
+                    <input id="ag-name" type="text" name="signed_by_name" class="form-control" required maxlength="200" value="{{ request.user.get_full_name }}"></div>
+                <div class="col-md-6"><label class="form-label" for="ag-email">Email</label>
+                    <input id="ag-email" type="email" name="signed_by_email" class="form-control" required maxlength="254" value="{{ request.user.email }}"></div>
+                <div class="col-md-6"><label class="form-label" for="ag-title">Title (optional)</label>
+                    <input id="ag-title" type="text" name="signed_by_title" class="form-control" maxlength="200"></div>
+                {% if agreement.mode == 'signature' %}
+                <div class="col-12">{% include "portal/_signature_pad.html" %}</div>
+                {% endif %}
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="accept" id="ag-accept" required>
+                        <label class="form-check-label" for="ag-accept">I have read version {{ rev.version_number }} of this document and
+                            {% if agreement.mode == 'signature' %}agree to it{% if agreement.audience == 'one' %} on behalf of {{ organization.name }}{% endif %}{% else %}acknowledge it{% endif %}.</label>
+                    </div>
+                    <p class="small text-muted mt-2 mb-0">Your name, e-mail, the time, your IP address and browser, and the
+                        exact version (with its fingerprint) are recorded.</p>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-success"><i class="fas fa-signature"></i>
+                {% if agreement.mode == 'signature' %}Sign{% else %}Acknowledge{% endif %}</button>
+        </div>
+    </form>
+</div>
+{% else %}
+<div class="alert alert-success">Version {{ rev.version_number }} is {{ agreement.verb }}d{% if agreement.audience == 'one' %} for {{ organization.name }}{% endif %}.</div>
+{% endif %}
+
+{% if signatures %}
+<div class="card">
+    <div class="card-header"><strong>History</strong></div>
+    <div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>Version</th><th>By</th><th>When</th><th></th></tr></thead>
+        <tbody>{% for s in signatures %}
+        <tr><td>v{{ s.revision.version_number }}{% if s.revision.pk != rev.pk %} <span class="text-muted">(earlier version)</span>{% endif %}</td>
+            <td>{{ s.signed_by_name }}</td><td>{{ s.signed_at|date:"Y-m-d H:i" }}</td>
+            <td><a href="{% url 'portal:agreement_evidence' s.pk %}">Download evidence</a></td></tr>
+        {% endfor %}</tbody>
+    </table></div>
+</div>
+{% endif %}
+{% endblock %}

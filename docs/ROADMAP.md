@@ -1796,6 +1796,17 @@ Know what's missing, why it matters and who owns the fix.
   asset-fields requirement can name custom fields, checked on the asset types
   they apply to, with the empty ones listed and fixed from the asset's Custom
   Fields section.
+- **Version-specific agreements: MSAs, SOWs and policy acknowledgments**
+  *(shipped vX.Y.Z — version set at release)* — extends the document approval
+  workflow (shipped v3.17.605) and the customer signing pattern of quote
+  e-signature: a signature or acknowledgment binds to one issued revision
+  (content hash, version number, HTML snapshot and PDF), signer identity,
+  time, IP address and browser. Edits to the live document issue a new
+  revision that needs a new signature; earlier revisions and their
+  hash-verifiable evidence stay downloadable. Portal users sign only for their
+  own customer; staff see who signed which version and who is outstanding.
+  Uploaded-file documents as agreements, signer-role limits and reminder
+  e-mails are planned.
 
 ## Phase 54 — Guided customer service requests **(L)** [shipped — v3.17.656]
 
@@ -1992,8 +2003,17 @@ v3.17.658; the RMM side waits on rem0te.
   elevation as time-limited grants from the RMM. *(partial — view/control
   launch with an allowed or on-request grant shipped v3.17.658; time-limited
   grants are the RMM's to implement; elevation not wired)*
+- **57.7 Why a technician can do something** — extends the effective-access
+  preview (shipped v3.17.646): for a technician, customer and capability, the
+  outcome and the chain of sources at that customer (assignments active,
+  expired and revoked, group membership, denies, customer restriction, paired
+  RMM, technician standing and Superuser grant, membership role), who granted
+  each and when, expiry, links to the assignment record and the approving
+  protected change, and audit history with before/after. Assignments record
+  their approving change and revoker; role changes are audited.
+  *(shipped vX.Y.Z — version set at release)*
 
-**Sizing:** **L** — 57.1–57.5 shipped; 57.6 partial with Phase 56.5.
+**Sizing:** **L** — 57.1–57.5 and 57.7 shipped; 57.6 partial with Phase 56.5.
 
 ## Phase 58 — Condensed navigation **(M · UX)** [shipped — v3.17.647]
 
@@ -2071,11 +2091,11 @@ v3.17.658; the RMM side waits on rem0te.
 | 50 — "Help Us Grow" call to action | S | shipped v3.17.586 | none — `config/support_links.py` + `templates/core/_help_us_grow_*.html`; reuses the existing GitHub Sponsors link |
 | 51 — Reliability and customer-boundary hardening | M | in progress — PSA customer boundaries, token revocation and scheduler coverage v3.17.599; role view permissions, protected downloads and customer ticket visibility v3.17.600; billing correctness v3.17.601; staff technicians v3.17.602; imports v3.17.603; encrypted secrets v3.17.607; LDAP sign-in v3.17.608; alerts and webhooks v3.17.609; security settings and CSP v3.17.610; documentation v3.17.611; tokens, share links and 2FA keys v3.17.612; dispatch technicians only v3.17.613; no inline event handlers v3.17.614; monitoring docs v3.17.616; scheduled WAN checks v3.17.617; API key levels and staff-only reports v3.17.618; staff-only CRM and Security Alerts v3.17.619; drafts for editors only v3.17.620; global KB staff only v3.17.625 | none — touches PSA, docs, accounts, API, vault and the scheduler |
 | 52 — Technician workspace | L | in progress — My Work, drafts, collisions, closeout, KB drafts v3.17.604 | Phase 51 (customer ticket visibility, staff techs) |
-| 53 — Documentation readiness and lifecycle | L | shipped — standards, scoring, lifecycle, analytics v3.17.605; custom asset fields and types v3.17.621; prefilled fix links, custom-field requirements v3.17.656 | docs publish rules |
+| 53 — Documentation readiness and lifecycle | L | shipped — standards, scoring, lifecycle, analytics v3.17.605; custom asset fields and types v3.17.621; prefilled fix links, custom-field requirements v3.17.656; version-specific agreements vX.Y.Z | docs publish rules |
 | 54 — Guided customer service requests | L | shipped — guided requests, approvals, progress v3.17.606; named approvers v3.17.656 | Phase 53 publish rules (KB suggestions) |
 | 55 — Hardware catalog and visual inventory | L | shipped v3.17.630 | extends `assets.Asset`, `monitoring.Rack`/`RackDevice`/`VLAN`, Phase 34 network devices |
 | 56 — Ticket AI Assist and RMM handoff (OPTIONAL AI) | L | in progress — analysis, drafts, compare, gateway and signed channel v3.17.646; handoffs, diagnostics, remote launch and fix review wait on rem0te | Phase 57; rem0te ticket-rmm-v1 |
-| 57 — Technician security levels and abuse prevention | L | in progress — presets, resolver, protected changes, theft detection, gateway isolation v3.17.646; remote grants with Phase 56.5 | none |
+| 57 — Technician security levels and abuse prevention | L | in progress — presets, resolver, protected changes, theft detection, gateway isolation v3.17.646; why-a-technician-can view vX.Y.Z; remote grants with Phase 56.5 | none |
 | 58 — Condensed navigation | M | shipped v3.17.647 | none |
 
 **Phases 1-6**: ~4 months of focused work at the established cadence.

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load tech_access_tags %}
+
+{% block title %}Why this access - Technician Access{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:settings_security' %}">Security</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'tech_access:index' %}">Technician Access</a></li>
+        <li class="breadcrumb-item active">Why</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-3">
+        {% include "core/_settings_menu.html" with active_page="technician_access" %}
+    </div>
+    <div class="col-md-9">
+        <div class="card mb-3">
+            <div class="card-header"><strong>Why can this technician do this here?</strong></div>
+            <div class="card-body small">
+                <p class="text-muted">Pick a technician, a customer and a capability. The answer is the same decision
+                    the ticket tools make, with every record behind it at that customer: who granted it, when, when it
+                    expires, the approval and the audit history.</p>
+                <form method="get" class="d-flex flex-wrap gap-2">
+                    <select name="user" class="form-select form-select-sm w-auto" aria-label="Technician">{% for u in technicians %}<option value="{{ u.pk }}" {% if sel.user == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>{% endfor %}</select>
+                    <select name="organization" class="form-select form-select-sm w-auto" aria-label="Customer">{% for o in organizations %}<option value="{{ o.pk }}" {% if sel.organization == o.pk|stringformat:"s" %}selected{% endif %}>{{ o.name }}</option>{% endfor %}</select>
+                    <select name="capability" class="form-select form-select-sm w-auto" aria-label="Capability">{% for key, label in capabilities %}<option value="{{ key }}" {% if sel.capability == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                    <button class="btn btn-sm btn-primary">Explain</button>
+                </form>
+            </div>
+        </div>
+
+        {% if result %}
+        <div class="card mb-3" id="answer">
+            <div class="card-header">
+                <strong>{{ result.capability|cap_label }}</strong> for <strong>{{ result.user.username }}</strong> at
+                <strong>{{ result.organization.name }}</strong>:
+                <span class="badge {{ result.outcome|state_badge }}">{{ result.outcome|state_label }}</span>
+            </div>
+            <div class="card-body small">
+                <p class="mb-1">{{ result.decision.reason }}</p>
+                {% if result.expiry_note %}<p class="mb-1"><i class="fas fa-clock me-1"></i>{{ result.expiry_note }}</p>{% endif %}
+                {% if result.decision.notes %}<p class="text-muted mb-0">Assignments evaluated: {{ result.decision.notes|join:" · " }}</p>{% endif %}
+            </div>
+        </div>
+
+        <h6>Chain of sources</h6>
+        {% for s in result.sources %}
+        <div class="card mb-2 {% if s.decisive %}border-primary{% endif %}" id="source-{{ forloop.counter }}">
+            <div class="card-header d-flex flex-wrap align-items-center gap-2">
+                <span class="badge {{ s.effect|effect_badge }}">{{ s.effect }}</span>
+                <strong>{{ s.label }}</strong>
+                {% if s.status %}<span class="badge {% if s.status == 'active' %}bg-success{% elif s.status == 'expired' or s.status == 'revoked' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ s.status }}</span>{% endif %}
+                {% if s.state %}<span class="badge {{ s.state|state_badge }}">{{ s.state|state_label }}</span>{% endif %}
+                {% if s.decisive %}<span class="badge bg-primary">decides it</span>{% endif %}
+            </div>
+            <div class="card-body small">
+                {% if s.detail %}<p class="mb-2">{{ s.detail }}</p>{% endif %}
+                <dl class="row mb-2">
+                    {% if s.granted_by %}<dt class="col-sm-3">Granted by</dt><dd class="col-sm-9">{{ s.granted_by }}</dd>{% endif %}
+                    {% if s.granted_at %}<dt class="col-sm-3">Granted</dt><dd class="col-sm-9">{{ s.granted_at|date:"Y-m-d H:i" }}</dd>{% endif %}
+                    {% if s.kind == 'assignment' or s.kind == 'deny' %}<dt class="col-sm-3">Expires</dt><dd class="col-sm-9">{% if s.expires_at %}{{ s.expires_at|date:"Y-m-d H:i" }}{% if s.status == 'expired' %} (expired){% endif %}{% else %}never{% endif %}</dd>{% endif %}
+                    {% if s.revoked_at %}<dt class="col-sm-3">Revoked</dt><dd class="col-sm-9">{{ s.revoked_at|date:"Y-m-d H:i" }}{% if s.revoked_by %} by {{ s.revoked_by }}{% endif %}</dd>{% endif %}
+                    {% if s.approval %}<dt class="col-sm-3">Approval</dt><dd class="col-sm-9"><a href="{% url 'tech_access:change_detail' s.approval.pk %}">Protected change #{{ s.approval.pk }}</a> — requested by {{ s.approval.requested_by.username|default:"?" }}{% if s.approval.reviewed_by %}, approved by {{ s.approval.reviewed_by.username }} on {{ s.approval.reviewed_at|date:"Y-m-d H:i" }}{% endif %}</dd>{% endif %}
+                    {% if s.record_url %}<dt class="col-sm-3">Record</dt><dd class="col-sm-9"><a href="{{ s.record_url }}">Open record</a></dd>{% endif %}
+                </dl>
+                {% if s.history %}
+                <details><summary>Audit history ({{ s.history|length }})</summary>
+                    {% include "tech_access/_audit_history.html" with history=s.history %}
+                </details>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

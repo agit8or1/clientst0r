@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ rev.title }} v{{ rev.version_number }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'docs:agreement_list' %}">Agreements</a></li>
+    {% if agreement.document %}<li class="breadcrumb-item"><a href="{% url 'docs:agreement_manage' agreement.document.pk %}">{{ agreement.title }}</a></li>{% endif %}
+    <li class="breadcrumb-item active">v{{ rev.version_number }}</li>
+</ol></nav>
+<h1 class="h3">{{ rev.title }} <span class="text-muted">v{{ rev.version_number }}</span></h1>
+<div class="card mb-3"><div class="card-body small">
+    <dl class="row mb-0">
+        <dt class="col-sm-3">Customer</dt><dd class="col-sm-9">{{ agreement.organization_name }}</dd>
+        <dt class="col-sm-3">Issued</dt><dd class="col-sm-9">{{ rev.issued_at|date:"Y-m-d H:i" }}{% if rev.issued_by %} by {{ rev.issued_by.username }}{% endif %}</dd>
+        <dt class="col-sm-3">Content SHA-256</dt><dd class="col-sm-9"><code>{{ rev.content_hash }}</code> {% if checks.content %}<span class="badge bg-success">verified</span>{% else %}<span class="badge bg-danger">mismatch</span>{% endif %}</dd>
+        <dt class="col-sm-3">Snapshot SHA-256</dt><dd class="col-sm-9"><code>{{ rev.snapshot_hash }}</code> {% if checks.snapshot %}<span class="badge bg-success">verified</span>{% else %}<span class="badge bg-danger">mismatch</span>{% endif %}
+            · <a href="{% url 'docs:agreement_revision_snapshot' rev.pk 'html' %}">download HTML</a></dd>
+        {% if rev.pdf_hash %}<dt class="col-sm-3">PDF SHA-256</dt><dd class="col-sm-9"><code>{{ rev.pdf_hash }}</code> {% if checks.pdf %}<span class="badge bg-success">verified</span>{% else %}<span class="badge bg-danger">mismatch</span>{% endif %}
+            · <a href="{% url 'docs:agreement_revision_snapshot' rev.pk 'pdf' %}">download PDF</a></dd>{% endif %}
+    </dl>
+</div></div>
+<div class="card mb-3"><div class="card-header"><strong>Signatures and acknowledgments</strong></div>
+    <div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>By</th><th>When</th><th>IP / browser</th><th>Evidence</th></tr></thead>
+        <tbody>{% for s in signatures %}
+        <tr><td>{{ s.signed_by_name }}{% if s.signed_by_title %}, {{ s.signed_by_title }}{% endif %}<div class="text-muted">{{ s.signed_by_email }} · account {{ s.username }}</div></td>
+            <td>{{ s.signed_at|date:"Y-m-d H:i:s" }}</td>
+            <td>{{ s.ip_address|default:"—" }}<div class="text-muted text-truncate" style="max-width:20rem">{{ s.user_agent }}</div></td>
+            <td>{% if s.verified %}<span class="badge bg-success">hashes verified</span>{% else %}<span class="badge bg-danger">verification failed</span>{% endif %}
+                <a href="{% url 'docs:agreement_evidence' s.pk %}">download</a></td></tr>
+        {% empty %}<tr><td colspan="4" class="text-muted">None for this version.</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+<div class="card"><div class="card-header"><strong>As issued</strong></div><div class="card-body">{{ rev.rendered_html|safe }}</div></div>
+{% endblock %}

@@ -10,6 +10,7 @@ app_name = 'portal'
 # it inherits the portal's rules rather than reimplementing them.
 from statuspage.views import portal_status as _status_view  # noqa: E402
 from . import request_views as _request_views  # noqa: E402
+from . import agreement_views as _agreement_views  # noqa: E402
 
 urlpatterns = [
     path('', views.ticket_list, name='ticket_list'),
@@ -45,6 +46,10 @@ urlpatterns = [
     path('requests/<slug:slug>/', _request_views.request_form, name='request_form'),
     path('requests/<slug:slug>/kb/', _request_views.request_kb_suggest,
          name='request_kb_suggest'),
+    # Version-specific agreements: MSAs, SOWs, policy acknowledgments.
+    path('agreements/', _agreement_views.agreement_list, name='agreement_list'),
+    path('agreements/<int:pk>/', _agreement_views.agreement_detail, name='agreement_detail'),
+    path('agreements/evidence/<int:pk>/', _agreement_views.agreement_evidence, name='agreement_evidence'),
     # Customer switcher for users who belong to several customers.
     path('switch/', views.switch_customer, name='switch_customer'),
 ]

@@ -186,6 +186,8 @@ created from the customer portal are shared automatically).
 | Vault export permission | Planned | Marked "Not yet implemented" in the role editor. | — |
 | Document publish permissions | Available | Since v3.17.605 publishing needs View/Publish documents for that customer (or Publish KB articles for global articles); without it, new documents, uploads and imports save as drafts. | Document form |
 | Role assignment limits | Available | A role can be assigned only if it is a system role or the organization's own custom role. | Members page |
+| Technician access (ticket AI and RMM tools) | Available | Since v3.17.646. L1/L2/L3 presets per technician or group, per customer, with expiry; customer restrictions, denies, protected changes for anything that widens access. See [TECHNICIAN_ACCESS.md](docs/TECHNICIAN_ACCESS.md). | Settings → Security → Technician Access |
+| Why a technician can do something | Available | For a technician, customer and capability: the outcome and every source behind it at that customer (assignments active, expired and revoked; group membership; denies; customer restriction; paired RMM; technician standing and superuser grant; membership role), who granted each and when, expiry, links to the assignment record and the approving protected change, and audit history with before/after. Security administrators only; no other customer's rows. Before/after values exist on audit entries written since this release. | `/settings/security/technician-access/why/` |
 
 ### Users
 
@@ -263,6 +265,7 @@ created from the customer portal are shared automatically).
 | Pre-written KB content | Limited | Not installed by default; an administrator imports it. | `/core/settings/kb-import/` |
 | Diagrams (draw.io) | Available | With previews and templates. | `/docs/diagrams/` |
 | Export | Available | Markdown, HTML, DOCX and PDF, single or bulk. | Document detail → Export |
+| Agreements: MSAs, SOWs, policy acknowledgments | Available | A customer document (HTML or Markdown) can be made an agreement: drawn signature or "I have read and accept" acknowledgment, by one person for the customer or by every portal user. Each signature binds to an exact issued version — version number, content SHA-256, the rendered body, an HTML snapshot and (when it renders) a PDF — plus signer name, e-mail, account, time, IP address and browser. Editing the live document issues a new version that needs a new signature; drafts awaiting approval are never issued. Earlier versions, their signers and their evidence stay unchanged and downloadable (ZIP with snapshot, PDF, content.json, evidence.json and SHA256SUMS, each hash checkable with `sha256sum`). Staff see who signed which version and who is outstanding. Signature records can't be edited or deleted and outlive the document. Uploaded-file documents can't be agreements yet. | Document → **Agreement**, Docs → Agreements (`/docs/lifecycle/agreements/`) |
 | File attachments on documents | Planned | | — |
 | Document favorites | Planned | Favorites exist for assets, passwords and some other records. | `/core/favorites/` |
 | Share links | Planned | | — |
@@ -478,6 +481,7 @@ Optional, not AI, Off on fresh installs and upgrades. Guide: [docs/TICKET_ROUTIN
 | Knowledge base | Available | Client-visible articles. | `/portal/kb/` |
 | Attachments | Limited | Internal attachments can't be downloaded; attachments on internal comments may still be listed by name. | Portal ticket |
 | Credentials | Available | See [Password vault](#password-vault). | `/portal/vault/` |
+| Agreements | Available | Portal users read the current version of their own customer's agreements and sign or acknowledge it, and download the evidence of every signature made for their customer. Another customer's agreements return 404. A version changed while the signer was reading is refused and shown again. See [Documentation](#documentation). | `/portal/agreements/` |
 | Branding | Available | The client's logo. | `/portal/` |
 
 ### Distributors

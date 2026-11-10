@@ -1,0 +1,45 @@
+<label class="form-label d-block">Signature</label>
+<canvas id="sig-pad" width="600" height="180"
+        style="border:1px solid var(--bs-border-color); border-radius:6px; touch-action:none; max-width:100%; background:#fff;"></canvas>
+<div class="mt-1">
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="sig-clear">Clear</button>
+    <small class="text-muted ms-2">Use mouse, finger, or stylus.</small>
+</div>
+<input type="hidden" name="signature_data" id="signature_data">
+<script nonce="{{ csp_nonce }}">
+(function() {
+    const canvas = document.getElementById('sig-pad');
+    const ctx = canvas.getContext('2d');
+    let drawing = false, hasInk = false;
+    function pos(e) {
+        const r = canvas.getBoundingClientRect();
+        const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+        const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+        return [x * (canvas.width / r.width), y * (canvas.height / r.height)];
+    }
+    function start(e) { drawing = true; ctx.beginPath(); ctx.moveTo(...pos(e)); e.preventDefault(); }
+    function move(e) {
+        if (!drawing) return;
+        ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
+        ctx.lineTo(...pos(e)); ctx.stroke(); hasInk = true; e.preventDefault();
+    }
+    function end() { drawing = false; ctx.beginPath(); }
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', end);
+    canvas.addEventListener('touchstart', start, {passive: false});
+    canvas.addEventListener('touchmove', move, {passive: false});
+    canvas.addEventListener('touchend', end);
+    document.getElementById('sig-clear').addEventListener('click', () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); hasInk = false;
+    });
+    canvas.closest('form').addEventListener('submit', (e) => {
+        if (!hasInk) { e.preventDefault(); alert('Please draw your signature before submitting.'); return; }
+        const out = document.createElement('canvas');
+        out.width = canvas.width; out.height = canvas.height;
+        const oc = out.getContext('2d');
+        oc.fillStyle = '#fff'; oc.fillRect(0, 0, out.width, out.height); oc.drawImage(canvas, 0, 0);
+        document.getElementById('signature_data').value = out.toDataURL('image/png');
+    });
+})();
+</script>

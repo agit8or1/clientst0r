@@ -96,6 +96,13 @@ class AccessAssignment(models.Model):
                                    related_name='+')
     note = models.CharField(max_length=200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # The protected change that created this assignment (when
+    # it widened access) and who revoked it. Older rows are matched to their
+    # change by payload in tech_access.explain.
+    approved_change = models.ForeignKey('ProtectedChange', on_delete=models.SET_NULL, null=True, blank=True,
+                                        related_name='+')
+    revoked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
 
     objects = AccessAssignmentQuerySet.as_manager()
 
@@ -115,6 +122,15 @@ class AccessAssignment(models.Model):
     @property
     def subject_label(self):
         return self.user.get_username() if self.user_id else f'Group: {self.group.name}'
+
+    def status(self, now=None) -> str:
+        """'revoked', 'expired' or 'active'."""
+        now = now or timezone.now()
+        if self.revoked_at:
+            return 'revoked'
+        if self.expires_at and self.expires_at <= now:
+            return 'expired'
+        return 'active'
 
 
 class CustomerAccessPolicy(models.Model):

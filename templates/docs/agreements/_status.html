@@ -1,0 +1,6 @@
+{% if status.current %}
+    {% if status.current_signed %}<span class="badge bg-success">v{{ status.current.version_number }} complete</span>
+    {% elif agreement.audience == 'each' %}<span class="badge bg-warning text-dark">v{{ status.current.version_number }}: {{ status.outstanding|length }} outstanding</span>
+    {% else %}<span class="badge bg-warning text-dark">v{{ status.current.version_number }}: awaiting the customer</span>{% endif %}
+{% else %}<span class="badge bg-secondary">not issued</span>{% endif %}
+{% if not agreement.is_active %}<span class="badge bg-secondary">closed</span>{% endif %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load tech_access_tags %}
+
+{% block title %}Assignment #{{ a.pk }} - Technician Access{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:settings_security' %}">Security</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'tech_access:index' %}">Technician Access</a></li>
+        <li class="breadcrumb-item active">Assignment #{{ a.pk }}</li>
+    </ol>
+</nav>
+<div class="row">
+    <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="technician_access" %}</div>
+    <div class="col-md-9">
+        <div class="card mb-3">
+            <div class="card-header"><strong>{{ a.preset.name }}</strong> — {{ a.subject_label }} at {{ a.organization.name }}
+                <span class="badge {% if status == 'active' %}bg-success{% else %}bg-warning text-dark{% endif %}">{{ status }}</span></div>
+            <div class="card-body small">
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Granted by</dt><dd class="col-sm-9">{{ a.granted_by.username|default:"—" }}</dd>
+                    <dt class="col-sm-3">Granted</dt><dd class="col-sm-9">{{ a.created_at|date:"Y-m-d H:i" }}</dd>
+                    <dt class="col-sm-3">Expires</dt><dd class="col-sm-9">{{ a.expires_at|date:"Y-m-d H:i"|default:"never" }}{% if status == 'expired' %} (expired){% endif %}</dd>
+                    {% if a.revoked_at %}<dt class="col-sm-3">Revoked</dt><dd class="col-sm-9">{{ a.revoked_at|date:"Y-m-d H:i" }}{% if a.revoked_by %} by {{ a.revoked_by.username }}{% endif %}</dd>{% endif %}
+                    {% if a.note %}<dt class="col-sm-3">Note</dt><dd class="col-sm-9">{{ a.note }}</dd>{% endif %}
+                    <dt class="col-sm-3">Approval</dt><dd class="col-sm-9">{% if approval %}<a href="{% url 'tech_access:change_detail' approval.pk %}">Protected change #{{ approval.pk }}</a> — approved by {{ approval.reviewed_by.username|default:"?" }} on {{ approval.reviewed_at|date:"Y-m-d H:i" }}{% else %}None — it did not widen access beyond L1 / what the technician had, so it applied at once.{% endif %}</dd>
+                </dl>
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header"><strong>What {{ a.preset.name }} gives now</strong></div>
+            <div class="card-body small"><table class="table table-sm mb-0"><tbody>{% for key, label, state in caps %}
+                <tr><td>{{ label }}</td><td><span class="badge {{ state|state_badge }}">{{ state|state_label }}</span></td></tr>{% endfor %}</tbody></table></div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header"><strong>Audit history</strong></div>
+            <div class="card-body small">{% include "tech_access/_audit_history.html" with history=history %}</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
