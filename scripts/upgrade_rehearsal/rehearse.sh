@@ -298,17 +298,22 @@ interrupt_upgrade() {   # start the legacy-mode upgrade, SIGKILL it during migra
     local log="$LOGS/interrupted-$1.log"
     set_remote_main "$HEAD_SHA"
     stop_server
-    (CLIENTST0R_BASE_DIR="$APP" CLIENTST0R_SERVICE_NAME="" CLIENTST0R_UPDATE_SANDBOX=1 PYTHONUNBUFFERED=1 \
-        setsid bash "$(legacy_script)" > "$log" 2>&1) &
-    local pid=$! pgid=""
+    # setsid: the update script gets its own process group (pgid == its pid),
+    # so the kill below reaches it and its migrate child and nothing else --
+    # not this script, not another rehearsal running on the same host.
+    CLIENTST0R_BASE_DIR="$APP" CLIENTST0R_SERVICE_NAME="" CLIENTST0R_UPDATE_SANDBOX=1 PYTHONUNBUFFERED=1 \
+        setsid bash "$(legacy_script)" > "$log" 2>&1 &
+    local pid=$!
     for _ in $(seq 1 1200); do
         if grep -q "Applying " "$log" 2>/dev/null; then break; fi
         if ! kill -0 "$pid" 2>/dev/null; then tail -30 "$log"; die "upgrade ended before migrating"; fi
         sleep 0.1
     done
-    pgid=$(ps -o pgid= -p "$(pgrep -f "update_instructions.legacy.sh" | head -1)" 2>/dev/null | tr -d ' ' || true)
-    if [ -n "$pgid" ]; then kill -KILL -- "-$pgid" 2>/dev/null || true; fi
-    kill -KILL "$pid" 2>/dev/null || true
+    if [ "$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')" = "$pid" ]; then
+        kill -KILL -- "-$pid" 2>/dev/null || true
+    else
+        die "the update script is not in its own process group; refusing to kill a group"
+    fi
     wait "$pid" 2>/dev/null || true
     say "killed the upgrade mid-migration: $(grep 'Applying ' "$log" | tail -1 | sed 's/^ *//' | cut -c1-100)"
 }
@@ -380,6 +385,8 @@ case "$MODE" in
 
         say "== half-applied migration (what a crash leaves on MySQL/MariaDB)"
         manage upgrade_restore --yes > "$LOGS/restore-2.log"
+        GOOD_BACKUP=$(sed -n 's/^Backup: //p' "$LOGS/restore-2.log" | head -1)
+        [ -d "$GOOD_BACKUP" ] || die "could not tell which backup was restored"
         checks "restored-again-$start"
         partial_migration
         set +e
@@ -387,11 +394,16 @@ case "$MODE" in
             bash "$(legacy_script)" > "$LOGS/partial-upgrade.log" 2>&1
         code=$?
         set -e
-        [ "$code" -eq 3 ] || { tail -40 "$LOGS/partial-upgrade.log"; die "expected the migration to fail (exit 3), got $code"; }
-        grep -A12 "Migration diagnosis" "$LOGS/partial-upgrade.log" | tee "$LOGS/doctor-partial.log"
-        grep -q "$PARTIAL" "$LOGS/doctor-partial.log" || die "migration_doctor did not name $PARTIAL"
-        grep -Eq "$PARTIAL: (partial|applied unrecorded)" "$LOGS/doctor-partial.log" || die "doctor did not detect the half-applied state"
-        manage upgrade_restore --yes > "$LOGS/restore-3.log"
+        [ "$code" -eq 3 ] || { tail -40 "$LOGS/partial-upgrade.log"; die "expected the upgrade to refuse (exit 3), got $code"; }
+        grep -A12 "already contains part of a migration" "$LOGS/partial-upgrade.log" | tee "$LOGS/doctor-partial.log"
+        grep -Eq "$PARTIAL: (partial|applied unrecorded)" "$LOGS/doctor-partial.log" \
+            || die "the update did not detect the half-applied $PARTIAL"
+        ! grep -q "Running database migrations" "$LOGS/partial-upgrade.log" \
+            || die "the update migrated on top of a half-applied migration"
+        ! grep -q "Taking and verifying a pre-upgrade backup" "$LOGS/partial-upgrade.log" \
+            || die "the update backed up the damaged database"
+        say "  ok    refused to back up or migrate on top of the half-applied $PARTIAL"
+        manage upgrade_restore "$GOOD_BACKUP" --yes > "$LOGS/restore-3.log"
         checks "restored-after-partial-$start"
         legacy_upgrade_to_head
         checks head-after-recovery

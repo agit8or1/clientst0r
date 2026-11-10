@@ -37,6 +37,18 @@ def check(cond, what):
     return cond
 
 
+def served(r, a):
+    """The server handed out attachment `a`: its bytes, or (releases before
+    v3.17.6xx with DEBUG off) an X-Accel-Redirect telling nginx to send that
+    exact file. The rehearsal runs no nginx, so the header is the evidence."""
+    if r.status_code != 200:
+        return False
+    accel = r.headers.get('X-Accel-Redirect', '')
+    if accel:
+        return accel.endswith('/' + a['name'])
+    return hashlib.sha256(r.content).hexdigest() == a['sha256']
+
+
 def totp(key_hex, t=None, step=30, digits=6):
     counter = int((t if t is not None else time.time()) // step)
     mac = hmac.new(bytes.fromhex(key_hex), struct.pack('>Q', counter), hashlib.sha1).digest()
@@ -133,7 +145,7 @@ def main():
     for key in ('a', 'b'):
         admin.get(f"/accounts/switch/{orgs[key]['id']}/")
         r = admin.get(f"/files/serve/{att[key]['id']}/")
-        check(r.status_code == 200 and hashlib.sha256(r.content).hexdigest() == att[key]['sha256'],
+        check(served(r, att[key]),
               f'org {key.upper()} file served intact to the superuser ({r.status_code})')
         r = admin.get(f"/vault/{vault[key]['id']}/")
         check(r.status_code == 200 and vault[key]['title'] in r.text,
@@ -170,11 +182,11 @@ def main():
     ok, r = ca.logged_in()
     check(ok, f'org A user logs in with password + TOTP ({r.status_code} {r.headers.get("Location", "")})')
     r = ca.get(f"/files/serve/{att['b']['id']}/", allow_redirects=False)
-    check(not (r.status_code == 200 and hashlib.sha256(r.content).hexdigest() == att['b']['sha256']),
+    check(not served(r, att['b']),
           f"org A user cannot fetch org B's file ({r.status_code})")
     ca.get(f"/accounts/switch/{orgs['b']['id']}/")
     r = ca.get(f"/files/serve/{att['b']['id']}/", allow_redirects=False)
-    check(not (r.status_code == 200 and hashlib.sha256(r.content).hexdigest() == att['b']['sha256']),
+    check(not served(r, att['b']),
           f"... not even after asking to switch to org B ({r.status_code})")
     r = ca.get(f"/vault/{vault['b']['id']}/", allow_redirects=False)
     check(not (r.status_code == 200 and vault['b']['title'] in r.text),
@@ -182,7 +194,7 @@ def main():
     r = ca.post(f"/vault/{vault['b']['id']}/reveal/")
     check(vault['b']['password'] not in r.text, f"org A user cannot reveal org B's password ({r.status_code})")
     r = ca.get(f"/files/serve/{att['a']['id']}/", allow_redirects=False)
-    check(r.status_code == 200 and hashlib.sha256(r.content).hexdigest() == att['a']['sha256'],
+    check(served(r, att['a']),
           f'org A user gets its own file intact ({r.status_code})')
 
     if args.require_2fa:

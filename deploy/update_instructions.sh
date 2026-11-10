@@ -230,6 +230,18 @@ done
 # Step 3: Database migrations
 # =====================================================================
 log ""
+# A pending migration that is already partly (or wholly) in the schema -- left by
+# an earlier crash on MySQL/MariaDB, #128/#129 -- makes migrate fail half way,
+# and a backup taken now would capture that damage. Stop and say so.
+if ! DOCTOR_OUT=$("$PY" "$BASE_DIR/manage.py" migration_doctor --check 2>&1); then
+    log "ERROR: the database already contains part of a migration this release would apply:"
+    printf '%s\n' "$DOCTOR_OUT" | while IFS= read -r line; do log "  $line"; done
+    log "ERROR: not migrating. Restore the backup taken before the earlier failed upgrade"
+    log "ERROR: (manage.py upgrade_backup --list), or follow the advice above; see $RECOVERY_DOC."
+    journal status=failed "error=pending migration already partly applied"
+    exit 3
+fi
+
 # No verified backup, no migration. In pinned mode the caller took and verified
 # it; re-check it with the new code. In legacy mode take it now: the database
 # is still the old one, untouched.

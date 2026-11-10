@@ -234,6 +234,11 @@ shows a recovery panel with the same information.
 verified backup. It does not take a new one, because the database may already
 be partly migrated.
 
+Before it backs up or migrates, every upgrade (resumed or not) runs
+`migration_doctor --check`. If a pending migration is already partly in the
+schema, the upgrade stops without migrating and without backing up the
+damaged database, and prints the diagnosis. See the next section.
+
 ## Half-applied migrations on MySQL/MariaDB
 
 MySQL and MariaDB commit every `ALTER TABLE` / `CREATE TABLE` on its own; a
