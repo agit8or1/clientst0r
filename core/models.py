@@ -1153,6 +1153,7 @@ class ScheduledTask(models.Model):
         # v3.17.648: recovers missed rem0te callbacks for ticket analysis jobs
         # and expires stale ones (OPTIONAL AI; nothing to do when unused).
         ('poll_analysis_jobs', 'Ticket AI Analysis Job Recovery (optional AI)'),
+        ('run_migration_rehearsals', 'IT Glue / Hudu Migration Rehearsal Worker'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1641,6 +1642,15 @@ class ScheduledTask(models.Model):
             'task_type': 'poll_analysis_jobs',
             'description': 'Ask rem0te about unfinished ticket analysis jobs and expire stale ones '
                            '(optional AI; does nothing when no jobs are open)',
+            'interval_minutes': 1,
+            'enabled': True,
+        },
+        {
+            # Fetch / build / apply / rollback of one-customer migration
+            # rehearsals run here, never in the web request.
+            'task_type': 'run_migration_rehearsals',
+            'description': 'Run queued IT Glue / Hudu migration rehearsal work '
+                           '(does nothing when nothing is queued)',
             'interval_minutes': 1,
             'enabled': True,
         },

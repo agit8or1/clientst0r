@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Migration Rehearsals - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h1><i class="fas fa-vial"></i> Migration Rehearsals</h1>
+            <p class="text-muted mb-0">Rehearse an IT Glue or Hudu migration for one customer: fetch, review and correct the plan, then apply exactly what you reviewed. Applied rehearsals can be rolled back without undoing later edits.</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'imports:import_list' %}" class="btn btn-outline-secondary">All import jobs</a>
+            <a href="{% url 'imports:rehearsal_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> New rehearsal</a>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            {% if plans %}
+            <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead><tr><th>#</th><th>Source</th><th>Source organization</th><th>Customer</th><th>Status</th><th>Created</th></tr></thead>
+                <tbody>
+                {% for plan in plans %}
+                <tr>
+                    <td><a href="{% url 'imports:rehearsal_detail' plan.pk %}">{{ plan.pk }}</a></td>
+                    <td>{{ plan.import_job.get_source_type_display }} <span class="text-muted small">{{ plan.source_account }}</span></td>
+                    <td>{{ plan.source_organization_name|default:plan.source_organization_id }}</td>
+                    <td>{{ plan.import_job.target_organization.name }}</td>
+                    <td><span class="badge bg-secondary">{{ plan.get_status_display }}</span></td>
+                    <td>{{ plan.created_at|date:"Y-m-d H:i" }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No rehearsals yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

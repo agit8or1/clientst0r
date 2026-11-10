@@ -4,7 +4,7 @@ Import models for IT Glue and Hudu data migration
 from django.db import models
 from django.contrib.auth import get_user_model
 from core.models import BaseModel, Organization
-from vault.secret_fields import EncryptedTextField
+from vault.secret_fields import EncryptedJSONField, EncryptedTextField
 
 User = get_user_model()
 
@@ -254,6 +254,10 @@ class ImportJob(BaseModel):
         """
         if self.rolled_back_at or self.dry_run:
             return False
+        plan = self.rehearsal_plan if self.pk else None
+        if plan is not None:
+            from imports.migration.undo import ROLLBACK_STATUSES
+            return plan.status in ROLLBACK_STATUSES
         if self.status in self.ROLLBACK_STATUSES:
             return True
         if self.status == 'failed' and self.pk:
@@ -272,8 +276,23 @@ class ImportJob(BaseModel):
         """
         if not self.can_rollback():
             raise ValueError(f"Cannot rollback import {self.id}: status={self.status}, rolled_back={bool(self.rolled_back_at)}, dry_run={self.dry_run}")
+        plan = self.rehearsal_plan
+        if plan is not None:
+            # Rehearsal jobs track every change with before-values; their
+            # rollback restores fields instead of only deleting records.
+            from imports.migration.undo import legacy_report, rollback_plan
+            return legacy_report(rollback_plan(plan, user))
         from imports.rollback import rollback_import
         return rollback_import(self, user)
+
+    @property
+    def rehearsal_plan(self):
+        """The MigrationPlan of a one-customer rehearsal job, else None."""
+        from django.core.exceptions import ObjectDoesNotExist
+        try:
+            return self.migration_plan
+        except ObjectDoesNotExist:
+            return None
 
 
 # Every model an importer can create, keyed by the ``target_model`` string stored
@@ -290,6 +309,12 @@ IMPORT_TARGET_MODELS = {
     'FloorPlan': ('locations', 'LocationFloorPlan'),
     'ShopInventoryItem': ('vehicles', 'ShopInventoryItem'),
     'VehicleInventoryItem': ('vehicles', 'VehicleInventoryItem'),
+    'Subnet': ('monitoring', 'Subnet'),
+    'IPAddress': ('monitoring', 'IPAddress'),
+    'WebsiteMonitor': ('monitoring', 'WebsiteMonitor'),
+    'Relationship': ('assets', 'Relationship'),
+    'PasswordRelation': ('vault', 'PasswordRelation'),
+    'Attachment': ('files', 'Attachment'),
 }
 
 
@@ -395,3 +420,260 @@ class ImportMapping(BaseModel):
         if Model is None:
             return True  # unknown type: assume it is still there (conservative)
         return Model._base_manager.filter(pk=self.target_id).exists()
+
+
+# ---------------------------------------------------------------------------
+# One-customer migration rehearsal (IT Glue / Hudu)
+#
+# A rehearsal is an ImportJob (source_type itglue/hudu, a required
+# target_organization, dry_run=True until applied) plus a MigrationPlan:
+#
+#   stage    fetch one source organization's records into StagedRecord rows
+#            (secrets encrypted, attachments downloaded size-capped)
+#   plan     a PlanItem per staged record: create / update / unchanged /
+#            duplicate / conflict / unavailable, broken links counted
+#   review   operator corrections stored on PlanItem; "freeze" hashes the
+#            plan and the staging
+#   apply    writes exactly the frozen plan from staging (no re-fetch) and
+#            refuses if either hash changed; per-item savepoints, resumable
+#   rollback PlanChange rows (with before/after values) undo only what is
+#            still exactly as the import left it
+#
+# SourceMapping is the long-lived, organization-scoped source-ID map that
+# makes reruns idempotent.
+# ---------------------------------------------------------------------------
+
+def staged_blob_path(instance, filename):
+    import uuid
+    return f"imports/staging/{instance.plan_id}/{uuid.uuid4().hex}"
+
+
+class MigrationPlan(BaseModel):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('staged', 'Source staged'),
+        ('planned', 'Plan built'),
+        ('reviewed', 'Reviewed (frozen)'),
+        ('applying', 'Applying'),
+        ('applied', 'Applied'),
+        ('partially_applied', 'Partially applied'),
+        ('rolled_back', 'Rolled back'),
+        ('partially_rolled_back', 'Partially rolled back'),
+    ]
+    # Statuses in which the staging / plan may still be rebuilt or corrected.
+    EDITABLE_STATUSES = ('draft', 'staged', 'planned', 'reviewed')
+
+    import_job = models.OneToOneField(ImportJob, on_delete=models.CASCADE, related_name='migration_plan')
+    source_account = models.CharField(
+        max_length=255,
+        help_text="Identifies the source account (defaults to the API host). Source IDs are "
+                  "only unique within one account.")
+    source_organization_id = models.CharField(max_length=100)
+    source_organization_name = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='draft')
+
+    staged_at = models.DateTimeField(null=True, blank=True)
+    staging_hash = models.CharField(max_length=64, blank=True)
+    planned_at = models.DateTimeField(null=True, blank=True)
+
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    reviewed_plan_hash = models.CharField(max_length=64, blank=True)
+    reviewed_staging_hash = models.CharField(max_length=64, blank=True)
+
+    applied_at = models.DateTimeField(null=True, blank=True)
+    applied_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    apply_attempts = models.PositiveIntegerField(default=0)
+
+    # Endpoint-level gaps found while staging:
+    # [{source_type, kind: permission|api_gap|not_supported|error, reason, count}]
+    unavailable = models.JSONField(default=list, blank=True)
+    # Type-level mapping corrections, e.g. {"hudu_layouts": {"People": "contact"}}
+    type_overrides = models.JSONField(default=dict, blank=True)
+
+    # Background work (imports.migration.tasks): fetch / build / apply /
+    # rollback run in the scheduler, never in the web request. One task per
+    # plan at a time; a running task holds a lease (token + heartbeat) that
+    # another worker may take over only once the heartbeat is stale.
+    TASK_ACTIONS = [('stage', 'Fetch source data and build plan'), ('build', 'Rebuild plan'),
+                    ('apply', 'Apply reviewed plan'), ('rollback', 'Roll back')]
+    TASK_STATES = [('idle', 'Idle'), ('queued', 'Queued'), ('running', 'Running'),
+                   ('done', 'Finished'), ('failed', 'Failed')]
+    task_action = models.CharField(max_length=10, choices=TASK_ACTIONS, blank=True)
+    task_state = models.CharField(max_length=10, choices=TASK_STATES, default='idle')
+    task_requested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                          related_name='+')
+    task_queued_at = models.DateTimeField(null=True, blank=True)
+    task_started_at = models.DateTimeField(null=True, blank=True)
+    task_heartbeat_at = models.DateTimeField(null=True, blank=True)
+    task_finished_at = models.DateTimeField(null=True, blank=True)
+    task_lease = models.CharField(max_length=64, blank=True)
+    task_attempts = models.PositiveIntegerField(default=0)
+    task_progress = models.JSONField(default=dict, blank=True)
+    task_error = models.TextField(blank=True)
+    task_result = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'import_migration_plans'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Rehearsal {self.pk}: {self.source_organization_name or self.source_organization_id}"
+
+    @property
+    def organization(self):
+        return self.import_job.target_organization
+
+    @property
+    def source_system(self):
+        return self.import_job.source_type
+
+    def delete_staged_files(self):
+        for rec in self.staged.exclude(blob=''):
+            rec.blob.delete(save=False)
+
+    def delete(self, *args, **kwargs):
+        self.delete_staged_files()
+        return super().delete(*args, **kwargs)
+
+
+class StagedRecord(models.Model):
+    """One source record as fetched. Secrets live only in ``secret_data``
+    (encrypted at rest); ``raw`` has them removed."""
+    plan = models.ForeignKey(MigrationPlan, on_delete=models.CASCADE, related_name='staged')
+    source_type = models.CharField(max_length=50)
+    source_id = models.CharField(max_length=100)
+    display_name = models.CharField(max_length=255, blank=True)
+    raw = models.JSONField(default=dict, blank=True)
+    secret_data = EncryptedJSONField(blank=True, default=dict)
+    content_hash = models.CharField(max_length=64)
+    # Attachments: the downloaded file (size-capped, type-checked).
+    blob = models.FileField(upload_to=staged_blob_path, blank=True, max_length=500)
+    fetched_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'import_staged_records'
+        unique_together = [['plan', 'source_type', 'source_id']]
+        ordering = ['source_type', 'id']
+
+    def __str__(self):
+        return f"{self.source_type} {self.source_id}"
+
+
+class PlanItem(models.Model):
+    CATEGORY_CHOICES = [
+        ('create', 'Create'),
+        ('update', 'Update'),
+        ('unchanged', 'Unchanged'),
+        ('duplicate', 'Duplicate'),
+        ('conflict', 'Conflict'),
+        ('unavailable', 'Unavailable'),
+    ]
+    ACTION_CHOICES = [
+        ('create', 'Create new record'),
+        ('update', 'Update the mapped/selected record'),
+        ('link', 'Map to existing record (no changes)'),
+        ('skip', 'Skip'),
+    ]
+    OUTCOME_CHOICES = [
+        ('pending', 'Pending'),
+        ('applied', 'Applied'),
+        ('skipped', 'Skipped'),
+        ('failed', 'Failed'),
+    ]
+
+    plan = models.ForeignKey(MigrationPlan, on_delete=models.CASCADE, related_name='items')
+    staged = models.ForeignKey(StagedRecord, on_delete=models.CASCADE, null=True, blank=True, related_name='+')
+    order = models.PositiveIntegerField(default=0)
+    source_type = models.CharField(max_length=50)
+    source_id = models.CharField(max_length=100)
+    display_name = models.CharField(max_length=255, blank=True)
+    target_kind = models.CharField(max_length=30, help_text="contact, location, asset, network, ...")
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    default_action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    target_id = models.PositiveIntegerField(null=True, blank=True)
+    candidates = models.JSONField(default=list, blank=True)
+    # Display-safe values: secrets appear only as "[secret]".
+    proposed = models.JSONField(default=dict, blank=True)
+    before = models.JSONField(default=dict, blank=True)
+    changed_fields = models.JSONField(default=list, blank=True)
+    links = models.JSONField(default=list, blank=True)
+    broken_links = models.PositiveIntegerField(default=0)
+    reason = models.TextField(blank=True)
+    skipped_fields = models.JSONField(default=list, blank=True)
+
+    corrected = models.BooleanField(default=False)
+    field_overrides = models.JSONField(default=dict, blank=True)
+    correction_note = models.TextField(blank=True)
+    corrected_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    corrected_at = models.DateTimeField(null=True, blank=True)
+
+    outcome = models.CharField(max_length=10, choices=OUTCOME_CHOICES, default='pending')
+    outcome_message = models.TextField(blank=True)
+    result_target_id = models.PositiveIntegerField(null=True, blank=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'import_plan_items'
+        unique_together = [['plan', 'source_type', 'source_id']]
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"{self.source_type} {self.source_id} -> {self.action}"
+
+
+class SourceMapping(BaseModel):
+    """Source record -> ClientSt0r record, scoped by customer.
+
+    Every lookup goes through (organization, source_system, source_account,
+    source_type, source_id): the same source ID in another customer, another
+    source system or another source account never matches.
+    """
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
+                                     related_name='import_source_mappings')
+    source_system = models.CharField(max_length=20)
+    source_account = models.CharField(max_length=255)
+    source_type = models.CharField(max_length=50)
+    source_id = models.CharField(max_length=100)
+    target_model = models.CharField(max_length=100)
+    target_id = models.PositiveIntegerField()
+    # Field -> stored value as the import last wrote it (secret columns hold
+    # ciphertext; keyed fingerprints of the source secrets go under "__fp__").
+    # Tells source changes from local edits, and drives rollback.
+    written = models.JSONField(default=dict, blank=True)
+    plan = models.ForeignKey(MigrationPlan, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+
+    class Meta:
+        db_table = 'import_source_mappings'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'source_system', 'source_account', 'source_type', 'source_id'],
+                name='import_source_mapping_unique'),
+        ]
+        indexes = [models.Index(fields=['target_model', 'target_id'])]
+
+    def __str__(self):
+        return f"{self.source_system}:{self.source_type}:{self.source_id} -> {self.target_model} {self.target_id}"
+
+
+class PlanChange(models.Model):
+    """What applying a plan did to one record, for rollback."""
+    OP_CHOICES = [('create', 'Created'), ('update', 'Updated'), ('link', 'Mapped existing')]
+
+    plan = models.ForeignKey(MigrationPlan, on_delete=models.CASCADE, related_name='changes')
+    item = models.ForeignKey(PlanItem, on_delete=models.CASCADE, null=True, blank=True, related_name='changes')
+    op = models.CharField(max_length=10, choices=OP_CHOICES)
+    target_model = models.CharField(max_length=100)
+    target_id = models.PositiveIntegerField()
+    before = models.JSONField(default=dict, blank=True)
+    after = models.JSONField(default=dict, blank=True)
+    # The item's SourceMapping as it was before this change ({} = none).
+    mapping_before = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    rolled_back = models.BooleanField(default=False)
+    rollback_note = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'import_plan_changes'
+        ordering = ['id']

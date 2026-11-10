@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Rehearsal #{{ plan.pk }} records - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1><i class="fas fa-vial"></i> Rehearsal #{{ plan.pk }} &mdash; records</h1>
+    <nav aria-label="breadcrumb"><ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'imports:rehearsal_list' %}">Rehearsals</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'imports:rehearsal_detail' plan.pk %}">#{{ plan.pk }}</a></li>
+        <li class="breadcrumb-item active">Records</li>
+    </ol></nav>
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-auto"><select name="kind" class="form-select form-select-sm"><option value="">All types</option>{% for k in kinds %}<option value="{{ k }}" {% if k == kind %}selected{% endif %}>{{ k }}</option>{% endfor %}</select></div>
+        <div class="col-auto"><select name="category" class="form-select form-select-sm"><option value="">All categories</option>{% for c in categories %}<option value="{{ c }}" {% if c == category %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+        <div class="col-auto form-check mt-1"><input class="form-check-input" type="checkbox" name="all" value="1" id="all" {% if show_all %}checked{% endif %}><label class="form-check-label small" for="all">All records (otherwise up to 5 samples per type and category)</label></div>
+        <div class="col-auto"><button class="btn btn-sm btn-outline-primary" type="submit">Filter</button></div>
+    </form>
+    <div class="card"><div class="card-body table-responsive">
+        <table class="table table-sm align-middle">
+            <thead><tr><th>Type</th><th>Source</th><th>Name</th><th>Category</th><th>Action</th><th>Links</th><th>Reason</th><th>Outcome</th></tr></thead>
+            <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.target_kind }}</td>
+                <td class="small text-muted">{{ item.source_type }} {{ item.source_id }}</td>
+                <td><a href="{% url 'imports:rehearsal_item' plan.pk item.pk %}">{{ item.display_name|default:"(no name)" }}</a></td>
+                <td><span class="badge bg-secondary">{{ item.category }}</span>{% if item.corrected %} <span class="badge bg-warning text-dark">corrected</span>{% endif %}</td>
+                <td>{{ item.get_action_display }}</td>
+                <td>{% if item.broken_links %}<span class="text-danger">{{ item.broken_links }} broken</span>{% else %}{{ item.links|length }}{% endif %}</td>
+                <td class="small">{{ item.reason|truncatechars:120 }}</td>
+                <td class="small">{{ item.outcome }}{% if item.outcome_message %}: {{ item.outcome_message|truncatechars:80 }}{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-muted">No records.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% if page and page.has_other_pages %}
+        <nav><ul class="pagination pagination-sm">
+            {% if page.has_previous %}<li class="page-item"><a class="page-link" href="?kind={{ kind }}&category={{ category }}&all=1&page={{ page.previous_page_number }}">Previous</a></li>{% endif %}
+            <li class="page-item disabled"><span class="page-link">{{ page.number }} / {{ page.paginator.num_pages }}</span></li>
+            {% if page.has_next %}<li class="page-item"><a class="page-link" href="?kind={{ kind }}&category={{ category }}&all=1&page={{ page.next_page_number }}">Next</a></li>{% endif %}
+        </ul></nav>
+        {% endif %}
+    </div></div>
+</div>
+{% endblock %}

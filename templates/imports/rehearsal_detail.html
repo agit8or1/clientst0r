@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Rehearsal #{{ plan.pk }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-lg-7">
+            <h1><i class="fas fa-vial"></i> Rehearsal #{{ plan.pk }}</h1>
+            <nav aria-label="breadcrumb"><ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'imports:rehearsal_list' %}">Rehearsals</a></li>
+                <li class="breadcrumb-item active">#{{ plan.pk }}</li>
+            </ol></nav>
+            <p class="mb-1"><strong>{{ job.get_source_type_display }}</strong> <span class="text-muted">{{ plan.source_account }}</span>
+                &mdash; source organization <strong>{{ plan.source_organization_name|default:plan.source_organization_id }}</strong> (ID {{ plan.source_organization_id }})
+                &rarr; customer <strong>{{ job.target_organization.name }}</strong></p>
+            <p class="mb-0">Status: <span class="badge bg-info text-dark">{{ plan.get_status_display }}</span>
+                {% if plan.reviewed_at %}<span class="text-muted small">reviewed {{ plan.reviewed_at|date:"Y-m-d H:i" }} by {{ plan.reviewed_by }} &middot; plan {{ plan.reviewed_plan_hash|slice:":12" }}</span>{% endif %}
+                <a class="small ms-2" href="{% url 'imports:import_detail' job.pk %}">import job #{{ job.pk }}</a></p>
+        </div>
+        <div class="col-lg-5 text-lg-end">
+            {% if task_active %}
+            <div class="text-muted small mb-2"><i class="fas fa-hourglass-half"></i> Actions are unavailable while background work is {{ plan.task_state }}.</div>
+            {% else %}
+            {% if can_edit %}
+            <form method="post" action="{% url 'imports:rehearsal_stage' plan.pk %}" class="d-inline">{% csrf_token %}
+                <button class="btn btn-outline-primary" type="submit"><i class="fas fa-cloud-download-alt"></i> {% if plan.staged_at %}Fetch again{% else %}Fetch source data{% endif %}</button>
+            </form>
+            {% endif %}
+            {% if plan.status == 'planned' %}
+            <form method="post" action="{% url 'imports:rehearsal_freeze' plan.pk %}" class="d-inline">{% csrf_token %}
+                <button class="btn btn-primary" type="submit"><i class="fas fa-lock"></i> Mark reviewed (freeze)</button>
+            </form>
+            {% endif %}
+            {% if plan.status == 'reviewed' or plan.status == 'partially_applied' or plan.status == 'applying' %}
+            <form method="post" action="{% url 'imports:rehearsal_apply' plan.pk %}" class="d-inline"
+                  data-confirm="Apply exactly the reviewed plan to {{ job.target_organization.name }}?">{% csrf_token %}
+                <button class="btn btn-success" type="submit"><i class="fas fa-play"></i> {% if plan.status == 'reviewed' %}Apply reviewed plan{% else %}Resume apply{% endif %}</button>
+            </form>
+            {% endif %}
+            {% if job.can_rollback %}
+            <form method="post" action="{% url 'imports:rehearsal_rollback' plan.pk %}" class="d-inline"
+                  data-confirm="Roll back this rehearsal? Records edited after the import are kept.">{% csrf_token %}
+                <button class="btn btn-warning" type="submit"><i class="fas fa-undo"></i> Roll back</button>
+            </form>
+            {% endif %}
+            {% endif %}
+            {% if plan.planned_at %}
+            <div class="btn-group mt-2">
+                <a class="btn btn-outline-secondary btn-sm" href="{% url 'imports:rehearsal_report' plan.pk %}?format=json">Report (JSON)</a>
+                <a class="btn btn-outline-secondary btn-sm" href="{% url 'imports:rehearsal_report' plan.pk %}?format=csv">Records (CSV)</a>
+                <a class="btn btn-outline-secondary btn-sm" href="{% url 'imports:rehearsal_report' plan.pk %}?format=summary.csv">Summary (CSV)</a>
+            </div>
+            {% endif %}
+            <div class="mt-2"><a class="btn btn-outline-secondary btn-sm" href="{% url 'imports:inventory_export' job.target_organization_id %}?format=csv">Customer inventory export</a></div>
+        </div>
+    </div>
+
+    {% if plan.task_action %}
+    <div class="card mb-3" id="rehearsal-task">
+        <div class="card-body py-2">
+            <strong>Background work:</strong> {{ plan.get_task_action_display }}
+            {% if plan.task_state == 'queued' %}<span class="badge bg-secondary">Queued</span>
+            {% elif plan.task_state == 'running' %}<span class="badge bg-primary">Running</span>
+            {% elif plan.task_state == 'done' %}<span class="badge bg-success">Done</span>
+            {% elif plan.task_state == 'failed' %}<span class="badge bg-danger">Failed</span>{% endif %}
+            {% if plan.task_progress.message %}<span class="ms-2">{{ plan.task_progress.message }}</span>{% endif %}
+            {% if plan.task_progress.total %}
+            <div class="progress mt-2" style="height: .5rem;" role="progressbar" aria-valuenow="{{ plan.task_progress.done }}" aria-valuemin="0" aria-valuemax="{{ plan.task_progress.total }}">
+                <div class="progress-bar" style="width: {% widthratio plan.task_progress.done plan.task_progress.total 100 %}%"></div>
+            </div>
+            {% endif %}
+            <div class="text-muted small mt-1">
+                queued {{ plan.task_queued_at|date:"Y-m-d H:i:s"|default:"-" }}{% if plan.task_requested_by %} by {{ plan.task_requested_by }}{% endif %}
+                {% if plan.task_started_at %} &middot; started {{ plan.task_started_at|date:"H:i:s" }}{% endif %}
+                {% if plan.task_heartbeat_at and task_active %} &middot; last progress {{ plan.task_heartbeat_at|date:"H:i:s" }}{% endif %}
+                {% if plan.task_finished_at %} &middot; finished {{ plan.task_finished_at|date:"Y-m-d H:i:s" }}{% endif %}
+                {% if plan.task_attempts > 1 %} &middot; attempt {{ plan.task_attempts }}{% endif %}
+                {% if plan.task_state == 'queued' %} &middot; the scheduler picks this up within about a minute{% endif %}
+            </div>
+            {% if plan.task_error %}<div class="alert alert-danger py-1 px-2 mt-2 mb-0 small">Last error: {{ plan.task_error }}</div>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not plan.staged_at %}
+    <div class="alert alert-info">Fetch the source data to see what would be created, updated, skipped or could not be read. Nothing is written to the customer until you apply a reviewed plan.</div>
+    {% endif %}
+
+    {% if summary %}
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">What will transfer</h5>
+            <a href="{% url 'imports:rehearsal_items' plan.pk %}">Inspect sample records</a>
+        </div>
+        <div class="card-body">
+        <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead><tr><th>Type</th>{% for c in categories %}<th class="text-end">{{ c|capfirst }}</th>{% endfor %}<th class="text-end">Broken links</th><th class="text-end">Will transfer</th><th class="text-end">Skipped</th><th>Skip reasons</th></tr></thead>
+            <tbody>
+            {% for row in summary.rows %}
+            <tr>
+                <td><a href="{% url 'imports:rehearsal_items' plan.pk %}?kind={{ row.kind }}">{{ row.kind }}</a></td>
+                <td class="text-end">{{ row.create }}</td><td class="text-end">{{ row.update }}</td><td class="text-end">{{ row.unchanged }}</td>
+                <td class="text-end">{{ row.duplicate }}</td><td class="text-end">{{ row.conflict }}</td><td class="text-end">{{ row.unavailable }}</td>
+                <td class="text-end">{{ row.broken_links }}</td><td class="text-end"><strong>{{ row.transfer }}</strong></td><td class="text-end">{{ row.skip }}</td>
+                <td class="small">{% for reason, n in row.skip_reasons %}{{ n }} &times; {{ reason }}<br>{% endfor %}</td>
+            </tr>
+            {% endfor %}
+            <tr class="table-light"><th>Total</th>{% for c in categories %}<th class="text-end">{% for k, v in summary.totals.items %}{% if k == c %}{{ v }}{% endif %}{% endfor %}</th>{% endfor %}
+                <th class="text-end">{{ summary.totals.broken_links }}</th><th class="text-end">{{ summary.totals.transfer }}</th><th class="text-end">{{ summary.totals.skip }}</th><th></th></tr>
+            </tbody>
+        </table>
+        </div>
+        {% if summary.unavailable_endpoints %}
+        <h6>Not readable from the source</h6>
+        <ul class="small mb-0">
+            {% for e in summary.unavailable_endpoints %}<li><strong>{{ e.source_type }}</strong> &mdash; {{ e.kind }}: {{ e.reason }}{% if e.count %} ({{ e.count }} record(s)){% endif %}</li>{% endfor %}
+        </ul>
+        {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if type_choices and can_edit %}
+    <div class="card mb-3">
+        <div class="card-header"><h5 class="mb-0">Type mapping</h5></div>
+        <div class="card-body">
+            <p class="small text-muted">Change what a source layout / flexible asset type becomes. The plan is rebuilt from the staged data (no re-fetch).</p>
+            {% for t in type_choices %}
+            <form method="post" action="{% url 'imports:rehearsal_type_override' plan.pk %}" class="row g-2 align-items-center mb-1">{% csrf_token %}
+                <input type="hidden" name="group" value="{{ t.group }}"><input type="hidden" name="name" value="{{ t.name }}">
+                <div class="col-auto"><code>{{ t.name|default:"(none)" }}</code> &rarr;</div>
+                <div class="col-auto"><select name="kind" class="form-select form-select-sm">{% for c in t.choices %}<option value="{{ c }}" {% if c == t.kind %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+                <div class="col-auto"><button class="btn btn-sm btn-outline-primary" type="submit">Set</button></div>
+            </form>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if report %}
+    <div class="card mb-3">
+        <div class="card-header"><h5 class="mb-0">Reconciliation (source vs ClientSt0r)</h5></div>
+        <div class="card-body table-responsive">
+            <table class="table table-sm">
+                <thead><tr><th>Type</th><th class="text-end">Source records</th><th class="text-end">Applied</th><th class="text-end">Skipped</th><th class="text-end">Failed</th><th class="text-end">Unavailable</th><th class="text-end">Reconciled in ClientSt0r</th><th class="text-end">Not reconciled</th><th class="text-end">Customer total</th></tr></thead>
+                <tbody>
+                {% for row in report.summary %}
+                <tr><td>{{ row.kind }}</td><td class="text-end">{{ row.source_records }}</td><td class="text-end">{{ row.applied }}</td><td class="text-end">{{ row.skipped }}</td><td class="text-end">{{ row.failed }}</td><td class="text-end">{{ row.unavailable }}</td><td class="text-end">{{ row.reconciled_in_clientst0r }}</td><td class="text-end">{{ row.not_reconciled }}</td><td class="text-end">{{ row.customer_total }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if task_active %}
+<script nonce="{{ csp_nonce }}" id="rehearsal-autorefresh">setTimeout(function () { window.location.reload(); }, 5000);</script>
+{% endif %}
+{% endblock %}

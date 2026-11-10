@@ -53,6 +53,7 @@ COMMAND_TASKS = {
     'update_geoip_db': ('update_geoip_db', ['--max-age-days', '25']),
     'rmm_sync': ('sync_rmm', []),
     'poll_analysis_jobs': ('poll_analysis_jobs', []),
+    'run_migration_rehearsals': ('run_migration_rehearsals', []),
 }
 
 

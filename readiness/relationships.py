@@ -25,11 +25,14 @@ def type_models():
     """Relationship.source_type / target_type string -> model."""
     from assets.models import Asset, Contact, Service
     from docs.models import Document
+    from locations.models import Location
     from vault.models import Password
     return {
         'asset': Asset,
         'contact': Contact,
         'document': Document,
+        # Written by the IT Glue / Hudu migration (contact/asset -> location).
+        'location': Location,
         'password': Password,
         'service': Service,
     }
