@@ -290,6 +290,12 @@ IMPORT_TARGET_MODELS = {
     'FloorPlan': ('locations', 'LocationFloorPlan'),
     'ShopInventoryItem': ('vehicles', 'ShopInventoryItem'),
     'VehicleInventoryItem': ('vehicles', 'VehicleInventoryItem'),
+    'Subnet': ('monitoring', 'Subnet'),
+    'IPAddress': ('monitoring', 'IPAddress'),
+    'WebsiteMonitor': ('monitoring', 'WebsiteMonitor'),
+    'Relationship': ('assets', 'Relationship'),
+    'PasswordRelation': ('vault', 'PasswordRelation'),
+    'Attachment': ('files', 'Attachment'),
 }
 
 

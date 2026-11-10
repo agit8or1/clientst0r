@@ -363,6 +363,46 @@ class BaseImportService:
         """Import networks. Override in subclass."""
         return 0  # Optional
 
+    def create_canonical(self, canon, organization):
+        """Create the ClientSt0r record for a canonical record
+        (imports.migration.normalize) - the field mapping shared with the
+        one-customer rehearsal. Links are not resolved here."""
+        from imports.migration.targets import SPECS, _field
+        if canon.unavailable:
+            raise ValueError(canon.unavailable)
+        if organization is None or organization.pk is None:
+            raise ValueError('record has no target organization')
+        spec = SPECS[canon.kind]
+        proposed, _notes = spec.prepare(organization, canon.fields)
+        obj = spec.new(organization, self.job.started_by)
+        for name, value in proposed.items():
+            if not name.startswith('_'):
+                setattr(obj, _field(type(obj), name).attname, value)
+        spec.save_new(obj, None, self.job.started_by)
+        return obj
+
+    def import_canonical_collection(self, items, source_type, noun, canon_fn, org_fn):
+        """Legacy-importer loop over already-fetched source items."""
+        self.job.add_log(f"Importing {noun}...")
+        count = 0
+        for item in items:
+            result = self.process_record(
+                source_type, item.get('id'),
+                create_fn=lambda item=item: self.create_canonical(canon_fn(item), org_fn(item)),
+                validate_fn=lambda item=item: (org_fn(item), self._raise_unavailable(canon_fn(item))),
+                label=f"{source_type} {item.get('id')}",
+            )
+            if result == 'imported':
+                count += 1
+        self.job.add_log(f"Imported {count} {noun}")
+        self.job.save()
+        return count
+
+    @staticmethod
+    def _raise_unavailable(canon):
+        if canon.unavailable:
+            raise ValueError(canon.unavailable)
+
     def create_mapping(self, source_type, source_id, target, *, organization=None,
                        source_organization_id=''):
         """Record that ``target`` was created from ``source_id``.

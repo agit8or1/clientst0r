@@ -42,6 +42,7 @@ LEGACY_SNAPSHOT_TOLERANCE = timedelta(seconds=2)
 # have been dealt with. Organizations are always handled last, separately.
 DELETE_ORDER = [
     'LocationFloorPlan', 'FloorPlan', 'VehicleInventoryItem', 'ShopInventoryItem',
+    'IPAddress', 'Subnet', 'WebsiteMonitor',
     'Password', 'Document', 'Contact', 'Asset', 'Location',
 ]
 

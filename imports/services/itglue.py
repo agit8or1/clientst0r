@@ -231,17 +231,46 @@ class ITGlueImportService(BaseImportService):
             created_by=self.job.started_by,
         )
 
+    def _canon(self, source_type):
+        from imports.migration.normalize import itglue_canonical
+        return lambda item: itglue_canonical(source_type, item, {}, {})
+
     def import_contacts(self):
-        """Import contacts from IT Glue (stub - contacts not yet implemented)."""
-        self.job.add_log("Skipping contacts import (not implemented)")
-        return 0
+        """Import contacts from IT Glue (GET /contacts)."""
+        return self.import_canonical_collection(
+            self._paged('/contacts'), 'contact', 'contacts', self._canon('contact'), self._record_org)
 
     def import_locations(self):
-        """Import locations from IT Glue (stub - locations import not yet implemented)."""
-        self.job.add_log("Skipping locations import (not implemented)")
-        return 0
+        """Import locations from IT Glue (GET /locations)."""
+        return self.import_canonical_collection(
+            self._paged('/locations'), 'location', 'locations', self._canon('location'), self._record_org)
+
+    def _flexible_assets(self, type_id, type_name):
+        page = 1
+        while True:
+            data = self._make_request('GET', '/flexible_assets', params={
+                'filter[flexible_asset_type_id]': type_id, 'page[number]': page,
+                'page[size]': 50}).json()
+            items = data.get('data', [])
+            if not items:
+                return
+            for item in items:
+                item = dict(item)
+                item['_type_name'] = type_name
+                yield item
+            if not data.get('links', {}).get('next'):
+                return
+            page += 1
 
     def import_networks(self):
-        """Import networks from IT Glue (stub - networks import not yet implemented)."""
-        self.job.add_log("Skipping networks import (not implemented)")
-        return 0
+        """Import networks from IT Glue: flexible assets whose type is a
+        network type (IT Glue has no dedicated networks endpoint)."""
+        from imports.migration.normalize import itglue_flexible_kind
+        items = []
+        for t in self._paged('/flexible_asset_types'):
+            name = (t.get('attributes') or {}).get('name', '')
+            if itglue_flexible_kind(name, {}) == 'network':
+                items.extend(self._flexible_assets(t.get('id'), name))
+        return self.import_canonical_collection(
+            items, 'network', 'networks (network flexible assets)', self._canon('flexible_asset'),
+            self._record_org)

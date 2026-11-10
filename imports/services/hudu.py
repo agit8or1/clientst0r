@@ -232,17 +232,39 @@ class HuduImportService(BaseImportService):
             created_by=self.job.started_by,
         )
 
+    def _canon(self, source_type):
+        from imports.migration.normalize import hudu_canonical
+        return lambda item: hudu_canonical(source_type, item, {}, {})
+
+    def _layout_kind(self, item):
+        from imports.migration.normalize import hudu_layout_kind
+        return hudu_layout_kind(item.get('asset_layout_name') or item.get('asset_type') or '', {})
+
     def import_contacts(self):
-        """Import contacts from Hudu (stub - contacts not yet implemented)."""
-        self.job.add_log("Skipping contacts import (not implemented)")
-        return 0
+        """Import contacts from Hudu: assets whose layout is a people/contact
+        layout (Hudu has no separate contacts endpoint)."""
+        items = [i for i in self._paged('/api/v1/assets', 'assets') if self._layout_kind(i) == 'contact']
+        return self.import_canonical_collection(
+            items, 'asset', 'contacts (people assets)', self._canon('asset'), self._record_org)
 
     def import_locations(self):
-        """Import locations/companies from Hudu (stub)."""
-        self.job.add_log("Skipping locations import (not implemented)")
-        return 0
+        """Import locations from Hudu: each company's main address, plus
+        assets whose layout is a location/site layout."""
+        companies = []
+        for c in self._paged('/api/v1/companies', 'companies'):
+            if any(c.get(k) for k in ('address_line_1', 'city', 'zip')):
+                c = dict(c)
+                c['company_id'] = c.get('id')
+                companies.append(c)
+        count = self.import_canonical_collection(
+            companies, 'company', 'locations (company addresses)', self._canon('company'),
+            self._record_org)
+        sites = [i for i in self._paged('/api/v1/assets', 'assets') if self._layout_kind(i) == 'location']
+        return count + self.import_canonical_collection(
+            sites, 'asset', 'locations (location assets)', self._canon('asset'), self._record_org)
 
     def import_networks(self):
-        """Import networks from Hudu (stub)."""
-        self.job.add_log("Skipping networks import (not implemented)")
-        return 0
+        """Import networks from Hudu (GET /api/v1/networks)."""
+        return self.import_canonical_collection(
+            self._paged('/api/v1/networks', 'networks'), 'network', 'networks',
+            self._canon('network'), self._record_org)
