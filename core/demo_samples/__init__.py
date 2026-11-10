@@ -35,6 +35,7 @@ class Context:
     out: object              # stdout-like
     now: object              # timezone.now() at start
     counts: dict = field(default_factory=dict)
+    slugs: tuple = CUSTOMER_SLUGS  # slot order for per-customer samples
 
     def created(self, label, n=1):
         """Record that `n` rows of `label` (e.g. 'crm.Lead') were created."""
@@ -73,19 +74,50 @@ def make_techs(msp, customers, out):
     return techs
 
 
-def build_context(out):
+def existing_techs(usernames, msp, customers):
+    """Existing MSP staff to use instead of the demo technicians, for a demo
+    instance that already has its own. Each must exist and be active; each
+    gets a membership in the MSP and the target customers if it lacks one."""
+    from django.contrib.auth import get_user_model
+    from accounts.models import Membership, Role
+    User = get_user_model()
+    found = {u.username: u for u in User.objects.filter(username__in=usernames, is_active=True)}
+    missing = [n for n in usernames if n not in found]
+    if missing:
+        raise ValueError(f'no active user(s): {", ".join(missing)}')
+    for user in found.values():
+        for org in [msp, *customers]:
+            if org is not None:
+                Membership.objects.get_or_create(user=user, organization=org,
+                                                 defaults={'role': Role.EDITOR, 'is_active': True})
+    return [found[n] for n in usernames]
+
+
+def build_context(out, customer_slugs=None, msp_slug=None, tech_usernames=None, owner_username=None):
+    """The seeding context. Without arguments it targets the built-in demo
+    slugs (CUSTOMER_SLUGS, MSP_SLUG) and creates the demo technicians. A demo
+    instance with its own invented customers and staff can name them instead."""
     from django.contrib.auth import get_user_model
     from django.utils import timezone
     from core.models import Organization
     User = get_user_model()
-    found = {o.slug: o for o in Organization.objects.filter(slug__in=CUSTOMER_SLUGS + (MSP_SLUG,), is_active=True)}
-    customers = [found[s] for s in CUSTOMER_SLUGS if s in found]
-    msp = found.get(MSP_SLUG)
-    admin = (User.objects.filter(username='admin', is_superuser=True).first()
-             or User.objects.filter(is_superuser=True, is_active=True).order_by('pk').first())
-    techs = make_techs(msp, customers, out)
+    slugs = tuple(customer_slugs) if customer_slugs else CUSTOMER_SLUGS
+    msp_slug = msp_slug or MSP_SLUG
+    found = {o.slug: o for o in Organization.objects.filter(slug__in=slugs + (msp_slug,), is_active=True)}
+    customers = [found[s] for s in slugs if s in found]
+    msp = found.get(msp_slug)
+    if owner_username:
+        admin = User.objects.filter(username=owner_username, is_superuser=True, is_active=True).first()
+        if admin is None:
+            raise ValueError(f'no active superuser {owner_username!r}')
+    else:
+        admin = (User.objects.filter(username='admin', is_superuser=True).first()
+                 or User.objects.filter(is_superuser=True, is_active=True).order_by('pk').first())
+    techs = (existing_techs(list(tech_usernames), msp, customers) if tech_usernames
+             else make_techs(msp, customers, out))
     return Context(customers=customers, msp=msp, admin=admin,
-                   techs=[u for u in [admin, *techs] if u is not None], out=out, now=timezone.now())
+                   techs=[u for u in dict.fromkeys([admin, *techs]) if u is not None], out=out,
+                   now=timezone.now(), slugs=slugs)
 
 
 def has_webhook(org, event):

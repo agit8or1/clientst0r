@@ -229,11 +229,12 @@ def _backdate(obj, **fields):
     type(obj).objects.filter(pk=obj.pk).update(**fields)
 
 
-def _slot(org):
+def _slot(org, ctx=None):
     """A stable per-customer index, so which samples a customer gets
     doesn't shift when another demo customer is added or removed."""
     from core.demo_samples import CUSTOMER_SLUGS
-    return CUSTOMER_SLUGS.index(org.slug) if org.slug in CUSTOMER_SLUGS else 0
+    slugs = ctx.slugs if ctx is not None else CUSTOMER_SLUGS
+    return slugs.index(org.slug) if org.slug in slugs else 0
 
 
 def _owner(ctx):
@@ -289,7 +290,7 @@ def _changes(ctx):
     by_org, counts = {}, {'psa.Ticket': 0, 'psa.ChangeRequest': 0, 'psa.ChangeRequestTransition': 0,
                           'psa.CABVote': 0}
     for org in ctx.customers:
-        oi = _slot(org)
+        oi = _slot(org, ctx)
         for ci, spec in enumerate(CHANGES):
             if (oi + ci) % 2 and spec['status'] != 'approved':
                 continue  # two to three changes per customer, the approved one everywhere
@@ -394,7 +395,7 @@ def _problems(ctx, changes_by_org):
     techs = _field_techs(ctx)
     n = notes = 0
     for org in ctx.customers:
-        oi = _slot(org)
+        oi = _slot(org, ctx)
         for pi, spec in enumerate(PROBLEMS):
             if (oi + pi) % 3 == 2:
                 continue
@@ -575,7 +576,7 @@ def _ticket_extras(ctx):
     counts = dict.fromkeys(['psa.TicketExpense', 'psa.PSAApproval', 'psa.SiteVisit', 'psa.MileageLog',
                             'psa.TicketChecklistItem', 'psa.TicketKitItem', 'psa.TicketKBLink'], 0)
     for org in ctx.customers:
-        oi = _slot(org)
+        oi = _slot(org, ctx)
         tickets = list(_tickets(org).select_related('status')[:6])
         if not tickets:
             continue

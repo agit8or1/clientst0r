@@ -31,6 +31,8 @@ GROUPS = [
      'The commercial side: what is quoted, what is billed, and what each client is entitled to.'),
     ('access',     'Access and administration',
      'Tenancy, membership and the switches that decide which modules exist.'),
+    ('security',   'Security and client data protection',
+     'Which safeguards are in effect for a customer, who may see and widen what, and how secrets reach a customer.'),
 ]
 
 

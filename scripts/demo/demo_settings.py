@@ -58,6 +58,10 @@ DATABASES = {
     }
 }
 
+# Ticket AI gateway key pair: under DEMO_DIR, never the deployment's
+# (~/.config/clientst0r/ai-gateway by default).
+AI_GATEWAY_KEY_DIR = str(DEMO_DIR / 'ai-gateway')
+
 MEDIA_ROOT = str(DEMO_DIR / 'media')
 STATIC_ROOT = str(DEMO_DIR / 'static')
 UPLOAD_ROOT = DEMO_DIR / 'uploads'
@@ -83,7 +87,10 @@ SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 SECURE_CROSS_ORIGIN_OPENER_POLICY = None
-CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8099', 'http://localhost:8099']
+# DEMO_PORT: the port runserver listens on (8099 unless that one is taken);
+# capture with DEMO_BASE=http://127.0.0.1:<port> to match.
+_DEMO_PORT = os.environ.get('DEMO_PORT', '8099')
+CSRF_TRUSTED_ORIGINS = [f'http://127.0.0.1:{_DEMO_PORT}', f'http://localhost:{_DEMO_PORT}']
 
 _DROP_MIDDLEWARE = {
     'accounts.middleware.Enforce2FAMiddleware',

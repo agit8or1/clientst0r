@@ -1339,11 +1339,240 @@ def seed_rack_artwork():
     print('  rack artwork: rack pk', rack.pk, '|', rack.rack_devices.count(), 'placements')
 
 
+# ---------------------------------------------------------------------------
+# v3.17.646–656 screens: named approvers, readiness custom fields, a secure
+# message link, ticket AI (OPTIONAL AI), an RMM fixture and the update badge.
+# ---------------------------------------------------------------------------
+
+# Where the sample conversations (psa_seed_sample_conversations) and module
+# samples (seed_module_samples) land in this instance. setup_demo.py passes
+# these to the two commands, whose defaults target the built-in demo slugs.
+CONVERSATION_ORG_MAP = [
+    'demo-globex=northwind-logistics',
+    'demo-initech=ridgeline-dental-group',
+    'demo-acme=harbor-point-credit-union',
+    'demo=cascade-manufacturing',
+]
+MODULE_SAMPLE_OPTIONS = dict(
+    customers='northwind-logistics,ridgeline-dental-group,harbor-point-credit-union,cascade-manufacturing',
+    msp='beacon-managed-it', techs='demo.ipatel,demo.mokafor,demo.lchen', owner='demo.tech')
+
+# The fixed link token of the one secure message whose "Show the message"
+# page the gallery shows (/core/secret/<token>/). Invented; the demo instance
+# is never exposed.
+SECURE_LINK_TOKEN = 'demo-docs-secure-message-link-not-a-real-token'
+
+
+def _customer_person(username, first, last, email, organization, role='editor'):
+    """A customer portal person who can't sign in."""
+    from accounts.models import Membership, UserProfile, UserType
+    u, _ = User.objects.get_or_create(
+        username=username, defaults={'email': email, 'first_name': first, 'last_name': last})
+    u.set_unusable_password()
+    u.is_staff = u.is_superuser = False
+    u.save()
+    profile, _ = UserProfile.objects.get_or_create(user=u)
+    profile.user_type = UserType.ORG_USER
+    profile.save()
+    Membership.objects.get_or_create(user=u, organization=organization,
+                                     defaults={'role': role, 'is_active': True})
+    return u
+
+
+def seed_named_approvers():
+    """At Northwind, access requests are approved by Aaron Lindqvist — plus
+    Grace Holt, who has since left, so the staff page flags a departed
+    approver — and equipment requests by Aaron. Dana then asks for access,
+    which waits on Aaron in the portal's approvals list."""
+    from accounts.models import Membership
+    from core.models import SystemSetting
+    from psa.models import ServiceCatalogItem, ServiceRequestApprover, Ticket
+    from psa.service_requests import FIELD_PREFIX, submit_request, validate_submission
+
+    s = SystemSetting.get_settings()
+    s.psa_portal_customer_approvals_enabled = True
+    s.save()
+    nwl, lead = org('Northwind Logistics'), user('demo.tech')
+    aaron = _customer_person('demo.alindqvist', 'Aaron', 'Lindqvist', 'aaron.lindqvist@northwind.example', nwl)
+    left = _customer_person('demo.gholt', 'Grace', 'Holt', 'grace.holt@northwind.example', nwl)
+    Membership.objects.filter(user=left, organization=nwl).update(is_active=False)
+    for slug, people in (('portal-access-request', [aaron, left]), ('portal-new-equipment', [aaron])):
+        item = ServiceCatalogItem.objects.filter(slug=slug).first()
+        if item is None:
+            print(f'  approvers: no catalog item {slug}; run psa_seed_portal_requests first')
+            continue
+        for person in people:
+            ServiceRequestApprover.objects.get_or_create(catalog_item=item, organization=nwl, user=person,
+                                                         defaults={'added_by': lead})
+    item = ServiceCatalogItem.objects.filter(slug='portal-access-request').first()
+    if item and not Ticket.objects.filter(organization=nwl, subject__startswith='Access request').exists():
+
+        class _Post(dict):
+            def getlist(self, key, default=None):
+                v = self.get(key, default if default is not None else [])
+                return v if isinstance(v, list) else [v]
+
+        post = {'person': 'Sam Okonkwo', 'system': 'Inventory share (\\\\fs01\\inventory)',
+                'access_level': 'Read and write'}
+        answers, errors = validate_submission(
+            item.get_form_schema(), _Post({FIELD_PREFIX + k: v for k, v in post.items()}))
+        if errors:
+            raise SystemExit(f'access request did not validate: {errors}')
+        submit_request(item=item, organization=nwl, user=user('demo.dwhitfield'), answers=answers)
+    print('  approvers:', ServiceRequestApprover.objects.count())
+
+
+def seed_readiness_custom_fields():
+    """Two custom asset fields on servers, and a Network baseline requirement
+    that they are filled in; one Northwind server has them, the others not."""
+    from assets.models import Asset, AssetCustomField
+    from readiness.models import DocumentationStandard, StandardRequirement as R
+    from readiness.params import validate_params
+
+    lead = user('demo.tech')
+    for i, (key, label, kind, help_text) in enumerate((
+            ('support_contract_id', 'Vendor support contract', 'text', 'Contract or service tag for hardware support.'),
+            ('backup_policy', 'Backup policy', 'text', 'Which backup job protects this server.'))):
+        AssetCustomField.objects.get_or_create(key=key, defaults=dict(
+            label=label, field_type=kind, help_text=help_text, asset_types=['server'], order=i, created_by=lead))
+    std = DocumentationStandard.objects.filter(name='Network baseline').first()
+    if std and not std.requirements.filter(title='Servers have a support contract and backup policy').exists():
+        R.objects.create(
+            standard=std, title='Servers have a support contract and backup policy', kind=R.KIND_ASSET_FIELDS,
+            params=validate_params(R.KIND_ASSET_FIELDS, {
+                'asset_type': 'server', 'fields': [], 'custom_fields': ['support_contract_id', 'backup_policy']}),
+            weight=2, order=std.requirements.count(),
+            description='Custom asset fields (Assets → Custom Fields): who to call when the hardware fails, '
+                        'and what protects the data.')
+    dc = Asset.objects.filter(organization=org('Northwind Logistics'), name='NWL-DC01').first()
+    if dc:
+        dc.custom_fields = {**(dc.custom_fields or {}), 'support_contract_id': 'ProSupport 7XK2-NWL-0142',
+                            'backup_policy': 'Nightly image, 30-day retention'}
+        dc.save(update_fields=['custom_fields'])
+    print('  readiness custom fields:', AssetCustomField.objects.count())
+
+
+def seed_secure_link():
+    """One unopened secure message with a known link token, so the gallery
+    can show the "Show the message" page a recipient lands on."""
+    from core.models import SecureNote
+    from psa.models import Ticket
+    from psa.ticket_secure import create_secure_message
+
+    digest = SecureNote.hash_access_token(SECURE_LINK_TOKEN)
+    if SecureNote.objects.filter(access_token_hash=digest).exists():
+        return
+    ticket = Ticket.objects.get(ticket_number='PSA-2026-000001')
+    note = create_secure_message(ticket=ticket, sender=user('demo.tech'),
+                                 text='Sample secret for the documentation screenshots.', expires_hours=72)
+    SecureNote.objects.filter(pk=note.pk).update(access_token_hash=digest)
+    print('  secure link: /core/secret/' + SECURE_LINK_TOKEN + '/')
+
+
+def seed_ticket_ai():
+    """Ticket AI Assist (OPTIONAL AI) configured but never called: two model
+    profiles with placeholder sealed keys (the demo has no gateway and sends
+    nothing), Northwind's AI policy, and the L2 preset for the demo technicians
+    at Northwind. Turns psa_ai_enabled on."""
+    from core.models import SystemSetting
+    from psa_ai.models import AIBusinessPolicy, AIModelProfile
+    from tech_access.models import AccessAssignment, AccessPreset
+
+    s = SystemSetting.get_settings()
+    s.psa_ai_enabled = True
+    s.save()
+    from psa_ai.services import gateway_keys
+
+    # The gateway key pair lives under $DEMO_DIR (demo_settings.AI_GATEWAY_KEY_DIR).
+    if not str(gateway_keys.key_dir()).startswith(os.environ['DEMO_DIR']):
+        raise SystemExit(f'Refusing to seed ticket AI: gateway key dir {gateway_keys.key_dir()} is not under $DEMO_DIR.')
+    if not (gateway_keys.key_dir() / 'private.key').exists():
+        gateway_keys.generate()
+    nwl, lead = org('Northwind Logistics'), user('demo.tech')
+    profiles = []
+    for name, provider, model, cheap, inp, outp in (
+            ('Claude — everyday', 'anthropic', 'claude-haiku-4-5', True, 10, 50),
+            ('OpenAI — second opinion', 'openai', 'gpt-5-mini', False, 3, 20)):
+        p, created = AIModelProfile.objects.get_or_create(name=name, defaults=dict(
+            provider=provider, model=model, enabled=True, economical=cheap,
+            credential_owner=AIModelProfile.OWNER_MSP, input_price_per_1k=inp, output_price_per_1k=outp))
+        if created or not p.has_api_key:
+            # A placeholder string, sealed like a real key; no model is ever called.
+            p.set_api_key('demo-placeholder-not-a-key')
+            p.save(update_fields=['sealed_api_key'])
+        p.assigned_organizations.add(nwl)
+        profiles.append(p)
+    policy, _ = AIBusinessPolicy.objects.get_or_create(organization=nwl, defaults=dict(
+        analysis_enabled=True, compare_enabled=True, default_profile=profiles[0], daily_budget_cents=500))
+    policy.allowed_profiles.add(*profiles)
+    l2 = AccessPreset.objects.filter(key='l2').first() or AccessPreset.objects.order_by('-level').first()
+    l1 = AccessPreset.objects.filter(key='l1').first()
+    if l2:
+        for username, preset in (('demo.tech', l2), ('demo.ipatel', l2), ('demo.mokafor', l1 or l2)):
+            AccessAssignment.objects.get_or_create(user=user(username), organization=nwl, preset=preset,
+                                                   defaults={'granted_by': lead})
+    print('  ticket AI: profiles', AIModelProfile.objects.count(), '| assignments', AccessAssignment.objects.count())
+
+
+def seed_superuser_approval():
+    """Lena Chen becomes the second administrator, Superuser Approval is
+    turned on, and Jordan has asked for Priya to be made a superuser — a grant
+    waiting for Lena's approval. No mail leaves the demo (locmem backend)."""
+    from tech_access import services as TA
+
+    lena, lead, priya = user('demo.lchen'), user('demo.tech'), user('demo.ipatel')
+    if not lena.is_superuser:
+        lena.is_superuser = True
+        lena.save()
+    TA.enable_superuser_policy(lead)
+    if not priya.is_superuser:
+        change = TA.propose_superuser_grant(priya, lead)
+        # As if Jordan had re-entered his password: the grant now waits on Lena.
+        type(change).objects.filter(pk=change.pk, requester_reauth_at=None).update(requester_reauth_at=now)
+    print('  superuser approval: on | pending grant for', priya.username)
+
+
+def seed_rmm_fixture():
+    """A Tactical RMM connection for Ridgeline that never syncs (sync off, an
+    invented .example host, no credentials), one device it 'reported',
+    linked to RDG-SRV01, and the open backup-verification ticket pointed at
+    that asset — so the ticket page shows its RMM card without any network.
+
+    The hook for the RMM ticket-integration screens: extend this fixture
+    (pairing, cached capabilities) rather than adding a live connection.
+    """
+    from assets.models import Asset
+    from integrations.models import RMMConnection, RMMDevice
+    from psa.models import Ticket
+
+    rdg = org('Ridgeline Dental Group')
+    srv = Asset.objects.get(organization=rdg, name='RDG-SRV01')
+    conn, _ = RMMConnection.objects.get_or_create(
+        organization=rdg, name='Ridgeline — Tactical RMM', provider_type='tactical_rmm',
+        defaults=dict(base_url='https://rmm.beaconmanaged.example', console_base_url='https://rmm.beaconmanaged.example',
+                      sync_enabled=False, sync_alerts=False, is_active=True, last_sync_status='success',
+                      last_sync_at=now - timedelta(minutes=25)))
+    dev, _ = RMMDevice.objects.get_or_create(
+        connection=conn, external_id='agent-7f3c21', defaults=dict(
+            organization=rdg, device_name='RDG-SRV01', hostname='srv01', device_type='server',
+            manufacturer='HPE', model='ProLiant DL360 Gen11', serial_number=srv.serial_number or 'CZJ2DEMO01',
+            os_type='windows', os_version='Windows Server 2022 Standard', ip_address='10.20.1.5',
+            client_id='3', client_name='Ridgeline Dental Group', site_id='5', site_name='Boise clinic',
+            is_online=True, last_seen=now - timedelta(minutes=4), linked_asset=srv, link_status='auto',
+            data_refreshed_at=now - timedelta(minutes=25)))
+    ticket = Ticket.objects.filter(organization=rdg, subject='Backup restore verification — February').first()
+    if ticket and ticket.related_asset_id is None:
+        Ticket.objects.filter(pk=ticket.pk).update(related_asset=srv)
+    print('  rmm fixture: connection', conn.pk, '| device', dev.pk, '| ticket', ticket and ticket.ticket_number)
+
+
 def main():
     steps = [seed_showcase, seed_presentation, seed_asset_detail, seed_commercial,
              rename_msp_tenant, seed_project_work, seed_visual, seed_dispatch,
              seed_my_work, seed_document_lifecycle, seed_readiness, seed_portal_request,
-             seed_scheduler_history, seed_rack_artwork]
+             seed_scheduler_history, seed_rack_artwork, seed_named_approvers,
+             seed_readiness_custom_fields, seed_secure_link, seed_ticket_ai, seed_superuser_approval,
+             seed_rmm_fixture]
     only = set(sys.argv[1:])
     for step in steps:
         if only and step.__name__ not in only:

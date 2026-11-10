@@ -292,16 +292,55 @@ def main() -> int:
     args.out.mkdir(parents=True, exist_ok=True)
     defaults = manifest.get('defaults', {})
 
+    # Entries that need a system setting changed for the capture (e.g. the
+    # update badge) run in their own pass, with the setting restored after.
+    passes: dict[str, list] = {}
+    for e in entries:
+        passes.setdefault(json.dumps(e.get('system_settings') or {}, sort_keys=True), []).append(e)
+
+    failures = []
+    for overrides_json, pass_entries in passes.items():
+        overrides = json.loads(overrides_json)
+        saved = apply_system_settings(overrides)
+        try:
+            run_pass(pass_entries, defaults, args, failures)
+        finally:
+            apply_system_settings(saved)
+
+    print(f'\n{len(entries) - len([f for f in failures if "FAILED" in f])}/{len(entries)} captured '
+          f'into {args.out}')
+    if failures:
+        print('\nIssues:')
+        for f in failures:
+            print(' -', f)
+        return 1
+    return 0
+
+
+def apply_system_settings(values: dict) -> dict:
+    """Set SystemSetting fields for one capture pass; returns the old values."""
+    if not values:
+        return {}
+    from core.models import SystemSetting
+    s = SystemSetting.get_settings()
+    old = {k: getattr(s, k) for k in values}
+    for k, v in values.items():
+        setattr(s, k, v)
+    s.save(update_fields=list(values))
+    return old
+
+
+def run_pass(entries, defaults, args, failures) -> None:
     # Sessions are minted up front: Django's ORM refuses to run inside the
-    # greenlet Playwright's sync API drives the browser from.
+    # greenlet Playwright's sync API drives the browser from. A user of ""
+    # captures signed out (e.g. the page a secure-message recipient sees).
     groups: dict[tuple, list] = {}
     for e in entries:
         key = (e.get('user', defaults.get('user', 'demo.tech')),
                e.get('organization', defaults.get('organization')))
         groups.setdefault(key, []).append(e)
-    sessions = {key: make_session(*key) for key in groups}
+    sessions = {key: make_session(*key) for key in groups if key[0]}
 
-    failures = []
     with sync_playwright() as p:
         browser = p.chromium.launch(args=['--force-color-profile=srgb',
                                           '--font-render-hinting=none',
@@ -315,9 +354,10 @@ def main() -> int:
                 device_scale_factor=defaults.get('scale', 2),
                 color_scheme='light',
             )
-            ctx.add_cookies([{'name': settings.SESSION_COOKIE_NAME,
-                              'value': sessions[key],
-                              'domain': '127.0.0.1', 'path': '/'}])
+            if username:
+                ctx.add_cookies([{'name': settings.SESSION_COOKIE_NAME,
+                                  'value': sessions[key],
+                                  'domain': '127.0.0.1', 'path': '/'}])
             page = ctx.new_page()
             bad: list[str] = []
             # Requests that never got a response (blocked, reset, timed out)
@@ -343,15 +383,6 @@ def main() -> int:
                     failures.append(f"{entry['name']}: {exc}")
             ctx.close()
         browser.close()
-
-    print(f'\n{len(entries) - len([f for f in failures if "FAILED" in f])}/{len(entries)} captured '
-          f'into {args.out}')
-    if failures:
-        print('\nIssues:')
-        for f in failures:
-            print(' -', f)
-        return 1
-    return 0
 
 
 if __name__ == '__main__':

@@ -15,7 +15,15 @@ opened by e-mail or in the portal. Between them the tickets show:
   follow up, waiting on vendor, closed — plus a new unassigned ticket.
 
 No mail is sent. Safe to run again: a sample ticket that already exists is
-skipped. The secure messages are real encrypted SecureNotes whose one-time
+skipped.
+
+``--org-map SAMPLE=TARGET`` (repeatable) files one sample customer's tickets
+under another organization instead, for a demo instance with its own invented
+customers, e.g. ``--org-map demo-globex=northwind-logistics``. The sample
+people's e-mail domain and the sample company name in the text are rewritten
+to the target's (its website host, else ``<slug>.example``), and a customer
+person with the same name already at the target is reused. Only mapped
+samples are created in that mode. The secure messages are real encrypted SecureNotes whose one-time
 links were never sent anywhere, so nobody can open them.
 """
 from datetime import timedelta
@@ -42,6 +50,15 @@ PEOPLE = {
 }
 # Existing portal users to use instead, where the customer already has them.
 EXISTING = {'acme-corporation': ['demo.editor', 'demo.viewer']}
+# How each sample customer is named in the sample text, and its e-mail
+# domain; --org-map rewrites both to the target organization's.
+LABELS = {
+    'demo-globex': ('Globex', 'globex.example.com'),
+    'demo-initech': ('Initech', 'initech.example.com'),
+    'demo-acme': ('ACME Industries', 'acme-industries.example.com'),
+    'demo': ('Demo Company', 'demo-company.example.com'),
+    'acme-corporation': ('Acme Corporation', 'acme.example.com'),
+}
 
 T, C, NOTE, EVENT, FILE, TIME = 'tech', 'customer', 'note', 'event', 'file', 'time'
 
@@ -176,9 +193,48 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--tech', default='', help='Username of the technician who replies (default: the '
                                                        'first active superuser).')
+        parser.add_argument('--org-map', action='append', default=[], metavar='SAMPLE=TARGET',
+                            help='File the tickets of sample customer SAMPLE (e.g. demo-globex) under the '
+                                 'organization with slug TARGET instead. Repeatable; when given, only mapped '
+                                 'samples are created.')
+
+    def _parse_map(self, pairs):
+        from core.models import Organization
+        mapping = {}
+        for pair in pairs:
+            sample, sep, target = pair.partition('=')
+            sample, target = sample.strip(), target.strip()
+            if not sep or sample not in LABELS or not target:
+                raise CommandError(f'--org-map {pair!r}: expected SAMPLE=TARGET with SAMPLE one of '
+                                   f'{", ".join(LABELS)}.')
+            org = Organization.objects.filter(slug=target, is_active=True).first()
+            if org is None:
+                raise CommandError(f'--org-map {pair!r}: no active organization with slug {target!r}.')
+            mapping[sample] = org
+        return mapping
+
+    @staticmethod
+    def _target_domain(org):
+        from urllib.parse import urlparse
+        host = urlparse(org.website or '').hostname if getattr(org, 'website', '') else None
+        return (host[4:] if host and host.startswith('www.') else host) or f'{org.slug}.example'
+
+    def _rewrite(self, value, sample, org):
+        """The sample text with the sample company's name and domain replaced
+        by the target organization's."""
+        label, domain = LABELS[sample]
+        new_domain = self._target_domain(org)
+        if isinstance(value, str):
+            return value.replace(domain, new_domain).replace(label, org.name)
+        if isinstance(value, list):
+            return [self._rewrite(v, sample, org) for v in value]
+        if isinstance(value, dict):
+            return {k: self._rewrite(v, sample, org) for k, v in value.items()}
+        return value
 
     def handle(self, *args, **opts):
         User = get_user_model()
+        self.mapping = self._parse_map(opts.get('org_map') or [])
         tech = (User.objects.filter(username=opts['tech'], is_active=True).first() if opts['tech'] else
                 User.objects.filter(is_active=True, is_superuser=True).order_by('pk').first())
         if tech is None:
@@ -194,16 +250,23 @@ class Command(BaseCommand):
         created = 0
         people_cache = {}
         for spec in SAMPLES:
-            org = self._org(spec['org'])
+            if self.mapping:
+                if spec['org'] not in self.mapping:
+                    continue
+                org = self.mapping[spec['org']]
+                spec = {**self._rewrite(spec, spec['org'], org), 'org': spec['org']}
+            else:
+                org = self._org(spec['org'])
             if org is None:
                 self.stdout.write(f'skip "{spec["subject"]}": no active customer {spec["org"]}')
                 continue
             if Ticket.objects.filter(organization=org, subject=spec['subject']).exists():
                 self.stdout.write(f'exists: "{spec["subject"]}" at {org.name}')
                 continue
-            if org.pk not in people_cache:
-                people_cache[org.pk] = self._people(org, spec['org'])
-            people = people_cache[org.pk]
+            key = (org.pk, spec['org'])
+            if key not in people_cache:
+                people_cache[key] = self._people(org, spec['org'])
+            people = people_cache[key]
             if not people:
                 self.stdout.write(f'skip "{spec["subject"]}": no customer people at {org.name}')
                 continue
@@ -223,13 +286,21 @@ class Command(BaseCommand):
         who can't sign in (unusable password)."""
         from accounts.models import Membership, Role, UserProfile, UserType
         User = get_user_model()
-        people = [u for u in User.objects.filter(username__in=EXISTING.get(slug, []), is_active=True)
-                  .order_by('username')]
+        mapped = bool(self.mapping)
+        existing = [] if mapped else EXISTING.get(slug, [])
+        people = [u for u in User.objects.filter(username__in=existing, is_active=True).order_by('username')]
         if people:
             return people
         for first, last, email in PEOPLE.get(slug, []):
             username = f'demo.{first}.{last}'.lower()
             user = User.objects.filter(username=username).first()
+            if mapped:
+                email = self._rewrite(email, slug, org)
+                # A customer person of that name already at the target (say the
+                # demo's own portal user) is reused rather than duplicated.
+                user = user or User.objects.filter(
+                    first_name=first, last_name=last, is_active=True, is_staff=False,
+                    memberships__organization=org, memberships__is_active=True).order_by('pk').first()
             if user is None:
                 user = User(username=username, first_name=first, last_name=last, email=email)
                 user.set_unusable_password()

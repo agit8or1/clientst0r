@@ -65,4 +65,19 @@ for step in (seed_demo.seed_my_work, seed_demo.seed_document_lifecycle,
 catalog_source = os.environ.get('HARDWARE_CATALOG_SOURCE')
 call_command('import_hardware_catalog', verbosity=0, **({'source_dir': catalog_source} if catalog_source else {}))
 call_command('seed_hardware_demo')
+
+# Everything below runs after the hardware demo so the primary keys the
+# manifest names for the steps above stay what a fresh build produces.
+# Rack A drawn from catalog artwork (needs the catalog imported above).
+print('seed_rack_artwork')
+seed_demo.seed_rack_artwork()
+# The application's sample conversations and module samples, pointed at this
+# instance's invented customers instead of their built-in demo slugs.
+call_command('psa_seed_sample_conversations', tech='demo.tech', org_map=seed_demo.CONVERSATION_ORG_MAP)
+call_command('seed_module_samples', **seed_demo.MODULE_SAMPLE_OPTIONS)
+for step in (seed_demo.seed_named_approvers, seed_demo.seed_readiness_custom_fields,
+             seed_demo.seed_secure_link, seed_demo.seed_ticket_ai, seed_demo.seed_superuser_approval,
+             seed_demo.seed_rmm_fixture):
+    print(step.__name__)
+    step()
 print(f"demo instance ready: {db['NAME']}")

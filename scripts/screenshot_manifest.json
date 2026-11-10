@@ -672,6 +672,279 @@
       "organization": "Client XYZ",
       "max_h": 1300,
       "group": "hardware"
+    },
+    {
+      "name": "ticket-conversation-dark",
+      "route": "/psa/t/PSA-2026-000017/",
+      "theme": "dark",
+      "group": "workflows",
+      "organization": "Northwind Logistics",
+      "max_h": 1560,
+      "heading": "A ticket conversation with Cc and a secure message",
+      "caption": "A customer's e-mailed request as a thread: replies quote what they answer, the internal note stays amber and staff-only, and the reply that carried a temporary password shows only the secure message's state — opened by the recipient — never its content. The header says what happened last and the Cc card lists who is copied on e-mailed replies.",
+      "alt": "Resolved ticket in dark theme titled Outlook keeps asking for my password: customer bubbles from Dana Whitfield on the left, technician replies from Jordan Reyes on the right with one showing Cc office.manager@northwind.example, an amber internal note marked staff only, status-change rows, and a dashed Secure message box reading opened by the recipient, opens once, its content encrypted and not shown; beside it a Copied on replies (Cc) card, the active contract and a linked known-error problem record"
+    },
+    {
+      "name": "ticket-cc-reply-light",
+      "route": "/psa/t/PSA-2026-000019/",
+      "theme": "light",
+      "group": "workflows",
+      "organization": "Ridgeline Dental Group",
+      "selector": "#composer",
+      "extend_up": 420,
+      "max_h": 1100,
+      "actions": [
+        {
+          "check": "#comment_send_email"
+        }
+      ],
+      "heading": "Replying with Cc",
+      "caption": "Tick \"Email this reply\" and the Cc field appears, filled from the people the customer copied. The reply above it carried a first-day password as a secure message: sent by e-mail, not opened yet, opens once, with its expiry.",
+      "alt": "Ticket composer in light theme with Email this reply ticked and a Cc field pre-filled with hr@ridgeline.example and it.lead@ridgeline.example, below a technician reply whose dashed Secure message box reads sent by e-mail, not opened yet, opens once, with an expiry date"
+    },
+    {
+      "name": "ticket-secure-compose-dark",
+      "route": "/psa/t/PSA-2026-000018/",
+      "theme": "dark",
+      "group": "workflows",
+      "organization": "Northwind Logistics",
+      "selector": "#composer",
+      "max_h": 1100,
+      "actions": [
+        {
+          "check": "#comment_send_email"
+        },
+        {
+          "click": "details.tc-secure-compose summary",
+          "wait_ms": 600
+        }
+      ],
+      "heading": "Adding a secure message",
+      "caption": "A secret such as a temporary password goes in its own box, not the reply. It is stored encrypted as a one-time link that only the requester receives, expires after 1, 3 or 7 days, and cannot be combined with Cc.",
+      "alt": "Public reply composer in dark theme with the Add a secure message section open: a box for the secret that goes only to marcus.bell@northwind.example, an Expires after 3 days selector, a Can be opened once checkbox, the note Can't be combined with Cc, and Email this reply ticked"
+    },
+    {
+      "name": "portal-ticket-light",
+      "route": "/portal/t/PSA-2026-000017/",
+      "theme": "light",
+      "group": "workflows",
+      "user": "demo.dwhitfield",
+      "organization": "Northwind Logistics",
+      "max_h": 1500,
+      "heading": "The same ticket in the customer portal",
+      "caption": "The customer sees the shared conversation in the same layout, with no internal note and no technician working data. Where a reply carried a secure message, the portal says it went to their e-mail address as a separate link.",
+      "alt": "Customer portal ticket page in light theme for Northwind Logistics: a Received, In progress, Resolved progress bar, then the conversation with customer and technician bubbles, the Cc line on a reply, and a Secure message box reading sent to your e-mail address as a separate link that opens once, it has been opened; the internal note is absent"
+    },
+    {
+      "name": "portal-approvals-light",
+      "route": "/portal/approvals/",
+      "theme": "light",
+      "group": "workflows",
+      "user": "demo.alindqvist",
+      "organization": "Northwind Logistics",
+      "max_h": 900,
+      "heading": "Approving a request as the named approver",
+      "caption": "A request type can name who approves it for each customer. Here Aaron is the named approver for access requests, so Dana's request waits on him and he gets Approve and Deny; other customer admins see who it is waiting on.",
+      "alt": "Customer portal Approvals page in light theme: an access request from Dana Whitfield for read and write access to the inventory share, labelled Approver: Aaron Lindqvist, with a comment box and Approve and Deny buttons"
+    },
+    {
+      "name": "ticket-rmm-light",
+      "route": "/psa/t/PSA-2026-000006/",
+      "theme": "light",
+      "group": "workflows",
+      "organization": "Ridgeline Dental Group",
+      "selector": "#ticket-asset-card",
+      "extend_up": 260,
+      "max_h": 900,
+      "heading": "What the RMM reports about the ticket's asset",
+      "caption": "A ticket can name the asset it is about, chosen from that customer's assets only. Technicians then see what each RMM that manages it last reported — status, last check-in and when the data was refreshed. Customers see none of it.",
+      "alt": "Asset card on a ticket in light theme for server RDG-SRV01, showing the RMM that reports it with provider, connection, customer and site, online status and last check-in, above an asset picker with a Set button"
+    },
+    {
+      "name": "change-cab-dark",
+      "route": "/psa/t/PSA-2026-000025/change/",
+      "theme": "dark",
+      "group": "workflows",
+      "organization": "Beacon Managed IT",
+      "max_h": 1400,
+      "heading": "Change request and CAB vote",
+      "caption": "A change carries its implementation, rollback and impact plans, its window, and the CAB's votes. It can be implemented only once every required approver has approved and nobody has rejected it.",
+      "alt": "Change management page in dark theme for a high-risk firewall firmware upgrade marked Approved, ready to implement: implementation and rollback plans, impact assessment, scheduled window, and a CAB approval table with two approvals, a vote box and a Begin Implementation button"
+    },
+    {
+      "name": "problems-light",
+      "route": "/psa/problems/",
+      "theme": "light",
+      "group": "workflows",
+      "organization": "Beacon Managed IT",
+      "max_h": 1100,
+      "heading": "Problem records",
+      "caption": "Recurring incidents get a problem record of their own, from investigating to known error to resolved, with the tickets linked to it.",
+      "alt": "Problem Records list in light theme with problems such as VPN tunnels dropping on dead-peer-detection timeouts, recurring Outlook credential prompts and print spooler crashes, each with status, priority, assignee, linked tickets and created date"
+    },
+    {
+      "name": "catalog-approvers-dark",
+      "route": "/psa/catalog/19/approvers/?org=2",
+      "theme": "dark",
+      "group": "management",
+      "organization": "Beacon Managed IT",
+      "max_h": 1100,
+      "heading": "Named approvers per request type",
+      "caption": "For each customer a request type is offered to, staff pick which of that customer's people approve it. With nobody named, the customer's admins approve as before. Someone who has left is flagged and ignored, and nobody approves their own request.",
+      "alt": "Named approvers page in dark theme for the Access request type: a list of customers with how many approvers each has, and for Northwind Logistics a warning that Grace Holt is no longer an active person there and is ignored, with Aaron Lindqvist ticked among the customer's people and a Save approvers button"
+    },
+    {
+      "name": "crm-pipeline-dark",
+      "route": "/crm/pipeline/",
+      "theme": "dark",
+      "group": "management",
+      "organization": "Beacon Managed IT",
+      "max_h": 900,
+      "heading": "Sales pipeline",
+      "caption": "Opportunities by stage, each with its customer, value, probability and owner, and a weighted total per column. Drag a card to move it to another stage.",
+      "alt": "CRM sales pipeline in dark theme with Discovery, Qualified, Proposal, Negotiation, Closed Won and Closed Lost columns holding opportunities such as a managed security add-on and a server room refresh, with values, probabilities and weighted totals"
+    },
+    {
+      "name": "readiness-custom-fields-dark",
+      "route": "/readiness/customer/2/",
+      "theme": "dark",
+      "group": "insights",
+      "organization": "Northwind Logistics",
+      "selector": "div.card:has-text('Network baseline')",
+      "max_h": 1400,
+      "heading": "Custom asset fields as requirements",
+      "caption": "A requirement can name your own custom asset fields. Here every server must record its vendor support contract and backup policy; the servers missing them are listed and the fix opens the asset's Custom Fields section.",
+      "alt": "Network baseline standard for Northwind Logistics in dark theme scoring 81.8 percent: four met requirements, and an unmet one, Servers have a support contract and backup policy, listing NWL-FS01 and NWL-NAS01 as missing Vendor support contract and Backup policy, with a Fill in the asset button"
+    },
+    {
+      "name": "readiness-prefill-light",
+      "route": "/docs/create/?org=2&title=recovery&tags=m365",
+      "theme": "light",
+      "group": "insights",
+      "organization": "Northwind Logistics",
+      "selector": "div.card",
+      "pad": 16,
+      "max_h": 760,
+      "heading": "A readiness fix opens a filled-in form",
+      "caption": "A readiness \"Create it\" link switches to the customer the gap belongs to and opens the form with what the requirement asks for already filled in. The form says which customer it saves in; nothing is saved until you click Save.",
+      "alt": "Create Document form in light theme opened from a readiness fix link, with a banner reading This will be saved in Northwind Logistics and the title already filled in"
+    },
+    {
+      "name": "status-page-light",
+      "route": "/status/1/",
+      "theme": "light",
+      "group": "insights",
+      "organization": "Northwind Logistics",
+      "max_h": 1300,
+      "heading": "Customer status page",
+      "caption": "A public status page per customer: only the services listed here appear, under a public name, and incidents are written for that audience rather than copied from tickets.",
+      "alt": "Status page editor in light theme for Northwind Logistics with a warning that the page is live and public, its link with a Rotate link control, two published services marked operational, and an ongoing VPN incident and a resolved website incident with update boxes"
+    },
+    {
+      "name": "tech-roster-light",
+      "route": "/resourcing/roster/",
+      "theme": "light",
+      "group": "insights",
+      "organization": "Beacon Managed IT",
+      "max_h": 900,
+      "heading": "Technician roster",
+      "caption": "Who is on shift now, with each technician's skills and certifications, and which certifications are expiring or have expired.",
+      "alt": "Tech Roster in light theme listing four technicians with on-shift or off-shift badges, skill and certification counts, and one expiring and one expired certification flagged"
+    },
+    {
+      "name": "secure-message-reveal-light",
+      "route": "/core/secret/demo-docs-secure-message-link-not-a-real-token/",
+      "theme": "light",
+      "group": "security",
+      "user": "",
+      "selector": "div.card",
+      "pad": 40,
+      "max_h": 640,
+      "heading": "What the recipient of a secure message sees",
+      "caption": "A one-time link opens behind a button. Mail scanners and link previews fetch links without pressing it, so they no longer use up the message before the person it was sent to sees it.",
+      "alt": "Secure message page in light theme reading You have a secure message, it can be opened once, copy what you need before you leave the page, with its expiry time and a Show the message button"
+    },
+    {
+      "name": "security-features-light",
+      "route": "/core/security/features/?org=2",
+      "theme": "light",
+      "group": "security",
+      "organization": "Beacon Managed IT",
+      "max_h": 1600,
+      "heading": "Security Features",
+      "caption": "Every safeguard with what it protects, its default and what it needs — and, for the customer you pick, whether it is actually in effect there. Values fixed by an environment variable are named; a check that cannot be read shows Unknown, never On.",
+      "alt": "Security Features page in light theme with the effective state shown for Northwind Logistics: a Sign-in table listing two-factor sign-in, failed sign-in lockout, password rules and hashing, session time limits, the IP and country firewall and the Content Security Policy, each with a shipped badge, default and prerequisites, and its state at the customer such as Partly, On or Off, then a Client access table"
+    },
+    {
+      "name": "vault-visibility-dark",
+      "route": "/core/security/vault-visibility/",
+      "theme": "dark",
+      "group": "security",
+      "organization": "Beacon Managed IT",
+      "max_h": 1000,
+      "heading": "Vault visibility report",
+      "caption": "Technicians see a customer's vault entries only where a membership or their global role grants it. This read-only report shows which staff lost cross-customer visibility, what they still see and how many entries are now hidden. It grants nothing.",
+      "alt": "Vault Visibility report in dark theme explaining that vault titles stay inside the customers a technician is assigned to, with a table of technicians, the customers they still see, the customer they no longer see and the number of entries hidden"
+    },
+    {
+      "name": "technician-access-light",
+      "route": "/settings/security/technician-access/",
+      "theme": "light",
+      "group": "security",
+      "organization": "Beacon Managed IT",
+      "max_h": 1500,
+      "heading": "Technician Access",
+      "caption": "What each MSP technician may do with ticket AI and RMM tools, per customer, from L1, L2 and L3 presets. Narrowing applies at once; anything that widens access is a protected change that a different administrator approves.",
+      "alt": "Technician Access settings in light theme: the order of evaluation, a password and authenticator confirmation box, protected changes waiting, an effective-access preview, assignments of L1 Help Desk and L2 Technician presets to three technicians at Northwind Logistics, and the preset capability table"
+    },
+    {
+      "name": "superuser-approval-dark",
+      "route": "/settings/security/technician-access/superusers/",
+      "theme": "dark",
+      "group": "security",
+      "organization": "Beacon Managed IT",
+      "max_h": 1100,
+      "heading": "Superuser Approval",
+      "caption": "Optional and off by default. When on, creating or promoting a superuser is a request that a different administrator must approve; until then the account is not a superuser. Turning the policy off is itself a protected change.",
+      "alt": "Superuser Approval page in dark theme with the policy turned on, two eligible administrators, and a grant of superuser to one account waiting for approval by a different administrator"
+    },
+    {
+      "name": "ticket-ai-models-dark",
+      "route": "/psa/ai/profiles/",
+      "theme": "dark",
+      "group": "security",
+      "organization": "Beacon Managed IT",
+      "max_h": 1100,
+      "heading": "Ticket AI models (OPTIONAL AI)",
+      "caption": "Optional, off unless PSA AI is enabled. Model profiles name the provider, model and whose key it is; keys are write-only and sealed to the gateway. Each customer's AI policy decides what is allowed there.",
+      "alt": "Ticket AI Assist models and customer policies page in dark theme marked OPTIONAL AI, listing two model profiles with provider and model, a write-only stored key, MSP ownership for assigned customers only and enabled status, beside a New profile form"
+    },
+    {
+      "name": "security-incidents-dark",
+      "route": "/security/incidents/",
+      "theme": "dark",
+      "group": "security",
+      "organization": "Beacon Managed IT",
+      "max_h": 1000,
+      "heading": "Security incidents",
+      "caption": "Alerts that need handling become incidents with a severity, a status, the client and asset involved, and the alerts behind them.",
+      "alt": "Security Incidents list in dark theme with VPN brute-force attempts, a compromised Microsoft 365 account and blocked ransomware incidents across three clients, each with severity, status, client, asset, opened time and alert count"
+    },
+    {
+      "name": "update-badge-light",
+      "route": "/core/dashboard/",
+      "theme": "light",
+      "group": "security",
+      "organization": "Northwind Logistics",
+      "selector": "nav.navbar",
+      "pad": 0,
+      "max_h": 300,
+      "system_settings": {
+        "latest_release_version": "3.17.657"
+      },
+      "heading": "Update available",
+      "caption": "When the scheduled update check finds a newer release, superusers see an Update badge in the top bar that links to Settings → Updates. Pages never contact GitHub while loading, and other users never see it.",
+      "alt": "Top navigation bar in light theme with an orange Update badge next to the search box"
     }
   ]
 }
