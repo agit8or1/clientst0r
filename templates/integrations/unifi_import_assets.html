@@ -8,23 +8,26 @@
     </a>
 </div>
 
-{% if is_cloud %}
 <div class="alert alert-info">
     <i class="fas fa-info-circle me-2"></i>
     {% if site_filter %}
-        <strong>Single-site import:</strong> Importing devices from site <strong>{{ site_filter }}</strong> into its assigned organization.
+        <strong>Single-site import:</strong> importing devices from site <strong>{{ site_filter }}</strong> into the customer it maps to.
     {% else %}
-        <strong>Cloud connection:</strong> Devices are imported into the organization assigned to each site.
-        Sites without an organization assignment are skipped.
-        Assign organizations using the dropdown on the <a href="{% url 'integrations:unifi_detail' connection.pk %}">connection detail page</a>, or use the <strong>Import</strong> button per site.
+        Each site's devices are imported into the customer that site maps to. Existing assets are matched by
+        this controller's device link, then MAC, then serial number, within that customer; their type and
+        customer are not changed (use the placement report for that). This is the same import the scheduled
+        sync runs.
     {% endif %}
 </div>
-{% else %}
-<div class="alert alert-info">
-    <i class="fas fa-info-circle me-2"></i>
-    The following <strong>{{ all_devices|length }}</strong> device(s) will be imported from
-    <strong>{{ connection.name }}</strong> into your asset registry.
-    Existing assets are matched by MAC address and updated; new assets are created.
+
+{% if sites_needing_mapping %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>{{ sites_needing_mapping|length }} site(s) will be skipped</strong> until they map to exactly one customer:
+    <ul class="mb-1 mt-1">
+        {% for s in sites_needing_mapping %}<li><strong>{{ s.site_name }}</strong> — {{ s.reason }} ({{ s.device_count }} device(s))</li>{% endfor %}
+    </ul>
+    <a href="{% url 'integrations:unifi_detail' connection.pk %}#site-mapping">Fix the site → customer mapping</a>
 </div>
 {% endif %}
 
@@ -32,9 +35,9 @@
     {% csrf_token %}
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <strong>Devices to Import</strong>
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-download me-1"></i>Confirm Import ({{ all_devices|length }} devices)
+            <strong>Devices</strong>
+            <button type="submit" class="btn btn-primary"{% if not importable_count %} disabled{% endif %}>
+                <i class="fas fa-download me-1"></i>Confirm Import ({{ importable_count }} device(s))
             </button>
         </div>
         <div class="card-body p-0">
@@ -43,9 +46,9 @@
                     <thead class="table-dark">
                         <tr>
                             <th>Site</th>
-                            {% if is_cloud %}<th>Target Org</th>{% endif %}
+                            <th>Customer</th>
                             <th>Name</th>
-                            <th>Type</th>
+                            <th>Asset type</th>
                             <th>Model</th>
                             <th>IP</th>
                             <th>MAC</th>
@@ -56,19 +59,17 @@
                     <tbody>
                         {% for item in all_devices %}
                         {% with d=item.device %}
-                        <tr{% if is_cloud and not item.assigned_org_id %} class="table-warning text-muted"{% endif %}>
+                        <tr{% if not item.assigned_org_id %} class="table-warning text-muted"{% endif %}>
                             <td class="text-muted small">{{ item.site_name }}</td>
-                            {% if is_cloud %}
                             <td class="small">
-                                {% if item.assigned_org_name %}
+                                {% if item.assigned_org_id %}
                                     <span class="badge bg-success">{{ item.assigned_org_name }}</span>
                                 {% else %}
-                                    <span class="badge bg-warning text-dark">Unassigned — will skip</span>
+                                    <span class="badge bg-warning text-dark">{{ item.resolution.status|capfirst }} — will skip</span>
                                 {% endif %}
                             </td>
-                            {% endif %}
                             <td class="fw-semibold">{{ d.name }}</td>
-                            <td><span class="badge bg-secondary text-white">{{ d.productType }}</span></td>
+                            <td><span class="badge bg-secondary text-white" title="Controller type: {{ d.productType }}">{{ d.asset_type }}</span></td>
                             <td>{{ d.model }}</td>
                             <td><code class="small">{{ d.ip }}</code></td>
                             <td><code class="small">{{ d.mac }}</code></td>
@@ -86,7 +87,7 @@
         {% if all_devices %}
         <div class="card-footer text-end">
             <a href="{% url 'integrations:unifi_detail' connection.pk %}" class="btn btn-outline-secondary me-2">Cancel</a>
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-primary"{% if not importable_count %} disabled{% endif %}>
                 <i class="fas fa-download me-1"></i>Confirm Import
             </button>
         </div>

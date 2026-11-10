@@ -1,0 +1,51 @@
+{% load tz %}{% if health %}{% if compact %}
+<div class="sync-health-compact small text-muted">
+    {% if health.status == 'success' %}<span class="badge bg-success text-white">Success</span>
+    {% elif health.status == 'partial' %}<span class="badge bg-warning text-dark">Partial</span>
+    {% elif health.status == 'error' %}<span class="badge bg-danger text-white">Error</span>
+    {% else %}<span class="badge bg-secondary text-white">Never synced</span>{% endif %}
+    {% if health.has_counts %}<span title="created / updated / skipped / failed">{{ health.created }}+ {{ health.updated }}~ {{ health.skipped }}&#8856; {{ health.failed }}&#10007;</span>{% endif %}
+    {% if health.action %}<div class="text-body-secondary"><i class="fas fa-wrench me-1"></i>{{ health.action|truncatechars:160 }}</div>{% endif %}
+</div>
+{% else %}
+<div class="card mb-3 sync-health{% if health.status == 'error' %} border-danger{% elif health.status == 'partial' %} border-warning{% endif %}">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-heartbeat me-2"></i>Sync health</span>
+        {% if health.status == 'success' %}<span class="badge bg-success text-white">Success</span>
+        {% elif health.status == 'partial' %}<span class="badge bg-warning text-dark">Partial</span>
+        {% elif health.status == 'error' %}<span class="badge bg-danger text-white">Error</span>
+        {% else %}<span class="badge bg-secondary text-white">Never synced</span>{% endif %}
+    </div>
+    <div class="card-body">
+        <table class="table table-sm mb-2">
+            <tr><th style="width:40%">Last attempt</th><td>{% if health.last_attempt_at %}<span data-utc="{{ health.last_attempt_at|date:'c' }}">{{ health.last_attempt_at|localtime|date:"Y-m-d H:i" }}</span>{% else %}Never{% endif %}</td></tr>
+            <tr><th>Last successful sync</th><td>{% if health.last_success_at %}<span data-utc="{{ health.last_success_at|date:'c' }}">{{ health.last_success_at|localtime|date:"Y-m-d H:i" }}</span>{% else %}Never{% endif %}</td></tr>
+            {% if health.has_counts %}
+            <tr><th>Last run</th><td>
+                <span class="me-2">{{ health.created }} created</span>
+                <span class="me-2">{{ health.updated }} updated</span>
+                <span class="me-2">{{ health.skipped }} skipped</span>
+                <span class="{% if health.failed %}text-danger fw-semibold{% endif %}">{{ health.failed }} failed</span>
+            </td></tr>
+            {% endif %}
+            {% if health.error %}<tr><th>Error</th><td class="text-danger small text-break">{{ health.error|truncatechars:600 }}</td></tr>{% endif %}
+        </table>
+        {% if health.issues %}
+        <h6 class="small text-uppercase text-muted fw-bold mb-1">Affected customers / sites</h6>
+        <ul class="small mb-2">
+            {% for i in health.issues %}
+            <li>
+                {% if i.customer %}<strong>{{ i.customer }}</strong>{% endif %}{% if i.customer and i.site %} · {% endif %}{% if i.site %}site <strong>{{ i.site }}</strong>{% endif %}{% if i.customer or i.site %}: {% endif %}{{ i.message }}
+                {% if i.action %}<div class="text-body-secondary"><i class="fas fa-wrench me-1"></i>{{ i.action }}</div>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if health.action %}
+        <div class="alert {% if health.status == 'error' %}alert-danger{% else %}alert-warning{% endif %} py-2 mb-0 small">
+            <i class="fas fa-wrench me-1"></i><strong>Next step:</strong> {{ health.action }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}{% endif %}
