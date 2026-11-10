@@ -21,6 +21,7 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+from django_ratelimit.decorators import ratelimit
 
 from accounts.models import Membership
 from audit.models import AuditLog
@@ -639,16 +640,37 @@ def vault_list(request):
 
 @portal_required
 @require_http_methods(['POST'])
+# Same counter as the web vault and the browser extension (v3.17.660).
+@ratelimit(group='vault.reveal', key='user', rate='30/h', method='POST', block=False)
 def vault_reveal(request, pk):
-    """Audit-logged password reveal — returns the plaintext as JSON."""
-    from django.http import JsonResponse
+    """Audit-logged password reveal — returns the plaintext as JSON.
+
+    Since v3.17.660 it passes the same gates as every other reveal channel
+    (vault.permissions.gate_portal_reveal: approval requirement and access
+    rules) and shares their rate limit, and the audit entry is written
+    before the secret leaves: if it can't be recorded, nothing is revealed.
+    """
     from vault.models import Password
-    from audit.models import AuditLog
+    from vault.permissions import RevealDenied, consume_approval, gate_portal_reveal
     m = request.portal_membership
     pwd = get_object_or_404(Password, pk=pk, organization=m.organization,
                             is_personal=False, client_visible=True)
-    if not pwd.visible_to_portal_user(request.user):
-        return JsonResponse({'error': 'Not authorised.'}, status=403)
+    if getattr(request, 'limited', False):
+        return JsonResponse({'error': 'Too many reveals. Try again later.'}, status=429)
+    try:
+        gate_portal_reveal(request, pwd)
+    except RevealDenied as denied:
+        try:
+            AuditLog.log(
+                user=request.user, action='reveal_blocked', organization=pwd.organization,
+                object_type='vault.Password', object_id=pwd.pk, object_repr=pwd.title,
+                description=f'Portal reveal of {pwd.title} blocked: {denied.detail}',
+                path=request.path, success=False,
+                extra_data={'channel': 'portal', 'requires_approval': denied.requires_approval},
+            )
+        except Exception:
+            logger.exception('Portal reveal: could not record blocked reveal of %s', pwd.pk)
+        return JsonResponse({'error': denied.detail}, status=denied.status)
     try:
         plaintext = pwd.get_password()
     except Exception:
@@ -656,15 +678,19 @@ def vault_reveal(request, pk):
         return JsonResponse({'error': 'Could not decrypt this credential.'}, status=500)
     try:
         AuditLog.log(
-            user=request.user, action='view',
+            user=request.user, action='reveal',
             organization=pwd.organization,
             object_type='vault.Password', object_id=pwd.pk,
             object_repr=pwd.title,
             description=f'Portal reveal of {pwd.title} by {request.user.email}',
             path=request.path,
+            extra_data={'channel': 'portal'},
         )
     except Exception:
-        pass
+        logger.exception('Portal reveal: audit entry for %s could not be written; not revealing', pwd.pk)
+        return JsonResponse({'error': 'This reveal could not be recorded, so it was not shown. '
+                                      'Try again shortly.'}, status=503)
+    consume_approval(pwd, request.user)
     return JsonResponse({'password': plaintext, 'title': pwd.title,
                          'username': pwd.username})
 
@@ -727,22 +753,27 @@ def org_admin_vault_item(request, pk):
         except ValueError:
             posted = set()
         clean = posted & org_member_ids
-        pwd.client_allowed_users.set(list(clean))
-
+        # The access change and its audit entry land together: if the entry
+        # can't be written, the change is rolled back (v3.17.660).
+        from django.db import transaction
         try:
-            from audit.models import AuditLog
-            AuditLog.log(
-                user=request.user, action='update',
-                organization=pwd.organization,
-                object_type='vault.Password', object_id=pwd.pk,
-                object_repr=pwd.title,
-                description=f'Org admin {request.user.email} updated access list '
-                            f'for {pwd.title} (now {len(clean)} users)',
-                path=request.path,
-                extra_data={'allowed_user_ids': sorted(clean)},
-            )
+            with transaction.atomic():
+                pwd.client_allowed_users.set(list(clean))
+                AuditLog.log(
+                    user=request.user, action='update',
+                    organization=pwd.organization,
+                    object_type='vault.Password', object_id=pwd.pk,
+                    object_repr=pwd.title,
+                    description=f'Org admin {request.user.email} updated access list '
+                                f'for {pwd.title} (now {len(clean)} users)',
+                    path=request.path,
+                    extra_data={'allowed_user_ids': sorted(clean)},
+                )
         except Exception:
-            pass
+            logger.exception('Portal org admin: access change for %s not saved (audit failed)', pwd.pk)
+            messages.error(request, f'Access for "{pwd.title}" was not changed: the change could not be '
+                                    f'recorded. Try again shortly.')
+            return redirect('portal:org_admin_vault_item', pk=pwd.pk)
         messages.success(request, f'Updated access for "{pwd.title}".')
         return redirect('portal:org_admin_vault')
 

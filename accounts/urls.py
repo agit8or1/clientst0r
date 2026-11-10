@@ -18,6 +18,7 @@ urlpatterns = [
     path('auth/azure/login/', oauth_views.azure_login, name='azure_login'),
     path('auth/azure/callback/', oauth_views.azure_callback, name='azure_callback'),
     path('auth/azure/status/', oauth_views.azure_status, name='azure_status'),
+    path('auth/azure/verify/', oauth_views.azure_verify, name='azure_verify'),
 
     path('switch/<int:org_id>/', views.switch_organization, name='switch_organization'),
     path('switch-global/', views.switch_to_global_view, name='switch_to_global_view'),

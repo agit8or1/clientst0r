@@ -116,14 +116,26 @@ class Enforce2FAMiddleware:
         if not request.user.is_authenticated:
             return self.get_response(request)
 
+        # A Microsoft sign-in stands in for 2FA only when Microsoft confirmed
+        # MFA (or AZURE_SSO_TRUSTED_AS_2FA); before v3.17.660 any Microsoft
+        # sign-in skipped 2FA (accounts.azure_auth.azure_sso_counts_as_2fa).
+        from .azure_auth import azure_sso_counts_as_2fa
+        sso_2fa = azure_sso_counts_as_2fa(request)
+
         # A user with a 2FA device must have passed it in *this* session.
         # Password-only logins (e.g. the stock /admin/login/ form) leave the
         # session unverified: end it and send them through the 2FA login.
-        if (not request.session.get('azure_ad_authenticated', False)
-                and user_has_device(request.user)
-                and not self._is_verified(request)):
+        # A Microsoft sign-in without MFA is asked for the code instead — the
+        # user may have no local password to restart with.
+        if not sso_2fa and user_has_device(request.user) and not self._is_verified(request):
             if any(request.path.startswith(path) for path in self.UNVERIFIED_ALLOWED_PATHS):
                 return self.get_response(request)
+            if request.session.get('azure_ad_authenticated', False):
+                verify_url = reverse('accounts:azure_verify')
+                if request.path in (verify_url, '/logout/'):
+                    return self.get_response(request)
+                from urllib.parse import urlencode
+                return redirect(f'{verify_url}?{urlencode({"next": request.get_full_path()})}')
             from django.contrib.auth.views import redirect_to_login
             next_url = request.get_full_path()
             logout(request)
@@ -133,9 +145,8 @@ class Enforce2FAMiddleware:
         if any(request.path.startswith(path) for path in self.ALLOWED_PATHS):
             return self.get_response(request)
 
-        # Skip 2FA for Azure AD authenticated users (SSO is already secure)
-        # FIX: Add audit logging for 2FA bypass
-        if request.session.get('azure_ad_authenticated', False):
+        # Skip 2FA for Microsoft sign-ins Microsoft confirmed with MFA.
+        if sso_2fa:
             # Log Azure AD 2FA bypass (once per session to avoid spam)
             if not request.session.get('azure_2fa_bypass_logged', False):
                 from audit.models import AuditLog
@@ -144,7 +155,9 @@ class Enforce2FAMiddleware:
                         user=request.user,
                         username=request.user.username,
                         action='azure_ad_2fa_bypass',
-                        description=f'User authenticated via Azure AD SSO - 2FA requirement bypassed',
+                        description=('Microsoft sign-in accepted as 2FA: '
+                                     + ('Microsoft confirmed MFA' if request.session.get('azure_ad_mfa')
+                                        else 'AZURE_SSO_TRUSTED_AS_2FA is set')),
                         ip_address=request.META.get('REMOTE_ADDR'),
                         user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
                     )

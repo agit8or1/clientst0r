@@ -53,6 +53,24 @@ def gate_reveal(request, password):
     """
     if not can_access_password(request.user, password):
         raise RevealDenied(403, 'Password reveal permission required')
+    _gate_approval_and_rules(request, password)
+
+
+def gate_portal_reveal(request, password):
+    """`gate_reveal` for the customer portal (v3.17.660).
+
+    Portal users don't hold staff vault permissions; whether the entry is
+    shared with them is the entry's own client-access setting
+    (`visible_to_portal_user`). The approval requirement and VaultAccessRule
+    apply to them exactly as to technicians — before v3.17.660 the portal
+    skipped both.
+    """
+    if not password.visible_to_portal_user(request.user):
+        raise RevealDenied(403, 'Not authorised.')
+    _gate_approval_and_rules(request, password)
+
+
+def _gate_approval_and_rules(request, password):
     if password.requires_reveal_approval and _usable_approval(password, request.user) is None:
         raise RevealDenied(403, 'This credential requires approval before reveal.',
                            requires_approval=True)

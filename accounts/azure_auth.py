@@ -355,3 +355,42 @@ class AzureOAuthClient:
         except Exception as e:
             logger.exception(f"Exception while exchanging code for token: {e}")
             return None
+
+
+def azure_mfa_asserted(token_response):
+    """True when Microsoft says this sign-in used multi-factor authentication
+    (`mfa` in the `amr` claim) — v3.17.660.
+
+    Before v3.17.660 every Microsoft sign-in skipped ClientSt0r's 2FA, even
+    when the tenant never asked for a second factor. `amr` is read from the
+    ID token claims MSAL validated; when the ID token doesn't carry it (v2
+    tokens usually don't), from the access token's payload. That token came
+    straight from Microsoft's token endpoint over TLS in this request
+    (authorization-code exchange with our client secret), so its payload is
+    Microsoft's statement even though it isn't ours to verify.
+    """
+    import base64
+    import json
+    if not isinstance(token_response, dict):
+        return False
+    amr = (token_response.get('id_token_claims') or {}).get('amr')
+    if not amr:
+        try:
+            payload = token_response.get('access_token', '').split('.')[1]
+            payload += '=' * (-len(payload) % 4)
+            amr = json.loads(base64.urlsafe_b64decode(payload)).get('amr')
+        except Exception:
+            amr = None
+    return isinstance(amr, (list, tuple)) and 'mfa' in amr
+
+
+def azure_sso_counts_as_2fa(request):
+    """Whether this session's Microsoft sign-in stands in for ClientSt0r's 2FA:
+    Microsoft confirmed MFA, or the operator set AZURE_SSO_TRUSTED_AS_2FA
+    (their tenant enforces MFA, e.g. by Conditional Access, but the tokens
+    don't say so)."""
+    from django.conf import settings
+    session = request.session
+    if not session.get('azure_ad_authenticated', False):
+        return False
+    return bool(session.get('azure_ad_mfa', False) or getattr(settings, 'AZURE_SSO_TRUSTED_AS_2FA', False))

@@ -21,6 +21,8 @@ mobile client is documented to hold it in memory only.
 """
 from __future__ import annotations
 
+import logging
+
 from django.db.models import Q
 from rest_framework import status
 from .authentication import MobileTokenAuthentication
@@ -35,6 +37,8 @@ from vault.permissions import can_access_password
 
 from .scoping import accessible_org_ids, perm_org_ids
 from .throttles import MobileVaultRevealRateThrottle
+
+logger = logging.getLogger(__name__)
 
 
 def _visible_passwords(user):
@@ -420,18 +424,8 @@ def vault_reveal_view(request, pk: int):
         return Response({'detail': 'Failed to decrypt password.'},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    if getattr(password, 'requires_reveal_approval', False):
-        try:
-            from vault.models import VaultRevealRequest
-            approval = (VaultRevealRequest.objects
-                        .filter(password=password, requester=request.user,
-                                status='approved', revealed_at__isnull=True)
-                        .order_by('-decided_at').first())
-            if approval is not None:
-                approval.mark_revealed()
-        except Exception:
-            pass
-
+    # The audit entry is written before the secret leaves; if it can't be,
+    # nothing is revealed (v3.17.660 — it used to be skipped silently).
     try:
         AuditLog.objects.create(
             organization=password.organization,
@@ -444,6 +438,24 @@ def vault_reveal_view(request, pk: int):
             extra_data={'channel': 'mobile'},
         )
     except Exception:
-        pass
+        logger.exception('Mobile reveal: audit entry for %s could not be written; not revealing', password.pk)
+        return Response({'detail': 'This reveal could not be recorded, so it was not shown. Try again shortly.'},
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    if getattr(password, 'requires_reveal_approval', False):
+        try:
+            from vault.models import VaultRevealRequest
+            approval = (VaultRevealRequest.objects
+                        .filter(password=password, requester=request.user,
+                                status='approved', revealed_at__isnull=True)
+                        .order_by('-decided_at').first())
+            if approval is not None:
+                approval.mark_revealed()
+        except Exception:
+            # A single-use approval that couldn't be marked used would stay
+            # reusable: don't reveal (v3.17.660).
+            logger.exception('Mobile reveal: approval for %s could not be marked used', password.pk)
+            return Response({'detail': 'This reveal could not be completed. Try again shortly.'},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     return Response({'secret': plaintext}, status=status.HTTP_200_OK)

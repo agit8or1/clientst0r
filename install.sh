@@ -689,8 +689,10 @@ EMAIL_HOST_PASSWORD=
 SITE_NAME=Client St0r
 SITE_URL=http://localhost:8000
 
-# Security
-REQUIRE_2FA=False
+# Security policy (2FA, session limits, password rules) is managed in
+# Settings → Security, where 2FA is required by default. Setting a value here
+# overrides that and locks the field, e.g.:
+# REQUIRE_2FA=True
 EOF
 
 print_status "Environment file created (.env)"

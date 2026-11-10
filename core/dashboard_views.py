@@ -93,8 +93,10 @@ def dashboard(request):
 
     # Check if user has 2FA enabled or authenticated via Azure AD SSO
     has_2fa = False
-    if request.session.get('azure_ad_authenticated', False):
-        # Azure AD SSO users don't need 2FA (handled by Azure)
+    from accounts.azure_auth import azure_sso_counts_as_2fa
+    if azure_sso_counts_as_2fa(request):
+        # Microsoft confirmed MFA for this sign-in (v3.17.660: no longer any
+        # Microsoft sign-in)
         has_2fa = True
     elif hasattr(request.user, 'totpdevice_set'):
         has_2fa = request.user.totpdevice_set.filter(confirmed=True).exists()

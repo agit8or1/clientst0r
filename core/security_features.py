@@ -452,6 +452,11 @@ def _two_factor(org):
                       .values_list('user_id', flat=True))
     text = (f"{'Required' if req['value'] else 'Optional'}; {len(with_device)} of {len(members)} "
             f"members here have an authenticator.")
+    if env and not req['value']:
+        # install.sh wrote REQUIRE_2FA=False into .env until v3.17.660,
+        # which turns the requirement off and locks Settings → Security.
+        text += (' Turned off by REQUIRE_2FA=False in the .env file (older installers wrote it): '
+                 'remove that line to manage 2FA in Settings → Security, where it is required by default.')
     return ('on' if req['value'] and len(with_device) == len(members) else
             'partial' if req['value'] else 'off'), text, env
 

@@ -533,6 +533,10 @@ LOGOUT_REDIRECT_URL = 'two_factor:login'
 # None unless REQUIRE_2FA is set in the environment; then Settings → Security
 # decides (default: required). See core/security_policy.py.
 REQUIRE_2FA = _env_bool('REQUIRE_2FA')
+# Microsoft (Azure AD) sign-in replaces ClientSt0r's 2FA only when Microsoft
+# reports MFA for that sign-in. Set True when the tenant enforces MFA (e.g.
+# Conditional Access) but its tokens don't say so (v3.17.660).
+AZURE_SSO_TRUSTED_AS_2FA = os.getenv('AZURE_SSO_TRUSTED_AS_2FA', 'False').lower() == 'true'
 PASSWORD_MIN_LENGTH = _env_int('PASSWORD_MIN_LENGTH')
 PASSWORD_REQUIRE_SPECIAL = _env_bool('PASSWORD_REQUIRE_SPECIAL')
 

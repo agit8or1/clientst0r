@@ -898,6 +898,11 @@ def system_status(request):
     })
 
 
+# Bounds for Maintenance → Clean Up Audit Logs (entries older than N days).
+AUDIT_PURGE_MIN_DAYS = 30
+AUDIT_PURGE_MAX_DAYS = 3650
+
+
 @login_required
 @user_passes_test(is_superuser)
 def maintenance(request):
@@ -916,8 +921,18 @@ def maintenance(request):
             messages.success(request, 'Expired sessions cleared successfully.')
 
         elif action == 'cleanup_audit_logs':
-            # Clean up audit logs older than specified days
-            days = int(request.POST.get('days', 90))
+            # Clean up audit logs older than specified days. The age comes
+            # from the POST, so it is bounded here, not just by the form's
+            # choices: 0 or a negative number would erase the whole trail
+            # (v3.17.660).
+            try:
+                days = int(request.POST.get('days', 90))
+            except (TypeError, ValueError):
+                days = None
+            if days is None or not AUDIT_PURGE_MIN_DAYS <= days <= AUDIT_PURGE_MAX_DAYS:
+                messages.error(request, f'Audit logs can only be cleaned up when older than '
+                                        f'{AUDIT_PURGE_MIN_DAYS} to {AUDIT_PURGE_MAX_DAYS} days. Nothing was deleted.')
+                return redirect(request.path)
             cutoff_date = timezone.now() - timedelta(days=days)
             deleted_count = AuditLog.objects.filter(timestamp__lt=cutoff_date).delete()[0]
             # The clean-up itself stays on record (v3.17.652).

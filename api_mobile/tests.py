@@ -310,6 +310,26 @@ class MobileVaultEndpointTests(TestCase):
         )
         self.assertEqual(resp.status_code, 404)
 
+    def test_reveal_not_shown_when_it_cannot_be_audited(self):
+        """v3.17.660: a failed audit write used to be skipped silently and
+        the secret returned anyway."""
+        from unittest.mock import patch
+        from audit.models import AuditLog
+        real_create = AuditLog.objects.create
+
+        def failing_create(**kw):
+            if kw.get('action') == 'reveal':
+                raise RuntimeError('audit store down')
+            return real_create(**kw)
+
+        with patch.object(AuditLog.objects, 'create', side_effect=failing_create):
+            resp = _auth_post(
+                self.client, f'/api/mobile/v1/vault/{self.entry_a.id}/reveal/',
+                self.token,
+            )
+        self.assertEqual(resp.status_code, 503)
+        self.assertNotIn(b's3cret-A', resp.content)
+
     def test_unauthenticated_blocked(self):
         c = Client()
         resp = c.get('/api/mobile/v1/vault/')

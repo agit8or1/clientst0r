@@ -904,6 +904,8 @@ class PortalVaultRevealTests(TestCase):
         cls.staff_only.save()
 
     def setUp(self):
+        from django.core.cache import cache
+        cache.clear()  # the reveal rate limit (v3.17.660) is per user, in the cache
         self.client.force_login(self.user)
         s = self.client.session
         s['2fa_prompted'] = True
@@ -916,7 +918,7 @@ class PortalVaultRevealTests(TestCase):
         self.assertEqual(r.json()['password'], 'correct-horse')
         self.assertEqual(r.json()['username'], 'guest')
         self.assertTrue(AuditLog.objects.filter(
-            object_type='vault.Password', object_id=self.shared.pk, action='view').exists())
+            object_type='vault.Password', object_id=self.shared.pk, action='reveal').exists())
 
     def test_staff_only_password_is_not_revealed(self):
         r = self.client.post(f'/portal/vault/{self.staff_only.pk}/reveal/')

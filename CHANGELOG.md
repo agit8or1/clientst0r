@@ -5,6 +5,25 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.660] - 2026-11-10
+
+### Security
+- **Customer portal password reveal passes the same checks as every other reveal.**
+  - It honours the entry's approval requirement (an approval is used up by the reveal) and vault access rules, and shares the 30-per-hour reveal limit.
+  - Blocked reveals are recorded. If the reveal's audit entry can't be written, the password isn't shown.
+  - An org admin's change to who can see an entry is rolled back when it can't be recorded.
+- **Mobile reveals aren't shown when they can't be recorded**, and a failure to use up an approval no longer lets the reveal through.
+- **A Microsoft (Azure AD) sign-in no longer skips 2FA on its own.**
+  - It counts as 2FA only when Microsoft confirms the sign-in used MFA.
+  - Otherwise users with an authenticator are asked for their code (five wrong codes end the session), and users without one are sent to enrol when 2FA is required.
+  - To trust your tenant's sign-ins as 2FA anyway, set `AZURE_SSO_TRUSTED_AS_2FA=True` in `.env`.
+- **Audit log clean-up keeps at least 30 days.** Maintenance → Clean Up Audit Logs accepts ages from 30 to 3650 days; 0, negative or non-numeric values are refused instead of erasing the trail.
+- **New installs no longer switch 2FA off.** `install.sh` wrote `REQUIRE_2FA=False` into every `.env`, which turned the requirement off and locked Settings → Security. Settings → Security Features now points this out.
+
+### Upgrade notes
+- If your install was made with an older `install.sh`, remove the `REQUIRE_2FA=False` line from `.env` to manage 2FA in Settings → Security (required by default), then restart.
+- Microsoft sign-in users whose tenant doesn't enforce MFA will be asked for their ClientSt0r authenticator code, or to enrol one. Set `AZURE_SSO_TRUSTED_AS_2FA=True` if your tenant enforces MFA through policies that don't report it.
+
 ## [3.17.659] - 2026-11-10
 
 ### Added

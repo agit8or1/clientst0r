@@ -1670,6 +1670,14 @@ are built on top of them.
   upgrade, needs two eligible administrators, switching it off is a protected
   change) makes a superuser grant wait for a different administrator; grants
   made on the host are recorded and announced.
+- **Reveal, sign-in and audit-retention hardening** *(shipped v3.17.660)* — the
+  customer portal's password reveal honours the approval requirement, access
+  rules and the shared reveal rate limit, and shows nothing when its audit
+  entry can't be written (mobile reveals and portal access changes likewise).
+  A Microsoft sign-in counts as 2FA only when Microsoft confirmed MFA or the
+  operator sets `AZURE_SSO_TRUSTED_AS_2FA`; otherwise the user enters their
+  authenticator code. Audit clean-up keeps at least 30 days, and new installs
+  no longer write `REQUIRE_2FA=False`.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 
