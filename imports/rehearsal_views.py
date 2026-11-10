@@ -24,7 +24,6 @@ from core.models import Organization
 from core.tenancy import accessible_org_ids
 from .models import ImportJob, MigrationPlan, PlanItem
 from .migration import planner
-from .migration.applier import apply_plan
 from .migration.planner import PlanChanged, PlanError
 from .migration.redact import redact_text
 from .migration.targets import SPECS, current
@@ -157,7 +156,29 @@ def rehearsal_detail(request, pk):
         'type_choices': _type_choices(plan) if plan.staged_at else [],
         'can_edit': plan.status in plan.EDITABLE_STATUSES,
         'categories': planner.CATEGORIES,
+        'task_active': plan.task_state in ('queued', 'running'),
     })
+
+
+def _enqueue(request, plan, action, label):
+    """Queue background work; the scheduler runs it within about a minute."""
+    from .migration.tasks import enqueue
+    if enqueue(plan, action, request.user):
+        _audit(request, 'update', plan, f'Queued: {label}', extra={'action': action})
+        messages.success(request, f'{label} queued. It runs in the background; this page refreshes '
+                                  'until it finishes.')
+    else:
+        messages.warning(request, f'Rehearsal work is already {plan.task_state} '
+                                  f'({plan.get_task_action_display()}); nothing new was queued.')
+    return redirect('imports:rehearsal_detail', pk=plan.pk)
+
+
+def _busy(request, plan):
+    from .migration.tasks import ACTIVE_STATES
+    if plan.task_state in ACTIVE_STATES:
+        messages.error(request, 'Background work is queued or running for this rehearsal; wait for it to finish.')
+        return True
+    return False
 
 
 @login_required
@@ -168,22 +189,7 @@ def rehearsal_stage(request, pk):
     if plan.status not in plan.EDITABLE_STATUSES:
         messages.error(request, 'This rehearsal has been applied; start a new one to fetch again.')
         return redirect('imports:rehearsal_detail', pk=pk)
-    from .migration.sources import stager_for
-    from .migration.transport import SourceUnavailable
-    try:
-        stager_for(plan).stage()
-        planner.build_plan(plan)
-        plan.import_job.add_log(f'Staged {plan.staged.count()} source record(s) and built the plan')
-        messages.success(request, f'Fetched {plan.staged.count()} source record(s) and built the plan. '
-                                  'Nothing has been written to the customer yet.')
-    except SourceUnavailable as exc:
-        messages.error(request, f'Could not read the source organization ({exc.kind}): {exc}')
-    except PlanError as exc:
-        messages.error(request, str(exc))
-    except Exception as exc:  # noqa: BLE001
-        logger.exception('Rehearsal %s staging failed', plan.pk)
-        messages.error(request, f'Fetching failed: {redact_text(type(exc).__name__ + ": " + str(exc))}')
-    return redirect('imports:rehearsal_detail', pk=pk)
+    return _enqueue(request, plan, 'stage', 'Fetching the source data and building the plan')
 
 
 @login_required
@@ -191,12 +197,10 @@ def rehearsal_stage(request, pk):
 @require_POST
 def rehearsal_build(request, pk):
     plan = _plan(request, pk)
-    try:
-        planner.build_plan(plan)
-        messages.success(request, 'Plan rebuilt from the staged data (corrections kept where they still apply).')
-    except PlanError as exc:
-        messages.error(request, str(exc))
-    return redirect('imports:rehearsal_detail', pk=pk)
+    if plan.status not in plan.EDITABLE_STATUSES or not plan.staged_at:
+        messages.error(request, 'Nothing staged to build a plan from.')
+        return redirect('imports:rehearsal_detail', pk=pk)
+    return _enqueue(request, plan, 'build', 'Rebuilding the plan')
 
 
 @login_required
@@ -205,13 +209,14 @@ def rehearsal_build(request, pk):
 def rehearsal_type_override(request, pk):
     plan = _plan(request, pk)
     try:
+        if _busy(request, plan):
+            return redirect('imports:rehearsal_detail', pk=pk)
         planner.set_type_override(plan, request.POST.get('group', ''), request.POST.get('name', ''),
                                   request.POST.get('kind', ''))
-        planner.build_plan(plan)
-        messages.success(request, 'Type mapping changed and plan rebuilt.')
     except PlanError as exc:
         messages.error(request, str(exc))
-    return redirect('imports:rehearsal_detail', pk=pk)
+        return redirect('imports:rehearsal_detail', pk=pk)
+    return _enqueue(request, plan, 'build', 'Type mapping changed; rebuilding the plan')
 
 
 @login_required
@@ -244,6 +249,8 @@ def rehearsal_item(request, pk, item_id):
     plan = _plan(request, pk)
     item = get_object_or_404(PlanItem, plan=plan, pk=item_id)
     spec = SPECS[item.target_kind]
+    if request.method == 'POST' and _busy(request, plan):
+        return redirect('imports:rehearsal_item', pk=pk, item_id=item.pk)
     if request.method == 'POST':
         overrides = {name: request.POST.get(f'field_{name}') for name in spec.editable
                      if request.POST.get(f'field_{name}') not in (None, '')
@@ -290,6 +297,8 @@ def rehearsal_item(request, pk, item_id):
 @require_POST
 def rehearsal_freeze(request, pk):
     plan = _plan(request, pk)
+    if _busy(request, plan):
+        return redirect('imports:rehearsal_detail', pk=pk)
     try:
         planner.freeze(plan, request.user)
         plan.import_job.add_log(f'Plan reviewed and frozen by {request.user.username} '
@@ -316,8 +325,12 @@ def _check_apply_permissions(request, plan):
 def rehearsal_apply(request, pk):
     plan = _plan(request, pk)
     _check_apply_permissions(request, plan)
+    from .migration.applier import APPLY_STATUSES, verify_frozen
+    if plan.status not in APPLY_STATUSES:
+        messages.error(request, f'A plan in status "{plan.get_status_display()}" cannot be applied.')
+        return redirect('imports:rehearsal_detail', pk=pk)
     try:
-        counts = apply_plan(plan, request.user)
+        verify_frozen(plan)  # refuse early; the worker checks again before writing
     except PlanChanged as exc:
         _audit(request, 'import', plan, f'Apply refused: {exc}', success=False)
         messages.error(request, f'Apply refused: {exc}')
@@ -325,15 +338,7 @@ def rehearsal_apply(request, pk):
     except PlanError as exc:
         messages.error(request, str(exc))
         return redirect('imports:rehearsal_detail', pk=pk)
-    _audit(request, 'import', plan, f"Applied migration rehearsal: {counts['applied']} applied, "
-                                    f"{counts['skipped']} skipped, {counts['failed']} failed",
-           extra={'counts': counts, 'plan_hash': plan.reviewed_plan_hash})
-    if counts['failed']:
-        messages.warning(request, f"{counts['failed']} record(s) failed; everything else was applied. "
-                                  'Fix the cause and click Apply again to resume.')
-    else:
-        messages.success(request, f"Applied: {counts['applied']} record(s), {counts['skipped']} skipped.")
-    return redirect('imports:rehearsal_detail', pk=pk)
+    return _enqueue(request, plan, 'apply', 'Applying the reviewed plan')
 
 
 @login_required
@@ -341,22 +346,10 @@ def rehearsal_apply(request, pk):
 @require_POST
 def rehearsal_rollback(request, pk):
     plan = _plan(request, pk)
-    from .migration.undo import rollback_plan
-    try:
-        report = rollback_plan(plan, request.user)
-    except ValueError as exc:
-        messages.error(request, str(exc))
+    if not plan.import_job.can_rollback():
+        messages.error(request, 'This rehearsal cannot be rolled back.')
         return redirect('imports:rehearsal_detail', pk=pk)
-    _audit(request, 'delete', plan, 'Rolled back migration rehearsal'
-           + ('' if report['complete'] else ' (partial - later edits kept)'),
-           extra={k: len(v) for k, v in report.items() if isinstance(v, list)})
-    msg = (f"Rollback: {len(report['deleted'])} deleted, {len(report['restored'])} restored, "
-           f"{len(report['unlinked'])} unmapped, {len(report['kept'])} kept because they were edited "
-           'or are in use after the import.')
-    (messages.success if report['complete'] else messages.warning)(request, msg)
-    for line in report['kept'][:10]:
-        messages.info(request, f'Kept: {line}')
-    return redirect('imports:rehearsal_detail', pk=pk)
+    return _enqueue(request, plan, 'rollback', 'Rolling back the rehearsal')
 
 
 @login_required
