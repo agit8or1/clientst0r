@@ -84,6 +84,9 @@ class AssetForm(forms.ModelForm):
         self.fields['photo'].help_text = ('JPEG, PNG, WebP or GIF up to 10 MB. It is resized and '
                                           're-saved, which removes location and camera data.')
         self.fields['artwork_face'].label = 'Side to show'
+        # Posts that predate the picture section (API clients, older forms)
+        # leave these out; keep what the asset has.
+        self.fields['artwork_face'].required = False
 
         if self.organization:
             self.fields['tags'].queryset = self.organization.tags.all()
@@ -161,6 +164,10 @@ class AssetForm(forms.ModelForm):
         self.fields['lifespan_years'].required = False
         self.fields['lifespan_reminder_months'].required = False
 
+    def clean_artwork_face(self):
+        return (self.cleaned_data.get('artwork_face')
+                or getattr(self.instance, 'artwork_face', '') or 'front')
+
     def clean_photo(self):
         photo = self.cleaned_data.get('photo')
         # A new upload is an UploadedFile; an unchanged one is the stored FieldFile.
@@ -181,7 +188,9 @@ class AssetForm(forms.ModelForm):
     def clean(self):
         """Remove equipment_vendor from cleaned_data as it's just a UI helper."""
         cleaned_data = super().clean()
-        source = cleaned_data.get('image_source') or Asset.IMAGE_NONE
+        source = (cleaned_data.get('image_source')
+                  or (self.instance.image_source if self.instance and self.instance.pk else '')
+                  or Asset.IMAGE_NONE)
         cleaned_data['image_source'] = source
         if cleaned_data.get('remove_photo'):
             cleaned_data['photo'] = None
