@@ -7,6 +7,8 @@ Ticket AI Assist: "Analyze ticket" and "Compare models" on the ticket page.
        Start the job the technician just previewed.
   GET  /psa/ai/assist/job/<uuid>/
        The job's state and validated results (staff-only).
+  GET  /psa/ai/assist/<ticket>/history/
+       The ticket's AI and automation history (staff-only, read-only).
 
 Every route resolves the ticket through the same scoped queryset as the
 ticket page and re-checks technician access with the ticket itself, so a
@@ -207,3 +209,33 @@ def _processor_view(job, can_draft):
         return None
     from integrations.rem0te.jobs import staff_view
     return {'name': 'Rem0te', 'error_code': job.processor_error_code, 'result': staff_view(job, can_draft)}
+
+
+@login_required
+@require_psa_enabled
+@require_GET
+def ticket_history(request, ticket_number):
+    """GET /psa/ai/assist/<ticket>/history/ — the ticket's AI and automation
+    history as JSON (services/history.py), the same entries the ticket page
+    shows. Customer users and the portal get 404; a technician without
+    access to the ticket's customer gets 403. Reads stored rows only: no RMM,
+    Rem0te or model provider is contacted."""
+    from psa.visibility import is_msp_staff
+    from tech_access.resolver import has_any_assignment
+    from .services import history
+    if not is_msp_staff(request.user):
+        raise Http404()
+    ticket = get_object_or_404(_scoped_ticket_qs(request), ticket_number=ticket_number)
+    if not has_any_assignment(request.user, ticket.organization):
+        return JsonResponse({'error': "Your technician access doesn't include this customer."}, status=403)
+    data = history.build(ticket, request.user)
+
+    def when(dt):
+        return dt.isoformat() if dt else None
+    entries = [dict(e, at=when(e['at']), approval_expires_at=when(e['approval_expires_at']),
+                    facts=[list(f) for f in e['facts']],
+                    decisions=[dict(d, at=when(d['at'])) for d in e['decisions']])
+               for e in data.get('entries', [])]
+    return JsonResponse({'ticket': ticket.ticket_number, 'ai_visible': data.get('ai_visible', False),
+                         'ai_text': data.get('ai_text', False), 'retention_days': data.get('retention_days'),
+                         'entries': entries})

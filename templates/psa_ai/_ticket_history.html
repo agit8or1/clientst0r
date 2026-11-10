@@ -1,0 +1,38 @@
+{% if show %}
+<div class="card mt-3" id="ai-automation-history">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-1">
+        <strong><i class="fas fa-clock-rotate-left me-1"></i>AI and automation history</strong>
+        <small class="text-muted">Staff only — never shown in the portal</small>
+    </div>
+    {% if ai_visible and not ai_text %}
+    <div class="alert alert-secondary small rounded-0 mb-0 py-1">AI is off for this customer. Recorded AI entries are kept as an audit record; their AI-written text is not shown.</div>
+    {% elif not ai_visible %}
+    <div class="small text-muted px-3 pt-2">AI entries are hidden: your technician access here doesn't include AI output.</div>
+    {% endif %}
+    <ol class="list-group list-group-flush small">
+        {% for e in entries %}
+        <li class="list-group-item" data-history-kind="{{ e.kind }}">
+            <div class="d-flex justify-content-between flex-wrap gap-1">
+                <span><i class="fas {{ e.icon }} me-1 text-muted"></i><strong>{{ e.title }}</strong>{% if e.ai %} <span class="badge bg-warning text-dark">AI</span>{% endif %}{% if e.actor %} · requested by {{ e.actor }}{% endif %}</span>
+                <span class="text-muted">{{ e.at|date:"Y-m-d H:i" }}</span>
+            </div>
+            {% if e.facts %}<div class="text-muted">{% for f in e.facts %}{{ f.0 }}: <span class="text-body">{{ f.1 }}</span>{% if not forloop.last %} · {% endif %}{% endfor %}</div>{% endif %}
+            {% if e.runs %}
+            <ul class="mb-1 ps-3">{% for r in e.runs %}
+                <li>{{ r.profile }} — <code>{{ r.model }}</code> · prompt <code>{{ r.prompt_version }}</code> · {{ r.status }}{% if r.tokens %} · {{ r.tokens }} tokens{% endif %}{% if r.cost_cents %} · {{ r.cost_cents|floatformat:2 }}¢{% endif %}{% if r.error %} · <span class="text-danger">{{ r.error }}</span>{% endif %}</li>
+            {% endfor %}</ul>
+            {% endif %}
+            {% if e.approval %}<div><span class="text-muted">Approval:</span> {{ e.approval }}{% if e.approval_expires_at %} <span class="text-muted">Expires {{ e.approval_expires_at|date:"Y-m-d H:i" }}.</span>{% endif %}{% if e.link %} <a href="{{ e.link }}" target="_blank" rel="noopener noreferrer">Open approval</a>{% endif %}</div>
+            {% elif e.approval_expires_at %}<div class="text-muted">Expires {{ e.approval_expires_at|date:"Y-m-d H:i" }} without an answer.</div>{% endif %}
+            {% for d in e.decisions %}<div><i class="fas fa-user-check me-1 text-muted"></i>{{ d.text }}{% if d.by %} — {{ d.by }}{% endif %}{% if d.at %} <span class="text-muted">{{ d.at|date:"Y-m-d H:i" }}</span>{% endif %}</div>{% endfor %}
+            {% if e.error_code %}<div>Error code: <code>{{ e.error_code }}</code></div>{% endif %}
+            {% if e.outcome %}<div class="text-muted">{{ e.outcome }}</div>{% endif %}
+            {% if e.excerpt %}<blockquote class="border-start ps-2 mb-0 mt-1 text-muted fst-italic">{{ e.excerpt }}</blockquote>{% endif %}
+            {% if e.note %}<div class="text-success-emphasis"><i class="fas fa-shield-halved me-1"></i>{{ e.note }}</div>{% endif %}
+        </li>
+        {% endfor %}
+    </ol>
+    <div class="card-footer small text-muted">{% if retention_days %}Kept for {{ retention_days }} days, then purged.{% else %}Kept until deleted by an administrator.{% endif %} Prompts, evidence and keys are never shown here.</div>
+</div>
+<!-- /ai-automation-history -->
+{% endif %}
