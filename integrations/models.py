@@ -732,7 +732,7 @@ class UnifiConnection(BaseModel):
 
     # Cloud org assignment: maps site name → Organization.id (cloud mode only)
     site_org_map = models.JSONField(default=dict, blank=True,
-                                    help_text='Cloud mode: maps site name to organization ID')
+                                    help_text='Maps controller site id (or, for older mappings, site name) to a customer organization ID')
 
     # Link to generated doc
     doc = models.ForeignKey('docs.Document', on_delete=models.SET_NULL, null=True, blank=True, related_name='unifi_connections')
@@ -1424,3 +1424,84 @@ class TaxConnection(BaseModel):
         creds = self.get_credentials()
         creds.update(kwargs)
         self.set_credentials(creds)
+
+
+# ============================================================================
+# Standard sync health (one row per connection, any integration type)
+# ============================================================================
+
+class IntegrationSyncHealth(models.Model):
+    """
+    Outcome of the most recent sync attempt for one integration connection.
+
+    Written only through `integrations.health.record_sync()`, which redacts
+    credentials from everything it stores. Connections that have never written
+    a row are rendered from their legacy `last_sync_*` fields instead.
+    """
+    STATUS_CHOICES = [
+        ('never', 'Never synced'),
+        ('success', 'Success'),
+        ('partial', 'Partial'),
+        ('error', 'Error'),
+    ]
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    connection = GenericForeignKey('content_type', 'object_id')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True,
+                                     related_name='integration_sync_health')
+    kind = models.CharField(max_length=40, blank=True, help_text='unifi, omada, psa, rmm, m365, ...')
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='never')
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+
+    created_count = models.PositiveIntegerField(default=0)
+    updated_count = models.PositiveIntegerField(default=0)
+    skipped_count = models.PositiveIntegerField(default=0)
+    failed_count = models.PositiveIntegerField(default=0)
+
+    error = models.TextField(blank=True, help_text='Redacted error from the last attempt')
+    issues = models.JSONField(default=list, blank=True,
+                              help_text='Affected customers/sites: [{message, customer, site, action, kind}]')
+    corrective_action = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'integration_sync_health'
+        unique_together = [['content_type', 'object_id']]
+
+    def __str__(self):
+        return f"{self.kind}#{self.object_id}: {self.status}"
+
+
+# ============================================================================
+# Network controller device → asset links (stable dedup key)
+# ============================================================================
+
+class NetworkAssetLink(models.Model):
+    """
+    Which asset a network-controller device was imported as.
+
+    Keyed by (source, connection_id, device_key) where device_key is
+    'mac:<normalised mac>' or 'serial:<serial>'. Lets repeated syncs (scheduled
+    and manual) update the same asset instead of creating another, and lets the
+    placement report tell which assets a controller produced.
+    """
+    source = models.CharField(max_length=20)  # unifi / omada / grandstream
+    connection_id = models.PositiveIntegerField()
+    device_key = models.CharField(max_length=300)
+    asset = models.ForeignKey('assets.Asset', on_delete=models.CASCADE, related_name='network_links')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='network_asset_links')
+    site_id = models.CharField(max_length=255, blank=True)
+    site_name = models.CharField(max_length=255, blank=True)
+    first_seen_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'network_asset_links'
+        unique_together = [['source', 'connection_id', 'device_key']]
+        indexes = [models.Index(fields=['source', 'connection_id'])]
+
+    def __str__(self):
+        return f"{self.source}#{self.connection_id} {self.device_key} → asset {self.asset_id}"

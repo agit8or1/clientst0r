@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load tz %}
+{% load tz integration_health %}
 
 {% block title %}Integrations{% endblock %}
 
@@ -181,6 +181,7 @@
                               {% if r.status.tooltip %}data-bs-toggle="tooltip" title="{{ r.status.tooltip }}"{% endif %}>
                             <span class="dot"></span>{{ r.status.label }}
                         </span>
+                        {% if r.status.state != 'off' %}{% sync_health health=r.health compact=True %}{% endif %}
                     </td>
                     <td class="small">
                         {% if r.status.last_at %}
@@ -227,6 +228,7 @@
                   {% if r.status.tooltip %}data-bs-toggle="tooltip" title="{{ r.status.tooltip }}"{% endif %}>
                 <span class="dot"></span>{{ r.status.label }}
             </span>
+            {% if r.status.state != 'off' %}{% sync_health health=r.health compact=True %}{% endif %}
         </div>
         <div class="tile-foot">
             <span class="text-muted">

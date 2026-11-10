@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load tz %}
+{% load tz integration_health %}
 
 {% block title %}Distributor Connections{% endblock %}
 
@@ -54,7 +54,7 @@
                         {% if conn.last_sync_at %}
                             <span data-utc="{{ conn.last_sync_at|date:"c" }}">{{ conn.last_sync_at|localtime|date:"Y-m-d H:i" }}</span>
                             {% if conn.last_sync_status == 'error' %}
-                            <span class="badge text-bg-danger" title="{{ conn.last_error|truncatechars:120 }}">err</span>
+                            <span class="badge text-bg-danger" title="{{ conn.last_error|redacted:conn|truncatechars:120 }}">err</span>
                             {% endif %}
                         {% else %}
                         Never

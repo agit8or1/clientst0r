@@ -41,9 +41,13 @@ def _is_enabled(conn) -> bool:
     return True
 
 
-def connection_status(conn) -> dict:
+def connection_status(conn, health_row=None) -> dict:
     """
     Return the visual status of an integration connection.
+
+    `health_row` (an IntegrationSyncHealth) takes precedence over the legacy
+    fields when given; every message is credential-redacted, and partial /
+    broken results carry the corrective action under 'action'.
 
     Returns a dict with keys:
       - state: 'off' | 'working' | 'partial' | 'broken' | 'unknown'
@@ -51,9 +55,22 @@ def connection_status(conn) -> dict:
       - tooltip: long-form description / error message for hover
       - last_at: datetime of last sync attempt, or None
     """
+    from .health import redact_for, suggest_action
+
     last_at = getattr(conn, 'last_sync_at', None)
     last_status = (getattr(conn, 'last_sync_status', '') or '').strip().lower()
-    last_error = (getattr(conn, 'last_error', '') or '').strip()
+    last_error = redact_for(conn, (getattr(conn, 'last_error', '') or '').strip())
+    action = ''
+    if health_row is not None and health_row.status in ('success', 'partial', 'error'):
+        last_at = health_row.last_attempt_at or last_at
+        last_status = health_row.status
+        last_error = redact_for(conn, health_row.error or '')
+        if health_row.status == 'partial' and not last_error:
+            last_error = '; '.join(i.get('message', '') for i in (health_row.issues or [])[:3])
+            last_error = redact_for(conn, last_error)
+        action = redact_for(conn, health_row.corrective_action or '')
+    if not action and last_error:
+        action = suggest_action(last_error, conn)
 
     if not _is_enabled(conn):
         return {
@@ -76,7 +93,8 @@ def connection_status(conn) -> dict:
         return {
             'state': 'partial',
             'label': 'ON · Partial',
-            'tooltip': f'{msg}. The next sync will retry them.',
+            'tooltip': f'{msg.rstrip(".")}. The next sync will retry them.',
+            'action': action,
             'last_at': last_at,
         }
 
@@ -89,6 +107,7 @@ def connection_status(conn) -> dict:
             'state': 'broken',
             'label': 'ON · Broken',
             'tooltip': msg,
+            'action': action,
             'last_at': last_at,
         }
 

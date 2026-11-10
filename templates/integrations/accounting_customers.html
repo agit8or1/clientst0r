@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load integration_health %}
 
 {% block title %}Customer mapping - {{ item.name }}{% endblock %}
 
@@ -51,7 +52,7 @@ No clients are created here, and nothing is written to the accounting system.">
                     <td>
                         {% if link.last_pushed_at %}{{ link.last_pushed_at|date:"Y-m-d H:i" }}{% else %}<span class="text-muted">Never</span>{% endif %}
                         {% if link.last_error %}
-                        <div class="small text-danger">{{ link.last_error|truncatechars:120 }}</div>
+                        <div class="small text-danger">{{ link.last_error|redacted|truncatechars:120 }}</div>
                         {% endif %}
                     </td>
                     <td class="text-end">

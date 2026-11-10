@@ -67,7 +67,34 @@ def apply_sync_outcome(connection, stats, sync_start):
     connection.last_sync_status = 'partial' if error_summary else 'success'
     connection.last_error = error_summary[:500]
     connection.save()
+    _record_health(connection, connection.last_sync_status, stats, error_summary, sync_start)
     return error_summary
+
+
+def _health_kind(connection):
+    return 'rmm' if isinstance(connection, RMMConnection) else 'psa'
+
+
+def _record_health(connection, status, stats, error, when):
+    """Standard health row (integrations.health) next to the legacy fields."""
+    from . import health
+    counts = health.stats_counts(stats)
+    health.record_sync(connection, _health_kind(connection), status=status,
+                       created=counts['created'], updated=counts['updated'],
+                       failed=counts['failed'], error=error,
+                       update_connection=False, when=when)
+
+
+def record_sync_failure(connection, exc, stats, sync_start):
+    """Write a failed run: redacted `last_error` plus standard health."""
+    from . import health
+    error_msg = health.redact_for(connection, exc)
+    connection.last_sync_at = sync_start
+    connection.last_sync_status = 'error'
+    connection.last_error = error_msg[:500]
+    connection.save()
+    _record_health(connection, 'error', stats, error_msg, sync_start)
+    return error_msg
 
 
 def fire_sync_webhook(connection, kind, status, stats=None):
@@ -151,13 +178,11 @@ class PSASync:
             return self.stats
 
         except Exception as e:
-            error_msg = str(e)
+            from .health import redact_for
+            error_msg = redact_for(self.connection, e)
             logger.error(f"Sync failed for {self.connection}: {error_msg}")
 
-            self.connection.last_sync_at = self.sync_start
-            self.connection.last_sync_status = 'error'
-            self.connection.last_error = error_msg[:500]
-            self.connection.save()
+            error_msg = record_sync_failure(self.connection, e, self.stats, self.sync_start)
             fire_sync_webhook(self.connection, 'psa', 'error', self.stats)
 
             AuditLog.log(
@@ -567,13 +592,11 @@ class RMMSync:
             return self.stats
 
         except Exception as e:
-            error_msg = str(e)
+            from .health import redact_for
+            error_msg = redact_for(self.connection, e)
             logger.error(f"RMM sync failed for {self.connection}: {error_msg}")
 
-            self.connection.last_sync_at = self.sync_start
-            self.connection.last_sync_status = 'error'
-            self.connection.last_error = error_msg[:500]
-            self.connection.save()
+            error_msg = record_sync_failure(self.connection, e, self.stats, self.sync_start)
             fire_sync_webhook(self.connection, 'rmm', 'error', self.stats)
 
             AuditLog.log(

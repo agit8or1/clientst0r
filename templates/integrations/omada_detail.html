@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load tz %}
+{% load tz integration_health %}
 {% block title %}{{ connection.name }} - Omada - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -36,17 +36,11 @@
                     <tr><th>Active</th><td>{{ connection.is_active|yesno:"Yes,No" }}</td></tr>
                     <tr><th>Auto-Sync Assets</th><td>{{ connection.auto_sync_assets|yesno:"Yes,No" }}</td></tr>
                     <tr><th>Sync Interval</th><td>{{ connection.sync_interval_minutes }} min</td></tr>
-                    <tr><th>Status</th><td>
-                        {% if connection.last_sync_status == 'ok' %}<span class="badge bg-success text-white">OK</span>
-                        {% elif connection.last_sync_status == 'error' %}<span class="badge bg-danger text-white">Error</span>
-                        {% else %}<span class="badge bg-secondary text-white">Never synced</span>{% endif %}
-                    </td></tr>
-                    <tr><th>Last Sync</th><td>{% if connection.last_sync_at %}<span class="local-time" data-utc="{{ connection.last_sync_at|date:'c' }}">{{ connection.last_sync_at|localtime|date:"Y-m-d H:i" }}</span>{% else %}Never{% endif %}</td></tr>
                     <tr><th>Last Asset Import</th><td>{% if connection.last_asset_sync_at %}<span class="local-time" data-utc="{{ connection.last_asset_sync_at|date:'c' }}">{{ connection.last_asset_sync_at|localtime|date:"Y-m-d H:i" }}</span>{% else %}Never{% endif %}</td></tr>
-                    {% if connection.last_error %}<tr><th>Last Error</th><td class="text-danger small">{{ connection.last_error }}</td></tr>{% endif %}
                 </table>
             </div>
         </div>
+        <div class="mt-3">{% sync_health connection %}</div>
     </div>
     <div class="col-md-6">
         <div class="card">
