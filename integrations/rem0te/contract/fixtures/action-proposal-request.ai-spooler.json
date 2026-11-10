@@ -1,0 +1,14 @@
+{
+  "contract": "ticket-rmm-v1",
+  "idempotency_key": "cs-ticket-42-spooler-1",
+  "organization_id": "org-a",
+  "technician_id": "tech-a",
+  "rem0te_endpoint_id": "cm3device0a000000000000001",
+  "action": { "id": "windows.service.start", "version": 1 },
+  "params": { "service": "Spooler" },
+  "reason": "Ticket 42: users report nothing prints; the Print Spooler service is stopped.",
+  "origin": "ai_suggestion",
+  "ticket_ref": "ticket-42",
+  "starts_in_minutes": 0,
+  "window_hours": 4
+}

@@ -1,0 +1,35 @@
+{
+  "contract": "ticket-rmm-v1",
+  "rem0te_version": "0.26.0",
+  "audience": "rem0te:lab",
+  "peer_id": "clientst0r-lab",
+  "features": {
+    "ticket_analysis": true,
+    "model_comparison": true,
+    "endpoint_evidence": [
+      "inventory",
+      "heartbeat"
+    ],
+    "actions": [
+      "windows.service.start@1"
+    ],
+    "alerts": true
+  },
+  "model_profiles": [
+    "triage-fast",
+    "triage-deep"
+  ],
+  "limits": {
+    "max_model_profiles": 3,
+    "max_job_ttl_seconds": 86400,
+    "max_delegation_ttl_seconds": 300,
+    "max_request_bytes": 524288
+  },
+  "signing_keys": [
+    {
+      "kid": "fixture-signing-key",
+      "alg": "Ed25519",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAV62ORECOgVIi8yY8DiSF7L2Gp3zsDv7Hsur6C3gDKNE=\n-----END PUBLIC KEY-----\n"
+    }
+  ]
+}

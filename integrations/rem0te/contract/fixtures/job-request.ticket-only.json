@@ -1,0 +1,23 @@
+{
+  "contract": "ticket-rmm-v1",
+  "idempotency_key": "cs-ticket-1002-rev1",
+  "correlation_id": "cs-corr-7f3a",
+  "organization_id": "org-lab-a",
+  "technician_id": "tech-417",
+  "ticket": {
+    "id": "1002",
+    "revision": 1,
+    "subject": "Printer not working",
+    "body": "Nothing has printed since this morning. Front desk PC.",
+    "comments": [],
+    "attachments_text": []
+  },
+  "endpoint": null,
+  "model_profiles": [
+    "triage-fast"
+  ],
+  "evidence": {
+    "include_endpoint_inventory": false
+  },
+  "expires_at": "2026-11-09T15:00:00Z"
+}

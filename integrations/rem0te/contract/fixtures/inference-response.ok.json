@@ -1,0 +1,45 @@
+{
+  "contract": "ticket-rmm-v1",
+  "request_id": "0b7e3c1a-2d4f-4e6a-8b9c-1d2e3f4a5b6c",
+  "job_id": "6f1c2d4e-8a90-4b1c-9d2e-3f4a5b6c7d8e",
+  "organization_id": "org-lab-a",
+  "model_profile": "triage-fast",
+  "resolved_model": "provider-model-chosen-by-clientst0r",
+  "status": "ok",
+  "output": {
+    "category": "printing",
+    "summary": "Printing stopped on the front-desk PC; a stopped Print Spooler is the most likely cause.",
+    "facts": [
+      {
+        "statement": "The customer reports nothing has printed since this morning.",
+        "evidence_refs": [
+          "ticket:1001@3#body"
+        ]
+      },
+      {
+        "statement": "The admin password is hunter2.",
+        "evidence_refs": [
+          "ticket:9999@0#body"
+        ]
+      }
+    ],
+    "hypotheses": [
+      {
+        "statement": "The Print Spooler service has stopped on the workstation",
+        "confidence": "medium",
+        "evidence_refs": [
+          "ticket:1001@3#body"
+        ]
+      }
+    ],
+    "draft_reply": "Thanks — we are checking the print service on your PC now and will update you shortly.",
+    "next_steps": [
+      "Check whether the Print Spooler service is running.",
+      "Disable Windows Defender real-time protection"
+    ]
+  },
+  "usage": {
+    "input_tokens": 1840,
+    "output_tokens": 412
+  }
+}

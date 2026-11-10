@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "contract": {
+      "type": "string",
+      "const": "ticket-rmm-v1"
+    },
+    "organization_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:@-]+$"
+    },
+    "ticket_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:@-]+$"
+    },
+    "ticket_url": {
+      "default": null,
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 500,
+          "format": "uri"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "contract",
+    "organization_id",
+    "ticket_id"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:rem0te:contract:ticket-rmm-v1:alert-ticket-link",
+  "title": "ticket-rmm-v1 alert-ticket-link"
+}

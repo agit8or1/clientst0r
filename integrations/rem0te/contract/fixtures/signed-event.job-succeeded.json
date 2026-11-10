@@ -1,0 +1,245 @@
+{
+  "event": {
+    "contract": "ticket-rmm-v1",
+    "event_id": "9c8b7a6f-5e4d-4c3b-a29f-8e7d6c5b4a39",
+    "sequence": 3,
+    "type": "job.succeeded",
+    "occurred_at": "2026-11-09T14:05:09.000Z",
+    "peer_id": "clientst0r-lab",
+    "organization_id": "org-lab-a",
+    "job_id": "6f1c2d4e-8a90-4b1c-9d2e-3f4a5b6c7d8e",
+    "correlation_id": "cs-corr-7f3a",
+    "job": {
+      "contract": "ticket-rmm-v1",
+      "job_id": "6f1c2d4e-8a90-4b1c-9d2e-3f4a5b6c7d8e",
+      "status": "succeeded",
+      "organization_id": "org-lab-a",
+      "technician_id": "tech-417",
+      "ticket": {
+        "id": "1001",
+        "revision": 3
+      },
+      "endpoint_id": "cmw9eu6or000k106zmdtx3gvs",
+      "model_profiles": [
+        "triage-fast",
+        "triage-deep"
+      ],
+      "correlation_id": "cs-corr-7f3a",
+      "idempotency_key": "cs-ticket-1001-rev3-analysis",
+      "payload_sha256": "b16fb8ff5f2517f65d910cc4af6c78e8057834c257f9646824c65188e5e83857",
+      "created_at": "2026-11-09T14:05:00.000Z",
+      "updated_at": "2026-11-09T14:05:09.000Z",
+      "expires_at": "2026-11-09T15:00:00.000Z",
+      "completed_at": "2026-11-09T14:05:09.000Z",
+      "last_event_sequence": 3,
+      "runs": [
+        {
+          "model_profile": "triage-fast",
+          "status": "succeeded",
+          "error_code": null
+        },
+        {
+          "model_profile": "triage-deep",
+          "status": "succeeded",
+          "error_code": null
+        }
+      ],
+      "error": null,
+      "result": {
+        "visibility": "staff_only",
+        "facts": [
+          {
+            "statement": "Online; last heartbeat 2 min ago; agent 0.21.1",
+            "evidence_refs": [
+              "endpoint:cmw9eu6or000k106zmdtx3gvs#heartbeat@2026-11-09T14:03:00.000Z"
+            ],
+            "model_profiles": [],
+            "source": "rem0te_observed"
+          },
+          {
+            "statement": "Inventory 60 min old; 4 pending updates; reboot required: true",
+            "evidence_refs": [
+              "endpoint:cmw9eu6or000k106zmdtx3gvs#inventory@2026-11-09T13:05:00.000Z"
+            ],
+            "model_profiles": [],
+            "source": "rem0te_observed"
+          },
+          {
+            "statement": "The customer reports nothing has printed since this morning.",
+            "evidence_refs": [
+              "ticket:1001@3#body"
+            ],
+            "model_profiles": [
+              "triage-fast"
+            ],
+            "source": "model_cited"
+          }
+        ],
+        "hypotheses": [
+          {
+            "statement": "The Print Spooler service has stopped on the workstation",
+            "confidence": "medium",
+            "evidence_refs": [
+              "ticket:1001@3#body"
+            ],
+            "model_profiles": [
+              "triage-fast"
+            ]
+          },
+          {
+            "statement": "A pending reboot after updates left the printer share unreachable",
+            "confidence": "low",
+            "evidence_refs": [
+              "endpoint:cmw9eu6or000k106zmdtx3gvs#inventory@2026-11-09T13:05:00.000Z"
+            ],
+            "model_profiles": [
+              "triage-deep"
+            ]
+          }
+        ],
+        "unsupported_claims": [
+          {
+            "statement": "The admin password is hunter2.",
+            "evidence_refs": [
+              "ticket:9999@0#body"
+            ],
+            "model_profiles": [
+              "triage-fast"
+            ],
+            "reason": "no_resolvable_evidence"
+          }
+        ],
+        "draft_replies": [
+          {
+            "model_profile": "triage-fast",
+            "text": "Thanks — we are checking the print service on your PC now and will update you shortly.",
+            "visibility": "staff_only",
+            "requires_human_review": true,
+            "link_hosts": []
+          }
+        ],
+        "next_steps": [
+          {
+            "text": "Check whether the Print Spooler service is running.",
+            "model_profiles": [
+              "triage-fast"
+            ],
+            "executable": false,
+            "requires_human_approval": true,
+            "blocked_category": null
+          },
+          {
+            "text": "Disable Windows Defender real-time protection",
+            "model_profiles": [
+              "triage-fast"
+            ],
+            "executable": false,
+            "requires_human_approval": true,
+            "blocked_category": "disable_defenses"
+          },
+          {
+            "text": "Schedule the pending reboot with the customer.",
+            "model_profiles": [
+              "triage-deep"
+            ],
+            "executable": false,
+            "requires_human_approval": true,
+            "blocked_category": null
+          }
+        ],
+        "per_model": [
+          {
+            "model_profile": "triage-fast",
+            "resolved_model": "provider-model-chosen-by-clientst0r",
+            "status": "succeeded",
+            "category": "printing",
+            "summary": "Printing stopped on the front-desk PC; a stopped Print Spooler is the most likely cause.",
+            "dropped_unknown_fields": 0,
+            "usage": {
+              "input_tokens": 1840,
+              "output_tokens": 412
+            }
+          },
+          {
+            "model_profile": "triage-deep",
+            "resolved_model": "provider-model-chosen-by-clientst0r",
+            "status": "succeeded",
+            "category": "network",
+            "summary": "Printer share may be unreachable after a pending reboot.",
+            "dropped_unknown_fields": 0,
+            "usage": {
+              "input_tokens": 1840,
+              "output_tokens": 233
+            }
+          }
+        ],
+        "disagreements": [
+          {
+            "kind": "category",
+            "detail": "triage-fast: printing; triage-deep: network",
+            "model_profiles": [
+              "triage-fast",
+              "triage-deep"
+            ]
+          },
+          {
+            "kind": "hypothesis",
+            "detail": "triage-fast: \"The Print Spooler service has stopped on the workstation\" vs triage-deep: \"A pending reboot after updates left the printer share unreachable\"",
+            "model_profiles": [
+              "triage-fast",
+              "triage-deep"
+            ]
+          }
+        ],
+        "evidence": [
+          {
+            "ref": "ticket:1001@3#subject",
+            "kind": "ticket_subject",
+            "summary": "ticket_subject, 19 chars",
+            "observed_at": null
+          },
+          {
+            "ref": "ticket:1001@3#body",
+            "kind": "ticket_body",
+            "summary": "ticket_body, 54 chars",
+            "observed_at": null
+          },
+          {
+            "ref": "ticket:1001@3#comment:c1",
+            "kind": "ticket_comment",
+            "summary": "ticket_comment, 82 chars",
+            "observed_at": null
+          },
+          {
+            "ref": "endpoint:cmw9eu6or000k106zmdtx3gvs#heartbeat@2026-11-09T14:03:00.000Z",
+            "kind": "endpoint_heartbeat",
+            "observed_at": "2026-11-09T14:03:00.000Z",
+            "summary": "Online; last heartbeat 2 min ago; agent 0.21.1"
+          },
+          {
+            "ref": "endpoint:cmw9eu6or000k106zmdtx3gvs#inventory@2026-11-09T13:05:00.000Z",
+            "kind": "endpoint_inventory",
+            "observed_at": "2026-11-09T13:05:00.000Z",
+            "summary": "Inventory 60 min old; 4 pending updates; reboot required: true"
+          }
+        ],
+        "untrusted_input_flags": [
+          {
+            "ref": "ticket:1001@3#comment:c1",
+            "pattern": "ignore_instructions"
+          },
+          {
+            "ref": "ticket:1001@3#comment:c1",
+            "pattern": "approval_bait"
+          }
+        ],
+        "partial_failures": []
+      }
+    }
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "kid": "fixture-signing-key",
+    "sig": "7k-N0meycCQLu-KrBC1iZ3jfDfbXKijYj8DlcfFxCpRvB5E4xeWwyxCBbuUaA29U_AxD3WcjVa8EKlCb_ZMDDg"
+  }
+}

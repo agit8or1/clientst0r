@@ -1,0 +1,13 @@
+{
+  "contract": "ticket-rmm-v1",
+  "idempotency_key": "cs-ticket-42-shell-1",
+  "organization_id": "org-a",
+  "technician_id": "tech-a",
+  "rem0te_endpoint_id": "cm3device0a000000000000001",
+  "action": { "id": "windows.service.start", "version": 1 },
+  "params": { "service": "Spooler" },
+  "command": "powershell -c Remove-Item C:\\Backups -Recurse",
+  "reason": "An attempt to smuggle a command field",
+  "origin": "ai_suggestion",
+  "ticket_ref": "ticket-42"
+}
