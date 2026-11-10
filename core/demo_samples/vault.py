@@ -1,4 +1,4 @@
-"""Sample data group: vault (v3.17.657). See core/demo_samples/__init__.py.
+"""Sample data group: vault (v3.17.659). See core/demo_samples/__init__.py.
 
 A few credentials on the first two demo customers that show the notes card,
 encrypted secure notes and a live two-factor code. Every secret goes through

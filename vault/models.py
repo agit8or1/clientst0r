@@ -88,7 +88,7 @@ class Password(BaseModel):
     username = models.CharField(max_length=255, blank=True)
     url = models.URLField(max_length=2000, blank=True)
     notes = models.TextField(blank=True)
-    # v3.17.657: secure notes, sealed like the password (v2, password key,
+    # v3.17.659: secure notes, sealed like the password (v2, password key,
     # bound to the organization) and only ever shown through the reveal flow.
     encrypted_notes = models.TextField(
         blank=True,

@@ -275,7 +275,7 @@ class Asset(BaseModel):
         help_text='AI-generated documentation for this asset',
     )
 
-    # Picture shown in the asset header and list (v3.17.657): an uploaded
+    # Picture shown in the asset header and list (v3.17.659): an uploaded
     # photo (re-encoded, metadata stripped — assets.images) or generated
     # catalog artwork. Artwork comes from the asset's hardware-inventory
     # device when it has one, else from `artwork_model`.

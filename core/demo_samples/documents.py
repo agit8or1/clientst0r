@@ -1,4 +1,4 @@
-"""Sample data group: documents (v3.17.657). See core/demo_samples/__init__.py.
+"""Sample data group: documents (v3.17.659). See core/demo_samples/__init__.py.
 
 Real, openable files for each demo customer — a Word network handover and
 new-starter checklist, Excel hardware inventory and licence renewals, a PDF

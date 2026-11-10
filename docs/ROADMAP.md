@@ -492,6 +492,10 @@ Planned capabilities:
 - Document export — Markdown / print-ready HTML / DOCX / PDF, single article or bulk ZIP *(shipped v3.17.510 — `Export` menu on every KB article and Global KB article writes Markdown, a standalone print-optimised HTML page, a real Word .docx (built dependency-free straight into the OOXML package, with Word styles, bullet/number lists, tables and live hyperlinks) or a letter-size PDF; `Export All` on the document list bundles everything the current category / tag / search filters select into one ZIP with an `index.md` table of contents, for handing a departing client their whole documentation set. Exported HTML and the article page itself carry an `@media print` block that strips background images, shadows and app chrome so a printed copy is legible. v3.17.511 drops decorative chrome — floating code-block language badges, print-hidden and screen-reader-only elements — that would otherwise flatten into stray one-word paragraphs in a linear export — issue #144)*
 
 **Goal:** Improve operational knowledge management and documentation governance.
+- **Inline previews of Excel, CSV and Word files** *(shipped v3.17.659)* —
+  uploaded spreadsheets, CSVs and Word documents preview on the document page
+  (first sheet / first 200 rows; headings, paragraphs and tables), rendered
+  as escaped text with size, zip-bomb and DTD limits; download unchanged.
 
 ## Phase 23 — Security Event & Incident Workflows **(L)** [shipped — v3.17.363]
 
@@ -848,6 +852,11 @@ Planned capabilities:
 Dependencies: Phase 31 (`vault.VaultAccessRule` infra — extend rather than replace), Phase 20 (approval routing engine).
 
 **Goal:** Make sensitive credentials require explicit human authorization to reveal, while preserving a documented escape hatch for genuine emergencies.
+- **Encrypted secure notes, always-visible notes and 2FA** *(shipped v3.17.659)* —
+  each vault entry has encrypted secure notes, shown only through Reveal with
+  the same approval, access-rule, rate-limit and audit checks as the password
+  and kept out of the browser extension, REST API and offline cache; the entry
+  page always shows its Notes and Two-factor cards with add shortcuts.
 
 ## Phase 38 — Client Onboarding / Offboarding Runbooks **(M)** [complete]
 
@@ -1831,6 +1840,11 @@ inventory. Documentation only — nothing is pushed to devices.
   (saved name only, no invented ports) where no model is recorded. Devices open
   a detail panel by mouse or keyboard with a link to the device and its ports.
   *(shipped v3.17.641)*
+- **Asset pictures** *(shipped v3.17.659)* — an uploaded photo (resized,
+  location and camera data removed, visible only to people who can see the
+  asset) or catalog artwork picked for the asset; documented devices show
+  their model's artwork automatically and everything else a stock drawing for
+  its type, in the asset header and as list thumbnails.
 
 ## Phase 56 — Ticket AI Assist and RMM handoff **(L · OPTIONAL AI)** [in progress]
 

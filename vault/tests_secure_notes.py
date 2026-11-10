@@ -1,4 +1,4 @@
-"""v3.17.657: the password page always shows a Notes card and a Two-factor
+"""v3.17.659: the password page always shows a Notes card and a Two-factor
 card; secure notes are encrypted at rest and only come out of the audited,
 rate-limited, approval-gated reveal endpoint."""
 from datetime import timedelta

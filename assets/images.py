@@ -1,4 +1,4 @@
-"""Asset photo uploads (v3.17.657).
+"""Asset photo uploads (v3.17.659).
 
 A photo is never stored as uploaded. ``sanitize_photo`` checks the size,
 decodes it with the allow-listed decoders only (core.image_safety), checks

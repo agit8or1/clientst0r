@@ -1,4 +1,4 @@
-"""Stock drawings for assets with no photo or artwork (v3.17.657).
+"""Stock drawings for assets with no photo or artwork (v3.17.659).
 
 Line-art SVGs in static/images/asset-stock/<key>.svg, drawn with
 ``currentColor``. Pages show them as a CSS mask filled with the text colour,

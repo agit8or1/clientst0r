@@ -1,4 +1,4 @@
-"""v3.17.657: asset pictures — an uploaded photo (re-encoded, metadata
+"""v3.17.659: asset pictures — an uploaded photo (re-encoded, metadata
 stripped, served only to users who can see the asset), catalog artwork, or a
 stock drawing by asset type, in that order of precedence."""
 import io

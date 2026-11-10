@@ -30,7 +30,7 @@ class PasswordForm(forms.ModelForm):
         help_text="Check to automatically generate a new TOTP secret"
     )
 
-    # Secure notes (v3.17.657): sealed like the password, never echoed back.
+    # Secure notes (v3.17.659): sealed like the password, never echoed back.
     plaintext_secure_notes = forms.CharField(
         label='Secure notes (encrypted, shown on reveal)',
         widget=forms.Textarea(attrs={'class': 'form-control font-monospace', 'rows': 3,

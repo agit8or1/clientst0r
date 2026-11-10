@@ -1,4 +1,4 @@
-"""Sample data group: assets (v3.17.657). See core/demo_samples/__init__.py.
+"""Sample data group: assets (v3.17.659). See core/demo_samples/__init__.py.
 
 A few new assets on the first two demo customers whose picture is the
 generated artwork of a hardware-catalog model, so the asset header and list

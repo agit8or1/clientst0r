@@ -1,4 +1,4 @@
-"""seed_module_samples --only documents / vault / assets (v3.17.657): real
+"""seed_module_samples --only documents / vault / assets (v3.17.659): real
 Word, Excel, PDF and CSV files that open, render a preview and download;
 safe previews (escaped, zip-bomb and DTD refusal); idempotent seeding."""
 import io

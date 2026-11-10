@@ -5,6 +5,33 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.659] - 2026-11-10
+
+### Added
+- **Excel, CSV and Word files preview on the document page.**
+  - Excel shows the first sheet; CSV shows the first 200 rows; Word shows headings, paragraphs, lists and tables.
+  - Previews are rendered as plain escaped text. Oversized files, zip bombs and files with a DTD aren't previewed and show "Preview not available — download the file".
+  - Downloading still works for every file.
+  - The upload picker now accepts `.csv`.
+- **Password notes and two-factor are always visible.** Each entry's page shows a Notes card and a Two-factor card, with "Add notes" and "Add 2FA" shortcuts when they're empty.
+- **Encrypted secure notes on passwords.**
+  - They're encrypted like the password and shown only through Reveal, with the same approval, access-rule, rate-limit and audit checks.
+  - The edit form never shows the stored value: leave it blank to keep it, type to replace it, or tick to clear it.
+  - They're left out of the browser extension, the REST API, the mobile reveal, the offline cache and the portal. Settings exports carry only the ciphertext, and key rotation covers them.
+  - Plain Notes stay as they were and are visible to anyone who can open the entry.
+- **Assets can have a picture.**
+  - **Uploaded photo:** resized, re-saved without location or camera data, and visible only to people who can see the asset.
+  - **Catalog artwork:** pick a hardware model from the catalog. Documented hardware devices show their model's artwork automatically.
+  - **Stock drawing:** everything else shows a simple drawing for its type (server, laptop, switch, firewall, printer…) that follows the light or dark theme. It's display-only, so a photo or artwork added later replaces it.
+  - Pictures appear in the asset header and as thumbnails in the asset list.
+- **More sample data** (`manage.py seed_module_samples`). Each demo customer gets:
+  - **Files:** real Word, Excel, PDF and CSV files (network handover, new-starter checklist, hardware inventory, licence renewals, backup runbook, phone extensions), plus a written network overview and a backup checklist.
+  - **Vault:** entries with notes, secure notes and 2FA.
+  - **Assets:** a few with catalog artwork.
+
+### Upgrade
+- Apply the update. Migrations: `vault.0016` and `assets.0028`. Optionally run `manage.py seed_module_samples` again on a demo install; it only adds what's missing.
+
 ## [3.17.658] - 2026-11-10
 
 ### Added

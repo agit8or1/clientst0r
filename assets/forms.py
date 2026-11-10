@@ -72,7 +72,7 @@ class AssetForm(forms.ModelForm):
         self.organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
 
-        # Picture (v3.17.657). The model picker is a typeahead over the
+        # Picture (v3.17.659). The model picker is a typeahead over the
         # catalog (hardware:api_models) that fills this hidden id.
         from hardware.models import HardwareModel
         self.fields['artwork_model'].queryset = HardwareModel.objects.filter(
