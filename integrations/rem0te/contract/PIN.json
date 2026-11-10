@@ -1,0 +1,9 @@
+{
+  "contract": "ticket-rmm-v1",
+  "source": "https://github.com/agit8or1/rem0te/tree/1bff01a4a3b52fd745e001352e0c417909199aeb/docs/contracts/ticket-rmm-v1",
+  "rem0te_version": "0.29.0",
+  "rem0te_codename": "Lighthouse",
+  "rem0te_sha": "1bff01a4a3b52fd745e001352e0c417909199aeb",
+  "copied": "2026-11-10",
+  "note": "Vendored verbatim from Rem0te (the contract owner). Do not edit these files by hand: copy a new revision and update this pin."
+}

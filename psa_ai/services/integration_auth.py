@@ -74,7 +74,8 @@ def verify_request(request):
     if abs(time.time() - int(ts)) > SKEW_SECONDS:
         raise AuthError('timestamp outside the allowed window')
     conn = find_connection(key_id)
-    if conn is None:
+    if conn is None or conn.provider_type == 'rem0te':
+        # Rem0te never authenticates with HMAC (integrations/rem0te/inbound.py).
         raise AuthError('unknown or disabled pairing')
     secret = integration_secrets(conn)['inbound']
     want = hmac.new(secret.encode(), canonical(request.method, request.path, ts, nonce, request.body),

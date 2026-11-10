@@ -62,7 +62,7 @@ def _enable_ai():
 
 
 def pair(org, business, key_id, location='hosted'):
-    conn = RMMConnection.objects.create(organization=org, provider_type='rem0te', name=f'Rem0te {org.slug}',
+    conn = RMMConnection.objects.create(organization=org, provider_type='tactical_rmm', name=f'RMM {org.slug}',
                                         base_url='https://rem0te.example.com',
                                         customer_scope=RMMConnection.CUSTOMER_SCOPE_SINGLE)
     conn.set_credentials({'api_key': 'rk_test', 'integration_outbound_secret': OUT_SECRET + key_id,

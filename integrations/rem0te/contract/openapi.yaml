@@ -1,0 +1,293 @@
+openapi: 3.1.0
+info:
+  title: ticket-rmm-v1 — ClientSt0r ↔ rem0te
+  version: 1.0.0
+  description: |
+    Canonical contract between ClientSt0r (tickets, customer communication, AI
+    configuration and provider keys) and rem0te (endpoint evidence, analysis
+    orchestration, and — in later milestones — independently approved actions).
+
+    Milestone 1 is read-only ticket analysis. From rem0te 0.26 ClientSt0r may
+    also PROPOSE a catalog action (`/action-proposals`). No route in this
+    contract can open a session, issue a launcher token, queue an endpoint
+    command, or approve or execute anything: a proposal becomes a plan that
+    only people on rem0te's approval-signer roster can authorize, with their
+    passkeys, on the signer's own origin.
+
+    Every request in both directions is signed (see README.md, "Request
+    signatures"). Requests that act for a technician also carry a delegation
+    token in the `rem0te-delegation` header. JSON Schemas under ./schemas are
+    generated from rem0te's runtime validators and are normative.
+servers:
+  - url: https://rem0te.example.com
+    description: rem0te (routes tagged rem0te)
+  - url: https://clientst0r.example.com
+    description: ClientSt0r (routes tagged clientst0r)
+tags:
+  - name: rem0te
+    description: Hosted by rem0te
+  - name: clientst0r
+    description: Hosted by ClientSt0r; rem0te is the caller
+components:
+  securitySchemes:
+    serviceSignature:
+      type: apiKey
+      in: header
+      name: rem0te-signature
+      description: |
+        Ed25519 over `rem0te-http-req-v1\n{audience}\n{METHOD}\n{path?query}\n{unix-seconds}\n{nonce}\n{sha256-hex(body)}`,
+        with `rem0te-key-id: {peer-id}/{kid}`, `rem0te-timestamp`, `rem0te-nonce` (16–128 base64url chars, single use).
+        ±120 s clock skew. Nonces are persisted and survive restarts.
+    delegation:
+      type: apiKey
+      in: header
+      name: rem0te-delegation
+      description: Compact JWS, alg EdDSA, typ `rem0te-delegation+jwt`, ≤ 300 s lifetime, single-use jti. Claims in schemas/delegation-claims.schema.json.
+  parameters:
+    JobId:
+      name: job_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Error:
+      description: Contract error
+      content:
+        application/json:
+          schema: { $ref: './schemas/error.schema.json' }
+security:
+  - serviceSignature: []
+paths:
+  /api/integration/v1/capabilities:
+    get:
+      tags: [rem0te]
+      summary: What this rem0te offers this peer
+      responses:
+        '200':
+          description: Capabilities, including rem0te's current event-signing keys
+          content: { application/json: { schema: { $ref: './schemas/capabilities.schema.json' } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/integration/v1/jobs:
+    post:
+      tags: [rem0te]
+      summary: Submit a ticket analysis job
+      description: |
+        The delegation token must carry scope `ticket_analysis:submit` and
+        `req_sha256` = sha256(canonical JSON of the request after defaults).
+        `organization_id` / `technician_id` must equal the token's `org` / `sub`.
+        Same `idempotency_key` + same payload → 200 with the ORIGINAL job and
+        header `idempotent-replayed: true`. Same key + different payload → 409.
+      security: [{ serviceSignature: [], delegation: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: './schemas/job-request.schema.json' } } }
+      responses:
+        '202':
+          description: Accepted (new job)
+          content: { application/json: { schema: { $ref: './schemas/job.schema.json' } } }
+        '200':
+          description: Idempotent replay — the original job
+          headers: { idempotent-replayed: { schema: { type: string, const: 'true' } } }
+          content: { application/json: { schema: { $ref: './schemas/job.schema.json' } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/integration/v1/jobs/{job_id}:
+    get:
+      tags: [rem0te]
+      summary: Job status and staff-only result (the recovery path for a lost callback)
+      description: Delegation scope `ticket_analysis:read`; the token's `org` must own the job and its technician must have access now. Another tenant's job is 404.
+      security: [{ serviceSignature: [], delegation: [] }]
+      parameters: [{ $ref: '#/components/parameters/JobId' }]
+      responses:
+        '200':
+          description: The job
+          content: { application/json: { schema: { $ref: './schemas/job.schema.json' } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/integration/v1/jobs/{job_id}/events:
+    get:
+      tags: [rem0te]
+      summary: Scoped polling of a job's signed events
+      security: [{ serviceSignature: [], delegation: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/JobId' }
+        - { name: after, in: query, schema: { type: integer, minimum: 0 }, description: Return events with sequence > after (max 100) }
+      responses:
+        '200':
+          description: Signed events in sequence order
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job_id, last_event_sequence, events]
+                properties:
+                  job_id: { type: string, format: uuid }
+                  last_event_sequence: { type: integer }
+                  events: { type: array, items: { $ref: './schemas/signed-event.schema.json' } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/integration/v1/action-proposals:
+    post:
+      tags: [rem0te]
+      summary: Propose a catalog action on a mapped computer (authorizes nothing)
+      description: |
+        Delegation scope `actions:propose`, `req_sha256` bound to the canonical
+        body after defaults. The delegated technician's live access to the
+        computer is checked exactly as for a request made in the portal.
+        Only catalog actions (capabilities `features.actions`) are accepted:
+        there is no field for a command, script, path or URL, and anything
+        else is refused with `ACTION_NOT_IN_CATALOG`. The response carries the
+        `approval_url` to show; approval happens there, by passkey, and an
+        `ai_suggestion` needs exactly the approvals a technician's request does.
+        Same `idempotency_key` + same payload → 200 with the original proposal
+        and `idempotent-replayed: true`; different payload → 409.
+        Refusals carry rem0te's codes: `ACTION_NOT_IN_CATALOG`,
+        `PARAMS_NOT_ALLOWED`, `ACTION_NOT_GRANTED`, `PROTECTED_DEVICE_CLASS`,
+        `ENDPOINT_NOT_READY`, `ACTION_PENDING`, `ACTION_UNRECONCILED`,
+        `APPROVAL_SIGNER_ERROR`, `APPROVAL_SIGNER_REFUSED`.
+      security: [{ serviceSignature: [], delegation: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: './schemas/action-proposal-request.schema.json' } } }
+      responses:
+        '201':
+          description: Proposal accepted, awaiting approval
+          content: { application/json: { schema: { $ref: './schemas/action-proposal.schema.json' } } }
+        '200':
+          description: Idempotent replay of an earlier proposal
+          content: { application/json: { schema: { $ref: './schemas/action-proposal.schema.json' } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/integration/v1/action-proposals/{job_id}:
+    get:
+      tags: [rem0te]
+      summary: Proposal status and what the computer reported
+      description: Delegation scope `actions:read`. Another peer's or business's proposal is 404. `observed` is what the agent saw, never more — a started spooler is not a printed document.
+      security: [{ serviceSignature: [], delegation: [] }]
+      parameters:
+        - { name: job_id, in: path, required: true, schema: { type: string, pattern: '^[a-f0-9]{32}$' } }
+      responses:
+        '200':
+          description: The proposal
+          content: { application/json: { schema: { $ref: './schemas/action-proposal.schema.json' } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/integration/v1/alerts/events:
+    get:
+      tags: [rem0te]
+      summary: Poll signed alert events for one organization (from rem0te 0.29)
+      description: |
+        Service signature only — no delegation token: nothing here acts for a
+        technician or reaches a computer. Returns up to 100 events with
+        `sequence` greater than `after`, oldest first, each signed exactly as
+        pushed (`rem0te-alert-event-v1\n{canonical alert_event}`). Use it to
+        recover from a gap in pushed events. Only alerts in businesses whose
+        notification policy offers tickets, at or above its severity floor,
+        produce events; `alert.updated` and `alert.resolved` follow only an
+        `alert.raised` this peer was sent.
+      security: [{ serviceSignature: [] }]
+      parameters:
+        - { name: organization_id, in: query, required: true, schema: { type: string, maxLength: 128 } }
+        - { name: after, in: query, required: false, schema: { type: integer, minimum: 0 } }
+      responses:
+        '200':
+          description: Events after `after`
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [organization_id, last_sequence, events]
+                properties:
+                  organization_id: { type: string }
+                  last_sequence: { type: integer }
+                  events: { type: array, items: { $ref: './schemas/signed-alert-event.schema.json' } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/integration/v1/alerts/{alert_id}:
+    get:
+      tags: [rem0te]
+      summary: One alert's current state
+      description: Only an alert this peer was sent an `alert.raised` for, in an organization mapped to it; anything else is 404.
+      security: [{ serviceSignature: [] }]
+      parameters:
+        - { name: alert_id, in: path, required: true, schema: { type: string, maxLength: 64 } }
+        - { name: organization_id, in: query, required: true, schema: { type: string, maxLength: 128 } }
+      responses:
+        '200':
+          description: The alert
+          content: { application/json: { schema: { $ref: './schemas/alert.schema.json' } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/integration/v1/alerts/{alert_id}/ticket:
+    post:
+      tags: [rem0te]
+      summary: Link the ticket ClientSt0r opened for an alert (grants nothing)
+      description: |
+        The only write in the alert routes. The same ticket again → 200 with
+        `idempotent-replayed: true`; a different ticket → 409
+        `TICKET_ALREADY_LINKED` (re-linking is a decision made in rem0te).
+        `ticket_url` must be https; it is shown to rem0te users as a link.
+        Linking does not acknowledge or resolve the alert.
+      security: [{ serviceSignature: [] }]
+      parameters:
+        - { name: alert_id, in: path, required: true, schema: { type: string, maxLength: 64 } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: './schemas/alert-ticket-link.schema.json' } } }
+      responses:
+        '201':
+          description: Linked
+          content: { application/json: { schema: { $ref: './schemas/alert.schema.json' } } }
+        '200':
+          description: Already linked to this ticket
+          content: { application/json: { schema: { $ref: './schemas/alert.schema.json' } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/integration/v1/inference:
+    post:
+      tags: [clientst0r]
+      summary: Restricted inference gateway (ClientSt0r)
+      description: |
+        rem0te names a model *profile*; ClientSt0r chooses the model, holds the
+        provider key, enforces per-organization AI policy and usage limits.
+        The response MUST be signed: `rem0te-key-id: {peer-id}/{kid}` and
+        `rem0te-response-signature` = Ed25519 over
+        `rem0te-http-resp-v1\n{request rem0te-nonce}\n{sha256-hex(response body)}`,
+        and MUST echo request_id, job_id, organization_id and model_profile.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: './schemas/inference-request.schema.json' } } }
+      responses:
+        '200':
+          description: Signed inference result
+          content: { application/json: { schema: { $ref: './schemas/inference-response.schema.json' } } }
+        '4XX': { description: Refused — rem0te records a permanent failure for this profile }
+        '429': { description: Rate limited — rem0te retries with backoff }
+        '5XX': { description: Unavailable — rem0te retries with backoff }
+  /api/integration/v1/events:
+    post:
+      tags: [clientst0r]
+      summary: Receive a signed job event (ClientSt0r)
+      description: |
+        Any 2xx is the acknowledgement. Anything else is retried with backoff for
+        up to 7 days. From 0.29 the same URL also receives signed alert events
+        (`{alert_event, signature}`, schema signed-alert-event, signing prefix
+        `rem0te-alert-event-v1`), ordered by (organization_id, sequence).
+        De-duplicate by event_id; order job events by (job_id, sequence);
+        verify `signature` against a key from GET /capabilities; on a gap, poll
+        GET /jobs/{job_id}/events.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: './schemas/signed-event.schema.json' } } }
+      responses:
+        '204': { description: Acknowledged }

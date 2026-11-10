@@ -1,0 +1,7 @@
+{
+  "contract": "ticket-rmm-v1",
+  "organization_id": "org-lab-a",
+  "ticket_id": "1001",
+  "ticket_url": "https://clientst0r.example.com/tickets/1001",
+  "resolve_alert": true
+}

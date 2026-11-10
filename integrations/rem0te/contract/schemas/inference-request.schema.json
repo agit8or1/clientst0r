@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "contract": {
+      "type": "string",
+      "const": "ticket-rmm-v1"
+    },
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "job_id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "organization_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:@-]+$"
+    },
+    "model_profile": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "task": {
+      "type": "string",
+      "const": "ticket_triage_v1"
+    },
+    "output_schema": {
+      "type": "string",
+      "const": "analysis-output.v1"
+    },
+    "max_output_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8000
+    },
+    "input": {
+      "type": "object",
+      "properties": {
+        "instructions_ref": {
+          "type": "string",
+          "const": "rem0te/ticket-triage/v1"
+        },
+        "untrusted_segments": {
+          "maxItems": 80,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": {
+                "type": "string",
+                "maxLength": 256
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "ticket_subject",
+                  "ticket_body",
+                  "ticket_comment",
+                  "ticket_attachment",
+                  "endpoint_inventory",
+                  "endpoint_heartbeat"
+                ]
+              },
+              "author_role": {
+                "type": "string",
+                "enum": [
+                  "customer",
+                  "staff",
+                  "system",
+                  "rem0te"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 20000
+              }
+            },
+            "required": [
+              "ref",
+              "kind",
+              "text"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "evidence_refs": {
+          "maxItems": 80,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      },
+      "required": [
+        "instructions_ref",
+        "untrusted_segments",
+        "evidence_refs"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "contract",
+    "request_id",
+    "job_id",
+    "organization_id",
+    "model_profile",
+    "task",
+    "output_schema",
+    "max_output_tokens",
+    "input"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:rem0te:contract:ticket-rmm-v1:inference-request",
+  "title": "ticket-rmm-v1 inference-request"
+}

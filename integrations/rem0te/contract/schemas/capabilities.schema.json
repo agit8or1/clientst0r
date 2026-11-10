@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "contract": {
+      "type": "string",
+      "const": "ticket-rmm-v1"
+    },
+    "rem0te_version": {
+      "type": "string"
+    },
+    "audience": {
+      "type": "string"
+    },
+    "peer_id": {
+      "type": "string"
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "ticket_analysis": {
+          "type": "boolean"
+        },
+        "model_comparison": {
+          "type": "boolean"
+        },
+        "endpoint_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "inventory",
+              "heartbeat"
+            ]
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "alerts": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ticket_analysis",
+        "model_comparison",
+        "endpoint_evidence",
+        "actions",
+        "alerts"
+      ],
+      "additionalProperties": false
+    },
+    "model_profiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "max_model_profiles": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "max_job_ttl_seconds": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "max_delegation_ttl_seconds": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "max_request_bytes": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "max_model_profiles",
+        "max_job_ttl_seconds",
+        "max_delegation_ttl_seconds",
+        "max_request_bytes"
+      ],
+      "additionalProperties": false
+    },
+    "signing_keys": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kid": {
+            "type": "string"
+          },
+          "alg": {
+            "type": "string",
+            "const": "Ed25519"
+          },
+          "public_key_pem": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kid",
+          "alg",
+          "public_key_pem"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "contract",
+    "rem0te_version",
+    "audience",
+    "peer_id",
+    "features",
+    "model_profiles",
+    "limits",
+    "signing_keys"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:rem0te:contract:ticket-rmm-v1:capabilities",
+  "title": "ticket-rmm-v1 capabilities"
+}

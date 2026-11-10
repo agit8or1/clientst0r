@@ -1,0 +1,38 @@
+{
+  "contract": "ticket-rmm-v1",
+  "job_id": "6f1c2d4e-8a90-4b1c-9d2e-3f4a5b6c7d8e",
+  "status": "queued",
+  "organization_id": "org-lab-a",
+  "technician_id": "tech-417",
+  "ticket": {
+    "id": "1001",
+    "revision": 3
+  },
+  "endpoint_id": "cmw9eu6or000k106zmdtx3gvs",
+  "model_profiles": [
+    "triage-fast",
+    "triage-deep"
+  ],
+  "correlation_id": "cs-corr-7f3a",
+  "idempotency_key": "cs-ticket-1001-rev3-analysis",
+  "payload_sha256": "b16fb8ff5f2517f65d910cc4af6c78e8057834c257f9646824c65188e5e83857",
+  "created_at": "2026-11-09T14:05:00.000Z",
+  "updated_at": "2026-11-09T14:05:00.000Z",
+  "expires_at": "2026-11-09T15:00:00.000Z",
+  "completed_at": null,
+  "last_event_sequence": 1,
+  "runs": [
+    {
+      "model_profile": "triage-fast",
+      "status": "pending",
+      "error_code": null
+    },
+    {
+      "model_profile": "triage-deep",
+      "status": "pending",
+      "error_code": null
+    }
+  ],
+  "error": null,
+  "result": null
+}

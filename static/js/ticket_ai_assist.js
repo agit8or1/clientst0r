@@ -153,6 +153,36 @@
         return el('div', {class: 'col'}, parts);
     }
 
+    // Rem0te's own aggregated result (staff only): facts it verified against
+    // evidence it can resolve, claims it could not, and drafts that still
+    // need a person. Everything is text; nothing here acts on a computer.
+    function renderProcessor(p, jobId) {
+        var r = p.result || {};
+        if (!r.visibility) {
+            return p.error_code ? el('div', {class: 'alert alert-warning py-1', text: p.name + ': ' + p.error_code}) : null;
+        }
+        var parts = [el('div', {class: 'fw-semibold mb-1', text: p.name + ' — verified result (staff only)'}),
+            list('Facts', r.facts, function (f) { return [el('span', {class: 'badge bg-light text-dark me-1', text: f.source === 'rem0te_observed' ? 'observed by ' + p.name : 'cited'}), f.statement, refs(f.evidence_refs)]; }),
+            list('Hypotheses', r.hypotheses, function (h) { return [el('span', {class: 'badge bg-light text-dark me-1', text: h.confidence}), h.statement, refs(h.evidence_refs)]; }),
+            list('Claims without evidence (not shown as facts)', r.unsupported_claims, function (c) { return [el('span', {class: 'text-muted', text: c.reason + ': '}), c.statement]; }),
+            list('Next steps (for you to do; nothing is run)', r.next_steps, function (n) { return [n.text, n.blocked_category ? el('span', {class: 'badge bg-danger ms-1', text: 'blocked: ' + n.blocked_category}) : null]; }),
+            list('Disagreements', r.disagreements, function (x) { return [x.detail]; }),
+            list('Untrusted input in the ticket', r.untrusted_input_flags, function (x) { return [x.pattern + ' in ' + x.ref]; })];
+        (r.draft_replies || []).forEach(function (rep, idx) {
+            var text = el('textarea', {class: 'form-control form-control-sm mb-1', rows: '4'});
+            text.value = rep.text;
+            var use = el('button', {type: 'button', class: 'btn btn-sm btn-outline-primary', text: canSend ? 'Use reply' : 'Use as internal note'});
+            use.title = canSend ? 'Place this draft in the reply box. Nothing is sent until you press Send.'
+                : 'Your access does not include sending AI-assisted replies; the draft goes into an internal note.';
+            use.addEventListener('click', function () {
+                var outcome = window.ticketComposerInsert ? window.ticketComposerInsert(text.value, 'rem0te:' + jobId + ':' + idx, !canSend) : '';
+                use.textContent = outcome === 'appended' ? 'Added below your text' : (outcome ? 'In the reply box' : 'No reply box');
+            });
+            parts.push(el('div', {class: 'mb-2'}, [el('div', {class: 'fw-semibold', text: 'Draft reply (' + rep.model_profile + ') — needs your review'}), text, use]));
+        });
+        return el('div', {class: 'border rounded p-2 mb-3', 'data-processor-result': '1'}, parts);
+    }
+
     function renderJob(d) {
         var nodes = [el('div', {class: 'd-flex justify-content-between mb-2'}, [
             el('span', {class: 'badge bg-warning text-dark', text: 'AI-generated — staff only, verify before acting'}),
@@ -162,6 +192,8 @@
         if (d.terminal && d.error && !(d.runs || []).some(function (r) { return r.status === 'succeeded'; })) {
             nodes.push(el('div', {class: 'alert alert-warning py-1', text: d.error}));
         }
+        var proc = d.processor ? renderProcessor(d.processor, d.job_id) : null;
+        if (proc) { nodes.push(proc); }
         nodes.push(el('div', {class: 'row row-cols-1 row-cols-lg-' + Math.min(Math.max(d.runs.length, 1), 3) + ' g-3'}, d.runs.map(function (r) { return renderRun(r, d.job_id); })));
         show(nodes);
     }

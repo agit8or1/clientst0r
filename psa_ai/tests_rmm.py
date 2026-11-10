@@ -91,13 +91,14 @@ class PairingMigrationTests(TestCase):
             'ticket_rmm_enabled': True, 'ticket_rmm_key_id': 'kid-1', 'ticket_rmm_location': 'local',
             'ticket_rmm_capabilities': caps, 'rem0te_business_id': 'biz-1', 'ticket_rmm_tenant_id': 'biz-1',
             'device_type_map': {'x': 'y'}})
+        # Rem0te now pairs only with Ed25519 (integrations/rem0te/): the moved HMAC
+        # pairing is no longer a processor and is never found by its HMAC key id;
+        # 0036 marks it for re-pairing (integrations/tests_rem0te.py MigrationTests).
         s = ticket_rmm.settings(conn)
-        self.assertTrue(s['enabled'])
-        self.assertEqual((s['location'], s['site'], s['tenant_id']), ('local', 'https://rem0te.example.com', 'biz-1'))
-        self.assertTrue(ticket_rmm.is_processor(conn))
-        self.assertEqual(ticket_rmm.processor_for(self.org), conn)
-        self.assertEqual(ticket_rmm.advertised(conn), {'rmm_handoff'})
-        self.assertEqual(ticket_rmm.find_by_key_id('kid-1'), conn)
+        self.assertEqual((s['auth'], s['tenant_id']), ('ed25519', 'biz-1'))
+        self.assertFalse(ticket_rmm.is_processor(conn))
+        self.assertIsNone(ticket_rmm.processor_for(self.org))
+        self.assertIsNone(ticket_rmm.find_by_key_id('kid-1'))
         pending.refresh_from_db()
         self.assertIs(pending.field_mappings['ticket_rmm_enabled'], False)  # still waiting, not switched on
         untouched.refresh_from_db()
@@ -122,7 +123,10 @@ class PairingMigrationTests(TestCase):
         protected.confirm(change, fresh(alice))
         protected.approve(ProtectedChange.objects.get(pk=change.pk), fresh(bob))
         conn.refresh_from_db()
-        self.assertTrue(ticket_rmm.is_processor(conn))
+        # The approved change still applies to the moved keys; the connection
+        # still needs Rem0te's audience and keys before it can process tickets.
+        self.assertIs(conn.field_mappings.get('ticket_rmm_enabled'), True)
+        self.assertFalse(ticket_rmm.is_processor(conn))
 
 
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
@@ -161,6 +165,8 @@ class AnyProviderPairingTests(TestCase):
 
     def test_every_provider_needs_a_second_administrator(self):
         for provider, _label in RMMConnection.PROVIDER_TYPES:
+            if provider == 'rem0te':  # Ed25519 only: integrations/tests_rem0te.py ConnectionFormAndPageTests
+                continue
             conn, req = self._save(provider=provider, name=f'{provider} x')
             self.assertEqual(req, {'enable': True}, provider)
             self.assertFalse(ticket_rmm.settings(conn)['enabled'], provider)
@@ -496,12 +502,10 @@ class TargetBoundaryTests(RMMActionBase):
                                          device_name='stray', linked_asset=self.asset,
                                          ownership_status=RMMDevice.OWNERSHIP_UNRESOLVED,
                                          data_refreshed_at=timezone.now())
-        other_tenant = RMMDevice.objects.create(organization=self.a, connection=self.conn_a, external_id='c-9',
-                                                device_name='THEIRS', client_id='biz-other',
-                                                linked_asset=self.asset, data_refreshed_at=timezone.now())
+        # (A Rem0te computer reported under another business: psa_ai/tests_rem0te.py.)
         self.assertEqual([t.device.pk for t in rmm_actions.targets(self.ticket)], [self.device.pk])
         before = len(self.calls)
-        for pk in (dev_b.pk, unlinked.pk, stray.pk, other_tenant.pk, 999999, 'c-1'):
+        for pk in (dev_b.pk, unlinked.pk, stray.pk, 999999, 'c-1'):
             self.post('diagnostic', {'device': pk, 'diagnostic': 'disk_space', 'idempotency_key': f'k{pk}abcdefgh'})
             self.post('launch', {'device': pk, 'mode': 'view'})
             self.assertEqual(self.c.get(f'/psa/rmm/{self.ticket.ticket_number}/handoff/',

@@ -535,6 +535,20 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         label='Where this RMM runs', required=False,
         choices=(('hosted', 'Hosted / off-premises'), ('local', 'On-premises')),
         widget=forms.Select(attrs={'class': 'form-control'}))
+    # Rem0te only: its Ed25519 protocol replaces the key ID and shared secrets.
+    rem0te_audience = forms.CharField(
+        label="Rem0te's audience", required=False, max_length=256,
+        help_text="The peers file's peers[].audience — what ClientSt0r signs its requests to Rem0te for "
+                  '(Rem0te shows it in its capabilities).',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off',
+                                      'placeholder': 'rem0te:example'}))
+    rem0te_signing_keys = forms.CharField(
+        label="Rem0te's public signing keys", required=False, max_length=8000,
+        help_text="Rem0te's Ed25519 public key(s): a key id line followed by its PEM block, repeated for a "
+                  "previous key during rotation (or Rem0te's capabilities signing_keys JSON). Public keys only.",
+        widget=forms.Textarea(attrs={'class': 'form-control font-monospace', 'rows': 5, 'spellcheck': 'false',
+                                     'placeholder': 'rem0te-2026-11\n-----BEGIN PUBLIC KEY-----\n…\n'
+                                                    '-----END PUBLIC KEY-----'}))
 
     class Meta:
         model = RMMConnection
@@ -575,7 +589,13 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
             p, sec = settings(self.instance), secrets(self.instance)
             self._pairing_before = {'on': p['requested'], 'key_id': p['key_id'], 'location': p['location'],
                                     'outbound': sec['outbound'], 'inbound': sec['inbound'],
-                                    'site': p['site'], 'provider': self.instance.provider_type}
+                                    'site': p['site'], 'provider': self.instance.provider_type,
+                                    'audience': p.get('rem0te_audience', ''),
+                                    'keys': p.get('signing_keys', [])}
+            if self.instance.provider_type == 'rem0te':
+                from integrations.rem0te.pairing import format_signing_keys
+                self.fields['rem0te_audience'].initial = p.get('rem0te_audience', '')
+                self.fields['rem0te_signing_keys'].initial = format_signing_keys(p.get('signing_keys', []))
             self.fields['ticket_rmm_enabled'].initial = p['requested']
             self.fields['ticket_rmm_key_id'].initial = p['key_id']
             self.fields['ticket_rmm_location'].initial = p['location']
@@ -652,7 +672,10 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         return cleaned_data
 
     def _clean_pairing(self, cleaned_data):
-        """Ticket integration pairing, the same for every provider."""
+        """Ticket integration pairing, the same for every provider — except
+        Rem0te, which pairs with Ed25519 keys and never with shared secrets."""
+        if cleaned_data.get('provider_type') == 'rem0te':
+            return self._clean_rem0te_pairing(cleaned_data)
         if not cleaned_data.get('ticket_rmm_enabled'):
             return
         for f in ('ticket_rmm_key_id', 'ticket_rmm_outbound_secret', 'ticket_rmm_inbound_secret'):
@@ -677,6 +700,31 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
                 and cleaned_data.get('customer_scope') != RMMConnection.CUSTOMER_SCOPE_SINGLE):
             self.add_error('customer_scope', 'A ticket integration pairing serves one customer: choose '
                                              'Single customer to pair this connection.')
+
+    def _clean_rem0te_pairing(self, cleaned_data):
+        from integrations.rem0te.pairing import parse_signing_keys
+        cleaned_data['ticket_rmm_key_id'] = ''
+        cleaned_data['ticket_rmm_outbound_secret'] = ''
+        cleaned_data['ticket_rmm_inbound_secret'] = ''
+        audience = (cleaned_data.get('rem0te_audience') or '').strip()
+        cleaned_data['rem0te_audience'] = audience
+        if audience and not all(0x21 <= ord(ch) <= 0x7e for ch in audience):
+            self.add_error('rem0te_audience', 'Use printable characters without spaces, exactly as in the peers file.')
+        try:
+            cleaned_data['rem0te_signing_keys_parsed'] = parse_signing_keys(cleaned_data.get('rem0te_signing_keys') or '')
+        except ValueError as e:
+            self.add_error('rem0te_signing_keys', str(e))
+            cleaned_data['rem0te_signing_keys_parsed'] = None
+        url = (cleaned_data.get('ticket_rmm_url') or '').strip()
+        local = cleaned_data.get('ticket_rmm_location') == 'local'
+        if url and not (url.startswith('https://') or (local and url.startswith('http://'))):
+            self.add_error('ticket_rmm_url', 'Use https (plain http only for an on-premises Rem0te).')
+        if not cleaned_data.get('ticket_rmm_enabled'):
+            return
+        if not audience:
+            self.add_error('rem0te_audience', "Required to pair with Rem0te: copy it from Rem0te's peers file.")
+        if not cleaned_data.get('rem0te_signing_keys_parsed') and 'rem0te_signing_keys' not in self.errors:
+            self.add_error('rem0te_signing_keys', "Required to pair with Rem0te: paste Rem0te's public signing key.")
 
     def _key_id_taken(self, key_id):
         from integrations.ticket_rmm import KEY_ID
@@ -723,10 +771,11 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         elif provider_type == 'rem0te':
             credentials = {'api_key': self.cleaned_data.get('rem0te_api_key', '')}
 
-        # Ticket integration pairing secrets, whatever the provider.
+        # Ticket integration pairing secrets, whatever the provider (not
+        # Rem0te: it pairs with Ed25519 keys only).
         for field, name in (('ticket_rmm_outbound_secret', 'integration_outbound_secret'),
                             ('ticket_rmm_inbound_secret', 'integration_inbound_secret')):
-            if self.cleaned_data.get(field):
+            if self.cleaned_data.get(field) and provider_type != 'rem0te':
                 credentials[name] = self.cleaned_data[field]
 
         self.pairing_request = None
@@ -750,6 +799,8 @@ def _ticket_rmm_pairing_apply(self, connection, credentials):
     switches it off until it is approved again. A provider change also
     clears the tenant pin and capabilities: another product pins afresh."""
     from integrations import ticket_rmm
+    if connection.provider_type == 'rem0te':
+        return _rem0te_pairing_apply(self, connection)
     mappings = dict(connection.field_mappings or {})
     before = self._pairing_before or {}
     want_on = bool(self.cleaned_data.get('ticket_rmm_enabled'))
@@ -1019,3 +1070,53 @@ class GrandstreamConnectionForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+def _rem0te_pairing_apply(self, connection):
+    """Rem0te: Rem0te's audience and public signing keys instead of a key ID
+    and shared secrets. The same protection as every pairing: turning it on
+    or marking it on-premises waits for a second administrator, and changing
+    the audience, the keys, the address or the provider of a live pairing
+    switches it off until approved again. Saving complete Ed25519 settings
+    clears "needs re-pairing"; the old HMAC settings stay kept (for the
+    migration's reverse) and are never used."""
+    from integrations import ticket_rmm
+    from integrations.rem0te import pairing
+    mappings = dict(connection.field_mappings or {})
+    before = self._pairing_before or {}
+    want_on = bool(self.cleaned_data.get('ticket_rmm_enabled'))
+    want_local = self.cleaned_data.get('ticket_rmm_location') == 'local'
+    url = (self.cleaned_data.get('ticket_rmm_url') or '').strip()
+    audience = self.cleaned_data.get('rem0te_audience') or ''
+    keys = self.cleaned_data.get('rem0te_signing_keys_parsed') or []
+    if not (want_on or want_local or url or audience or keys or before.get('on')
+            or any(k in mappings for k in (ticket_rmm.ENABLED, ticket_rmm.URL, pairing.AUDIENCE))):
+        self.pairing_request = None
+        return
+    mappings[ticket_rmm.URL] = url
+    mappings[pairing.AUDIENCE] = audience
+    mappings[pairing.SIGNING_KEYS] = keys
+    mappings[pairing.AUTH] = 'ed25519'
+    mappings.pop(ticket_rmm.KEY_ID, None)
+    if audience and keys:
+        mappings.pop(pairing.NEEDS_REPAIR, None)
+    connection.field_mappings = mappings
+    site = ticket_rmm.contract_site(connection)
+    provider_changed = bool(before) and connection.provider_type != before.get('provider')
+    same_keys = pairing.format_signing_keys(keys) == pairing.format_signing_keys(before.get('keys') or [])
+    repaired = before.get('on') and (audience != before.get('audience') or not same_keys
+                                     or site != before.get('site') or provider_changed)
+    if provider_changed:
+        mappings.pop(ticket_rmm.TENANT_PIN, None)
+        mappings.pop(ticket_rmm.CAPS, None)
+    if not want_on or repaired:
+        mappings[ticket_rmm.ENABLED] = False
+    if not want_local:
+        mappings[ticket_rmm.LOCATION] = 'hosted'
+    connection.field_mappings = mappings
+    widen = {}
+    if want_on and (repaired or not before.get('on')):
+        widen['enable'] = True
+    if want_local and (before.get('location') != 'local' or widen.get('enable')):
+        widen['location'] = 'local'
+    self.pairing_request = widen or None

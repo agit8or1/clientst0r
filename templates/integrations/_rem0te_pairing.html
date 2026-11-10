@@ -1,0 +1,77 @@
+{% comment %}
+Rem0te pairing (ticket-rmm-v1, Ed25519). pairing = integrations.rem0te.pairing.status().
+Public keys, key ids, fingerprints and the peers-file entry only: no private
+key is ever rendered. Everything from Rem0te is autoescaped text.
+{% endcomment %}
+<div data-rem0te-pairing>
+    <table class="table table-sm mb-2">
+        <tr><th width="40%">Protocol</th><td>Ed25519 (contract <code>{{ pairing.pin.contract }}</code>, tested against Rem0te {{ pairing.pin.rem0te_version }} <code title="{{ pairing.pin.rem0te_sha }}">{{ pairing.pin.rem0te_sha|slice:":12" }}</code>)</td></tr>
+        <tr><th>Rem0te address</th><td><code>{{ pairing.settings.site|default:"—" }}</code></td></tr>
+        <tr><th>Rem0te's audience</th><td><code>{{ pairing.settings.rem0te_audience|default:"—" }}</code></td></tr>
+        <tr><th>Rem0te's signing keys</th><td>{% for k in pairing.settings.signing_keys %}<code>{{ k.kid }}</code>{% if not forloop.last %}, {% endif %}{% empty %}none entered{% endfor %}</td></tr>
+        <tr><th>Organization id</th><td><code data-rem0te-org-id>{{ pairing.organization_id }}</code></td></tr>
+        <tr><th>Runs</th><td>{% if pairing.settings.location == 'local' %}On-premises{% else %}Hosted / off-premises{% endif %}</td></tr>
+        <tr><th>Rem0te version</th><td>{{ pairing.check.rem0te_version|default:"—" }}</td></tr>
+        <tr><th>Advertised</th><td>{% for c in pairing.capabilities %}<span class="badge bg-light text-dark border me-1">{{ c }}</span>{% empty %}nothing yet{% endfor %}</td></tr>
+        {% if pairing.proposable_actions %}<tr><th>Catalog actions</th><td>{% for a in pairing.proposable_actions %}{{ a.label }}{% if not forloop.last %}, {% endif %}{% endfor %}</td></tr>{% endif %}
+        <tr><th>Last check</th><td>{{ pairing.checked_at|default:"never" }}</td></tr>
+    </table>
+    {% for w in pairing.warnings %}<div class="alert alert-warning py-1 px-2 mb-1">{{ w }}</div>{% endfor %}
+    {% if pairing.settings.enabled %}
+    <form method="post" action="{% url 'integrations:rmm_pairing_check' connection.pk %}" class="mb-2">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-plug-circle-check me-1"></i>Check pairing</button>
+    </form>
+    {% endif %}
+
+    <details class="mb-2" {% if pairing.state != 'ok' %}open{% endif %}>
+        <summary class="fw-semibold">Steps to pair with Rem0te</summary>
+        <ol class="mt-1 mb-0 ps-3" data-rem0te-steps>
+            {% for step in pairing.steps %}<li>{{ step }}</li>{% endfor %}
+        </ol>
+    </details>
+
+    <details class="mb-2" {% if not pairing.identity or not pairing.identity.has_keys %}open{% endif %}>
+        <summary class="fw-semibold">ClientSt0r's Rem0te identity (all organizations)</summary>
+        {% if pairing.identity and pairing.identity.has_keys %}
+        <table class="table table-sm mt-1 mb-1">
+            <tr><th width="40%">Peer id</th><td><code>{{ pairing.identity.peer_id }}</code></td></tr>
+            <tr><th>Audience (peerAudience)</th><td><code>{{ pairing.identity.audience|default:"—" }}</code></td></tr>
+            <tr><th>Public address</th><td><code>{{ pairing.identity.public_base_url|default:"—" }}</code></td></tr>
+            <tr><th>Request key</th><td><code>{{ pairing.identity.request.kid }}</code><br><span class="text-muted">SHA-256 {{ pairing.identity.request.fingerprint }}</span></td></tr>
+            <tr><th>Delegation key</th><td><code>{{ pairing.identity.delegation.kid }}</code><br><span class="text-muted">SHA-256 {{ pairing.identity.delegation.fingerprint }}</span></td></tr>
+        </table>
+        {% if pairing.identity.missing %}<div class="text-danger mb-1">{{ pairing.identity.missing }}</div>{% endif %}
+        {% if pairing.peer_entry %}
+        <div class="mb-1">Entry for Rem0te's peers file (<code>peers[]</code> in <code>INTEGRATION_PEERS_FILE</code>) — public keys only:</div>
+        <pre class="small bg-light border rounded p-2 mb-1" style="max-height: 18rem; overflow: auto; white-space: pre-wrap;" data-rem0te-peer-entry>{{ pairing.peer_entry }}</pre>
+        {% endif %}
+        {% else %}
+        <p class="text-muted mt-1 mb-1">ClientSt0r has no Rem0te keys yet.</p>
+        {% endif %}
+        {% if user.is_superuser %}
+        <form method="post" action="{% url 'integrations:rmm_rem0te_identity' connection.pk %}" class="mt-2">
+            {% csrf_token %}<input type="hidden" name="op" value="update">
+            <div class="row g-1">
+                <div class="col-md-4"><input name="peer_id" class="form-control form-control-sm" aria-label="Peer id" placeholder="Peer id" value="{{ pairing.identity.peer_id|default:'clientst0r' }}"></div>
+                <div class="col-md-4"><input name="audience" class="form-control form-control-sm" aria-label="ClientSt0r's audience" placeholder="clientst0r:host" value="{{ pairing.identity.audience|default:'' }}"></div>
+                <div class="col-md-4"><input name="public_base_url" class="form-control form-control-sm" aria-label="Public address" placeholder="https://clientst0r.example.com" value="{{ pairing.identity.public_base_url|default:'' }}"></div>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary mt-1">Save identity</button>
+        </form>
+        <form method="post" action="{% url 'integrations:rmm_rem0te_identity' connection.pk %}" class="d-inline">
+            {% csrf_token %}
+            {% if pairing.identity and pairing.identity.has_keys %}
+            <input type="hidden" name="op" value="rotate">
+            <button class="btn btn-sm btn-outline-danger mt-1" data-confirm="Rotating replaces ClientSt0r's keys: every Rem0te pairing stops working until Rem0te's peers file has the new public keys. Continue?">Rotate keys</button>
+            {% else %}
+            <input type="hidden" name="op" value="generate">
+            <button class="btn btn-sm btn-primary mt-1">Generate keys</button>
+            {% endif %}
+        </form>
+        {% else %}
+        <p class="text-muted mb-0">Only a superuser can change ClientSt0r's Rem0te identity, because it serves every organization.</p>
+        {% endif %}
+    </details>
+    <p class="text-muted mb-0">Technicians are known to Rem0te as <code>tech-&lt;ClientSt0r user id&gt;</code>; map each one in Rem0te. Private keys are encrypted at rest and never shown.</p>
+</div>

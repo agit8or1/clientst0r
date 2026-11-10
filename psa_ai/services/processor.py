@@ -64,6 +64,11 @@ MAX_RESPONSE = 256 * 1024
 
 def _request(conn, method, path, payload=None, idempotency_key=''):
     from integrations.ticket_rmm import secrets as integration_secrets, settings as integration_settings
+    if getattr(conn, 'provider_type', '') == 'rem0te':
+        # Rem0te authenticates ClientSt0r with Ed25519 only (integrations/
+        # rem0te/). Never sign anything for it with an HMAC secret.
+        raise ProcessorUnavailable('Rem0te pairings use Rem0te\'s Ed25519 protocol; this request kind is not '
+                                   'part of Rem0te\'s contract.')
     settings_ = integration_settings(conn)
     site = settings_['site']
     if not (site.startswith('https://') or (site.startswith('http://') and settings_['location'] == 'local')):
@@ -113,6 +118,9 @@ def refresh_capabilities(conn):
     first success). Returns the stored check; failures are recorded on the
     connection, not raised."""
     from integrations.ticket_rmm import record_capabilities, record_failure, settings
+    if getattr(conn, 'provider_type', '') == 'rem0te':
+        from integrations.rem0te import pairing
+        return pairing.check(conn)
     if not settings(conn)['enabled']:
         record_failure(conn, 'The pairing is not switched on and approved yet.')
         return {'ok': False, 'error': 'not enabled'}
@@ -157,6 +165,9 @@ def job_payload(job, request=None):
 def submit(job, request=None):
     """Send the job to the paired RMM. Sets status submitted / unavailable / failed."""
     from psa_ai.models import AnalysisJob
+    if job.protocol == AnalysisJob.PROTOCOL_REM0TE:
+        from integrations.rem0te import jobs as rem0te_jobs
+        return rem0te_jobs.submit(job)
     payload = job_payload(job, request)
     try:
         data = _request(job.connection, 'POST', '/jobs', payload, idempotency_key=job.idempotency_key)
@@ -205,6 +216,9 @@ def apply_event(job, event_type, sequence):
 def poll(job, force=False):
     """Recover missed callbacks by asking the RMM for the job's state."""
     from psa_ai.models import AnalysisJob
+    if job.protocol == AnalysisJob.PROTOCOL_REM0TE:
+        from integrations.rem0te import jobs as rem0te_jobs
+        return rem0te_jobs.poll(job, force=force)
     if job.is_terminal:
         return job
     if job.expires_at <= timezone.now():

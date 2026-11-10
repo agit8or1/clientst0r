@@ -1,0 +1,122 @@
+name: cross-peer-e2e
+
+# ClientSt0r against a real Rem0te over the ticket-rmm-v1 contract (Ed25519):
+# pairing, ticket analysis, staff-only results, alert → exactly one ticket
+# linked back, restart/retry exactly-once, same computer name in two
+# organizations, revoked access, an unavailable peer, L1 limits and
+# secret-free failure reasons. scripts/e2e/cross_peer/run.py does the work;
+# this job only provides Postgres, Redis, the pinned Rem0te build and the
+# Python dependencies. All data is synthetic; ClientSt0r runs on a throwaway
+# SQLite file.
+#
+# Rem0te is checked out at the revision ClientSt0r's vendored contract is
+# pinned to (integrations/rem0te/contract/PIN.json). Bumping the pin bumps
+# what this job tests. If the Rem0te repository is private, add a read-only
+# token as the REM0TE_READ_TOKEN secret.
+
+on:
+  pull_request:
+    paths:
+      - 'integrations/rem0te/**'
+      - 'integrations/ticket_rmm.py'
+      - 'integrations/forms.py'
+      - 'psa_ai/**'
+      - 'tech_access/**'
+      - 'scripts/e2e/cross_peer/**'
+      - '.github/workflows/cross-peer-e2e.yml'
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'integrations/rem0te/**'
+      - 'psa_ai/**'
+      - 'scripts/e2e/cross_peer/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-peer-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cross-peer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: rem0te
+          POSTGRES_PASSWORD: rem0te
+          POSTGRES_DB: rem0te_e2e_scratch
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd "pg_isready -U rem0te" --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7
+        ports: [ "6379:6379" ]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://rem0te:rem0te@127.0.0.1:5432/rem0te_e2e_scratch?schema=public
+      REDIS_URL: redis://127.0.0.1:6379
+      REM0TE_SRC: ${{ github.workspace }}/rem0te
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the pinned Rem0te revision
+        id: pin
+        run: echo "sha=$(python3 -c 'import json;print(json.load(open("integrations/rem0te/contract/PIN.json"))["rem0te_sha"])')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: agit8or1/rem0te
+          ref: ${{ steps.pin.outputs.sha }}
+          path: rem0te
+          token: ${{ secrets.REM0TE_READ_TOKEN || github.token }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: rem0te/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: rem0te/pnpm-lock.yaml
+
+      - name: Build Rem0te
+        working-directory: rem0te
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm db:generate
+          pnpm --filter "@reboot-remote/api..." build  # the API and the workspace packages it uses
+
+      - name: Migrate and seed Rem0te's scratch database
+        working-directory: rem0te
+        run: |
+          pnpm db:migrate
+          pnpm db:seed
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: ClientSt0r dependencies
+        run: |
+          python -m venv venv
+          venv/bin/pip install --quiet -r requirements.txt
+
+      - name: Cross-peer run
+        run: bash scripts/e2e/cross_peer/run.sh --work "$RUNNER_TEMP/cross-peer" --cs-port 18431 --rem0te-port 3141 --llm-port 18432
+
+      - name: Results and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-peer-e2e
+          path: |
+            ${{ runner.temp }}/cross-peer/results.json
+            ${{ runner.temp }}/cross-peer/logs/
+          if-no-files-found: warn

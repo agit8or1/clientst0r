@@ -1,0 +1,11 @@
+{
+  "iss": "clientst0r-lab",
+  "aud": "rem0te:lab",
+  "sub": "tech-417",
+  "org": "org-lab-a",
+  "scope": "ticket_analysis:submit",
+  "iat": 1794233100,
+  "exp": 1794233220,
+  "jti": "b7a1c9e4f0d2a6b8c3e5f7a9",
+  "req_sha256": "b16fb8ff5f2517f65d910cc4af6c78e8057834c257f9646824c65188e5e83857"
+}

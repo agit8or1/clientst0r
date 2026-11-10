@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "IDEMPOTENCY_CONFLICT",
+    "message": "Idempotency key reused with a different payload"
+  }
+}

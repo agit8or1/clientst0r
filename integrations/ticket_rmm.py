@@ -103,9 +103,22 @@ def secrets(connection) -> Dict[str, str]:
     return {'outbound': creds.get(OUTBOUND) or '', 'inbound': creds.get(INBOUND) or ''}
 
 
+def is_ed25519(connection) -> bool:
+    """Rem0te speaks only its Ed25519 protocol (integrations/rem0te/). Every
+    other provider keeps the HMAC pairing below. There is no per-connection
+    switch: a Rem0te connection can never be configured for HMAC."""
+    return getattr(connection, 'provider_type', '') == 'rem0te'
+
+
 def settings(connection) -> Dict[str, Any]:
     """The pairing as configured. `enabled` means approved, switched on and
     complete; whether the RMM has answered yet is `is_processor()`."""
+    if is_ed25519(connection):
+        from integrations.rem0te import pairing
+        s = pairing.settings(connection)
+        mappings = connection.field_mappings or {}
+        return dict(s, has_secrets=False, key_id='', auth='ed25519',
+                    tenant_id=str(mappings.get(TENANT_PIN) or mappings.get(REM0TE_BUSINESS_PIN) or ''))
     mappings = connection.field_mappings or {}
     sec = secrets(connection)
     has_secrets = bool(sec['outbound'] and sec['inbound'])
@@ -130,6 +143,9 @@ def check(connection) -> Dict[str, Any]:
 
 def is_processor(connection) -> bool:
     """Enabled, tenant pinned, and the RMM hasn't since named another tenant."""
+    if is_ed25519(connection):
+        from integrations.rem0te import pairing
+        return pairing.is_processor(connection)
     s = settings(connection)
     return bool(s['enabled'] and s['tenant_id'] and not check(connection).get('tenant_mismatch'))
 
@@ -137,6 +153,9 @@ def is_processor(connection) -> bool:
 def advertised(connection) -> set:
     """What the RMM said it supports at its last successful check. Empty
     until the pairing is a live processor."""
+    if is_ed25519(connection):
+        from integrations.rem0te import pairing
+        return pairing.advertised(connection)
     if not is_processor(connection):
         return set()
     caps = check(connection).get('capabilities')
@@ -145,7 +164,7 @@ def advertised(connection) -> set:
 
 def diagnostics(connection) -> List[Dict[str, Any]]:
     """The read-only diagnostics the RMM advertised, already cleaned."""
-    if 'diagnostics_readonly' not in advertised(connection):
+    if is_ed25519(connection) or 'diagnostics_readonly' not in advertised(connection):
         return []
     return list(check(connection).get('diagnostics') or [])
 
@@ -163,11 +182,13 @@ def processor_for(organization):
 
 
 def find_by_key_id(key_id):
-    """The enabled pairing quoting this key ID, any provider, or None."""
+    """The enabled HMAC pairing quoting this key ID, or None. Rem0te
+    connections are never returned: they authenticate with Ed25519 only, so
+    an HMAC-signed request naming one is refused, never accepted."""
     from integrations.models import RMMConnection
     if not key_id:
         return None
-    for conn in RMMConnection.objects.filter(is_active=True):
+    for conn in RMMConnection.objects.filter(is_active=True).exclude(provider_type='rem0te'):
         if str((conn.field_mappings or {}).get(KEY_ID) or '') == key_id:
             return conn if settings(conn)['enabled'] else None
     return None
@@ -267,6 +288,9 @@ def record_capabilities(connection, document: Dict[str, Any]) -> Dict[str, Any]:
 
 def status(connection) -> Dict[str, Any]:
     """Plain-words pairing state for the connection page."""
+    if is_ed25519(connection):
+        from integrations.rem0te import pairing
+        return pairing.status(connection)
     s = settings(connection)
     doc = check(connection)
     pending = False

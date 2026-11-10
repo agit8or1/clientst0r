@@ -131,7 +131,9 @@
             </div>
             <div class="card-body small">
                 <p class="mb-2" data-pairing-state="{{ pairing.state }}">{{ pairing.detail }}</p>
-                {% if pairing.state != 'off' %}
+                {% if pairing.protocol == 'ed25519' %}
+                {% include 'integrations/_rem0te_pairing.html' %}
+                {% elif pairing.state != 'off' %}
                 <table class="table table-sm mb-2">
                     <tr><th width="40%">Contract address</th><td><code>{{ pairing.settings.site|default:"—" }}</code></td></tr>
                     <tr><th>Key ID</th><td><code>{{ pairing.settings.key_id|default:"—" }}</code></td></tr>

@@ -420,7 +420,15 @@ def pairing_fingerprint(connection) -> str:
     import hashlib
     import json
     from integrations.ticket_rmm import secrets, settings
-    s, sec = settings(connection), secrets(connection)
+    s = settings(connection)
+    if connection.provider_type == 'rem0te':
+        # Rem0te pairs with Ed25519: what is approved is Rem0te's audience and
+        # the public keys ClientSt0r will trust for it.
+        raw = json.dumps([connection.provider_type, s['site'], s.get('rem0te_audience', ''),
+                          sorted((k.get('kid', ''), k.get('public_key_pem', '').strip())
+                                 for k in s.get('signing_keys', []))])
+        return hashlib.sha256(raw.encode()).hexdigest()
+    sec = secrets(connection)
     raw = json.dumps([connection.provider_type, s['site'], s['key_id'],
                       hashlib.sha256(sec['outbound'].encode()).hexdigest(),
                       hashlib.sha256(sec['inbound'].encode()).hexdigest()])
