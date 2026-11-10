@@ -73,6 +73,14 @@ class ReadTrackingMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        from . import actor
+        actor.set_request(request)
+        try:
+            return self._call(request)
+        finally:
+            actor.clear()
+
+    def _call(self, request):
         match = _match(request)
         if not _relevant(match):
             return self.get_response(request)

@@ -80,7 +80,7 @@
                 {% endwith %}{% empty %}<p class="text-muted mb-1">Nothing waiting.</p>{% endfor %}
                 {% if recent_changes %}
                 <details><summary>Recent</summary>
-                    <ul class="mb-0">{% for c in recent_changes %}<li>#{{ c.pk }} {{ c.summary }} — {{ c.get_status_display }}{% if c.reviewed_by %} by {{ c.reviewed_by.username }}{% endif %}</li>{% endfor %}</ul>
+                    <ul class="mb-0">{% for c in recent_changes %}<li><a href="{% url 'tech_access:change_detail' c.pk %}">#{{ c.pk }}</a> {{ c.summary }} — {{ c.get_status_display }}{% if c.reviewed_by %} by {{ c.reviewed_by.username }}{% endif %}</li>{% endfor %}</ul>
                 </details>
                 {% endif %}
             </div>
@@ -88,7 +88,7 @@
 
         {# Effective access preview #}
         <div class="card mb-3" id="preview">
-            <div class="card-header"><strong>Preview effective access</strong></div>
+            <div class="card-header"><strong>Preview effective access</strong> <a class="small ms-2" href="{% url 'tech_access:why' %}">Why can a technician do something?</a></div>
             <div class="card-body small">
                 <form method="get" class="d-flex flex-wrap gap-2 mb-2" action="#preview">
                     <select name="preview_user" class="form-select form-select-sm w-auto">{% for u in technicians %}<option value="{{ u.pk }}" {% if effective.user.pk == u.pk %}selected{% endif %}>{{ u.username }}</option>{% endfor %}</select>
@@ -97,10 +97,11 @@
                 </form>
                 {% if effective %}
                 <table class="table table-sm mb-0">
-                    <thead><tr><th>Capability</th><th>State</th><th>Why</th></tr></thead>
+                    <thead><tr><th>Capability</th><th>State</th><th>Why</th><th></th></tr></thead>
                     <tbody>{% for d in effective.rows %}
                     <tr><td>{{ d.capability|cap_label }}</td><td><span class="badge {{ d.state|state_badge }}">{{ d.state|state_label }}</span></td>
-                        <td>{{ d.reason }}{% if d.notes %}<div class="text-muted">{{ d.notes|join:" · " }}</div>{% endif %}</td></tr>
+                        <td>{{ d.reason }}{% if d.notes %}<div class="text-muted">{{ d.notes|join:" · " }}</div>{% endif %}</td>
+                        <td class="text-nowrap"><a href="{% url 'tech_access:why' %}?user={{ effective.user.pk }}&amp;organization={{ effective.organization.pk }}&amp;capability={{ d.capability }}" title="Who granted it, when, expiry, approval and audit history">Why?</a></td></tr>
                     {% endfor %}</tbody>
                 </table>
                 {% endif %}
@@ -114,7 +115,7 @@
                 <table class="table table-sm">
                     <thead><tr><th>Who</th><th>Customer</th><th>Preset</th><th>Expires</th><th></th></tr></thead>
                     <tbody>{% for a in assignments %}
-                    <tr><td>{{ a.subject_label }}</td><td>{{ a.organization.name }}</td><td>{{ a.preset.name }}</td><td>{{ a.expires_at|date:"Y-m-d H:i"|default:"—" }}</td>
+                    <tr><td><a href="{% url 'tech_access:assignment_detail' a.pk %}">{{ a.subject_label }}</a></td><td>{{ a.organization.name }}</td><td>{{ a.preset.name }}</td><td>{{ a.expires_at|date:"Y-m-d H:i"|default:"—" }}</td>
                         <td><form method="post">{% csrf_token %}<input type="hidden" name="action" value="revoke"><input type="hidden" name="assignment" value="{{ a.pk }}"><input type="hidden" name="section" value="assignments"><button class="btn btn-sm btn-outline-danger">Revoke</button></form></td></tr>
                     {% empty %}<tr><td colspan="5" class="text-muted">No assignments. Technicians have no ticket AI or RMM capabilities.</td></tr>{% endfor %}</tbody>
                 </table>

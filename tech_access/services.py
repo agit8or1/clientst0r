@@ -178,7 +178,14 @@ def assign(subject, organization, preset, by, expires_at=None, note='', request=
     return _create_assignment(payload, by), None, plan
 
 
-def _create_assignment(payload, by):
+def _assignment_state(a) -> dict:
+    """An assignment as recorded in its audit entries' before/after."""
+    return {'subject': a.subject_label, 'organization': a.organization.name, 'preset': a.preset.name,
+            'expires_at': a.expires_at.isoformat() if a.expires_at else None,
+            'revoked_at': a.revoked_at.isoformat() if a.revoked_at else None, 'note': a.note}
+
+
+def _create_assignment(payload, by, change=None):
     from core.models import Organization
     expires = parse_datetime(payload['expires_at']) if payload.get('expires_at') else None
     a = AccessAssignment.objects.create(
@@ -186,22 +193,27 @@ def _create_assignment(payload, by):
         organization=Organization.objects.get(pk=payload['organization']),
         user=get_user_model().objects.get(pk=payload['user']) if payload.get('user') else None,
         group=TechnicianGroup.objects.get(pk=payload['group']) if payload.get('group') else None,
-        expires_at=expires, granted_by=by, note=payload.get('note') or '')
+        expires_at=expires, granted_by=by, note=payload.get('note') or '', approved_change=change)
     _audit(by, 'create', 'tech_access_assignment', a.pk, f'Technician access: {a}', a.organization,
-           {'preset': a.preset.name, 'expires_at': payload.get('expires_at')})
+           {'preset': a.preset.name, 'expires_at': payload.get('expires_at'),
+            'change': change.pk if change else None,
+            'approved_by': _name(change.reviewed_by) if change and change.reviewed_by_id else '',
+            'before': None, 'after': _assignment_state(a)})
     return a
 
 
 @applier('assignment')
 def _apply_assignment(change, reviewer):
-    _create_assignment(change.payload, change.requested_by)
+    change.reviewed_by = reviewer  # saved by protected.approve right after
+    _create_assignment(change.payload, change.requested_by, change)
 
 
 def revoke(assignment, by):
-    assignment.revoked_at = timezone.now()
-    assignment.save(update_fields=['revoked_at'])
+    before = _assignment_state(assignment)
+    assignment.revoked_at, assignment.revoked_by = timezone.now(), by
+    assignment.save(update_fields=['revoked_at', 'revoked_by'])
     _audit(by, 'delete', 'tech_access_assignment', assignment.pk, f'Revoked technician access: {assignment}',
-           assignment.organization)
+           assignment.organization, {'before': before, 'after': _assignment_state(assignment)})
 
 
 def clone_preset(preset, name, by):
@@ -255,10 +267,13 @@ def set_group_members(group, users, by, request=None):
     plan = plan_group_members(group, users)
     keep = {u.pk for u in users}
     removed = list(group.members.exclude(pk__in=keep))
+    before = sorted(group.members.values_list('username', flat=True))
     if removed:
         group.members.remove(*removed)
         _audit(by, 'update', 'tech_access_group', group.pk,
-               f'Removed {", ".join(u.get_username() for u in removed)} from {group.name}')
+               f'Removed {", ".join(u.get_username() for u in removed)} from {group.name}',
+               extra={'users': [u.pk for u in removed], 'before': before,
+                      'after': sorted(group.members.values_list('username', flat=True))})
     added = [u for u in users if not group.members.filter(pk=u.pk).exists()]
     if not added:
         return True, None, plan
@@ -268,23 +283,33 @@ def set_group_members(group, users, by, request=None):
                          target_user=added[0] if len(added) == 1 else None, affected=[u.pk for u in added],
                          request=request)
         return False, change, plan
+    before = sorted(group.members.values_list('username', flat=True))
     group.members.add(*added)
     _audit(by, 'update', 'tech_access_group', group.pk,
-           f'Added {", ".join(u.get_username() for u in added)} to {group.name}')
+           f'Added {", ".join(u.get_username() for u in added)} to {group.name}',
+           extra={'users': [u.pk for u in added], 'before': before,
+                  'after': sorted(group.members.values_list('username', flat=True))})
     return True, None, plan
 
 
 @applier('group_members')
 def _apply_group(change, reviewer):
     group = TechnicianGroup.objects.get(pk=change.payload['group'])
+    before = sorted(group.members.values_list('username', flat=True))
     group.members.add(*get_user_model().objects.filter(pk__in=change.payload['add']))
-    _audit(change.requested_by, 'update', 'tech_access_group', group.pk, f'Approved: {change.summary}')
+    _audit(change.requested_by, 'update', 'tech_access_group', group.pk, f'Approved: {change.summary}',
+           extra={'users': list(change.payload['add']), 'change': change.pk, 'approved_by': _name(reviewer),
+                  'before': before, 'after': sorted(group.members.values_list('username', flat=True))})
 
 
 def add_deny(user, capability, by, organization=None, reason='', expires_at=None):
     d = ExplicitDeny.objects.create(user=user, capability=capability, organization=organization,
                                     reason=reason[:200], expires_at=expires_at, created_by=by)
-    _audit(by, 'create', 'tech_access_deny', d.pk, f'Denied {capability} for {user.get_username()}', organization)
+    _audit(by, 'create', 'tech_access_deny', d.pk, f'Denied {capability} for {user.get_username()}', organization,
+           {'before': None, 'after': {'user': user.get_username(), 'capability': capability,
+                                      'organization': organization.name if organization else 'every customer',
+                                      'reason': d.reason,
+                                      'expires_at': expires_at.isoformat() if expires_at else None}})
     return d
 
 
@@ -307,7 +332,8 @@ def set_restrictions(organization, restricted, by, request=None):
         policy.restricted = tightened
         policy.save(update_fields=['restricted', 'updated_at'])
         _audit(by, 'update', 'tech_access_customer_policy', policy.pk,
-               f'Restricted {", ".join(sorted(set(want) - have))} at {organization.name}', organization)
+               f'Restricted {", ".join(sorted(set(want) - have))} at {organization.name}', organization,
+               {'before': {'restricted': sorted(have)}, 'after': {'restricted': tightened}})
     if lifted:
         return propose('security_limits', f'Lift restrictions at {organization.name}: {", ".join(lifted)}',
                        {'op': 'lift_restrictions', 'organization': organization.pk, 'lift': lifted},
@@ -317,10 +343,12 @@ def set_restrictions(organization, restricted, by, request=None):
 
 def set_default_preset(organization, preset, by):
     policy, _ = CustomerAccessPolicy.objects.get_or_create(organization=organization)
+    before = policy.default_preset.name if policy.default_preset_id else None
     policy.default_preset = preset
     policy.save(update_fields=['default_preset', 'updated_at'])
     _audit(by, 'update', 'tech_access_customer_policy', policy.pk,
-           f'Default preset at {organization.name}: {preset.name if preset else "L1"}', organization)
+           f'Default preset at {organization.name}: {preset.name if preset else "L1"}', organization,
+           {'before': {'default_preset': before}, 'after': {'default_preset': preset.name if preset else None}})
 
 
 def default_preset_for(organization):
@@ -333,11 +361,22 @@ def _apply_limits(change, reviewer):
     p = change.payload
     op = p.get('op')
     if op == 'lift_deny':
-        ExplicitDeny.objects.filter(pk=p['deny']).delete()
+        deny = ExplicitDeny.objects.filter(pk=p['deny']).select_related('user', 'organization').first()
+        if deny is not None:
+            _audit(change.requested_by, 'delete', 'tech_access_deny', deny.pk, f'Approved: {change.summary}',
+                   deny.organization, {'change': change.pk, 'approved_by': _name(reviewer),
+                                       'before': {'user': deny.user.get_username(), 'capability': deny.capability},
+                                       'after': None})
+            deny.delete()
     elif op == 'lift_restrictions':
         policy = CustomerAccessPolicy.objects.get(organization_id=p['organization'])
+        before = sorted(policy.restricted or [])
         policy.restricted = sorted(set(policy.restricted or []) - set(p['lift']))
         policy.save(update_fields=['restricted', 'updated_at'])
+        _audit(change.requested_by, 'update', 'tech_access_customer_policy', policy.pk,
+               f'Approved: {change.summary}', policy.organization,
+               {'change': change.pk, 'approved_by': _name(reviewer), 'before': {'restricted': before},
+                'after': {'restricted': policy.restricted}})
     elif op == 'detection':
         from .models import DetectionSettings
         s = DetectionSettings.load()

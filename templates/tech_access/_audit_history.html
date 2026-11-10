@@ -1,0 +1,12 @@
+{% load tech_access_tags %}{% if history %}
+<table class="table table-sm mb-0 audit-history">
+    <thead><tr><th>When</th><th>By</th><th>What</th><th>Before → after</th></tr></thead>
+    <tbody>{% for e in history %}
+    <tr>
+        <td class="text-nowrap">{{ e.timestamp|date:"Y-m-d H:i" }}</td>
+        <td>{{ e.username|default:"(system)" }}{% if e.ip_address %}<div class="text-muted">{{ e.ip_address }}</div>{% endif %}</td>
+        <td>{{ e.description|default:e.object_repr }}{% if e.extra_data.change %} <a href="{% url 'tech_access:change_detail' e.extra_data.change %}">change #{{ e.extra_data.change }}</a>{% endif %}</td>
+        <td>{% for field, before, after in e.extra_data|audit_changes %}<div>{% if field %}<code>{{ field }}</code>: {% endif %}<span class="text-muted">{{ before }}</span> → <strong>{{ after }}</strong></div>{% empty %}<span class="text-muted">—</span>{% endfor %}</td>
+    </tr>{% endfor %}</tbody>
+</table>
+{% else %}<p class="text-muted mb-0">No audit entries.</p>{% endif %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load tech_access_tags %}
+
+{% block title %}Protected change #{{ change.pk }} - Technician Access{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:settings_security' %}">Security</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'tech_access:index' %}">Technician Access</a></li>
+        <li class="breadcrumb-item active">Protected change #{{ change.pk }}</li>
+    </ol>
+</nav>
+<div class="row">
+    <div class="col-md-3">{% include "core/_settings_menu.html" with active_page="technician_access" %}</div>
+    <div class="col-md-9">
+        <div class="card mb-3">
+            <div class="card-header"><strong>#{{ change.pk }} {{ change.get_kind_display }}</strong>
+                <span class="badge bg-secondary">{{ change.get_status_display }}</span></div>
+            <div class="card-body small">
+                <p>{{ change.summary }}</p>
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Widens</dt><dd class="col-sm-9">{% for w in change.widening %}{{ w|cap_label }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</dd>
+                    {% if change.target_user %}<dt class="col-sm-3">Technician</dt><dd class="col-sm-9">{{ change.target_user.username }}</dd>{% endif %}
+                    <dt class="col-sm-3">Requested</dt><dd class="col-sm-9">{{ change.requested_by.username|default:"?" }} on {{ change.requested_at|date:"Y-m-d H:i" }}</dd>
+                    <dt class="col-sm-3">Requester confirmed</dt><dd class="col-sm-9">{{ change.requester_reauth_at|date:"Y-m-d H:i"|default:"not yet" }}</dd>
+                    <dt class="col-sm-3">Reviewed</dt><dd class="col-sm-9">{% if change.reviewed_by %}{{ change.reviewed_by.username }} on {{ change.reviewed_at|date:"Y-m-d H:i" }} (re-authenticated {{ change.reviewer_reauth_at|date:"H:i"|default:"—" }}){% else %}not yet{% endif %}</dd>
+                    <dt class="col-sm-3">Expires</dt><dd class="col-sm-9">{{ change.expires_at|date:"Y-m-d H:i" }}</dd>
+                    {% if change.notified %}<dt class="col-sm-3">Notified</dt><dd class="col-sm-9">{{ change.notified|join:", " }}</dd>{% endif %}
+                    {% for a in assignments %}<dt class="col-sm-3">Created</dt><dd class="col-sm-9"><a href="{% url 'tech_access:assignment_detail' a.pk %}">Assignment #{{ a.pk }}</a> — {{ a.preset.name }} at {{ a.organization.name }}</dd>{% endfor %}
+                </dl>
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header"><strong>Audit history</strong></div>
+            <div class="card-body small">{% include "tech_access/_audit_history.html" with history=history %}</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
