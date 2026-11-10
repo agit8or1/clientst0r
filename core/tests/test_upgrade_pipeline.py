@@ -504,9 +504,9 @@ class MigrationDoctorTests(TestCase):
         """#128/#129: the schema change is in, the django_migrations row is not."""
         from django.db.migrations.recorder import MigrationRecorder
         MigrationRecorder.Migration.objects.filter(
-            app='core', name='0081_systemsetting_update_channel').delete()
+            app='core', name='0082_systemsetting_update_channel').delete()
         findings = {f.label: f for f in doctor.diagnose()}
-        f = findings['core.0081_systemsetting_update_channel']
+        f = findings['core.0082_systemsetting_update_channel']
         self.assertEqual(f.state, 'applied_unrecorded')
         self.assertIn('--fake', f.advice)
         self.assertIn('upgrade_restore', f.advice)
@@ -520,18 +520,18 @@ class MigrationDoctorTests(TestCase):
         from django.db.migrations.recorder import MigrationRecorder
         call_command('migration_doctor', '--check', stdout=StringIO())   # clean: no exit
         MigrationRecorder.Migration.objects.filter(
-            app='core', name='0081_systemsetting_update_channel').delete()
+            app='core', name='0082_systemsetting_update_channel').delete()
         out = StringIO()
         with self.assertRaises(SystemExit) as cm:
             call_command('migration_doctor', '--check', stdout=out)
         self.assertEqual(cm.exception.code, 1)
-        self.assertIn('core.0081_systemsetting_update_channel: applied unrecorded', out.getvalue())
+        self.assertIn('core.0082_systemsetting_update_channel: applied unrecorded', out.getvalue())
 
     def test_missing_column_is_reported_missing(self):
         from django.db import connection, models
         from django.db.migrations import operations as ops
         from django.db.migrations.loader import MigrationLoader
-        state = MigrationLoader(connection).project_state(('core', '0081_systemsetting_update_channel'))
+        state = MigrationLoader(connection).project_state(('core', '0082_systemsetting_update_channel'))
         op = ops.AddField('systemsetting', 'not_there_yet', models.CharField(max_length=3, default=''))
         tables = doctor._schema()
         desc, present = doctor._check_operation(op, 'core', state, tables)

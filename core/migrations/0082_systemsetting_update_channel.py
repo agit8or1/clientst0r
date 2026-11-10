@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0080_systemsetting_latest_release'),
+        ('core', '0081_scheduledtask_run_migration_rehearsals'),
     ]
 
     operations = [
