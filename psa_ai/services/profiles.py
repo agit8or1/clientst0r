@@ -1,6 +1,6 @@
 """
 Which model profiles a technician may use on a customer's ticket, which
-rem0te processes the job, and what it will cost.
+paired RMM processes the job, and what it will cost.
 
 A profile is usable only when every one of these holds:
   * the profile is enabled and has a credential (Ollama needs a base URL);
@@ -31,22 +31,16 @@ def policy_for(organization):
 
 
 def processor_for(organization):
-    """The customer's paired rem0te, or None. Pairing = an active Rem0te
-    connection in that organization with integration secrets and a pinned
-    business (integrations/providers/rmm/rem0te.py)."""
-    from integrations.models import RMMConnection
-    from integrations.providers.rmm.rem0te import BUSINESS_PIN, integration_settings
-    for conn in RMMConnection.objects.filter(organization=organization, provider_type='rem0te',
-                                             is_active=True).order_by('pk'):
-        settings = integration_settings(conn)
-        if settings['enabled'] and (conn.field_mappings or {}).get(BUSINESS_PIN):
-            return conn
-    return None
+    """The customer's paired RMM, or None. Pairing = an active RMM connection
+    of any provider in that organization, approved, with integration secrets
+    and a pinned tenant (integrations/ticket_rmm.py)."""
+    from integrations.ticket_rmm import processor_for as _processor_for
+    return _processor_for(organization)
 
 
 def processor_is_local(connection) -> bool:
-    from integrations.providers.rmm.rem0te import integration_settings
-    return integration_settings(connection)['location'] == 'local'
+    from integrations.ticket_rmm import settings
+    return settings(connection)['location'] == 'local'
 
 
 def profile_refusal(profile, organization, actor, policy=None, processor=None) -> str:
@@ -90,7 +84,7 @@ def profile_refusal(profile, organization, actor, policy=None, processor=None) -
         if profile.location != AIModelProfile.LOCATION_LOCAL or not profile.local_approved:
             return f'{profile.name} is not an approved on-premises model, and this customer requires one.'
         if processor is not None and not processor_is_local(processor):
-            return 'This customer requires on-premises processing, and its rem0te is not marked on-premises.'
+            return 'This customer requires on-premises processing, and its paired RMM is not marked on-premises.'
     return ''
 
 
@@ -139,9 +133,9 @@ def availability(ticket, actor, mode: str) -> Tuple[bool, List[str]]:
         reasons.append("This customer's AI policy doesn't allow model comparison.")
     processor = processor_for(org)
     if processor is None:
-        reasons.append('No rem0te is paired for analysis at this customer.')
+        reasons.append('No RMM is paired for analysis at this customer.')
     elif policy is not None and policy.local_only and not processor_is_local(processor):
-        reasons.append('This customer requires on-premises processing, and its rem0te is not marked on-premises.')
+        reasons.append('This customer requires on-premises processing, and its paired RMM is not marked on-premises.')
     usable = usable_profiles(org, actor) if not reasons else []
     if not reasons and not usable:
         reasons.append('No AI model profile is enabled and allowed for this customer.'

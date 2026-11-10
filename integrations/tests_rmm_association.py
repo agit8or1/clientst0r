@@ -870,6 +870,20 @@ class Rem0teAdapterTests(_Base):
         self.assertIn('different business', conn.last_error)
         self.assertEqual(conn.field_mappings['rem0te_business_id'], 'biz-a')
 
+    def test_inventory_pin_is_the_ticket_integration_tenant_pin(self):
+        from integrations.ticket_rmm import TENANT_PIN
+        conn = self.rem0te(self.a)
+        self.sync(conn, rem0te_routes('biz-a', [[rem0te_computer('c-1', 'biz-a')]]))
+        conn.refresh_from_db()
+        self.assertEqual(conn.field_mappings[TENANT_PIN], 'biz-a')
+        # A pairing pinned to another tenant stops the inventory sync too.
+        other = self.rem0te(self.b)
+        other.field_mappings = {TENANT_PIN: 'biz-x'}
+        other.save()
+        with self.assertRaisesMessage(Exception, 'pinned to'):
+            self.sync(other, rem0te_routes('biz-b', [[rem0te_computer('c-b', 'biz-b')]]))
+        self.assertFalse(RMMDevice.objects.filter(external_id='c-b').exists())
+
     def test_connect_link_opens_the_computer_page_without_credentials(self):
         conn = self.rem0te(self.a, base_url='https://remote.example.com/api/v1/pub/v1/')
         self.sync(conn, rem0te_routes('biz-a', [[rem0te_computer('c-1', 'biz-a')]]))

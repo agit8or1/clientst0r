@@ -635,6 +635,7 @@
                 <p class="text-muted mb-2">No RMM reports this asset.</p>
                 {% endif %}
                 {% endif %}
+                {% if ticket_rmm_panel %}{% include "psa/_ticket_rmm_panel.html" with p=ticket_rmm_panel %}{% endif %}
                 <form method="post" action="{% url 'psa:ticket_quick_action' ticket.ticket_number %}" class="d-flex gap-2 mt-2">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="set_asset">

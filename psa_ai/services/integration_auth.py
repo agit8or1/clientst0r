@@ -1,9 +1,9 @@
 """
 Request signing for the ticket-rmm-v1 integration, both directions.
 
-Each paired rem0te has two shared secrets (integrations/providers/rmm/
-rem0te.py): ClientSt0r signs what it sends with the outbound secret, and
-rem0te signs what it sends with the inbound secret. A leaked copy of one
+Each paired RMM has two shared secrets (integrations/ticket_rmm.py):
+ClientSt0r signs what it sends with the outbound secret, and the RMM signs
+what it sends with the inbound secret. A leaked copy of one
 direction's secret can't forge the other direction.
 
 Headers on every request:
@@ -57,20 +57,14 @@ def _header(request, name):
 
 
 def find_connection(key_id):
-    """The live Rem0te pairing with this key ID, or None."""
-    from integrations.models import RMMConnection
-    from integrations.providers.rmm.rem0te import INTEGRATION_KEY_ID, integration_settings
-    if not key_id:
-        return None
-    for conn in RMMConnection.objects.filter(provider_type='rem0te', is_active=True):
-        if str((conn.field_mappings or {}).get(INTEGRATION_KEY_ID) or '') == key_id:
-            return conn if integration_settings(conn)['enabled'] else None
-    return None
+    """The enabled pairing (any RMM provider) with this key ID, or None."""
+    from integrations.ticket_rmm import find_by_key_id
+    return find_by_key_id(key_id)
 
 
 def verify_request(request):
     """The calling pairing, or AuthError. Records the nonce."""
-    from integrations.providers.rmm.rem0te import integration_secrets
+    from integrations.ticket_rmm import secrets as integration_secrets
     from psa_ai.models import IntegrationNonce
     key_id, ts, nonce, sig = (_header(request, h) for h in (H_KEY, H_TS, H_NONCE, H_SIG))
     if not (key_id and ts and nonce and sig):

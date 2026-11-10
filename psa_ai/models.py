@@ -423,3 +423,101 @@ class IntegrationNonce(models.Model):
     class Meta:
         db_table = 'psa_ai_integration_nonces'
         unique_together = [('connection_id', 'nonce')]
+
+
+# ===========================================================================
+# RMM handoffs, read-only diagnostics and fix referrals (v3.17.657,
+# Phase 56.5 / 56.6). Not AI features: they work with AI switched off.
+#
+# ClientSt0r records what a technician asked the paired RMM for and shows
+# the RMM's signed status updates. It never runs anything on a device, never
+# marks a fix approved itself, and no status from the RMM can close the
+# ticket or send a customer reply (services/rmm_actions.py).
+# ===========================================================================
+
+class RMMRequest(models.Model):
+    """One technician request to the paired RMM about one ticket's device."""
+    KIND_HANDOFF = 'handoff'
+    KIND_DIAGNOSTIC = 'diagnostic'
+    KIND_FIX = 'fix_referral'
+    KIND_CHOICES = [(KIND_HANDOFF, 'Handoff'), (KIND_DIAGNOSTIC, 'Read-only diagnostic'),
+                    (KIND_FIX, 'Fix referral')]
+    STATUS_CHOICES = [
+        ('created', 'Created'),
+        ('pending', 'Waiting for the RMM to confirm'),
+        ('sent', 'Sent — receipt confirmed'),
+        ('received', 'Received by the RMM'),
+        ('running', 'Running in the RMM'),
+        ('completed', 'Completed'),
+        ('approved', 'Approved in the RMM'),
+        ('rejected', 'Rejected by the RMM'),
+        ('succeeded', 'Succeeded'),
+        ('failed', 'Failed'),
+        ('unavailable', 'RMM unavailable'),
+        ('expired', 'Expired without an answer'),
+    ]
+    TERMINAL = {'sent', 'completed', 'rejected', 'succeeded', 'failed', 'unavailable', 'expired'}
+    RISK_CHOICES = [('low', 'Low'), ('high', 'Higher')]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    ticket = models.ForeignKey('psa.Ticket', on_delete=models.CASCADE, related_name='rmm_requests')
+    connection = models.ForeignKey('integrations.RMMConnection', on_delete=models.PROTECT, related_name='+')
+    device = models.ForeignKey('integrations.RMMDevice', null=True, blank=True, on_delete=models.SET_NULL,
+                               related_name='+')
+    device_external_id = models.CharField(max_length=255, help_text='The RMM device ID as sent.')
+    device_name = models.CharField(max_length=255, blank=True, default='')
+    tenant_id = models.CharField(max_length=100)
+    actor = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='+')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    diagnostic_key = models.CharField(max_length=64, blank=True, default='')
+    diagnostic_label = models.CharField(max_length=100, blank=True, default='')
+    fix_title = models.CharField(max_length=200, blank=True, default='')
+    fix_risk = models.CharField(max_length=4, choices=RISK_CHOICES, blank=True, default='')
+    payload = models.JSONField(default=dict, help_text='What was sent, exactly (redacted).')
+    payload_digest = models.CharField(max_length=64)
+    idempotency_key = models.CharField(max_length=64)
+
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='created')
+    remote_id = models.CharField(max_length=100, blank=True, default='')
+    last_event_sequence = models.PositiveIntegerField(default=0)
+    error = models.CharField(max_length=500, blank=True, default='')
+    status_note = models.CharField(max_length=500, blank=True, default='',
+                                   help_text="The RMM's own words for the latest status, sanitised.")
+    # Diagnostic output: staff-only, sanitised text, size-limited.
+    result_text = models.TextField(blank=True, default='')
+    result_bytes = models.PositiveIntegerField(default=0)
+    result_truncated = models.BooleanField(default=False)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_ai_rmm_requests'
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['actor', 'idempotency_key'], name='psa_ai_rmm_request_idempotency'),
+        ]
+        indexes = [models.Index(fields=['ticket', '-created_at'])]
+
+    def __str__(self):
+        return f'RMMRequest {self.id} ({self.kind}, {self.status})'
+
+    @property
+    def is_terminal(self):
+        return self.status in self.TERMINAL
+
+
+class RMMRequestEvent(models.Model):
+    """A signed status callback for an RMMRequest, kept for de-duplication and audit."""
+    request = models.ForeignKey(RMMRequest, on_delete=models.CASCADE, related_name='events')
+    event_id = models.CharField(max_length=100)
+    sequence = models.PositiveIntegerField()
+    event_type = models.CharField(max_length=40)
+    applied = models.BooleanField(default=False)
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_ai_rmm_request_events'
+        unique_together = [('request', 'event_id')]
+        ordering = ['pk']

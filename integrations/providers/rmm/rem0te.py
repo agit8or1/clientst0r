@@ -100,8 +100,17 @@ class Rem0teProvider(BaseRMMProvider):
                 'connection was set up for. Sync stopped so that business\'s computers are '
                 'not filed under this organization. Use a key for the original business, '
                 'or create a separate connection for the new one.')
+        from integrations.ticket_rmm import TENANT_PIN
+        tenant = mappings.get(TENANT_PIN)
+        if tenant and tenant != business_id:
+            raise ProviderError(
+                'This Rem0te API key belongs to a different business than the tenant this connection\'s '
+                'ticket integration pairing is pinned to. Sync stopped.')
         if not pinned and self.connection.pk:
             mappings[BUSINESS_PIN] = business_id
+            # The ticket-rmm-v1 tenant pin for a rem0te pairing is the same
+            # business (integrations/ticket_rmm.py), unless already pinned.
+            mappings.setdefault(TENANT_PIN, business_id)
             self.connection.field_mappings = mappings
             self.connection.save(update_fields=['field_mappings'])
         return business_id
@@ -214,64 +223,18 @@ class Rem0teProvider(BaseRMMProvider):
 
 # --- Ticket integration pairing (docs/contracts/ticket-rmm-v1) -------------
 #
-# Separate from the inventory API key above. Pairing a Rem0te connection as a
-# ticket processor needs two shared secrets — one ClientSt0r signs its
-# requests with, one Rem0te signs its callbacks and inference calls with —
-# plus a key ID both sides quote. The secrets live in the connection's
-# encrypted credentials; the switch, key ID, processing location and the
-# capabilities Rem0te last advertised live in field_mappings.
-#
-# Turning the pairing on, or marking it on-premises, widens what ClientSt0r
-# will send, so it goes through a protected change (tech_access.protected):
-# a second administrator approves it. Changing a secret on a live pairing
-# switches the pairing off until it is approved again.
+# Pairing is provider-neutral since v3.17.657 and lives in
+# integrations/ticket_rmm.py; rem0te is the contract's reference
+# implementation. These names stay for code that still imports them.
 
-INTEGRATION_ENABLED = 'rem0te_integration_enabled'
-INTEGRATION_KEY_ID = 'rem0te_integration_key_id'
-INTEGRATION_LOCATION = 'rem0te_processing_location'
-INTEGRATION_CAPS = 'rem0te_capabilities'
-LOCATIONS = (('hosted', 'Hosted / off-premises'), ('local', 'On-premises'))
+from integrations import ticket_rmm as _ticket_rmm  # noqa: E402
 
-
-def integration_settings(connection) -> Dict[str, Any]:
-    mappings = connection.field_mappings or {}
-    creds = connection.get_credentials() or {}
-    has_secrets = bool(creds.get('integration_outbound_secret') and creds.get('integration_inbound_secret'))
-    key_id = str(mappings.get(INTEGRATION_KEY_ID) or '')
-    return {
-        'enabled': bool(mappings.get(INTEGRATION_ENABLED)) and has_secrets and bool(key_id)
-                   and connection.provider_type == 'rem0te' and connection.is_active,
-        'requested': bool(mappings.get(INTEGRATION_ENABLED)),
-        'has_secrets': has_secrets,
-        'key_id': key_id,
-        'location': 'local' if mappings.get(INTEGRATION_LOCATION) == 'local' else 'hosted',
-        'site': site_root(connection.base_url),
-    }
-
-
-def integration_secrets(connection) -> Dict[str, str]:
-    creds = connection.get_credentials() or {}
-    return {'outbound': creds.get('integration_outbound_secret') or '',
-            'inbound': creds.get('integration_inbound_secret') or ''}
-
-
-def advertised_capabilities(connection) -> set:
-    """What Rem0te said it supports, from its last capabilities document.
-    Empty until the pairing is live and the document has been fetched."""
-    if not integration_settings(connection)['enabled']:
-        return set()
-    doc = (connection.field_mappings or {}).get(INTEGRATION_CAPS) or {}
-    caps = doc.get('capabilities') if isinstance(doc, dict) else None
-    return {c for c in (caps or []) if isinstance(c, str)}
-
-
-def record_capabilities(connection, document: Dict[str, Any]):
-    caps = document.get('capabilities') if isinstance(document, dict) else None
-    mappings = dict(connection.field_mappings or {})
-    mappings[INTEGRATION_CAPS] = {
-        'capabilities': sorted(c for c in (caps or []) if isinstance(c, str))[:64],
-        'contract': str(document.get('contract') or '')[:40],
-        'fetched_at': datetime.utcnow().isoformat() + 'Z',
-    }
-    connection.field_mappings = mappings
-    connection.save(update_fields=['field_mappings'])
+INTEGRATION_ENABLED = _ticket_rmm.ENABLED
+INTEGRATION_KEY_ID = _ticket_rmm.KEY_ID
+INTEGRATION_LOCATION = _ticket_rmm.LOCATION
+INTEGRATION_CAPS = _ticket_rmm.CAPS
+LOCATIONS = _ticket_rmm.LOCATIONS
+integration_settings = _ticket_rmm.settings
+integration_secrets = _ticket_rmm.secrets
+advertised_capabilities = _ticket_rmm.advertised
+record_capabilities = _ticket_rmm.record_capabilities

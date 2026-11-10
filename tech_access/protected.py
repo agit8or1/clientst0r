@@ -2,8 +2,8 @@
 Protected changes: widening a protected setting takes two administrators.
 
 Protected settings: technician access above the L1 baseline (assignments,
-preset capabilities, group membership), RMM business mappings (a Rem0te
-ticket-processor pairing), the approver list, the recovery contact, AI
+preset capabilities, group membership), RMM business mappings (a ticket-rmm-v1
+pairing of any RMM provider), the approver list, the recovery contact, AI
 provider destinations, security limits (theft-detection thresholds and
 containment), and the e-mail address of superusers, approvers and MSP
 technicians.

@@ -68,6 +68,8 @@ urlpatterns = [
     path('vehicles/', include('vehicles.urls')),
     path('inventory/', include('inventory.urls')),
     path('scheduling/', include('scheduling.urls')),
+    # Ticket → paired RMM (ticket-rmm-v1 56.5/56.6). Not AI; works with AI off.
+    path('psa/rmm/', include('psa_ai.rmm_views')),
     path('psa/', include('psa.urls')),
     path('psa/ai/', include('psa_ai.urls')),
     path('portal/', include('portal.urls')),
@@ -88,7 +90,7 @@ urlpatterns = [
     path('network-discovery/', include('network_discovery.urls')),
 
     path('settings/security/technician-access/', include('tech_access.urls')),
-    # Ticket ↔ rem0te integration (ticket-rmm-v1): signed requests only.
+    # Ticket ↔ paired RMM integration (ticket-rmm-v1): signed requests only.
     path('api/integration/v1/', include('psa_ai.integration_api')),
 
     # API

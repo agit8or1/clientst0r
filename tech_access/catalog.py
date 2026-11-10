@@ -7,7 +7,7 @@ Three kinds of entries:
                off       — not available
                allowed   — available inside the assignment's scope
                request   — the technician may ask for time-limited access;
-                           the grant itself comes from elsewhere (rem0te for
+                           the grant itself comes from elsewhere (the paired RMM for
                            endpoint access), never from ClientSt0r alone
   LOCKED     a mandatory safeguard. Shown as Locked; no preset, assignment
              or administrator can switch it on.
@@ -41,22 +41,22 @@ OPTIONAL = {
     'rmm_handoff': ('Private RMM handoff', 'RMM',
                     'Send a verified, private handoff of the ticket to the RMM that manages its device.', (OFF, ALLOWED)),
     'diagnostics_readonly': ('Read-only diagnostics (standard workstations)', 'RMM',
-                             'Bounded, read-only checks on a ticket\'s workstation through rem0te.',
+                             'Bounded, read-only checks on a ticket\'s workstation through the paired RMM.',
                              (OFF, ALLOWED)),
     'diagnostics_advanced': ('Advanced scoped diagnostics', 'RMM',
-                             'Wider read-only diagnostics, including servers, through rem0te.', (OFF, ALLOWED)),
+                             'Wider read-only diagnostics, including servers, through the paired RMM.', (OFF, ALLOWED)),
     'remote_view': ('Attended view-only session', 'Remote access',
-                    'Ask rem0te for an attended, view-only session.', (OFF, REQUEST)),
+                    'Ask the paired RMM for an attended, view-only session.', (OFF, REQUEST)),
     'remote_control': ('Interactive control', 'Remote access',
-                       'Time-limited control, granted by rem0te per session.', (OFF, REQUEST)),
+                       'Time-limited control, granted by the paired RMM per session.', (OFF, REQUEST)),
     'elevation': ('Elevation', 'Remote access',
-                  'Time-limited elevated rights, granted by rem0te per session.', (OFF, REQUEST)),
+                  'Time-limited elevated rights, granted by the paired RMM per session.', (OFF, REQUEST)),
     'fix_request_low': ('Request a low-risk catalog fix', 'Fixes',
-                        'Propose a low-risk catalog fix; rem0te approves and runs it.', (OFF, ALLOWED)),
+                        'Propose a low-risk catalog fix; the paired RMM approves and runs it.', (OFF, ALLOWED)),
     'fix_request_high': ('Request higher-risk catalog work', 'Fixes',
-                         'Propose higher-risk catalog work; rem0te approves and runs it.', (OFF, ALLOWED)),
+                         'Propose higher-risk catalog work; the paired RMM approves and runs it.', (OFF, ALLOWED)),
     'fix_refer': ('Refer a fix for independent approval', 'Fixes',
-                  "Send another technician's proposed fix to rem0te's approval page.", (OFF, ALLOWED)),
+                  "Send another technician's proposed fix to the paired RMM's approval page.", (OFF, ALLOWED)),
     'export': ('Export ticket data', 'Data',
                'Download or export ticket data for a customer.', (OFF, ALLOWED)),
     'unattended_access': ('Unattended access', 'Remote access',
@@ -68,9 +68,9 @@ OPTIONAL = {
 # Mandatory safeguards. Always enforced; shown as Locked.
 LOCKED = {
     'fix_approval': ('Approve an endpoint fix',
-                     'Only rem0te approves endpoint work, on its own approval page. ClientSt0r never approves.'),
+                     'Only the paired RMM approves endpoint work, on its own approval page. ClientSt0r never approves.'),
     'endpoint_commands': ('Run commands on a device from ClientSt0r',
-                          'ClientSt0r sends no endpoint commands. Device work is requested from rem0te.'),
+                          'ClientSt0r sends no endpoint commands. Device work is requested from the paired RMM.'),
     'vault_to_ai': ('Vault data in AI evidence',
                     'Vault entries, keys and backup credentials are never part of analysis evidence.'),
     'cross_customer': ('Cross-customer access from one assignment',
@@ -84,11 +84,30 @@ LOCKED = {
 
 ALL_KEYS = tuple(OPTIONAL) + tuple(LOCKED)
 
-# Capabilities that act on a device and therefore need rem0te's live
+# Capabilities that act on a device and therefore need the paired RMM's live
 # authorization on top of the preset.
 NEEDS_LIVE_REMOTE = {'remote_view', 'remote_control', 'elevation', 'unattended_access',
                      'clipboard', 'file_transfer', 'diagnostics_readonly', 'diagnostics_advanced',
                      'fix_request_low', 'fix_request_high', 'fix_refer'}
+
+# What a paired RMM must advertise (ticket-rmm-v1 capabilities document)
+# before each RMM / Remote access / Fixes capability stops being Unavailable.
+# Fix capabilities all ride on signed_actions: ClientSt0r only refers a fix,
+# the RMM approves and runs it.
+INTEGRATION_REQUIRES = {
+    'rmm_handoff': 'rmm_handoff',
+    'diagnostics_readonly': 'diagnostics_readonly',
+    'diagnostics_advanced': 'diagnostics_advanced',
+    'remote_view': 'remote_view',
+    'remote_control': 'remote_control',
+    'elevation': 'elevation',
+    'unattended_access': 'unattended_access',
+    'clipboard': 'clipboard',
+    'file_transfer': 'file_transfer',
+    'fix_request_low': 'signed_actions',
+    'fix_request_high': 'signed_actions',
+    'fix_refer': 'signed_actions',
+}
 
 # Ticket-scoped capabilities: on someone else's ticket they also need review_others.
 TICKET_SCOPED = {'ai_analyze', 'ai_draft', 'ai_send', 'ai_compare', 'ai_apply_change', 'rmm_handoff',

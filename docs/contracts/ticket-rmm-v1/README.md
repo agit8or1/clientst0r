@@ -1,32 +1,66 @@
-# ticket-rmm-v1 — ClientSt0r ↔ rem0te ticket integration contract
+# ticket-rmm-v1 — ClientSt0r ↔ RMM ticket integration contract
 
-Status: **ClientSt0r side implemented (v3.17.646); rem0te side not yet implemented.** Everything ClientSt0r does
-here has been tested against a test processor (a fixture that plays rem0te), not against a real rem0te.
+This is the contract between ClientSt0r (the PSA / documentation side) and an RMM that processes ticket
+work for it — **any RMM that implements it**, whatever product it is. In this document "the RMM" and
+"the processor" mean the RMM side. **rem0te is the reference implementation**, not the only one.
+
+Status:
+
+| Part | ClientSt0r side | RMM side (rem0te) |
+|---|---|---|
+| Pairing, signing, capabilities, tenant pin | implemented (v3.17.646, provider-neutral since v3.17.657) | not yet implemented |
+| Analysis jobs + inference gateway (56.1–56.4) | implemented (v3.17.646) | not yet implemented |
+| Handoffs, read-only diagnostics, remote launch (56.5) | implemented (v3.17.657) | not yet implemented |
+| Fix referral + signed status (56.6) | implemented (v3.17.657) | not yet implemented |
+
+Everything ClientSt0r does here has been tested against a test processor (a fixture that plays the RMM —
+`psa_ai/tests_assist.py`, `psa_ai/tests_rmm.py`), not against a real RMM.
+
+Wire formats are backward compatible with the v3.17.646 text of this document: every field added since is
+optional for the RMM to read and additive in responses.
 
 ## Who owns what
 
-| ClientSt0r | rem0te |
+| ClientSt0r | The RMM |
 |---|---|
 | Ticket UI, visibility, AI settings, provider credentials | Processing analysis jobs |
-| The inference gateway (the only thing that calls a model) | Collecting approved device evidence (later milestone) |
-| Customer replies and ticket history | Independent approval and execution of endpoint work |
+| The inference gateway (the only thing that calls a model) | Receiving private handoffs; running the read-only diagnostics it advertises |
+| Customer replies and ticket history | Remote sessions, under its own authorization |
+| Recording fix referrals and showing their status | Independent approval and execution of endpoint work |
 
 A draft, a model vote, a remote launch or a callback can never approve a fix, send a customer reply or close a
-ticket. ClientSt0r sends no endpoint commands.
+ticket. **ClientSt0r sends no endpoint commands**: it asks the RMM for things, and the RMM decides and acts.
 
 ## Pairing
 
-A ClientSt0r *Rem0te* RMM connection becomes a processor when it has (Integrations → RMM → edit):
+Any ClientSt0r RMM connection (Integrations → RMM → edit), of any provider type, can be paired. The *Ticket
+integration pairing (ticket-rmm-v1)* section has:
 
-- an integration **key ID**, quoted by both sides;
-- an **outbound secret** — ClientSt0r signs its requests to rem0te with it;
-- an **inbound secret** — rem0te signs its requests to ClientSt0r with it (≥32 chars, different from outbound);
-- a processing location: `hosted` or `local` (on-premises);
-- a pinned rem0te business (recorded by the inventory sync). One pairing = one rem0te business = one ClientSt0r
-  customer.
+- an integration **key ID**, quoted by both sides (letters, digits, `.`, `-`, `_`; unique per ClientSt0r);
+- an **outbound secret** — ClientSt0r signs its requests to the RMM with it;
+- an **inbound secret** — the RMM signs its requests to ClientSt0r with it (≥32 chars, different from outbound);
+- an optional **integration address** — the base URL under which the RMM serves `/api/integration/v1/`.
+  Blank means the connection's own address (for rem0te: its site root, without `/api/v1/pub/v1`);
+- a processing location: `hosted` or `local` (on-premises).
 
-Turning the pairing on, or marking it on-premises, is a protected change that a second administrator approves.
-Changing a secret, key ID or address on a live pairing switches it off until it is approved again.
+**One pairing = one RMM tenant = one ClientSt0r customer.** The connection must be single-customer (rem0te
+connections always are). The tenant is pinned from the RMM's own signed capabilities response (below).
+
+Protected changes, identical for every provider:
+
+- Turning the pairing on, or marking it on-premises, is a protected change: the proposer re-authenticates and a
+  second administrator approves it (Settings → Security → Technician Access).
+- Changing a secret, the key ID, the integration address or the provider of a live pairing switches it off
+  until it is approved again. An approval is refused if any of those changed after the proposal.
+- A provider change also clears the tenant pin: the new product pins afresh.
+
+An approved pairing becomes a **processor** only after a successful capabilities check that pins a tenant. An
+RMM that doesn't implement this contract never does: its check fails (HTTP error, non-JSON, wrong `contract`,
+no `tenant.id`) and the connection page shows why. Console deep links ("Open in …") don't depend on pairing.
+
+ClientSt0r runs the check when an administrator presses **Check pairing** on the connection page, and from
+the scheduler (`poll_analysis_jobs`, every minute) at most hourly per pairing — every 10 minutes while it is
+failing. An outage after a successful check keeps the last good capabilities (shown with the error).
 
 ## Signing (both directions)
 
@@ -39,29 +73,79 @@ X-Integration-Signature:  hex(HMAC-SHA256(secret, canonical))
 canonical = METHOD "\n" PATH "\n" TIMESTAMP "\n" NONCE "\n" hex(SHA-256(body))
 ```
 
-`PATH` excludes the query string. Transport must be HTTPS (plain HTTP only for an on-premises pairing on the LAN).
+`PATH` excludes the query string. Bodies are JSON (`Content-Type: application/json`); ClientSt0r sends them
+with sorted keys and no spaces, and signs the exact bytes sent. Transport must be HTTPS (plain HTTP only for
+an on-premises pairing on the LAN). ClientSt0r does not follow redirects and reads at most 256 KiB of any
+response. A request ClientSt0r receives that is unsigned, badly signed, outside the time window, reuses a nonce
+or names an unknown or disabled key ID gets **401** and changes nothing.
 
-## rem0te routes (called by ClientSt0r)
+## Routes on the RMM (called by ClientSt0r)
 
-### `GET /api/integration/v1/capabilities`
+All are under `{integration address}/api/integration/v1`. Every POST carries `Idempotency-Key: <key>` and the
+same key as `idempotency_key` in the body. For every POST route:
+
+- the **same idempotency key with an identical payload** must return the original result;
+- the **same key with a different payload** must return **409**;
+- any non-2xx is shown to the technician as "not delivered" with the status code and, when the body is
+  `{"error": "<code>"}`, that code. ClientSt0r never retries a POST on its own; the technician can.
+
+Device-scoped requests name the device only by the RMM's own device ID (`device.external_id`), taken from
+ClientSt0r's synced, verified association — never from a hostname, the browser or model output. **The RMM
+must refuse a device that isn't in the pinned tenant** (`404 {"error": "device_not_in_tenant"}`) and a
+`tenant_id` that isn't the calling pairing's (`403 {"error": "tenant_mismatch"}`).
+
+### `GET /capabilities`
 
 ```json
-{"contract": "ticket-rmm-v1", "capabilities": ["analysis.jobs", "rmm_handoff", "diagnostics_readonly",
- "remote_view", "remote_control", "fix_request_low", "signed_actions"]}
+{
+  "contract": "ticket-rmm-v1",
+  "tenant": {"id": "cmtaiwkcv000rza3semyybks5", "name": "Cascade Accounting"},
+  "capabilities": ["analysis.jobs", "rmm_handoff", "diagnostics_readonly", "remote_view", "remote_control",
+                   "fix_request_low", "signed_actions"],
+  "diagnostics": [
+    {"key": "disk_space", "label": "Disk space", "description": "Free space per volume",
+     "device_classes": ["workstation", "laptop"]},
+    {"key": "network_config", "label": "Network configuration", "device_classes": ["any"]}
+  ]
+}
 ```
 
-ClientSt0r caches the list on the connection. Technician-access capabilities in the *RMM*, *Remote access* and
-*Fixes* groups show **Unavailable** until rem0te advertises them. `signed_actions` gates fix review.
+- `tenant.id` (`[A-Za-z0-9_.:-]{1,100}`) — **required** to pair. The first successful check pins it; a later
+  response naming a different tenant stops the pairing (it is never re-pinned). For rem0te, `tenant.id` is the
+  business ID, and must equal the business the connection's inventory API key answers for. *Compatibility:* a
+  rem0te response without `tenant` is accepted when the connection already has rem0te's inventory pin
+  (`rem0te_business_id`), which then becomes the tenant pin.
+- `capabilities` — unknown names are ignored. Known names:
 
-### `POST /api/integration/v1/jobs`
+  | Capability | What ClientSt0r then offers | Technician-access capability that stops being *Unavailable* |
+  |---|---|---|
+  | `analysis.jobs` | Analysis jobs (optional AI) | — |
+  | `rmm_handoff` | Send to RMM | `rmm_handoff` |
+  | `diagnostics_readonly` | Read-only diagnostics from `diagnostics` | `diagnostics_readonly` |
+  | `diagnostics_advanced` | (catalog only for now) | `diagnostics_advanced` |
+  | `remote_view` | View session launch | `remote_view` |
+  | `remote_control` | Control session launch | `remote_control` |
+  | `elevation`, `unattended_access`, `clipboard`, `file_transfer` | (catalog only for now) | same name |
+  | `signed_actions` | Fix referral and signed fix status | `fix_request_low`, `fix_request_high`, `fix_refer` |
+  | `fix_request_low`, `fix_request_high` | advisory | — |
 
-Headers add `Idempotency-Key: <job idempotency key>`. Body:
+  Technician-access capabilities in the *RMM*, *Remote access* and *Fixes* groups show **Unavailable** at a
+  customer until a live pairing there advertises the name in the last column, and become available (subject
+  to the technician's preset) exactly when one does.
+- `diagnostics` — only read when `diagnostics_readonly` is advertised. Up to 50 entries; `key` must match
+  `[a-z0-9][a-z0-9_.-]{0,63}` (others are dropped); `label` ≤ 100 chars, `description` ≤ 300; `device_classes`
+  lists ClientSt0r device types (`workstation`, `laptop`, `server`, `virtual`, …) or `any`; empty = any.
+  Every diagnostic listed here **must be read-only**.
+
+### `POST /jobs` — analysis job (optional AI)
+
+Body:
 
 ```json
 {
   "contract": "ticket-rmm-v1",
   "job_id": "uuid", "kind": "analyze|compare", "correlation_id": "uuid", "idempotency_key": "hex",
-  "organization_id": 12, "business_id": "<pinned rem0te business>",
+  "organization_id": 12, "business_id": "<pinned tenant id>",
   "ticket": {"id": 345, "ref": "PSA-2026-000123", "revision": "<sha256>"},
   "actor": {"id": 7, "delegation": "<short-lived signed token>"},
   "endpoint": null,
@@ -74,19 +158,125 @@ Headers add `Idempotency-Key: <job idempotency key>`. Body:
 }
 ```
 
-No ticket text is sent. Response `200/201/202 {"processor_job_id": "…", "status": "accepted"}`.
+(`business_id` keeps its v3.17.646 name; it carries the pinned tenant ID.) No ticket text is sent. Response
+`200/201/202 {"processor_job_id": "…", "status": "accepted"}`.
 
-- The **same idempotency key with an identical payload** must return the original job.
-- The **same key with a different payload** must return **409**.
-
-### `GET /api/integration/v1/jobs/{job_id}`
+### `GET /jobs/{job_id}`
 
 `{"status": "accepted|queued|running|completed|failed|cancelled", "sequence": <int>}`. ClientSt0r polls this to
 recover missed events: the ticket page while it is open, and the scheduler's `poll_analysis_jobs` task
-every minute (at most once per job every 15 s). If rem0te is unreachable, the job is marked *unavailable* and nothing else changes —
-manual ticket work carries on.
+every minute (at most once per job every 15 s). If the RMM is unreachable, the job is marked *unavailable* and
+nothing else changes — manual ticket work carries on.
 
-## ClientSt0r routes (called by rem0te)
+### `POST /handoffs` — private handoff (capability `rmm_handoff`)
+
+The technician previews exactly this context first (the same redacted evidence "Analyze ticket" shows) and
+confirms. Body:
+
+```json
+{
+  "contract": "ticket-rmm-v1", "kind": "handoff",
+  "request_id": "uuid", "idempotency_key": "32 hex",
+  "organization_id": 12, "tenant_id": "<pinned tenant id>",
+  "ticket": {"id": 345, "ref": "PSA-2026-000123", "revision": "<sha256>"},
+  "actor": {"id": 7, "username": "lee"},
+  "device": {"external_id": "<RMM device id>", "name": "FRONTDESK-01"},
+  "context": {
+    "schema": "ticket-rmm-v1/evidence",
+    "ticket": {"ref": "PSA-2026-000123", "status": "Open", "priority": "High"},
+    "items": [{"id": "E1", "kind": "ticket.subject", "role": "customer", "text": "Front desk printer offline"},
+              {"id": "C1", "kind": "comment", "role": "technician", "at": "ISO-8601", "text": "…"}],
+    "excluded": {"internal_notes": 1, "attachments": 0, "older_comments": 0, "vault_data": "never included",
+                 "raw_rmm_payloads": "never included", "remote_session_data": "never included"},
+    "redactions": {"password": 1, "email": 1}
+  },
+  "context_digest": "<sha256 of context>",
+  "note": "<technician note, redacted, ≤1000 chars>",
+  "events_url": "https://…/api/integration/v1/events"
+}
+```
+
+Response `200/201/202 {"status": "accepted", "remote_id": "<RMM id>"}`. **A 2xx is not a receipt**:
+ClientSt0r shows the handoff as *Waiting for the RMM to confirm* until the RMM sends a signed
+`handoff.received` event, and only then as **Sent**. A handoff without a receipt expires after 1 hour.
+
+Never included: internal-note bodies, attachments, vault data, raw RMM payloads, remote-session data. Text is
+redacted (keys, tokens, passwords, card numbers, e-mail addresses, phone numbers) before it leaves ClientSt0r.
+
+### `POST /diagnostics/requests` — read-only diagnostic (capability `diagnostics_readonly`)
+
+```json
+{
+  "contract": "ticket-rmm-v1", "kind": "diagnostic",
+  "request_id": "uuid", "idempotency_key": "…",
+  "organization_id": 12, "tenant_id": "…",
+  "ticket": {"id": 345, "ref": "PSA-2026-000123", "revision": "<sha256>"},
+  "actor": {"id": 7, "username": "lee"},
+  "device": {"external_id": "…", "name": "FRONTDESK-01"},
+  "diagnostic": "disk_space", "readonly": true, "max_result_bytes": 32768,
+  "events_url": "https://…/api/integration/v1/events"
+}
+```
+
+`diagnostic` is always one of the keys the RMM advertised for that device class. The RMM must refuse anything
+else (`400 {"error": "diagnostic_unknown"}`) and must apply its own authorization for the technician and the
+device. Response `202 {"status": "accepted", "remote_id": "…"}`. The result comes back as a
+`diagnostic.completed` event (below). Requests without an answer expire after 1 hour.
+
+### `POST /remote/launch` — remote session launch (capabilities `remote_view`, `remote_control`)
+
+```json
+{
+  "contract": "ticket-rmm-v1", "request_id": "uuid",
+  "mode": "view|control", "grant": "allowed|request",
+  "organization_id": 12, "tenant_id": "…",
+  "ticket": {"id": 345, "ref": "PSA-2026-000123"},
+  "actor": {"id": 7, "username": "lee"},
+  "device": {"external_id": "…"}
+}
+```
+
+`grant` says what the technician holds in ClientSt0r: `allowed` (standing access) or `request` (may ask for
+time-limited access). Either way the RMM makes the live decision — attended consent, a time-limited grant, or
+refusal. The `Idempotency-Key` is the `request_id`; each click is a new launch.
+
+Response `200`:
+
+```json
+{"url": "https://rmm.example.com/session/…", "expires_at": "ISO-8601 (≤ 10 minutes from now)"}
+```
+
+ClientSt0r redirects the technician's browser to `url` only if it is `https`, on one of the connection's
+console hosts (the provider's console host list, plus the integration address's host), has no user-info, has
+no credential-looking query parameter names (`key`, `token`, `secret`, `password`, `auth`, `sig`, …), and
+`expires_at` is in the next 10 minutes. Otherwise the launch is refused. The URL is **never stored or logged**;
+the launch (who, which device, which mode, the host, success or refusal) is audited. Put any one-time secret
+in the path, not the query string, and make the URL single-use.
+
+### `POST /fixes` — fix referral (capability `signed_actions`)
+
+```json
+{
+  "contract": "ticket-rmm-v1", "kind": "fix_referral",
+  "request_id": "uuid", "idempotency_key": "…",
+  "organization_id": 12, "tenant_id": "…",
+  "ticket": {"id": 345, "ref": "PSA-2026-000123", "revision": "<sha256>"},
+  "actor": {"id": 7, "username": "lee"},
+  "device": {"external_id": "…", "name": "FRONTDESK-01"},
+  "fix": {"title": "Re-add printer by IP", "description": "…", "risk": "low|high",
+          "source": {"type": "technician"}
+                 | {"type": "analysis", "job_id": "uuid", "profile_id": 3, "index": 0}},
+  "events_url": "https://…/api/integration/v1/events"
+}
+```
+
+A referral is a proposal for the RMM's own approval page — **not an instruction**. The RMM decides whether and
+how to run it, approves it independently, and runs it. ClientSt0r only records the referral and shows the
+RMM's signed status. Title ≤ 200 chars, description ≤ 2000, both redacted. Response
+`202 {"status": "accepted", "remote_id": "…"}`. A referral that never gets a first answer expires after 14 days;
+approved or running work never expires on ClientSt0r's side.
+
+## Routes on ClientSt0r (called by the RMM)
 
 ### `POST /api/integration/v1/inference`
 
@@ -101,7 +291,7 @@ Before any provider is called, the gateway re-checks against current data:
 - **Job:** not expired and not finished.
 - **Delegation:** names this job, actor, customer and ticket, and is less than 15 minutes old.
 - **Actor:** still an active technician with the capability on this ticket (technician access, re-read).
-- **Tenant binding:** job, ticket and pairing are one customer, and the business pin matches.
+- **Tenant binding:** job, ticket and pairing are one customer, and the tenant pin matches.
 - **Ticket:** its revision is unchanged since the preview.
 - **Evidence:** the digest matches, and the stored evidence still hashes to it.
 - **Profile:** in the job and still usable.
@@ -121,29 +311,83 @@ called twice. The prompt is built from ClientSt0r's stored evidence only.
 | `410` | `job_expired` |
 | `429` | `budget_exhausted` |
 
-The analysis text is **not** returned to rem0te, and provider keys never are.
+The analysis text is **not** returned to the RMM, and provider keys never are.
 
 ### `POST /api/integration/v1/events`
+
+Body ≤ 64 KiB (larger: **413** `too_large`). Two shapes, told apart by `job_id` vs `request_id`.
+
+**Job events** (unchanged):
 
 ```json
 {"job_id": "uuid", "event_id": "unique-per-job", "sequence": 3,
  "type": "job.accepted|job.running|job.completed|job.failed|job.cancelled"}
 ```
 
+Events only move the job's own status. `job.completed` / `job.failed` / `job.cancelled` mark any model run that
+never happened as refused.
+
+**Request events** — handoffs, diagnostics and fix referrals:
+
+```json
+{"request_id": "uuid", "event_id": "unique-per-request", "sequence": 2,
+ "type": "diagnostic.completed", "message": "optional, ≤300 chars, shown to the technician",
+ "result": {"content_type": "text/plain", "text": "C: 12.4 GB free\nD: 210 GB free", "truncated": false}}
+```
+
+| Kind | Event type | Status it sets | Valid from |
+|---|---|---|---|
+| handoff | `handoff.received` | **sent** (receipt confirmed) | waiting |
+| handoff | `handoff.rejected` | rejected | waiting |
+| diagnostic | `diagnostic.accepted` | received | waiting |
+| diagnostic | `diagnostic.running` | running | waiting, received |
+| diagnostic | `diagnostic.completed` (+ `result`) | completed | waiting, received, running |
+| diagnostic | `diagnostic.failed` / `diagnostic.rejected` | failed / rejected | waiting, received(, running) |
+| fix referral | `fix.received` | received | waiting |
+| fix referral | `fix.approved` / `fix.rejected` | approved / rejected | waiting, received |
+| fix referral | `fix.running` | running | approved |
+| fix referral | `fix.succeeded` / `fix.failed` | succeeded / failed | approved, running |
+
+Rules for both shapes:
+
+- The event must be signed by the pairing the job or request belongs to; another pairing's event gets **404**
+  (`job_unknown` / `request_unknown`). A request whose tenant isn't the pairing's current pin gets **403**
+  `tenant_mismatch`. An event type for another kind gets **409** `wrong_kind`; an unknown type **400**.
 - A duplicate `event_id` returns `{"status": "duplicate"}`.
-- A sequence that isn't higher than the last one seen is recorded but not applied (`"recorded"`).
-- Events only move the job's own status. `job.completed` / `job.failed` / `job.cancelled` mark any model run that
-  never happened as refused.
+- An event whose `sequence` isn't higher than the last applied one, or that isn't a valid step from the current
+  status (e.g. `fix.running` before `fix.approved`, anything after a final status), is recorded but not applied:
+  `{"status": "recorded"}`. Otherwise `{"status": "applied"}`.
+- The RMM must retry an event until it gets a 2xx (exponential back-off, at least 24 h); retries reuse the
+  `event_id`.
+- **No event can close a ticket, change its status, post a comment or send a customer reply**, and no event can
+  approve anything in ClientSt0r. Events move only the job's or request's own status.
 
-## Later milestones (not implemented)
+Diagnostic results: `result.text` is UTF-8 text, at most `max_result_bytes` (32 KiB). ClientSt0r truncates
+anything longer and marks it truncated, strips control characters and ANSI escapes, redacts secrets the same
+way as evidence, stores it on the request as **staff-only evidence** (never a ticket comment, never shown to the
+customer), renders it as escaped text only, and counts its size toward theft detection's diagnostic-bytes
+limit for the technician who asked.
 
-Planned, in order:
+## Error codes the RMM should use
 
-1. Private RMM handoffs.
-2. Bounded read-only diagnostics.
-3. Remote session launch through rem0te's own authorization.
-4. Fix review — only when rem0te advertises `signed_actions`. ClientSt0r only refers a fix; rem0te approves and
-   runs it.
+| HTTP | `error` | When |
+|---|---|---|
+| 400 | `bad_request`, `diagnostic_unknown`, `fix_invalid` | malformed or unsupported request |
+| 401 | `unauthenticated` | signature, timestamp or nonce rejected |
+| 403 | `tenant_mismatch`, `actor_not_permitted`, `capability_not_offered` | wrong tenant, the RMM's own authorization refused the technician, or a capability it doesn't advertise |
+| 404 | `device_not_in_tenant`, `unknown` | device or object not in the pinned tenant |
+| 409 | `idempotency_conflict` | same idempotency key, different payload |
+| 429 | `rate_limited` | back off |
+| 503 | `unavailable` | temporarily unable |
 
-Targets will come only from verified same-business device associations (`integrations.rmm_association`), never from
-a hostname or model output.
+## Where it lives in ClientSt0r
+
+- Pairing: `integrations/ticket_rmm.py` (field_mappings `ticket_rmm_*`; secrets in the connection's encrypted
+  credentials as `integration_outbound_secret` / `integration_inbound_secret`). Before v3.17.657 the keys were
+  `rem0te_integration_enabled`, `rem0te_integration_key_id`, `rem0te_processing_location`, `rem0te_capabilities`;
+  migration `integrations/0034_ticket_rmm_pairing_keys` moved them with no change of state.
+- Outbound requests: `psa_ai/services/processor.py`; handoffs, diagnostics, launch, fixes:
+  `psa_ai/services/rmm_actions.py`; inbound routes: `psa_ai/integration_api.py`; signing:
+  `psa_ai/services/integration_auth.py`.
+- Ticket page: the *Paired RMM* part of the staff-only Asset card (`templates/psa/_ticket_rmm_panel.html`),
+  routes under `/psa/rmm/<ticket>/` (`psa_ai/rmm_views.py`). These are not AI features and work with AI off.

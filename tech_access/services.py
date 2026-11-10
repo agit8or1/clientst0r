@@ -411,7 +411,21 @@ def propose_detection(values, by, request=None):
                    {'op': 'detection', 'values': values}, looser, by, request=request)
 
 
-# --- RMM business mapping (Rem0te ticket-processor pairing) ------------------
+# --- RMM business mapping (ticket-rmm-v1 pairing, any RMM provider) -----------
+
+def pairing_fingerprint(connection) -> str:
+    """What a pairing approval approves: provider, address, key ID and both
+    secrets (hashed). If any of them changes after the proposal, approving
+    it is refused — the new pairing has to be proposed again."""
+    import hashlib
+    import json
+    from integrations.ticket_rmm import secrets, settings
+    s, sec = settings(connection), secrets(connection)
+    raw = json.dumps([connection.provider_type, s['site'], s['key_id'],
+                      hashlib.sha256(sec['outbound'].encode()).hexdigest(),
+                      hashlib.sha256(sec['inbound'].encode()).hexdigest()])
+    return hashlib.sha256(raw.encode()).hexdigest()
+
 
 def propose_pairing(connection, pairing_request, by, request=None):
     what = []
@@ -420,20 +434,28 @@ def propose_pairing(connection, pairing_request, by, request=None):
     if pairing_request.get('location') == 'local':
         what.append('marked on-premises')
     return propose('business_mapping',
-                   f'Rem0te pairing "{connection.name}" at {connection.organization.name}: {", ".join(what)}',
-                   {'connection': connection.pk, **pairing_request}, what, by, request=request)
+                   f'{connection.get_provider_type_display()} ticket integration pairing "{connection.name}" at '
+                   f'{connection.organization.name}: {", ".join(what)}',
+                   {'connection': connection.pk, 'provider': connection.provider_type,
+                    'fingerprint': pairing_fingerprint(connection), **pairing_request}, what, by, request=request)
 
 
 @applier('business_mapping')
 def _apply_pairing(change, reviewer):
     from integrations.models import RMMConnection
-    from integrations.providers.rmm.rem0te import INTEGRATION_ENABLED, INTEGRATION_LOCATION
+    from integrations.ticket_rmm import ENABLED, LOCATION
     conn = RMMConnection.objects.get(pk=change.payload['connection'])
+    want = change.payload.get('fingerprint')
+    # Proposals made before v3.17.657 carry no fingerprint and apply as before.
+    if want and want != pairing_fingerprint(conn):
+        from .protected import ProtectedChangeError
+        raise ProtectedChangeError('The pairing\'s provider, address, key ID or secrets changed after this was '
+                                   'proposed. Save the connection again to propose the new pairing.')
     mappings = dict(conn.field_mappings or {})
     if change.payload.get('enable'):
-        mappings[INTEGRATION_ENABLED] = True
+        mappings[ENABLED] = True
     if change.payload.get('location') == 'local':
-        mappings[INTEGRATION_LOCATION] = 'local'
+        mappings[LOCATION] = 'local'
     conn.field_mappings = mappings
     conn.save(update_fields=['field_mappings'])
     _audit(change.requested_by, 'update', 'rmm_connection', conn.pk, f'Approved: {change.summary}',

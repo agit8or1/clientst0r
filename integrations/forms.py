@@ -9,10 +9,11 @@ from .models import PSAConnection, RMMConnection, UnifiConnection, M365Connectio
 class KeepStoredSecretsMixin:
     """Never echo stored secrets into the form; blank keeps the stored value.
 
-    `SECRET_FIELDS` maps form field -> (provider_type, credential key). On an
-    edit the inputs render empty; in clean() a blank secret for the
-    connection's current provider is filled from the stored credentials, so
-    the provider's required-field checks and save() see the existing value.
+    `SECRET_FIELDS` maps form field -> (provider_type, credential key); a
+    provider_type of '*' applies to every provider. On an edit the inputs
+    render empty; in clean() a blank secret for the connection's current
+    provider is filled from the stored credentials, so the provider's
+    required-field checks and save() see the existing value.
     """
     SECRET_FIELDS = {}
 
@@ -37,7 +38,7 @@ class KeepStoredSecretsMixin:
             return  # switching provider: the old secrets do not apply
         stored = None
         for name, (provider, key) in self.SECRET_FIELDS.items():
-            if provider != provider_type or cleaned_data.get(name):
+            if (provider != '*' and provider != provider_type) or cleaned_data.get(name):
                 continue
             if stored is None:
                 stored = self.instance.get_credentials() or {}
@@ -440,8 +441,9 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         'atera_api_key': ('atera', 'api_key'),
         'tactical_api_key': ('tactical_rmm', 'api_key'),
         'rem0te_api_key': ('rem0te', 'api_key'),
-        'rem0te_integration_outbound_secret': ('rem0te', 'integration_outbound_secret'),
-        'rem0te_integration_inbound_secret': ('rem0te', 'integration_inbound_secret'),
+        # Ticket integration pairing (ticket-rmm-v1): any provider.
+        'ticket_rmm_outbound_secret': ('*', 'integration_outbound_secret'),
+        'ticket_rmm_inbound_secret': ('*', 'integration_inbound_secret'),
     }
 
     # NinjaOne credentials
@@ -510,22 +512,27 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         required=False,
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'rk_…'})
     )
-    # Rem0te ticket-processor pairing (docs/contracts/ticket-rmm-v1). Turning
-    # it on or marking it on-premises is a protected change; see save().
-    rem0te_integration_enabled = forms.BooleanField(
-        label='Use this Rem0te to process ticket analysis', required=False,
+    # Ticket integration pairing (docs/contracts/ticket-rmm-v1), for any
+    # provider that implements the contract. Turning it on or marking it
+    # on-premises is a protected change; see _apply_pairing().
+    ticket_rmm_enabled = forms.BooleanField(
+        label='Pair this RMM for ticket integration (ticket-rmm-v1)', required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}))
-    rem0te_integration_key_id = forms.CharField(
+    ticket_rmm_url = forms.URLField(
+        label='Integration address', required=False, max_length=500,
+        help_text="Where the RMM serves /api/integration/v1/. Leave blank to use this connection's address.",
+        widget=forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://rmm.example.com'}))
+    ticket_rmm_key_id = forms.CharField(
         label='Integration key ID', required=False, max_length=64,
         widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'off'}))
-    rem0te_integration_outbound_secret = forms.CharField(
+    ticket_rmm_outbound_secret = forms.CharField(
         label='Secret ClientSt0r signs with', required=False,
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}))
-    rem0te_integration_inbound_secret = forms.CharField(
-        label='Secret Rem0te signs with', required=False,
+    ticket_rmm_inbound_secret = forms.CharField(
+        label='Secret the RMM signs with', required=False,
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}))
-    rem0te_processing_location = forms.ChoiceField(
-        label='Where this Rem0te runs', required=False,
+    ticket_rmm_location = forms.ChoiceField(
+        label='Where this RMM runs', required=False,
         choices=(('hosted', 'Hosted / off-premises'), ('local', 'On-premises')),
         widget=forms.Select(attrs={'class': 'form-control'}))
 
@@ -563,12 +570,16 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.pairing_request = None
         self._pairing_before = None
-        if self.instance and self.instance.pk and self.instance.provider_type == 'rem0te':
-            from integrations.providers.rmm.rem0te import integration_secrets, integration_settings, site_root
-            p, sec = integration_settings(self.instance), integration_secrets(self.instance)
+        if self.instance and self.instance.pk:
+            from integrations.ticket_rmm import secrets, settings
+            p, sec = settings(self.instance), secrets(self.instance)
             self._pairing_before = {'on': p['requested'], 'key_id': p['key_id'], 'location': p['location'],
                                     'outbound': sec['outbound'], 'inbound': sec['inbound'],
-                                    'site': site_root(self.instance.base_url)}
+                                    'site': p['site'], 'provider': self.instance.provider_type}
+            self.fields['ticket_rmm_enabled'].initial = p['requested']
+            self.fields['ticket_rmm_key_id'].initial = p['key_id']
+            self.fields['ticket_rmm_location'].initial = p['location']
+            self.fields['ticket_rmm_url'].initial = p['url']
 
         # If editing existing connection, populate credential fields
         if self.instance and self.instance.pk:
@@ -591,14 +602,7 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
             elif provider == 'tactical_rmm':
                 self.fields['tactical_api_key'].initial = creds.get('api_key', '')
             elif provider == 'rem0te':
-                from integrations.providers.rmm.rem0te import integration_settings
                 self.fields['rem0te_api_key'].initial = creds.get('api_key', '')
-                self.fields['rem0te_integration_outbound_secret'].initial = creds.get('integration_outbound_secret', '')
-                self.fields['rem0te_integration_inbound_secret'].initial = creds.get('integration_inbound_secret', '')
-                pairing = integration_settings(self.instance)
-                self.fields['rem0te_integration_enabled'].initial = pairing['requested']
-                self.fields['rem0te_integration_key_id'].initial = pairing['key_id']
-                self.fields['rem0te_processing_location'].initial = pairing['location']
 
         self._protect_secret_fields()
 
@@ -639,23 +643,46 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         elif provider_type == 'rem0te':
             if not cleaned_data.get('rem0te_api_key'):
                 self.add_error('rem0te_api_key', 'This field is required for Rem0te')
-            if cleaned_data.get('rem0te_integration_enabled'):
-                for f in ('rem0te_integration_key_id', 'rem0te_integration_outbound_secret',
-                          'rem0te_integration_inbound_secret'):
-                    if not cleaned_data.get(f):
-                        self.add_error(f, 'Required to use Rem0te for ticket analysis.')
-                o, i = (cleaned_data.get('rem0te_integration_outbound_secret') or '',
-                        cleaned_data.get('rem0te_integration_inbound_secret') or '')
-                if o and i and o == i:
-                    self.add_error('rem0te_integration_inbound_secret', 'Use two different secrets.')
-                if (o and len(o) < 32) or (i and len(i) < 32):
-                    self.add_error('rem0te_integration_outbound_secret', 'Secrets must be at least 32 characters.')
             # A Rem0te key belongs to one business, so the connection is
             # always one customer: this organization.
             cleaned_data['customer_scope'] = RMMConnection.CUSTOMER_SCOPE_SINGLE
             cleaned_data['import_organizations'] = False
 
+        self._clean_pairing(cleaned_data)
         return cleaned_data
+
+    def _clean_pairing(self, cleaned_data):
+        """Ticket integration pairing, the same for every provider."""
+        if not cleaned_data.get('ticket_rmm_enabled'):
+            return
+        for f in ('ticket_rmm_key_id', 'ticket_rmm_outbound_secret', 'ticket_rmm_inbound_secret'):
+            if not cleaned_data.get(f):
+                self.add_error(f, 'Required to pair this RMM for ticket integration.')
+        o, i = (cleaned_data.get('ticket_rmm_outbound_secret') or '',
+                cleaned_data.get('ticket_rmm_inbound_secret') or '')
+        if o and i and o == i:
+            self.add_error('ticket_rmm_inbound_secret', 'Use two different secrets.')
+        if (o and len(o) < 32) or (i and len(i) < 32):
+            self.add_error('ticket_rmm_outbound_secret', 'Secrets must be at least 32 characters.')
+        key_id = (cleaned_data.get('ticket_rmm_key_id') or '').strip()
+        if key_id and not all(ch.isalnum() or ch in '-_.' for ch in key_id):
+            self.add_error('ticket_rmm_key_id', 'Use letters, digits, ".", "-" and "_" only.')
+        if key_id and self._key_id_taken(key_id):
+            self.add_error('ticket_rmm_key_id', 'Another RMM connection already uses this key ID.')
+        url = (cleaned_data.get('ticket_rmm_url') or '').strip()
+        local = cleaned_data.get('ticket_rmm_location') == 'local'
+        if url and not (url.startswith('https://') or (local and url.startswith('http://'))):
+            self.add_error('ticket_rmm_url', 'Use https (plain http only for an on-premises RMM).')
+        if (cleaned_data.get('provider_type') != 'rem0te'
+                and cleaned_data.get('customer_scope') != RMMConnection.CUSTOMER_SCOPE_SINGLE):
+            self.add_error('customer_scope', 'A ticket integration pairing serves one customer: choose '
+                                             'Single customer to pair this connection.')
+
+    def _key_id_taken(self, key_id):
+        from integrations.ticket_rmm import KEY_ID
+        others = RMMConnection.objects.exclude(pk=getattr(self.instance, 'pk', None) or 0)
+        return any(str((m or {}).get(KEY_ID) or '') == key_id
+                   for m in others.values_list('field_mappings', flat=True))
 
     def save(self, commit=True):
         connection = super().save(commit=False)
@@ -695,14 +722,15 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
             }
         elif provider_type == 'rem0te':
             credentials = {'api_key': self.cleaned_data.get('rem0te_api_key', '')}
-            for field, name in (('rem0te_integration_outbound_secret', 'integration_outbound_secret'),
-                                ('rem0te_integration_inbound_secret', 'integration_inbound_secret')):
-                if self.cleaned_data.get(field):
-                    credentials[name] = self.cleaned_data[field]
+
+        # Ticket integration pairing secrets, whatever the provider.
+        for field, name in (('ticket_rmm_outbound_secret', 'integration_outbound_secret'),
+                            ('ticket_rmm_inbound_secret', 'integration_inbound_secret')):
+            if self.cleaned_data.get(field):
+                credentials[name] = self.cleaned_data[field]
 
         self.pairing_request = None
-        if provider_type == 'rem0te':
-            self._apply_pairing(connection, credentials)
+        self._apply_pairing(connection, credentials)
 
         connection.set_credentials(credentials)
 
@@ -712,30 +740,44 @@ class RMMConnectionForm(KeepStoredSecretsMixin, forms.ModelForm):
         return connection
 
 
-def _rem0te_pairing_apply(self, connection, credentials):
+def _ticket_rmm_pairing_apply(self, connection, credentials):
     """Narrowing pairing changes apply now; widening ones become
     `self.pairing_request` for the view to propose as a protected change.
+    The same for every provider.
 
-    Widening: switching ticket processing on, or marking the Rem0te
-    on-premises. Re-pairing a live pairing — new secrets, key ID or address —
-    switches it off until it is approved again."""
-    from integrations.providers.rmm.rem0te import (
-        INTEGRATION_ENABLED, INTEGRATION_KEY_ID, INTEGRATION_LOCATION, site_root)
+    Widening: switching the pairing on, or marking the RMM on-premises.
+    Re-pairing a live pairing — new secrets, key ID, address or provider —
+    switches it off until it is approved again. A provider change also
+    clears the tenant pin and capabilities: another product pins afresh."""
+    from integrations import ticket_rmm
     mappings = dict(connection.field_mappings or {})
     before = self._pairing_before or {}
-    want_on = bool(self.cleaned_data.get('rem0te_integration_enabled'))
-    want_local = self.cleaned_data.get('rem0te_processing_location') == 'local'
-    key_id = (self.cleaned_data.get('rem0te_integration_key_id') or '').strip()
+    want_on = bool(self.cleaned_data.get('ticket_rmm_enabled'))
+    want_local = self.cleaned_data.get('ticket_rmm_location') == 'local'
+    key_id = (self.cleaned_data.get('ticket_rmm_key_id') or '').strip()
+    url = (self.cleaned_data.get('ticket_rmm_url') or '').strip()
+    if not (want_on or want_local or key_id or url or before.get('on') or before.get('key_id')
+            or any(k in mappings for k in (ticket_rmm.ENABLED, ticket_rmm.KEY_ID, ticket_rmm.URL))):
+        self.pairing_request = None  # never paired, and still not: leave the connection as it was
+        return
+    mappings[ticket_rmm.URL] = url
+    connection.field_mappings = mappings
+    site = ticket_rmm.contract_site(connection)
+    provider_changed = bool(before) and connection.provider_type != before.get('provider')
     repaired = before.get('on') and (
         key_id != before.get('key_id')
         or credentials.get('integration_outbound_secret', '') != (before.get('outbound') or '')
         or credentials.get('integration_inbound_secret', '') != (before.get('inbound') or '')
-        or site_root(connection.base_url) != before.get('site'))
-    mappings[INTEGRATION_KEY_ID] = key_id
+        or site != before.get('site')
+        or provider_changed)
+    if provider_changed:
+        mappings.pop(ticket_rmm.TENANT_PIN, None)
+        mappings.pop(ticket_rmm.CAPS, None)
+    mappings[ticket_rmm.KEY_ID] = key_id
     if not want_on or repaired:
-        mappings[INTEGRATION_ENABLED] = False
+        mappings[ticket_rmm.ENABLED] = False
     if not want_local:
-        mappings[INTEGRATION_LOCATION] = 'hosted'
+        mappings[ticket_rmm.LOCATION] = 'hosted'
     connection.field_mappings = mappings
     widen = {}
     if want_on and (repaired or not before.get('on')):
@@ -747,7 +789,7 @@ def _rem0te_pairing_apply(self, connection, credentials):
     self.pairing_request = widen or None
 
 
-RMMConnectionForm._apply_pairing = _rem0te_pairing_apply
+RMMConnectionForm._apply_pairing = _ticket_rmm_pairing_apply
 
 
 class UnifiConnectionForm(forms.ModelForm):

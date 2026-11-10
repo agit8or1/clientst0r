@@ -118,6 +118,41 @@
         </div>
     </div>
 
+    <!-- Ticket integration pairing (ticket-rmm-v1), any provider -->
+    <div class="col-md-6 mb-4">
+        <div class="card" id="ticket-rmm-pairing-status">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Ticket integration pairing</h5>
+                {% if pairing.state == 'ok' %}<span class="badge bg-success">{{ pairing.label }}</span>
+                {% elif pairing.state == 'off' %}<span class="badge bg-secondary">{{ pairing.label }}</span>
+                {% elif pairing.state == 'warning' or pairing.state == 'pending' or pairing.state == 'checking' %}<span class="badge bg-warning text-dark">{{ pairing.label }}</span>
+                {% else %}<span class="badge bg-danger">{{ pairing.label }}</span>{% endif %}
+            </div>
+            <div class="card-body small">
+                <p class="mb-2" data-pairing-state="{{ pairing.state }}">{{ pairing.detail }}</p>
+                {% if pairing.state != 'off' %}
+                <table class="table table-sm mb-2">
+                    <tr><th width="40%">Contract address</th><td><code>{{ pairing.settings.site|default:"—" }}</code></td></tr>
+                    <tr><th>Key ID</th><td><code>{{ pairing.settings.key_id|default:"—" }}</code></td></tr>
+                    <tr><th>Runs</th><td>{% if pairing.settings.location == 'local' %}On-premises{% else %}Hosted / off-premises{% endif %}</td></tr>
+                    <tr><th>Pinned tenant</th><td>{% if pairing.settings.tenant_id %}<code>{{ pairing.settings.tenant_id }}</code>{% if pairing.tenant_name %} ({{ pairing.tenant_name }}){% endif %}{% else %}not pinned yet{% endif %}</td></tr>
+                    <tr><th>Advertised</th><td>{% for c in pairing.capabilities %}<span class="badge bg-light text-dark border me-1">{{ c }}</span>{% empty %}nothing yet{% endfor %}</td></tr>
+                    {% if pairing.diagnostics %}<tr><th>Read-only diagnostics</th><td>{% for d in pairing.diagnostics %}{{ d.label }}{% if not forloop.last %}, {% endif %}{% endfor %}</td></tr>{% endif %}
+                    <tr><th>Last check</th><td>{{ pairing.checked_at|default:"never" }}</td></tr>
+                </table>
+                {% if pairing.settings.enabled %}
+                <form method="post" action="{% url 'integrations:rmm_pairing_check' connection.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-plug-circle-check me-1"></i>Check pairing</button>
+                </form>
+                {% endif %}
+                {% else %}
+                <p class="text-muted mb-0">Any RMM that implements ticket-rmm-v1 can be paired from <a href="{% url 'integrations:rmm_edit' connection.pk %}">Edit</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
     <!-- Sync Settings -->
     <div class="col-md-6 mb-4">
         <div class="card">

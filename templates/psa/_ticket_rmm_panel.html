@@ -1,0 +1,109 @@
+{% comment %}
+Ticket → paired RMM actions (ticket-rmm-v1, Phase 56.5 / 56.6). Technicians
+only: rendered inside the ticket page's staff-only asset card, never from a
+customer-facing template. Not AI: shown whether or not AI is on.
+  p: psa_ai.services.rmm_actions.panel() + key
+Everything from the RMM (device names, status notes, diagnostic output) is
+autoescaped text; diagnostic output is shown in <pre>, never as HTML.
+{% endcomment %}
+<div id="ticket-rmm-panel" class="mt-3 border-top pt-2" data-ticket-rmm-panel>
+    <div class="fw-semibold mb-1"><i class="fas fa-satellite-dish me-1" aria-hidden="true"></i>Paired RMM</div>
+    {% if not p.targets %}
+    <p class="text-muted mb-2">{{ p.no_target_reason }}</p>
+    {% endif %}
+    {% for t in p.targets %}
+    {% with a=t.actions dev=t.device %}
+    <div class="mb-2 {% if not forloop.last %}border-bottom pb-2{% endif %}" data-rmm-target="{{ dev.pk }}">
+        <div class="mb-1"><strong>{{ dev.device_name }}</strong> <span class="text-muted">via {{ t.connection.name }}</span></div>
+        <div class="d-flex flex-wrap gap-1 mb-1">
+            {% if a.handoff.ok %}
+            <a class="btn btn-sm btn-outline-primary" data-rmm-action="handoff" href="{% url 'ticket_rmm:handoff' ticket.ticket_number %}?device={{ dev.pk }}">
+                <i class="fas fa-share-from-square me-1" aria-hidden="true"></i>Send to RMM</a>
+            {% else %}
+            <button type="button" class="btn btn-sm btn-outline-secondary" disabled data-rmm-action="handoff" title="{{ a.handoff.reason }}">Send to RMM</button>
+            {% endif %}
+            {% if a.remote_view.ok %}
+            <form method="post" action="{% url 'ticket_rmm:launch' ticket.ticket_number %}" target="_blank" class="d-inline">
+                {% csrf_token %}<input type="hidden" name="device" value="{{ dev.pk }}"><input type="hidden" name="mode" value="view">
+                <button class="btn btn-sm btn-outline-primary" data-rmm-action="remote_view" title="{% if a.remote_view.grant == 'request' %}The RMM decides whether to grant a time-limited view session.{% else %}Opens a view-only session through the RMM's own authorization.{% endif %}">
+                    <i class="fas fa-eye me-1" aria-hidden="true"></i>{% if a.remote_view.grant == 'request' %}Request view{% else %}View session{% endif %}</button>
+            </form>
+            {% else %}
+            <button type="button" class="btn btn-sm btn-outline-secondary" disabled data-rmm-action="remote_view" title="{{ a.remote_view.reason }}">View session</button>
+            {% endif %}
+            {% if a.remote_control.ok %}
+            <form method="post" action="{% url 'ticket_rmm:launch' ticket.ticket_number %}" target="_blank" class="d-inline">
+                {% csrf_token %}<input type="hidden" name="device" value="{{ dev.pk }}"><input type="hidden" name="mode" value="control">
+                <button class="btn btn-sm btn-outline-primary" data-rmm-action="remote_control" title="The RMM grants control per session.">
+                    <i class="fas fa-computer-mouse me-1" aria-hidden="true"></i>{% if a.remote_control.grant == 'request' %}Request control{% else %}Control session{% endif %}</button>
+            </form>
+            {% else %}
+            <button type="button" class="btn btn-sm btn-outline-secondary" disabled data-rmm-action="remote_control" title="{{ a.remote_control.reason }}">Control session</button>
+            {% endif %}
+        </div>
+        {% if a.diagnostic.ok %}
+        <form method="post" action="{% url 'ticket_rmm:diagnostic' ticket.ticket_number %}" class="d-flex gap-1 mb-1">
+            {% csrf_token %}<input type="hidden" name="device" value="{{ dev.pk }}">
+            <input type="hidden" name="idempotency_key" value="{{ p.key }}-d{{ forloop.counter }}">
+            <select name="diagnostic" class="form-select form-select-sm" aria-label="Read-only diagnostic">
+                {% for d in t.diagnostics %}<option value="{{ d.key }}" title="{{ d.description }}">{{ d.label }}</option>{% endfor %}
+            </select>
+            <button class="btn btn-sm btn-outline-primary text-nowrap" data-rmm-action="diagnostic">Run read-only</button>
+        </form>
+        {% else %}
+        <div class="small text-muted mb-1" data-rmm-action="diagnostic" data-disabled="1">Read-only diagnostics: {{ a.diagnostic.reason }}</div>
+        {% endif %}
+        {% if a.fix_low.ok or a.fix_high.ok %}
+        <details class="mb-1">
+            <summary class="small">Refer a fix for the RMM to approve</summary>
+            <form method="post" action="{% url 'ticket_rmm:fix' ticket.ticket_number %}" class="mt-1">
+                {% csrf_token %}<input type="hidden" name="device" value="{{ dev.pk }}">
+                <input type="hidden" name="idempotency_key" value="{{ p.key }}-f{{ forloop.counter }}">
+                {% if p.suggestions %}
+                <select name="suggestion" class="form-select form-select-sm mb-1" aria-label="From an analysis suggestion">
+                    <option value="">— Write it myself —</option>
+                    {% for s in p.suggestions %}<option value="{{ s.ref }}">{{ s.text|truncatechars:90 }}</option>{% endfor %}
+                </select>
+                {% endif %}
+                <input type="text" name="title" maxlength="200" class="form-control form-control-sm mb-1" placeholder="Title">
+                <textarea name="description" rows="3" maxlength="2000" class="form-control form-control-sm mb-1" placeholder="What should be fixed, and why"></textarea>
+                <div class="d-flex gap-1">
+                    <select name="risk" class="form-select form-select-sm" aria-label="Risk">
+                        {% if a.fix_low.ok %}<option value="low">Low-risk catalog fix</option>{% endif %}
+                        {% if a.fix_high.ok %}<option value="high">Higher-risk catalog work</option>{% endif %}
+                    </select>
+                    <button class="btn btn-sm btn-outline-primary text-nowrap" data-rmm-action="fix">Refer</button>
+                </div>
+                <p class="small text-muted mb-0 mt-1">The RMM approves and runs fixes on its own approval page. ClientSt0r never runs or approves them, and nothing the RMM reports closes this ticket or replies to the customer.</p>
+            </form>
+        </details>
+        {% else %}
+        <div class="small text-muted" data-rmm-action="fix" data-disabled="1">Fix referral: {{ a.fix_low.reason }}</div>
+        {% endif %}
+    </div>
+    {% endwith %}
+    {% endfor %}
+
+    {% if p.requests %}
+    <div class="fw-semibold mt-2">Requests to the RMM</div>
+    <ul class="list-unstyled mb-0" data-rmm-requests>
+        {% for r in p.requests %}
+        <li class="border-top py-1" data-rmm-request="{{ r.pk }}" data-status="{{ r.status }}">
+            <span class="fw-semibold">{{ r.get_kind_display }}</span>{% if r.diagnostic_label %} — {{ r.diagnostic_label }}{% endif %}{% if r.fix_title %} — {{ r.fix_title|truncatechars:60 }}{% endif %}
+            {% if r.status == 'sent' or r.status == 'completed' or r.status == 'succeeded' %}<span class="badge bg-success">{{ r.get_status_display }}</span>
+            {% elif r.status == 'failed' or r.status == 'rejected' or r.status == 'unavailable' or r.status == 'expired' %}<span class="badge bg-danger">{{ r.get_status_display }}</span>
+            {% elif r.status == 'approved' %}<span class="badge bg-info text-dark">{{ r.get_status_display }}</span>
+            {% else %}<span class="badge bg-warning text-dark">{{ r.get_status_display }}</span>{% endif %}
+            <div class="text-muted">{{ r.device_name }} · {{ r.actor.username }} · {{ r.created_at|date:"Y-m-d H:i" }}</div>
+            {% if r.error %}<div class="text-danger">{{ r.error }}</div>{% elif r.status_note %}<div class="text-muted">{{ r.status_note }}</div>{% endif %}
+            {% if r.kind == 'diagnostic' and r.result_text %}
+            <details>
+                <summary>Result ({{ r.result_bytes|filesizeformat }}{% if r.result_truncated %}, truncated{% endif %}) — staff only</summary>
+                <pre class="small bg-light border rounded p-2 mb-0" style="max-height: 20rem; overflow: auto; white-space: pre-wrap;">{{ r.result_text }}</pre>
+            </details>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>

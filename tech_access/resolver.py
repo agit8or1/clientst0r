@@ -105,18 +105,19 @@ def unavailable_reason(capability, organization) -> str:
     """'' if the integrations at this customer can support `capability`.
 
     Ticket AI needs nothing beyond its own settings (checked by the AI
-    paths themselves). RMM and remote capabilities need a paired rem0te that
-    advertises them in its capabilities document."""
-    group = catalog.OPTIONAL[capability][1]
-    if group not in ('RMM', 'Remote access', 'Fixes'):
+    paths themselves). RMM, remote and fix capabilities need a live
+    ticket-rmm-v1 pairing at this customer (any RMM provider) whose last
+    capabilities check advertised what catalog.INTEGRATION_REQUIRES names —
+    available exactly when one does."""
+    need = catalog.INTEGRATION_REQUIRES.get(capability)
+    if need is None:
         return ''
-    from psa_ai.services.profiles import processor_for
-    from integrations.providers.rmm.rem0te import advertised_capabilities
-    conn = processor_for(organization)
-    if conn is None:
-        return 'No rem0te is paired for this customer.'
-    if capability not in advertised_capabilities(conn):
-        return "This customer's rem0te doesn't offer this yet."
+    from integrations.ticket_rmm import advertised, paired_connections
+    conns = paired_connections(organization)
+    if not conns:
+        return 'No RMM is paired with this customer for ticket integration.'
+    if not any(need in advertised(c) for c in conns):
+        return f"This customer's paired RMM doesn't offer this (it hasn't advertised “{need}”)."
     return ''
 
 

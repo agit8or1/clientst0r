@@ -188,7 +188,27 @@ class ResolverTests(TestCase):
         grant(self.tech, self.a, 'l3')
         d = decide(self.tech, self.a, 'rmm_handoff')
         self.assertEqual(d.state, UNAVAILABLE)
-        self.assertIn('rem0te', d.reason)
+        self.assertIn('No RMM is paired', d.reason)
+
+    def test_rmm_capabilities_follow_what_a_paired_rmm_of_any_provider_advertises(self):
+        from integrations import ticket_rmm
+        from integrations.models import RMMConnection
+        grant(self.tech, self.a, 'l3')
+        conn = RMMConnection.objects.create(organization=self.a, provider_type='datto_rmm', name='Datto',
+                                            base_url='https://merlot-api.centrastage.net',
+                                            customer_scope=RMMConnection.CUSTOMER_SCOPE_SINGLE)
+        conn.set_credentials({'integration_outbound_secret': 'o' * 40, 'integration_inbound_secret': 'i' * 40})
+        conn.field_mappings = {ticket_rmm.ENABLED: True, ticket_rmm.KEY_ID: 'datto-1'}
+        conn.save()
+        self.assertEqual(decide(self.tech, self.a, 'remote_view').state, UNAVAILABLE)
+        ticket_rmm.record_capabilities(conn, {'contract': 'ticket-rmm-v1', 'tenant': {'id': 'site-9'},
+                                              'capabilities': ['remote_view', 'signed_actions']})
+        self.assertEqual(decide(self.tech, self.a, 'remote_view').state, REQUEST)
+        self.assertEqual(decide(self.tech, self.a, 'fix_refer').state, ALLOWED)
+        self.assertEqual(decide(self.tech, self.a, 'rmm_handoff').state, UNAVAILABLE)
+        self.assertIn('rmm_handoff', decide(self.tech, self.a, 'rmm_handoff').reason)
+        # Another customer's pairing never makes anything available here.
+        self.assertEqual(decide(self.tech, self.b, 'remote_view').state, UNAVAILABLE)
 
     def test_effective_access_explains_every_entry(self):
         grant(self.tech, self.a, 'l1')

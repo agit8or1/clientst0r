@@ -1,20 +1,25 @@
 """
-ClientSt0r's side of the rem0te job API (docs/contracts/ticket-rmm-v1).
+ClientSt0r's side of the paired RMM's job API (docs/contracts/ticket-rmm-v1).
+Any RMM that implements the contract can be the processor; rem0te is the
+reference implementation.
 
-  GET  {rem0te}/api/integration/v1/capabilities     what this rem0te supports
-  POST {rem0te}/api/integration/v1/jobs              submit an analysis job
-  GET  {rem0te}/api/integration/v1/jobs/{job_id}     poll a job's state
+  GET  {rmm}/api/integration/v1/capabilities     what this RMM supports, and its tenant
+  POST {rmm}/api/integration/v1/jobs              submit an analysis job
+  GET  {rmm}/api/integration/v1/jobs/{job_id}     poll a job's state
+
+Handoffs, diagnostics, remote launch and fix referrals live in
+services/rmm_actions.py and use the same signed `_request`.
 
 Every request is signed (integration_auth.py) and carries the job's
-idempotency key, so resubmitting the same job returns rem0te's original
+idempotency key, so resubmitting the same job returns the RMM's original
 job and a changed payload under the same key is refused with 409.
 
-rem0te is sent the binding, not the ticket: IDs, revision, evidence
+The RMM is sent the binding, not the ticket: IDs, revision, evidence
 digest, profile names and locations, the delegated identity and where to
 call back. Ticket text stays here; the gateway builds the prompt from the
-stored evidence when rem0te asks for a model run.
+stored evidence when the RMM asks for a model run.
 
-An unreachable rem0te marks the job "unavailable". Nothing else about the
+An unreachable RMM marks the job "unavailable". Nothing else about the
 ticket changes, and manual work carries on.
 """
 from __future__ import annotations
@@ -47,16 +52,22 @@ class ProcessorConflict(Exception):
 
 
 def _policy(conn):
-    from integrations.providers.rmm.rem0te import integration_settings
+    from integrations.ticket_rmm import settings as integration_settings
     base = configured_service_policy()
     if integration_settings(conn)['location'] == 'local':
         return OutboundPolicy(allow_lan=True, allow_local=base.allow_local, allowed_ports=None)
     return base
 
 
+MAX_RESPONSE = 256 * 1024
+
+
 def _request(conn, method, path, payload=None, idempotency_key=''):
-    from integrations.providers.rmm.rem0te import integration_secrets, integration_settings
+    from integrations.ticket_rmm import secrets as integration_secrets, settings as integration_settings
     settings_ = integration_settings(conn)
+    site = settings_['site']
+    if not (site.startswith('https://') or (site.startswith('http://') and settings_['location'] == 'local')):
+        raise ProcessorUnavailable('The RMM address must use https (plain http only for an on-premises pairing).')
     body = json.dumps(payload, sort_keys=True, separators=(',', ':')).encode() if payload is not None else b''
     full = API + path
     headers = integration_auth.sign(integration_secrets(conn)['outbound'], method, full, body, settings_['key_id'])
@@ -68,31 +79,56 @@ def _request(conn, method, path, payload=None, idempotency_key=''):
     session.trust_env = False
     guard_session(session, _policy(conn))
     try:
-        r = session.request(method, settings_['site'] + full, data=body or None, headers=headers,
+        r = session.request(method, site + full, data=body or None, headers=headers,
                             timeout=TIMEOUT, allow_redirects=False)
     except (requests.RequestException, BlockedDestinationError) as e:
-        raise ProcessorUnavailable(f'rem0te could not be reached ({e.__class__.__name__}).')
+        raise ProcessorUnavailable(f'The RMM could not be reached ({e.__class__.__name__}).')
     if r.status_code == 409:
-        raise ProcessorConflict('rem0te already has a different job under this idempotency key.')
+        raise ProcessorConflict('The RMM already has a different request under this idempotency key.')
     if r.status_code >= 300:
-        raise ProcessorUnavailable(f'rem0te answered HTTP {r.status_code}.')
+        raise ProcessorUnavailable(f'The RMM answered HTTP {r.status_code}{_error_code(r)}.')
+    if len(r.content or b'') > MAX_RESPONSE:
+        raise ProcessorUnavailable('The RMM answered with more data than the contract allows.')
     try:
-        return r.json()
+        data = r.json()
     except ValueError:
-        raise ProcessorUnavailable('rem0te returned something other than JSON.')
+        raise ProcessorUnavailable('The RMM returned something other than JSON.')
+    if not isinstance(data, dict):
+        raise ProcessorUnavailable('The RMM returned something other than a JSON object.')
+    return data
+
+
+def _error_code(r):
+    try:
+        body = r.json()
+    except ValueError:
+        return ''
+    code = str(body.get('error') or '') if isinstance(body, dict) else ''
+    return f' ({code[:60]})' if code and code.replace('_', '').isalnum() else ''
 
 
 def refresh_capabilities(conn):
-    from integrations.providers.rmm.rem0te import record_capabilities
-    doc = _request(conn, 'GET', '/capabilities')
+    """Ask the RMM what it supports and which tenant it answers for, and
+    record the answer (integrations/ticket_rmm.py pins the tenant on the
+    first success). Returns the stored check; failures are recorded on the
+    connection, not raised."""
+    from integrations.ticket_rmm import record_capabilities, record_failure, settings
+    if not settings(conn)['enabled']:
+        record_failure(conn, 'The pairing is not switched on and approved yet.')
+        return {'ok': False, 'error': 'not enabled'}
+    try:
+        doc = _request(conn, 'GET', '/capabilities')
+    except (ProcessorUnavailable, ProcessorConflict) as e:
+        record_failure(conn, str(e))
+        return {'ok': False, 'error': str(e)}
     if doc.get('contract') != CONTRACT:
-        raise ProcessorUnavailable(f'rem0te does not speak {CONTRACT}.')
-    record_capabilities(conn, doc)
-    return doc
+        record_failure(conn, f'The RMM does not implement {CONTRACT}.')
+        return {'ok': False, 'error': 'contract'}
+    return record_capabilities(conn, doc)
 
 
 def job_payload(job, request=None):
-    from integrations.providers.rmm.rem0te import integration_settings
+    from integrations.ticket_rmm import settings as integration_settings
 
     def absolute(name, **kw):
         path = reverse(name, kwargs=kw)
@@ -119,7 +155,7 @@ def job_payload(job, request=None):
 
 
 def submit(job, request=None):
-    """Send the job to rem0te. Sets status submitted / unavailable / failed."""
+    """Send the job to the paired RMM. Sets status submitted / unavailable / failed."""
     from psa_ai.models import AnalysisJob
     payload = job_payload(job, request)
     try:
@@ -130,7 +166,7 @@ def submit(job, request=None):
         return 'failed'
     except ProcessorUnavailable as e:
         AnalysisJob.objects.filter(pk=job.pk).update(status='unavailable', error=str(e))
-        job.runs.filter(status='pending').update(status='refused', error='rem0te was unavailable.',
+        job.runs.filter(status='pending').update(status='refused', error='The RMM was unavailable.',
                                                  finished_at=timezone.now())
         return 'unavailable'
     AnalysisJob.objects.filter(pk=job.pk, status='created').update(
@@ -158,16 +194,16 @@ def apply_event(job, event_type, sequence):
     elif event_type == 'job.running':
         AnalysisJob.objects.filter(pk=job.pk, status__in=['created', 'submitted']).update(status='running')
     else:
-        note = {'job.completed': 'rem0te finished without asking for this model.',
-                'job.failed': 'rem0te reported the job failed.',
-                'job.cancelled': 'rem0te cancelled the job.'}[event_type]
+        note = {'job.completed': 'The RMM finished without asking for this model.',
+                'job.failed': 'The RMM reported the job failed.',
+                'job.cancelled': 'The RMM cancelled the job.'}[event_type]
         job.runs.filter(status='pending').update(status='refused', error=note, finished_at=timezone.now())
         gateway.finish_job(job)
     return True
 
 
 def poll(job, force=False):
-    """Recover missed callbacks by asking rem0te for the job's state."""
+    """Recover missed callbacks by asking the RMM for the job's state."""
     from psa_ai.models import AnalysisJob
     if job.is_terminal:
         return job

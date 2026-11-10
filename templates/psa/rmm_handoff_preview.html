@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}PSA — {{ ticket.ticket_number }} — Send to RMM{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_detail' ticket.ticket_number %}">{{ ticket.ticket_number }}</a></li>
+        <li class="breadcrumb-item active">Send to RMM</li>
+    </ol>
+</nav>
+
+<div class="card" id="rmm-handoff-preview">
+    <div class="card-header"><strong>Send this ticket to {{ target.connection.name }} — review before sending</strong></div>
+    <div class="card-body small">
+        <p>Destination: <strong>{{ target.connection.name }}</strong> ({{ target.connection.get_provider_type_display }}, <code>{{ site }}</code>), tenant <code>{{ target.tenant_id }}</code>, device <strong>{{ target.device.device_name }}</strong>.
+            The RMM shows this handoff to its technicians privately. It is marked <em>Sent</em> only when the RMM confirms it received it.</p>
+        <p class="fw-semibold mb-1">What is sent (redacted):</p>
+        <ul class="mb-2">
+            {% for item in context.items %}
+            <li><span class="text-muted">[{{ item.id }}] {{ item.kind }}{% if item.role %} ({{ item.role }}){% endif %}:</span> {{ item.text }}</li>
+            {% endfor %}
+        </ul>
+        <p class="text-muted mb-1">Left out: {{ context.excluded.internal_notes }} internal note{{ context.excluded.internal_notes|pluralize }}, {{ context.excluded.attachments }} attachment{{ context.excluded.attachments|pluralize }}{% if context.excluded.older_comments %}, {{ context.excluded.older_comments }} older comment{{ context.excluded.older_comments|pluralize }}{% endif %}; vault data, raw RMM payloads and remote-session data are never included.</p>
+        {% if context.redactions %}<p class="text-muted">Redacted: {% for k, v in context.redactions.items %}{{ v }} {{ k }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+        <form method="post" action="{% url 'ticket_rmm:handoff' ticket.ticket_number %}">
+            {% csrf_token %}
+            <input type="hidden" name="device" value="{{ target.device.pk }}">
+            <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
+            <input type="hidden" name="context_digest" value="{{ context_digest }}">
+            <label for="handoff-note" class="form-label">Note for the RMM's technicians (optional, redacted the same way)</label>
+            <textarea id="handoff-note" name="note" rows="3" maxlength="{{ max_note }}" class="form-control form-control-sm mb-2"></textarea>
+            <button class="btn btn-primary btn-sm">Send to RMM</button>
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'psa:ticket_detail' ticket.ticket_number %}">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

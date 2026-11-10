@@ -26,8 +26,9 @@ from django.utils import timezone
 from accounts.models import Membership, Role
 from core.models import Organization, SystemSetting
 from integrations.models import RMMConnection, RMMDevice
-from integrations.providers.rmm.rem0te import (
-    BUSINESS_PIN, INTEGRATION_ENABLED, INTEGRATION_KEY_ID, INTEGRATION_LOCATION)
+from integrations.ticket_rmm import (
+    ENABLED as INTEGRATION_ENABLED, KEY_ID as INTEGRATION_KEY_ID, LOCATION as INTEGRATION_LOCATION,
+    REM0TE_BUSINESS_PIN, TENANT_PIN as BUSINESS_PIN)
 from psa.models import TicketComment
 from psa.tests._base import TEST_MIDDLEWARE, _enable_psa_for, _setup_seed
 from tech_access.testing import grant, make_tech, make_ticket
@@ -66,7 +67,8 @@ def pair(org, business, key_id, location='hosted'):
                                         customer_scope=RMMConnection.CUSTOMER_SCOPE_SINGLE)
     conn.set_credentials({'api_key': 'rk_test', 'integration_outbound_secret': OUT_SECRET + key_id,
                           'integration_inbound_secret': IN_SECRET + key_id})
-    conn.field_mappings = {BUSINESS_PIN: business, INTEGRATION_ENABLED: True, INTEGRATION_KEY_ID: key_id,
+    conn.field_mappings = {BUSINESS_PIN: business, REM0TE_BUSINESS_PIN: business, INTEGRATION_ENABLED: True,
+                           INTEGRATION_KEY_ID: key_id,
                            INTEGRATION_LOCATION: location}
     conn.save()
     return conn

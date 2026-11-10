@@ -1,20 +1,21 @@
 """
 The inference gateway: the only code that sends ticket evidence to a model.
 
-rem0te processes an analysis job and asks for each model run with a signed
+The paired RMM (any ticket-rmm-v1 processor; rem0te is the reference)
+processes an analysis job and asks for each model run with a signed
 POST /api/integration/v1/inference (psa_ai/integration_api.py). Before any
 provider is called, `dispatch()` re-checks, against current database rows:
 
-  * the job belongs to the calling rem0te pairing and isn't expired or done;
+  * the job belongs to the calling pairing and isn't expired or done;
   * the delegation token names this job, its actor, customer and ticket,
     and hasn't expired;
   * the actor is still an active technician with this capability at this
     customer and on this ticket (technician access, re-read now — a
     demotion while the job sat in a queue stops it here);
   * tenant binding: job, ticket and pairing are one customer, and the
-    pairing's pinned rem0te business is the job's;
+    pairing's pinned tenant is the job's;
   * the ticket hasn't changed since the technician previewed the evidence;
-  * the evidence digest rem0te quotes is the job's, and the stored evidence
+  * the evidence digest the RMM quotes is the job's, and the stored evidence
     still hashes to it;
   * the profile is one the job asked for and is still usable (enabled,
     allowed by policy, credential owner, local-only);
@@ -24,9 +25,9 @@ It then claims the run with a conditional UPDATE, so a retry, a double
 click or two processors racing can only ever produce one provider call.
 
 The prompt is built from the stored evidence only — never from anything
-rem0te sends. Model output is parsed as untrusted (analysis_result.py).
+the RMM sends. Model output is parsed as untrusted (analysis_result.py).
 The provider key is opened by the gateway process (gateway_keys.py) and
-never returned to rem0te or the browser.
+never returned to the RMM or the browser.
 
 Destinations: Anthropic and OpenAI only at their fixed API hosts on public
 addresses; Ollama only at the origin an administrator approved, with LAN
@@ -104,7 +105,7 @@ def _capability(job):
 
 def dispatch(connection, job_id, profile_id, delegation, evidence_digest):
     """Validate an inference request and claim its run. Returns the run."""
-    from integrations.providers.rmm.rem0te import BUSINESS_PIN, integration_settings
+    from integrations.ticket_rmm import TENANT_PIN, settings as integration_settings
     from psa_ai.models import AnalysisJob, AnalysisRun
     from psa_ai.permissions import has_capability
     from core.ai_gate import ai_features_enabled
@@ -133,7 +134,7 @@ def dispatch(connection, job_id, profile_id, delegation, evidence_digest):
     ticket = job.ticket
     if not (job.organization_id == ticket.organization_id == connection.organization_id):
         raise GatewayRefusal('tenant_mismatch', 'Job, ticket and pairing are not one customer.')
-    if str((connection.field_mappings or {}).get(BUSINESS_PIN) or '') != job.business_id:
+    if str((connection.field_mappings or {}).get(TENANT_PIN) or '') != job.business_id:
         raise GatewayRefusal('business_mismatch', 'The pairing now answers for a different business.')
     if not has_capability(job.actor, job.organization, _capability(job), ticket=ticket):
         raise GatewayRefusal('actor_not_permitted', "The technician's access no longer allows this.")

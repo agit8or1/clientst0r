@@ -588,6 +588,7 @@ def rmm_detail(request, pk):
     online_devices = RMMDevice.objects.filter(connection=connection, is_online=True).count()
 
     review = _review_queryset(connection)
+    from integrations.ticket_rmm import status as pairing_status
     return render(request, 'integrations/rmm_detail.html', {
         'connection': connection,
         'devices': devices,
@@ -595,20 +596,48 @@ def rmm_detail(request, pk):
         'online_devices': online_devices,
         'review_count': review.count(),
         'unresolved_count': review.exclude(ownership_status=RMMDevice.OWNERSHIP_RESOLVED).count(),
+        'pairing': pairing_status(connection),
     })
 
 
 def _propose_pairing(request, form, connection):
-    """A Rem0te ticket-processor pairing that widens what ClientSt0r sends
-    waits for a second administrator (tech_access.protected)."""
+    """A ticket integration pairing (any RMM provider) that widens what
+    ClientSt0r sends waits for a second administrator (tech_access.protected)."""
     req = getattr(form, 'pairing_request', None)
     if not req:
         return
     from tech_access.services import propose_pairing
     change = propose_pairing(connection, req, request.user, request=request)
-    messages.info(request, f'Using this Rem0te for ticket analysis needs a second administrator. Protected '
+    messages.info(request, f'Pairing this RMM for ticket integration needs a second administrator. Protected '
                            f'change #{change.pk} was created: confirm it with your password under Settings → '
-                           f'Security → Technician Access, then another administrator approves it.')
+                           f'Security → Technician Access, then another administrator approves it. Once '
+                           f'approved, use Check pairing on the connection page.')
+
+
+@login_required
+@require_admin
+@require_POST
+def rmm_pairing_check(request, pk):
+    """Ask the RMM for its ticket-rmm-v1 capabilities now (signed GET
+    /capabilities). An RMM that doesn't implement the contract simply fails
+    the check; the connection page says why."""
+    org = get_request_organization(request)
+    connection = get_org_object_or_404(RMMConnection, org, pk=pk)
+    from integrations.ticket_rmm import settings as pairing_settings, status as pairing_status
+    from psa_ai.services.processor import refresh_capabilities
+    if not pairing_settings(connection)['enabled']:
+        messages.warning(request, 'The pairing is not switched on and approved yet, so there is nothing to check.')
+        return redirect('integrations:rmm_detail', pk=connection.pk)
+    refresh_capabilities(connection)
+    connection.refresh_from_db()
+    st = pairing_status(connection)
+    from audit.models import AuditLog
+    AuditLog.log(user=request.user, action='api_call', organization=connection.organization,
+                 object_type='rmm_connection', object_id=connection.pk, object_repr=connection.name[:255],
+                 description=f'Ticket integration pairing check: {st["label"]}', path=request.path,
+                 extra_data={'capabilities': st['capabilities'], 'state': st['state']})
+    (messages.success if st['state'] == 'ok' else messages.warning)(request, f'{st["label"]}. {st["detail"]}')
+    return redirect('integrations:rmm_detail', pk=connection.pk)
 
 
 @login_required

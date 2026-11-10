@@ -73,7 +73,7 @@ def preview(request, ticket_number):
     chars = len(ev.prompt_text(evidence))
     usable = profiles.usable_profiles(ticket.organization, request.user)
     chosen = [profiles.default_profile(ticket.organization, request.user)] if mode == 'analyze' else usable[:MAX_COMPARE]
-    from integrations.providers.rmm.rem0te import integration_settings
+    from integrations.ticket_rmm import settings as integration_settings
     conn = profiles.processor_for(ticket.organization)
     remaining = profiles.budget_remaining(ticket.organization)
     body.update({
@@ -129,7 +129,7 @@ def submit(request, ticket_number):
         return _bad('No AI model profile is allowed for this customer.', 403)
 
     conn = profiles.processor_for(ticket.organization)
-    from integrations.providers.rmm.rem0te import BUSINESS_PIN
+    from integrations.ticket_rmm import TENANT_PIN
     payload_digest = ev.digest({'ticket': ticket.pk, 'mode': mode, 'evidence': digest,
                                 'profiles': sorted(p.pk for p in chosen), 'connection': conn.pk})
     existing = AnalysisJob.objects.filter(actor=request.user, idempotency_key=key).first()
@@ -142,7 +142,7 @@ def submit(request, ticket_number):
             job = AnalysisJob.objects.create(
                 organization=ticket.organization, ticket=ticket, ticket_revision=ev.ticket_revision(ticket),
                 actor=request.user, kind=mode, connection=conn,
-                business_id=str((conn.field_mappings or {}).get(BUSINESS_PIN) or ''),
+                business_id=str((conn.field_mappings or {}).get(TENANT_PIN) or ''),
                 evidence=evidence, evidence_digest=digest, payload_digest=payload_digest,
                 idempotency_key=key, expires_at=timezone.now() + JOB_LIFETIME)
             for p in chosen:

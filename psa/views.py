@@ -383,6 +383,7 @@ def ticket_detail(request, ticket_number):
     context = {
         **workspace,
         **_ticket_asset_context(ticket, workspace['is_msp_staff']),
+        'ticket_rmm_panel': _ticket_rmm_panel(request, ticket, workspace['is_msp_staff']),
         'ticket': ticket,
         'workflow_executions': workflow_executions,
         'comments': comments,
@@ -965,6 +966,25 @@ def _ticket_asset_context(ticket, staff):
         Asset.objects.filter(organization_id=ticket.organization_id).order_by('name')
         .only('id', 'name', 'hostname')[:500])
     return ctx
+
+
+def _ticket_rmm_panel(request, ticket, staff):
+    """Handoff / diagnostics / remote / fix actions for the ticket's device
+    through a paired RMM (psa_ai.services.rmm_actions). Technicians only —
+    customers never get this, and it doesn't depend on AI being on. Built
+    from stored data only: no RMM call while the page renders."""
+    from tech_access.resolver import has_any_assignment, is_technician
+    if not staff or not is_technician(request.user) or not has_any_assignment(request.user, ticket.organization):
+        return None
+    try:
+        import uuid
+        from psa_ai.services.rmm_actions import panel
+        data = panel(request.user, ticket)
+        data['key'] = uuid.uuid4().hex
+        return data
+    except Exception:  # never let the RMM panel break the ticket page
+        logger.exception('Building the RMM panel failed for ticket %s', ticket.pk)
+        return None
 
 
 def _asset_for_ticket(org, raw_id):
