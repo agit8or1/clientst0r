@@ -152,6 +152,7 @@ MIDDLEWARE = [
     'axes.middleware.AxesMiddleware',
     'core.middleware.CurrentOrganizationMiddleware',
     'accounts.middleware.SectionPermissionMiddleware',  # vault_view / docs_view / assets_view by URL prefix
+    'core.org_context_guard.OrgContextGuardMiddleware',  # refuse saves made after switching client in another tab
     'accounts.middleware.SessionIdleTimeoutMiddleware',
     'accounts.middleware.Enforce2FAMiddleware',
     'accounts.middleware.UserLanguageMiddleware',

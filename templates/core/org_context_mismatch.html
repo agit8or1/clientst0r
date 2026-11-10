@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Client changed — not saved{% endblock %}
+{% block content %}
+<div class="card border-warning" style="max-width: 46rem;">
+    <div class="card-body">
+        <h4 class="card-title"><i class="fas fa-triangle-exclamation text-warning me-2" aria-hidden="true"></i>Not saved: the client changed</h4>
+        <p class="mb-2" data-testid="org-context-message">{{ message }}</p>
+        <p class="text-muted small mb-3">The current client is shared by every tab, so switching in one tab changes it in all of them. Saving here would have written to {{ current_name }}.</p>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-primary" data-history-back>
+                <i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back to the form
+            </button>
+            {% if opened_for %}
+            <a class="btn btn-outline-secondary" href="{% url 'accounts:switch_organization' opened_for.pk %}">Switch back to {{ opened_for.name }}</a>
+            {% elif opened_global %}
+            <a class="btn btn-outline-secondary" href="{% url 'accounts:switch_to_global_view' %}">Switch back to Global View</a>
+            {% endif %}
+        </div>
+        <p class="text-muted small mt-3 mb-0">Going back keeps what you typed in most browsers. Switch back to the original client, then save again.</p>
+    </div>
+</div>
+<script nonce="{{ csp_nonce }}">
+document.querySelector('[data-history-back]').addEventListener('click', function () { history.back(); });
+</script>
+{% endblock %}

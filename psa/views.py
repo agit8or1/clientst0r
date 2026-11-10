@@ -3173,12 +3173,20 @@ def contract_form(request, pk=None):
     client_orgs = _customer_orgs(request).filter(is_active=True).order_by('name')
 
     def _render(selected_org_id=None):
+        # SLA overrides are rendered into the inputs server-side: filling them
+        # from a script meant a save with that script not run cleared them.
+        matrix = (item.sla_matrix if item else None) or {}
+        priorities = list(TicketPriority.objects.all().order_by('sort_order'))
+        for p in priorities:
+            entry = matrix.get(p.code) if isinstance(matrix.get(p.code), dict) else {}
+            p.override_response = entry.get('response_minutes')
+            p.override_resolution = entry.get('resolution_minutes')
         return render(request, 'psa/contract_form.html', {
             'item': item,
             'client_orgs': client_orgs,
             'contract_types': Contract.CONTRACT_TYPES,
             'status_choices': Contract.STATUS_CHOICES,
-            'priorities': TicketPriority.objects.all().order_by('sort_order'),
+            'priorities': priorities,
             'selected_client_org_id': selected_org_id if selected_org_id is not None
                                        else (item.organization_id if item else (org.pk if org else None)),
         })
@@ -3198,14 +3206,16 @@ def contract_form(request, pk=None):
             messages.error(request, 'Please choose a client for this contract.')
             return _render()
 
-        name = (request.POST.get('name') or '').strip()
-        client_org_id = request.POST.get('client_org')
+        # On an edit, a POST that does not carry the name or client keeps
+        # the saved ones; posting either blank is still refused.
+        name = (request.POST.get('name', item.name if item else '') or '').strip()
+        client_org_id = request.POST.get('client_org', str(item.client_org_id) if item else '')
         if not name or not client_org_id:
             messages.error(request, 'Name and client are required.')
             return _render(selected_org_id=item_org.pk)
         try:
             client_org = _customer_orgs(request).get(pk=client_org_id)
-        except Organization.DoesNotExist:
+        except (Organization.DoesNotExist, ValueError, TypeError):
             messages.error(request, 'Client not found.')
             return _render(selected_org_id=item_org.pk)
 
@@ -3216,74 +3226,53 @@ def contract_form(request, pk=None):
             item.organization = item_org
             item.client_org = client_org
             item.name = name
-        item.contract_type = request.POST.get('contract_type') or 'block_hours'
-        item.status = request.POST.get('status') or 'draft'
-        item.start_date = request.POST.get('start_date') or item.start_date
-        item.end_date = request.POST.get('end_date') or None
-        try:
-            item.total_hours = request.POST.get('total_hours') or 0
-        except (TypeError, ValueError):
-            item.total_hours = 0
-        try:
-            item.hourly_rate = request.POST.get('hourly_rate') or 0
-            item.overage_rate = request.POST.get('overage_rate') or 0
-        except (TypeError, ValueError):
-            pass
-        item.notes = (request.POST.get('notes') or '').strip()
+        # A field the POST does not carry keeps the saved value; only a
+        # field posted blank is a clear (see psa/form_fields.py).
+        from decimal import Decimal
+        from .form_fields import PostedFields
+        f = PostedFields(request.POST)
+        item.contract_type = f.choice('contract_type', item.contract_type or 'block_hours',
+                                      dict(Contract.CONTRACT_TYPES))
+        item.status = f.choice('status', item.status or 'draft', dict(Contract.STATUS_CHOICES))
+        item.start_date = f.date('start_date', item.start_date, blank=item.start_date)
+        item.end_date = f.date('end_date', item.end_date, blank=None)
+        item.total_hours = f.decimal('total_hours', item.total_hours, minimum=Decimal('0'))
+        item.hourly_rate = f.decimal('hourly_rate', item.hourly_rate, minimum=Decimal('0'))
+        item.overage_rate = f.decimal('overage_rate', item.overage_rate, minimum=Decimal('0'))
+        item.notes = f.text('notes', item.notes or '')
 
         # Phase 1 contract-engine fields (rollover, auto-renew, role gates).
         # rolled_over_minutes / rollover_expires_at / parent_contract are
         # intentionally NOT exposed here — they're set by the renewal cron.
-        from decimal import Decimal, InvalidOperation
-
-        def _decimal(name, default='0'):
-            try:
-                return Decimal(request.POST.get(name) or default)
-            except (InvalidOperation, TypeError):
-                return Decimal(default)
-
-        def _int(name, default=0):
-            try:
-                return int(request.POST.get(name) or default)
-            except (TypeError, ValueError):
-                return default
-
-        def _bool(name):
-            return (request.POST.get(name) or '').lower() in ('1', 'true', 'on', 'yes')
-
-        def _csv_list(name):
-            raw = (request.POST.get(name) or '').strip()
-            if not raw:
-                return []
-            return [s.strip() for s in raw.split(',') if s.strip()]
-
-        item.rollover_percent = _decimal('rollover_percent')
-        item.rollover_expiry_days = _int('rollover_expiry_days')
-        item.auto_renew = _bool('auto_renew')
-        item.auto_renew_period_months = _int('auto_renew_period_months', 12) or 12
-        item.proration_enabled = _bool('proration_enabled')
-        item.billable_role_codes = _csv_list('billable_role_codes')
-        item.excluded_role_codes = _csv_list('excluded_role_codes')
+        item.rollover_percent = f.decimal('rollover_percent', item.rollover_percent, minimum=Decimal('0'))
+        item.rollover_expiry_days = f.integer('rollover_expiry_days', item.rollover_expiry_days, minimum=0)
+        # Unticked checkboxes post nothing; `contract_flags` marks that the
+        # form rendered them, so their absence means "off" only then.
+        item.auto_renew = f.flag('auto_renew', item.auto_renew, 'contract_flags')
+        item.proration_enabled = f.flag('proration_enabled', item.proration_enabled, 'contract_flags')
+        item.auto_renew_period_months = f.integer('auto_renew_period_months', item.auto_renew_period_months,
+                                                  blank=12, minimum=1) or 12
+        item.billable_role_codes = f.csv_list('billable_role_codes', item.billable_role_codes or [])
+        item.excluded_role_codes = f.csv_list('excluded_role_codes', item.excluded_role_codes or [])
 
         # SLA matrix — POST keys are sla_<code>_response and sla_<code>_resolution.
-        # Empty string = "use priority default" (omit from matrix).
-        matrix = {}
+        # Blank = "use priority default" (drop the override); a key the POST
+        # does not carry, or a value that is not a number, keeps the saved one.
+        matrix = {code: dict(entry) for code, entry in (item.sla_matrix or {}).items()
+                  if isinstance(entry, dict)}
         for p in TicketPriority.objects.all():
-            r_raw = request.POST.get(f'sla_{p.code}_response') or ''
-            x_raw = request.POST.get(f'sla_{p.code}_resolution') or ''
-            entry = {}
-            if r_raw.strip():
-                try:
-                    entry['response_minutes'] = max(0, int(r_raw))
-                except ValueError:
-                    pass
-            if x_raw.strip():
-                try:
-                    entry['resolution_minutes'] = max(0, int(x_raw))
-                except ValueError:
-                    pass
+            entry = matrix.get(p.code, {})
+            for kind in ('response', 'resolution'):
+                key = f'{kind}_minutes'
+                value = f.integer(f'sla_{p.code}_{kind}', entry.get(key), blank=None, minimum=0)
+                if value is None:
+                    entry.pop(key, None)
+                else:
+                    entry[key] = value
             if entry:
                 matrix[p.code] = entry
+            else:
+                matrix.pop(p.code, None)
         item.sla_matrix = matrix
         item.save()
         # Window, client and role gates all decide which time entries count
@@ -3303,35 +3292,42 @@ def contract_form(request, pk=None):
         # silently delete a bundle the form had never even shown as removed.
         # Auto-renewal copies bundle items onto the renewal contract, so rows
         # can exist without this form ever having created them.
-        bundle_json = request.POST.get('bundle_items_json')
-        if bundle_json is None:
-            bundle_rows = None
-        else:
+        #
+        # An empty string is the editor's untouched state too: the hidden
+        # field renders blank and is only filled once the editor serializes,
+        # so a blank value means "no bundle submitted", never "clear it". The
+        # editor posts `[]` when the user removes every row.
+        bundle_json = (request.POST.get('bundle_items_json') or '').strip()
+        bundle_rows = None
+        if bundle_json:
             try:
-                bundle_rows = json.loads(bundle_json or '[]')
+                bundle_rows = json.loads(bundle_json)
             except (ValueError, TypeError):
-                bundle_rows = None
+                f.malformed.append('bundled services')
 
         if isinstance(bundle_rows, list):
             from psa.models import ContractBundleItem
             from decimal import Decimal, InvalidOperation
 
+            def _row_decimal(row, key, current):
+                raw = row.get(key)
+                if raw is None or str(raw).strip() == '':
+                    return current
+                try:
+                    value = Decimal(str(raw).strip())
+                except (InvalidOperation, ValueError):
+                    f.malformed.append(f'bundled service {key.replace("_", " ")}')
+                    return current
+                if not value.is_finite() or value < 0:
+                    f.malformed.append(f'bundled service {key.replace("_", " ")}')
+                    return current
+                return value
+
+            periods = ('one_time', 'monthly', 'quarterly', 'yearly')
             seen_pks = set()
             for i, row in enumerate(bundle_rows):
                 if not isinstance(row, dict):
                     continue
-                row_name = (row.get('name') or '').strip()
-                if not row_name:
-                    continue
-                try:
-                    qty = Decimal(str(row.get('quantity') or '1'))
-                    price = Decimal(str(row.get('unit_price') or '0'))
-                except InvalidOperation:
-                    qty, price = Decimal('1'), Decimal('0')
-                period = row.get('recurring_period') or 'monthly'
-                if period not in ('one_time', 'monthly', 'quarterly', 'yearly'):
-                    period = 'monthly'
-
                 row_pk = row.get('pk') or ''
                 existing = None
                 if row_pk:
@@ -3341,10 +3337,27 @@ def contract_form(request, pk=None):
                         ).first()
                     except (ValueError, TypeError):
                         existing = None
+                row_name = str(row.get('name') or '').strip()
+                if not row_name:
+                    # A row that still names an existing line but carries no
+                    # name is malformed, not a removal — removing a line drops
+                    # it from the list. Keep it as saved.
+                    if existing:
+                        seen_pks.add(existing.pk)
+                    continue
+                qty = _row_decimal(row, 'quantity', existing.quantity if existing else Decimal('1'))
+                price = _row_decimal(row, 'unit_price', existing.unit_price if existing else Decimal('0'))
+                period = row.get('recurring_period')
+                if period not in periods:
+                    period = existing.recurring_period if existing else 'monthly'
+                unit_label = row.get('unit_label')
+                if unit_label is None:
+                    unit_label = existing.unit_label if existing else ''
+
                 if existing:
                     existing.name = row_name[:200]
                     existing.quantity = qty
-                    existing.unit_label = (row.get('unit_label') or '')[:40]
+                    existing.unit_label = str(unit_label)[:40]
                     existing.unit_price = price
                     existing.recurring_period = period
                     existing.sort_order = i
@@ -3355,7 +3368,7 @@ def contract_form(request, pk=None):
                         contract=item,
                         name=row_name[:200],
                         quantity=qty,
-                        unit_label=(row.get('unit_label') or '')[:40],
+                        unit_label=str(unit_label)[:40],
                         unit_price=price,
                         recurring_period=period,
                         sort_order=i,
@@ -3373,6 +3386,7 @@ def contract_form(request, pk=None):
             description=f'{"Updated" if pk else "Created"} contract "{item.name}"',
             ip_address=_client_ip(request), path=request.path,
         )
+        f.warn(request, f'Saved "{item.name}"')
         messages.success(request, f'Saved "{item.name}".')
         return redirect('psa:contract_detail', pk=item.pk)
 
@@ -3754,14 +3768,16 @@ def quote_form(request, pk=None):
             messages.error(request, 'Please choose a client for this quote.')
             return _render()
 
-        title = (request.POST.get('title') or '').strip()
-        client_org_id = request.POST.get('client_org')
+        # On an edit, a POST that does not carry the title or client keeps
+        # the saved ones; posting either blank is still refused.
+        title = (request.POST.get('title', item.title if item else '') or '').strip()
+        client_org_id = request.POST.get('client_org', str(item.client_org_id) if item else '')
         if not title or not client_org_id:
             messages.error(request, 'Title and client are required.')
             return _render(selected_org_id=item_org.pk)
         try:
             client_org = _customer_orgs(request).get(pk=client_org_id)
-        except Organization.DoesNotExist:
+        except (Organization.DoesNotExist, ValueError, TypeError):
             messages.error(request, 'Client not found.')
             return _render(selected_org_id=item_org.pk)
 
@@ -3772,35 +3788,56 @@ def quote_form(request, pk=None):
             item.organization = item_org
             item.client_org = client_org
             item.title = title
-        item.description = (request.POST.get('description') or '').strip()
-        item.status = request.POST.get('status') or 'draft'
-        item.valid_until = request.POST.get('valid_until') or None
-        try:
-            item.tax_rate = request.POST.get('tax_rate') or 0
-        except (TypeError, ValueError):
-            item.tax_rate = 0
+        # Missing fields keep the saved value, malformed ones too (reported);
+        # only a field posted blank clears (see psa/form_fields.py).
+        from decimal import Decimal
+        from .form_fields import PostedFields
+        f = PostedFields(request.POST)
+        item.description = f.text('description', item.description or '')
+        item.status = f.choice('status', item.status or 'draft', dict(Quote.STATUS_CHOICES))
+        item.valid_until = f.date('valid_until', item.valid_until, blank=None)
+        if not pk:
+            default_tax = SystemSetting.get_settings().psa_default_tax_rate or Decimal('0')
+        else:
+            default_tax = item.tax_rate
+        item.tax_rate = f.decimal('tax_rate', default_tax, minimum=Decimal('0'))
         item.save()
 
-        # Replace line items if posted
+        # Replace line items if posted. No `li_description` at all leaves
+        # the lines alone; so does a submission whose columns do not line up
+        # or that carries a quantity or price that is not a number — the
+        # lines are replaced wholesale, so a partly-readable set would lose
+        # rows. Removing the last row in the editor blanks it, which clears.
         line_descs = request.POST.getlist('li_description')
         line_qtys = request.POST.getlist('li_quantity')
         line_prices = request.POST.getlist('li_unit_price')
+        rows = None
         if line_descs:
+            if len(line_qtys) != len(line_descs) or len(line_prices) != len(line_descs):
+                f.malformed.append('line items')
+            else:
+                rows = []
+                for d, q, p in zip(line_descs, line_qtys, line_prices):
+                    if not (d or '').strip():
+                        continue
+                    bad = []
+                    qd = _parse_line_decimal(q, Decimal('1'), bad, 'line quantity')
+                    pd = _parse_line_decimal(p, Decimal('0'), bad, 'line unit price')
+                    if bad:
+                        f.malformed.extend(bad)
+                        rows = None
+                        break
+                    rows.append((d.strip()[:300], qd, pd))
+        if rows is not None:
             item.line_items.all().delete()
-            for i, (d, q, p) in enumerate(zip(line_descs, line_qtys, line_prices)):
-                if not (d or '').strip():
-                    continue
-                try:
-                    qf = float(q or 1)
-                    pf = float(p or 0)
-                except ValueError:
-                    qf, pf = 1, 0
+            for i, (d, qd, pd) in enumerate(rows):
                 QuoteLineItem.objects.create(
                     quote=item, sort_order=i,
-                    description=d.strip()[:300], quantity=qf, unit_price=pf,
+                    description=d, quantity=qd, unit_price=pd,
                 )
         item.recompute_totals()
 
+        f.warn(request, f'Saved "{item.quote_number}"')
         messages.success(request, f'Saved "{item.quote_number}".')
         return redirect('psa:quote_list')
 
@@ -4614,15 +4651,35 @@ def _parse_decimal(raw, default):
         return Decimal(default)
 
 
-def _sync_invoice_lines(invoice, descs, qtys, prices, ids):
+def _parse_line_decimal(raw, current, malformed, label):
+    """A line's quantity or price: blank → `current`, malformed → `current`
+    (noted in `malformed`), otherwise the posted value."""
+    from decimal import Decimal, InvalidOperation
+    text = str(raw or '').strip()
+    if not text:
+        return current
+    try:
+        value = Decimal(text)
+    except (InvalidOperation, ValueError):
+        value = None
+    if value is None or not value.is_finite():
+        if malformed is not None:
+            malformed.append(label)
+        return current
+    return value
+
+
+def _sync_invoice_lines(invoice, descs, qtys, prices, ids, malformed=None):
     """Apply the invoice form's line rows to `invoice` by line id.
 
     A row carrying the id of one of this invoice's lines updates that line in
     place (source, source_id, is_taxable and gl_account_code untouched). A row
     with no id — or an id that is not this invoice's — becomes a new manual
     line. Lines whose id no row carries, or whose row was blanked, are
-    deleted.
+    deleted. A quantity or price that is blank or not a number keeps the
+    line's saved value (1 and 0 for a new line).
     """
+    from decimal import Decimal
     from .models import InvoiceLineItem
     existing = {li.pk: li for li in invoice.line_items.all()}
     kept = set()
@@ -4634,13 +4691,15 @@ def _sync_invoice_lines(invoice, descs, qtys, prices, ids):
         d = (d or '').strip()
         if not d:
             continue
-        qty = _parse_decimal(q, '1')
-        price = _parse_decimal(p, '0')
         try:
             line_id = int(raw_id)
         except (TypeError, ValueError):
             line_id = None
         line = existing.get(line_id)
+        qty = _parse_line_decimal(q, line.quantity if line is not None else Decimal('1'),
+                                  malformed, 'line quantity')
+        price = _parse_line_decimal(p, line.unit_price if line is not None else Decimal('0'),
+                                    malformed, 'line unit price')
         if line is not None and line_id not in kept:
             line.sort_order = i
             line.description = d[:300]
@@ -4803,14 +4862,16 @@ def invoice_form(request, pk=None):
             messages.error(request, 'Please choose a client for this invoice.')
             return _render()
 
-        title = (request.POST.get('title') or '').strip()
-        client_org_id = request.POST.get('client_org')
+        # On an edit, a POST that does not carry the title or client keeps
+        # the saved ones; posting either blank is still refused.
+        title = (request.POST.get('title', item.title if item else '') or '').strip()
+        client_org_id = request.POST.get('client_org', str(item.client_org_id) if item else '')
         if not title or not client_org_id:
             messages.error(request, 'Title and client are required.')
             return _render(selected_org_id=item_org.pk)
         try:
             client_org = _customer_orgs(request).get(pk=client_org_id)
-        except Organization.DoesNotExist:
+        except (Organization.DoesNotExist, ValueError, TypeError):
             messages.error(request, 'Client not found.')
             return _render(selected_org_id=item_org.pk)
 
@@ -4821,22 +4882,30 @@ def invoice_form(request, pk=None):
             item.organization = item_org
             item.client_org = client_org
             item.title = title
-        item.description = (request.POST.get('description') or '').strip()
+        # A field the POST does not carry keeps the saved value; a malformed
+        # one keeps it too and is reported. Only a field posted blank clears
+        # (see psa/form_fields.py).
+        from decimal import Decimal
+        from .form_fields import PostedFields
+        f = PostedFields(request.POST)
+        item.description = f.text('description', item.description or '')
         # Only drafts reach this path (see `locked` above). The invoice is
         # saved as a draft first and moved to the requested status only after
         # its totals — and so the approval gate — have been re-evaluated.
-        requested_status = request.POST.get('status') or 'draft'
-        if requested_status not in dict(Invoice.STATUS_CHOICES):
-            requested_status = 'draft'
+        requested_status = f.choice('status', 'draft', dict(Invoice.STATUS_CHOICES))
         item.status = 'draft'
-        item.invoice_date = request.POST.get('invoice_date') or item.invoice_date
-        item.due_date = request.POST.get('due_date') or None
-        item.currency = (request.POST.get('currency') or 'USD')[:8]
-        try:
-            item.tax_rate = request.POST.get('tax_rate') or 0
-        except (TypeError, ValueError):
-            item.tax_rate = 0
-        item.notes = (request.POST.get('notes') or '').strip()
+        item.invoice_date = f.date('invoice_date', item.invoice_date, blank=item.invoice_date)
+        item.due_date = f.date('due_date', item.due_date, blank=None)
+        if pk:
+            default_currency = item.currency or 'USD'
+            default_tax = item.tax_rate
+        else:
+            _settings = SystemSetting.get_settings()
+            default_currency = getattr(_settings, 'psa_default_currency', None) or 'USD'
+            default_tax = getattr(_settings, 'psa_default_tax_rate', None) or Decimal('0')
+        item.currency = (f.text('currency', default_currency) or default_currency)[:8]
+        item.tax_rate = f.decimal('tax_rate', default_tax, minimum=Decimal('0'))
+        item.notes = f.text('notes', item.notes or '')
         total_before = item.total if pk else None
         item.save()
 
@@ -4844,12 +4913,21 @@ def invoice_form(request, pk=None):
         # source/source_id (time entry, expense, contract period...), so an
         # edit does not make billed work look unbilled; new rows are manual;
         # rows removed from the form are deleted.
+        #
+        # No `li_description` at all means the line editor was not submitted:
+        # the lines stay as they are. The editor always posts at least one row
+        # (removing the last one blanks it), so clearing every line is a
+        # single blank row. Columns of different lengths cannot be matched
+        # row by row, so such a submission leaves the lines untouched too.
         descs = request.POST.getlist('li_description')
         if descs:
-            _sync_invoice_lines(item, descs,
-                                request.POST.getlist('li_quantity'),
-                                request.POST.getlist('li_unit_price'),
-                                request.POST.getlist('li_id'))
+            qtys = request.POST.getlist('li_quantity')
+            prices = request.POST.getlist('li_unit_price')
+            ids = request.POST.getlist('li_id')
+            if len(qtys) != len(descs) or len(prices) != len(descs) or (ids and len(ids) != len(descs)):
+                f.malformed.append('line items')
+            else:
+                _sync_invoice_lines(item, descs, qtys, prices, ids, malformed=f.malformed)
         item.recompute_totals()
 
         # An approval covers the amount that was approved. If the total moves
@@ -4890,6 +4968,7 @@ def invoice_form(request, pk=None):
             description=f'{"Updated" if pk else "Created"} invoice {item.invoice_number}{status_note}',
             ip_address=_client_ip(request), path=request.path,
         )
+        f.warn(request, f'Saved {item.invoice_number}')
         messages.success(request, f'Saved {item.invoice_number}.')
         return redirect('psa:invoice_detail', pk=item.pk)
 

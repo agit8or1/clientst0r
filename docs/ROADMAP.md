@@ -1703,6 +1703,17 @@ are built on top of them.
   errors saved before this change. Shown on Integrations and on each
   connection's page. Distributor and accounting connections show their
   existing status fields (redacted) until they adopt the same recorder.
+- **Edit forms keep what they don't submit** *(in progress — not yet
+  released)* — extends the bundled-services fix (shipped v3.17.584, #147).
+  Contract, invoice and quote edits keep a field the submission does not carry
+  or carries malformed (reported, never a 500); a blank value, an unticked
+  checkbox or a removed row still clears. A contract saved before its bundle
+  editor ran keeps its bundle. Technician Access keeps capabilities, group
+  members, customer restrictions, approvers and detection settings a
+  submission leaves out. Switching client with unsaved edits asks first, and a
+  form left open while another tab switched client is refused instead of
+  being saved under the other client. Browser checks:
+  `scripts/browser_tests/form_friction.py`.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 

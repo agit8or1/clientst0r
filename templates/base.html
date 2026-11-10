@@ -39,7 +39,7 @@
     {% block extra_css %}{% endblock %}
     <script src="{% static 'js/csp-events.js' %}"></script>
 </head>
-<body class="{% if user_background_url or user_background_color %}has-background{% endif %}" {% if user_background_url %}style="background-image: url('{{ user_background_url }}');"{% elif user_background_color %}style="background-color: {{ user_background_color }};"{% endif %}>
+<body class="{% if user_background_url or user_background_color %}has-background{% endif %}"{% if user.is_authenticated %} data-org-context="{{ current_organization.pk|default_if_none:'' }}" data-switch-url="{% url 'accounts:switch_organization' 0 %}" data-global-view-url="{% url 'accounts:switch_to_global_view' %}"{% endif %} {% if user_background_url %}style="background-image: url('{{ user_background_url }}');"{% elif user_background_color %}style="background-color: {{ user_background_color }};"{% endif %}>
 
     <!-- PWA Install Banner -->
     <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #58a6ff; color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 9999; max-width: 90%; text-align: center;">
@@ -410,6 +410,9 @@
     <!-- "Help Us Grow" modal: native share sheet + clipboard, with fallbacks.
          Deferred and self-guarding, so it costs nothing on pages without the modal. -->
     <script src="{% static 'js/help_us_grow.js' %}" defer></script>
+    <!-- Unsaved edits: asks before the client switcher discards them, and stamps
+         POST forms with the client they were opened for (core.org_context_guard). -->
+    <script src="{% static 'js/form_guard.js' %}" defer></script>
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>

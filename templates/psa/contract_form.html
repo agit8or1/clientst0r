@@ -11,7 +11,7 @@
 
 <h2 class="mb-3">{% if item %}Edit Contract{% else %}New Contract{% endif %}</h2>
 
-<form method="post" class="card">
+<form method="post" class="card" data-unsaved-guard>
     {% csrf_token %}
     <div class="card-body">
         <div class="mb-3">
@@ -103,33 +103,20 @@
                             <td>
                                 <input type="number" min="0" name="sla_{{ p.code }}_response"
                                        class="form-control form-control-sm"
+                                       value="{{ p.override_response|default_if_none:'' }}"
                                        data-prio="{{ p.code }}" data-kind="response">
                             </td>
                             <td><small class="text-muted">{{ p.resolution_target_minutes }}</small></td>
                             <td>
                                 <input type="number" min="0" name="sla_{{ p.code }}_resolution"
                                        class="form-control form-control-sm"
+                                       value="{{ p.override_resolution|default_if_none:'' }}"
                                        data-prio="{{ p.code }}" data-kind="resolution">
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-                {% if item and item.sla_matrix %}
-                {{ item.sla_matrix|json_script:"sla-matrix-data" }}
-                <script nonce="{{ csp_nonce }}">
-                {# Pre-fill the override inputs from the saved sla_matrix JSON. #}
-                const matrix = JSON.parse(document.getElementById('sla-matrix-data').textContent);
-                document.querySelectorAll('input[data-prio]').forEach(inp => {
-                    const code = inp.dataset.prio;
-                    const kind = inp.dataset.kind;
-                    if (matrix[code]) {
-                        const v = matrix[code][kind + '_minutes'];
-                        if (v != null) inp.value = v;
-                    }
-                });
-                </script>
-                {% endif %}
             </div>
             {% if item %}
             <div class="col-12">
@@ -159,7 +146,9 @@
                         <small class="form-text text-muted">Days from new period start. <code>0</code> = never expire.</small>
                       </div>
 
-                      {# Auto-renewal #}
+                      {% comment %}Auto-renewal. `contract_flags` tells the view these checkboxes were
+                         rendered, so an unticked (absent) one means "off" rather than "not submitted".{% endcomment %}
+                      <input type="hidden" name="contract_flags" value="1">
                       <div class="col-md-6 d-flex align-items-center pt-3">
                         <div class="form-check">
                           <input class="form-check-input" type="checkbox" name="auto_renew" id="auto_renew"
@@ -345,17 +334,25 @@
         hidden.value = JSON.stringify(items);
     }
 
-    tbody.addEventListener('input', recompute);
+    // The hidden field is kept current on every edit, not only on submit: a
+    // submission that bypasses the submit event (form.submit(), another
+    // script) still carries what the user sees. It stays blank until the
+    // first edit, which the view reads as "bundle not submitted" — never as
+    // "clear it"; removing every row posts `[]`.
+    function changed() { recompute(); serialize(); }
+    tbody.addEventListener('input', changed);
+    tbody.addEventListener('change', changed);
     tbody.addEventListener('click', (e) => {
         const btn = e.target.closest('.bundle-delete');
         if (!btn) return;
         btn.closest('.bundle-row').remove();
-        recompute();
+        changed();
     });
     addBtn.addEventListener('click', () => {
         const node = tpl.content.firstElementChild.cloneNode(true);
         tbody.appendChild(node);
-        recompute();
+        changed();
+        node.querySelector('.bundle-name').focus();
     });
 
     // Serialize on form submit — the form this editor actually lives in.
