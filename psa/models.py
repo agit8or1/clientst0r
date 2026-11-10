@@ -986,9 +986,10 @@ class ServiceCatalogItem(models.Model):
     )
     approval_policy = models.CharField(
         max_length=20, choices=APPROVAL_POLICY_CHOICES, default=APPROVAL_NONE,
-        help_text='Customer approver: a customer org admin (other than the '
+        help_text='Customer approver: someone at the customer (other than the '
                   'requester) approves the request in the portal before work '
-                  'starts.',
+                  'starts: one of the named approvers for that customer when '
+                  'any are set, otherwise a customer org admin.',
     )
     expected_turnaround_text = models.CharField(
         max_length=120, blank=True,
@@ -1066,6 +1067,51 @@ class ServiceCatalogItem(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ServiceRequestApprover(models.Model):
+    """A customer person named to approve one request type for one customer.
+
+    E.g. "New starter" requests at Globex are approved by Dana Whitfield.
+    When a request type has named approvers for a customer, only they
+    (any one of them, never the requester) approve it in the portal;
+    without names the customer's org admins approve, as before. Who may
+    approve is worked out when the decision is made (see
+    psa/service_requests.py:approvers_for), so someone who has left the
+    customer stops counting straight away. Configured by MSP staff on the
+    catalog item ("Named approvers").
+    """
+    catalog_item = models.ForeignKey(
+        ServiceCatalogItem, on_delete=models.CASCADE,
+        related_name='named_approvers',
+    )
+    organization = models.ForeignKey(
+        'core.Organization', on_delete=models.CASCADE,
+        related_name='service_request_approvers',
+        help_text='The customer this approver signs off for.',
+    )
+    user = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='service_request_approver_for',
+    )
+    added_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_service_request_approvers'
+        ordering = ['catalog_item_id', 'organization_id', 'user_id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['catalog_item', 'organization', 'user'],
+                name='uniq_service_request_approver'),
+        ]
+        indexes = [models.Index(fields=['catalog_item', 'organization'])]
+
+    def __str__(self):
+        return f'{self.user} approves {self.catalog_item} for {self.organization}'
 
 
 # ---------------------------------------------------------------------------

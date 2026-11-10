@@ -19,6 +19,7 @@ urlpatterns = [
     path('catalog/', views.service_catalog, name='service_catalog'),
     path('catalog/new/', views.service_catalog_form, name='service_catalog_create'),
     path('catalog/<int:pk>/edit/', views.service_catalog_form, name='service_catalog_edit'),
+    path('catalog/<int:pk>/approvers/', views.service_catalog_approvers, name='service_catalog_approvers'),
     # Time entries
     path('t/<str:ticket_number>/timer/start/', views.timer_start, name='timer_start'),
     path('t/<str:ticket_number>/timer/stop/', views.timer_stop, name='timer_stop'),

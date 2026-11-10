@@ -407,6 +407,146 @@ def portal_catalog_for(organization):
 
 
 # ---------------------------------------------------------------------------
+# Who approves (named approvers per request type and customer)
+# ---------------------------------------------------------------------------
+
+# Where the approver list came from (approvers_for()['source']).
+SOURCE_NAMED = 'named'                    # the item's named approvers
+SOURCE_ADMINS = 'admins'                  # no (current) names: org admins
+SOURCE_REQUESTER_ONLY = 'requester_only'  # the requester is the only named
+                                          # approver: org admins instead
+
+
+def eligible_approver_memberships(organization):
+    """Active memberships of `organization` whose people may be named as
+    approvers: active users who are customer people, not MSP staff."""
+    from accounts.models import Membership
+    if organization is None:
+        return Membership.objects.none()
+    staff_ids = _msp_staff_ids()
+    return (Membership.objects
+            .filter(organization=organization, is_active=True, user__is_active=True)
+            .exclude(user_id__in=staff_ids)
+            .select_related('user')
+            .order_by('user__first_name', 'user__last_name', 'user__username'))
+
+
+def _msp_staff_ids():
+    from django.contrib.auth.models import User
+    from psa.visibility import msp_staff_q
+    return set(User.objects.filter(msp_staff_q()).values_list('pk', flat=True))
+
+
+def named_approver_rows(item, organization):
+    """(current_users, departed_rows) for the item's named approvers at
+    `organization`. Departed rows name someone who is no longer an active
+    customer member there (left, deactivated, or now MSP staff); they are
+    ignored for approval and flagged in the staff UI."""
+    from psa.models import ServiceRequestApprover
+    if item is None or getattr(item, 'pk', None) is None or organization is None:
+        return [], []
+    rows = list(ServiceRequestApprover.objects
+                .filter(catalog_item=item, organization=organization)
+                .select_related('user'))
+    if not rows:
+        return [], []
+    eligible = set(eligible_approver_memberships(organization)
+                   .values_list('user_id', flat=True))
+    current = [r.user for r in rows if r.user_id in eligible]
+    departed = [r for r in rows if r.user_id not in eligible]
+    return current, departed
+
+
+def _org_admins(organization):
+    from django.contrib.auth.models import User
+    return list(User.objects.filter(
+        memberships__organization=organization, memberships__is_active=True,
+        memberships__is_org_admin=True, is_active=True,
+    ).distinct().order_by('first_name', 'last_name', 'username'))
+
+
+def approvers_for(item, organization, requester=None):
+    """Who may approve a service request for `item` at `organization`.
+
+    Returns {'users': [...], 'source': SOURCE_*, 'departed': [rows]}.
+
+    * Named approvers who are still active customer members there, minus
+      the requester — any one of them approves.
+    * If names are set but the requester is the only current one, the
+      customer's org admins (minus the requester) approve instead.
+    * No names (or everyone named has left): the customer's org admins,
+      minus the requester — the original rule.
+    """
+    requester_id = getattr(requester, 'pk', requester)
+    current, departed = named_approver_rows(item, organization)
+    if current:
+        users = [u for u in current if u.pk != requester_id]
+        if users:
+            return {'users': users, 'source': SOURCE_NAMED, 'departed': departed}
+        source = SOURCE_REQUESTER_ONLY
+    else:
+        source = SOURCE_ADMINS
+    users = [u for u in _org_admins(organization) if u.pk != requester_id]
+    return {'users': users, 'source': source, 'departed': departed}
+
+
+def approval_catalog_item(approval):
+    """The catalog item a service-request approval belongs to, or None."""
+    from psa.models import ServiceCatalogItem
+    if approval.object_type != APPROVAL_OBJECT_TYPE or not approval.object_id:
+        return None
+    return ServiceCatalogItem.objects.filter(pk=approval.object_id).first()
+
+
+def approvers_for_approval(approval):
+    return approvers_for(approval_catalog_item(approval), approval.organization,
+                         approval.requested_by_id)
+
+
+def can_approve_service_request(approval, user):
+    """True when `user` may decide this service-request approval."""
+    if user is None or not getattr(user, 'pk', None):
+        return False
+    if approval.requested_by_id == user.pk:
+        return False
+    return any(u.pk == user.pk for u in approvers_for_approval(approval)['users'])
+
+
+def notify_approvers(approval, ticket, item, requester):
+    """Email the people who can approve a new service request. Best-effort:
+    a mail failure never blocks the submission. Returns the recipients."""
+    from django.conf import settings as django_settings
+    from django.urls import reverse
+
+    from core.models import SystemSetting
+    from psa.notifications import _send_email
+
+    try:
+        if not SystemSetting.get_settings().psa_portal_customer_approvals_enabled:
+            return []
+    except Exception:
+        return []
+    who = approvers_for(item, approval.organization, requester)['users']
+    base = getattr(django_settings, 'SITE_URL', '').rstrip('/')
+    url = base + reverse('portal:approvals_list')
+    name = requester.get_full_name() or requester.username
+    sent = []
+    for user in who:
+        if not user.email:
+            continue
+        ok, _ = _send_email(
+            user,
+            f'[{ticket.ticket_number}] Approval needed: {item.name}',
+            f'{name} has asked for "{item.name}" ({ticket.ticket_number}) '
+            f'and it needs your approval before work starts.\n\n'
+            f'Review it in the portal: {url}\n',
+        )
+        if ok:
+            sent.append(user)
+    return sent
+
+
+# ---------------------------------------------------------------------------
 # Submission → ticket (+ approval, + workflow)
 # ---------------------------------------------------------------------------
 
@@ -528,6 +668,13 @@ def submit_request(*, item, organization, user, answers):
         ticket.custom_fields = dict(ticket.custom_fields or {})
         ticket.custom_fields[SERVICE_REQUEST_KEY] = record
         ticket.save(update_fields=['custom_fields', 'updated_at'])
+    if item.needs_customer_approval:
+        try:
+            notify_approvers(approval, ticket, item, user)
+        except Exception:
+            import logging
+            logging.getLogger('psa').exception(
+                'Service request approver notification failed')
     return ticket
 
 

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}PSA — Approvers — {{ item.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'psa:ticket_list' %}">PSA</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:service_catalog' %}">Service Catalog</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'psa:service_catalog_edit' item.pk %}">{{ item.name }}</a></li>
+        <li class="breadcrumb-item active">Named approvers</li>
+    </ol>
+</nav>
+
+<h2 class="mb-2"><i class="fas fa-user-check me-2"></i>Named approvers — {{ item.name }}</h2>
+<p class="text-muted">
+    For each customer, pick the people who approve this request in the portal. Any one of them can approve.
+    With nobody named, the customer's org admins approve, as before. Nobody ever approves their own request:
+    if the person asking is the only named approver, the customer's org admins approve it instead.
+</p>
+{% if not item.needs_customer_approval %}
+<div class="alert alert-warning small">
+    This request type doesn't need approval right now (Approval is set to "{{ item.get_approval_policy_display }}").
+    Approvers saved here take effect once Approval is set to "Customer approver must approve".
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header">Customers offered this request</div>
+            <ul class="list-group list-group-flush">
+                {% for row in summary %}
+                <li class="list-group-item d-flex justify-content-between align-items-start gap-2 {% if selected and selected.pk == row.org.pk %}active-row bg-light{% endif %}">
+                    <div>
+                        <a href="?org={{ row.org.pk }}"><strong>{{ row.org.name }}</strong></a>
+                        <div class="small text-muted">
+                            {% if row.current %}
+                            {% for u in row.current %}{{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                            {% else %}Org admins (no one named){% endif %}
+                        </div>
+                        {% if row.departed %}
+                        <div class="small text-warning"><i class="fas fa-triangle-exclamation me-1"></i>{{ row.departed|length }} named approver{{ row.departed|length|pluralize }} no longer at this customer (ignored)</div>
+                        {% endif %}
+                    </div>
+                    <span class="badge {% if row.current %}bg-primary{% else %}bg-secondary{% endif %}">{{ row.current|length }}</span>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted small">No customers are offered this item.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        {% if selected %}
+        <form method="post" class="card">
+            {% csrf_token %}
+            <input type="hidden" name="organization_id" value="{{ selected.pk }}">
+            <div class="card-header">Approvers at {{ selected.name }}</div>
+            <div class="card-body">
+                {% if departed %}
+                <div class="alert alert-warning small">
+                    These named approvers are no longer active people at {{ selected.name }} and are ignored:
+                    {% for r in departed %}{{ r.user.get_full_name|default:r.user.username }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+                    Saving removes them.
+                </div>
+                {% endif %}
+                {% for mb in members %}
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" name="approver_user_ids" value="{{ mb.user_id }}"
+                           id="ap-{{ mb.user_id }}" {% if mb.user_id in chosen_ids %}checked{% endif %}>
+                    <label class="form-check-label" for="ap-{{ mb.user_id }}">
+                        {{ mb.user.get_full_name|default:mb.user.username }}
+                        <span class="text-muted small">{{ mb.user.email }}{% if mb.is_org_admin %} · org admin{% endif %}</span>
+                    </label>
+                </div>
+                {% empty %}
+                <p class="text-muted small mb-0">{{ selected.name }} has no active people to name.</p>
+                {% endfor %}
+                <div class="form-text mt-2">Leave everyone unticked to go back to the customer's org admins.
+                    Changes apply straight away, including to requests already waiting, and are recorded in the audit log.</div>
+            </div>
+            <div class="card-footer text-end">
+                <button type="submit" class="btn btn-primary">Save approvers</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="alert alert-info small">Pick a customer on the left to choose its approvers.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

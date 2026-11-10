@@ -22,6 +22,9 @@
             <option value="{{ val }}" {% if item and item.approval_policy == val %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
+        {% if item and item.pk %}
+        <div class="form-text"><a href="{% url 'psa:service_catalog_approvers' item.pk %}"><i class="fas fa-user-check me-1"></i>Named approvers per customer</a>{% if guided_named_approver_count %} ({{ guided_named_approver_count }} set){% else %} — none set, org admins approve{% endif %}</div>
+        {% endif %}
         {% if not guided_customer_approvals_enabled %}
         <div class="form-text text-warning">Portal customer approvals are switched off in Settings, so customers can't act on approval requests in the portal until it's on.</div>
         {% endif %}

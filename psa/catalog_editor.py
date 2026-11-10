@@ -182,4 +182,6 @@ def editor_context(item):
         'guided_exclude_ids': set(item.exclude_organizations.values_list('pk', flat=True)) if item and item.pk else set(),
         'guided_approval_choices': ServiceCatalogItem.APPROVAL_POLICY_CHOICES,
         'guided_customer_approvals_enabled': approvals_on,
+        'guided_named_approver_count': (item.named_approvers.count()
+                                        if item is not None and item.pk else 0),
     }

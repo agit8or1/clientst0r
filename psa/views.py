@@ -2368,6 +2368,95 @@ def service_catalog_form(request, pk=None):
     })
 
 
+@login_required
+@require_psa_enabled
+@require_http_methods(['GET', 'POST'])
+def service_catalog_approvers(request, pk):
+    """Named approvers for one request type, per customer. Staff only.
+
+    For each customer the item is offered to, staff pick which of that
+    customer's people approve the request in the portal (any one of them).
+    No names = the customer's org admins approve, as before. Only active
+    customer members of that customer can be named; people who have since
+    left are listed as ignored and dropped on the next save.
+    """
+    from . import catalog_editor
+    from .models import ServiceRequestApprover
+    from .service_requests import eligible_approver_memberships, named_approver_rows
+
+    _catalog_admin_or_404(request)
+    item = get_object_or_404(ServiceCatalogItem, pk=pk)
+    orgs = [o for o in catalog_editor.organization_choices() if item.is_available_to(o)]
+    org_by_id = {o.pk: o for o in orgs}
+
+    def _int(v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return None
+
+    if request.method == 'POST':
+        if item.requires_approval:
+            from accounts.permission_utils import user_has_perm
+            if not user_has_perm(request.user, 'catalog_approve_change'):
+                messages.error(request, 'This item has change governance on; only people '
+                                        'who can approve catalog changes can set its approvers.')
+                return redirect('psa:service_catalog_approvers', pk=item.pk)
+        org = org_by_id.get(_int(request.POST.get('organization_id')))
+        if org is None:
+            messages.error(request, 'Pick a customer this item is offered to.')
+            return redirect('psa:service_catalog_approvers', pk=item.pk)
+        eligible = set(eligible_approver_memberships(org).values_list('user_id', flat=True))
+        posted = {_int(v) for v in request.POST.getlist('approver_user_ids')}
+        if None in posted or not posted <= eligible:
+            messages.error(request, f'Approvers must be active people at {org.name}. '
+                                    f'Nothing was changed.')
+            return redirect(f"{reverse('psa:service_catalog_approvers', args=[item.pk])}?org={org.pk}")
+        before = set(ServiceRequestApprover.objects.filter(
+            catalog_item=item, organization=org).values_list('user_id', flat=True))
+        ServiceRequestApprover.objects.filter(
+            catalog_item=item, organization=org).exclude(user_id__in=posted).delete()
+        for uid in sorted(posted - before):
+            ServiceRequestApprover.objects.create(
+                catalog_item=item, organization=org, user_id=uid, added_by=request.user)
+        added, removed = sorted(posted - before), sorted(before - posted)
+        if added or removed:
+            AuditLog.log(
+                user=request.user, action='update', organization=org,
+                object_type='psa.ServiceCatalogItem', object_id=item.pk,
+                object_repr=item.name,
+                description=(f'Named approvers for "{item.name}" at {org.name}: '
+                             f'{len(posted)} now (added {len(added)}, removed {len(removed)})'),
+                ip_address=_client_ip(request), path=request.path,
+                extra_data={'approver_user_ids': sorted(posted),
+                            'added_user_ids': added, 'removed_user_ids': removed},
+            )
+        if posted:
+            messages.success(request, f'Saved {len(posted)} approver(s) for {org.name}.')
+        else:
+            messages.success(request, f'{org.name} now uses its org admins as approvers.')
+        return redirect(f"{reverse('psa:service_catalog_approvers', args=[item.pk])}?org={org.pk}")
+
+    summary = []
+    for o in orgs:
+        current, departed = named_approver_rows(item, o)
+        summary.append({'org': o, 'current': current, 'departed': departed})
+    selected = org_by_id.get(_int(request.GET.get('org')))
+    members, departed, chosen_ids = [], [], set()
+    if selected is not None:
+        members = list(eligible_approver_memberships(selected))
+        current, departed = named_approver_rows(item, selected)
+        chosen_ids = {u.pk for u in current}
+    return render(request, 'psa/service_catalog_approvers.html', {
+        'item': item,
+        'summary': summary,
+        'selected': selected,
+        'members': members,
+        'departed': departed,
+        'chosen_ids': chosen_ids,
+    })
+
+
 # ---------------------------------------------------------------------------
 # Phase 3 — Projects, Recurring Tickets, KB linking, Approvals
 # ---------------------------------------------------------------------------

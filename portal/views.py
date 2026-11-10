@@ -801,15 +801,31 @@ def can_decide_client_approval(approval, membership, user):
     """Who may approve a client approval in the portal.
 
     Service-request approvals (created by "Request a service") need a
-    customer approver: an org admin of that customer who is not the person
-    who asked. Other client approvals keep the original rule (any portal
-    user of the customer).
+    customer approver who is not the person who asked: one of the request
+    type's named approvers for this customer when it has any, otherwise an
+    org admin of the customer (psa/service_requests.py:approvers_for).
+    Other client approvals keep the original rule (any portal user of the
+    customer).
     """
+    if membership is None or membership.organization_id != approval.organization_id:
+        return False
     if approval.object_type != SERVICE_REQUEST_APPROVAL_TYPE:
         return True
-    if not membership.is_org_admin:
-        return False
-    return approval.requested_by_id != user.pk
+    from psa.service_requests import can_approve_service_request
+    return can_approve_service_request(approval, user)
+
+
+def _approver_display(approval):
+    """Waiting-on text for a service-request approval in the portal list."""
+    from psa.service_requests import SOURCE_NAMED, SOURCE_REQUESTER_ONLY, approvers_for_approval
+    info = approvers_for_approval(approval)
+    names = [u.get_full_name() or u.username for u in info['users']]
+    if info['source'] == SOURCE_NAMED:
+        return 'Approver: ' + ', '.join(names)
+    if info['source'] == SOURCE_REQUESTER_ONLY:
+        return ("The requester is this request type's only named approver, "
+                "so your organization's admins approve it.")
+    return ''
 
 
 @portal_psa_required
@@ -838,6 +854,10 @@ def approvals_list(request):
     pending = list(pending)
     for a in pending:
         a.can_decide = can_decide_client_approval(a, m, request.user)
+        a.approver_note = (_approver_display(a)
+                           if a.object_type == SERVICE_REQUEST_APPROVAL_TYPE else '')
+    # The ones this person can act on come first.
+    pending.sort(key=lambda a: not a.can_decide)
     return render(request, 'portal/approvals_list.html', {
         'pending': pending,
         'decided': decided,
@@ -864,6 +884,14 @@ def approval_decide(request, pk):
         messages.error(request, 'Pick Approve or Deny.')
         return redirect('portal:approvals_list')
     if not can_decide_client_approval(approval, m, request.user):
+        AuditLog.log(
+            user=request.user, action='update', organization=m.organization,
+            object_type='psa.PSAApproval', object_id=approval.pk,
+            object_repr=str(approval)[:255],
+            description=f'Refused portal {decision} of approval #{approval.pk}: '
+                        f'{request.user.username} is not an approver for it',
+            path=request.path, success=False,
+        )
         messages.error(request, 'This request needs approval from another '
                                 'approver at your organization.')
         return redirect('portal:approvals_list')
