@@ -49,9 +49,12 @@ class ExtensionRevealAuditTests(TestCase):
         with patch('vault.extension_views._has_extension_permission', return_value=True):
             resp = Client().get('/vault/api/extension/sync/', HTTP_AUTHORIZATION=f'Bearer {self.secret}')
         self.assertEqual(resp.status_code, 200)
-        ids = {row['id'] for row in resp.json()['passwords']}
-        self.assertIn(self.password.pk, ids)
-        self.assertNotIn(gated.pk, ids)
+        rows = {row['id']: row for row in resp.json()['passwords']}
+        self.assertTrue(rows[self.password.pk]['encrypted_password'])
+        # Since v3.17.653 the entry is listed without its secret, so a client
+        # that cached it earlier replaces that copy.
+        self.assertIsNone(rows[gated.pk]['encrypted_password'])
+        self.assertTrue(rows[gated.pk]['online_only'])
 
 
 class BreachCheckTests(TestCase):

@@ -158,7 +158,8 @@ def tag_delete(request, pk):
     from vault.models import Password
 
     asset_count = Asset.objects.filter(tags=tag).count()
-    password_count = Password.objects.filter(tags=tag).count()
+    from vault.permissions import visible_passwords
+    password_count = visible_passwords(request.user, Password.objects.filter(tags=tag)).count()
 
     return render(request, 'core/tag_confirm_delete.html', {
         'tag': tag,

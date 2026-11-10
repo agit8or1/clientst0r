@@ -5,6 +5,30 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.653] - 2026-11-10
+
+### Security
+- **Vault titles stay inside the customers a technician is assigned to.** MSP staff with no global role used to see every customer's vault entries (titles, usernames, counts, search results, API and browser-extension results), because "no global role" meant full reach. In the vault it now means memberships decide, the same rule reveals already used. A title such as "Payroll Administrator" says something by itself. This applies everywhere entries are listed or named:
+  - the web vault, its counts and direct links (another customer's entry is 404);
+  - global search, the REST, GraphQL and mobile APIs, and the browser extension;
+  - dashboards, process-stage pickers (which listed every customer's entries), relationship maps, readiness and vault reports.
+
+  Superusers, and staff whose global role grants "view vault", keep every customer. Seeing an entry and revealing it stay separate permissions: a technician who may see an entry can find it and, when their role allows reveals, request approval.
+- **Restricted entries are online-only in the extension's offline cache.** An entry that needs approval, or that any active access rule applies to (on the entry, its customer, or the technician; country, address or time), is synced without its secret, marked `online_only`, with the message "Connect to ClientSt0r to reveal this password." A complete sync replaces the cache (`cache_policy: replace`), so an entry cached before it became restricted loses its local copy at the next successful sync. In 3.17.652 such entries were left out of the sync entirely, which never told a client to drop an old copy. A disconnected device keeps its copy until it reconnects.
+
+### Added
+- **Admin → Security → Vault Visibility** (superusers, read-only): staff who lost cross-customer vault visibility, what they still see and how many entries are now hidden. It grants nothing.
+- **Admin → Security → Superuser Approval**, optional and off on upgrade. When on, creating a superuser or promoting an account (user page or Django admin) records a protected change; the account becomes a superuser only after a different administrator approves.
+  - It can be turned on only while two eligible administrators exist.
+  - Turning it off is itself a protected change.
+  - Self-approval, the target approving their own grant, and approving twice are refused; asking again returns the open request.
+  - Requests, approvals, rejections and outcomes are audited with requester, approver and target.
+- **Superuser grants outside the approval are recorded.** Any grant from `manage.py createsuperuser`, the shell or a script is audited (`superuser_granted_outside_approval`). While the policy is on, it is also e-mailed to the other superusers and the recovery contact.
+- **`manage.py superuser_policy [--disable --reason ...]`** shows the policy or, as host-level recovery, turns it off. That is audited and announced.
+
+### Upgrade
+- Apply the update. One migration (`tech_access.0004`). Before or after applying, check Admin → Security → Vault Visibility: technicians listed there no longer see those customers' vault entries. To restore access on purpose, add a membership or a global role with "view vault".
+
 ## [3.17.652] - 2026-11-09
 
 ### Security

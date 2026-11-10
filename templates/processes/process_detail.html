@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load vault_access %}
 
 {% block title %}{{ process.title }}{% endblock %}
 
@@ -129,7 +130,7 @@
                                     {{ stage.linked_document.title }}
                                 </a>
                             </span>
-                            {% elif stage.linked_password %}
+                            {% elif stage.linked_password|vault_visible:request.user %}
                             <span class="badge bg-danger">
                                 <i class="fas fa-key"></i> Password:
                                 <a href="{% url 'vault:password_detail' stage.linked_password.pk %}" class="text-white">

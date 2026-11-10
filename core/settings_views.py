@@ -3401,3 +3401,47 @@ def security_features(request):
         'groups': grouped(features) if features else grouped(),
         'status_labels': STATUS_LABELS,
     })
+
+
+def vault_visibility_changes():
+    """MSP staff whose vault reach narrowed in v3.17.653: staff without a
+    global role used to see every customer's vault titles; now only the
+    customers their memberships grant `vault_view` in. Read-only — nothing
+    here grants or removes access."""
+    from django.contrib.auth.models import User
+    from accounts.permission_utils import orgs_with_perm
+    from core.models import Organization
+    from django.db.models import Count
+    from vault.models import Password
+    active = dict(Organization.objects.filter(is_active=True).values_list('pk', 'name'))
+    counts = dict(Password.objects.filter(is_personal=False, organization_id__in=active)
+                  .values('organization_id').annotate(n=Count('id')).values_list('organization_id', 'n'))
+    rows = []
+    staff = (User.objects.filter(is_active=True, is_superuser=False, profile__user_type='staff',
+                                 profile__global_role_template__isnull=True)
+             .select_related('profile').order_by('username'))
+    for u in staff:
+        keeps = orgs_with_perm(u, 'vault_view') or set()
+        lost = sorted((pk for pk in active if pk not in keeps), key=lambda pk: active[pk].lower())
+        if not lost:
+            continue
+        rows.append({
+            'user': u,
+            'keeps': sorted(active[pk] for pk in keeps if pk in active),
+            'lost': [active[pk] for pk in lost],
+            'entries_lost': sum(counts.get(pk, 0) for pk in lost),
+        })
+    return rows
+
+
+@login_required
+def vault_visibility_report(request):
+    """Admin → Security → Vault Visibility. Superusers only."""
+    from django.core.exceptions import PermissionDenied
+    if not request.user.is_superuser:
+        raise PermissionDenied
+    from core.models import Organization
+    return render(request, 'core/vault_visibility.html', {
+        'rows': vault_visibility_changes(),
+        'customer_count': Organization.objects.filter(is_active=True).count(),
+    })

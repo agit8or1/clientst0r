@@ -86,6 +86,7 @@ urlpatterns = [
     # Security (superuser only)
     path('security/', settings_views.security_dashboard, name='security_dashboard'),
     path('security/features/', settings_views.security_features, name='security_features'),
+    path('security/vault-visibility/', settings_views.vault_visibility_report, name='vault_visibility'),
 
     # Package Scanner (staff only)
     path('security/package-scanner/', security_views.package_scanner_dashboard, name='package_scanner_dashboard'),

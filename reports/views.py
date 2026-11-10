@@ -545,7 +545,12 @@ def generate_report(request, pk):
         if report_format not in OUTPUT_FORMATS:
             messages.error(request, 'Choose PDF, CSV or JSON.')
             return redirect('reports:generate_report', pk=template.pk)
-        parameters = {}
+        # Vault figures only for viewers who may see this customer's vault.
+        from accounts.permission_utils import has_perm_for_org
+        parameters = {'include_vault': has_perm_for_org(request.user, org, 'vault_view')}
+        if template.report_type == 'password_audit' and not parameters['include_vault']:
+            messages.error(request, "Your role does not include the 'vault_view' permission for this customer.")
+            return redirect('reports:generate_report', pk=template.pk)
 
         # Create the report generation task
         report = GeneratedReport.objects.create(

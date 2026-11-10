@@ -63,7 +63,8 @@ class LinkPerms:
         staff_profile = bool(profile is not None and profile.is_staff_user())
         everything = user.is_staff and not user.is_superuser and not staff_profile
         self._allowed = {
-            perm: (None if everything else orgs_with_perm(user, perm))
+            # Vault titles never ride on Django admin status alone (v3.17.653).
+            perm: (None if everything and not perm.startswith('vault_') else orgs_with_perm(user, perm))
             for perm in set(_KIND_PERMS.values())
         }
 

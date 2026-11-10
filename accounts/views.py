@@ -3,6 +3,7 @@ Accounts views
 """
 import logging
 import datetime
+from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -1033,7 +1034,8 @@ def organization_service_info(request, org_id, service_slug):
     pw_q = kw_q(['title', 'url', 'notes', 'folder__name'])
     if cfg['password_types']:
         pw_q |= Q(password_type__in=cfg['password_types'])
-    passwords = Password.objects.filter(organization=org).filter(pw_q).select_related('folder').order_by('title')
+    from vault.permissions import visible_passwords
+    passwords = visible_passwords(request.user, Password.objects.filter(organization=org)).filter(pw_q).select_related('folder').order_by('title')
 
     # Documents — match by keyword in title or tag name
     doc_q = kw_q(['title', 'tags__name', 'category__name'])
@@ -1257,6 +1259,10 @@ def user_list(request):
     })
 
 
+_SUPERUSER_PENDING = ('Superuser was not granted yet. Confirm the request under Admin → Security → '
+                      'Superuser Approval; a different administrator then approves it.')
+
+
 @login_required
 def user_create(request):
     """
@@ -1269,11 +1275,28 @@ def user_create(request):
     if request.method == 'POST':
         form = UserCreateForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            # Create profile
-            UserProfile.objects.get_or_create(user=user)
-            messages.success(request, f"User '{user.username}' created successfully.")
-            return redirect('accounts:user_detail', user_id=user.id)
+            from tech_access.services import propose_superuser_grant, superuser_policy_on
+            # With the superuser-grant policy on, the account starts without
+            # superuser and a second administrator approves the grant.
+            hold = superuser_policy_on() and form.cleaned_data.get('is_superuser')
+            if hold:
+                form.instance.is_superuser = False
+            with transaction.atomic():
+                user = form.save()
+                # Create profile
+                UserProfile.objects.get_or_create(user=user)
+                proposal = None
+                if hold:
+                    try:
+                        proposal = propose_superuser_grant(user, request.user, request=request)
+                    except ValueError as exc:
+                        transaction.set_rollback(True)
+                        form.add_error('is_superuser', str(exc))
+            if not form.errors:
+                messages.success(request, f"User '{user.username}' created successfully.")
+                if proposal:
+                    messages.warning(request, _SUPERUSER_PENDING)
+                return redirect('accounts:user_detail', user_id=user.id)
     else:
         form = UserCreateForm()
 
@@ -1332,9 +1355,21 @@ def user_edit(request, user_id):
                     form.add_error('email', str(exc))
                 else:
                     form.instance.email = before.email
+            grant = None
+            if (not form.errors and not before.is_superuser and form.cleaned_data.get('is_superuser')):
+                from tech_access.services import propose_superuser_grant, superuser_policy_on
+                if superuser_policy_on():
+                    try:
+                        grant = propose_superuser_grant(before, request.user, request=request)
+                    except ValueError as exc:
+                        form.add_error('is_superuser', str(exc))
+                    else:
+                        form.instance.is_superuser = False
             if not form.errors:
                 user = form.save()
                 messages.success(request, f"User '{user.username}' updated successfully.")
+                if grant:
+                    messages.warning(request, _SUPERUSER_PENDING)
                 if proposal:
                     messages.info(request, 'The new e-mail address needs approval. Confirm it under '
                                            'Settings → Security → Technician Access; a second administrator '

@@ -227,3 +227,35 @@ def evaluate(password, user, request):
         'ip': ip,
         'country': country,
     }
+
+
+ONLINE_ONLY_MESSAGE = 'Connect to ClientSt0r to reveal this password.'
+
+
+def online_only_ids(passwords, user):
+    """Ids among `passwords` whose reveal needs a live server check (v3.17.653).
+
+    An entry is online-only when it needs approval before reveal, or when any
+    active VaultAccessRule applies to it for `user` — the same targets
+    `evaluate` uses: a rule on the entry itself, a rule on the entry's
+    customer (inherited by every entry there), or a rule on this user in the
+    entry's customer. Country, address and time conditions can only be
+    judged at reveal time, so a rule applying at all is enough: the offline
+    cache must not hold the secret.
+    """
+    from .models import VaultAccessRule
+    rows = list(passwords.values_list('id', 'organization_id', 'requires_reveal_approval'))
+    if not rows:
+        return set()
+    org_ids = {org for _, org, _ in rows}
+    rules = VaultAccessRule.objects.filter(is_active=True, organization_id__in=org_ids)
+    whole_orgs, items = set(), set()
+    for scope, org_id, target_pw, target_user in rules.values_list(
+            'scope', 'organization_id', 'target_password_id', 'target_user_id'):
+        if scope == 'organization':
+            whole_orgs.add(org_id)
+        elif scope == 'user' and user is not None and target_user == user.pk:
+            whole_orgs.add(org_id)
+        elif scope == 'item':
+            items.add(target_pw)
+    return {pk for pk, org, gated in rows if gated or org in whole_orgs or pk in items}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load vault_access %}
 
 {% block title %}Process Execution - {{ execution.process.title }}{% endblock %}
 
@@ -121,7 +122,7 @@ This action cannot be undone.">
                                class="btn btn-sm btn-primary" target="_blank">
                                 <i class="fas fa-file-alt"></i> View Document
                             </a>
-                            {% elif completion.stage.linked_password %}
+                            {% elif completion.stage.linked_password|vault_visible:request.user %}
                             <a href="{% url 'vault:password_detail' completion.stage.linked_password.pk %}"
                                class="btn btn-sm btn-danger" target="_blank">
                                 <i class="fas fa-key"></i> View Password

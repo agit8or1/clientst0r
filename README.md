@@ -250,13 +250,17 @@ Administrators can check whether each one is in effect at a given customer under
   AES-256-GCM with a separate HKDF-derived key per purpose; tokens are stored as
   HMAC-SHA256 hashes. Ticket text and attachments are not encrypted by the app.
 - **MSP staff get broader access than customers, by design.** Staff and superusers reach
-  every customer; a staff global role narrows what they can do. Ticket AI and RMM tools are
+  every customer; a staff global role narrows what they can do. The vault is stricter: a
+  technician sees a customer's vault entries, even their titles, only where a membership or
+  a global role grants "view vault". Ticket AI and RMM tools are
   different: they need an L1/L2/L3 technician assignment *at each customer*, whatever the
   user's flags.
 - **Ticket AI (OPTIONAL AI) is off** until a superuser enables it and sets each customer's
   AI policy. Vault data, attachments and internal notes are never sent; secrets in the
   ticket text are redacted. Nothing AI produces is sent to a customer until a technician
   presses Send, and ClientSt0r sends no commands to devices.
+- **Optional Superuser Approval.** With two or more administrators, granting superuser can
+  require a second administrator's approval (Admin → Security → Superuser Approval).
 
 Setup checklist and limitations (audit log deletable by superusers, though each deletion is recorded, Azure AD sign-in skips
 TOTP, mobile tokens last until revoked, CSP report-only by default):

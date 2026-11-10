@@ -136,8 +136,9 @@ alerts and these notices go, so it can't be moved by one person:
 
 **One-administrator installs can't widen access** or move a protected address. Add a second superuser first.
 
-Granting superuser itself is not yet a protected change: an administrator can still make another account a
-superuser from the user editor. That is planned (Phase 57.4).
+**Granting superuser** is a protected change when Admin → Security → Superuser Approval is on (since
+v3.17.653; off on upgrade, needs two eligible administrators to turn on, and turning it off is itself protected).
+See `docs/CLIENT_DATA_PROTECTION.md#granting-superuser`, including how host-level commands are handled.
 
 ## Theft detection
 

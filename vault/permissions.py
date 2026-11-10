@@ -1,5 +1,18 @@
 """Object-level checks shared by browser, mobile, REST and extension vault handlers."""
-from accounts.permission_utils import user_has_org_perm
+from accounts.permission_utils import filter_by_org_perm, user_has_org_perm
+
+
+def visible_passwords(user, qs=None):
+    """Entries whose existence (title, username, counts) `user` may see.
+
+    `vault_view` in the entry's customer decides — the same rule as the
+    /vault/ section gate, search, REST, GraphQL, mobile and the extension.
+    Seeing an entry is separate from revealing it (`vault_view_password`).
+    """
+    if qs is None:
+        from .models import Password
+        qs = Password.objects.all()
+    return filter_by_org_perm(qs, user, 'vault_view')
 
 
 def can_access_password(user, password, permission='vault_view_password'):

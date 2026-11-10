@@ -83,13 +83,23 @@ def user_has_org_perm(user, organization, perm_name) -> bool:
     return False
 
 
+# Flags that staff without a global role hold only through memberships.
+MEMBERSHIP_SCOPED_PREFIXES = ('vault_',)
+
+
 def orgs_with_perm(user, perm_name):
     """Customers in which `user` holds `perm_name`.
 
     Returns None for "every customer" (superusers, and MSP staff whose global
-    role grants it — or who have no global role, which has always meant full
-    reach), otherwise a set of organization ids. A membership in a parent
-    customer covers its subsidiaries, matching `user_has_org_perm`.
+    role grants it — or, outside the vault, who have no global role, which has
+    always meant full reach), otherwise a set of organization ids. A membership
+    in a parent customer covers its subsidiaries, matching `user_has_org_perm`.
+
+    Vault flags (`vault_*`) are the exception since v3.17.653: staff without a
+    global role reach only the customers their memberships grant, the same
+    rule `user_has_org_perm` already applied to reveals. A credential's title
+    alone ("Payroll Administrator") says something about a customer, so
+    cross-customer sight needs an explicit global role.
     """
     if not user or not user.is_authenticated or not user.is_active:
         return set()
@@ -98,9 +108,10 @@ def orgs_with_perm(user, perm_name):
     profile = getattr(user, 'profile', None)
     if profile is not None and getattr(profile, 'is_staff_user', lambda: False)():
         global_permissions = profile.get_global_permissions()
-        if global_permissions is None:
+        if global_permissions is not None:
+            return None if getattr(global_permissions, perm_name, False) else set()
+        if not perm_name.startswith(MEMBERSHIP_SCOPED_PREFIXES):
             return None
-        return None if getattr(global_permissions, perm_name, False) else set()
     from core.utils import descendant_org_ids
     allowed = set()
     for membership in user.memberships.filter(

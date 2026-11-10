@@ -19,7 +19,7 @@ from .models import Password, PasswordBreachCheck, VaultAccessRule
 from .forms import PasswordForm
 from .breach_checker import PasswordBreachChecker
 from .encryption import EncryptionError
-from .permissions import can_access_password
+from .permissions import can_access_password, visible_passwords
 from .access_rules import evaluate as _evaluate_vault_access
 from django.conf import settings
 
@@ -75,9 +75,9 @@ def password_list_datatables(request):
 
     # Base queryset
     if in_global_view:
-        passwords = Password.objects.all().select_related('organization').prefetch_related('tags')
+        passwords = visible_passwords(request.user).select_related('organization').prefetch_related('tags')
     else:
-        passwords = Password.objects.for_organization(org).prefetch_related('tags')
+        passwords = visible_passwords(request.user, Password.objects.for_organization(org)).prefetch_related('tags')
 
     # Apply search filter
     if search_value:
@@ -152,9 +152,9 @@ def password_list_datatables(request):
 
     # Get total records count (without filters)
     if in_global_view:
-        total_count = Password.objects.all().count()
+        total_count = visible_passwords(request.user).count()
     else:
-        total_count = Password.objects.for_organization(org).count()
+        total_count = visible_passwords(request.user, Password.objects.for_organization(org)).count()
 
     # Return DataTables JSON response
     return JsonResponse({
@@ -181,7 +181,7 @@ def password_detail(request, pk):
 
     if in_global_view:
         # Global view: access password from any organization
-        password = get_object_or_404(Password, pk=pk)
+        password = get_object_or_404(visible_passwords(request.user), pk=pk)
     else:
         # Organization view: filter by current org
         password = get_org_object_or_404(Password, org, pk=pk)
@@ -271,7 +271,7 @@ def password_reveal(request, pk):
     in_global_view = not org and (request.user.is_superuser or is_staff)
 
     if in_global_view:
-        password = get_object_or_404(Password, pk=pk)
+        password = get_object_or_404(visible_passwords(request.user), pk=pk)
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
 
@@ -401,7 +401,7 @@ def password_request_reveal(request, pk):
     is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
     in_global_view = not org and (request.user.is_superuser or is_staff)
     if in_global_view:
-        password = get_object_or_404(Password, pk=pk)
+        password = get_object_or_404(visible_passwords(request.user), pk=pk)
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
 
@@ -448,7 +448,7 @@ def password_break_glass(request, pk):
     is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
     in_global_view = not org and (request.user.is_superuser or is_staff)
     if in_global_view:
-        password = get_object_or_404(Password, pk=pk)
+        password = get_object_or_404(visible_passwords(request.user), pk=pk)
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
 
@@ -645,7 +645,7 @@ def password_test_breach(request, pk):
     org = get_request_organization(request)
     _is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
     if not org and (request.user.is_superuser or _is_staff):
-        password = get_object_or_404(Password, pk=pk)
+        password = get_object_or_404(visible_passwords(request.user), pk=pk)
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
 
@@ -966,7 +966,7 @@ def generate_otp_api(request, pk):
     org = get_request_organization(request)
     _is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
     if not org and (request.user.is_superuser or _is_staff):
-        password = get_object_or_404(Password, pk=pk)
+        password = get_object_or_404(visible_passwords(request.user), pk=pk)
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
 
@@ -1030,7 +1030,7 @@ def password_qrcode(request, pk):
     org = get_request_organization(request)
     _is_staff = request.is_staff_user if hasattr(request, 'is_staff_user') else False
     if not org and (request.user.is_superuser or _is_staff):
-        password = get_object_or_404(Password, pk=pk)
+        password = get_object_or_404(visible_passwords(request.user), pk=pk)
     else:
         password = get_org_object_or_404(Password, org, pk=pk)
 
@@ -1379,9 +1379,9 @@ def access_rule_form(request, pk=None):
 
     # Pickers
     if in_global_view:
-        passwords_qs = Password.objects.all().order_by('organization__name', 'title')
+        passwords_qs = visible_passwords(request.user).order_by('organization__name', 'title')
     else:
-        passwords_qs = Password.objects.filter(organization=org).order_by('title')
+        passwords_qs = visible_passwords(request.user, Password.objects.filter(organization=org)).order_by('title')
 
     from django.contrib.auth.models import User as _User
     if in_global_view:
@@ -1458,7 +1458,7 @@ def access_rule_form(request, pk=None):
                 # Pick the password's org if scope=item, else first available
                 if scope == 'item' and target_password_id:
                     try:
-                        tp = Password.objects.get(pk=target_password_id)
+                        tp = visible_passwords(request.user).get(pk=target_password_id)
                         target_org = tp.organization
                     except Password.DoesNotExist:
                         error = 'Target password not found.'

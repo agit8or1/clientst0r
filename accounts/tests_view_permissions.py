@@ -154,10 +154,13 @@ class SectionPermissionMiddlewareTests(TestCase):
                 self.assertEqual(self._get(self.superuser, path, self.org_a).status_code, 200)
 
     def test_staff_without_global_role_passes(self):
-        for path in SECTIONS.values():
+        # Outside the vault, staff with no global role keep their full reach.
+        # The vault follows memberships since v3.17.653: a vault title alone
+        # can say something about a customer.
+        for perm, path in SECTIONS.items():
             with self.subTest(path=path):
-                self.assertEqual(
-                    self._get(self.staff_plain, path, self.org_b).status_code, 200)
+                self.assertEqual(self._get(self.staff_plain, path, self.org_b).status_code,
+                                 403 if perm == 'vault_view' else 200)
 
     def test_staff_with_global_role_lacking_flag_is_forbidden(self):
         for perm, path in SECTIONS.items():

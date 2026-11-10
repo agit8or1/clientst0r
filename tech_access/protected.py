@@ -146,7 +146,10 @@ def _audit(user, change, verb, request=None):
                  object_repr=change.summary[:255], description=f'Protected change {verb}: {change.summary}',
                  ip_address=(request.META.get('REMOTE_ADDR') if request else None),
                  path=(request.path if request else ''),
-                 extra_data={'kind': change.kind, 'widening': change.widening, 'status': change.status})
+                 extra_data={'kind': change.kind, 'widening': change.widening, 'status': change.status,
+                             'requested_by': change.requested_by.get_username() if change.requested_by else '',
+                             'reviewed_by': change.reviewed_by.get_username() if change.reviewed_by else '',
+                             'target': change.target_user.get_username() if change.target_user else ''})
 
 
 # --- lifecycle --------------------------------------------------------------

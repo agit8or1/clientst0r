@@ -11,6 +11,7 @@ from core.decorators import require_write
 from .models import Asset, Relationship
 from docs.models import Document
 from vault.models import Password
+from vault.permissions import visible_passwords
 
 
 @login_required
@@ -49,14 +50,14 @@ def relationship_map(request):
         for rel in relationships:
             # Add source node
             if f"{rel.source_type}-{rel.source_id}" not in processed_nodes:
-                node = get_node_data(org, rel.source_type, rel.source_id)
+                node = get_node_data(org, rel.source_type, rel.source_id, request.user)
                 if node:
                     nodes.append(node)
                     processed_nodes.add(f"{rel.source_type}-{rel.source_id}")
 
             # Add target node
             if f"{rel.target_type}-{rel.target_id}" not in processed_nodes:
-                node = get_node_data(org, rel.target_type, rel.target_id)
+                node = get_node_data(org, rel.target_type, rel.target_id, request.user)
                 if node:
                     nodes.append(node)
                     processed_nodes.add(f"{rel.target_type}-{rel.target_id}")
@@ -113,11 +114,11 @@ def relationship_create(request):
                 return redirect('assets:relationship_map')
 
             # Validate objects exist and belong to organization
-            if not validate_object(org, source_type, source_id):
+            if not validate_object(org, source_type, source_id, request.user):
                 messages.error(request, "Source object not found.")
                 return redirect('assets:relationship_map')
 
-            if not validate_object(org, target_type, target_id):
+            if not validate_object(org, target_type, target_id, request.user):
                 messages.error(request, "Target object not found.")
                 return redirect('assets:relationship_map')
 
@@ -146,7 +147,7 @@ def relationship_create(request):
     # Get available objects for selection
     assets = Asset.objects.for_organization(org)
     documents = Document.objects.for_organization(org).filter(is_published=True)
-    passwords = Password.objects.for_organization(org)
+    passwords = visible_passwords(request.user, Password.objects.for_organization(org))
 
     return render(request, 'assets/relationship_form.html', {
         'source_type': source_type,
@@ -236,7 +237,7 @@ def topology_json(request):
     })
 
 
-def get_node_data(org, object_type, object_id):
+def get_node_data(org, object_type, object_id, user=None):
     """
     Get node data for visualization.
     """
@@ -260,7 +261,7 @@ def get_node_data(org, object_type, object_id):
                 'icon': 'book'
             }
         elif object_type == 'password':
-            obj = Password.objects.get(id=object_id, organization=org)
+            obj = visible_passwords(user, Password.objects.filter(organization=org)).get(id=object_id)
             return {
                 'id': f"password-{obj.id}",
                 'label': obj.title,
@@ -272,7 +273,7 @@ def get_node_data(org, object_type, object_id):
         return None
 
 
-def validate_object(org, object_type, object_id):
+def validate_object(org, object_type, object_id, user=None):
     """
     Validate that an object exists in the organization.
     """
@@ -289,7 +290,7 @@ def validate_object(org, object_type, object_id):
             Document.objects.get(id=object_id, organization=org)
             return True
         elif object_type == 'password':
-            Password.objects.get(id=object_id, organization=org)
+            visible_passwords(user, Password.objects.filter(organization=org)).get(id=object_id)
             return True
         elif object_type == 'contact':
             # Note: Contact model needs to be imported if not already

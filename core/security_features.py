@@ -128,7 +128,8 @@ FEATURES = [
                    '(Owner, Admin, Editor, Read-only, or a custom role).',
         'prerequisites': 'None. A membership in a parent organization also covers its subsidiaries.',
         'detail': 'MSP staff (User Type Staff) and superusers reach every customer by design; a staff global '
-                  'role narrows what they can do there.',
+                  'role narrows what they can do there. The vault is the exception: see "Vault titles stay '
+                  'inside assigned customers".',
         'link': 'accounts:role_list',
         'doc': 'docs/CLIENT_DATA_PROTECTION.md#who-can-see-what',
         'tests': ['accounts.tests', 'psa.tests.test_internal_ticket_visibility'],
@@ -176,10 +177,44 @@ FEATURES = [
                   'Rem0te ticket-processor pairings, Ollama destinations, approvers, recovery contact, loosened '
                   'theft-detection limits, and the e-mail address of superusers, approvers and MSP technicians. '
                   'The requester and a different approver each re-authenticate (password plus authenticator '
-                  'code). Granting superuser is not yet a protected change.',
+                  'code). Granting superuser joins them when Superuser Approval is on.',
         'link': 'tech_access:index',
         'doc': 'docs/TECHNICIAN_ACCESS.md#protected-changes',
         'tests': ['tech_access.tests'],
+    },
+    {
+        'key': 'superuser_approval',
+        'group': 'client_access',
+        'title': 'Superuser Approval',
+        'status': 'opt_in',
+        'protects': 'Installation-wide control from being handed out by one administrator.',
+        'default': 'Off on upgrade. When on, a superuser grant waits for a different administrator.',
+        'prerequisites': 'Two different eligible administrators (active superusers who approve protected '
+                         'changes). Turning it off again is itself a protected change.',
+        'detail': 'Covers creating a superuser and promoting an account on the user page and in Django admin. '
+                  'Host-level commands (manage.py createsuperuser, the Django shell) are outside the app: '
+                  'recorded and announced, not blocked.',
+        'link': 'tech_access:superuser_policy',
+        'doc': 'docs/CLIENT_DATA_PROTECTION.md#granting-superuser',
+        'tests': ['tech_access.tests_superuser_653'],
+    },
+    {
+        'key': 'vault_title_scope',
+        'group': 'client_access',
+        'title': 'Vault titles stay inside assigned customers',
+        'status': 'enforced',
+        'protects': 'What a credential\'s title, username or count says about a customer, e.g. "Payroll '
+                    'Administrator".',
+        'default': 'A technician sees a customer\'s vault entries only where a membership grants "view vault", '
+                   'or everywhere when their global role grants it.',
+        'prerequisites': 'None. Admin → Security → Vault Visibility lists staff who lost cross-customer '
+                         'visibility in 3.17.653; it grants nothing.',
+        'detail': 'Applies to the web vault and its counts, global search, REST, GraphQL and mobile APIs, the '
+                  'browser extension, dashboards, process-stage pickers, relationship maps, readiness and '
+                  'vault reports. Seeing an entry and revealing it remain separate permissions.',
+        'link': 'core:vault_visibility',
+        'doc': 'docs/CLIENT_DATA_PROTECTION.md#who-can-see-what',
+        'tests': ['vault.tests_release_653', 'accounts.tests_view_permissions'],
     },
     # ---- Vault and secrets -----------------------------------------------
     {
@@ -267,6 +302,22 @@ FEATURES = [
         'link': 'psa_ai:profiles',
         'doc': 'docs/TECHNICIAN_ACCESS.md#vault-isolation',
         'tests': ['psa_ai.tests'],
+    },
+    {
+        'key': 'offline_cache',
+        'group': 'vault',
+        'title': 'Browser-extension offline cache',
+        'status': 'opt_in',
+        'protects': 'Restricted credentials from being usable on a device without a live check.',
+        'default': 'Off: no role has "extension offline cache" unless you tick it.',
+        'prerequisites': 'The extension role permission at the customer.',
+        'detail': 'Entries that need approval, or that any active access rule applies to (on the entry, its '
+                  'customer, or the technician), sync without their secret and say "Connect to ClientSt0r to '
+                  'reveal this password." The next complete sync replaces older local copies; a device that '
+                  'stays offline keeps its copy until it reconnects.',
+        'link': 'vault:access_rule_list',
+        'doc': 'docs/CLIENT_DATA_PROTECTION.md#offline-copies-in-the-browser-extension',
+        'tests': ['vault.tests_release_653', 'vault.tests_release_652'],
     },
     # ---- Tickets and AI --------------------------------------------------
     {
@@ -458,6 +509,37 @@ def _org_roles(org):
                     f'reach every customer.'), []
 
 
+def _superuser_approval(org):
+    from tech_access.services import eligible_admins, superuser_policy_on
+    n = eligible_admins().count()
+    if superuser_policy_on():
+        return 'on', f'On for the whole install; {n} eligible administrators.', []
+    return 'off', (f'Off. {n} eligible administrators' + ('' if n >= 2 else '; two are needed to turn it on')
+                   + '.'), []
+
+
+def _vault_title_scope(org):
+    from django.contrib.auth.models import User
+    from accounts.permission_utils import has_perm_for_org
+    staff = [u for u in User.objects.filter(is_active=True, is_superuser=False, profile__user_type='staff')
+             .select_related('profile__global_role_template')]
+    can = sum(1 for u in staff if has_perm_for_org(u, org, 'vault_view'))
+    return 'on', f'{can} of {len(staff)} MSP staff (not superusers) can see vault entries here.', []
+
+
+def _offline_cache(org):
+    from accounts.permission_utils import user_has_org_perm
+    from django.contrib.auth.models import User
+    from vault.access_rules import online_only_ids
+    from vault.models import Password
+    members = User.objects.filter(pk__in=_member_ids(org))
+    can = sum(1 for u in members if user_has_org_perm(u, org, 'vault_extension_offline_cache'))
+    entries = Password.objects.filter(organization=org, is_personal=False)
+    restricted = len(online_only_ids(entries, None))
+    text = f'{can} members here may sync an offline cache; {restricted} of {entries.count()} entries are online-only.'
+    return ('on' if can else 'off'), text, []
+
+
 def _customer_ticket_view(org):
     from psa.models import Ticket
     shared = Ticket.objects.filter(organization=org, client_can_view=True).count()
@@ -582,12 +664,15 @@ EFFECTIVE = {
     'customer_ticket_view': _customer_ticket_view,
     'per_route_authorization': _per_route_authorization,
     'protected_changes': _protected_changes,
+    'superuser_approval': _superuser_approval,
+    'vault_title_scope': _vault_title_scope,
     'encryption_at_rest': _encryption_at_rest,
     'reveal_permission': _reveal_permission,
     'reveal_approval': _reveal_approval,
     'access_rules': _access_rules,
     'breach_check': _breach_check,
     'vault_isolation': _vault_isolation,
+    'offline_cache': _offline_cache,
     'ai_opt_in': _ai_opt_in,
     'ai_evidence': _always_on,
     'no_endpoint_actions': _always_on,

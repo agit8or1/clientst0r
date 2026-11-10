@@ -6,4 +6,5 @@ app_name = 'tech_access'
 
 urlpatterns = [
     path('', views.index, name='index'),
+    path('superusers/', views.superuser_policy, name='superuser_policy'),
 ]

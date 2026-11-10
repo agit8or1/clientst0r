@@ -17,14 +17,28 @@ ClientSt0r has two kinds of users, and they get different reach on purpose.
 | Customers they can open | Only organizations they're a member of (a parent organization covers its subsidiaries) | **Every customer.** Staff work across all clients by design (`core/tenancy.py`, `is_cross_tenant_user`) |
 | What they can do there | Their membership's role: Owner, Admin, Editor, Read-only, or a custom role | A staff global role, if one is set, narrows this; without one, staff have full reach. Superusers can do everything |
 | Tickets | Tickets shared with them, and only the public conversation | Every ticket, including internal notes and working data |
+| Vault entries (titles, usernames, counts) | Customers where their role has "view vault" | Superusers always. Staff with a global role: every customer when it grants "view vault". Staff **without** a global role: only customers where a membership grants it (since v3.17.653) |
 | Vault values | Only with the reveal permission at that customer (below) | Superusers always; staff when their global role allows it |
 | Ticket AI and RMM tools | Never | Only with a technician access assignment at that customer (below). Staff, admin and superuser flags grant nothing on their own |
+
+A vault title can say something about a customer by itself ("Payroll
+Administrator"), so seeing that an entry exists is limited the same way as
+the vault itself: the web vault and its counts, global search, the REST,
+GraphQL and mobile APIs, the browser extension, dashboards, process-stage
+pickers, relationship maps, readiness and vault reports all use the
+customer's "view vault" permission. Seeing an entry and revealing it stay
+separate: a technician who may see an entry can find it and, when their role
+allows reveals, request approval for it. Admin → Security → **Vault
+Visibility** lists the staff who lost cross-customer visibility in that
+change; it is read-only and grants nothing. To restore access on purpose, add
+a membership or a global role that grants "view vault".
 
 Evidence: `accounts/permission_utils.py` (`user_has_org_perm`, `orgs_with_perm`),
 `psa/visibility.py`, `tech_access/resolver.py`;
 tests `psa/tests/test_internal_ticket_visibility.py`,
 `tech_access/tests.py` (`test_superuser_staff_and_owner_flags_never_imply_access`,
-`test_portal_users_are_outside_presets_even_with_an_assignment`).
+`test_portal_users_are_outside_presets_even_with_an_assignment`),
+`vault/tests_release_653.py` (`TitleVisibilityTests`, `VisibilityReportTests`).
 
 ### Built-in roles and the vault
 
@@ -135,8 +149,27 @@ calls. List responses never
 include the value. GraphQL lists only entries in customers where the caller
 has vault access, and never returns the value.
 
-Evidence: `vault/permissions.py` (`gate_reveal`), `vault/access_rules.py`,
+### Offline copies in the browser extension
+
+A role with "extension offline cache" (off by default) can sync encrypted
+copies of vault entries to the extension. An entry whose reveal needs a live
+check never goes into that cache with its secret: one that needs approval, or
+that any active access rule applies to — a rule on the entry, on its customer
+(which every entry there inherits), or on that technician at that customer.
+Country, address and time conditions can only be judged when someone
+reveals, so a rule applying at all is enough. The sync still lists the entry,
+marked `online_only` with no secret and the message "Connect to ClientSt0r to
+reveal this password." A complete sync replaces the cache (`cache_policy:
+replace`), so an entry cached yesterday and restricted today loses its local
+copy at the next successful sync. **A device that stays disconnected keeps
+its old copy until it reconnects and syncs**; to cut off a lost device,
+revoke its extension token. Each sync is audited with how many entries were
+sent and how many were online-only.
+
+Evidence: `vault/permissions.py` (`gate_reveal`), `vault/access_rules.py`
+(`online_only_ids`), `vault/extension_views.py` (`bulk_sync`),
 `api/views.py`; tests `vault/tests.py`, `vault/tests_extension_gate.py`,
+`vault/tests_release_653.py` (`OfflineCacheRestrictionTests`),
 `api/tests.py`, `security_tests/test_vault_and_proxy.py`.
 
 ## Encryption
@@ -199,6 +232,45 @@ Evidence: `tech_access/catalog.py` (`LOCKED`, `NEEDS_LIVE_REMOTE`),
 `integrations/rmm_association.py`,
 [contracts/ticket-rmm-v1](contracts/ticket-rmm-v1/README.md).
 
+## Granting superuser
+
+A superuser controls the whole installation. Admin → Security → **Superuser
+Approval** turns on an optional policy (off on upgrade): one administrator
+requests the grant and a different one approves it, both re-entering their
+password (and authenticator code). The account is not a superuser until the
+approval. The policy covers creating a superuser and promoting an existing
+account on the user page and in Django admin.
+
+- **Turning it on** needs two different eligible administrators (active
+  superusers who approve protected changes); with one, nobody could approve.
+- **Turning it off** is itself a protected change: one administrator can't do
+  it alone.
+- **Refused:** approving your own request; the target approving their own
+  grant; approving before the requester confirms; approving twice (the second
+  finds it already applied). Asking again for the same account returns the
+  open request.
+- **Logged:** each request, confirmation, approval, rejection and
+  cancellation, with the requester, approver, target account and outcome
+  (audit events `superuser_grant_requested`, `superuser_grant_approved`,
+  and protected-change entries).
+- **Host-level commands.** Anyone with a shell on the server as the
+  application user already controls the installation, so the application
+  can't stop `manage.py createsuperuser` or the Django shell. Every
+  superuser grant made outside the approval is recorded
+  (`superuser_granted_outside_approval`) and, while the policy is on,
+  e-mailed to the other superusers and the verified recovery contact. If only
+  one eligible administrator is left, `manage.py superuser_policy --disable
+  --reason "..."` turns the policy off from the host; that is audited
+  (`superuser_policy_disabled_on_host`) and announced the same way.
+  Revoking superuser is never held for approval.
+
+Evidence: `tech_access/services.py` (`propose_superuser_grant`,
+`enable_superuser_policy`, `propose_disable_superuser_policy`),
+`tech_access/signals.py`, `tech_access/admin.py`, `accounts/views.py`
+(`user_create`, `user_edit`),
+`tech_access/management/commands/superuser_policy.py`; tests
+`tech_access/tests_superuser_653.py`.
+
 ## Limitations
 
 Known gaps, stated plainly:
@@ -216,15 +288,13 @@ Known gaps, stated plainly:
 - **AI gateway isolation needs setup.** By default (`AI_GATEWAY_MODE=in_process`)
   the web app opens provider keys itself. Worker mode keeps them away from
   the vault key.
-- **Granting superuser is not a two-person change** yet.
-- **Staff without a global role** can list vault entry titles at every
-  customer. Revealing still needs a membership with the reveal permission, or
-  a global role that grants it.
+- **Superuser approval is optional and off by default.** See
+  [Granting superuser](#granting-superuser). Commands run on the host
+  bypass it; they are recorded and announced.
 - **Ticket text and attachments aren't encrypted** by the app.
-- **Browser-extension offline cache.** A role with "extension offline cache"
-  can sync encrypted vault blobs to the extension. Entries that need approval
-  are left out (since v3.17.652), but the sync doesn't apply access rules or
-  the reveal rate limit; it is recorded once per sync with a count. Leave that
+- **Browser-extension offline cache.** Restricted entries are synced without
+  their secret (see above), but a disconnected device keeps what it already
+  had until it reconnects, and offline use isn't rate-limited. Leave that
   permission off unless you need it (it is off by default).
 
 ## Setup checklist
@@ -235,10 +305,12 @@ Known gaps, stated plainly:
    needed.
 4. Turn on reveal approval for high-value credentials, and add access rules if
    reveals should only happen from your office or country.
-5. Give MSP staff a global role if they shouldn't have full reach.
-6. If you use ticket AI, set `AI_GATEWAY_MODE=worker` and set each customer's
+5. Give MSP staff a global role if they shouldn't have full reach. Check
+   Admin → Security → Vault Visibility after upgrading to 3.17.653.
+6. With two or more administrators, turn on Superuser Approval.
+7. If you use ticket AI, set `AI_GATEWAY_MODE=worker` and set each customer's
    AI policy deliberately.
-7. Check Settings → Security → Security Features for each customer.
+8. Check Settings → Security → Security Features for each customer.
 
 ## Reporting a vulnerability
 

@@ -359,10 +359,7 @@ def bulk_sync(request):
     except (TypeError, ValueError):
         limit = 100
     cursor = request.GET.get('cursor')
-    # Entries that need approval before reveal never go into the offline
-    # cache: the cache would skip that approval (v3.17.652).
-    qs = (_visible_password_qs(request.user, organization)
-          .exclude(requires_reveal_approval=True).order_by('id'))
+    qs = _visible_password_qs(request.user, organization).order_by('id')
     if cursor:
         try:
             qs = qs.filter(id__gt=int(cursor))
@@ -374,36 +371,52 @@ def bulk_sync(request):
     rows = rows[:limit]
     next_cursor = rows[-1].pk if rows and has_more else None
 
+    # Entries whose reveal needs approval or depends on an access rule
+    # (country, address, time) are sent without their secret and marked
+    # online-only, so the next sync replaces a copy cached before the entry
+    # became restricted (v3.17.653; v3.17.652 left them out entirely, which
+    # never told a client to drop an old copy).
+    from .access_rules import ONLINE_ONLY_MESSAGE, online_only_ids
+    online_only = online_only_ids(Password.objects.filter(pk__in=[pw.pk for pw in rows]), request.user)
+
     AuditLog.log(
         user=request.user,
         action='read',
         organization=organization,
         object_type='vault.Password',
         object_id=None,
-        description=f'vault_extension_sync — count={len(rows)}',
+        description=f'vault_extension_sync — count={len(rows)}, online_only={len(online_only)}',
         ip_address=get_client_ip(request),
         user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
-        extra_data={'event': 'vault_extension_sync', 'count': len(rows)},
+        extra_data={'event': 'vault_extension_sync', 'count': len(rows),
+                    'online_only': len(online_only)},
     )
+
+    def row(pw):
+        restricted = pw.pk in online_only
+        return {
+            'id': pw.pk,
+            'title': pw.title,
+            'username': pw.username,
+            'url': pw.url,
+            'organization_id': pw.organization_id,
+            'encrypted_password': None if restricted else pw.encrypted_password,
+            'online_only': restricted,
+            'message': ONLINE_ONLY_MESSAGE if restricted else '',
+            'password_type': pw.password_type,
+            'totp_available': bool(pw.otp_secret) and not restricted,
+            'updated_at': pw.updated_at.isoformat() if pw.updated_at else None,
+        }
 
     return JsonResponse({
         'count': len(rows),
         'next_cursor': next_cursor,
         'has_more': has_more,
-        'passwords': [
-            {
-                'id': pw.pk,
-                'title': pw.title,
-                'username': pw.username,
-                'url': pw.url,
-                'organization_id': pw.organization_id,
-                'encrypted_password': pw.encrypted_password,
-                'password_type': pw.password_type,
-                'totp_available': bool(pw.otp_secret),
-                'updated_at': pw.updated_at.isoformat() if pw.updated_at else None,
-            }
-            for pw in rows
-        ],
+        # A complete sync (every page until has_more is false) is the whole
+        # cache: drop any cached entry that is missing, and drop the cached
+        # secret of any entry marked online_only.
+        'cache_policy': 'replace',
+        'passwords': [row(pw) for pw in rows],
     })
 
 

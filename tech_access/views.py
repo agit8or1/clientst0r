@@ -232,3 +232,55 @@ def _handle(request):
     except (protected.ProtectedChangeError, ValueError) as e:
         messages.error(request, str(e))
     return None
+
+
+SUPERUSER_KINDS = ('superuser_grant', 'superuser_policy')
+
+
+@login_required
+@user_passes_test(_admin)
+def superuser_policy(request):
+    """Admin → Security → Superuser Approval (v3.17.653): the optional policy
+    that makes granting superuser take a second administrator, and the
+    pending grants. Confirming and approving are the protected-change steps
+    used everywhere else."""
+    if request.method == 'POST':
+        p, me = request.POST, request.user
+        action = p.get('action', '')
+        try:
+            if action == 'reauth':
+                err = protected.reauthenticate(request, p.get('password', ''), p.get('otp', ''))
+                messages.error(request, err) if err else messages.success(request, 'Confirmed. Valid for 5 minutes.')
+            elif action == 'enable':
+                services.enable_superuser_policy(me, request)
+                messages.success(request, 'Granting superuser now takes a second administrator\'s approval.')
+            elif action == 'request_disable':
+                change = services.propose_disable_superuser_policy(me, request)
+                messages.warning(request, f'Protected change #{change.pk}: confirm it below, then a different '
+                                          'administrator approves it. The policy stays on until then.')
+            elif action in ('confirm_change', 'approve_change', 'reject_change', 'cancel_change'):
+                change = get_object_or_404(ProtectedChange, pk=p.get('change'), kind__in=SUPERUSER_KINDS)
+                if action == 'confirm_change':
+                    protected.confirm(change, request)
+                    messages.success(request, 'Confirmed. A different administrator can now approve it.')
+                elif action == 'approve_change':
+                    protected.approve(change, request)
+                    messages.success(request, 'Approved and applied.')
+                else:
+                    protected.reject(change, request, cancel=action == 'cancel_change')
+                    messages.success(request, 'Done.')
+        except (ValueError, protected.ProtectedChangeError) as exc:
+            messages.error(request, str(exc))
+        return redirect('tech_access:superuser_policy')
+
+    pending = (ProtectedChange.objects.filter(status=ProtectedChange.PENDING, kind__in=SUPERUSER_KINDS)
+               .select_related('requested_by', 'target_user'))
+    return render(request, 'tech_access/superuser_policy.html', {
+        'policy_on': services.superuser_policy_on(),
+        'eligible': services.eligible_admins().order_by('username'),
+        'pending': [{'change': c, 'refusal': protected.approval_refusal(c, request.user)} for c in pending],
+        'recent': ProtectedChange.objects.filter(kind__in=SUPERUSER_KINDS).exclude(
+            status=ProtectedChange.PENDING).select_related('requested_by', 'reviewed_by', 'target_user')[:20],
+        'fresh_auth': protected.has_fresh_auth(request),
+        'is_approver': protected.is_approver(request.user),
+    })

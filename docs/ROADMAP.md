@@ -1649,9 +1649,18 @@ are built on top of them.
   reveals are audited as reveals and share the web vault's 30/hour limit
   (they had none); the extension's offline cache leaves out entries that need
   approval; deleting audit entries (Maintenance clean-up or Django admin) is
-  itself recorded. Still open: granting superuser as a protected change
-  *(planned)*, and staff without a global role listing vault titles at every
-  customer.
+  itself recorded.
+- **Vault titles inside assigned customers, online-only restricted entries,
+  Superuser Approval** *(shipped v3.17.653)* — a technician sees a customer's
+  vault entries (titles, usernames, counts, search, APIs, extension, pickers,
+  reports) only where a membership or an explicit global role grants "view
+  vault"; Admin → Security → Vault Visibility lists staff who lost
+  cross-customer visibility, read-only. Entries that need approval or that an
+  access rule applies to sync to the extension without their secret, so the
+  next sync replaces older local copies. Optional Superuser Approval (off on
+  upgrade, needs two eligible administrators, switching it off is a protected
+  change) makes a superuser grant wait for a different administrator; grants
+  made on the host are recorded and announced.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 
@@ -1865,7 +1874,9 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
   address of superusers, approvers and MSP technicians moves the same way, from
   the profile page, the user editor and the Django admin, and the old address
   is told at every step. *(shipped v3.17.648)* Granting superuser from inside
-  the app as a protected change. *(planned)*
+  the app as a protected change, as an optional Superuser Approval policy
+  (off on upgrade; host-level grants recorded and announced).
+  *(shipped v3.17.653)*
 - **57.5 Read-only theft detection** — distinct tickets, customers, exports and
   diagnostic bytes per identity across UI, REST and mobile API, 1 h and 24 h
   windows, on by default, tunable, containment by level, no ticket text in

@@ -66,12 +66,26 @@ class ProcessStageForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
+        self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+
+        # Vault titles are customer data: offer only entries the editor may
+        # see (vault_view in that customer), never the whole vault. A global
+        # process has no customer, so it lists what the editor can see
+        # anywhere; without a user there is nothing to offer.
+        from vault.models import Password
+        from vault.permissions import visible_passwords
+        pw_qs = Password.objects.filter(is_personal=False)
+        if self.organization:
+            pw_qs = pw_qs.filter(organization=self.organization)
+        self.fields['linked_password'].queryset = (
+            visible_passwords(self.user, pw_qs).order_by('title')
+            if self.user is not None else Password.objects.none())
+        self.fields['linked_password'].required = False
 
         if self.organization:
             # Filter linked entities by organization
             from docs.models import Document
-            from vault.models import Password
             from core.models import SecureNote
             from assets.models import Asset
 
@@ -80,11 +94,6 @@ class ProcessStageForm(forms.ModelForm):
                 is_published=True
             ).order_by('title')
             self.fields['linked_document'].required = False
-
-            self.fields['linked_password'].queryset = Password.objects.filter(
-                organization=self.organization
-            ).order_by('title')
-            self.fields['linked_password'].required = False
 
             self.fields['linked_secure_note'].queryset = SecureNote.objects.filter(
                 organization=self.organization

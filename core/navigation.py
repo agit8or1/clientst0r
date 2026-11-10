@@ -255,6 +255,8 @@ SECTIONS = (
     Section('admin_security', 'admin', _('Security'), gate=_superuser, tabs=(
         Tab(_('Security Dashboard'), 'core:security_dashboard', 'fa-shield-alt'),
         Tab(_('Security Features'), 'core:security_features', 'fa-list-check'),
+        Tab(_('Vault Visibility'), 'core:vault_visibility', 'fa-eye-slash'),
+        Tab(_('Superuser Approval'), 'tech_access:superuser_policy', 'fa-user-shield'),
         Tab(_('Vulnerability Scans'), 'core:snyk_scans', 'fa-bug'),
         Tab(_('Scan Configuration'), 'core:settings_snyk', 'fa-cog'),
     )),

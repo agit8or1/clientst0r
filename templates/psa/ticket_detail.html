@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load vault_access %}
 {% load static %}
 {% block title %}PSA — {{ ticket.ticket_number }}{% endblock %}
 {% block extra_css %}{{ block.super }}<link href="{% static 'css/ticket_conversation.css' %}" rel="stylesheet">{% endblock %}
@@ -909,7 +910,7 @@
                                             <i class="fas fa-file-alt me-1"></i>{{ completion.stage.linked_document.title }}
                                         </a>
                                         {% endif %}
-                                        {% if completion.stage.linked_password %}
+                                        {% if completion.stage.linked_password|vault_visible:request.user %}
                                         <a href="{% url 'vault:password_detail' completion.stage.linked_password.pk %}" class="text-primary">
                                             <i class="fas fa-key me-1"></i>{{ completion.stage.linked_password.title }}
                                         </a>

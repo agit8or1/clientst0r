@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Vault Visibility{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <h4><i class="fas fa-eye-slash me-1"></i>Vault Visibility</h4>
+    <p class="text-muted small mb-2">
+        Since 3.17.653 a technician sees a customer's vault entries — titles, usernames, counts, search results,
+        API and browser-extension results — only where a membership grants <code>vault_view</code>, or where their
+        global role grants it for every customer. Before, MSP staff with <em>no</em> global role saw every customer's
+        vault. This read-only list shows who lost that cross-customer visibility. Nothing here grants access.
+    </p>
+    <p class="text-muted small mb-3">
+        To restore access on purpose, add the technician as a member of the customer with a role that includes
+        <code>vault_view</code>, or give them a global role that includes it (Access Management). Seeing an entry
+        and revealing its password stay separate: revealing also needs <code>vault_view_password</code>.
+    </p>
+    {% if rows %}
+    <div class="table-responsive">
+    <table class="table table-sm small" id="vaultVisibilityTable">
+        <thead><tr><th>Technician</th><th>Still sees</th><th>No longer sees ({{ customer_count }} customers in all)</th><th class="text-end">Entries hidden</th></tr></thead>
+        <tbody>{% for r in rows %}
+        <tr data-user="{{ r.user.username }}">
+            <td><a href="{% url 'accounts:user_detail' r.user.pk %}">{{ r.user.get_full_name|default:r.user.username }}</a>
+                <div class="text-muted">{{ r.user.username }} · no global role</div></td>
+            <td>{% if r.keeps %}{{ r.keeps|join:", " }}{% else %}<span class="text-muted">No customer</span>{% endif %}</td>
+            <td>{{ r.lost|length }}: {{ r.lost|join:", "|truncatechars:400 }}</td>
+            <td class="text-end">{{ r.entries_lost }}</td>
+        </tr>{% endfor %}</tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="alert alert-success small">No technician lost cross-customer vault visibility.</div>
+    {% endif %}
+</div>
+{% endblock %}

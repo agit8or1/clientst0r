@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Superuser Approval{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <h4><i class="fas fa-user-shield me-1"></i>Superuser Approval</h4>
+    <p class="text-muted small mb-3">
+        A superuser controls the whole installation. With this policy on, one administrator requests a superuser
+        grant — by creating a superuser or promoting an account on the user page or in Django admin — and a
+        different administrator approves it. The account is not a superuser until then. Turning the policy off is
+        also a protected change. Grants made on the host (<code>manage.py createsuperuser</code>, the Django shell)
+        are outside the application; they are recorded and announced, not blocked.
+        Background: <code>docs/CLIENT_DATA_PROTECTION.md</code>.
+    </p>
+
+    <div class="card mb-3" id="policy">
+        <div class="card-header"><strong>Policy</strong>
+            {% if policy_on %}<span class="badge bg-success ms-1">On</span>{% else %}<span class="badge bg-secondary ms-1">Off</span>{% endif %}</div>
+        <div class="card-body small">
+            <p class="mb-2">Eligible administrators (active superusers who approve protected changes):
+                {% for u in eligible %}<strong>{{ u.username }}</strong>{% if not forloop.last %}, {% endif %}{% empty %}none{% endfor %}.</p>
+            {% if not is_approver %}
+            <p class="text-muted mb-0">You are not an approver for protected changes, so you can't change this policy.</p>
+            {% elif policy_on %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="request_disable">
+                <button class="btn btn-sm btn-outline-danger">Request turning it off</button>
+                <span class="text-muted ms-1">A different administrator must approve.</span></form>
+            {% elif eligible|length < 2 %}
+            <p class="mb-0 text-warning-emphasis">This needs two different eligible administrators. With one, nobody could approve a grant.</p>
+            {% else %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="enable">
+                <button class="btn btn-sm btn-primary">Turn on</button></form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-3" id="pending">
+        <div class="card-header"><strong>Waiting for approval</strong></div>
+        <div class="card-body small">
+            {% if fresh_auth %}
+            <span class="badge bg-success mb-2">Password confirmed for the next few minutes</span>
+            {% else %}
+            <form method="post" class="d-flex flex-wrap gap-2 align-items-center mb-2">{% csrf_token %}
+                <input type="hidden" name="action" value="reauth">
+                <span>Confirming or approving needs your password:</span>
+                <input type="password" name="password" class="form-control form-control-sm w-auto" placeholder="Password" autocomplete="current-password" required>
+                <input type="text" name="otp" class="form-control form-control-sm w-auto" placeholder="Authenticator code" inputmode="numeric" autocomplete="one-time-code">
+                <button class="btn btn-sm btn-primary">Confirm</button>
+            </form>
+            {% endif %}
+            {% for row in pending %}{% with c=row.change %}
+            <div class="border rounded p-2 mb-2" data-change="{{ c.pk }}">
+                <div><strong>#{{ c.pk }}</strong> {{ c.summary }}</div>
+                <div class="text-muted">Requested by {{ c.requested_by.username|default:"?" }} {{ c.requested_at|timesince }} ago ·
+                    expires {{ c.expires_at|date:"Y-m-d H:i" }} ·
+                    {% if c.requester_reauth_at %}confirmed by requester{% else %}<span class="text-warning-emphasis">not yet confirmed by requester</span>{% endif %}</div>
+                <div class="mt-1 d-flex flex-wrap gap-1">
+                    {% if c.requested_by_id == request.user.pk %}
+                        {% if not c.requester_reauth_at %}
+                        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="confirm_change"><input type="hidden" name="change" value="{{ c.pk }}"><button class="btn btn-sm btn-primary" {% if not fresh_auth %}disabled title="Confirm your password above first"{% endif %}>Confirm</button></form>
+                        {% endif %}
+                        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="cancel_change"><input type="hidden" name="change" value="{{ c.pk }}"><button class="btn btn-sm btn-outline-secondary">Cancel</button></form>
+                    {% else %}
+                        {% if row.refusal %}<span class="text-muted">{{ row.refusal }}</span>
+                        {% else %}
+                        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="approve_change"><input type="hidden" name="change" value="{{ c.pk }}"><button class="btn btn-sm btn-success" {% if not fresh_auth %}disabled title="Confirm your password above first"{% endif %}>Approve and apply</button></form>
+                        {% endif %}
+                        {% if is_approver %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="reject_change"><input type="hidden" name="change" value="{{ c.pk }}"><button class="btn btn-sm btn-outline-danger">Reject</button></form>{% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endwith %}{% empty %}<p class="text-muted mb-0">Nothing waiting.</p>{% endfor %}
+        </div>
+    </div>
+
+    <div class="card mb-3" id="recent">
+        <div class="card-header"><strong>Recent decisions</strong></div>
+        <div class="card-body p-0">
+            <table class="table table-sm small mb-0">
+                <thead><tr><th>#</th><th>Change</th><th>Requested by</th><th>Decided by</th><th>Outcome</th></tr></thead>
+                <tbody>{% for c in recent %}
+                <tr><td>{{ c.pk }}</td><td>{{ c.summary }}</td><td>{{ c.requested_by.username|default:"—" }}</td>
+                    <td>{{ c.reviewed_by.username|default:"—" }}</td><td>{{ c.get_status_display }}</td></tr>
+                {% empty %}<tr><td colspan="5" class="text-muted">None yet.</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

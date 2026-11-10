@@ -159,6 +159,8 @@ class ProtectedChange(models.Model):
         ('provider_destination', 'AI provider destination'),
         ('security_limits', 'Security limits'),
         ('account_email', 'Account e-mail address'),
+        ('superuser_grant', 'Superuser grant'),
+        ('superuser_policy', 'Superuser-grant approval policy'),
     ]
     PENDING, APPLIED, REJECTED, CANCELLED, EXPIRED = 'pending', 'applied', 'rejected', 'cancelled', 'expired'
     STATUSES = [(s, s.title()) for s in (PENDING, APPLIED, REJECTED, CANCELLED, EXPIRED)]
@@ -271,6 +273,10 @@ class ProtectionSettings(models.Model):
     recovery_email = models.EmailField(blank=True,
                                        help_text='Verified security contact told about every protected change.')
     recovery_verified_at = models.DateTimeField(null=True, blank=True)
+    superuser_grant_requires_approval = models.BooleanField(
+        default=False,
+        help_text='Granting superuser takes a second administrator\'s approval. Turning this off is '
+                  'itself a protected change.')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

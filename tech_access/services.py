@@ -516,3 +516,128 @@ def _apply_email(change, reviewer):
     user.email = change.payload.get('new_email', '')
     user.save(update_fields=['email'])
     _audit(change.requested_by, 'update', 'user', user.pk, f'Approved: {change.summary}')
+
+
+# --- superuser grants (v3.17.653) ----------------------------------------------
+# A superuser controls the whole installation. With the policy on, granting it
+# from the application — creating a superuser, or promoting an account on the
+# user edit page or in Django admin — records a protected change; the account
+# becomes a superuser only when a different approver approves it. The policy
+# is off on upgrade, can be turned on only while two eligible administrators
+# exist, and turning it off is itself a protected change. Host-level commands
+# (manage.py createsuperuser, the Django shell) are outside the application;
+# the grant is still recorded and announced (accounts.signals).
+
+SUPERUSER_WIDENING = 'superuser (installation-wide control)'
+
+
+def superuser_policy_on() -> bool:
+    return ProtectionSettings.load().superuser_grant_requires_approval
+
+
+def eligible_admins():
+    """Administrators who may request and approve superuser grants: the
+    protected-change approvers (active superusers)."""
+    from .protected import approvers
+    return approvers()
+
+
+def enable_superuser_policy(by, request=None):
+    """Turn the policy on. Tightening, so it applies at once — but only when
+    a second eligible administrator exists to approve future grants."""
+    from .protected import is_approver
+    if not is_approver(by):
+        raise ValueError('Only an approver for protected changes can turn this on.')
+    if eligible_admins().count() < 2:
+        raise ValueError('This needs two different eligible administrators (active superusers who approve '
+                         'protected changes). With one, nobody could approve a grant.')
+    s = ProtectionSettings.load()
+    if not s.superuser_grant_requires_approval:
+        s.superuser_grant_requires_approval = True
+        s.save(update_fields=['superuser_grant_requires_approval', 'updated_at'])
+        _audit(by, 'update', 'superuser_policy', s.pk, 'Superuser grants now need a second administrator',
+               extra={'event': 'superuser_policy_enabled', 'requested_by': by.get_username()})
+    return s
+
+
+def pending_superuser_policy_change():
+    from .models import ProtectedChange
+    return (ProtectedChange.objects.filter(kind='superuser_policy', status=ProtectedChange.PENDING,
+                                           expires_at__gt=timezone.now()).first())
+
+
+def propose_disable_superuser_policy(by, request=None):
+    """Turning the policy off widens what one administrator can do, so it
+    takes a second administrator like any other widening."""
+    from .protected import can_widen_at_all, is_approver
+    if not superuser_policy_on():
+        raise ValueError('The policy is already off.')
+    if not is_approver(by):
+        raise ValueError('Only an approver for protected changes can request this.')
+    existing = pending_superuser_policy_change()
+    if existing is not None:
+        return existing
+    if not can_widen_at_all(by):
+        raise ValueError('Turning this off needs a second administrator to approve it, and no other eligible '
+                         'administrator exists. See docs/CLIENT_DATA_PROTECTION.md for host-level recovery.')
+    return propose('superuser_policy', 'Turn off second-administrator approval for superuser grants',
+                   {'enabled': False}, ['superuser grants without approval'], by, request=request)
+
+
+@applier('superuser_policy')
+def _apply_superuser_policy(change, reviewer):
+    s = ProtectionSettings.load()
+    s.superuser_grant_requires_approval = bool(change.payload.get('enabled'))
+    s.save(update_fields=['superuser_grant_requires_approval', 'updated_at'])
+    _audit(change.requested_by, 'update', 'superuser_policy', s.pk, f'Approved: {change.summary}',
+           extra={'event': 'superuser_policy_disabled', 'requested_by': _name(change.requested_by),
+                  'approved_by': _name(reviewer), 'change': change.pk})
+
+
+def pending_superuser_grant(user):
+    from .models import ProtectedChange
+    return (ProtectedChange.objects.filter(kind='superuser_grant', target_user=user, status=ProtectedChange.PENDING,
+                                           expires_at__gt=timezone.now()).order_by('-requested_at').first())
+
+
+def propose_superuser_grant(user, by, request=None):
+    """Record a pending superuser grant for `user`. One pending grant per
+    account: asking again returns the open one."""
+    from .protected import can_widen_at_all, is_approver
+    if user.is_superuser:
+        raise ValueError(f'{user.get_username()} is already a superuser.')
+    if not is_approver(by):
+        raise ValueError('Only an approver for protected changes can request a superuser grant.')
+    existing = pending_superuser_grant(user)
+    if existing is not None:
+        return existing
+    if not can_widen_at_all(by):
+        raise ValueError('Granting superuser needs a second administrator to approve it, and no other eligible '
+                         'administrator exists.')
+    change = propose('superuser_grant', f'Grant superuser to {user.get_username()}', {'user': user.pk},
+                     [SUPERUSER_WIDENING], by, target_user=user, affected=[user.pk], request=request)
+    _audit(by, 'update', 'user', user.pk, f'Superuser grant requested for {user.get_username()}',
+           extra={'event': 'superuser_grant_requested', 'change': change.pk,
+                  'requested_by': by.get_username(), 'target': user.get_username()})
+    return change
+
+
+@applier('superuser_grant')
+def _apply_superuser_grant(change, reviewer):
+    from .protected import ProtectedChangeError
+    user = get_user_model().objects.filter(pk=change.payload.get('user')).first()
+    if user is None:
+        raise ProtectedChangeError('That account no longer exists.')
+    if user.is_superuser:
+        raise ProtectedChangeError(f'{user.get_username()} is already a superuser.')
+    user.is_superuser = True
+    user._approved_superuser_grant = change.pk  # read by accounts.signals
+    user.save(update_fields=['is_superuser'])
+    _audit(change.requested_by, 'update', 'user', user.pk, f'Approved: {change.summary}',
+           extra={'event': 'superuser_grant_approved', 'change': change.pk,
+                  'requested_by': _name(change.requested_by), 'approved_by': _name(reviewer),
+                  'target': user.get_username(), 'outcome': 'applied'})
+
+
+def _name(user):
+    return user.get_username() if user is not None else ''

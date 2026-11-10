@@ -504,8 +504,18 @@ class ViewTests(TestCase):
         self.assertEqual(r.status_code, 403)
         self.assertFalse(StandardException.objects.exists())
 
-    def test_staff_sees_credential_title_but_no_secrets(self):
+    def test_staff_without_vault_reach_sees_no_credential_title(self):
         r = self._get(self._staff(), self.url(self.org_a))
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('Tenant Admin', r.content.decode())
+
+    def test_staff_sees_credential_title_but_no_secrets(self):
+        from accounts.models import RoleTemplate
+        staff = self._staff()
+        # Cross-customer vault sight is explicit since v3.17.653: a global role.
+        staff.profile.global_role_template = RoleTemplate.objects.create(name='Global vault', vault_view=True)
+        staff.profile.save()
+        r = self._get(staff, self.url(self.org_a))
         self.assertEqual(r.status_code, 200)
         body = r.content.decode()
         self.assertIn('Tenant Admin', body)

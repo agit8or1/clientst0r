@@ -311,7 +311,7 @@ def process_create(request):
                 'Please pick an organization to own this process.')
         return render(request, 'processes/process_form.html', {
             'form': ProcessForm(),
-            'formset': ProcessStageFormSet(),
+            'formset': ProcessStageFormSet(form_kwargs={'user': request.user}),
             'action': 'Create',
             'current_organization': None,
             'org_choices': org_choices,
@@ -320,7 +320,7 @@ def process_create(request):
 
     if request.method == 'POST':
         form = ProcessForm(request.POST, organization=org)
-        formset = ProcessStageFormSet(request.POST)
+        formset = ProcessStageFormSet(request.POST, form_kwargs={'organization': org, 'user': request.user})
 
         if form.is_valid() and formset.is_valid():
             process = form.save(commit=False)
@@ -338,7 +338,7 @@ def process_create(request):
             return redirect('processes:process_detail', slug=process.slug)
     else:
         form = ProcessForm(organization=org)
-        formset = ProcessStageFormSet()
+        formset = ProcessStageFormSet(form_kwargs={'organization': org, 'user': request.user})
 
     return render(request, 'processes/process_form.html', {
         'form': form,
@@ -371,7 +371,7 @@ def process_edit(request, slug):
 
     if request.method == 'POST':
         form = ProcessForm(request.POST, instance=process, organization=org)
-        formset = ProcessStageFormSet(request.POST, instance=process)
+        formset = ProcessStageFormSet(request.POST, instance=process, form_kwargs={'organization': org, 'user': request.user})
 
         if form.is_valid() and formset.is_valid():
             process = form.save(commit=False)
@@ -385,7 +385,7 @@ def process_edit(request, slug):
             return redirect('processes:process_detail', slug=process.slug)
     else:
         form = ProcessForm(instance=process, organization=org)
-        formset = ProcessStageFormSet(instance=process)
+        formset = ProcessStageFormSet(instance=process, form_kwargs={'organization': org, 'user': request.user})
 
     return render(request, 'processes/process_form.html', {
         'form': form,
@@ -453,7 +453,7 @@ def global_process_create(request):
     """Create global process (superuser only)"""
     if request.method == 'POST':
         form = ProcessForm(request.POST, is_global=True)
-        formset = ProcessStageFormSet(request.POST)
+        formset = ProcessStageFormSet(request.POST, form_kwargs={'user': request.user})
 
         if form.is_valid() and formset.is_valid():
             process = form.save(commit=False)
@@ -473,7 +473,7 @@ def global_process_create(request):
             return redirect('processes:global_process_list')
     else:
         form = ProcessForm(is_global=True)
-        formset = ProcessStageFormSet()
+        formset = ProcessStageFormSet(form_kwargs={'user': request.user})
 
     return render(request, 'processes/global_process_form.html', {
         'form': form,

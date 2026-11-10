@@ -112,6 +112,8 @@ class PasswordAuditReport(ReportGenerator):
     (`totp_secret`, `category`) and failed on every run."""
 
     def generate(self):
+        if self.parameters.get('include_vault') is False:
+            raise PermissionError("This report needs the 'vault_view' permission for the customer.")
         passwords = Password.objects.filter(organization=self.organization, is_personal=False)
         total = passwords.count()
         now = timezone.now()
@@ -359,7 +361,9 @@ class OrganizationMetricsReport(ReportGenerator):
         asset_count = assets.count()
 
         # Password metrics
-        password_count = Password.objects.filter(organization=self.organization, is_personal=False).count()
+        # Vault counts only for viewers with vault_view here (None = not shown).
+        password_count = (None if self.parameters.get('include_vault') is False else
+                          Password.objects.filter(organization=self.organization, is_personal=False).count())
 
         # Document metrics
         document_count = Document.objects.filter(organization=self.organization).count()
