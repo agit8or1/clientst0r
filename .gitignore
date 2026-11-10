@@ -249,3 +249,6 @@ walkthrough-raw/
 
 # Hardware catalog source checkout (devicetype-library), fetched by import_hardware_catalog
 /data/hardware-catalog/
+
+# Pre-upgrade snapshots (database, uploads, keys): never commit
+/backups/
