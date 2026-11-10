@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load tz %}
+{% load tz integration_health %}
 {% block title %}{{ connection.name }} - UniFi - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -35,16 +35,10 @@
                     <tr><th>Mode</th><td>{{ connection.get_mode_display }}</td></tr>
                     <tr><th>SSL Verify</th><td>{{ connection.verify_ssl|yesno:"Yes,No" }}</td></tr>
                     <tr><th>Active</th><td>{{ connection.is_active|yesno:"Yes,No" }}</td></tr>
-                    <tr><th>Status</th><td>
-                        {% if connection.last_sync_status == 'ok' %}<span class="badge bg-success text-white">OK</span>
-                        {% elif connection.last_sync_status == 'error' %}<span class="badge bg-danger text-white">Error</span>
-                        {% else %}<span class="badge bg-secondary text-white">Never synced</span>{% endif %}
-                    </td></tr>
-                    <tr><th>Last Sync</th><td>{% if connection.last_sync_at %}<span class="local-time" data-utc="{{ connection.last_sync_at|date:'c' }}">{{ connection.last_sync_at|localtime|date:"Y-m-d H:i" }}</span>{% else %}Never{% endif %}</td></tr>
-                    {% if connection.last_error %}<tr><th>Last Error</th><td class="text-danger small">{{ connection.last_error }}</td></tr>{% endif %}
                 </table>
             </div>
         </div>
+        <div class="mt-3">{% sync_health connection %}</div>
     </div>
     <div class="col-md-6">
         <div class="card">
@@ -76,7 +70,7 @@
     WLANs, VLANs, firewall rules and traffic rules are not available via the Site Manager API.
     Device hardware details come from the cloud inventory.
     {% if available_orgs %}
-    Assign each site to an organization below to control which org its devices belong to.
+    Assign each site to a customer in <a href="#site-mapping">Site → customer mapping</a> to control which customer its devices belong to.
     {% endif %}
 </div>
 {% elif not has_legacy %}
@@ -92,6 +86,55 @@
 {% endif %}
 
 {% if sites %}
+<div class="card mb-4" id="site-mapping">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="fas fa-sitemap me-2"></i><strong>Site → customer mapping</strong></span>
+        {% if can_review_placement %}
+        <a href="{% url 'integrations:unifi_placement_report' connection.pk %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-search me-1"></i>Placement report
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body p-0">
+        {% if sites_needing_mapping %}
+        <div class="alert alert-warning rounded-0 mb-0 small">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            <strong>{{ sites_needing_mapping|length }} site(s) are skipped by asset sync</strong> until each maps to exactly one customer.
+        </div>
+        {% endif %}
+        <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle">
+                <thead><tr><th>Site</th><th>Devices</th><th>Customer</th><th>Status</th></tr></thead>
+                <tbody>
+                {% for site in sites %}
+                <tr>
+                    <td class="fw-semibold">{{ site.name }}</td>
+                    <td>{{ site.devices|length }}</td>
+                    <td>
+                        {% if available_orgs %}
+                        <select class="form-select form-select-sm site-org-select" style="min-width:160px;max-width:260px;"
+                                data-site="{{ site.map_key }}" title="Customer for this site" aria-label="Customer for site {{ site.name }}">
+                            <option value="">— Not mapped (skipped) —</option>
+                            {% for o in available_orgs %}<option value="{{ o.id }}"{% if site.assigned_org_id == o.id %} selected{% endif %}>{{ o.name }}</option>{% endfor %}
+                        </select>
+                        {% else %}{{ site.resolution.organization_name|default:"—" }}{% endif %}
+                    </td>
+                    <td class="small">
+                        {% if site.resolution.status == 'mapped' %}<span class="badge bg-success text-white">Mapped</span>
+                        {% elif site.resolution.status == 'default' %}<span class="badge bg-info text-dark">Connection's organization</span>
+                        {% elif site.resolution.status == 'ambiguous' %}<span class="badge bg-danger text-white">Ambiguous</span>
+                        {% elif site.resolution.status == 'invalid' %}<span class="badge bg-danger text-white">Invalid</span>
+                        {% else %}<span class="badge bg-warning text-dark">Unmapped</span>{% endif %}
+                        {% if site.resolution.reason %}<div class="text-muted">{{ site.resolution.reason }}</div>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 {% for site in sites %}
 <div class="card mb-4 border-0 shadow-sm">
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -101,18 +144,14 @@
             {% if site.wlans %}<span class="badge bg-light text-dark me-1"><i class="fas fa-wifi me-1"></i>{{ site.wlans|length }} WLANs</span>{% endif %}
             {% if site.vlans %}<span class="badge bg-light text-dark me-1"><i class="fas fa-sitemap me-1"></i>{{ site.vlans|length }} networks</span>{% endif %}
             {% if site.client_count %}<span class="badge bg-light text-dark me-1"><i class="fas fa-users me-1"></i>{{ site.client_count }} clients</span>{% endif %}
-            {% if is_cloud and available_orgs %}
-            <select class="form-select form-select-sm site-org-select" style="min-width:160px;max-width:220px;"
-                    data-site="{{ site.name }}" title="Assign to organization">
-                <option value="">— No org assigned —</option>
-                {% for o in available_orgs %}<option value="{{ o.id }}"{% if site.assigned_org_id == o.id %} selected{% endif %}>{{ o.name }}</option>{% endfor %}
-            </select>
-            {% if site.assigned_org_id %}
-            <a href="{% url 'integrations:unifi_import_assets' connection.pk %}?site={{ site.name|urlencode }}"
-               class="btn btn-sm btn-light" title="Import this site's devices to assigned org">
+            {% if site.resolution.status == 'mapped' or site.resolution.status == 'default' %}
+            <span class="badge bg-light text-dark"><i class="fas fa-building me-1"></i>{{ site.resolution.organization_name }}</span>
+            <a href="{% url 'integrations:unifi_import_assets' connection.pk %}?site={{ site.map_key|urlencode }}"
+               class="btn btn-sm btn-light" title="Import this site's devices to its customer">
                 <i class="fas fa-download me-1"></i>Import
             </a>
-            {% endif %}
+            {% else %}
+            <a href="#site-mapping" class="badge bg-warning text-dark text-decoration-none">Needs customer mapping</a>
             {% endif %}
         </div>
     </div>
@@ -324,7 +363,7 @@ document.querySelectorAll('.local-time[data-utc]').forEach(el => {
     }
 });
 
-{% if is_cloud and available_orgs %}
+{% if available_orgs %}
 function collectSiteOrgMap() {
     const map = {};
     document.querySelectorAll('.site-org-select').forEach(sel => {
@@ -346,7 +385,8 @@ document.querySelectorAll('.site-org-select').forEach(sel => {
             }).then(r => r.json()).then(data => {
                 if (data.ok) {
                     sel.classList.add('is-valid');
-                    setTimeout(() => sel.classList.remove('is-valid'), 1500);
+                    // Reload so each site's mapping status reflects the save.
+                    setTimeout(() => location.reload(), 800);
                 } else {
                     sel.classList.add('is-invalid');
                 }

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load tz %}
+{% block title %}Placement report — {{ connection.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2><i class="fas fa-search me-2"></i>UniFi placement report</h2>
+    <a href="{% url 'integrations:unifi_detail' connection.pk %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Back to {{ connection.name }}
+    </a>
+</div>
+
+<div class="alert alert-info small">
+    <i class="fas fa-info-circle me-1"></i>
+    This report is <strong>read-only</strong>. It compares the controller data from the last sync
+    {% if report.data_synced_at %}(<span data-utc="{{ report.data_synced_at|date:'c' }}">{{ report.data_synced_at|localtime|date:"Y-m-d H:i" }}</span>){% endif %}
+    with the asset registry and lists assets that earlier syncs put under the wrong customer, gave the wrong
+    type, or created twice. Nothing changes unless you select findings below and apply them. Every applied
+    change is written to the audit log with the asset's previous values.
+</div>
+
+{% if report.sites_needing_mapping %}
+<div class="alert alert-warning small">
+    <strong>Not checked — sites without a single customer:</strong>
+    <ul class="mb-1">
+    {% for s in report.sites_needing_mapping %}<li><strong>{{ s.site_name }}</strong>: {{ s.reason }}</li>{% endfor %}
+    </ul>
+    <a href="{% url 'integrations:unifi_detail' connection.pk %}#site-mapping">Fix the site → customer mapping</a>, then reload this report.
+</div>
+{% endif %}
+
+<form method="post" action="{% url 'integrations:unifi_placement_correct' connection.pk %}">
+    {% csrf_token %}
+    <div class="card mb-3">
+        <div class="card-header"><strong>{{ report.findings|length }} finding(s)</strong></div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 align-middle">
+                    <thead>
+                        <tr><th></th><th>Problem</th><th>Asset</th><th>Device</th><th>Site</th><th>Now</th><th>Should be</th><th>Proposed correction</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for f in report.findings %}
+                    <tr>
+                        <td><input class="form-check-input" type="checkbox" name="finding" value="{{ f.id }}" aria-label="Select finding {{ f.id }}"></td>
+                        <td><span class="badge {% if f.problem == 'misclassified' %}bg-info text-dark{% elif f.problem == 'misplaced' %}bg-danger text-white{% else %}bg-warning text-dark{% endif %}">{{ f.problem }}</span></td>
+                        <td><a href="{% url 'assets:asset_detail' f.asset_id %}">#{{ f.asset_id }} {{ f.asset_name }}</a></td>
+                        <td class="small"><code>{{ f.mac|default:f.serial }}</code></td>
+                        <td class="small">{{ f.site_name }}</td>
+                        <td class="small">{{ f.current_org_name }} · {{ f.current_type }}</td>
+                        <td class="small">{{ f.expected_org_name }}{% if f.fix == 'retype' %} · {{ f.expected_type }}{% endif %}</td>
+                        <td class="small">
+                            {% if f.fix == 'move' %}Move to {{ f.expected_org_name }} (tags and primary contact are cleared — they belong to the old customer)
+                            {% elif f.fix == 'retype' %}Change type to {{ f.expected_type }}
+                            {% else %}Delete this copy, keep asset #{{ f.keep_asset_id }}{% endif %}
+                            <div class="text-muted">{{ f.detail }}</div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center text-muted py-3">No misplaced, misclassified or duplicate assets found.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if report.findings %}
+        <div class="card-footer d-flex justify-content-end align-items-center gap-3 flex-wrap">
+            <label class="form-check-label small">
+                <input class="form-check-input me-1" type="checkbox" name="confirm" value="yes">
+                I have reviewed the selected findings and want to apply them
+            </label>
+            <button type="submit" class="btn btn-danger"><i class="fas fa-wrench me-1"></i>Apply selected corrections</button>
+        </div>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}

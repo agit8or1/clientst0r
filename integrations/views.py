@@ -38,8 +38,20 @@ def integration_list(request):
     org = get_request_organization(request)
 
     # Each row: (icon, category, provider_label, name, conn, configure_url,
-    # detail_url_or_none, status_dict).
+    # detail_url_or_none, status_dict, health).
     rows = []
+    from .health import health_for
+    from .models import IntegrationSyncHealth
+    health_rows = {}
+    try:
+        health_qs = IntegrationSyncHealth.objects.all()
+        if org is not None:
+            health_qs = health_qs.filter(organization=org)
+        for h in health_qs:
+            health_rows[(h.content_type_id, h.object_id)] = h
+    except Exception:
+        pass
+    from django.contrib.contenttypes.models import ContentType
 
     def _add(qs, *, icon, category, configure_url_name, detail_url_name=None,
              provider_label_attr='get_provider_type_display',
@@ -68,6 +80,10 @@ def integration_list(request):
             except Exception:
                 detail_url = None
 
+            try:
+                h_row = health_rows.get((ContentType.objects.get_for_model(type(conn)).pk, conn.pk))
+            except Exception:
+                h_row = None
             rows.append({
                 'icon': icon,
                 'category': category,
@@ -77,7 +93,8 @@ def integration_list(request):
                 'pk': conn.pk,
                 'configure_url': configure_url,
                 'detail_url': detail_url,
-                'status': connection_status(conn),
+                'status': connection_status(conn, h_row),
+                'health': health_for(conn, h_row) if h_row is not None else health_for(conn, False),
             })
 
     _add(PSAConnection.objects.for_organization(org),
@@ -1588,13 +1605,17 @@ def unifi_detail(request, pk):
         r['target_display'] = _target_str(mt) if mt else 'all'
         return r
 
+    from .network_assets import resolve_unifi_sites
+    resolutions = resolve_unifi_sites(connection, data.get('sites', []))
     sites = []
-    for s in data.get('sites', []):
+    for s, res in zip(data.get('sites', []), resolutions):
         zone_map = s.get('zone_map', {})
         site_name = s.get('name', '')
         sites.append({
             'name': site_name,
-            'assigned_org_id': (connection.site_org_map or {}).get(site_name),
+            'map_key': res.map_key,
+            'resolution': res.as_dict(),
+            'assigned_org_id': getattr(res.organization, 'pk', None) if res.status == 'mapped' else None,
             'devices': [_norm_device(d) for d in s.get('devices', [])],
             'wlans': s.get('wlans', []),
             'vlans': [_norm_vlan(v) for v in s.get('vlans', [])],
@@ -1605,21 +1626,20 @@ def unifi_detail(request, pk):
             'client_count': s.get('client_count', 0),
         })
 
-    # Build list of assignable orgs for cloud org selector
-    if is_cloud:
-        from core.models import Organization
-        from accounts.models import Membership
-        if request.user.is_superuser or getattr(request, 'is_staff_user', False):
-            available_orgs = list(Organization.objects.filter(is_active=True).order_by('name').values('id', 'name'))
-        else:
-            member_ids = Membership.objects.filter(
-                user=request.user, is_active=True, organization__is_active=True
-            ).values_list('organization_id', flat=True)
-            available_orgs = list(Organization.objects.filter(id__in=member_ids).order_by('name').values('id', 'name'))
+    # Assignable customers for the site → customer mapping (every mode: a
+    # self-hosted controller can serve several customers too).
+    from core.models import Organization
+    from accounts.models import Membership
+    if request.user.is_superuser or getattr(request, 'is_staff_user', False):
+        available_orgs = list(Organization.objects.filter(is_active=True).order_by('name').values('id', 'name'))
     else:
-        available_orgs = []
+        member_ids = Membership.objects.filter(
+            user=request.user, is_active=True, organization__is_active=True
+        ).values_list('organization_id', flat=True)
+        available_orgs = list(Organization.objects.filter(id__in=member_ids).order_by('name').values('id', 'name'))
 
     site_org_map = connection.site_org_map or {}
+    sites_needing_mapping = [r.as_dict() for r in resolutions if not r.importable]
 
     total_devices = sum(len(s['devices']) for s in sites)
     return render(request, 'integrations/unifi_detail.html', {
@@ -1631,6 +1651,8 @@ def unifi_detail(request, pk):
         'total_devices': total_devices,
         'available_orgs': available_orgs,
         'site_org_map': site_org_map,
+        'sites_needing_mapping': sites_needing_mapping,
+        'can_review_placement': _is_staff_admin(request),
     })
 
 
@@ -1677,9 +1699,6 @@ def unifi_site_org(request, pk):
     from core.models import Organization
     connection = _get_unifi_connection(request, pk)
 
-    if getattr(connection, 'mode', 'self_hosted') != UnifiConnection.MODE_CLOUD:
-        return JsonResponse({'ok': False, 'error': 'Only available for cloud connections.'}, status=400)
-
     import json as _json
     try:
         body = _json.loads(request.body)
@@ -1697,15 +1716,41 @@ def unifi_site_org(request, pk):
             .values_list('organization_id', flat=True)
         )
     # Include null/empty (clear assignment)
+    if not isinstance(site_org_map, dict):
+        return JsonResponse({'ok': False, 'error': 'site_org_map must be an object.'}, status=400)
     cleaned = {}
-    for site_name, org_id in site_org_map.items():
+    rejected = []
+    for site_key, org_id in site_org_map.items():
+        site_key = str(site_key)[:255]
         if not org_id:
-            cleaned[site_name] = None
-        elif int(org_id) in valid_ids:
-            cleaned[site_name] = int(org_id)
+            cleaned[site_key] = None
+            continue
+        try:
+            oid = int(org_id)
+        except (TypeError, ValueError):
+            rejected.append(site_key)
+            continue
+        if oid in valid_ids:
+            cleaned[site_key] = oid
+        else:
+            rejected.append(site_key)
 
+    before = connection.site_org_map or {}
     connection.site_org_map = cleaned
     connection.save(update_fields=['site_org_map'])
+    try:
+        from audit.models import AuditLog
+        AuditLog.log(user=request.user, action='update', organization=connection.organization,
+                     object_type='unifi_connection', object_id=connection.pk,
+                     object_repr=str(connection)[:255],
+                     description='UniFi site → customer mapping changed',
+                     ip_address=request.META.get('REMOTE_ADDR') or None, path=request.path,
+                     extra_data={'before': before, 'after': cleaned, 'rejected': rejected})
+    except Exception:
+        logger.exception('could not audit UniFi site mapping change')
+    if rejected:
+        return JsonResponse({'ok': False, 'error': 'Some customers are not ones you can assign.',
+                             'rejected': rejected}, status=400)
     return JsonResponse({'ok': True})
 
 
@@ -1719,12 +1764,24 @@ def _get_unifi_connection(request, pk):
 
 def _get_unifi_provider(connection):
     """Return the appropriate UniFi provider instance based on connection mode."""
-    from integrations.providers.unifi import UnifiProvider, UnifiCloudProvider
-    creds = connection.get_credentials()
-    if getattr(connection, 'mode', 'self_hosted') == UnifiConnection.MODE_CLOUD:
-        return UnifiCloudProvider(api_key=creds.get('api_key', ''))
-    return UnifiProvider(connection.host, creds.get('api_key', ''), connection.verify_ssl,
-                         username=creds.get('username', ''), password=creds.get('password', ''))
+    from .network_assets import get_unifi_provider
+    return get_unifi_provider(connection)
+
+
+def _is_staff_admin(request):
+    """MSP staff with admin rights (superuser, Django staff, or a Staff-type
+    user whose membership is Admin/Owner). Customer admins are not enough for
+    cross-customer actions such as the UniFi placement correction."""
+    user = request.user
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser or user.is_staff:
+        return True
+    if not getattr(request, 'is_staff_user', False):
+        return False
+    from core.decorators import get_user_membership
+    membership = get_user_membership(request)
+    return bool(membership and membership.can_admin())
 
 
 @login_required
@@ -1737,7 +1794,8 @@ def unifi_test(request, pk):
     if result['success']:
         messages.success(request, f"Connected: {result['message']}")
     else:
-        messages.error(request, f"Connection failed: {result['error']}")
+        from .health import redact_for
+        messages.error(request, f"Connection failed: {redact_for(connection, result['error'])}")
     return redirect('integrations:unifi_detail', pk=pk)
 
 
@@ -2100,12 +2158,25 @@ def unifi_sync(request, pk):
 
         connection.save()
         site_count = len(data.get('sites', []))
-        messages.success(request, f"Synced {site_count} site(s). Documentation updated.")
+        from . import health as _health
+        from .network_assets import import_unifi_assets, record_unifi_import, summary_message
+        if connection.auto_sync_assets:
+            result = import_unifi_assets(connection, data)
+            connection.last_asset_sync_at = timezone.now()
+            connection.save(update_fields=['last_asset_sync_at'])
+            record_unifi_import(connection, result)
+            messages.success(request, f"Synced {site_count} site(s). Documentation updated. "
+                                      f"Assets: {summary_message(result)}.")
+            for it in result['issues'][:5]:
+                messages.warning(request, f"{it['message']} {it.get('action', '')}".strip())
+        else:
+            _health.record_sync(connection, 'unifi', status=_health.STATUS_SUCCESS)
+            messages.success(request, f"Synced {site_count} site(s). Documentation updated.")
     except Exception as e:
-        connection.last_sync_status = 'error'
-        connection.last_error = str(e)
-        connection.save(update_fields=['last_sync_status', 'last_error'])
-        messages.error(request, f"Sync failed: {e}")
+        from . import health as _health
+        err = _health.redact_for(connection, e)
+        _health.record_sync(connection, 'unifi', status=_health.STATUS_ERROR, error=err)
+        messages.error(request, f"Sync failed: {err}")
 
     return redirect('integrations:unifi_detail', pk=pk)
 
@@ -2113,240 +2184,140 @@ def unifi_sync(request, pk):
 @login_required
 @require_admin
 def unifi_import_assets(request, pk):
-    """Import UniFi devices into the asset registry."""
-    from assets.models import Asset
-    from django.core.validators import validate_ipv46_address
+    """Import UniFi devices into the asset registry (manual path).
+
+    Same implementation as the scheduled `sync_network_assets` command
+    (integrations.network_assets): each site's devices go to the customer the
+    site maps to; unmapped / ambiguous sites are skipped and reported.
+    """
+    from .network_assets import (
+        import_unifi_assets as _import, normalize_unifi_device, record_unifi_import,
+        resolve_unifi_sites, summary_message,
+    )
 
     connection = _get_unifi_connection(request, pk)
-    org = get_request_organization(request)
     data = connection.cached_data or {}
     is_cloud = data.get('mode') == 'cloud'
-    site_org_map = connection.site_org_map or {}
     site_filter = request.GET.get('site', '').strip()
-    sites = [s for s in data.get('sites', []) if not site_filter or s.get('name') == site_filter]
 
-    # Map UniFi productType to asset types — handles both prefix codes (local API)
-    # and full strings (cloud Site Manager API)
-    _TYPE_MAP = [
-        # Local API prefix codes (model field prefixes e.g. UAP-AC-Pro, USW-48, U6-Pro)
-        ('uap', 'wireless_ap'),   # classic APs
-        ('u6', 'wireless_ap'),    # U6-Pro, U6-Enterprise, U6-LR, U6-Mesh, U6-IW
-        ('u7', 'wireless_ap'),    # U7-Pro, U7-Enterprise (newer gen)
-        ('u2', 'wireless_ap'),    # U2-Nano, U2-Mini
-        ('uaf', 'wireless_ap'),   # UAP-FlexHD
-        ('ubb', 'wireless_ap'),   # UniFi Building Bridge
-        ('usw', 'switch'),
-        ('udm', 'router'),
-        ('uxg', 'router'),
-        ('ugw', 'router'),        # UniFi Security Gateway
-        ('usg', 'router'),
-        ('ups', 'ups'),
-        ('ucg', 'router'),
-        # Cloud Site Manager API — camelCase productType (lowercased for matching)
-        ('accesspoint', 'wireless_ap'),    # 'accessPoint'
-        ('networkswitch', 'switch'),       # 'networkSwitch'
-        ('network_switch', 'switch'),      # 'NETWORK_SWITCH' (uppercased variant)
-        ('securitygateway', 'router'),     # 'securityGateway'
-        ('dreamrouter', 'router'),         # 'dreamRouter'
-        ('dreamwall', 'router'),           # 'dreamWall'
-        ('dreammachine', 'router'),        # 'dreamMachine'
-        ('cloudgateway', 'router'),        # 'cloudGateway'
-        ('powerunit', 'ups'),              # 'powerUnit'
-        # Cloud API full strings (snake_case / hyphenated / plain)
-        ('access_point', 'wireless_ap'),
-        ('access-point', 'wireless_ap'),
-        ('wireless', 'wireless_ap'),
-        ('switch', 'switch'),
-        ('switching', 'switch'),
-        ('router', 'router'),
-        ('routing', 'router'),
-        ('gateway', 'router'),
-        ('firewall', 'firewall'),
-    ]
+    resolutions = resolve_unifi_sites(connection, data.get('sites', []))
+    if site_filter:
+        resolutions = [r for r in resolutions if r.site_name == site_filter or r.site_id == site_filter]
 
-    def _asset_type(device):
-        # Try productType, then type, then model (model prefix encodes type, e.g. UAP-AC-Pro)
-        pt = (device.get('productType') or device.get('type') or
-              device.get('model') or device.get('shortname') or '').lower()
-        for keyword, atype in _TYPE_MAP:
-            if pt.startswith(keyword) or pt == keyword:
-                return atype
-        return 'other'
-
-    def _clean_ip(raw):
-        try:
-            validate_ipv46_address(raw)
-            return raw
-        except Exception:
-            return ''
-
-    def _norm_preview(d):
-        """Normalize raw UniFi device dict to safe keys for template preview."""
-        mac = (d.get('mac') or d.get('macAddress') or '').lower().replace('-', ':')
-        return {
-            'name': d.get('name') or d.get('hostname') or mac or '—',
-            'productType': d.get('productType') or d.get('type') or '—',
-            'model': d.get('model') or d.get('shortname') or '—',
-            'ip': d.get('ip') or d.get('ipAddress') or '—',
-            'mac': mac or '—',
-            'serial': d.get('serial') or d.get('serialNumber') or d.get('serialno') or '—',
-            'version': d.get('version') or d.get('firmwareVersion') or '—',
-        }
-
-    # Build flat device list with site context; keep raw dict for POST processing
-    # For cloud connections, annotate each device with its assigned org
-    from core.models import Organization as _Org
-    org_name_cache = {}
     all_devices = []
-    for site in sites:
-        site_name = site.get('name', '')
-        assigned_org_id = site_org_map.get(site_name)
-        if assigned_org_id and assigned_org_id not in org_name_cache:
-            try:
-                org_name_cache[assigned_org_id] = _Org.objects.get(pk=assigned_org_id).name
-            except _Org.DoesNotExist:
-                org_name_cache[assigned_org_id] = f'Org #{assigned_org_id}'
-        for d in site.get('devices', []):
+    for res in resolutions:
+        for d in res.devices:
+            nd = normalize_unifi_device(d)
             all_devices.append({
-                'site_name': site_name,
-                'assigned_org_id': assigned_org_id,
-                'assigned_org_name': org_name_cache.get(assigned_org_id, ''),
-                'device': _norm_preview(d),
-                '_raw': d,
+                'site_name': res.site_name,
+                'resolution': res.as_dict(),
+                'assigned_org_id': getattr(res.organization, 'pk', None) if res.importable else None,
+                'assigned_org_name': getattr(res.organization, 'name', '') if res.importable else '',
+                'device': {
+                    'name': nd['name'],
+                    'productType': d.get('productType') or d.get('type') or '—',
+                    'asset_type': nd['asset_type'],
+                    'model': nd['model'] or '—',
+                    'ip': nd['ip'] or '—',
+                    'mac': nd['mac'] or '—',
+                    'serial': nd['serial_number'] or '—',
+                    'version': nd['os_version'] or '—',
+                },
             })
 
     if request.method == 'POST':
-        def _normalize(d):
-            mac = (d.get('mac') or d.get('macAddress') or '').lower().replace('-', ':')
-            return {
-                'name': d.get('name') or d.get('hostname') or mac or 'Unknown Device',
-                'mac': mac,
-                'ip': _clean_ip(d.get('ip') or d.get('ipAddress') or ''),
-                'model': d.get('model') or d.get('shortname') or '',
-                'asset_type': _asset_type(d),
-                'manufacturer': 'Ubiquiti',
-                'serial_number': d.get('serial') or d.get('serialNumber') or d.get('serialno') or '',
-                'os_version': d.get('version') or d.get('firmwareVersion') or '',
-                'hostname': d.get('hostname') or '',
-            }
-
-        totals = {'created': 0, 'updated': 0, 'skipped': 0}
-
-        if is_cloud and site_org_map:
-            # Cloud: group devices by assigned org, skip unassigned sites
-            groups = {}  # org_id -> list of normalized devices
-            for item in all_devices:
-                oid = item.get('assigned_org_id')
-                if not oid:
-                    continue
-                groups.setdefault(oid, []).append(_normalize(item['_raw']))
-            if not groups:
-                messages.warning(request, 'No sites have an organization assigned. Use the org dropdown on the detail page to assign sites before importing.')
-                return redirect('integrations:unifi_detail', pk=pk)
-            for oid, devs in groups.items():
-                try:
-                    target_org = _Org.objects.get(pk=oid)
-                    r = _import_devices_to_assets(target_org, devs, 'UniFi')
-                    totals['created'] += r['created']
-                    totals['updated'] += r['updated']
-                    totals['skipped'] += r['skipped']
-                except _Org.DoesNotExist:
-                    pass
+        from django.utils import timezone
+        result = _import(connection, data, site_filter=site_filter)
+        connection.last_asset_sync_at = timezone.now()
+        connection.save(update_fields=['last_asset_sync_at'])
+        record_unifi_import(connection, result)
+        if result['skipped_sites'] or result['failed']:
+            messages.warning(request, f"Import finished with problems: {summary_message(result)}.")
+            for it in result['issues'][:5]:
+                messages.warning(request, f"{it['message']} {it.get('action', '')}".strip())
         else:
-            # Self-hosted or cloud without org map: import all to connection's org
-            target_org = connection.organization or org
-            normalized = [_normalize(item['_raw']) for item in all_devices]
-            r = _import_devices_to_assets(target_org, normalized, 'UniFi')
-            totals = r
-
-        messages.success(request, f"Import complete: {totals['created']} created, {totals['updated']} updated, {totals['skipped']} unchanged.")
+            messages.success(request, f"Import complete: {summary_message(result)}.")
         return redirect('integrations:unifi_detail', pk=pk)
 
     return render(request, 'integrations/unifi_import_assets.html', {
         'connection': connection,
         'all_devices': all_devices,
         'is_cloud': is_cloud,
-        'site_org_map': site_org_map,
         'site_filter': site_filter,
+        'sites': [r.as_dict() for r in resolutions],
+        'sites_needing_mapping': [r.as_dict() for r in resolutions if not r.importable],
+        'importable_count': sum(1 for i in all_devices if i['assigned_org_id']),
     })
+
+
+def _staff_admin_or_403(request):
+    if not _is_staff_admin(request):
+        raise PermissionDenied('MSP staff admin permission required')
+
+
+@login_required
+@require_admin
+def unifi_placement_report(request, pk):
+    """Read-only: assets earlier syncs put under the wrong customer, gave the
+    wrong type, or created twice. Corrections are a separate POST."""
+    from .network_assets import build_unifi_placement_report
+    _staff_admin_or_403(request)
+    connection = _get_unifi_connection(request, pk)
+    report = build_unifi_placement_report(connection)
+    return render(request, 'integrations/unifi_placement_report.html', {
+        'connection': connection,
+        'report': report,
+    })
+
+
+@login_required
+@require_admin
+@require_POST
+def unifi_placement_correct(request, pk):
+    """Apply the selected placement-report findings (audited, before-values logged)."""
+    from .network_assets import apply_unifi_corrections
+    _staff_admin_or_403(request)
+    connection = _get_unifi_connection(request, pk)
+    finding_ids = [f for f in request.POST.getlist('finding') if f][:500]
+    if not finding_ids:
+        messages.warning(request, 'Select at least one finding to correct.')
+        return redirect('integrations:unifi_placement_report', pk=pk)
+    if request.POST.get('confirm') != 'yes':
+        messages.warning(request, 'Tick the confirmation box to apply corrections.')
+        return redirect('integrations:unifi_placement_report', pk=pk)
+    result = apply_unifi_corrections(connection, finding_ids, user=request.user, request=request)
+    if result['applied']:
+        messages.success(request, f"Applied {len(result['applied'])} correction(s). Each change is "
+                                  "recorded in the audit log with the asset's previous values.")
+    if result['stale']:
+        messages.warning(request, f"{len(result['stale'])} selected finding(s) no longer apply and were skipped.")
+    for f in result['failed'][:5]:
+        messages.error(request, f"Could not apply {f['id']}: {f['error']}")
+    return redirect('integrations:unifi_placement_report', pk=pk)
 
 
 # ============================================================================
 # Shared network asset import helper
 # ============================================================================
 
-def _import_devices_to_assets(org, devices, source_label='Network'):
+def _import_devices_to_assets(org, devices, source_label='Network', connection=None):
     """
     Create or update Asset records from a list of normalized device dicts.
 
-    Each device dict must have:
+    Thin wrapper over `integrations.network_assets.import_devices` (the one
+    implementation every controller uses). Each device dict has:
         name, mac, ip, model, asset_type, manufacturer, serial_number, os_version
     Optional: hostname
 
     Devices without a mac AND without a serial_number are skipped.
-    Returns {'created': N, 'updated': N, 'skipped': N}.
+    Returns {'created': N, 'updated': N, 'skipped': N, 'failed': N, 'issues': [...]}.
     """
-    from assets.models import Asset
-    from django.core.validators import validate_ipv46_address
-
-    def _clean_ip(raw):
-        try:
-            validate_ipv46_address(str(raw))
-            return str(raw)
-        except Exception:
-            return ''
-
-    created = updated = skipped = 0
-    for d in devices:
-        mac = (d.get('mac') or '').lower().replace('-', ':').strip()
-        serial = (d.get('serial_number') or '').strip()
-
-        # Skip devices with no identifiable key
-        if not mac and not serial:
-            skipped += 1
-            continue
-
-        name = (d.get('name') or '').strip() or mac or serial or 'Unknown Device'
-        ip_raw = _clean_ip(d.get('ip') or '')
-        hostname = (d.get('hostname') or '').strip()
-
-        fields = {
-            'name': name,
-            'asset_type': d.get('asset_type') or 'other',
-            'manufacturer': d.get('manufacturer') or '',
-            'model': d.get('model') or '',
-            'serial_number': serial,
-            'mac_address': mac,
-            'os_version': d.get('os_version') or '',
-        }
-        if hostname:
-            fields['hostname'] = hostname
-        if ip_raw:
-            fields['ip_address'] = ip_raw
-
-        # Match by MAC first, then serial number
-        existing = None
-        if mac:
-            existing = Asset.objects.filter(organization=org, mac_address__iexact=mac).first()
-        if not existing and serial:
-            existing = Asset.objects.filter(organization=org, serial_number__iexact=serial).first()
-
-        if existing:
-            changed = False
-            for k, v in fields.items():
-                if v and getattr(existing, k, '') != v:
-                    setattr(existing, k, v)
-                    changed = True
-            if changed:
-                existing.save()
-                updated += 1
-            else:
-                skipped += 1
-        else:
-            Asset.objects.create(organization=org, **{k: v for k, v in fields.items() if v})
-            created += 1
-
-    return {'created': created, 'updated': updated, 'skipped': skipped}
+    from .network_assets import import_devices
+    issues = []
+    source = (source_label or '').strip().lower() if connection is not None else ''
+    counts = import_devices(org, devices, source=source, connection=connection, issues=issues)
+    counts['issues'] = issues
+    return counts
 
 
 # ============================================================================
@@ -2450,7 +2421,8 @@ def omada_test(request, pk):
     if result['success']:
         messages.success(request, f"Connected: {result['message']}")
     else:
-        messages.error(request, f"Connection failed: {result.get('error', 'Unknown error')}")
+        from .health import redact_for
+        messages.error(request, f"Connection failed: {redact_for(connection, result.get('error', 'Unknown error'))}")
     return redirect('integrations:omada_detail', pk=pk)
 
 
@@ -2470,28 +2442,14 @@ def omada_sync(request, pk):
         password=creds.get('password', ''),
         verify_ssl=connection.verify_ssl,
     )
-    try:
-        data = provider.sync()
-        connection.cached_data = data
-        connection.last_sync_at = timezone.now()
-        connection.last_sync_status = 'ok'
-        connection.last_error = ''
-
-        if connection.auto_sync_assets:
-            all_devices = []
-            for s in data.get('sites', []):
-                all_devices.extend(s.get('devices', []))
-            _import_devices_to_assets(org, all_devices, 'Omada')
-            connection.last_asset_sync_at = timezone.now()
-
-        connection.save()
-        site_count = len(data.get('sites', []))
-        messages.success(request, f"Synced {site_count} site(s).")
-    except Exception as e:
-        connection.last_sync_status = 'error'
-        connection.last_error = str(e)
-        connection.save(update_fields=['last_sync_status', 'last_error'])
-        messages.error(request, f"Sync failed: {e}")
+    from .network_assets import sync_flat_connection
+    result = sync_flat_connection(connection, 'omada', provider, import_assets=connection.auto_sync_assets)
+    if result['status'] == 'error':
+        messages.error(request, f"Sync failed: {result['error']}")
+    elif result['status'] == 'partial':
+        messages.warning(request, f"Synced {result['site_count']} site(s); {result['failed']} device(s) failed to import.")
+    else:
+        messages.success(request, f"Synced {result['site_count']} site(s).")
 
     return redirect('integrations:omada_detail', pk=pk)
 
@@ -2514,11 +2472,17 @@ def omada_import_assets(request, pk):
 
     if request.method == 'POST':
         from django.utils import timezone
-        normalized = [item['device'] for item in all_devices]
-        result = _import_devices_to_assets(org, normalized, 'Omada')
+        from .network_assets import import_flat_devices
+        from . import health as _health
+        result = import_flat_devices(connection, 'omada', data)
         connection.last_asset_sync_at = timezone.now()
         connection.save(update_fields=['last_asset_sync_at'])
-        messages.success(request, f"Import complete: {result['created']} created, {result['updated']} updated, {result['skipped']} unchanged.")
+        _health.record_sync(connection, 'omada', status=result['status'], created=result['created'],
+                            updated=result['updated'], skipped=result['skipped'],
+                            failed=result['failed'], issues=result['issues'])
+        msg = (f"Import complete: {result['created']} created, {result['updated']} updated, "
+               f"{result['skipped']} unchanged, {result['failed']} failed.")
+        (messages.warning if result['failed'] else messages.success)(request, msg)
         return redirect('integrations:omada_detail', pk=pk)
 
     return render(request, 'integrations/omada_import_assets.html', {
@@ -2627,7 +2591,8 @@ def grandstream_test(request, pk):
     if result['success']:
         messages.success(request, f"Connected: {result['message']}")
     else:
-        messages.error(request, f"Connection failed: {result.get('error', 'Unknown error')}")
+        from .health import redact_for
+        messages.error(request, f"Connection failed: {redact_for(connection, result.get('error', 'Unknown error'))}")
     return redirect('integrations:grandstream_detail', pk=pk)
 
 
@@ -2646,28 +2611,14 @@ def grandstream_sync(request, pk):
         api_key=creds.get('api_key', ''),
         verify_ssl=connection.verify_ssl,
     )
-    try:
-        data = provider.sync()
-        connection.cached_data = data
-        connection.last_sync_at = timezone.now()
-        connection.last_sync_status = 'ok'
-        connection.last_error = ''
-
-        if connection.auto_sync_assets:
-            all_devices = []
-            for s in data.get('sites', []):
-                all_devices.extend(s.get('devices', []))
-            _import_devices_to_assets(org, all_devices, 'Grandstream')
-            connection.last_asset_sync_at = timezone.now()
-
-        connection.save()
-        site_count = len(data.get('sites', []))
-        messages.success(request, f"Synced {site_count} network(s).")
-    except Exception as e:
-        connection.last_sync_status = 'error'
-        connection.last_error = str(e)
-        connection.save(update_fields=['last_sync_status', 'last_error'])
-        messages.error(request, f"Sync failed: {e}")
+    from .network_assets import sync_flat_connection
+    result = sync_flat_connection(connection, 'grandstream', provider, import_assets=connection.auto_sync_assets)
+    if result['status'] == 'error':
+        messages.error(request, f"Sync failed: {result['error']}")
+    elif result['status'] == 'partial':
+        messages.warning(request, f"Synced {result['site_count']} network(s); {result['failed']} device(s) failed to import.")
+    else:
+        messages.success(request, f"Synced {result['site_count']} network(s).")
 
     return redirect('integrations:grandstream_detail', pk=pk)
 
@@ -2690,11 +2641,17 @@ def grandstream_import_assets(request, pk):
 
     if request.method == 'POST':
         from django.utils import timezone
-        normalized = [item['device'] for item in all_devices]
-        result = _import_devices_to_assets(org, normalized, 'Grandstream')
+        from .network_assets import import_flat_devices
+        from . import health as _health
+        result = import_flat_devices(connection, 'grandstream', data)
         connection.last_asset_sync_at = timezone.now()
         connection.save(update_fields=['last_asset_sync_at'])
-        messages.success(request, f"Import complete: {result['created']} created, {result['updated']} updated, {result['skipped']} unchanged.")
+        _health.record_sync(connection, 'grandstream', status=result['status'], created=result['created'],
+                            updated=result['updated'], skipped=result['skipped'],
+                            failed=result['failed'], issues=result['issues'])
+        msg = (f"Import complete: {result['created']} created, {result['updated']} updated, "
+               f"{result['skipped']} unchanged, {result['failed']} failed.")
+        (messages.warning if result['failed'] else messages.success)(request, msg)
         return redirect('integrations:grandstream_detail', pk=pk)
 
     return render(request, 'integrations/grandstream_import_assets.html', {
@@ -2804,7 +2761,8 @@ def m365_test(request, pk):
     if result['success']:
         messages.success(request, f"\u2713 {result['message']}")
     else:
-        messages.error(request, f"\u2717 {result['error']}")
+        from .health import redact_for
+        messages.error(request, f"\u2717 {redact_for(connection, result['error'])}")
     return redirect('integrations:m365_detail', pk=pk)
 
 
@@ -3215,12 +3173,15 @@ def m365_sync(request, pk):
         if secure_score:
             extras.append(f"secure score {secure_score.get('currentScore', 0):.0f}/{secure_score.get('maxScore', 0):.0f}")
         extra_str = (', ' + ', '.join(extras)) if extras else ''
+        from . import health as _health
+        _health.record_sync(connection, 'm365', status=_health.STATUS_SUCCESS,
+                            updated=len(users) + len(licenses) + len(teams))
         messages.success(request, f"\u2713 M365 sync complete. {len(users)} users, {len(licenses)} licenses, {len(teams)} teams{extra_str}.")
     except Exception as e:
-        connection.last_sync_status = 'error'
-        connection.last_error = str(e)
-        connection.save(update_fields=['last_sync_status', 'last_error'])
-        messages.error(request, f"Sync failed: {e}")
+        from . import health as _health
+        err = _health.redact_for(connection, e)
+        _health.record_sync(connection, 'm365', status=_health.STATUS_ERROR, error=err)
+        messages.error(request, f"Sync failed: {err}")
 
     return redirect('integrations:m365_detail', pk=pk)
 

@@ -57,6 +57,8 @@ urlpatterns = [
     path('unifi/<int:pk>/sync/', views.unifi_sync, name='unifi_sync'),
     path('unifi/<int:pk>/import-assets/', views.unifi_import_assets, name='unifi_import_assets'),
     path('unifi/<int:pk>/site-org/', views.unifi_site_org, name='unifi_site_org'),
+    path('unifi/<int:pk>/placement/', views.unifi_placement_report, name='unifi_placement_report'),
+    path('unifi/<int:pk>/placement/correct/', views.unifi_placement_correct, name='unifi_placement_correct'),
 
     # M365
     path('m365/create/', views.m365_create, name='m365_create'),
