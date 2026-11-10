@@ -151,7 +151,12 @@ The **Apply** button in Settings → Updates keeps working.
 
 ## Backups and recovery
 
-Back up before updating, and keep `APP_MASTER_KEY` (from `.env`) somewhere safe and
+Every update takes and verifies a pre-upgrade backup (database, uploaded files and the
+keys needed to read them) before it migrates, and refuses to migrate without one. See
+[docs/UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md) for where it lives, how it is
+verified, and how to restore it.
+
+For routine backups, keep `APP_MASTER_KEY` (from `.env`) somewhere safe and
 separate. Without it, encrypted vault entries and credentials in a restored database cannot
 be decrypted. If you have rotated the key since a backup was taken, list the old key in
 `APP_MASTER_KEY_PREVIOUS` to restore it (see [SECURITY.md](SECURITY.md#key-rotation)).
@@ -167,11 +172,12 @@ python manage.py backup --output-dir /var/backups/clientst0r --encrypt --retenti
 2. Fix the cause (common ones: a dependency that failed to install, a migration error, or
    missing permission to reload the service) and run the update again. Re-running is safe:
    every step is repeatable.
-3. If you need to go back to the previous version, there is no one-step rollback. Restore
-   the database from the backup you took before updating, check out the previous release
-   tag (`git checkout vX.Y.Z`), install its requirements, and reload the service. Restoring
-   code without restoring the database only works when the failed release added no
-   migrations.
+3. `python manage.py upgrade_status` says where the update stopped and whether the
+   database was touched. To go back, `python manage.py upgrade_restore` restores the
+   verified pre-upgrade backup: code revision, database, uploads. To finish instead, use
+   `python manage.py upgrade_apply --resume`. A half-applied migration on MySQL/MariaDB is
+   diagnosed by `python manage.py migration_doctor`. See
+   [docs/UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md).
 
 See [docs/MANUAL_UPDATE_GUIDE.md](docs/MANUAL_UPDATE_GUIDE.md) for the manual update path.
 

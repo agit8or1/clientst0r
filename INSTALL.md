@@ -147,44 +147,31 @@ Enter choice [1-4]:
 
 Update an existing installation to the latest version.
 
-### Quick Upgrade
+The usual way is the web UI: **Settings → Updates** (`/core/settings/updates/`),
+*Check for Updates*, review what *Apply would install*, then *Apply*. The full
+guide, including release channels, backups and recovery, is
+[docs/UPGRADE_AND_RECOVERY.md](docs/UPGRADE_AND_RECOVERY.md).
+
+### From the command line
 
 ```bash
 cd ~/clientst0r
-git pull origin main
-bash install.sh
+venv/bin/python manage.py upgrade_apply
 ```
 
-Choose **Option 1** when prompted.
+or `bash install.sh` and choose **Option 1**, which runs the same command.
 
 ### What the Upgrade Does
 
-1. Stops the running service
-2. Pulls latest code from GitHub
-3. Updates Python dependencies
-4. Runs new database migrations
-5. Collects static files
-6. Restarts the service
+1. Shows the installed version, the recommended release and what it would install (tag + commit)
+2. Verifies that revision (release tag signature, exact commit)
+3. Runs preflight checks (disk, database, pending migrations, media, keys, backup destination, dependencies)
+4. Takes a backup of the database, uploaded files and keys, and verifies it by restoring it into a scratch copy
+5. Installs the revision with its own update script: dependencies, migrations, static files
+6. Reloads the service; until then the old version keeps serving
 
-**Zero downtime alternative:** For production systems, consider:
-- Running upgrade during maintenance window
-- Using blue-green deployment strategy
-- Database backup before migration
-
-### Upgrade Output
-
-```
-[i] Starting upgrade process...
-[i] Stopping service...
-[i] Pulling latest code from GitHub...
-[i] Updating Python dependencies...
-[i] Running database migrations...
-[i] Collecting static files...
-[i] Restarting service...
-[✓] Upgrade complete! Service is running.
-
-Access at: http://192.168.22.72:8000
-```
+If anything fails before the migration, nothing is changed. If the migration
+fails, the output names the verified backup and the recovery steps.
 
 ---
 

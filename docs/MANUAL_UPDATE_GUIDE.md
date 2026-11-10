@@ -4,6 +4,11 @@ The normal way to update a native install is the web UI: **Settings → Updates*
 (`/core/settings/updates/`), *Check for Updates*, then *Apply*. Use this guide when that
 path is unavailable or fails, or when you need to pull specific commits.
 
+From the command line, prefer `venv/bin/python manage.py upgrade_apply`: it runs the same
+verified pipeline as the web UI (release signature, preflight, verified backup, migrate,
+reload). The manual steps below bypass those checks. Recovery from a failed or
+interrupted upgrade is in [UPGRADE_AND_RECOVERY.md](UPGRADE_AND_RECOVERY.md).
+
 Docker installs update with `docker compose pull && docker compose up -d`; see
 [docker.md](docker.md).
 
@@ -30,8 +35,9 @@ Back up first (see [Step 1](#step-1-back-up-first)), then:
 
 ```bash
 cd /path/to/clientst0r
-git pull origin main
 source venv/bin/activate
+python manage.py upgrade_backup --reason "before manual update"   # verified; note the path
+git pull origin main
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py collectstatic --noinput
