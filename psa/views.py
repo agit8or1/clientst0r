@@ -216,6 +216,16 @@ def ticket_list(request):
     })
 
 
+def _record_ai_draft_decision(ticket, request, body, **kw):
+    """Ticket AI and automation history: what the technician did with an AI
+    draft (psa_ai/services/history.py). Recording never blocks the reply."""
+    try:
+        from psa_ai.services.history import record_draft_decision
+        record_draft_decision(ticket, request.user, body, (request.POST.get('ai_draft') or '').strip(), **kw)
+    except Exception:
+        logger.exception('recording the AI draft decision on %s failed', ticket.ticket_number)
+
+
 @login_required
 @require_psa_enabled
 def ticket_detail(request, ticket_number):
@@ -1108,6 +1118,7 @@ def ticket_post_comment(request, ticket_number):
             if not has_capability(request.user, ticket.organization, 'send_reply', ticket=ticket):
                 TicketDraft.objects.update_or_create(
                     user=request.user, ticket=ticket, defaults={'body': body, 'is_internal': False})
+                _record_ai_draft_decision(ticket, request, body, refused=True)
                 messages.error(
                     request,
                     "This reply came from an AI draft, and your technician access doesn't include sending "
@@ -1159,6 +1170,9 @@ def ticket_post_comment(request, ticket_number):
         parent_comment=parent, cc_emails=cc_emails if send_email else [],
         secure_note=secure_note,
     )
+
+    if is_msp_staff(request.user) and (ai_assisted or is_internal):
+        _record_ai_draft_decision(ticket, request, body, comment=comment, internal=is_internal)
 
     now = timezone.now()
     update_fields = ['updated_by', 'updated_at', 'last_tech_response_at']

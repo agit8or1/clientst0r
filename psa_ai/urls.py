@@ -17,6 +17,7 @@ urlpatterns = [
     # Ticket AI Assist (v3.17.646): preview → submit → status.
     path('assist/<str:ticket_number>/preview/', assist_views.preview, name='assist_preview'),
     path('assist/<str:ticket_number>/submit/', assist_views.submit, name='assist_submit'),
+    path('assist/<str:ticket_number>/history/', assist_views.ticket_history, name='assist_history'),
     path('assist/job/<uuid:job_id>/', assist_views.job_status, name='assist_job'),
     path('profiles/', profile_views.profiles, name='profiles'),
     path('profiles/policy/<int:org_id>/', profile_views.policy, name='policy'),

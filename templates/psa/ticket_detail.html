@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load vault_access %}
 {% load ticket_routing %}
+{% load ai_history %}
 {% load static %}
 {% block title %}PSA — {{ ticket.ticket_number }}{% endblock %}
 {% block extra_css %}{{ block.super }}<link href="{% static 'css/ticket_conversation.css' %}" rel="stylesheet">{% endblock %}
@@ -870,6 +871,9 @@
 
         {# Ticket routing history + suggestions (staff only, never in the portal) #}
         {% if is_msp_staff %}{% routing_ticket_panel ticket %}{% endif %}
+
+        {# AI and automation history (staff only, never in the portal) #}
+        {% if is_msp_staff %}{% ai_history_panel ticket %}{% endif %}
 
         {# Workflows applied to this ticket — full inline stage checklist #}
         <style>

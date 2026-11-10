@@ -36,7 +36,12 @@ logger = logging.getLogger('psa_ai.reply_generator')
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / 'prompts'
 SYSTEM_PROMPT_PATH = PROMPTS_DIR / 'system_reply.md'
-PROMPT_VERSION = '1'
+
+
+def _prompt_version():
+    """File name + content hash of the system prompt (services/prompt_versions.py)."""
+    from .prompt_versions import prompt_version
+    return prompt_version(SYSTEM_PROMPT_PATH.name)
 
 
 class SafetyFailure(Exception):
@@ -165,7 +170,7 @@ def generate_reply_for_ticket(ticket, *, user, request_path: str = '') -> 'AISug
         review_state='draft',
         model_name=model,
         confidence=Decimal(str(confidence)),
-        prompt_version=PROMPT_VERSION,
+        prompt_version=_prompt_version(),
         suggested_body=body,
         context_snapshot={
             'subject': ctx['subject'],
@@ -186,7 +191,7 @@ def generate_reply_for_ticket(ticket, *, user, request_path: str = '') -> 'AISug
         description=f'Generated AI reply suggestion (model={model}, confidence={confidence}, risk={risk_level})',
         path=request_path,
         extra_data={
-            'model': model, 'prompt_version': PROMPT_VERSION,
+            'model': model, 'prompt_version': _prompt_version(),
             'input_tokens': input_tokens, 'output_tokens': output_tokens,
             'risk_level': risk_level,
         },
@@ -236,7 +241,7 @@ def _persist_blocked(ticket, user, reason: str, model='', input_tokens=0,
         kind='reply',
         review_state='blocked',
         model_name=model or '',
-        prompt_version=PROMPT_VERSION,
+        prompt_version=_prompt_version(),
         suggested_body='',  # never store raw rejected body
         context_snapshot={'reason': reason, 'raw_blocked_preview': (raw_body or '')[:400]},
         input_tokens=input_tokens, output_tokens=output_tokens,
@@ -263,7 +268,7 @@ def _persist_failed(ticket, user, error: str, model: str):
         kind='reply',
         review_state='failed',
         model_name=model,
-        prompt_version=PROMPT_VERSION,
+        prompt_version=_prompt_version(),
         context_snapshot={'error': error},
         requested_by=user,
     )

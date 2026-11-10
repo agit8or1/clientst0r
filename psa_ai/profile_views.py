@@ -63,7 +63,7 @@ class PolicyForm(forms.ModelForm):
     class Meta:
         model = AIBusinessPolicy
         fields = ['analysis_enabled', 'compare_enabled', 'allowed_profiles', 'default_profile',
-                  'allow_technician_credentials', 'local_only', 'daily_budget_cents']
+                  'allow_technician_credentials', 'local_only', 'daily_budget_cents', 'history_retention_days']
 
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
@@ -148,6 +148,7 @@ def policy(request, org_id):
                      object_id=p.pk, object_repr=f'AI policy for {org.name}', description=f'AI policy for {org.name} saved',
                      extra_data={'analysis': p.analysis_enabled, 'compare': p.compare_enabled,
                                  'local_only': p.local_only, 'budget_cents': p.daily_budget_cents,
+                                 'history_retention_days': p.history_retention_days,
                                  'profiles': list(p.allowed_profiles.values_list('pk', flat=True))})
         messages.success(request, f'AI policy for {org.name} saved.')
         return redirect('psa_ai:profiles')

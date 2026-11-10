@@ -682,6 +682,13 @@ APP_MASTER_KEY_PREVIOUS = os.getenv('APP_MASTER_KEY_PREVIOUS', '')
 AI_GATEWAY_MODE = os.getenv('AI_GATEWAY_MODE', 'in_process')
 AI_GATEWAY_KEY_DIR = os.getenv('AI_GATEWAY_KEY_DIR', '')
 
+# Ticket AI and automation history (psa_ai/services/history.py): days kept
+# for customers whose AI policy doesn't set its own window. 0 = keep.
+try:
+    PSA_AI_HISTORY_RETENTION_DAYS = max(0, int(os.getenv('PSA_AI_HISTORY_RETENTION_DAYS', '365')))
+except ValueError:
+    PSA_AI_HISTORY_RETENTION_DAYS = 365
+
 # API Key settings - must be separate from SECRET_KEY for security
 API_KEY_SECRET = os.getenv('API_KEY_SECRET')
 if not API_KEY_SECRET:

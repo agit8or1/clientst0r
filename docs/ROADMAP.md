@@ -1977,6 +1977,18 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
 - **56.6 Fix review** — only when the RMM advertises signed actions; ClientSt0r
   refers, the RMM approves and runs. *(partial — ClientSt0r referral and signed
   status shipped v3.17.658; rem0te approval and execution not built yet)*
+- **56.9 Ticket AI and automation history** — one staff-only, chronological
+  timeline per ticket: model/profile actually run, prompt version (file name +
+  content hash) on every draft and run, the human decision on each draft
+  (sent unchanged, edited then sent, kept internal, send refused) and
+  suggestion (approval requested, approved, rejected), approval requirement
+  and expiry for suggested changes, fix referrals and Rem0te proposals,
+  Rem0te outcome (job error code, proposal status and observed result),
+  alert tickets and routing decisions (marked as never starting a remote
+  session or endpoint action). Technicians with access at the customer only;
+  AI entries need AI output access and show no AI text while AI is off;
+  per-customer retention with a scheduled purge. *(in progress — built on a
+  development branch, not released)*
 
 **Sizing:** **L** — 56.1–56.4 shipped; ClientSt0r side of 56.5–56.6 shipped
 v3.17.658; the RMM side waits on rem0te.

@@ -1,7 +1,10 @@
 """Poll the paired RMMs for unfinished analysis jobs and RMM requests,
 expire stale ones, and refresh pairings' capabilities, so a missed callback
 never leaves anything hanging. Safe to run every minute; the scheduler runs
-it as task `poll_analysis_jobs`."""
+it as task `poll_analysis_jobs`.
+
+It also purges ticket AI and automation history past each customer's
+retention window (services/history.py), at most every six hours."""
 import logging
 from datetime import timedelta
 
@@ -42,6 +45,17 @@ class Command(BaseCommand):
             logger.exception('expiring RMM requests failed')
         self._refresh_capabilities()
         self._rem0te()
+        self._purge_history()
+
+    def _purge_history(self):
+        from psa_ai.services import history
+        try:
+            counts = history.purge_if_due()
+        except Exception:
+            logger.exception('purging ticket AI history failed')
+            return
+        if counts and any(counts.values()):
+            self.stdout.write('AI history purged: ' + ', '.join(f'{v} {k}' for k, v in counts.items() if v))
 
     def _rem0te(self):
         """Rem0te: recover alert events missed while ClientSt0r was down,

@@ -36,7 +36,12 @@ logger = logging.getLogger('psa_ai.triage_generator')
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / 'prompts'
 SYSTEM_PROMPT_PATH = PROMPTS_DIR / 'system_triage.md'
-PROMPT_VERSION = '1'
+
+
+def _prompt_version():
+    """File name + content hash of the system prompt (services/prompt_versions.py)."""
+    from .prompt_versions import prompt_version
+    return prompt_version(SYSTEM_PROMPT_PATH.name)
 
 # Triage uses a fixed cheaper/faster model regardless of CLAUDE_MODEL —
 # advisory output doesn't need Sonnet-class reasoning, and lower
@@ -247,7 +252,7 @@ def generate_triage_for_ticket(ticket, *, requested_by, request=None):
         review_state='draft',
         model_name=model,
         confidence=confidence,
-        prompt_version=PROMPT_VERSION,
+        prompt_version=_prompt_version(),
         suggested_body=body,
         context_snapshot={
             'subject': ctx['subject'],
@@ -276,7 +281,7 @@ def generate_triage_for_ticket(ticket, *, requested_by, request=None):
         ),
         path=request_path,
         extra_data={
-            'model': model, 'prompt_version': PROMPT_VERSION,
+            'model': model, 'prompt_version': _prompt_version(),
             'input_tokens': input_tokens, 'output_tokens': output_tokens,
             'temperature': TRIAGE_TEMPERATURE,
         },
@@ -296,7 +301,7 @@ def _persist_blocked(ticket, user, reason: str, *, model='', input_tokens=0,
         review_state='blocked',
         risk_level='low',
         model_name=model or '',
-        prompt_version=PROMPT_VERSION,
+        prompt_version=_prompt_version(),
         suggested_body='',  # never store rejected body content
         context_snapshot={
             'reason': reason,
@@ -327,7 +332,7 @@ def _persist_failed(ticket, user, error: str, model: str):
         review_state='failed',
         risk_level='low',
         model_name=model,
-        prompt_version=PROMPT_VERSION,
+        prompt_version=_prompt_version(),
         context_snapshot={'error': error},
         requested_by=user,
     )

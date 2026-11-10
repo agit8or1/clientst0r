@@ -281,6 +281,11 @@ class AIBusinessPolicy(models.Model):
         default=False, help_text='Both the processor and the model must be on-premises.')
     daily_budget_cents = models.PositiveIntegerField(
         default=0, help_text='Spend ceiling per day across all AI runs, in cents. 0 = no spend.')
+    history_retention_days = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Days to keep this customer\'s ticket AI and automation history (AI drafts, analysis jobs, '
+                  'RMM requests and the decisions on them). Blank = the installation default '
+                  '(PSA_AI_HISTORY_RETENTION_DAYS, 365). 0 = keep until deleted by hand.')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -401,6 +406,12 @@ class AnalysisRun(models.Model):
     output_tokens = models.PositiveIntegerField(default=0)
     result = models.JSONField(default=dict, blank=True)
     error = models.CharField(max_length=500, blank=True, default='')
+    # What actually ran, recorded when the gateway executes the run: the
+    # provider/model the profile named at that moment (profiles can be
+    # edited later) and the system prompt's stable version (file name +
+    # content hash, services/prompt_versions.py). Blank = never executed.
+    resolved_model = models.CharField(max_length=150, blank=True, default='')
+    prompt_version = models.CharField(max_length=80, blank=True, default='')
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
 
@@ -504,6 +515,16 @@ class RMMRequest(models.Model):
     # acted on here), and Rem0te's own status word.
     approval_url = models.URLField(max_length=500, blank=True, default='')
     remote_status = models.CharField(max_length=40, blank=True, default='')
+    # Rem0te's own answer about approval and outcome, as last reported
+    # (integrations/rem0te/actions.py). Shown in the ticket's AI and
+    # automation history; never acted on here.
+    approvals_required = models.PositiveSmallIntegerField(null=True, blank=True)
+    customer_signoff = models.BooleanField(null=True, blank=True)
+    approval_expires_at = models.DateTimeField(
+        null=True, blank=True, help_text="End of Rem0te's approval/execution window (window.not_after).")
+    remote_outcome = models.CharField(max_length=20, blank=True, default='')
+    observed = models.JSONField(default=dict, blank=True,
+                                help_text="Rem0te's observed result, sanitised and size-limited.")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -595,3 +616,63 @@ class Rem0teAlertTicket(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['connection', 'alert_id'], name='psa_ai_rem0te_alert_one_ticket'),
         ]
+
+
+# ===========================================================================
+# Ticket AI and automation history (staff only). services/history.py builds
+# the timeline; these rows hold what no other model records.
+# ===========================================================================
+
+class AIDraftDecision(models.Model):
+    """What a technician did with an AI draft: recorded by the server when a
+    comment that came from an AI draft is posted (or refused). The marker the
+    composer sends is only a hint; the draft is resolved against this
+    ticket's own suggestions and analysis jobs (services/drafts.py)."""
+    SOURCE_SUGGESTION = 'suggestion'
+    SOURCE_ANALYSIS = 'analysis'
+    SOURCE_REM0TE = 'rem0te'
+    SOURCE_CHOICES = [(SOURCE_SUGGESTION, 'AI reply suggestion'), (SOURCE_ANALYSIS, 'Ticket analysis draft'),
+                      (SOURCE_REM0TE, "Rem0te's verified draft")]
+    SENT = 'sent'
+    SENT_EDITED = 'sent_edited'
+    KEPT_INTERNAL = 'kept_internal'
+    SEND_REFUSED = 'send_refused'
+    DECISION_CHOICES = [
+        (SENT, 'Sent to the customer unchanged'),
+        (SENT_EDITED, 'Edited, then sent to the customer'),
+        (KEPT_INTERNAL, 'Kept as an internal note'),
+        (SEND_REFUSED, 'Send refused (no permission to send AI-assisted replies)'),
+    ]
+
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    ticket = models.ForeignKey('psa.Ticket', on_delete=models.CASCADE, related_name='ai_draft_decisions')
+    source = models.CharField(max_length=12, choices=SOURCE_CHOICES)
+    suggestion = models.ForeignKey(AISuggestion, null=True, blank=True, on_delete=models.CASCADE,
+                                   related_name='draft_decisions')
+    job = models.ForeignKey(AnalysisJob, null=True, blank=True, on_delete=models.CASCADE,
+                            related_name='draft_decisions')
+    draft_index = models.PositiveSmallIntegerField(null=True, blank=True)
+    decision = models.CharField(max_length=14, choices=DECISION_CHOICES)
+    comment = models.ForeignKey('psa.TicketComment', null=True, blank=True, on_delete=models.SET_NULL,
+                                related_name='+')
+    actor = models.ForeignKey(django_settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = 'psa_ai_draft_decisions'
+        ordering = ['created_at', 'pk']
+        indexes = [models.Index(fields=['ticket', 'created_at'])]
+
+    def __str__(self):
+        return f'{self.get_decision_display()} ({self.source}) on ticket {self.ticket_id}'
+
+
+class AIHistoryPurgeState(models.Model):
+    """One row (pk=1): when the AI and automation history was last purged,
+    so the every-minute poll_analysis_jobs task purges at most every few hours."""
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    last_deleted = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'psa_ai_history_purge_state'
