@@ -86,7 +86,10 @@
                 </div>
                 <small class="text-muted d-block mt-1">
                     The visual builder above writes into these textareas on save. Editing raw JSON is for combinators
-                    (<code>any</code>/<code>all</code>) or operators the builder doesn't expose.
+                    (<code>any</code>/<code>all</code>) or operators and actions the builder doesn't expose; a rule
+                    that uses them opens in raw JSON so nothing is lost on save.
+                    For customer-aware assignment with fallbacks, previews and history, see
+                    <a href="{% url 'ticket_routing:overview' %}">Ticket Routing</a>.
                 </small>
             </details>
         </div>
@@ -127,6 +130,9 @@
                 <option value="add_watcher">Add watcher</option>
                 <option value="add_internal_note">Add internal note</option>
                 <option value="add_tag">Add tag</option>
+                <option value="assign_round_robin">Assign round-robin</option>
+                <option value="assign_skill_match">Assign by skill group</option>
+                <option value="assign_load_balanced">Assign least-loaded</option>
             </select>
             <span class="text-muted">→</span>
             <span class="action-value-wrap"><input type="text" class="action-value form-control form-control-sm" style="width:280px;"></span>
@@ -136,6 +142,8 @@
         </div>
     </div>
 </template>
+
+<datalist id="wf-groups">{% for g in groups %}<option value="{{ g }}">{% endfor %}</datalist>
 
 <script nonce="{{ csp_nonce }}">
 (function() {
@@ -197,6 +205,16 @@
         } else if (type === 'set_queue') {
             el = document.createElement('select'); el.className = 'action-value form-select form-select-sm'; el.style.width = '240px';
             fillSelect(el, QUEUES); el.value = currentVal || '';
+        } else if (type === 'assign_round_robin' || type === 'assign_load_balanced' || type === 'assign_skill_match') {
+            // Existing engine actions (Phase 14 v8): optional "group" for
+            // round-robin / least-loaded, required "skill_group" for skill match.
+            el = document.createElement('input'); el.type = 'text';
+            el.className = 'action-value form-control form-control-sm'; el.style.width = '280px';
+            el.setAttribute('list', 'wf-groups');
+            el.placeholder = type === 'assign_skill_match'
+                ? 'skill group (required)' : 'group (blank = all staff)';
+            if (type === 'assign_skill_match') el.required = true;
+            el.value = currentVal || '';
         } else if (type === 'add_internal_note') {
             el = document.createElement('textarea');
             el.className = 'action-value form-control form-control-sm';
@@ -254,7 +272,21 @@
             } else if (Object.keys(conds).length) {
                 document.querySelector('#visual-builder').classList.add('builder-locked');
             }
-            if (Array.isArray(acts)) {
+            // Actions the builder can show without losing anything; any other
+            // shape (charges, rule chaining, extra keys) keeps the raw JSON.
+            const ACTION_KEYS = {
+                set_priority: ['code'], set_queue: ['name'], assign_to: ['username'],
+                add_watcher: ['username'], add_internal_note: ['body'], add_tag: ['tag'],
+                assign_round_robin: ['group'], assign_load_balanced: ['group'],
+                assign_skill_match: ['skill_group'],
+            };
+            const representable = Array.isArray(acts) && acts.every(a =>
+                a && ACTION_KEYS[a.type] &&
+                Object.keys(a).every(k => k === 'type' || ACTION_KEYS[a.type].includes(k)));
+            if (!representable) {
+                document.querySelector('#visual-builder').classList.add('builder-locked');
+            }
+            if (Array.isArray(acts) && representable) {
                 acts.forEach(a => {
                     const t = a.type;
                     let v = '';
@@ -263,6 +295,8 @@
                     else if (t === 'assign_to' || t === 'add_watcher') v = a.username;
                     else if (t === 'add_internal_note') v = a.body;
                     else if (t === 'add_tag') v = a.tag;
+                    else if (t === 'assign_round_robin' || t === 'assign_load_balanced') v = a.group || '';
+                    else if (t === 'assign_skill_match') v = a.skill_group || '';
                     addActionRow(t, v);
                 });
             }
@@ -296,6 +330,8 @@
             else if (type === 'assign_to' || type === 'add_watcher') obj.username = v;
             else if (type === 'add_internal_note') obj.body = v;
             else if (type === 'add_tag') obj.tag = v;
+            else if ((type === 'assign_round_robin' || type === 'assign_load_balanced') && v) obj.group = v;
+            else if (type === 'assign_skill_match') obj.skill_group = v;
             acts.push(obj);
         });
         actionJSON.value = JSON.stringify(acts, null, 2);

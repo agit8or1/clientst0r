@@ -4256,6 +4256,7 @@ def workflow_rule_form(request, pk=None):
     """Create/edit an MSP-level workflow rule. The rule's organization is
     optional — leave blank to apply to every client's tickets, or pick a
     specific client to scope it. No 'pick a client first' requirement."""
+    from django.contrib.auth.models import Group
     from .models import WorkflowRule
     from core.models import Organization
     import json as _json
@@ -4323,6 +4324,8 @@ def workflow_rule_form(request, pk=None):
         'priorities': TicketPriority.objects.all().order_by('sort_order'),
         'queues': Queue.objects.filter(is_active=True).order_by('name'),
         'statuses': TicketStatus.objects.all().order_by('sort_order'),
+        # Group names offered to the round-robin / skill / least-loaded actions.
+        'groups': list(Group.objects.order_by('name').values_list('name', flat=True)),
     })
 
 
