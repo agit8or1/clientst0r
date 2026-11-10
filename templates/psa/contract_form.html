@@ -146,9 +146,8 @@
                         <small class="form-text text-muted">Days from new period start. <code>0</code> = never expire.</small>
                       </div>
 
-                      {# Auto-renewal. `contract_flags` tells the view these
-                         checkboxes were rendered, so an unticked (absent) one
-                         means "off" rather than "not submitted". #}
+                      {% comment %}Auto-renewal. `contract_flags` tells the view these checkboxes were
+                         rendered, so an unticked (absent) one means "off" rather than "not submitted".{% endcomment %}
                       <input type="hidden" name="contract_flags" value="1">
                       <div class="col-md-6 d-flex align-items-center pt-3">
                         <div class="form-check">
