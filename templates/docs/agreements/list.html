@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Agreements{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-file-signature me-1"></i>Agreements</h1>
+    <a href="{% url 'docs:document_list' %}" class="btn btn-outline-secondary btn-sm">Documents</a>
+</div>
+<p class="text-muted small">MSAs, SOWs and policy acknowledgments. Each signature is bound to one exact version of the
+    document; editing the document issues a new version that needs signing again. Open a document and use
+    <strong>Agreement</strong> to make it one.</p>
+<div class="card">
+    <div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>Customer</th><th>Document</th><th>Type</th><th>Who signs</th><th>Status</th></tr></thead>
+        <tbody>{% for row in rows %}{% with agreement=row.agreement status=row.status %}
+        <tr><td>{{ agreement.organization_name }}</td>
+            <td>{% if agreement.document %}<a href="{% url 'docs:agreement_manage' agreement.document.pk %}">{{ agreement.title }}</a>{% else %}{{ agreement.title }} <span class="text-muted">(document deleted)</span>{% endif %}</td>
+            <td>{{ agreement.get_kind_display }}</td><td>{{ agreement.get_audience_display }}</td>
+            <td>{% include "docs/agreements/_status.html" %}</td></tr>
+        {% endwith %}{% empty %}<tr><td colspan="5" class="text-muted">No agreements yet.</td></tr>{% endfor %}</tbody>
+    </table></div>
+</div>
+{% endblock %}

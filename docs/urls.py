@@ -2,7 +2,7 @@
 Docs URL configuration
 """
 from django.urls import path
-from . import views
+from . import agreement_views, views
 
 app_name = 'docs'
 
@@ -30,6 +30,14 @@ urlpatterns = [
     path('lifecycle/archived/', views.document_archived_list, name='document_archived_list'),
     path('lifecycle/drafts/', views.document_drafts_list, name='document_drafts_list'),
     path('lifecycle/analytics/', views.kb_analytics, name='kb_analytics'),
+    # Version-specific agreements: MSAs, SOWs, policy acknowledgments.
+    path('lifecycle/agreements/', agreement_views.agreement_list, name='agreement_list'),
+    path('lifecycle/agreements/evidence/<int:pk>/', agreement_views.signature_evidence,
+         name='agreement_evidence'),
+    path('lifecycle/agreements/revisions/<int:pk>/', agreement_views.revision_view, name='agreement_revision'),
+    path('lifecycle/agreements/revisions/<int:pk>/<str:fmt>/', agreement_views.revision_snapshot,
+         name='agreement_revision_snapshot'),
+    path('id/<int:pk>/agreement/', agreement_views.agreement_manage, name='agreement_manage'),
     path('id/<int:pk>/versions/', views.document_versions, name='document_versions'),
     path('id/<int:pk>/versions/<int:number>/', views.document_version_detail, name='document_version_detail'),
     path('id/<int:pk>/versions/<int:number>/diff/', views.document_version_diff, name='document_version_diff'),

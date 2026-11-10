@@ -80,6 +80,48 @@ only.
 Nothing is cached. Demotion, revocation, expiry and policy changes apply to the next request — including a job
 already queued, which the gateway re-checks before calling a model.
 
+## Why can this technician do this?
+
+**Admin → Security → Technician Access → Why** (`/settings/security/technician-access/why/`), or **Why?** on any row
+of the effective-access preview. Pick a technician, a customer and a capability. The page shows the same decision the
+ticket tools make (Allowed, Request, Off, Unavailable or Locked) and the chain of records behind it at that customer:
+
+| Source | What it shows |
+|---|---|
+| Mandatory safeguard | For a locked capability, the safeguard. Nothing else can change it. |
+| MSP technician standing | Why the account counts as a technician (superuser, staff flag, or staff user type and global role). Required, but grants nothing by itself. For a superuser it links the approved **Superuser grant** change, if there was one. |
+| Membership at the customer | The membership role there. Shown for completeness; it grants no ticket AI or RMM capability. |
+| Containment | Active theft-detection containment, which turns everything off. |
+| Explicit deny | Denies at this customer or everywhere, active or expired, with who added them and when they end. |
+| Customer restriction | Whether the customer has switched the capability off for everyone. |
+| Paired RMM | Each paired RMM at the customer, whether it advertises what the capability needs, and the approved pairing change. |
+| Assignment | Every assignment at the customer for the technician or one of their groups — active, **expired** and **revoked** — with the state its preset gives, who granted it and when, the expiry, who revoked it and when. Expired and revoked ones are marked *not counted*. |
+
+The source that decides the outcome is marked **decides it**, and the page says when the access ends: the expiry of
+the assignment that grants it (the latest one if several do), never if one of them has no expiry, or when the deny ends.
+Group assignments also end when the technician leaves the group.
+
+Each source links to its record and its approval, and lists its audit history with **before → after** values:
+
+- **Assignment record** (`…/technician-access/assignments/<id>/`): preset, customer, granted by, expiry, revocation,
+  the approving protected change, what the preset gives now, and the audit trail (created, revoked, the change's
+  proposal, confirmation and approval).
+- **Protected change** (`…/technician-access/changes/<id>/`): requester, confirmation, reviewer, what it widened,
+  who was notified, the assignment it created, and its audit trail.
+- Group membership changes for that technician, preset capability changes, customer restriction changes, deny
+  creation and lifting, membership role changes and staff user-type / global-role changes.
+
+Only security administrators (superusers, the same people who manage technician access) can open these pages. The
+"why" page reads rows at the chosen customer only — another customer's assignments, denies, restrictions, pairings and
+memberships never appear.
+
+**Upgrade notes.** Assignments now record the protected change that created them and who revoked them. Assignments
+made before this release are matched to their change by customer, preset, technician or group and approval time;
+their revoker is unknown (the audit entry still names who revoked them). Before/after values appear on audit entries
+written from this release on; older entries show their description only. Membership role and staff user-type changes
+are audited from this release on, naming the signed-in user who made them (or no one, for changes made from the
+command line).
+
 ## Admin setup
 
 1. **Settings → Ticket AI models.** Create model profiles: Anthropic, OpenAI or Ollama.
@@ -100,6 +142,8 @@ already queued, which the gateway re-checks before calling a model.
    - Assign presets per technician or group, per customer, optionally with an expiry. **Preview** shows the diff,
      the affected technicians and the expiry before you save.
    - Set customer defaults and restrictions, add denies, and preview anyone's effective access with explanations.
+     **Why?** on a preview row shows who granted it, when it expires, the approval and the audit history
+     ([below](#why-can-this-technician-do-this)).
 5. Run `python manage.py ai_gateway_keygen` once.
 6. Optionally isolate the gateway (see [Vault isolation](#vault-isolation)).
 7. Run `python manage.py tech_access_report` to see:
