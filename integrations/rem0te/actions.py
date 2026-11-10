@@ -22,6 +22,7 @@ import logging
 from datetime import timedelta
 
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from . import client, pairing, protocol, schema
 
@@ -102,10 +103,21 @@ def _apply_proposal(req, data) -> bool:
     if isinstance(observed, dict):
         note = (note + ' ' if note else '') + 'Observed: ' + ', '.join(
             f'{client.safe_text(k, 20)}={client.safe_text(v, 30)}' for k, v in list(observed.items())[:6])
+    window = data.get('window') if isinstance(data.get('window'), dict) else {}
+    try:
+        not_after = parse_datetime(str(window.get('not_after') or ''))
+    except ValueError:
+        not_after = None
     _update(req, remote_id=str(data['job_id'])[:100], remote_status=data['status'][:40],
             status=STATUS_MAP.get(data['status'], 'failed'), status_note=note[:500], error='',
             approval_url=approval[:500] if approval.startswith('https://') else '',
-            confirmed_at=req.confirmed_at or timezone.now())
+            confirmed_at=req.confirmed_at or timezone.now(),
+            approvals_required=max(0, min(int(data.get('approvals_required') or 0), 100)),
+            customer_signoff=bool(data.get('customer_signoff')),
+            approval_expires_at=not_after,
+            remote_outcome=client.safe_text(data.get('outcome') or '', 20),
+            observed=({client.safe_text(k, 20): client.safe_text(v, 60) for k, v in list(observed.items())[:6]}
+                      if isinstance(observed, dict) else {}))
     return True
 
 

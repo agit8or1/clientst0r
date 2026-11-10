@@ -210,9 +210,13 @@ def claim_for_execution(run) -> bool:
     return AnalysisRun.objects.filter(pk=run.pk, status='dispatched').update(status='executing') == 1
 
 
+ANALYSIS_PROMPT = 'system_analysis.md'
+REM0TE_PROMPT = 'rem0te_ticket_triage_v1.md'
+
+
 def _system_prompt():
     from pathlib import Path
-    text = (Path(__file__).resolve().parent.parent / 'prompts' / 'system_analysis.md').read_text()
+    text = (Path(__file__).resolve().parent.parent / 'prompts' / ANALYSIS_PROMPT).read_text()
     return text.replace('Evidence:\n\n{{context}}', 'The evidence is in the user message.').strip()
 
 
@@ -288,6 +292,13 @@ def execute(run):
     run = AnalysisRun.objects.select_related('job', 'profile', 'job__organization').get(pk=run.pk)
     job, profile = run.job, run.profile
     status, result, error, t_in, t_out = 'failed', {}, '', 0, 0
+    # Record what is about to run before the provider is called, so a run
+    # that fails still shows which model and prompt version it used.
+    from .prompt_versions import prompt_version
+    AnalysisRun.objects.filter(pk=run.pk).update(
+        resolved_model=f'{profile.provider}/{profile.model}'[:150],
+        prompt_version=prompt_version(ANALYSIS_PROMPT if job.protocol != job.PROTOCOL_REM0TE
+                                      else REM0TE_PROMPT))
     try:
         if job.protocol == job.PROTOCOL_REM0TE:
             from integrations.rem0te.jobs import execute_run

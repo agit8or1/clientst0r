@@ -32,7 +32,12 @@ logger = logging.getLogger('psa_ai.action_generator')
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / 'prompts'
 SYSTEM_PROMPT_PATH = PROMPTS_DIR / 'system_action.md'
-PROMPT_VERSION = '1'
+
+
+def _prompt_version():
+    """File name + content hash of the system prompt (services/prompt_versions.py)."""
+    from .prompt_versions import prompt_version
+    return prompt_version(SYSTEM_PROMPT_PATH.name)
 
 
 def _load_system_prompt(*, voice: str, brand: str, status_slugs, priority_codes,
@@ -108,7 +113,7 @@ def generate_actions_for_ticket(ticket, *, user, request_path: str = ''):
             native_ticket=ticket if ticket.__class__.__name__ == 'Ticket' else None,
             psa_ticket=ticket if ticket.__class__.__name__ == 'PSATicket' else None,
             kind='action', review_state='blocked',
-            model_name='', prompt_version=PROMPT_VERSION,
+            model_name='', prompt_version=_prompt_version(),
             context_snapshot={'reason': reason}, requested_by=user,
         )
         AuditLog.log(
@@ -172,7 +177,7 @@ def generate_actions_for_ticket(ticket, *, user, request_path: str = ''):
             native_ticket=ticket if ticket.__class__.__name__ == 'Ticket' else None,
             psa_ticket=ticket if ticket.__class__.__name__ == 'PSATicket' else None,
             kind='action', review_state='failed',
-            model_name=model, prompt_version=PROMPT_VERSION,
+            model_name=model, prompt_version=_prompt_version(),
             context_snapshot={'error': str(exc)[:500]},
             requested_by=user,
         )
@@ -202,7 +207,7 @@ def generate_actions_for_ticket(ticket, *, user, request_path: str = ''):
             review_state=review_state,
             model_name=model,
             confidence=Decimal(str(top_conf)),
-            prompt_version=PROMPT_VERSION,
+            prompt_version=_prompt_version(),
             action_type=action_type,
             action_payload=a.get('payload') or {},
             suggested_body=a.get('rationale', '')[:500],
