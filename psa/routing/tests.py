@@ -613,6 +613,36 @@ class SuggestAndPermissionTests(RoutingFixture, TestCase):
         self.assertEqual(self.rr_rule.versions.count(), 2)
         self.assertEqual(self.rr_rule.versions.get(number=1).destination['type'], 'round_robin')
 
+    def test_every_page_renders(self):
+        self.make_shift()
+        c = Client()
+        _login(c, self.admin)
+        for url in (reverse('ticket_routing:overview'), reverse('ticket_routing:rule_new'),
+                    reverse('ticket_routing:rule_detail', args=[self.outage_rule.pk]),
+                    reverse('ticket_routing:rule_edit', args=[self.outage_rule.pk]),
+                    reverse('ticket_routing:customer', args=[self.cust_a.pk]),
+                    reverse('ticket_routing:on_call'), reverse('ticket_routing:test'),
+                    reverse('ticket_routing:triage'), reverse('psa:workflow_rule_list')):
+            self.assertEqual(c.get(url).status_code, 200, url)
+        edit = c.get(reverse('ticket_routing:rule_edit', args=[self.outage_rule.pk]))
+        self.assertContains(edit, 'value="outage"', html=False)
+        detail = c.get(reverse('ticket_routing:rule_detail', args=[self.outage_rule.pk]))
+        self.assertContains(detail, 'outside business hours')
+        # Adding and removing an on-call shift.
+        resp = c.post(reverse('ticket_routing:on_call'), {
+            'user': self.tech1.pk, 'team': '', 'starts_at': '2030-01-01T08:00', 'ends_at': '2030-01-01T18:00'})
+        self.assertEqual(resp.status_code, 302)
+        shift = OnCallShift.objects.get(user=self.tech1)
+        c.post(reverse('ticket_routing:on_call'), {'delete': shift.pk})
+        self.assertFalse(OnCallShift.objects.filter(pk=shift.pk).exists())
+        # Settings save keeps business hours valid.
+        resp = c.post(reverse('ticket_routing:overview'), {
+            'mode': 'auto', 'business_days': ['0', '1'], 'business_start': '09:00', 'business_end': '17:30',
+            'sla_reroute_pct': '80', 'max_reroutes': '3', 'preserve_manual_assignment': 'on'})
+        self.assertEqual(resp.status_code, 302)
+        msp = RoutingSettings.load()
+        self.assertEqual((msp.mode, msp.business_days, msp.max_reroutes), ('auto', [0, 1], 3))
+
     def test_psa_settings_card_and_quick_mode(self):
         c = Client()
         _login(c, self.admin)
@@ -698,6 +728,10 @@ def _file_db():
 @override_settings(MIDDLEWARE=TEST_MIDDLEWARE, SECURE_SSL_REDIRECT=False)
 class ConcurrencyTests(RoutingFixture, TransactionTestCase):
     """Two tickets routed at the same moment by two workers."""
+
+    # Restore migration-seeded rows (e.g. built-in access presets) after the
+    # flush, so suites that run later still find them.
+    serialized_rollback = True
 
     def setUp(self):
         type(self).build()
