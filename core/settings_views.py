@@ -2855,6 +2855,8 @@ def _serialize_password(pwd, format_type):
         # `encrypted_password`; this read `password_encrypted`, which does not
         # exist, so the passwords export raised on its first row.
         'password_encrypted': pwd.encrypted_password,
+        # Secure notes are treated like the password: ciphertext only.
+        'secure_notes_encrypted': pwd.encrypted_notes,
     }
 
 

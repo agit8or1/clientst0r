@@ -26,8 +26,14 @@ class AssetForm(forms.ModelForm):
                   'port_count',
                   'purchase_date', 'lifespan_years', 'lifespan_reminder_enabled', 'lifespan_reminder_months',
                   'firmware_version', 'warranty_expiry', 'warranty_status',
-                  'primary_contact', 'tags', 'notes']
+                  'primary_contact', 'tags', 'notes',
+                  'image_source', 'photo', 'artwork_model', 'artwork_face']
         widgets = {
+            'image_source': forms.RadioSelect(attrs={'class': 'form-check-input'}),
+            'photo': forms.FileInput(attrs={'class': 'form-control',
+                                                     'accept': 'image/jpeg,image/png,image/webp,image/gif'}),
+            'artwork_model': forms.HiddenInput(attrs={'id': 'id_artwork_model'}),
+            'artwork_face': forms.Select(attrs={'class': 'form-select form-select-sm'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'asset_type': forms.Select(attrs={'class': 'form-control'}),
             'asset_tag': forms.TextInput(attrs={'class': 'form-control'}),
@@ -58,9 +64,26 @@ class AssetForm(forms.ModelForm):
             'tags': forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
         }
 
+    remove_photo = forms.BooleanField(
+        required=False, label='Remove the photo',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}))
+
     def __init__(self, *args, **kwargs):
         self.organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
+
+        # Picture (v3.17.657). The model picker is a typeahead over the
+        # catalog (hardware:api_models) that fills this hidden id.
+        from hardware.models import HardwareModel
+        self.fields['artwork_model'].queryset = HardwareModel.objects.filter(
+            is_active=True, kind=HardwareModel.KIND_DEVICE)
+        self.fields['artwork_model'].required = False
+        self.fields['image_source'].label = 'Picture'
+        self.fields['image_source'].required = False
+        self.fields['photo'].label = 'Photo'
+        self.fields['photo'].help_text = ('JPEG, PNG, WebP or GIF up to 10 MB. It is resized and '
+                                          're-saved, which removes location and camera data.')
+        self.fields['artwork_face'].label = 'Side to show'
 
         if self.organization:
             self.fields['tags'].queryset = self.organization.tags.all()
@@ -138,9 +161,37 @@ class AssetForm(forms.ModelForm):
         self.fields['lifespan_years'].required = False
         self.fields['lifespan_reminder_months'].required = False
 
+    def clean_photo(self):
+        photo = self.cleaned_data.get('photo')
+        # A new upload is an UploadedFile; an unchanged one is the stored FieldFile.
+        if photo and hasattr(photo, 'content_type'):
+            from .images import sanitize_photo
+            return sanitize_photo(photo)
+        return photo
+
+    def _has_device_artwork(self):
+        from django.core.exceptions import ObjectDoesNotExist
+        if not (self.instance and self.instance.pk):
+            return False
+        try:
+            return self.instance.hardware is not None
+        except ObjectDoesNotExist:
+            return False
+
     def clean(self):
         """Remove equipment_vendor from cleaned_data as it's just a UI helper."""
         cleaned_data = super().clean()
+        source = cleaned_data.get('image_source') or Asset.IMAGE_NONE
+        cleaned_data['image_source'] = source
+        if cleaned_data.get('remove_photo'):
+            cleaned_data['photo'] = None
+            if source == Asset.IMAGE_PHOTO:
+                cleaned_data['image_source'] = source = Asset.IMAGE_NONE
+        if source == Asset.IMAGE_PHOTO and not cleaned_data.get('photo'):
+            self.add_error('photo', 'Upload a photo, or choose another picture option.')
+        if (source == Asset.IMAGE_ARTWORK and not cleaned_data.get('artwork_model')
+                and not self._has_device_artwork()):
+            self.add_error('artwork_model', 'Pick a hardware model from the catalog.')
         # Remove equipment_vendor - it's just for UI, not saved to model
         cleaned_data.pop('equipment_vendor', None)
         from .custom_types import FIELD_PREFIX
@@ -175,9 +226,30 @@ class AssetForm(forms.ModelForm):
                 data[defn.key] = value
         instance.custom_fields = data
 
+    def _save_m2m(self):
+        super()._save_m2m()
+        name = getattr(self, '_photo_to_delete', None)
+        if name:
+            self._photo_to_delete = None
+            try:
+                Asset._meta.get_field('photo').storage.delete(name)
+            except OSError:
+                pass
+
     def save(self, commit=True):
+        old_photo = None
+        if self.instance.pk:
+            old_photo = type(self.instance).objects.filter(pk=self.instance.pk).values_list(
+                'photo', flat=True).first()
         instance = super().save(commit=False)
+        if self.cleaned_data.get('remove_photo'):
+            instance.photo = None
         self._apply_custom_fields(instance)
+        # A replaced or removed photo file is deleted once the row is saved
+        # (_save_m2m runs after the save on both the commit and the
+        # commit=False + save_m2m() paths).
+        new_name = instance.photo.name if instance.photo else None
+        self._photo_to_delete = old_photo if old_photo and old_photo != new_name else None
         if commit:
             instance.save()
             self.save_m2m()

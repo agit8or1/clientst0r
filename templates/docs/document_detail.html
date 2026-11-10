@@ -76,6 +76,8 @@
                                 <i class="fas fa-download"></i> Download PDF ({{ document.file_size|filesizeformat }})
                             </a>
                         </div>
+                    {% elif file_preview %}
+                        {% include "docs/_file_preview.html" %}
                     {% else %}
                         <!-- Generic file download -->
                         <i class="fas fa-file fa-5x text-muted mb-3"></i>
@@ -85,6 +87,8 @@
                             <i class="fas fa-download"></i> Download File
                         </a>
                     {% endif %}
+                {% elif file_preview %}
+                    {% include "docs/_file_preview.html" %}
                 {% else %}
                     <!-- No file type info -->
                     <i class="fas fa-file fa-5x text-muted mb-3"></i>

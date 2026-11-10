@@ -17,7 +17,7 @@ class DocumentForm(forms.ModelForm):
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Document Title'}),
             'body': forms.Textarea(attrs={'class': 'form-control', 'rows': 20, 'id': 'document-body', 'data-required': 'true'}),
             'content_type': forms.Select(attrs={'class': 'form-select', 'id': 'content-type-select'}),
-            'file': forms.FileInput(attrs={'class': 'form-control', 'id': 'document-file', 'accept': '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.svg,.zip,.bmp,.webp'}),
+            'file': forms.FileInput(attrs={'class': 'form-control', 'id': 'document-file', 'accept': '.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.svg,.zip,.bmp,.webp'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
             'is_published': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_template': forms.CheckboxInput(attrs={'class': 'form-check-input'}),

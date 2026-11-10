@@ -30,6 +30,22 @@ class PasswordForm(forms.ModelForm):
         help_text="Check to automatically generate a new TOTP secret"
     )
 
+    # Secure notes (v3.17.657): sealed like the password, never echoed back.
+    plaintext_secure_notes = forms.CharField(
+        label='Secure notes (encrypted, shown on reveal)',
+        widget=forms.Textarea(attrs={'class': 'form-control font-monospace', 'rows': 3,
+                                     'autocomplete': 'off'}),
+        required=False,
+        max_length=20000,
+        help_text='Recovery codes, PINs, security answers. Encrypted like the password and only '
+                  'shown through Reveal.',
+    )
+    clear_secure_notes = forms.BooleanField(
+        label='Remove the stored secure notes',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+
     # Breach scanning frequency
     hibp_scan_frequency = forms.ChoiceField(
         label='Breach Scan Frequency',
@@ -125,6 +141,11 @@ class PasswordForm(forms.ModelForm):
             if self.instance.otp_secret:
                 # Don't show the actual secret for security
                 self.fields['plaintext_otp_secret'].widget.attrs['placeholder'] = '(Secret configured)'
+            if self.instance.encrypted_notes:
+                self.fields['plaintext_secure_notes'].widget.attrs['placeholder'] = (
+                    'Secure notes stored encrypted — leave blank to keep them, or type to replace them')
+                self.fields['plaintext_secure_notes'].help_text = (
+                    'Leave blank to keep the current secure notes. Typing here replaces them.')
 
     def clean(self):
         cleaned_data = super().clean()
@@ -228,6 +249,12 @@ class PasswordForm(forms.ModelForm):
             # New entry with no password - set empty password for OTP type
             if password_obj.password_type == 'otp':
                 password_obj.set_password('')
+
+        # Secure notes: sealed with the organization set above (AAD).
+        if self.cleaned_data.get('clear_secure_notes'):
+            password_obj.set_secure_notes('')
+        elif self.cleaned_data.get('plaintext_secure_notes'):
+            password_obj.set_secure_notes(self.cleaned_data['plaintext_secure_notes'])
 
         # Handle TOTP secret (for ANY password type, not just 'otp')
         generate_new = self.cleaned_data.get('generate_new_secret')

@@ -4,6 +4,7 @@
 {% block title %}Assets{% endblock %}
 
 {% block content %}
+<style>.asset-stock-img{display:inline-block;background-color:currentColor;opacity:.75;-webkit-mask:var(--stock) center/contain no-repeat;mask:var(--stock) center/contain no-repeat}</style>
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-box"></i> Assets</h1>
     <a href="{% url 'assets:asset_create' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Add Asset</a>
@@ -82,6 +83,7 @@
                 {% for asset in assets %}
                 <tr>
                     <td>
+                        {% with kind=asset.image_kind %}{% if kind == 'stock' %}<span class="asset-thumb asset-stock-img me-2 text-body-secondary" data-image-kind="stock" aria-hidden="true" style="--stock: url('{{ asset.stock_image_url }}'); height: 32px; width: 56px; vertical-align: middle;"></span>{% else %}<img src="{{ asset.image_thumb_url }}" alt="" loading="lazy" data-image-kind="{{ kind }}" class="asset-thumb rounded border me-2 {% if kind == 'artwork' %}bg-dark{% endif %}" style="height: 32px; width: 56px; object-fit: contain; vertical-align: middle;">{% endif %}{% endwith %}
                         <a href="{% url 'assets:asset_detail' asset.pk %}">{{ asset.name }}</a>
                         {% if asset.needs_reorder %}<span class="badge bg-warning text-dark ms-1" title="Flagged for reorder"><i class="fas fa-redo"></i> Reorder</span>{% endif %}
                         {% if health_enabled %}

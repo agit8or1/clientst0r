@@ -12,7 +12,7 @@ from .encryption_v2 import (
     encrypt_password, decrypt_password,
     encrypt_totp_secret, decrypt_totp_secret,
     encrypt_v2, decrypt_v2,
-    KEY_CONTEXT_GENERIC,
+    KEY_CONTEXT_GENERIC, KEY_CONTEXT_PASSWORD,
     EncryptionError
 )
 
@@ -88,6 +88,11 @@ class Password(BaseModel):
     username = models.CharField(max_length=255, blank=True)
     url = models.URLField(max_length=2000, blank=True)
     notes = models.TextField(blank=True)
+    # v3.17.657: secure notes, sealed like the password (v2, password key,
+    # bound to the organization) and only ever shown through the reveal flow.
+    encrypted_notes = models.TextField(
+        blank=True,
+        help_text='Encrypted secure notes (shown only on reveal, like the password)')
 
     # Type of password entry
     password_type = models.CharField(max_length=20, choices=PASSWORD_TYPES, default='website')
@@ -184,6 +189,29 @@ class Password(BaseModel):
             org_id=self.organization_id,
             password_id=None  # Match encryption: don't use ID in AAD
         )
+
+    SECURE_NOTES_RECORD_TYPE = 'password_notes'
+
+    def set_secure_notes(self, plaintext):
+        """Seal secure notes with the password key and this organization as
+        AAD. Empty text clears them."""
+        if not plaintext:
+            self.encrypted_notes = ''
+            return
+        self.encrypted_notes = encrypt_v2(
+            plaintext, context=KEY_CONTEXT_PASSWORD, org_id=self.organization_id,
+            record_type=self.SECURE_NOTES_RECORD_TYPE, record_id=None)
+
+    def get_secure_notes(self):
+        if not self.encrypted_notes:
+            return ''
+        return decrypt_v2(
+            self.encrypted_notes, context=KEY_CONTEXT_PASSWORD, org_id=self.organization_id,
+            record_type=self.SECURE_NOTES_RECORD_TYPE, record_id=None)
+
+    @property
+    def has_secure_notes(self):
+        return bool(self.encrypted_notes)
 
     def set_otp_secret(self, plaintext_secret):
         """

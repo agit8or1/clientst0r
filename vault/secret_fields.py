@@ -571,6 +571,8 @@ V2_ROW_FIELDS = [
      ('organization_id',), lambda org: dict(org_id=org, record_type='password', record_id=None)),
     ('vault', 'Password', 'otp_secret', 'KEY_CONTEXT_TOTP',
      ('organization_id',), lambda org: dict(org_id=org, record_type='totp', record_id=None)),
+    ('vault', 'Password', 'encrypted_notes', 'KEY_CONTEXT_PASSWORD',
+     ('organization_id',), lambda org: dict(org_id=org, record_type='password_notes', record_id=None)),
     ('vault', 'PersonalVault', 'encrypted_content', 'KEY_CONTEXT_GENERIC',
      ('user_id',), lambda uid: dict(org_id=None, record_type='personal_vault', record_id=uid)),
 ]

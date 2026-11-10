@@ -5,7 +5,21 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>{{ asset.name }}</h1>
+    <div class="d-flex align-items-center gap-3">
+        {% with kind=asset.image_kind %}
+        {% if kind == 'stock' %}
+        <span id="asset-header-image" data-image-kind="stock" class="asset-stock-img text-body-secondary" role="img"
+              aria-label="{{ asset.get_asset_type_display|default:'Device' }} (stock image)" title="Stock image — add a photo or hardware artwork from Edit"
+              style="--stock: url('{{ asset.stock_image_url }}'); width: 72px; height: 72px;"></span>
+        <style>.asset-stock-img{display:inline-block;background-color:currentColor;opacity:.75;-webkit-mask:var(--stock) center/contain no-repeat;mask:var(--stock) center/contain no-repeat}</style>
+        {% else %}
+        <a href="{{ asset.image_url }}" target="_blank" rel="noopener" id="asset-header-image" data-image-kind="{{ kind }}" title="{% if kind == 'photo' %}Photo{% else %}Hardware artwork{% endif %}">
+            <img src="{{ asset.image_url }}" alt="{{ asset.name }}" class="rounded border {% if kind == 'artwork' %}bg-dark p-1{% endif %}" style="max-height: 96px; max-width: 220px; object-fit: contain;">
+        </a>
+        {% endif %}
+        {% endwith %}
+        <h1 class="mb-0">{{ asset.name }}</h1>
+    </div>
     <div>
         {% include "includes/favorite_button.html" with object=asset %}
         {% if asset.profile_document %}

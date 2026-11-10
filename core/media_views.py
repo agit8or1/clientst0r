@@ -202,6 +202,19 @@ def _generated_report(user, report):
     return report.organization_id in _membership_org_ids(user, include_descendants=False)
 
 
+def _asset_photo(user, asset):
+    """Whoever may view the asset: assets_view for its customer, or for a
+    sub-customer when the asset is shared down (Asset.visible_to_org)."""
+    if _has_perm_for_org(user, asset.organization_id, 'assets_view'):
+        return True
+    if not asset.is_shared_with_descendants:
+        return False
+    from accounts.permission_utils import orgs_with_perm
+    from core.utils import descendant_org_ids
+    allowed = orgs_with_perm(user, 'assets_view') or set()
+    return bool(set(allowed) & (descendant_org_ids(asset.organization_id) - {asset.organization_id}))
+
+
 def _profile_owner_or_staff(user, profile):
     return profile.user_id == user.pk or is_msp_staff(user)
 
@@ -254,6 +267,8 @@ MEDIA_REGISTRY = (
     MediaRule('files.Attachment', 'file', _files_attachment,
               ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'),
               filename_attr='original_filename'),
+    # Assets
+    MediaRule('assets.Asset', 'photo', _asset_photo, ('assets/photos/',)),
     # Imports, racks, reports
     MediaRule('imports.ImportJob', 'source_file', _staff_only, ('imports/',)),
     MediaRule('monitoring.Rack', 'closet_diagram', _rack, ('rack_diagrams/',)),

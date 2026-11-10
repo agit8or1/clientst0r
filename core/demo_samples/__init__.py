@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-GROUPS = ('psa_extras', 'operations', 'security_customer')
+GROUPS = ('psa_extras', 'operations', 'security_customer', 'documents', 'vault', 'assets')
 
 # Customer organizations used for demo data, in order of preference.
 CUSTOMER_SLUGS = ('demo-acme', 'demo-globex', 'demo-initech', 'demo', 'acme-corporation')
@@ -86,3 +86,13 @@ def build_context(out):
     techs = make_techs(msp, customers, out)
     return Context(customers=customers, msp=msp, admin=admin,
                    techs=[u for u in [admin, *techs] if u is not None], out=out, now=timezone.now())
+
+
+def has_webhook(org, event):
+    """True when an active webhook of `org` subscribes to `event`. Groups
+    whose saves fire that event (document.created, password.created,
+    asset.created) skip such organizations, so seeding never posts to a real
+    endpoint."""
+    from core.models import Webhook
+    return any(event in (events or []) for events in
+               Webhook.objects.filter(organization=org, is_active=True).values_list('events', flat=True))

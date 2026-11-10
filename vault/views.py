@@ -229,11 +229,29 @@ def password_detail(request, pk):
         1 for r in active_rules if r.matches_target(password, request.user)
     )
 
+    # Same rule as @require_write on password_edit, for the "Add notes" /
+    # "Add 2FA" links on the empty Notes and Two-factor cards.
+    if request.user.is_superuser or request.user.is_staff:
+        can_edit_password = True
+    else:
+        from core.decorators import get_user_membership
+        membership = get_user_membership(request)
+        can_edit_password = bool(membership and membership.can_write())
+
     return render(request, 'vault/password_detail.html', {
         'password': password,
         'in_global_view': in_global_view,
         'applicable_rule_count': applicable_rule_count,
+        'can_edit_password': can_edit_password,
     })
+
+
+# What `password_reveal` can return (`?field=`), with its audit description.
+REVEAL_FIELDS = {
+    'password': "Password '{title}' revealed",
+    'license_key': "License key of '{title}' revealed",
+    'secure_notes': "Secure notes of '{title}' revealed",
+}
 
 
 @login_required
@@ -246,10 +264,11 @@ def password_reveal(request, pk):
     Rate limited to 30 reveals per hour per user to prevent abuse.
 
     `?field=license_key` reveals a software-license entry's license key
-    instead, through exactly the same gates, approval use and audit trail.
+    instead, through exactly the same gates, approval use and audit trail;
+    `?field=secure_notes` does the same for the encrypted secure notes.
     """
     reveal_field = request.GET.get('field') or 'password'
-    if reveal_field not in ('password', 'license_key'):
+    if reveal_field not in REVEAL_FIELDS:
         return JsonResponse({'error': 'Unknown field'}, status=400)
     # Check if rate limited
     if getattr(request, 'limited', False):
@@ -337,9 +356,13 @@ def password_reveal(request, pk):
 
         if reveal_field == 'license_key' and not password.license_key:
             return JsonResponse({'error': 'This entry has no license key'}, status=404)
+        if reveal_field == 'secure_notes' and not password.has_secure_notes:
+            return JsonResponse({'error': 'This entry has no secure notes'}, status=404)
         try:
             if reveal_field == 'license_key':
                 plaintext = password.license_key
+            elif reveal_field == 'secure_notes':
+                plaintext = password.get_secure_notes()
             else:
                 plaintext = password.get_password()
 
@@ -363,9 +386,7 @@ def password_reveal(request, pk):
                 object_type='password',
                 object_id=password.id,
                 object_repr=password.title,
-                description=(f"License key of '{password.title}' revealed"
-                             if reveal_field == 'license_key'
-                             else f"Password '{password.title}' revealed"),
+                description=REVEAL_FIELDS[reveal_field].format(title=password.title),
                 ip_address=request.META.get('REMOTE_ADDR'),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
                 extra_data={'field': reveal_field},

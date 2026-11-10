@@ -19,7 +19,7 @@
 
 <div class="card">
     <div class="card-body">
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             {% include 'core/_form_org.html' %}
             {% if redirect_to %}
@@ -240,6 +240,60 @@
                     {% endif %}
                 </div>
 
+                <!-- Picture (v3.17.657): photo or hardware artwork -->
+                <div class="col-12" id="picture-section">
+                    <hr>
+                    <h6 class="text-muted mb-3"><i class="fas fa-image"></i> Picture</h6>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            {% for radio in form.image_source %}
+                            <div class="form-check">
+                                {{ radio.tag }}
+                                <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                            </div>
+                            {% endfor %}
+                            {% if form.image_source.errors %}<div class="text-danger small">{{ form.image_source.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-9">
+                            <div class="picture-option" data-source="photo">
+                                {% if asset and asset.photo %}
+                                <div class="d-flex align-items-center gap-3 mb-2">
+                                    <img src="{{ asset.photo.url }}" alt="Current photo" class="rounded border" style="max-height: 90px; max-width: 160px; object-fit: contain;">
+                                    <div class="form-check">
+                                        {{ form.remove_photo }}
+                                        <label class="form-check-label" for="{{ form.remove_photo.id_for_label }}">{{ form.remove_photo.label }}</label>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                <label class="form-label" for="{{ form.photo.id_for_label }}">{% if asset and asset.photo %}Replace photo{% else %}{{ form.photo.label }}{% endif %}</label>
+                                {{ form.photo }}
+                                <small class="form-text text-muted d-block">{{ form.photo.help_text }}</small>
+                                {% if form.photo.errors %}<div class="text-danger small">{{ form.photo.errors }}</div>{% endif %}
+                            </div>
+                            <div class="picture-option" data-source="artwork">
+                                {% if asset.hardware %}
+                                <p class="small text-muted mb-2"><i class="fas fa-network-wired"></i> This asset is in the hardware inventory, so the artwork of its device ({{ asset.hardware.hardware_model }}) is shown. A model picked below is used only if it leaves the inventory.</p>
+                                {% endif %}
+                                {{ form.artwork_model }}
+                                <label class="form-label" for="artwork-model-search">Hardware model</label>
+                                <div class="d-flex align-items-center gap-3 mb-2" id="artwork-current">
+                                    <img id="artwork-preview" alt="" class="rounded border bg-dark p-1{% if not form.instance.artwork_model %} d-none{% endif %}" style="max-height: 70px; max-width: 220px;"
+                                         src="{% if form.instance.artwork_model %}{% url 'hardware:model_art' form.instance.artwork_model.pk 'front' %}?v=thumb{% endif %}">
+                                    <span id="artwork-label" class="small">{% if form.instance.artwork_model %}{{ form.instance.artwork_model }}{% else %}<span class="text-muted">No model picked</span>{% endif %}</span>
+                                </div>
+                                <input type="search" id="artwork-model-search" class="form-control" placeholder="Search the hardware catalog, e.g. FortiGate 60F" autocomplete="off"
+                                       data-url="{% url 'hardware:api_models' %}">
+                                <div id="artwork-results" class="list-group mt-1" style="max-height: 260px; overflow-y: auto;"></div>
+                                <div class="mt-2" style="max-width: 200px;">
+                                    <label class="form-label small" for="{{ form.artwork_face.id_for_label }}">{{ form.artwork_face.label }}</label>
+                                    {{ form.artwork_face }}
+                                </div>
+                                {% if form.artwork_model.errors %}<div class="text-danger small">{{ form.artwork_model.errors }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {% if form.custom_field_defs %}
                 <!-- Custom fields (v3.17.621), defined under Assets → Custom Fields -->
                 <div class="col-12"><hr></div>
@@ -353,6 +407,66 @@
 
 {% block extra_js %}
 <script nonce="{{ csp_nonce }}">
+// Picture: show the options for the chosen source; catalog typeahead for artwork.
+document.addEventListener('DOMContentLoaded', function() {
+    const radios = document.querySelectorAll('input[name="image_source"]');
+    const options = document.querySelectorAll('.picture-option');
+    function syncSource() {
+        const checked = document.querySelector('input[name="image_source"]:checked');
+        const value = checked ? checked.value : 'none';
+        options.forEach(function(el) { el.classList.toggle('d-none', el.dataset.source !== value); });
+    }
+    radios.forEach(function(r) { r.addEventListener('change', syncSource); });
+    syncSource();
+
+    const search = document.getElementById('artwork-model-search');
+    const results = document.getElementById('artwork-results');
+    const hidden = document.getElementById('id_artwork_model');
+    const preview = document.getElementById('artwork-preview');
+    const label = document.getElementById('artwork-label');
+    if (!search || !results || !hidden) return;
+    let timer = null;
+    search.addEventListener('input', function() {
+        clearTimeout(timer);
+        const q = search.value.trim();
+        if (q.length < 2) { results.replaceChildren(); return; }
+        timer = setTimeout(function() {
+            fetch(search.dataset.url + '?q=' + encodeURIComponent(q), {headers: {'Accept': 'application/json'}})
+                .then(r => r.json())
+                .then(data => {
+                    results.replaceChildren();
+                    (data.results || []).forEach(function(m) {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2';
+                        const img = document.createElement('img');
+                        img.src = m.thumb; img.alt = ''; img.loading = 'lazy';
+                        img.style.cssText = 'height:28px;max-width:120px;background:#22262b;border-radius:3px';
+                        const text = document.createElement('span');
+                        text.textContent = m.manufacturer + ' ' + m.model + (m.category ? ' — ' + m.category : '');
+                        btn.append(img, text);
+                        btn.addEventListener('click', function() {
+                            hidden.value = m.id;
+                            preview.src = m.thumb;
+                            preview.classList.remove('d-none');
+                            label.textContent = m.manufacturer + ' ' + m.model;
+                            results.replaceChildren();
+                            search.value = '';
+                        });
+                        results.appendChild(btn);
+                    });
+                    if (!(data.results || []).length) {
+                        const none = document.createElement('div');
+                        none.className = 'list-group-item small text-muted';
+                        none.textContent = data.error || 'No catalog models match.';
+                        results.appendChild(none);
+                    }
+                })
+                .catch(function() { results.replaceChildren(); });
+        }, 250);
+    });
+});
+
 // Custom fields: show only the ones that apply to the selected asset type.
 document.addEventListener('DOMContentLoaded', function() {
     const typeSelect = document.getElementById('id_asset_type');

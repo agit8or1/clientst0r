@@ -275,6 +275,25 @@ class Asset(BaseModel):
         help_text='AI-generated documentation for this asset',
     )
 
+    # Picture shown in the asset header and list (v3.17.657): an uploaded
+    # photo (re-encoded, metadata stripped — assets.images) or generated
+    # catalog artwork. Artwork comes from the asset's hardware-inventory
+    # device when it has one, else from `artwork_model`.
+    IMAGE_NONE, IMAGE_PHOTO, IMAGE_ARTWORK = 'none', 'photo', 'artwork'
+    IMAGE_SOURCE_CHOICES = [
+        (IMAGE_NONE, 'No image'),
+        (IMAGE_PHOTO, 'Photo'),
+        (IMAGE_ARTWORK, 'Hardware artwork'),
+    ]
+    ARTWORK_FACE_CHOICES = [('front', 'Front'), ('rear', 'Rear')]
+    image_source = models.CharField(max_length=10, choices=IMAGE_SOURCE_CHOICES, default=IMAGE_NONE)
+    photo = models.ImageField(upload_to='assets/photos/%Y/%m/', null=True, blank=True,
+                              help_text='Photo of the asset (re-encoded on upload; location data removed)')
+    artwork_model = models.ForeignKey(
+        'hardware.HardwareModel', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        help_text='Catalog model whose artwork to show when the asset is not in the hardware inventory')
+    artwork_face = models.CharField(max_length=10, choices=ARTWORK_FACE_CHOICES, default='front')
+
     objects = OrganizationManager()
 
     class Meta:
@@ -641,6 +660,66 @@ class Asset(BaseModel):
         """True if warranty expires within `within_days` days."""
         days = self.warranty_days_remaining()
         return days is not None and 0 <= days <= within_days
+
+    def _device_model_id(self):
+        from django.core.exceptions import ObjectDoesNotExist
+        try:
+            return self.hardware.hardware_model_id
+        except (ObjectDoesNotExist, AttributeError):
+            return None
+
+    def image_hardware_model_id(self):
+        """Catalog model whose artwork is the picture, or None. A model the
+        user picked comes first; a documented hardware device's own model is
+        used automatically unless the user chose a photo they uploaded."""
+        if self.image_source == self.IMAGE_PHOTO and self.photo:
+            return None
+        if self.image_source == self.IMAGE_ARTWORK and self.artwork_model_id:
+            return self.artwork_model_id
+        return self._device_model_id()
+
+    @property
+    def image_kind(self):
+        """'photo', 'artwork' or 'stock' — what the asset's picture is.
+
+        Precedence: uploaded photo (when chosen) -> chosen hardware artwork
+        -> the hardware-inventory device's model artwork -> a stock drawing
+        for the asset type (display only, never stored)."""
+        if self.image_source == self.IMAGE_PHOTO and self.photo:
+            return 'photo'
+        if self.image_hardware_model_id():
+            return 'artwork'
+        return 'stock'
+
+    def _image_url(self, thumb):
+        kind = self.image_kind
+        if kind == 'photo':
+            return self.photo.url
+        if kind == 'artwork':
+            from django.urls import reverse
+            url = reverse('hardware:model_art', args=[self.image_hardware_model_id(), self.artwork_face or 'front'])
+            return url + '?v=thumb' if thumb else url
+        return self.stock_image_url
+
+    @property
+    def image_url(self):
+        """Full-size picture URL: photo, artwork or the stock drawing."""
+        return self._image_url(thumb=False)
+
+    @property
+    def image_thumb_url(self):
+        """Small picture URL for lists."""
+        return self._image_url(thumb=True)
+
+    @property
+    def stock_image_key(self):
+        from .stock_images import stock_key
+        return stock_key(self.asset_type)
+
+    @property
+    def stock_image_url(self):
+        from .stock_images import stock_url
+        return stock_url(self.asset_type)
 
     def has_ports(self):
         """Check if this asset type supports ports."""

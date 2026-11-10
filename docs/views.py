@@ -215,8 +215,14 @@ def document_detail(request, slug):
 
     _count_staff_view(document)
 
+    file_preview = None
+    if document.content_type == 'file' and document.file:
+        from .services.file_preview import build_preview
+        file_preview = build_preview(document.file)
+
     return render(request, 'docs/document_detail.html', {
         'document': document,
+        'file_preview': file_preview,
         'rendered_body': document.render_markdown(),
         'versions': versions,
         'version_total': version_total,

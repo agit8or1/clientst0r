@@ -30,11 +30,11 @@ def asset_list(request):
 
     if in_global_view:
         # Global view: show all assets across all organizations
-        assets = Asset.objects.all().select_related('organization').prefetch_related('tags').select_related('primary_contact', 'equipment_model__vendor')
+        assets = Asset.objects.all().select_related('organization').prefetch_related('tags').select_related('primary_contact', 'equipment_model__vendor', 'artwork_model', 'hardware')
         all_assets = Asset.objects.all()
     else:
         # Organization view: show only assets for current org
-        assets = Asset.objects.for_organization(org).prefetch_related('tags').select_related('primary_contact', 'equipment_model__vendor')
+        assets = Asset.objects.for_organization(org).prefetch_related('tags').select_related('primary_contact', 'equipment_model__vendor', 'artwork_model', 'hardware')
         all_assets = Asset.objects.for_organization(org)
 
     # Apply filters
@@ -190,6 +190,9 @@ def asset_detail(request, pk):
                              for f in faces]}
             device_url = reverse('hardware:device_detail', args=[hw.pk])
         else:
+            # A model picked for the asset's picture also illustrates it
+            # when nothing in the catalog matches the recorded model.
+            hm = hm or asset.artwork_model
             art = artwork_context(hm) if hm else None
     except Exception:  # noqa: BLE001 — the illustration must never break the asset page
         import logging
@@ -228,7 +231,7 @@ def asset_create(request):
     redirect_to = request.GET.get('redirect') or request.POST.get('redirect')
 
     if request.method == 'POST':
-        form = AssetForm(request.POST, organization=org)
+        form = AssetForm(request.POST, request.FILES, organization=org)
         if form.is_valid():
             asset = form.save(commit=False)
             asset.organization = org
@@ -289,7 +292,7 @@ def asset_edit(request, pk):
         asset = get_org_object_or_404(Asset, org, pk=pk)
 
     if request.method == 'POST':
-        form = AssetForm(request.POST, instance=asset, organization=org)
+        form = AssetForm(request.POST, request.FILES, instance=asset, organization=org)
         if form.is_valid():
             # Track if port count changed
             old_port_count = asset.get_port_count()
