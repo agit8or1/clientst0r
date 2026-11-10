@@ -83,6 +83,8 @@ class ConversationEntry:
     is_opening: bool = False
     reply_to: dict | None = None   # {'id', 'name', 'excerpt', 'is_internal'}
     attachments: list = field(default_factory=list)
+    cc: list = field(default_factory=list)       # addresses an e-mailed reply was copied to
+    secure: dict | None = None     # psa.ticket_secure.secure_status — never the content
 
     @property
     def dom_id(self) -> str:
@@ -200,6 +202,11 @@ def classify_opening(ticket, *, directory=None) -> Sender:
     return Sender(ROLE_UNKNOWN, name, via)
 
 
+def secure_status(note):
+    from .ticket_secure import secure_status as _status
+    return _status(note)
+
+
 def _excerpt(text: str) -> str:
     text = ' '.join((text or '').split())
     if len(text) > REPLY_EXCERPT_CHARS:
@@ -266,6 +273,8 @@ def build_conversation(ticket, comments, *, attachments=(), include_internal=Fal
             id=c.pk, is_internal=c.is_internal, reply_to=reply_to,
             attachments=sorted(files_by_comment.get(c.pk, []),
                                key=lambda a: (a.created_at, a.pk)),
+            cc=list(c.cc_emails or []),
+            secure=secure_status(c.secure_note) if c.secure_note_id else None,
         ))
     return entries
 

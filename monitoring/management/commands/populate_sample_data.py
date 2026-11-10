@@ -10,7 +10,7 @@ from core.models import Organization, Tag
 from assets.models import Asset, Contact
 from vault.models import Password
 from docs.models import Document, DocumentCategory
-from monitoring.models import WebsiteMonitor, Expiration, Rack, RackDevice, Subnet, IPAddress
+from monitoring.models import WebsiteMonitor, Expiration, Rack, RackDevice, Subnet, IPAddress, VLAN
 import random
 
 
@@ -254,14 +254,19 @@ class Command(BaseCommand):
         self.stdout.write("Creating IPAM subnets...")
         subnet_data = [
             {'name': 'Management VLAN', 'network': '10.0.1.0/24', 'vlan_id': 10, 'vlan_name': 'MGMT', 'gateway': '10.0.1.1'},
-            {'name': 'Server VLAN', 'network': '10.0.10.0/24', 'vlan_id': 10, 'vlan_name': 'SERVERS', 'gateway': '10.0.10.1'},
+            {'name': 'Server VLAN', 'network': '10.0.10.0/24', 'vlan_id': 20, 'vlan_name': 'SERVERS', 'gateway': '10.0.10.1'},
             {'name': 'User VLAN', 'network': '10.0.100.0/24', 'vlan_id': 100, 'vlan_name': 'USERS', 'gateway': '10.0.100.1'},
         ]
         for data in subnet_data:
+            vlan, _ = VLAN.objects.get_or_create(
+                organization=org,
+                vlan_id=data['vlan_id'],
+                defaults={'name': data['vlan_name']},
+            )
             subnet, _ = Subnet.objects.get_or_create(
                 organization=org,
                 network=data['network'],
-                defaults=data
+                defaults={'name': data['name'], 'gateway': data['gateway'], 'vlan': vlan},
             )
 
             # Add some IP addresses

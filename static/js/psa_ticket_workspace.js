@@ -95,7 +95,18 @@
             sendEmail.disabled = internal;
             if (internal) { sendEmail.checked = false; }
         }
+        syncEmailExtras();
     }
+
+    /* Cc and secure message (v3.17.654) only apply to an e-mailed public reply. */
+    var emailExtras = document.getElementById('composerEmailExtras');
+    function syncEmailExtras() {
+        if (!emailExtras) { return; }
+        var on = !isInternal() && !!sendEmail && sendEmail.checked;
+        emailExtras.hidden = !on;
+        emailExtras.querySelectorAll('input, textarea, select').forEach(function (el) { el.disabled = !on; });
+    }
+    if (sendEmail) { sendEmail.addEventListener('change', syncEmailExtras); }
 
     if (form) {
         document.querySelectorAll('input[name="composer_mode"]').forEach(function (r) {
@@ -225,6 +236,16 @@
     if (form) {
         form.addEventListener('submit', function (ev) {
             if (sendEmail && sendEmail.checked && !isInternal() && !emailConfirmed) {
+                var ccIn = document.getElementById('composerCc');
+                var ccRow = document.getElementById('emailConfirmCc');
+                if (ccRow) {
+                    var cc = ccIn && !ccIn.disabled ? ccIn.value.trim() : '';
+                    ccRow.hidden = !cc;
+                    ccRow.querySelector('[data-cc-list]').textContent = cc;
+                }
+                var secIn = document.getElementById('composerSecure');
+                var secRow = document.getElementById('emailConfirmSecure');
+                if (secRow) { secRow.hidden = !(secIn && !secIn.disabled && secIn.value.trim()); }
                 var m = modal('emailConfirmModal');
                 if (m) {
                     ev.preventDefault();

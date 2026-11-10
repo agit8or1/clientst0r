@@ -409,6 +409,13 @@ def secure_note_view_link(request, token):
         messages.error(request, 'This secret link has reached its maximum view limit.')
         return render(request, 'core/secure_note_expired.html')
 
+    # A one-time or view-limited link opens behind a button: mail scanners
+    # and link previews fetch links with GET, and would otherwise use up the
+    # message before the recipient sees it (v3.17.654).
+    if (not note.require_password and (note.read_once or note.max_views)
+            and request.method != 'POST'):
+        return render(request, 'core/secure_note_reveal.html', {'note': note})
+
     # Check password if required
     if note.require_password:
         if request.method == 'POST':

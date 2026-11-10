@@ -311,7 +311,18 @@ def process_job(job: EmailOutboundJob) -> bool:
         return False
     job.refresh_from_db()
     submit_job(job)
+    _scrub_if_finished(job)
     return True
+
+
+def _scrub_if_finished(job):
+    """Once a job won't be retried, its stored body no longer needs a
+    secure-message link (v3.17.654)."""
+    job.refresh_from_db()
+    if job.status == EmailOutboundJob.STATUS_QUEUED:
+        return
+    from psa.ticket_secure import scrub_stored_copies
+    scrub_stored_copies(job, job.email_message)
 
 
 def enqueue_graph_reply(*, organization, ticket, config, operation, mailbox,

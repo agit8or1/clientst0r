@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Secure message - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-envelope-open-text fa-3x text-primary mb-3"></i>
+                <h4>You have a secure message</h4>
+                <p class="text-muted mb-1">
+                    {% if note.read_once %}It can be opened <strong>once</strong>. Copy what you need before you leave the page.
+                    {% else %}It can be opened a limited number of times.{% endif %}
+                </p>
+                {% if note.expires_at %}<p class="text-muted small">Expires {{ note.expires_at|date:"M j, Y H:i" }} UTC.</p>{% endif %}
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary" id="revealSecureMessage"><i class="fas fa-unlock"></i> Show the message</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

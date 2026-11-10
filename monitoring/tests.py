@@ -644,3 +644,25 @@ class WebsiteMonitorSSRFTests(TestCase):
             wm.check_status()
         raw.assert_called_once()
         self.assertEqual(raw.call_args[0][0], ('93.184.215.14', 443))
+
+
+class PopulateSampleDataTests(TestCase):
+    """v3.17.654: the sample-data command stopped at subnets (it passed a
+    `vlan_name` field Subnet doesn't have)."""
+
+    def test_runs_to_completion_and_again(self):
+        from io import StringIO
+        from django.contrib.auth.models import User
+        from django.core.management import call_command
+        from core.models import Organization
+        from monitoring.models import IPAddress, Subnet, VLAN
+        org = Organization.objects.create(name='Sample Co', slug='sample-co-654')
+        User.objects.create_user('admin', password='pw-sample-654!')
+        for _ in range(2):
+            out = StringIO()
+            call_command('populate_sample_data', org_id=org.id, stdout=out)
+            self.assertIn('Sample data populated successfully', out.getvalue())
+        self.assertEqual(Subnet.objects.filter(organization=org).count(), 3)
+        self.assertEqual(sorted(VLAN.objects.filter(organization=org).values_list('vlan_id', flat=True)), [10, 20, 100])
+        self.assertEqual(Subnet.objects.get(organization=org, network='10.0.10.0/24').vlan.name, 'SERVERS')
+        self.assertEqual(IPAddress.objects.filter(subnet__organization=org).count(), 4)

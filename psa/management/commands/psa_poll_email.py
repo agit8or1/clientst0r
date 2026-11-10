@@ -549,6 +549,18 @@ class Command(BaseCommand):
             )
             result = 'created'
 
+        # v3.17.654: people the customer copied stay copied on our replies.
+        # Our own mailbox addresses and the sender are left out.
+        try:
+            from psa.ticket_secure import merge_cc, parse_addresses
+            cc_raw = [addr for _, addr in getaddresses([_decode_header(msg.get('Cc', ''))]) if addr]
+            cc_valid, _ = parse_addresses(cc_raw)
+            own = {(getattr(config, a, '') or '') for a in ('email_address', 'username', 'graph_mailbox')}
+            if cc_valid and not _is_staff_sender(from_email):
+                merge_cc(target, cc_valid, exclude=own | {from_email or ''})
+        except Exception:
+            logger.exception('cc capture failed for ticket %s', target.ticket_number)
+
         # Phase 10.2: ingest attachments (allowlist + size capped).
         # Logged-only on rejection — never crash the poll loop.
         try:

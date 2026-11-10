@@ -205,6 +205,10 @@ class Ticket(models.Model):
     )
     requester_name = models.CharField(max_length=200, blank=True, help_text='Free-text requester (e.g. anonymous portal)')
     requester_email = models.EmailField(blank=True)
+    # v3.17.654: people copied on emailed replies (customer-side colleagues,
+    # a vendor). Filled from the Cc of the opening email, edited on the ticket.
+    cc_emails = models.JSONField(default=list, blank=True,
+                                 help_text='Addresses copied on emailed replies')
 
     # Content
     subject = models.CharField(max_length=300)
@@ -622,6 +626,13 @@ class TicketComment(models.Model):
         default=dict, blank=True,
         help_text='When source=voice: {confidence, language, duration_s}',
     )
+
+    # v3.17.654: who an emailed reply was copied to, and the encrypted
+    # one-time message sent with it. The secret itself lives only in the
+    # SecureNote (sealed); the link token is never stored.
+    cc_emails = models.JSONField(default=list, blank=True)
+    secure_note = models.ForeignKey('core.SecureNote', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='ticket_comments')
 
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -118,6 +118,8 @@ Bootstrap columns that collapse awkwardly between breakpoints.
                         <th>Status</th>
                         <th>Queue</th>
                         <th>Assignee</th>
+                        <th>Next</th>
+                        <th>Last activity</th>
                         <th>Created</th>
                     </tr>
                 </thead>
@@ -143,6 +145,11 @@ Bootstrap columns that collapse awkwardly between breakpoints.
                         <td><span class="ui-badge ui-badge--{{ t.status|status_tone }}">{{ t.status.name }}</span></td>
                         <td>{{ t.queue.name }}</td>
                         <td class="ui-wrap">{% if t.assigned_to %}{{ t.assigned_to.get_full_name|default:t.assigned_to.username }}{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
+                        <td><span class="badge {{ t.next_badge }}" data-next="{{ t.next_step }}">{{ t.next_label }}</span></td>
+                        <td class="ui-wrap small" data-last-kind="{{ t.last_action.kind }}">
+                            <time datetime="{{ t.last_action.at|date:'c' }}" title="{{ t.last_action.at }}">{{ t.last_action.at|timesince }} ago</time>
+                            <div class="text-muted">{{ t.last_action.kind|capfirst }}{% if t.last_action.by %} · {{ t.last_action.by }}{% endif %}</div>
+                        </td>
                         <td>
                             <time datetime="{{ t.created_at|date:'c' }}" title="{{ t.created_at }}">{{ t.created_at|timesince }} ago</time>
                         </td>

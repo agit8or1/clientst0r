@@ -5,6 +5,29 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.654] - 2026-11-10
+
+### Added
+- **Cc on tickets.** Each ticket keeps a list of people copied on e-mailed replies, edited in the "Copied on replies" card (technicians only).
+  - People the customer copied on the opening e-mail (or a later one) are added automatically. Our own mailbox and the requester are left out.
+  - The reply box shows a Cc field, pre-filled from the ticket, whenever "Email this reply" is ticked. The confirmation dialog lists the Cc'd addresses.
+  - The conversation shows who each reply was copied to.
+- **Secure messages in a reply.** Tick "Email this reply", open "Add a secure message" and write the secret (a temporary password, say).
+  - It is stored encrypted as a link-only Secure Note, opens once by default and expires in 1, 3 or 7 days. It goes to the requester only, so it can't be combined with Cc.
+  - The link appears only in the e-mail. Stored copies of the sent e-mail have it replaced with a placeholder. If the e-mail fails, the message is withdrawn.
+  - The ticket never shows the content, only "sent, not opened yet", "opened by the recipient", "expired unopened" or "withdrawn". The customer's portal view says it was sent to their e-mail.
+- **One-time links open behind a "Show the message" button.** Mail scanners and link previews fetch links with GET and used to burn a one-time Secure Note before the recipient saw it. This applies to every read-once or view-limited Secure Note link.
+- **Last activity and Next.** The ticket list has two new columns, and the ticket page shows the same in its header.
+  - **Last activity:** what happened last (customer reply, technician reply, internal note, file attached, update), by whom and how long ago. Customers never see internal entries counted.
+  - **Next:** whose move it is. *Needs reply* means the customer spoke last or nobody has answered. *Waiting on customer* means we replied or the ticket waits on them. *Follow up* means we've waited more than 3 days. *Waiting on vendor* and *Closed* are also shown. It uses the same rules as the My Work queues.
+- **`manage.py psa_seed_sample_conversations`** adds demo customer people (who can't sign in) to the demo customers, and ten tickets they opened by e-mail or the portal. Between them they show threads, internal notes, Cc, files, logged time, secure messages in each state and every Next state. No mail is sent; it is safe to re-run.
+
+### Fixed
+- **`manage.py populate_sample_data` runs to the end again.** It failed at the subnet step, after the racks, because it passed a VLAN name field that subnets don't have. It now creates the VLANs and links them. The server subnet also had the management VLAN's number; it now uses VLAN 20.
+
+### Upgrade
+- Apply the update. One migration (`psa.0075`). Optionally run `manage.py psa_seed_sample_conversations` on a demo install.
+
 ## [3.17.653] - 2026-11-10
 
 ### Security

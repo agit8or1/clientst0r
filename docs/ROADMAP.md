@@ -1700,6 +1700,15 @@ someone else.
   button that opens the computer in Rem0te under their own sign-in; no
   remote access credential is stored. A key for a different business stops
   the sync instead of filing its computers under the wrong customer.
+- **Cc, secure messages, last activity and "Next"** *(shipped v3.17.654)* —
+  a ticket keeps a Cc list (filled from the Cc of the opening e-mail, edited
+  on the ticket) that e-mailed replies copy; a reply can carry a secure
+  message, encrypted and sent to the requester as a one-time link that opens
+  behind a button, with the ticket showing only whether it was opened. The
+  ticket list and page show the last activity (reply, note, file, update; who
+  and when) and whose move it is: needs reply, waiting on customer, follow up
+  after 3 days, waiting on vendor. `psa_seed_sample_conversations` adds demo
+  customer people and sample tickets showing all of it.
 
 ## Phase 53 — Documentation readiness and lifecycle **(L)** [in progress]
 

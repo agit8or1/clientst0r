@@ -48,7 +48,22 @@ Context:
                 <span class="tc-replyto-excerpt">{{ e.reply_to.excerpt }}</span>
             </a>
             {% endif %}
+            {% if e.cc %}<div class="tc-cc small text-muted"><i class="fas fa-user-plus" aria-hidden="true"></i> Cc: {{ e.cc|join:", " }}</div>{% endif %}
             <div class="tc-body">{{ e.body|conversation_body }}</div>
+            {% if e.secure %}
+            <div class="tc-secure tc-secure--{{ e.secure.state }}" data-secure-state="{{ e.secure.state }}">
+                <i class="fas fa-envelope-circle-check" aria-hidden="true"></i>
+                <strong>Secure message</strong>
+                {% if staff_view %}
+                    — {% if e.secure.state == 'opened' %}opened by the recipient{% elif e.secure.state == 'expired' %}expired unopened{% elif e.secure.state == 'withdrawn' %}withdrawn{% else %}sent by e-mail, not opened yet{% endif %}
+                    · {% if e.secure.read_once %}opens once · {% endif %}expires {{ e.secure.expires_at|date:"M j, Y H:i" }}.
+                    <span class="text-muted">Its content is encrypted and not shown here.</span>
+                {% else %}
+                    — sent to your e-mail address as a separate link{% if e.secure.read_once %} that opens once{% endif %}.
+                    {% if e.secure.state == 'waiting' %}It expires {{ e.secure.expires_at|date:"M j, Y H:i" }}.{% elif e.secure.state == 'opened' %}It has been opened.{% else %}It is no longer available; reply here if you still need it.{% endif %}
+                {% endif %}
+            </div>
+            {% endif %}
             {% if e.attachments %}
             <ul class="tc-files" aria-label="Attachments">
                 {% for a in e.attachments %}

@@ -177,11 +177,17 @@ def ticket_list(request):
 
     # Bound the page; full pagination is Phase 2 polish. Work queues read
     # soonest-SLA-first, like My Work.
+    from .activity import decorate
+    from .my_work import annotate_activity
+    from .visibility import is_msp_staff
+    qs = qs.select_related('status', 'priority', 'queue', 'organization', 'assigned_to')
     if work_queue:
         from .my_work import order_by_sla
         tickets = order_by_sla(qs)[:200]
     else:
-        tickets = qs.order_by('-created_at')[:200]
+        tickets = annotate_activity(qs).order_by('-created_at')[:200]
+    # Last activity and whose move it is (v3.17.654).
+    tickets = decorate(tickets, include_internal=is_msp_staff(request.user))
 
     # Filter dropdown options — limited to what makes sense for the user.
     # For org-bound users, the client filter only shows their member orgs.
@@ -391,6 +397,7 @@ def ticket_detail(request, ticket_number):
         'is_closed': is_closed,
         'attachment_max_mb': ATTACHMENT_MAX_BYTES // (1024 * 1024),
         'watchers_count': watchers_count,
+        'activity': _ticket_activity(request, ticket),
         'is_watcher': is_watcher,
         'canned_replies': canned_replies,
         'ai_enabled': ai_enabled,
@@ -1016,6 +1023,39 @@ def ticket_post_comment(request, ticket_number):
         is_internal = False
     send_email = (request.POST.get('send_email') or '').lower() in ('1', 'true', 'on', 'yes')
 
+    # Cc and secure message (v3.17.654) — both technician-only, both only on
+    # a public reply that is e-mailed. Refused before anything is saved, with
+    # the text kept as the draft.
+    from .ticket_secure import (DEFAULT_SECURE_EXPIRY, MAX_SECURE_LENGTH, create_secure_message,
+                                parse_addresses)
+    cc_emails, secure_text, secure_hours, secure_once = [], '', DEFAULT_SECURE_EXPIRY, True
+    if is_msp_staff(request.user) and not is_internal:
+        cc_emails, cc_invalid = parse_addresses(request.POST.get('cc') or '')
+        secure_text = (request.POST.get('secure_message') or '').strip()
+        try:
+            secure_hours = int(request.POST.get('secure_expires_hours') or DEFAULT_SECURE_EXPIRY)
+        except ValueError:
+            secure_hours = DEFAULT_SECURE_EXPIRY
+        secure_once = (request.POST.get('secure_read_once') or '1') in ('1', 'on', 'true')
+        problem = ''
+        if cc_invalid:
+            problem = f'These Cc addresses are not valid: {", ".join(cc_invalid)}.'
+        elif cc_emails and not send_email:
+            problem = 'Cc only applies to an e-mailed reply. Tick "Email this reply", or clear the Cc field.'
+        elif secure_text and not (send_email and ticket.requester_email):
+            problem = ('A secure message is delivered by e-mail to the requester. Tick "Email this reply" '
+                       '(the ticket needs a requester e-mail address).')
+        elif secure_text and cc_emails:
+            problem = ('A secure message goes only to the requester. Clear the Cc field, or send the secure '
+                       'message in a separate reply.')
+        elif len(secure_text) > MAX_SECURE_LENGTH:
+            problem = f'A secure message can be at most {MAX_SECURE_LENGTH} characters.'
+        if problem:
+            TicketDraft.objects.update_or_create(
+                user=request.user, ticket=ticket, defaults={'body': body, 'is_internal': False})
+            messages.error(request, problem + ' Nothing was posted; your reply is kept as a draft.')
+            return redirect(detail_url + '#composer')
+
     # A public reply that came from an AI draft needs the ai_send technician
     # capability (tech_access). Manual replies and internal notes are not
     # affected; the text is kept as the draft so nothing typed is lost.
@@ -1069,10 +1109,15 @@ def ticket_post_comment(request, ticket_number):
         parent = (visible_comments(ticket, request.user)
                   .filter(pk=int(parent_raw), is_system=False).first())
 
+    secure_note = None
+    if secure_text:
+        secure_note = create_secure_message(ticket=ticket, sender=request.user, text=secure_text,
+                                            expires_hours=secure_hours, read_once=secure_once)
     comment = TicketComment.objects.create(
         ticket=ticket, author=request.user,
         body=body, is_internal=is_internal, is_system=False,
-        parent_comment=parent,
+        parent_comment=parent, cc_emails=cc_emails if send_email else [],
+        secure_note=secure_note,
     )
 
     now = timezone.now()
@@ -1090,8 +1135,19 @@ def ticket_post_comment(request, ticket_number):
         object_repr=f'{"internal note" if is_internal else "reply"} on {ticket.ticket_number}',
         description=f'Added {"internal note" if is_internal else "reply"} to {ticket.ticket_number}',
         ip_address=_client_ip(request), path=request.path,
-        extra_data={'is_internal': is_internal, 'length': len(body), 'ai_assisted': ai_assisted},
+        extra_data={'is_internal': is_internal, 'length': len(body), 'ai_assisted': ai_assisted,
+                    'cc': cc_emails, 'secure_message': bool(secure_note)},
     )
+    if secure_note is not None:
+        AuditLog.log(
+            user=request.user, action='create', organization=ticket.organization,
+            object_type='secure_note', object_id=secure_note.pk,
+            object_repr=f'secure message on {ticket.ticket_number}',
+            description=f'Secure message sent with a reply on {ticket.ticket_number} to {ticket.requester_email}',
+            ip_address=_client_ip(request), path=request.path,
+            extra_data={'event': 'ticket_secure_message', 'comment': comment.pk,
+                        'expires_at': secure_note.expires_at.isoformat(), 'read_once': secure_note.read_once},
+        )
     # Notify watchers (best-effort; SMTP failures don't block the request).
     _notify_watchers(ticket, comment, request.user)
     # Parse @mentions, auto-add as watcher + notify.
@@ -1105,12 +1161,22 @@ def ticket_post_comment(request, ticket_number):
     # Internal notes are never emailed. Send failures surface as a message but
     # never discard the comment that was already saved.
     if send_email and not is_internal:
-        _email_reply_to_requester(request, ticket, comment)
+        _email_reply_to_requester(request, ticket, comment, secure_note=secure_note)
 
     return redirect(detail_url)
 
 
-def _email_reply_to_requester(request, ticket, comment):
+def _ticket_activity(request, ticket):
+    """Last activity and whose move it is, for the ticket page header."""
+    from .activity import decorate
+    from .my_work import annotate_activity
+    from .visibility import is_msp_staff
+    rows = decorate(annotate_activity(Ticket.objects.filter(pk=ticket.pk)).select_related('status'),
+                    include_internal=is_msp_staff(request.user))
+    return rows[0] if rows else None
+
+
+def _email_reply_to_requester(request, ticket, comment, secure_note=None):
     """Email a public ticket reply to the requester (issue #142).
 
     Best-effort by design: the comment is already committed, so every failure
@@ -1127,16 +1193,32 @@ def _email_reply_to_requester(request, ticket, comment):
             'Comment saved, but no email was sent — this ticket has no requester email address.')
         return
 
+    body_text = comment.body
+    if secure_note is not None:
+        # The link exists only here and in the e-mail; only its hash is kept.
+        url = secure_note.get_share_url(request)
+        body_text += (f'\n\n--\nSecure message: {url}\n'
+                      f'{"It can be opened once and " if secure_note.read_once else "It "}'
+                      f'expires {secure_note.expires_at:%Y-%m-%d %H:%M} UTC.')
     try:
         config = resolve_ticket_email_config(ticket)
         result = send_ticket_reply(
             ticket=ticket, config=config, comment=comment,
-            body_text=comment.body, created_by=request.user,
+            body_text=body_text, cc_emails=comment.cc_emails or None, created_by=request.user,
         )
     except Exception as exc:
         logger.warning('ticket reply email failed ticket=%s: %s', ticket.ticket_number, exc)
         messages.error(request, f'Comment saved, but the email could not be sent: {exc}')
+        _withdraw_secure_note(secure_note, request)
         return
+
+    if secure_note is not None:
+        from psa.ticket_secure import scrub_stored_copies
+        if isinstance(result, EmailOutboundJob):
+            if result.status != EmailOutboundJob.STATUS_QUEUED:  # a queued job still needs it
+                scrub_stored_copies(result, result.email_message)
+        else:
+            scrub_stored_copies(result)
 
     if isinstance(result, EmailOutboundJob):
         if result.status == EmailOutboundJob.STATUS_SENT:
@@ -1152,6 +1234,7 @@ def _email_reply_to_requester(request, ticket, comment):
         else:
             outcome = f'Reply could not be sent: {result.last_error or "unknown error"}'
             messages.error(request, outcome)
+            _withdraw_secure_note(secure_note, request)
         transport, status = 'graph', result.status
     else:
         outcome = f'Reply emailed to {ticket.requester_email}.'
@@ -1165,8 +1248,19 @@ def _email_reply_to_requester(request, ticket, comment):
         description=f'Emailed ticket reply to requester via {transport} ({status})',
         ip_address=_client_ip(request), path=request.path,
         extra_data={'transport': transport, 'status': status,
-                    'to': ticket.requester_email},
+                    'to': ticket.requester_email, 'cc': comment.cc_emails or []},
     )
+
+
+def _withdraw_secure_note(note, request):
+    """The e-mail carrying the only copy of the link failed: nobody can open
+    the message, so withdraw it rather than leave it waiting."""
+    if note is None:
+        return
+    note.is_deleted = True
+    note.save(update_fields=['is_deleted'])
+    messages.warning(request, 'The secure message was withdrawn because its e-mail was not sent. '
+                              'Send it again in a new reply.')
 
 
 # ---------------------------------------------------------------------------
@@ -1821,6 +1915,37 @@ def ticket_watch_toggle(request, ticket_number):
         ip_address=_client_ip(request), path=request.path,
     )
     return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
+
+
+@login_required
+@require_write
+@require_psa_enabled
+@require_http_methods(['POST'])
+def ticket_cc_update(request, ticket_number):
+    """Set who is copied on this ticket's e-mailed replies (v3.17.654).
+    Technicians only. POST: cc (comma / space separated addresses)."""
+    from .ticket_secure import parse_addresses
+    _staff_or_403(request)
+    ticket = _scoped_ticket_for_write(request, ticket_number)
+    detail_url = reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number})
+    valid, invalid = parse_addresses(request.POST.get('cc') or '')
+    if invalid:
+        messages.error(request, f'Not saved — these are not valid addresses: {", ".join(invalid)}.')
+        return redirect(detail_url + '#ticketCc')
+    requester = (ticket.requester_email or '').lower()
+    valid = [a for a in valid if a != requester]
+    before = list(ticket.cc_emails or [])
+    ticket.cc_emails = valid
+    ticket.save(update_fields=['cc_emails'])
+    AuditLog.log(
+        user=request.user, action='update', organization=ticket.organization,
+        object_type='psa.Ticket', object_id=ticket.pk, object_repr=ticket.ticket_number,
+        description=f'Cc on {ticket.ticket_number} set to {", ".join(valid) or "nobody"}',
+        ip_address=_client_ip(request), path=request.path,
+        extra_data={'event': 'ticket_cc_update', 'before': before, 'after': valid},
+    )
+    messages.success(request, 'Cc list saved.' if valid else 'Nobody is copied on this ticket now.')
+    return redirect(detail_url + '#ticketCc')
 
 
 @login_required

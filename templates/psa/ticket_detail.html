@@ -69,6 +69,13 @@
             <span class="badge bg-success"><i class="fas fa-check me-1"></i>{{ sla.label }}</span>
         {% endif %}
 
+        {% if activity %}
+        <span class="badge {{ activity.next_badge }}" id="ticketNextStep" data-next="{{ activity.next_step }}"
+              title="Whose move it is: the customer spoke last → reply; we spoke last → waiting, follow up after 3 days">{{ activity.next_label }}</span>
+        <span class="small text-muted" id="ticketLastActivity">Last activity: {{ activity.last_action.kind }}{% if activity.last_action.by %} by {{ activity.last_action.by }}{% endif %},
+            <time datetime="{{ activity.last_action.at|date:'c' }}" title="{{ activity.last_action.at }}">{{ activity.last_action.at|timesince }} ago</time></span>
+        {% endif %}
+
         {# Watch / Unwatch (Phase 2b) #}
         <form method="post" action="{% url 'psa:ticket_watch_toggle' ticket.ticket_number %}" class="d-inline">
             {% csrf_token %}
@@ -267,6 +274,35 @@
                     {% endif %}
 
                     <textarea name="body" id="composerBody" class="form-control mb-2" rows="4" placeholder="Write a reply…" required>{{ draft.body|default:'' }}</textarea>
+                    {% if is_msp_staff and ticket.requester_email %}
+                    {# v3.17.654 — shown while "Email this reply" is ticked on a public reply. #}
+                    <div id="composerEmailExtras" class="tc-email-extras mb-2" hidden>
+                        <div class="input-group input-group-sm mb-2">
+                            <label class="input-group-text" for="composerCc"><i class="fas fa-user-plus me-1"></i>Cc</label>
+                            <input type="text" name="cc" id="composerCc" class="form-control" value="{{ ticket.cc_emails|join:', ' }}"
+                                   placeholder="name@example.com, another@example.com" autocomplete="off" disabled>
+                        </div>
+                        <details class="tc-secure-compose">
+                            <summary class="small"><i class="fas fa-envelope-circle-check me-1"></i>Add a secure message (encrypted, sent as a one-time link)</summary>
+                            <div class="mt-2">
+                                <textarea name="secure_message" id="composerSecure" class="form-control form-control-sm mb-1" rows="3" maxlength="10000"
+                                          placeholder="e.g. the temporary password. It is encrypted, never shown on the ticket, and goes only to {{ ticket.requester_email }}." disabled></textarea>
+                                <div class="d-flex flex-wrap gap-3 align-items-center small">
+                                    <label for="composerSecureExpiry">Expires after</label>
+                                    <select name="secure_expires_hours" id="composerSecureExpiry" class="form-select form-select-sm w-auto" disabled>
+                                        <option value="24">1 day</option><option value="72" selected>3 days</option><option value="168">7 days</option>
+                                    </select>
+                                    <div class="form-check mb-0">
+                                        <input type="hidden" name="secure_read_once" value="0" disabled>
+                                        <input class="form-check-input" type="checkbox" name="secure_read_once" value="1" id="composerSecureOnce" checked disabled>
+                                        <label class="form-check-label" for="composerSecureOnce">Can be opened once</label>
+                                    </div>
+                                    <span class="text-muted">Can't be combined with Cc.</span>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                    {% endif %}
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div class="d-flex gap-3 flex-wrap align-items-center">
                             {# Issue #142 — opt-in outbound email; off by default. #}
@@ -298,7 +334,9 @@
                         </div>
                         <div class="modal-body">
                             <p class="mb-2">This public reply will be posted on the ticket <strong>and emailed</strong> to:</p>
-                            <ul class="mb-0"><li><code>{{ ticket.requester_email }}</code> (requester)</li></ul>
+                            <ul class="mb-0"><li><code>{{ ticket.requester_email }}</code> (requester)</li>
+                                <li id="emailConfirmCc" hidden>Cc: <code data-cc-list></code></li>
+                                <li id="emailConfirmSecure" hidden><i class="fas fa-envelope-circle-check me-1"></i>plus a secure message link, to the requester only</li></ul>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Go back</button>
@@ -349,6 +387,24 @@
     </div>
 
     <div class="col-lg-4">
+        {% if is_msp_staff %}
+        {# v3.17.654 — who is copied on e-mailed replies #}
+        <div class="card mb-3" id="ticketCc">
+            <div class="card-header py-2"><strong class="small"><i class="fas fa-user-plus me-1"></i>Copied on replies (Cc)</strong></div>
+            <div class="card-body py-2 small">
+                {% if ticket.cc_emails %}<ul class="list-unstyled mb-2">{% for a in ticket.cc_emails %}<li><code>{{ a }}</code></li>{% endfor %}</ul>
+                {% else %}<p class="text-muted mb-2">Nobody. People the customer copies on an e-mail are added here.</p>{% endif %}
+                {% if not is_closed %}
+                <form method="post" action="{% url 'psa:ticket_cc_update' ticket.ticket_number %}">
+                    {% csrf_token %}
+                    <label class="visually-hidden" for="ticketCcInput">Cc addresses</label>
+                    <textarea name="cc" id="ticketCcInput" class="form-control form-control-sm mb-1" rows="2" placeholder="name@example.com, another@example.com">{{ ticket.cc_emails|join:", " }}</textarea>
+                    <button class="btn btn-sm btn-outline-primary">Save Cc</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
         {# Less-frequent context: contract, similar tickets, problems, hygiene. #}
         {# Active contract banner — surfaces hours used + remaining for this client #}
         {% if contract %}

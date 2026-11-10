@@ -291,3 +291,15 @@
     --tc-tech-bg: color-mix(in srgb, var(--tc-primary) 38%, var(--tc-card));
     --tc-tech-border: color-mix(in srgb, var(--tc-primary) 85%, #ffffff);
 }
+
+/* v3.17.654: who a reply was copied to, and the secure-message notice. */
+.tc-cc { margin-bottom: .25rem; }
+.tc-secure {
+    margin-top: .5rem;
+    padding: .4rem .6rem;
+    border: 1px dashed currentColor;
+    border-radius: .4rem;
+    font-size: .875em;
+}
+.tc-secure .fa-envelope-circle-check { margin-right: .25rem; }
+.tc-secure--expired, .tc-secure--withdrawn { opacity: .75; }
