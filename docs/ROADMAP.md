@@ -1777,8 +1777,7 @@ someone else.
   reminder, open asset, plan replacement). Every section and total follows
   the user's role for that customer; customer users see only their own
   customer and only what their role allows.
-- **Optional modules settings page** *(in progress — built, not yet
-  released)* — Settings → System → Optional Modules lists every optional
+- **Optional modules settings page** *(in progress — on the development branch, not yet released)* — Settings → System → Optional Modules lists every optional
   module with whether it is on, what it needs (Ticket AI, portal, routing
   and CSAT need PSA; status pages need monitoring), what people see when it
   is on and a link to its settings. Turning a module on while what it needs
