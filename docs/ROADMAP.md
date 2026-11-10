@@ -1768,7 +1768,7 @@ someone else.
   playbooks, portal announcements, asset services, groups and
   vulnerabilities), for the demo customers only. It adds three demo
   technicians who can't sign in and is safe to re-run.
-- **Customer operations page** *(in progress — built, not yet released)* —
+- **Customer operations page** *(in progress — on the development branch, not yet released)* —
   one page per customer (`/core/customers/<id>/operations/`, from the
   customer page and the client switcher) listing SLA risks, uptime
   incidents (down monitors, recent outages, status-page incidents),
