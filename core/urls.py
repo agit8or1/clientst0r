@@ -16,6 +16,7 @@ from . import security_views
 from . import help_views
 from . import client_switcher
 from . import customer_ops_views
+from . import modules_views
 
 app_name = 'core'
 
@@ -145,6 +146,7 @@ urlpatterns = [
     path('settings/general/', settings_views.settings_general, name='settings_general'),
     path('settings/security/', settings_views.settings_security, name='settings_security'),
     path('settings/features/', settings_views.settings_features, name='settings_features'),
+    path('settings/modules/', modules_views.settings_modules, name='settings_modules'),
     # PSA settings — view lives in psa.views; aliased here so it appears
     # under the same /core/settings/ tree as the rest of admin settings.
     path('settings/psa/', __import__('psa.views', fromlist=['psa_global_settings_view']).psa_global_settings_view, name='settings_psa'),

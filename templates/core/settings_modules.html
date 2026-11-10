@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Optional Modules" %} - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">{% trans "Dashboard" %}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% trans "Optional Modules" %}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-3">
+        {% include "core/_settings_menu.html" with active_page="modules" %}
+    </div>
+
+    <div class="col-md-9">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h1 class="h5 mb-0"><i class="fas fa-puzzle-piece" aria-hidden="true"></i> {% trans "Optional Modules" %}</h1>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">{% trans "Every optional module in one place: whether it is on, what it needs, what people see when it is on, and where its settings are." %}</p>
+                <ul class="small text-muted mb-0">
+                    <li>{% trans "A module cannot be turned on here while a module it needs is off." %}</li>
+                    <li>{% trans "Turning a module off keeps the settings of modules that need it; they stop working until it is back on." %}</li>
+                    <li>{% trans "Nothing on this page changes a default. Modules managed elsewhere link to their own page." %}</li>
+                </ul>
+            </div>
+        </div>
+
+        {% for group, rows in groups %}
+        <h2 class="h6 text-uppercase text-muted mt-3">{{ group }}</h2>
+        {% for row in rows %}
+        {% with m=row.module %}
+        <div class="card mb-2" id="module-{{ m.key }}" data-module="{{ m.key }}" data-state="{% if row.active %}active{% elif row.on %}inactive{% else %}off{% endif %}">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                    <div class="min-w-0">
+                        <div class="fw-semibold">
+                            <i class="fas {{ m.icon }} fa-fw" aria-hidden="true"></i> {{ m.label }}
+                            {% if m.optional_ai %}<span class="badge bg-info text-dark ms-1">OPTIONAL AI</span>{% endif %}
+                            {% if row.active %}<span class="badge bg-success ms-1">{% trans "On" %}</span>
+                            {% elif row.on %}<span class="badge bg-warning text-dark ms-1">{% trans "On, not working" %}</span>
+                            {% else %}<span class="badge bg-secondary ms-1">{% trans "Off" %}</span>{% endif %}
+                            {% if row.switchable %}<span class="badge bg-light text-dark border ms-1">{% if row.default %}{% trans "default on" %}{% else %}{% trans "default off" %}{% endif %}</span>{% endif %}
+                        </div>
+                        <div class="small text-muted">{{ m.summary }}{% if row.detail %} · <span data-detail>{{ row.detail }}</span>{% endif %}</div>
+                    </div>
+                    {% if row.switchable %}
+                    <form method="post" class="m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="module" value="{{ m.key }}">
+                        {% if row.on %}
+                        <input type="hidden" name="enabled" value="off">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">{% trans "Turn off" %}</button>
+                        {% elif row.missing %}
+                        <button type="button" class="btn btn-sm btn-outline-primary" disabled aria-disabled="true">{% trans "Turn on" %}</button>
+                        {% else %}
+                        <input type="hidden" name="enabled" value="on">
+                        <button type="submit" class="btn btn-sm btn-primary">{% trans "Turn on" %}</button>
+                        {% endif %}
+                    </form>
+                    {% endif %}
+                </div>
+
+                {% if row.missing %}
+                <div class="alert alert-warning py-1 px-2 small mt-2 mb-0" data-missing>
+                    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                    {% trans "Needs" %} {% for d in row.missing %}<a href="#module-{{ d.key }}">{{ d.label }}</a>{% if not forloop.last %}, {% endif %}{% endfor %},
+                    {% if row.on %}{% trans "which is off: this module is switched on but does nothing until it is on." %}{% else %}{% trans "which is off. Turn that on first." %}{% endif %}
+                </div>
+                {% endif %}
+                {% if row.dependents_on %}
+                <div class="small mt-2 text-muted" data-dependents>
+                    {% trans "Turning this off also stops:" %} {% for d in row.dependents_on %}{{ d.label }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="row small mt-2 g-2">
+                    <div class="col-md-6">
+                        <div class="text-muted">{% trans "When it is on, people see" %}</div>
+                        <ul class="mb-0 ps-3">{% for s in m.shows %}<li>{{ s }}</li>{% endfor %}</ul>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-muted">{% trans "Needs" %}</div>
+                        <div>{% for d in row.requires %}<a href="#module-{{ d.key }}">{{ d.label }}</a>{% if not forloop.last %}, {% endif %}{% empty %}{% trans "Nothing else" %}{% endfor %}</div>
+                        {% if row.works_better_with %}
+                        <div class="text-muted mt-1">{% trans "Works best with" %}</div>
+                        <div>{% for d in row.works_better_with %}<a href="#module-{{ d.key }}">{{ d.label }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                        {% endif %}
+                        {% if row.links %}
+                        <div class="text-muted mt-1">{% trans "Settings" %}</div>
+                        <div>{% for label, href in row.links %}<a href="{{ href }}">{{ label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if m.note %}<div class="small text-muted mt-2">{{ m.note }}</div>{% endif %}
+            </div>
+        </div>
+        {% endwith %}
+        {% endfor %}
+        {% endfor %}
+
+        <div class="card mt-3" id="unenforced-switches">
+            <div class="card-header"><h2 class="h6 mb-0">{% trans "Switches that are saved but not used yet" %}</h2></div>
+            <div class="card-body small">
+                <p class="text-muted mb-2">{% trans "These switches exist on other settings pages and are saved, but no page, job or menu reads them in this version. Turning them on or off changes nothing yet." %}</p>
+                <ul class="mb-0">
+                    {% for field, label, why in unenforced %}<li data-field="{{ field }}">{{ label }}{% if why %} — {{ why }}{% endif %}</li>{% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

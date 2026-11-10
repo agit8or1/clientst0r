@@ -297,6 +297,19 @@ def settings_features(request):
         settings.save()
 
         messages.success(request, 'Feature toggles updated successfully.')
+        # Modules that need one just turned off keep their own switch but stop
+        # working; say which (Settings → Optional modules has the full map).
+        from . import modules as _modules
+        stopped = [
+            dep.label
+            for m in _modules.MODULES if m.field and not getattr(settings, m.field)
+            for dep in _modules.dependents_on(m, settings)
+        ]
+        if stopped:
+            messages.warning(
+                request,
+                'Still switched on but not working until what they need is on again: '
+                + ', '.join(dict.fromkeys(stopped)) + '. See Settings → Optional modules.')
         return redirect('core:settings_features')
 
     return render(request, 'core/settings_features.html', {

@@ -32,6 +32,7 @@ SETTINGS_GROUPS = {
         ('updates', 'core:system_updates', 'superuser'),
         ('system_status', 'core:system_status', 'superuser'),
         ('features', 'core:settings_features', 'superuser'),
+        ('modules', 'core:settings_modules', 'superuser'),
         ('psa', 'core:settings_psa', 'psa'),
         ('scheduler', 'core:settings_scheduler', 'superuser'),
         ('smtp', 'core:settings_smtp', 'superuser'),

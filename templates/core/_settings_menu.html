@@ -43,6 +43,9 @@ navbar's Admin menu lands on each group's first visible entry from there.
                 <a href="{% url 'core:settings_features' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'features' %}active{% endif %}"{% if active_page == 'features' %} aria-current="page"{% endif %}>
                     <i class="fas fa-toggle-on fa-fw" aria-hidden="true"></i> {% trans "Feature Toggles" %}
                 </a>
+                <a href="{% url 'core:settings_modules' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'modules' %}active{% endif %}"{% if active_page == 'modules' %} aria-current="page"{% endif %}>
+                    <i class="fas fa-puzzle-piece fa-fw" aria-hidden="true"></i> {% trans "Optional Modules" %}
+                </a>
                 {% if psa_enabled %}
                 <a href="{% url 'core:settings_psa' %}" class="list-group-item list-group-item-action settings-menu-item {% if active_page == 'psa' %}active{% endif %}"{% if active_page == 'psa' %} aria-current="page"{% endif %}>
                     <i class="fas fa-ticket-alt fa-fw" aria-hidden="true"></i> {% trans "PSA" %}
