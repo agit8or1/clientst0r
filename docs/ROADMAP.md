@@ -288,7 +288,7 @@ Planned capabilities:
 - Customer escalation workflows *(shipped v3.17.236 — `Ticket.escalated_at/by/reason` fields + portal endpoint that stamps fields and creates a `[Escalated by client]` public comment)*
 - Customer-facing knowledge base *(`Document.is_client_visible` shipped earlier; portal KB search shipped; featured + view counts shipped v3.17.234)*
 - Customer ticket voting / prioritization *(shipped v3.17.235 — `psa.TicketVote` model + portal toggle endpoint + thumbs-up button on ticket detail)*
-- Secure customer messaging *(deferred — would need an encrypted message-thread model + key management distinct from the existing AES-GCM vault; substantial scope and lower priority than other planned phases. Re-evaluated when there's customer demand)*
+- Secure customer messaging *(partial — one-way secure messages in ticket replies shipped v3.17.654: sealed, one-time link to the requester, ticket shows only whether it was opened; a two-way encrypted message thread is deferred)*
 - Customer notification preferences *(shipped v3.17.233 — three opt-in/out switches at `/portal/preferences/` for ticket replies, status changes, CSAT survey invitations; CSAT helper now honors the flag)*
 
 **Goal:** Improve client interaction visibility and communication consistency.
@@ -1709,6 +1709,13 @@ someone else.
   and when) and whose move it is: needs reply, waiting on customer, follow up
   after 3 days, waiting on vendor. `psa_seed_sample_conversations` adds demo
   customer people and sample tickets showing all of it.
+- **Sample data for every module** *(shipped v3.17.655)* —
+  `manage.py seed_module_samples` fills the modules the other demo seeders
+  leave empty (CRM, changes, problems, purchasing, inventory, scheduling,
+  resourcing, vehicles, field ops, status pages, security incidents and
+  playbooks, portal announcements, asset services, groups and
+  vulnerabilities), for the demo customers only. It adds three demo
+  technicians who can't sign in and is safe to re-run.
 
 ## Phase 53 — Documentation readiness and lifecycle **(L)** [in progress]
 

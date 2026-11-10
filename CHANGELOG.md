@@ -5,6 +5,22 @@ All notable changes to Client St0r will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.655] - 2026-11-10
+
+### Added
+- **`manage.py seed_module_samples`** fills the modules that had no demo data. It touches only the demo customers (ACME Industries, Globex, Initech, Demo Company, Acme Corporation) and the Demo MSP.
+  - It never changes or deletes existing rows, and running it again adds nothing.
+  - It sends no e-mail and creates no integration connections, webhooks or monitors.
+  - `--only` seeds just one group.
+  - **Sales and service:** CRM campaigns, leads, opportunities, activities and commissions. Change requests with CAB votes and release windows. Problems with notes. Purchase requisitions, purchase orders, receipts and a back-order. Canned replies, contract meters, project templates, timesheet submissions, expenses, approvals, site visits, mileage, checklists, job kit, KB links and CSAT surveys.
+  - **Operations:** stock items, locations, stock history and tools. Scheduled technician tasks with comments. Skills, certifications, working hours, cost rates, holidays and leave. Two demo vehicles (DEMO-101, DEMO-102) with assignments, fuel, maintenance and service schedules; existing vehicles are not touched. Sites for customers that had none, WAN circuits with monitoring off, geofences and past timeclock visits. Saved queries and scheduled reports, switched off. A "Workstation Replacement" process.
+  - Task alerts, WAN monitoring, scheduled reports and the wallboard are all created switched off, so no timer acts on them.
+  - **Security and customer-facing:** status pages with services, maintenance and incidents. Security alerts, incidents with timelines, SLA policies and remediation playbooks (no vendor connections). Portal announcements. Asset services, groups, vulnerabilities, software policies, relationships and baselines. Contact notes, password-to-asset links and diagram annotations.
+  - It adds three demo technicians (Jordan Reyes, Alex Kim, Morgan Shah), MSP staff who can't sign in, so scheduling, leave and skills have people to show.
+
+### Upgrade
+- Apply the update. No migrations. Optionally run `manage.py seed_module_samples` on a demo install.
+
 ## [3.17.654] - 2026-11-10
 
 ### Added
