@@ -513,6 +513,20 @@ class MigrationDoctorTests(TestCase):
         lines = '\n'.join(doctor.report_lines([f]))
         self.assertIn('[present] add column', lines)
 
+    def test_check_mode_fails_on_a_migration_already_in_the_schema(self):
+        """The update script refuses to back up or migrate on top of this."""
+        from io import StringIO
+        from django.core.management import call_command
+        from django.db.migrations.recorder import MigrationRecorder
+        call_command('migration_doctor', '--check', stdout=StringIO())   # clean: no exit
+        MigrationRecorder.Migration.objects.filter(
+            app='core', name='0081_systemsetting_update_channel').delete()
+        out = StringIO()
+        with self.assertRaises(SystemExit) as cm:
+            call_command('migration_doctor', '--check', stdout=out)
+        self.assertEqual(cm.exception.code, 1)
+        self.assertIn('core.0081_systemsetting_update_channel: applied unrecorded', out.getvalue())
+
     def test_missing_column_is_reported_missing(self):
         from django.db import connection, models
         from django.db.migrations import operations as ops
@@ -622,6 +636,14 @@ class ApplyPipelineTests(_TmpMixin, TestCase):
         self.assertTrue(r['refused'])
         self.assertIn('did not verify', r['error'])
         m.assert_not_called()
+
+    def test_the_runs_own_journal_entry_does_not_block_its_preflight(self):
+        """Regression (found by the rehearsal): preflight's journal check saw
+        the entry this run had just begun and refused as 'already running'."""
+        self.m['preflight'].side_effect = lambda *a, **k: [preflight.check_journal()]
+        with self._script('exit 0\n'):
+            r = upgrade_apply.run(self.target)
+        self.assertTrue(r['success'], r)
 
     def test_failed_preflight_refuses(self):
         self.m['preflight'].return_value = [preflight.Check('disk space', 'fail', '10 MB free')]

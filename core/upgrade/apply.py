@@ -219,8 +219,9 @@ def _run(target, say, result, *, user, resume, deps_check, allow_preview, env_ex
     # 3: preflight
     say.start('Preflight Checks')
     checks = preflight.run(target, installed_sha=installed_sha, deps=deps_check)
-    if resume:   # the unfinished journal is the point of resuming
-        checks = [c for c in checks if c.name != 'previous upgrade']
+    # The journal was assessed before this run began (and, on resume, the
+    # unfinished entry is the point); by now it describes this very run.
+    checks = [c for c in checks if c.name != 'previous upgrade']
     for c in checks:
         say(f'  [{c.status.upper():4}] {c.name}: {c.detail}' + (f' -- {c.hint}' if c.hint and c.status != 'ok' else ''))
     bad = preflight.failed(checks)

@@ -56,6 +56,7 @@ REMOTE="$WORK/remote.git"
 APP="$WORK/app"
 STATE="$WORK/state.json"
 LOGS="$WORK/logs"
+rm -rf "$LOGS"   # never read a previous run's logs as this run's
 mkdir -p "$LOGS"
 GIT() { git -c advice.detachedHead=false "$@"; }
 
@@ -296,6 +297,7 @@ pinned_release_upgrade() {
 # --- interruption ------------------------------------------------------------
 interrupt_upgrade() {   # start the legacy-mode upgrade, SIGKILL it during migrate
     local log="$LOGS/interrupted-$1.log"
+    : > "$log"
     set_remote_main "$HEAD_SHA"
     stop_server
     # setsid: the update script gets its own process group (pgid == its pid),
