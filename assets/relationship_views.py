@@ -6,8 +6,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db import models
+from django.urls import reverse
 from core.middleware import get_request_organization
-from core.decorators import require_write
+from core.decorators import require_write, require_organization_context
+from core.org_handoff import org_handoff
 from .models import Asset, Relationship
 from docs.models import Document
 from vault.models import Password
@@ -82,20 +84,38 @@ def relationship_map(request):
     })
 
 
+def _split_ref(data, prefix):
+    """`<prefix>_type` + `<prefix>_id`, or the form pickers' combined
+    `<prefix>` value "type:id"."""
+    obj_type = data.get(f'{prefix}_type')
+    obj_id = data.get(f'{prefix}_id')
+    combined = data.get(prefix) or ''
+    if (not obj_type or not obj_id) and ':' in combined:
+        obj_type, _, obj_id = combined.partition(':')
+    return obj_type, obj_id
+
+
 @login_required
+@org_handoff
 @require_write
+@require_organization_context
 def relationship_create(request):
     """
     Create a new relationship between two objects.
+
+    GET shows the form. `?source_type=&source_id=&target_type=` (readiness
+    "Link it") preselect the source object and the kind of target; only this
+    customer's objects the user may see are offered or preselected, and
+    nothing is saved until the form is submitted.
     """
     org = get_request_organization(request)
 
     if request.method == 'POST':
-        source_type = request.POST.get('source_type')
-        source_id = request.POST.get('source_id')
-        target_type = request.POST.get('target_type')
-        target_id = request.POST.get('target_id')
+        source_type, source_id = _split_ref(request.POST, 'source')
+        target_type, target_id = _split_ref(request.POST, 'target')
         relation_type = request.POST.get('relation_type', 'related')
+        if relation_type not in dict(Relationship.RELATION_TYPES):
+            relation_type = 'related'
         notes = request.POST.get('notes', '')
 
         try:
@@ -133,28 +153,49 @@ def relationship_create(request):
                 notes=notes
             )
 
-            messages.success(request, f"Relationship created successfully.")
-            return redirect(f"{request.META.get('HTTP_REFERER', 'assets:relationship_map')}")
+            messages.success(request, "Relationship created successfully.")
+            if source_type == 'asset':
+                return redirect('assets:asset_detail', pk=source_id)
+            return redirect(f"{reverse('assets:relationship_map')}?type={source_type}&id={source_id}")
 
         except Exception as e:
             messages.error(request, f"Error creating relationship: {str(e)}")
             return redirect('assets:relationship_map')
 
-    # GET request - show form
-    source_type = request.GET.get('source_type')
-    source_id = request.GET.get('source_id')
-
-    # Get available objects for selection
-    assets = Asset.objects.for_organization(org)
-    documents = Document.objects.for_organization(org).filter(is_published=True)
-    passwords = visible_passwords(request.user, Password.objects.for_organization(org))
+    # GET request - show form. Objects of this customer only (exact org, as
+    # validate_object checks on save), vault entries the user may see.
+    from .models import Contact
+    choices = {
+        'asset': [(a.pk, a.name) for a in
+                  Asset.objects.filter(organization=org).only('id', 'name').order_by('name')],
+        'document': [(d.pk, d.title) for d in
+                     Document.objects.filter(organization=org, is_archived=False)
+                     .only('id', 'title').order_by('title')],
+        'contact': [(c.pk, f'{c.first_name} {c.last_name}'.strip() or c.email) for c in
+                    Contact.objects.filter(organization=org).order_by('first_name', 'last_name')],
+        'password': [(p.pk, p.title) for p in
+                     visible_passwords(request.user, Password.objects.filter(organization=org))
+                     .only('id', 'title').order_by('title')],
+    }
+    labels = {'asset': 'Assets', 'document': 'Documents', 'contact': 'Contacts',
+              'password': 'Vault entries'}
+    source_type, source_id = _split_ref(request.GET, 'source')
+    selected_source = ''
+    if source_type in choices and str(source_id or '').isdigit() and \
+            int(source_id) in {pk for pk, _ in choices[source_type]}:
+        selected_source = f'{source_type}:{int(source_id)}'
+    target_type = request.GET.get('target_type')
+    if target_type not in choices:
+        target_type = ''
+    groups = [{'type': t, 'label': labels[t], 'items': [(f'{t}:{pk}', label) for pk, label in choices[t]]}
+              for t in choices]
 
     return render(request, 'assets/relationship_form.html', {
-        'source_type': source_type,
-        'source_id': source_id,
-        'assets': assets,
-        'documents': documents,
-        'passwords': passwords,
+        'groups': groups,
+        'target_groups': [g for g in groups if not target_type or g['type'] == target_type],
+        'selected_source': selected_source,
+        'target_type': target_type,
+        'target_type_label': labels.get(target_type, ''),
         'relation_types': Relationship.RELATION_TYPES,
     })
 
@@ -293,8 +334,9 @@ def validate_object(org, object_type, object_id, user=None):
             visible_passwords(user, Password.objects.filter(organization=org)).get(id=object_id)
             return True
         elif object_type == 'contact':
-            # Note: Contact model needs to be imported if not already
-            from contacts.models import Contact
+            # Contact lives in assets (there is no `contacts` app; the old
+            # import made every contact link fail as "not found").
+            from .models import Contact
             Contact.objects.get(id=object_id, organization=org)
             return True
     except Exception:

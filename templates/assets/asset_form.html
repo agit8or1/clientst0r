@@ -21,6 +21,7 @@
     <div class="card-body">
         <form method="post">
             {% csrf_token %}
+            {% include 'core/_form_org.html' %}
             {% if redirect_to %}
             <input type="hidden" name="redirect" value="{{ redirect_to }}">
             {% endif %}
@@ -242,7 +243,7 @@
                 {% if form.custom_field_defs %}
                 <!-- Custom fields (v3.17.621), defined under Assets → Custom Fields -->
                 <div class="col-12"><hr></div>
-                <div class="col-12">
+                <div class="col-12" id="custom-fields">
                     <h6 class="text-muted mb-3"><i class="fas fa-sliders-h"></i> Custom Fields</h6>
                 </div>
                 {% for defn, field in form.custom_field_rows %}

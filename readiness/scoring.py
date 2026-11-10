@@ -24,11 +24,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Optional
-from urllib.parse import urlencode
 
 from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
+
+from core.org_handoff import with_org
 
 from .models import DocumentationStandard, StandardException, StandardRequirement as R
 from .params import asset_field_choices, asset_field_column, split_alternatives
@@ -232,7 +233,18 @@ class _Data:
                     all_types = True
                 if req.kind == R.KIND_ASSET_FIELDS:
                     columns.update(asset_field_column(f) for f in req.params.get('fields', []))
+                    if req.params.get('custom_fields'):
+                        columns.add('custom_fields')
         return (None if all_types else types), columns
+
+    @property
+    def custom_field_defs(self):
+        """{key: AssetCustomField} — active custom asset field definitions
+        (MSP-wide), one query, only when a requirement names custom fields."""
+        def load():
+            from assets.models import AssetCustomField
+            return {d.key: d for d in AssetCustomField.objects.filter(is_active=True)}
+        return self._get('custom_field_defs', load)
 
     @property
     def assets(self):
@@ -373,7 +385,7 @@ def _doc_record(doc):
                   reverse('docs:document_detail', kwargs={'slug': doc['slug']}))
 
 
-def _doc_fix(req):
+def _doc_fix(req, org):
     p = req.params
     alts = split_alternatives(p.get('title_contains', ''))
     q = {'title': alts[0] if alts else req.title}
@@ -381,7 +393,7 @@ def _doc_fix(req):
         q['category'] = p['category']
     if p.get('tag'):
         q['tags'] = p['tag']
-    return Fix('Create the document', reverse('docs:document_create') + '?' + urlencode(q))
+    return Fix('Create the document', with_org(reverse('docs:document_create'), org, **q))
 
 
 # ---------------------------------------------------------------------------
@@ -395,7 +407,7 @@ def _check_document_exists(req, std, org, data, now):
         return (MET, f'Found {_plural(len(docs), "published document")} {crit}.',
                 [_doc_record(d) for d in docs], None, docs[0]['owner'])
     return (UNMET, f'No published document {crit} exists for {org.name}.{_why(req)}',
-            [], _doc_fix(req), None)
+            [], _doc_fix(req, org), None)
 
 
 def _fresh_anchor(doc, basis):
@@ -414,7 +426,7 @@ def _check_document_fresh(req, std, org, data, now):
     if not docs:
         return (UNMET, f'No published document {crit} exists, so there is nothing '
                        f'{verb} in the last {limit} days.{_why(req)}',
-                [], _doc_fix(req), None)
+                [], _doc_fix(req, org), None)
     cutoff = now - timedelta(days=limit)
     dated = sorted(((_fresh_anchor(d, p.get('basis')), d) for d in docs),
                    key=lambda x: (x[0] is not None, x[0] or now), reverse=True)
@@ -429,7 +441,7 @@ def _check_document_fresh(req, std, org, data, now):
         msg = (f'The most recent matching document, "{newest["title"]}", was last {verb} '
                f'{_plural(_days_ago(newest_at, now), "day")} ago; the limit is {limit} days.')
     return (UNMET, msg + _why(req), [rec],
-            Fix('Review the document', rec.url), newest['owner'])
+            Fix('Review the document', with_org(rec.url, org)), newest['owner'])
 
 
 def _check_document_owner(req, std, org, data, now):
@@ -437,7 +449,7 @@ def _check_document_owner(req, std, org, data, now):
     crit = _doc_criteria(req.params)
     if not docs:
         return (UNMET, f'No published document {crit} exists, so nobody owns it.{_why(req)}',
-                [], _doc_fix(req), None)
+                [], _doc_fix(req, org), None)
     orphans = [d for d in docs if not d['owner_id']]
     if not orphans:
         return (MET, f'{"The matching document has" if len(docs) == 1 else f"All {len(docs)} matching documents have"} '
@@ -446,7 +458,8 @@ def _check_document_owner(req, std, org, data, now):
     return (UNMET, f'{len(orphans)} of {_plural(len(docs), "matching document")} '
                    f'{"has" if len(orphans) == 1 else "have"} no owner: {titles}.{_why(req)}',
             [_doc_record(d) for d in orphans],
-            Fix('Assign an owner', reverse('docs:document_edit', kwargs={'slug': orphans[0]['slug']})),
+            Fix('Assign an owner', with_org(
+                reverse('docs:document_edit', kwargs={'slug': orphans[0]['slug']}), org)),
             None)
 
 
@@ -460,6 +473,10 @@ def _is_empty(v):
     return v is None or v == '' or v == [] or v == {}
 
 
+def _custom_empty(v):
+    return _is_empty(v) or (isinstance(v, str) and not v.strip())
+
+
 def _check_asset_fields(req, std, org, data, now):
     t, assets = _assets_in_scope(req, std, org, data)
     noun = f'{_asset_type_label(t)} asset' if t else 'asset'
@@ -467,22 +484,45 @@ def _check_asset_fields(req, std, org, data, now):
         return (NOT_APPLICABLE, f'{org.name} has no {noun}s on record, so this does not apply.',
                 [], None, None)
     labels = dict(asset_field_choices())
-    fields = req.params['fields']
+    fields = req.params.get('fields') or []
+    # Custom fields (v3.17.655): values live in Asset.custom_fields[key]. A
+    # field counts only for assets of a type it applies to; deactivated or
+    # deleted definitions are off the asset form, so they are skipped.
+    custom = []
+    if req.params.get('custom_fields'):
+        defs = data.custom_field_defs
+        custom = [defs[k] for k in req.params['custom_fields'] if k in defs]
+        if not fields:
+            if not custom:
+                return (NOT_APPLICABLE, 'The custom fields this rule checks are no longer '
+                                        'active, so this does not apply.', [], None, None)
+            assets = [a for a in assets if any(d.applies_to(a['asset_type']) for d in custom)]
+            if not assets:
+                return (NOT_APPLICABLE, f'The custom fields this rule checks do not apply to any '
+                                        f'of the {noun}s {org.name} has, so this does not apply.',
+                        [], None, None)
     missing = []
     for a in assets:
-        gaps = [f for f in fields if _is_empty(a.get(asset_field_column(f)))]
-        if gaps:
-            missing.append((a, gaps))
-    wanted = ', '.join(labels.get(f, f).lower() for f in fields)
+        gaps = [labels.get(f, f).lower() for f in fields if _is_empty(a.get(asset_field_column(f)))]
+        custom_gaps = []
+        if custom:
+            stored = a.get('custom_fields')
+            stored = stored if isinstance(stored, dict) else {}
+            custom_gaps = [d.label for d in custom
+                           if d.applies_to(a['asset_type']) and _custom_empty(stored.get(d.key))]
+        if gaps or custom_gaps:
+            missing.append((a, gaps + custom_gaps, bool(custom_gaps)))
+    wanted = ', '.join([labels.get(f, f).lower() for f in fields] + [d.label for d in custom])
     if not missing:
         return (MET, f'All {_plural(len(assets), noun)} have {wanted} filled in.', [], None, None)
     records = [Record('asset', a['id'], a['name'],
-                      reverse('assets:asset_edit', kwargs={'pk': a['id']}),
-                      'missing ' + ', '.join(labels.get(f, f).lower() for f in gaps))
-               for a, gaps in missing]
+                      reverse('assets:asset_edit', kwargs={'pk': a['id']})
+                      + ('#custom-fields' if custom_gap else ''),
+                      'missing ' + ', '.join(gaps))
+               for a, gaps, custom_gap in missing]
     return (UNMET, f'{len(missing)} of {_plural(len(assets), noun)} '
                    f'{"is" if len(missing) == 1 else "are"} missing some of: {wanted}.{_why(req)}',
-            records, Fix('Fill in the asset', records[0].url), None)
+            records, Fix('Fill in the asset', with_org(records[0].url, org)), None)
 
 
 def _check_contact_role(req, std, org, data, now):
@@ -499,8 +539,8 @@ def _check_contact_role(req, std, org, data, now):
     have = 'no contact' if not found else f'only {_plural(len(found), "contact")}'
     return (UNMET, f'{org.name} has {have} with a title like {alts}; '
                    f'{need} needed.{_why(req)}', records,
-            Fix('Add the contact', reverse('assets:contact_create') + '?' +
-                urlencode({'title': split_alternatives(p['title_contains'])[0]})), None)
+            Fix('Add the contact', with_org(reverse('assets:contact_create'), org,
+                                            title=split_alternatives(p['title_contains'])[0])), None)
 
 
 def _check_credential_reference(req, std, org, data, now):
@@ -526,8 +566,10 @@ def _check_credential_reference(req, std, org, data, now):
     alts = split_alternatives(p.get('title_contains', ''))
     if alts:
         q['title'] = alts[0]
+    if p.get('tag'):
+        q['tags'] = p['tag']
     return (UNMET, f'No vault entry {crit} exists for {org.name}.{_why(req)}', [],
-            Fix('Add the vault entry', reverse('vault:password_create') + ('?' + urlencode(q) if q else '')),
+            Fix('Add the vault entry', with_org(reverse('vault:password_create'), org, **q)),
             None)
 
 
@@ -557,8 +599,9 @@ def _check_relationship_present(req, std, org, data, now):
     return (UNMET, f'{len(unlinked)} of {_plural(len(assets), noun)} '
                    f'{"is" if len(unlinked) == 1 else "are"} not linked to any {what}.{_why(req)}',
             records,
-            Fix('Link it', reverse('assets:relationship_create') + '?' +
-                urlencode({'source_type': 'asset', 'source_id': first['id']})), None)
+            Fix('Link it', with_org(reverse('assets:relationship_create'), org,
+                                    source_type='asset', source_id=first['id'],
+                                    target_type=(next(iter(kinds)) if len(kinds) == 1 else ''))), None)
 
 
 CHECKS = {

@@ -10,6 +10,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from core.middleware import get_request_organization
 from core.decorators import require_write, require_admin, require_organization_context
+from core.org_handoff import org_handoff
 from core.ai_gate import require_ai_enabled_json
 from core.tenancy import get_org_object_or_404
 from .models import Document, DocumentVersion, DocumentCategory, SearchQueryLog
@@ -138,6 +139,7 @@ def document_list(request):
 
 
 @login_required
+@org_handoff
 def document_detail(request, slug):
     """
     View document details with rendered markdown.
@@ -258,7 +260,30 @@ def _link_source_template(request, org, document, *, any_org=False):
     return template
 
 
+def _prefill_from_query(request, org):
+    """Initial title / category / tags from `?title=&category=&tags=`
+    (readiness "Create it" links). Category and tags resolve by name or slug
+    within `org` only; anything that doesn't match is ignored."""
+    from core.prefill import match_name_or_slug, org_tags, text_param
+    out = {}
+    title = text_param(request, 'title', Document._meta.get_field('title').max_length)
+    if title:
+        out['title'] = title
+    if org is not None:
+        cat = text_param(request, 'category')
+        if cat and ',' not in cat:
+            match = match_name_or_slug(
+                DocumentCategory.objects.filter(organization=org), cat).order_by('pk').first()
+            if match is not None:
+                out['category'] = match
+        tags = org_tags(request, org)
+        if tags:
+            out['tags'] = tags
+    return out
+
+
 @login_required
+@org_handoff
 @require_write
 @require_organization_context
 def document_create(request):
@@ -285,6 +310,9 @@ def document_create(request):
             }
         else:
             messages.warning(request, 'Template not found.')
+
+    if request.method != 'POST':
+        initial_data.update(_prefill_from_query(request, org))
 
     if request.method == 'POST':
         form = DocumentForm(request.POST, request.FILES, organization=org,
@@ -341,6 +369,7 @@ def document_create(request):
 
 
 @login_required
+@org_handoff
 @require_write
 def document_edit(request, slug):
     """

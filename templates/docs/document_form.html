@@ -150,6 +150,7 @@
 
                 <form method="post" id="document-form" enctype="multipart/form-data">
                     {% csrf_token %}
+                    {% include 'core/_form_org.html' %}
 
                     {% if form.non_field_errors %}
                     <div class="alert alert-danger" role="alert">

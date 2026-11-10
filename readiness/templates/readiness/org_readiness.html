@@ -18,8 +18,8 @@
     <h1 class="h3">{{ org.name }} {% include "readiness/_score.html" with score=readiness.score %}</h1>
     {% if not is_staff %}<p class="text-muted small">Read-only view.</p>{% endif %}
     {% if needs_switch %}
-    <div class="alert alert-secondary small py-2">"Create it" links open in the customer you are working in.
-        <a href="{% url 'accounts:switch_organization' org_id=org.pk %}">Switch to {{ org.name }}</a> first.</div>
+    <div class="alert alert-secondary small py-2">You are working in {% if request.current_organization %}{{ request.current_organization.name }}{% else %}Global View{% endif %}.
+        The fix buttons below switch you to {{ org.name }} first, so what you create is saved there.</div>
     {% endif %}
 
     {% for sres in readiness.standards %}

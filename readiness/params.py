@@ -12,6 +12,9 @@ Parameters for each requirement kind, and their validation.
   asset_fields
       asset_type      Asset.asset_type (blank = the standard's asset scope, or every asset)
       fields          built-in Asset field names that must be non-empty
+      custom_fields   AssetCustomField keys that must be filled in, on assets
+                      of a type each field applies to (optional; v3.17.655).
+                      At least one built-in or custom field is required.
   contact_role
       title_contains  Text in Contact.title; "a|b" means a OR b
       min_count       how many such contacts are needed (default 1)
@@ -57,6 +60,48 @@ def asset_field_column(name):
     """The DB attribute for a field name (`primary_contact` -> `primary_contact_id`)."""
     from assets.models import Asset
     return Asset._meta.get_field(name).attname
+
+
+def custom_field_choices(include=()):
+    """(key, label) for custom asset fields an asset_fields rule may check:
+    active, non-checkbox definitions (an unticked box is a value, not a
+    gap). `include` keeps keys a requirement already names selectable even
+    after their field was deactivated."""
+    from assets.models import Asset, AssetCustomField
+    type_labels = dict(Asset.ASSET_TYPES)
+    out = []
+    qs = AssetCustomField.objects.exclude(field_type='checkbox')
+    for d in qs.order_by('order', 'label'):
+        if not d.is_active and d.key not in include:
+            continue
+        label = d.label
+        if d.asset_types:
+            label += ' (' + ', '.join(type_labels.get(t, t) for t in d.asset_types) + ')'
+        if not d.is_active:
+            label += ' (inactive)'
+        out.append((d.key, label))
+    return out
+
+
+def _clean_custom_fields(value, asset_type):
+    from assets.models import Asset, AssetCustomField
+    if isinstance(value, str):
+        value = [k.strip() for k in value.split(',')]
+    if not isinstance(value, (list, tuple)):
+        raise ValidationError('custom_fields must be a list of custom field keys.')
+    keys = list(dict.fromkeys(k for k in value if isinstance(k, str) and k))
+    if not keys:
+        return []
+    defs = {d.key: d for d in AssetCustomField.objects.filter(key__in=keys)}
+    bad = [k for k in keys if k not in defs or defs[k].field_type == 'checkbox']
+    if bad:
+        raise ValidationError(f'Not a custom asset field that can be checked: {", ".join(bad)}.')
+    if asset_type:
+        wrong = [defs[k].label for k in keys if not defs[k].applies_to(asset_type)]
+        if wrong:
+            raise ValidationError(f'These custom fields are not used on {dict(Asset.ASSET_TYPES).get(asset_type, asset_type)} assets: '
+                                  f'{", ".join(wrong)}.')
+    return keys
 
 
 def _clean_text(value):
@@ -109,9 +154,13 @@ def validate_params(kind, params):
             bad = [f for f in fields if f not in valid]
             if bad:
                 raise ValidationError(f'Not an asset field that can be checked: {", ".join(bad)}.')
-            if not fields:
-                raise ValidationError('Choose at least one asset field.')
+            custom = _clean_custom_fields(params.get('custom_fields') or [], out.get('asset_type'))
+            if not fields and not custom:
+                raise ValidationError('Choose at least one asset field or custom field.')
             out['fields'] = list(dict.fromkeys(fields))
+            # Only stored when used, so built-in-only rules keep their params.
+            if custom:
+                out['custom_fields'] = custom
         else:
             kinds = params.get('target_kinds') or list(RELATIONSHIP_TARGET_KINDS)
             if isinstance(kinds, str):

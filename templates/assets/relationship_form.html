@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Link records - {{ system_settings.custom_company_name|default:system_settings.site_name|default:"Client St0r" }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0"><i class="fas fa-project-diagram"></i> Link records</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'assets:relationship_create' %}">
+                    {% csrf_token %}
+                    {% include 'core/_form_org.html' %}
+
+                    <div class="mb-3">
+                        <label for="rel-source" class="form-label">From *</label>
+                        <select name="source" id="rel-source" class="form-select" required>
+                            <option value="">Choose a record</option>
+                            {% for g in groups %}{% if g.items %}
+                            <optgroup label="{{ g.label }}">
+                                {% for value, label in g.items %}
+                                <option value="{{ value }}"{% if selected_source == value %} selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}{% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="rel-type" class="form-label">Relationship</label>
+                        <select name="relation_type" id="rel-type" class="form-select">
+                            {% for value, label in relation_types %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="rel-target" class="form-label">To *{% if target_type_label %} <span class="text-muted small">({{ target_type_label }})</span>{% endif %}</label>
+                        <select name="target" id="rel-target" class="form-select" required>
+                            <option value="">Choose a record</option>
+                            {% for g in target_groups %}{% if g.items %}
+                            <optgroup label="{{ g.label }}">
+                                {% for value, label in g.items %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}{% endfor %}
+                        </select>
+                        {% if target_type_label %}{% for g in target_groups %}{% if not g.items %}
+                        <small class="form-text text-muted">There are no {{ g.label|lower }} for this customer yet.</small>
+                        {% endif %}{% endfor %}{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="rel-notes" class="form-label">Notes</label>
+                        <textarea name="notes" id="rel-notes" class="form-control" rows="2" maxlength="5000"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Link</button>
+                    <a href="{% url 'assets:relationship_map' %}" class="btn btn-link">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

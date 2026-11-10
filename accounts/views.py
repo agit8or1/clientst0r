@@ -44,13 +44,8 @@ def switch_organization(request, org_id):
             messages.error(request, "You don't have access to this organization.")
             return redirect('core:dashboard')
 
-    request.session['current_organization_id'] = org.id
-    # Clear global view mode when switching to an organization
-    if 'global_view_mode' in request.session:
-        del request.session['global_view_mode']
-    request.session.modified = True  # Force session save
-    from core.client_switcher import record_recent_client
-    record_recent_client(request.user, org)
+    from core.org_handoff import switch_session_org
+    switch_session_org(request, org)
     messages.success(request, f"Switched to {org.name}")
 
     # Check if user wants to stay on current page

@@ -197,6 +197,12 @@ class ContactForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
+    def __init__(self, *args, **kwargs):
+        # The views pass the customer; the contact form has no
+        # organization-scoped choices, but ModelForm rejects unknown kwargs.
+        self.organization = kwargs.pop('organization', None)
+        super().__init__(*args, **kwargs)
+
 
 class QuickPCForm(forms.ModelForm):
     """

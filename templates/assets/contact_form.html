@@ -16,6 +16,7 @@
             <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
+                    {% include 'core/_form_org.html' %}
 
                     {% if form.non_field_errors %}
                     <div class="alert alert-danger" role="alert">
@@ -23,15 +24,17 @@
                     </div>
                     {% endif %}
 
-                    <div class="mb-3">
-                        <label for="{{ form.name.id_for_label }}" class="form-label">Name *</label>
-                        {{ form.name }}
-                        {% if form.name.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.name.errors }}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.first_name.id_for_label }}" class="form-label">First name *</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}<div class="invalid-feedback d-block">{{ form.first_name.errors }}</div>{% endif %}
                         </div>
-                        {% endif %}
-                        <small class="form-text text-muted">{{ form.name.help_text }}</small>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.last_name.id_for_label }}" class="form-label">Last name *</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}<div class="invalid-feedback d-block">{{ form.last_name.errors }}</div>{% endif %}
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -67,17 +70,6 @@
                             {% endif %}
                             <small class="form-text text-muted">{{ form.phone.help_text }}</small>
                         </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="{{ form.mobile.id_for_label }}" class="form-label">Mobile</label>
-                        {{ form.mobile }}
-                        {% if form.mobile.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.mobile.errors }}
-                        </div>
-                        {% endif %}
-                        <small class="form-text text-muted">{{ form.mobile.help_text }}</small>
                     </div>
 
                     <div class="mb-3">

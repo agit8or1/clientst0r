@@ -70,6 +70,24 @@ class DocumentForm(forms.ModelForm):
             lambda u: f'{u.get_full_name()} ({u.username})' if u.get_full_name() else u.username)
         self.fields['review_interval_days'].required = False
 
+        # Tags and categories of this organization only. This block sat
+        # unreachable after `clean_review_interval_days` since v3.17.605, which
+        # left every customer's tags and categories selectable; a document
+        # being edited keeps the ones it already has.
+        if self.organization:
+            from core.models import Tag
+            tag_q = Q(organization=self.organization)
+            cat_q = Q(organization=self.organization)
+            if self.include_global_categories:
+                cat_q |= Q(organization__isnull=True)
+            if self.instance.pk:
+                tag_q |= Q(pk__in=self.instance.tags.values('pk'))
+                if self.instance.category_id:
+                    cat_q |= Q(pk=self.instance.category_id)
+            self.fields['tags'].queryset = Tag.objects.filter(tag_q).order_by('name')
+            self.fields['category'].queryset = DocumentCategory.objects.filter(cat_q).order_by('order', 'name')
+            self.fields['category'].required = False
+
     def clean_owner(self):
         # A document always has someone responsible: leaving the box empty
         # keeps the current owner (new documents default to their creator).
@@ -84,14 +102,6 @@ class DocumentForm(forms.ModelForm):
             return self.instance.review_interval_days if self.instance.pk else 90
         return value
 
-        if self.organization:
-            self.fields['tags'].queryset = self.organization.tags.all()
-            from django.db.models import Q
-            cat_q = Q(organization=self.organization)
-            if self.include_global_categories:
-                cat_q |= Q(organization__isnull=True)
-            self.fields['category'].queryset = DocumentCategory.objects.filter(cat_q).order_by('order', 'name')
-            self.fields['category'].required = False
 
 
 class DiagramForm(forms.ModelForm):

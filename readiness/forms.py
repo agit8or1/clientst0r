@@ -6,7 +6,8 @@ from assets.models import Asset
 from core.models import Organization
 
 from .models import DocumentationStandard, StandardException, StandardRequirement as R
-from .params import FRESH_BASES, RELATIONSHIP_TARGET_KINDS, asset_field_choices, validate_params
+from .params import (FRESH_BASES, RELATIONSHIP_TARGET_KINDS, asset_field_choices,
+                     custom_field_choices, validate_params)
 
 
 class StandardForm(forms.ModelForm):
@@ -58,6 +59,7 @@ PARAM_FIELDS = {
     'p_basis': (R.KIND_DOCUMENT_FRESH, 'basis'),
     'p_asset_type': (ASSET_KINDS, 'asset_type'),
     'p_fields': (R.KIND_ASSET_FIELDS, 'fields'),
+    'p_custom_fields': (R.KIND_ASSET_FIELDS, 'custom_fields'),
     'p_min_count': (R.KIND_CONTACT_ROLE, 'min_count'),
     'p_target_kinds': (R.KIND_RELATIONSHIP_PRESENT, 'target_kinds'),
 }
@@ -79,6 +81,10 @@ class RequirementForm(forms.ModelForm):
     p_fields = forms.MultipleChoiceField(
         label='Fields that must be filled in', required=False,
         widget=forms.SelectMultiple(attrs={'size': 6}))
+    p_custom_fields = forms.MultipleChoiceField(
+        label='Custom fields that must be filled in', required=False,
+        help_text='Defined under Assets → Custom Fields. Checked on assets of the types each field is used on.',
+        widget=forms.SelectMultiple(attrs={'size': 6}))
     p_min_count = forms.IntegerField(label='At least', required=False, min_value=1)
     p_target_kinds = forms.MultipleChoiceField(
         label='Linked to', required=False,
@@ -93,6 +99,8 @@ class RequirementForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['p_fields'].choices = asset_field_choices()
+        self.fields['p_custom_fields'].choices = custom_field_choices(
+            include=(self.instance.params or {}).get('custom_fields') or ())
         for name, (kinds, _) in PARAM_FIELDS.items():
             self.fields[name].widget.attrs['data-kinds'] = kinds
         params = self.instance.params or {}

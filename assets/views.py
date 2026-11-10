@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from core.middleware import get_request_organization
 from core.decorators import require_write, require_organization_context
+from core.org_handoff import org_handoff
 from core.tenancy import get_org_object_or_404
 from .models import Asset, Contact, Relationship, ContactRating, ContactNote
 from .forms import AssetForm, ContactForm
@@ -272,6 +273,7 @@ def asset_create(request):
 
 
 @login_required
+@org_handoff
 @require_write
 def asset_edit(request, pk):
     """
@@ -467,11 +469,13 @@ def contact_delete_note(request, pk, note_id):
 
 
 @login_required
+@org_handoff
 @require_write
 @require_organization_context
 def contact_create(request):
     """
-    Create new contact.
+    Create new contact. `?title=` (readiness "Add the contact") fills in the
+    title / role; nothing is saved until the form is submitted.
     """
     org = get_request_organization(request)
 
@@ -481,10 +485,12 @@ def contact_create(request):
             contact = form.save(commit=False)
             contact.organization = org
             contact.save()
-            messages.success(request, f"Contact '{contact.name}' created successfully.")
+            messages.success(request, f"Contact '{contact.full_name}' created successfully.")
             return redirect('assets:contact_detail', pk=contact.pk)
     else:
-        form = ContactForm(organization=org)
+        from core.prefill import text_param
+        title = text_param(request, 'title', Contact._meta.get_field('title').max_length)
+        form = ContactForm(organization=org, initial={'title': title} if title else None)
 
     return render(request, 'assets/contact_form.html', {
         'form': form,
@@ -505,7 +511,7 @@ def contact_edit(request, pk):
         form = ContactForm(request.POST, instance=contact, organization=org)
         if form.is_valid():
             contact = form.save()
-            messages.success(request, f"Contact '{contact.name}' updated successfully.")
+            messages.success(request, f"Contact '{contact.full_name}' updated successfully.")
             return redirect('assets:contact_detail', pk=contact.pk)
     else:
         form = ContactForm(instance=contact, organization=org)
@@ -929,7 +935,7 @@ def contact_delete(request, pk):
     contact = get_org_object_or_404(Contact, org, pk=pk)
 
     if request.method == 'POST':
-        name = contact.name
+        name = contact.full_name
         contact.delete()
         messages.success(request, f"Contact '{name}' deleted successfully.")
         return redirect('assets:contact_list')

@@ -1,0 +1,9 @@
+{# Which customer this form saves into (core.org_handoff). Include inside the <form>. #}
+{% if request.current_organization %}
+<input type="hidden" name="_org" value="{{ request.current_organization.pk }}">
+{% if request.org_handoff %}
+<div class="alert alert-info py-2 small" role="status" data-form-org="{{ request.current_organization.pk }}">
+    <i class="fas fa-building"></i> This will be saved in <strong>{{ request.current_organization.name }}</strong>.
+</div>
+{% endif %}
+{% endif %}

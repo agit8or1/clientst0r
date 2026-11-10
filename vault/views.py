@@ -13,6 +13,7 @@ from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 from core.middleware import get_request_organization
 from core.decorators import require_write, require_organization_context
+from core.org_handoff import org_handoff
 from core.tenancy import get_org_object_or_404
 from audit.models import AuditLog
 from .models import Password, PasswordBreachCheck, VaultAccessRule
@@ -727,11 +728,13 @@ def password_test_breach(request, pk):
 
 
 @login_required
+@org_handoff
 @require_write
 @require_organization_context
 def password_create(request):
     """
-    Create new password entry.
+    Create new password entry. `?title=&tags=` (readiness "Add the vault
+    entry") fill in initial values; tags resolve within this customer only.
     """
     org = get_request_organization(request)
 
@@ -766,7 +769,15 @@ def password_create(request):
                 else:
                     messages.error(request, f"Encryption error: {error_msg}")
     else:
-        form = PasswordForm(organization=org)
+        from core.prefill import org_tags, text_param
+        initial = {}
+        title = text_param(request, 'title', Password._meta.get_field('title').max_length)
+        if title:
+            initial['title'] = title
+        tags = org_tags(request, org)
+        if tags:
+            initial['tags'] = tags
+        form = PasswordForm(organization=org, initial=initial or None)
 
     return render(request, 'vault/password_form.html', {
         'form': form,
