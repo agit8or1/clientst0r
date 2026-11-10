@@ -31,6 +31,12 @@ def drafts_for(ticket):
     for result in AnalysisRun.objects.filter(job__ticket=ticket, status='succeeded',
                                              finished_at__gte=since).values_list('result', flat=True):
         out += [r.get('text', '') for r in (result or {}).get('customer_replies') or [] if r.get('text')]
+    # Rem0te's aggregated result carries its own copy of the drafts.
+    from psa_ai.models import AnalysisJob
+    for result in AnalysisJob.objects.filter(ticket=ticket, protocol=AnalysisJob.PROTOCOL_REM0TE,
+                                             updated_at__gte=since).values_list('processor_result', flat=True):
+        out += [d.get('text', '') for d in (result or {}).get('draft_replies') or []
+                if isinstance(d, dict) and d.get('text')]
     return out
 
 

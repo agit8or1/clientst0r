@@ -196,7 +196,8 @@ def panel(user, ticket) -> dict:
             ok, reason, grant = action_state(user, ticket, t, action)
             actions[action] = {'ok': ok, 'reason': reason, 'grant': grant, 'label': ACTION_LABEL[action]}
         rows.append({'device': t.device, 'connection': t.connection, 'actions': actions,
-                     'diagnostics': diagnostics_for(t) if actions['diagnostic']['ok'] else []})
+                     'diagnostics': diagnostics_for(t) if actions['diagnostic']['ok'] else [],
+                     'catalog': _catalog(t)})
     asset = ticket.related_asset
     no_target_reason = ''
     if not rows:
@@ -206,10 +207,30 @@ def panel(user, ticket) -> dict:
             no_target_reason = ('No paired RMM manages this asset for this customer, so handoffs, diagnostics, '
                                 'remote sessions and fix referrals are not available.')
     requests = list(RMMRequest.objects.filter(ticket=ticket).select_related('actor', 'connection')[:20])
+    _refresh_rem0te(requests)
     suggestions = analysis_suggestions(ticket) if any(r['actions']['fix_low']['ok'] or r['actions']['fix_high']['ok']
                                                       for r in rows) else []
     return {'targets': rows, 'requests': requests, 'no_target_reason': no_target_reason,
             'suggestions': suggestions}
+
+
+def _catalog(target: Target) -> List[dict]:
+    """Rem0te only: the catalog actions it advertised that ClientSt0r knows."""
+    if target.connection.provider_type != 'rem0te':
+        return []
+    from integrations.rem0te import pairing
+    return pairing.proposable_actions(target.connection)
+
+
+def _refresh_rem0te(requests):
+    """Rem0te proposals have no status callbacks: read open ones (rate-limited)."""
+    from integrations.rem0te import actions as rem0te_actions
+    for r in requests:
+        if r.connection.provider_type == 'rem0te' and r.kind == 'fix_referral' and r.status not in r.TERMINAL:
+            try:
+                rem0te_actions.refresh(r)
+            except Exception:
+                pass
 
 
 def analysis_suggestions(ticket) -> List[dict]:
@@ -320,6 +341,9 @@ def send(req):
     """POST the stored payload. A 2xx means accepted for processing, not
     received: a handoff shows Sent only after the signed receipt event."""
     from psa_ai.models import RMMRequest
+    if req.connection.provider_type == 'rem0te':
+        from integrations.rem0te import actions as rem0te_actions
+        return rem0te_actions.send(req)
     try:
         data = processor._request(req.connection, 'POST', ROUTES[req.kind], req.payload,
                                   idempotency_key=req.idempotency_key)
@@ -367,9 +391,17 @@ def diagnostic(user, ticket, device_pk, diagnostic_key, key, request=None):
 
 
 def refer_fix(user, ticket, device_pk, key, risk='low', title='', description='', suggestion_ref='',
-              request=None):
+              request=None, action_key=''):
     from tech_access.resolver import decide
     target = find_target(ticket, device_pk)
+    rem0te_action = None
+    if target.connection.provider_type == 'rem0te':
+        # Rem0te takes catalog actions only; the risk is the action's own.
+        rem0te_action = next((a for a in _catalog(target) if a['key'] == action_key), None)
+        if rem0te_action is None:
+            raise ActionRefused(f'Choose one of the actions {target.connection.name} offers.', 400)
+        risk = rem0te_action.get('risk', 'high')
+        title = title or rem0te_action['label']
     risk = 'high' if risk == 'high' else 'low'
     ok, reason, _ = action_state(user, ticket, target, 'fix_high' if risk == 'high' else 'fix_low')
     if not ok:
@@ -390,12 +422,24 @@ def refer_fix(user, ticket, device_pk, key, risk='low', title='', description=''
     description = ev.redact((description or '').strip(), max_chars=MAX_FIX_CHARS)
     if not title or not description:
         raise ActionRefused('Give the fix a title and a description.', 400)
+    fill = {'kind': 'fix_referral', 'fix': {'title': title, 'description': description, 'risk': risk,
+                                            'source': source}}
+    digest_parts = {'title': title, 'description': description, 'risk': risk, 'source': source}
+    if rem0te_action is not None:
+        from integrations.rem0te import actions as rem0te_actions, schema as rem0te_schema
+        if not _key_ok(key):
+            raise ActionRefused('Missing or malformed request key; start again.', 400)
+        reason = f'Ticket {ticket.ticket_number}: {description}'
+        try:
+            fill['rem0te_proposal'] = rem0te_actions.proposal_body(
+                connection=target.connection, user=user, ticket=ticket,
+                device_external_id=target.device.external_id, action_key=rem0te_action['key'], reason=reason,
+                origin='ai_suggestion' if suggestion_ref else 'technician', key=key)
+        except rem0te_schema.SchemaError as e:
+            raise ActionRefused(f'This device cannot take a Rem0te action proposal: {e}', 400)
+        digest_parts['action'] = rem0te_action['key']
     return _create_and_send(kind='fix_referral', ticket=ticket, target=target, user=user, key=key,
-                            digest_parts={'title': title, 'description': description, 'risk': risk,
-                                          'source': source},
-                            fill={'kind': 'fix_referral',
-                                  'fix': {'title': title, 'description': description, 'risk': risk,
-                                          'source': source}},
+                            digest_parts=digest_parts, fill=fill,
                             request=request, audit_text=f'Fix referred for independent approval ({risk} risk)',
                             extra={'fix_title': title[:200], 'fix_risk': risk})
 

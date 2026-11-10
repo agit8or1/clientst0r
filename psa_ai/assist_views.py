@@ -129,6 +129,9 @@ def submit(request, ticket_number):
         return _bad('No AI model profile is allowed for this customer.', 403)
 
     conn = profiles.processor_for(ticket.organization)
+    rem0te = conn.provider_type == 'rem0te'
+    if rem0te and len(chosen) > 3:
+        return _bad('Rem0te compares at most three models at once. Choose three or fewer.')
     from integrations.ticket_rmm import TENANT_PIN
     payload_digest = ev.digest({'ticket': ticket.pk, 'mode': mode, 'evidence': digest,
                                 'profiles': sorted(p.pk for p in chosen), 'connection': conn.pk})
@@ -144,7 +147,8 @@ def submit(request, ticket_number):
                 actor=request.user, kind=mode, connection=conn,
                 business_id=str((conn.field_mappings or {}).get(TENANT_PIN) or ''),
                 evidence=evidence, evidence_digest=digest, payload_digest=payload_digest,
-                idempotency_key=key, expires_at=timezone.now() + JOB_LIFETIME)
+                idempotency_key=key, expires_at=timezone.now() + JOB_LIFETIME,
+                protocol=AnalysisJob.PROTOCOL_REM0TE if rem0te else AnalysisJob.PROTOCOL_HMAC)
             for p in chosen:
                 AnalysisRun.objects.create(job=job, profile=p)
     except IntegrityError:  # a concurrent double-click won the race
@@ -193,4 +197,13 @@ def job_status(request, job_id):
         'stale': job.ticket_revision != ev.ticket_revision(job.ticket),
         'can_send_ai_reply': has_capability(request.user, job.organization, 'send_reply', ticket=job.ticket),
         'evidence': [{'id': i['id'], 'kind': i['kind']} for i in job.evidence.get('items') or []],
+        'processor': _processor_view(job, can_draft),
     })
+
+
+def _processor_view(job, can_draft):
+    """What the paired RMM itself found (Rem0te's signed, staff-only result)."""
+    if job.protocol != AnalysisJob.PROTOCOL_REM0TE:
+        return None
+    from integrations.rem0te.jobs import staff_view
+    return {'name': 'Rem0te', 'error_code': job.processor_error_code, 'result': staff_view(job, can_draft)}

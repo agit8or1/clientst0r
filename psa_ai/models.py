@@ -323,6 +323,10 @@ class AnalysisJob(models.Model):
         ('expired', 'Expired'),
     ]
     TERMINAL = {'completed', 'partial', 'failed', 'unavailable', 'expired'}
+    PROTOCOL_HMAC = 'hmac'
+    PROTOCOL_REM0TE = 'rem0te-ed25519'
+    PROTOCOL_CHOICES = [(PROTOCOL_HMAC, 'ticket-rmm-v1 (HMAC pairing)'),
+                        (PROTOCOL_REM0TE, "ticket-rmm-v1 (Rem0te's Ed25519 protocol)")]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
@@ -350,6 +354,13 @@ class AnalysisJob(models.Model):
     last_polled_at = models.DateTimeField(null=True, blank=True)
     error = models.TextField(blank=True, default='')
     disagreements = models.JSONField(default=list, blank=True)
+    # Rem0te (Ed25519) jobs: the exact job request sent (canonical, defaults
+    # applied — its sha256 is what the delegation token is bound to), and
+    # Rem0te's signed, staff-only result.
+    protocol = models.CharField(max_length=20, choices=PROTOCOL_CHOICES, default=PROTOCOL_HMAC)
+    processor_request = models.JSONField(default=dict, blank=True)
+    processor_result = models.JSONField(default=dict, blank=True)
+    processor_error_code = models.CharField(max_length=64, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -489,6 +500,10 @@ class RMMRequest(models.Model):
     result_bytes = models.PositiveIntegerField(default=0)
     result_truncated = models.BooleanField(default=False)
     confirmed_at = models.DateTimeField(null=True, blank=True)
+    # Rem0te action proposals: where Rem0te's approvers approve (shown, never
+    # acted on here), and Rem0te's own status word.
+    approval_url = models.URLField(max_length=500, blank=True, default='')
+    remote_status = models.CharField(max_length=40, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -521,3 +536,62 @@ class RMMRequestEvent(models.Model):
         db_table = 'psa_ai_rmm_request_events'
         unique_together = [('request', 'event_id')]
         ordering = ['pk']
+
+
+# ===========================================================================
+# Rem0te monitoring alerts → tickets (contract ticket-rmm-v1, Rem0te ≥ 0.29).
+# integrations/rem0te/alerts.py has the rules.
+# ===========================================================================
+
+class Rem0teAlertEvent(models.Model):
+    """A signed alert event received from Rem0te (pushed or polled), kept for
+    de-duplication, gap detection and audit."""
+    connection = models.ForeignKey('integrations.RMMConnection', on_delete=models.CASCADE, related_name='+')
+    event_id = models.CharField(max_length=64)
+    sequence = models.PositiveIntegerField()
+    event_type = models.CharField(max_length=20)
+    alert_id = models.CharField(max_length=64)
+    body = models.JSONField(default=dict)
+    received_via = models.CharField(max_length=8, default='push')
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'psa_ai_rem0te_alert_events'
+        constraints = [
+            models.UniqueConstraint(fields=['connection', 'event_id'], name='psa_ai_rem0te_alert_event_once'),
+        ]
+        indexes = [models.Index(fields=['connection', 'sequence'])]
+
+
+class Rem0teAlertTicket(models.Model):
+    """The one ticket opened for one Rem0te alert. The unique constraint is
+    what makes `alert.raised` → exactly one ticket, however often the event
+    is pushed, polled or retried, and across restarts."""
+    LINK_PENDING, LINK_LINKED, LINK_CONFLICT, LINK_FAILED = 'pending', 'linked', 'conflict', 'failed'
+    LINK_CHOICES = [(LINK_PENDING, 'Not linked in Rem0te yet'), (LINK_LINKED, 'Linked in Rem0te'),
+                    (LINK_CONFLICT, 'Rem0te has another ticket for this alert'), (LINK_FAILED, 'Link failed')]
+    connection = models.ForeignKey('integrations.RMMConnection', on_delete=models.CASCADE, related_name='+')
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE, related_name='+')
+    alert_id = models.CharField(max_length=64)
+    ticket = models.ForeignKey('psa.Ticket', null=True, blank=True, on_delete=models.SET_NULL,
+                               related_name='rem0te_alerts')
+    rem0te_endpoint_id = models.CharField(max_length=64, blank=True, default='')
+    computer_name = models.CharField(max_length=128, blank=True, default='')
+    kind = models.CharField(max_length=20, blank=True, default='')
+    severity = models.CharField(max_length=10, blank=True, default='')
+    state = models.CharField(max_length=15, blank=True, default='')
+    title = models.CharField(max_length=300, blank=True, default='')
+    last_sequence = models.PositiveIntegerField(default=0)
+    link_status = models.CharField(max_length=10, choices=LINK_CHOICES, default=LINK_PENDING)
+    link_error = models.CharField(max_length=300, blank=True, default='')
+    link_attempts = models.PositiveIntegerField(default=0)
+    next_link_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_ai_rem0te_alert_tickets'
+        constraints = [
+            models.UniqueConstraint(fields=['connection', 'alert_id'], name='psa_ai_rem0te_alert_one_ticket'),
+        ]

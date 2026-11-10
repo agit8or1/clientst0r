@@ -146,7 +146,7 @@ def fix(request, ticket_number):
             request.user, ticket, request.POST.get('device'), request.POST.get('idempotency_key', ''),
             risk=request.POST.get('risk', 'low'), title=request.POST.get('title', ''),
             description=request.POST.get('description', ''), suggestion_ref=request.POST.get('suggestion', ''),
-            request=request)
+            request=request, action_key=request.POST.get('action', ''))
     except ActionRefused as e:
         return _refused(request, ticket, e)
     _report(request, req, repeat, 'Fix referral')

@@ -41,6 +41,24 @@ class Command(BaseCommand):
         except Exception:
             logger.exception('expiring RMM requests failed')
         self._refresh_capabilities()
+        self._rem0te()
+
+    def _rem0te(self):
+        """Rem0te: recover alert events missed while ClientSt0r was down,
+        retry ticket links, and read open action proposals' status."""
+        from integrations.models import RMMConnection
+        from integrations.rem0te import actions, alerts
+        for conn in RMMConnection.objects.filter(is_active=True, provider_type='rem0te'):
+            try:
+                n = alerts.poll(conn)
+                if n:
+                    self.stdout.write(f'{n} Rem0te alert event(s) recovered for {conn.name}.')
+            except Exception:
+                logger.exception('polling Rem0te alerts for connection %s failed', conn.pk)
+        try:
+            actions.poll_open()
+        except Exception:
+            logger.exception('refreshing Rem0te action proposals failed')
 
     def _refresh_capabilities(self):
         from integrations.models import RMMConnection

@@ -289,8 +289,13 @@ def execute(run):
     job, profile = run.job, run.profile
     status, result, error, t_in, t_out = 'failed', {}, '', 0, 0
     try:
-        text, t_in, t_out = call_provider(profile, _system_prompt(), wrap_user_content(ev.prompt_text(job.evidence)))
-        result = analysis_result.parse(text, ev.evidence_ids(job.evidence))
+        if job.protocol == job.PROTOCOL_REM0TE:
+            from integrations.rem0te.jobs import execute_run
+            result, t_in, t_out = execute_run(run)
+        else:
+            text, t_in, t_out = call_provider(profile, _system_prompt(),
+                                              wrap_user_content(ev.prompt_text(job.evidence)))
+            result = analysis_result.parse(text, ev.evidence_ids(job.evidence))
         status = 'succeeded'
     except GatewayRefusal as e:
         error = e.message
@@ -316,6 +321,11 @@ def execute(run):
 def finish_job(job):
     """Close the job once every run has an outcome."""
     from psa_ai.models import AnalysisJob
+    if getattr(job, 'protocol', '') == AnalysisJob.PROTOCOL_REM0TE:
+        # Rem0te aggregates the runs and closes the job with a signed
+        # terminal event (integrations/rem0te/jobs.py); a local run
+        # finishing does not end it.
+        return job
     with transaction.atomic():
         job = AnalysisJob.objects.select_for_update().get(pk=job.pk)
         if job.is_terminal:
