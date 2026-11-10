@@ -1890,6 +1890,21 @@ work. Contract: `docs/contracts/ticket-rmm-v1/`.
   RMM, advertised read-only diagnostics with staff-only results, remote
   view/control launch; works with AI off; tested against a fixture processor —
   the RMM side is still to be built in rem0te)*
+- **56.7 Rem0te pairing over Ed25519** — Rem0te's own revision of the contract:
+  Ed25519 request, response and event signatures, ClientSt0r request and
+  delegation keys (encrypted at rest, shown with the peers-file entry on the
+  connection page), technician delegation tokens bound to the request body,
+  the contract pinned to a Rem0te revision with incompatible peers refused,
+  specific secret-free Check pairing reasons, and a reversible migration that
+  marks HMAC Rem0te pairings for re-pairing. HMAC pairing stays for every
+  other provider. *(in progress — built on a development branch, not released)*
+- **56.8 Rem0te alerts, jobs and action proposals** — Rem0te monitoring alerts
+  open exactly one staff-only ticket and the ticket is linked back in Rem0te;
+  analysis jobs run through Rem0te with signed results; L2+ technicians
+  propose Rem0te catalog actions that Rem0te approves and runs. A cross-peer
+  end-to-end run against a real Rem0te (`scripts/e2e/cross_peer/`, CI
+  workflow `cross-peer-e2e`). *(in progress — built on a development branch,
+  not released)*
 - **56.6 Fix review** — only when the RMM advertises signed actions; ClientSt0r
   refers, the RMM approves and runs. *(partial — ClientSt0r referral and signed
   status shipped v3.17.658; rem0te approval and execution not built yet)*
