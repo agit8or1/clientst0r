@@ -1670,6 +1670,31 @@ are built on top of them.
   upgrade, needs two eligible administrators, switching it off is a protected
   change) makes a superuser grant wait for a different administrator; grants
   made on the host are recorded and announced.
+- **Scheduled UniFi asset sync places and types devices correctly**
+  *(in progress)* — the scheduled `sync_network_assets` run and the manual
+  Import to Assets page share one implementation
+  (`integrations/network_assets.py`): device type from the controller's
+  product type, features or model (gateway, switch, AP, UPS ...); each
+  controller site's devices go to the customer that site maps to, for
+  self-hosted and cloud connections alike; repeated runs update the same
+  asset (controller + MAC/serial within the customer). Sites with no
+  customer, more than one, or a name shared by several sites are skipped and
+  listed on the connection page and in the sync result with what to fix.
+  A read-only placement report (MSP staff admins) lists assets earlier syncs
+  put under the wrong customer, typed wrongly or created twice; correcting
+  them is a separate, confirmed action that records each asset's previous
+  values in the audit log. Existing assets are left as they are until an
+  admin applies a correction.
+- **Standard integration sync health** *(in progress)* — PSA, RMM, Microsoft
+  365, UniFi, Omada and Grandstream connections record last attempt, last
+  successful sync, created / updated / skipped / failed counts, affected
+  customers and sites, and a specific next step (re-enter credentials, check
+  URL/port, map a site, fix the certificate). A run that dropped records or
+  skipped sites shows as Partial, not Success. Errors are stored and shown
+  with tokens, keys, passwords and credentials in URLs removed, including
+  errors saved before this change. Shown on Integrations and on each
+  connection's page. Distributor and accounting connections show their
+  existing status fields (redacted) until they adopt the same recorder.
 
 ## Phase 52 — Technician workspace **(L)** [in progress]
 
