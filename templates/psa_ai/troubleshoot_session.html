@@ -1,12 +1,13 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}AI Troubleshoot{% endblock %}
-{% block extra_css %}{% if not terminal %}<meta http-equiv="refresh" content="4">{% endif %}{% endblock %}
 {% block content %}
-<div class="container-fluid" style="max-width: 1100px" data-ai-troubleshoot-session="{{ session.id }}">
+<div class="container-fluid" style="max-width: 1100px" data-ai-troubleshoot-session="{{ session.id }}"
+     data-status-url="{% url 'psa_ai:troubleshoot_status' session.id %}" data-terminal="{{ terminal|yesno:'1,0' }}">
     <div class="d-flex align-items-center mb-2">
         <h4 class="mb-0">AI Troubleshoot</h4>
         <span class="badge bg-warning text-dark ms-2">Optional AI</span>
-        <span class="badge bg-secondary ms-2">{{ session.get_status_display }}</span>
+        <span class="badge bg-secondary ms-2" data-session-status>{{ session.get_status_display }}</span>
         <span class="ms-auto small text-muted">
             {% if session.ticket %}Ticket <a href="{% url 'psa:ticket_detail' session.ticket.ticket_number %}">{{ session.ticket.ticket_number }}</a>{% endif %}
             {% if session.device %}Device <a href="{% url 'integrations:rmm_device_detail' session.device.pk %}">{{ session.device.device_name }}</a>{% endif %}
@@ -18,7 +19,8 @@
         no RMM was contacted by the AI. A suggested action only opens the normal request; the RMM's approvers decide.
         Commands are shown as text for you to read.
     </div>
-    {% if not terminal %}<p class="text-muted">Waiting for the model… this page refreshes.</p>{% endif %}
+    {% if not terminal %}<p class="text-muted" data-ts-waiting role="status" aria-live="polite">Waiting for the model…
+        <span data-ts-progress></span> <a href="{{ request.path }}" data-ts-refresh>Refresh to see the latest</a></p>{% endif %}
     {% if session.error %}<div class="alert alert-danger py-2">{{ session.error }}</div>{% endif %}
 
     {# ---- 1. Observations ---------------------------------------------------- #}
@@ -64,7 +66,7 @@
         <div class="card-header py-2">
             <span class="badge bg-info text-dark">AI inference</span>
             <strong>{{ r.profile }}</strong> <span class="small text-muted">({{ r.role }})</span>
-            <div class="small text-muted">Model {{ r.model }} · prompt {{ r.prompt_version }} · {{ r.status_label }}{% if r.tokens %} · {{ r.tokens }} tokens · {{ r.cost_cents }}¢{% endif %}</div>
+            <div class="small text-muted">Model {{ r.model }} · prompt {{ r.prompt_version }} · <span data-run-status="{{ r.id }}">{{ r.status_label }}</span>{% if r.tokens %} · {{ r.tokens }} tokens · {{ r.cost_cents }}¢{% endif %}</div>
         </div>
         <div class="card-body py-2 small">
         {% if r.result %}{% with res=r.result %}
@@ -73,7 +75,7 @@
             {% if res.alert_summary %}<p><strong>Alerts and events:</strong> {{ res.alert_summary }}</p>{% endif %}
             {% if res.likely_causes %}<strong>Likely causes</strong><ol>{% for c in res.likely_causes %}<li>{{ c.text }} <span class="badge bg-light text-dark">{{ c.likelihood }}</span>{% for e in c.evidence %} <code>{{ e }}</code>{% endfor %}</li>{% endfor %}</ol>{% endif %}
             {% if res.diagnostic_steps %}<strong>Read-only diagnostic steps</strong> <span class="text-muted">(for you to perform; nothing runs from here)</span><ol>{% for s in res.diagnostic_steps %}<li>{{ s.text }}{% if s.command %}<pre class="bg-light border p-1 mb-1 user-select-all" data-command-text>{{ s.command }}</pre>{% endif %}</li>{% endfor %}</ol>{% endif %}
-            {% if res.runbooks %}<strong>Relevant runbooks</strong><ul>{% for b in res.runbooks %}<li>{% if b.url %}<a href="{{ b.url }}">{{ b.title }}</a>{% else %}{{ b.title }}{% endif %}{% if b.why %} — {{ b.why }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+            {% if res.runbooks %}<strong>Relevant runbooks</strong><ul>{% for b in res.runbooks %}<li>{% if b.url %}<a href="{{ b.url }}">{{ b.title }}</a>{% else %}{{ b.title }}{% endif %} <span class="badge bg-light text-dark border">{% if b.client_visible %}customer-visible{% else %}internal{% endif %}</span>{% if b.why %} — {{ b.why }}{% endif %}</li>{% endfor %}</ul>{% endif %}
             {% if res.recommended_actions %}<strong>Suggested approved actions</strong>
             <ul class="list-unstyled">{% for a in res.recommended_actions %}
                 <li class="mb-1">{{ a.label }} on {{ a.device }} <span class="badge bg-light text-dark">{{ a.risk }}</span>{% if a.why %} — {{ a.why }}{% endif %}<br>
@@ -115,3 +117,4 @@
     </div>
 </div>
 {% endblock %}
+{% block extra_js %}{% if not terminal %}<script src="{% static 'js/troubleshoot_session.js' %}" defer></script>{% endif %}{% endblock %}

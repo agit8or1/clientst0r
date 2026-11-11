@@ -1,0 +1,17 @@
+{# One condition in the structured workflow editor (psa/support_workflows/forms.py). #}
+<fieldset class="mt-2" data-condition="{{ kind }}{{ idx }}"><legend class="form-label fs-6 mb-1">When</legend>
+    <select name="{{ kind }}{{ idx }}-mode" class="form-select form-select-sm d-inline-block w-auto" aria-label="Condition">
+        <option value="always"{% if cond.mode == 'always' %} selected{% endif %}>Always</option>
+        <option value="all"{% if cond.mode == 'all' %} selected{% endif %}>All of these hold</option>
+        <option value="any"{% if cond.mode == 'any' %} selected{% endif %}>Any of these holds</option>
+        <option value="json"{% if cond.mode == 'json' %} selected{% endif %}>Advanced (JSON)</option>
+    </select>
+    {% for r in cond.rules %}
+    <div class="row g-1 mt-1">
+        <div class="col-5"><select name="{{ kind }}{{ idx }}-r{{ forloop.counter0 }}-fact" class="form-select form-select-sm" aria-label="Fact"><option value="">fact…</option>{% for f in facts %}<option value="{{ f }}"{% if f == r.fact %} selected{% endif %}>{{ f }}</option>{% endfor %}{% if r.fact and r.fact not in facts %}<option value="{{ r.fact }}" selected>{{ r.fact }} (unknown)</option>{% endif %}</select></div>
+        <div class="col-3"><select name="{{ kind }}{{ idx }}-r{{ forloop.counter0 }}-op" class="form-select form-select-sm" aria-label="Operator"><option value="">op…</option>{% for o in ops %}<option value="{{ o }}"{% if o == r.op %} selected{% endif %}>{{ o }}</option>{% endfor %}{% if r.op and r.op not in ops %}<option value="{{ r.op }}" selected>{{ r.op }} (unknown)</option>{% endif %}</select></div>
+        <div class="col-4"><input name="{{ kind }}{{ idx }}-r{{ forloop.counter0 }}-value" value="{{ r.value }}" class="form-control form-control-sm" placeholder="value" aria-label="Value"></div>
+    </div>
+    {% endfor %}
+    <textarea name="{{ kind }}{{ idx }}-json" rows="{% if cond.mode == 'json' %}4{% else %}1{% endif %}" class="form-control form-control-sm font-monospace mt-1" aria-label="Condition (JSON)" placeholder="Advanced (JSON) only, e.g. {&quot;any&quot;: [{&quot;all&quot;: [...]}, ...]}">{{ cond.json }}</textarea>
+</fieldset>

@@ -7,6 +7,20 @@
     <div class="alert {% if gateway.mode == 'worker' and gateway.configured %}alert-success{% else %}alert-warning{% endif %} small">
         <strong>Gateway:</strong> {{ gateway.text }}
     </div>
+    <div class="card mb-3" id="ai-installation-settings"><div class="card-header"><strong>Installation-wide limits</strong> <span class="text-muted small">Apply to every customer, on top of each customer's own policy.</span></div>
+        <div class="card-body small">
+            <p class="mb-2" data-install-usage>This month, all customers together:
+                <strong>{{ install_usage.used_cents }}¢</strong> used or reserved
+                {% if install_usage.cap_cents is not None %}of a <strong>{{ install_usage.cap_cents }}¢</strong> cap ({{ install_usage.remaining_cents }}¢ left){% else %}— no installation-wide cap set{% endif %}.
+                {% if install_usage.exhausted %}<span class="badge bg-danger">Cap reached: AI requests are refused</span>{% endif %}</p>
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="installation">
+                <div class="row g-2">{% for f in install_form %}
+                    <div class="{% if f.name == 'command_allowlist' %}col-lg-8{% else %}col-lg-4{% endif %}"><label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}
+                        {% if f.help_text %}<div class="form-text">{{ f.help_text }}</div>{% endif %}{% for e in f.errors %}<div class="text-danger">{{ e }}</div>{% endfor %}</div>
+                {% endfor %}</div>
+                <button class="btn btn-sm btn-primary mt-2">Save installation limits</button>
+            </form>
+        </div></div>
     <div class="row g-3">
         <div class="col-lg-7">
             <div class="card"><div class="card-header"><strong>Model profiles</strong></div>

@@ -3,26 +3,96 @@
 {% block content %}
 {% include "ticket_routing/_nav.html" with tab="workflows" crumb="Edit support workflow" %}
 <h4 class="mb-2">{% if slug %}Edit {{ slug }}{% if is_builtin %} <small class="text-muted">(saving stores your copy of the built-in)</small>{% endif %}{% else %}New support workflow{% endif %}</h4>
+<ul class="nav nav-tabs small mb-2">
+    <li class="nav-item"><a class="nav-link{% if editor == 'form' %} active{% endif %}" href="?view=form" data-editor-tab="form">Editor</a></li>
+    <li class="nav-item"><a class="nav-link{% if editor == 'json' %} active{% endif %}" href="?view=json" data-editor-tab="json">Advanced: JSON</a></li>
+</ul>
 {% if errors %}<div class="alert alert-danger small"><ul class="mb-0">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
 <div class="row g-3">
 <div class="col-lg-8">
-<form method="post">{% csrf_token %}
-    {% if not slug %}<div class="mb-2"><label class="form-label small">Slug</label><input name="slug" class="form-control form-control-sm" maxlength="64" required></div>{% endif %}
-    <textarea name="definition" rows="32" class="form-control form-control-sm font-monospace">{{ text }}</textarea>
+{% if editor == 'json' %}
+<form method="post" data-workflow-editor="json">{% csrf_token %}<input type="hidden" name="editor" value="json">
+    {% if not slug %}<div class="mb-2"><label class="form-label small" for="wf-slug">Slug</label><input id="wf-slug" name="slug" value="{{ new_slug }}" class="form-control form-control-sm" maxlength="64" required></div>{% endif %}
+    <p class="small text-muted mb-1">The same definition the editor saves, as JSON. Use this for conditions nested deeper than one "all of" / "any of" list.</p>
+    <textarea name="definition" rows="32" class="form-control form-control-sm font-monospace" aria-label="Workflow definition (JSON)">{{ text }}</textarea>
     <button class="btn btn-sm btn-primary mt-2">Save</button>
     <a class="btn btn-sm btn-link mt-2" href="{% url 'support_workflows:admin' %}">Back</a>
 </form>
+{% else %}
+<form method="post" class="small" data-workflow-editor="form">{% csrf_token %}<input type="hidden" name="editor" value="form">
+    <div class="card mb-2"><div class="card-body py-2">
+        {% if not slug %}<div class="mb-2"><label class="form-label" for="wf-slug">Slug</label><input id="wf-slug" name="slug" value="{{ new_slug }}" class="form-control form-control-sm" maxlength="64" required></div>{% endif %}
+        <div class="row g-2">
+            <div class="col-md-5"><label class="form-label" for="wf-name">Name</label><input id="wf-name" name="name" value="{{ rows.name }}" maxlength="120" class="form-control form-control-sm" required></div>
+            <div class="col-md-7"><label class="form-label" for="wf-desc">Description</label><input id="wf-desc" name="description" value="{{ rows.description }}" maxlength="300" class="form-control form-control-sm"></div>
+        </div>
+        <fieldset class="mt-2"><legend class="form-label fs-6 mb-1">Alert categories it applies to</legend>
+            {% for c in categories %}<label class="me-3"><input type="checkbox" class="form-check-input" name="categories" value="{{ c }}"{% if c in rows.categories %} checked{% endif %}> {{ c }}</label>{% endfor %}
+        </fieldset>
+        <div class="row g-2 mt-1">
+            <div class="col-md-4"><label class="form-label" for="wf-fresh">Evidence is stale after (minutes)</label><input id="wf-fresh" type="number" min="1" max="20160" name="freshness_minutes" value="{{ rows.freshness_minutes }}" class="form-control form-control-sm"></div>
+            <div class="col-md-4"><label class="form-label" for="wf-req">Needs integration</label>
+                <select id="wf-req" name="requires_integration" class="form-select form-select-sm"><option value="">None</option><option value="backup"{% if rows.requires_integration == 'backup' %} selected{% endif %}>A backup integration</option></select></div>
+        </div>
+    </div></div>
+
+    <div class="card mb-2"><div class="card-header py-1"><strong>Evidence to gather</strong> <span class="text-muted">read-only; each item shows when it was observed</span></div><div class="card-body py-2">
+        {% for k, v in evidence_keys.items %}<div><label><input type="checkbox" class="form-check-input" name="evidence" value="{{ k }}"{% if k in rows.evidence %} checked{% endif %}> <code>{{ k }}</code> — {{ v }}</label></div>{% endfor %}
+    </div></div>
+
+    <div class="card mb-2"><div class="card-header py-1"><strong>Likely causes</strong> <span class="text-muted">rules over the evidence facts, not AI; a cause shows when its condition holds</span></div><div class="card-body py-2">
+        {% for c in rows.causes %}
+        <div class="border rounded p-2 mb-2" data-cause-row>
+            <div class="d-flex gap-2"><label class="visually-hidden" for="cause{{ forloop.counter0 }}-text">Cause {{ forloop.counter }}</label>
+                <textarea id="cause{{ forloop.counter0 }}-text" name="cause{{ forloop.counter0 }}-text" rows="2" maxlength="600" class="form-control form-control-sm" placeholder="Likely cause, in plain language">{{ c.text }}</textarea>
+                {% if c.text %}<label class="text-nowrap"><input type="checkbox" class="form-check-input" name="cause{{ forloop.counter0 }}-delete"> Remove</label>{% endif %}</div>
+            {% include "support_workflows/_condition.html" with idx=forloop.counter0 kind="cause" cond=c.when %}
+        </div>{% endfor %}
+    </div></div>
+
+    <div class="card mb-2"><div class="card-header py-1"><strong>Suggested actions</strong> <span class="text-muted">only Rem0te catalog actions ClientSt0r knows; offered only when the paired Rem0te advertises one and its approvers approve</span></div><div class="card-body py-2">
+        {% for r in rows.remediations %}
+        <div class="border rounded p-2 mb-2" data-remediation-row>
+            <div class="row g-2">
+                <div class="col-md-5"><label class="form-label" for="rem{{ forloop.counter0 }}-action">Action</label>
+                    <select id="rem{{ forloop.counter0 }}-action" name="rem{{ forloop.counter0 }}-action" class="form-select form-select-sm"><option value="">—</option>
+                    {% for k, a in known_actions.items %}<option value="{{ k }}"{% if k == r.action %} selected{% endif %}>{{ a.label }} ({{ a.risk }} risk)</option>{% endfor %}
+                    {% if r.action and r.action not in known_actions %}<option value="{{ r.action }}" selected>{{ r.action }} (unknown — will not validate)</option>{% endif %}
+                    </select></div>
+                <div class="col-md-5"><label class="form-label" for="rem{{ forloop.counter0 }}-impact">Impact shown to the technician</label><input id="rem{{ forloop.counter0 }}-impact" name="rem{{ forloop.counter0 }}-impact" value="{{ r.impact }}" maxlength="300" class="form-control form-control-sm"></div>
+                {% if r.action %}<div class="col-md-2 d-flex align-items-end"><label><input type="checkbox" class="form-check-input" name="rem{{ forloop.counter0 }}-delete"> Remove</label></div>{% endif %}
+            </div>
+            {% include "support_workflows/_condition.html" with idx=forloop.counter0 kind="rem" cond=r.when %}
+        </div>{% endfor %}
+        <p class="text-muted mb-0">There is no field for a command, script, path or URL.</p>
+    </div></div>
+
+    <div class="card mb-2"><div class="card-header py-1"><strong>Manual steps</strong> <span class="text-muted">one per line; shown when no advertised action fits</span></div><div class="card-body py-2">
+        <label class="visually-hidden" for="wf-steps">Manual steps</label>
+        <textarea id="wf-steps" name="manual_steps" rows="5" class="form-control form-control-sm">{{ rows.manual_steps }}</textarea>
+    </div></div>
+
+    <div class="card mb-2"><div class="card-header py-1"><strong>Verification</strong></div><div class="card-body py-2">
+        <label class="form-label" for="wf-verify">Monitoring must confirm the fix within (minutes)</label>
+        <input id="wf-verify" type="number" min="1" max="20160" name="verify_within_minutes" value="{{ rows.verify_within_minutes }}" class="form-control form-control-sm" style="max-width: 12rem">
+        <div class="form-text">A run counts as fixed only when the alert recovers in monitoring within this window. The RMM reporting that a job succeeded is recorded, not taken as the fix.</div>
+    </div></div>
+
+    <button class="btn btn-sm btn-primary">Save</button>
+    <button class="btn btn-sm btn-outline-secondary" name="op" value="more" formnovalidate>More rows</button>
+    <a class="btn btn-sm btn-link" href="{% url 'support_workflows:admin' %}">Back</a>
+</form>
+{% endif %}
 </div>
 <div class="col-lg-4 small">
-    <h6>Evidence</h6><ul>{% for k, v in evidence_keys.items %}<li><code>{{ k }}</code> — {{ v }}</li>{% endfor %}</ul>
-    <h6>Categories</h6><p>{% for c in categories %}<code>{{ c }}</code> {% endfor %}</p>
-    <h6>Conditions</h6><p><code>{"fact": f, "op": op, "value": v}</code>, <code>{"all": [...]}</code>, <code>{"any": [...]}</code>, or <code>{}</code> (always).</p>
+    <h6>Conditions</h6>
+    <p>"Always", or a list of rules that must <em>all</em> or <em>any</em> hold. A rule compares one fact with a value. <code>truthy</code>, <code>falsy</code> and <code>missing</code> take no value; <code>in</code> takes a comma-separated list or a JSON list. Values are read as JSON when they can be (<code>5</code>, <code>true</code>), otherwise as text.</p>
     <p>Facts: {% for f in facts %}<code>{{ f }}</code> {% endfor %}</p>
     <p>Ops: {% for o in ops %}<code>{{ o }}</code> {% endfor %}</p>
     <h6>Actions</h6>
     <p>Only Rem0te catalog actions ClientSt0r knows; offered only when the paired Rem0te advertises them:</p>
     <ul>{% for k, a in known_actions.items %}<li><code>{{ k }}</code> — {{ a.label }} ({{ a.risk }} risk)</li>{% endfor %}</ul>
-    <p class="text-muted">There is no field for a command, script, path or URL.</p>
+    <p>Saving checks the whole definition; problems are listed above the form and nothing is stored until they are fixed.</p>
 </div>
 </div>
 {% endblock %}

@@ -851,3 +851,60 @@ class TroubleshootActionLink(models.Model):
     class Meta:
         db_table = 'psa_ai_troubleshoot_action_links'
         ordering = ['created_at', 'pk']
+
+
+# ===========================================================================
+# Installation-wide AI settings (superusers; psa_ai/profile_views.py).
+# ===========================================================================
+
+class AIInstallationSettings(models.Model):
+    """One row (pk=1): settings that apply across every customer.
+
+    monthly_budget_cents caps what the whole installation spends on AI in a
+    calendar month, on top of each customer's own daily and monthly ceilings
+    (services/budget.reserve takes all of them in the same reservation).
+    command_allowlist narrows the read-only commands AI Troubleshoot may show
+    (services/troubleshoot_result); the built-in denylist always applies."""
+    monthly_budget_cents = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Spend cap per calendar month for the whole installation, all customers together, in cents. '
+                  'Blank = no installation-wide cap (each customer\'s own ceilings still apply).')
+    command_allowlist = models.TextField(
+        blank=True,
+        help_text='AI Troubleshoot: read-only command patterns, one per line (* matches anything, ? one '
+                  'character; case-insensitive; lines starting with # are comments). When any are set, a '
+                  'suggested command is kept only if it matches one. The built-in denylist of commands that '
+                  'change a system always applies. Commands are only ever shown as text.')
+    updated_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_ai_installation_settings'
+
+    def __str__(self):
+        return 'AI installation settings'
+
+    @classmethod
+    def load(cls):
+        from django.db import IntegrityError, transaction
+        row = cls.objects.filter(pk=1).first()
+        if row is None:
+            try:
+                with transaction.atomic():
+                    row = cls.objects.create(pk=1)
+            except IntegrityError:
+                row = cls.objects.get(pk=1)
+        return row
+
+
+class AIBudgetInstallMonth(models.Model):
+    """Installation-wide spend for one calendar month, in 1/100 cent, kept by
+    services/budget.py with the same conditional UPDATE as AIBudgetMonth so
+    AIInstallationSettings.monthly_budget_cents can't be overshot."""
+    month = models.DateField(unique=True, help_text='First day of the month.')
+    reserved = models.PositiveBigIntegerField(default=0)
+    spent = models.PositiveBigIntegerField(default=0)
+
+    class Meta:
+        db_table = 'psa_ai_budget_install_months'

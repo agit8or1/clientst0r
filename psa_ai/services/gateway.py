@@ -156,8 +156,9 @@ def dispatch(connection, job_id, profile_id, delegation, evidence_digest):
 
     _, _, cost = profiles.estimate(run.profile, len(ev.prompt_text(job.evidence)))
     if cost and not budget.reserve(job.organization, cost, (policy.daily_budget_cents if policy else 0) * 100):
-        _refuse(run, "Today's AI budget for this customer is used up.")
-        raise GatewayRefusal('budget_exhausted', "Today's AI budget for this customer is used up.", 429)
+        why = budget.installation_refusal(cost) or "Today's AI budget for this customer is used up."
+        _refuse(run, why)
+        raise GatewayRefusal('budget_exhausted', why, 429)
     claimed = AnalysisRun.objects.filter(pk=run.pk, status='pending', started_at__isnull=True).update(
         status='dispatched', started_at=timezone.now(), reserved_cost=cost, estimated_cost=cost)
     if not claimed:

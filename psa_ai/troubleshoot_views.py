@@ -4,6 +4,7 @@ AI Troubleshoot (OPTIONAL AI, gated by psa_ai_enabled; services/troubleshoot.py)
   POST /psa/ai/troubleshoot/ticket/<ticket_number>/   start on a ticket
   POST /psa/ai/troubleshoot/device/<device_id>/       start on an RMM device
   GET  /psa/ai/troubleshoot/<uuid>/                   the session (HTML; ?format=json for JSON)
+  GET  /psa/ai/troubleshoot/<uuid>/status/            status only, for the page's polling
   GET  /psa/ai/troubleshoot/<uuid>/action/<ref>/      confirm a suggested action
   POST /psa/ai/troubleshoot/<uuid>/action/<ref>/      request it through the normal flow
 
@@ -144,6 +145,25 @@ def session_detail(request, session_id):
     if _wants_json(request):
         return JsonResponse(_json_view(data))
     return render(request, 'psa_ai/troubleshoot_session.html', dict(data, key=uuid.uuid4().hex))
+
+
+@login_required
+@require_http_methods(['GET'])
+def session_status(request, session_id):
+    """Small JSON for the page's progressive status polling: the session's
+    and each run's status, nothing else. Same gate and scoping as the page."""
+    _gate(request)
+    s = _session(request, session_id)
+    troubleshoot.expire_stale()
+    s.refresh_from_db()
+    from .services.troubleshoot import OPEN_RUN
+    runs = [{'id': r.pk, 'profile': r.profile.name, 'role': r.role, 'status': r.status,
+             'status_label': r.get_status_display(), 'finished': r.status not in OPEN_RUN}
+            for r in s.runs.select_related('profile')]
+    resp = JsonResponse({'session_id': str(s.id), 'status': s.status, 'status_label': s.get_status_display(),
+                         'terminal': s.is_terminal, 'runs': runs})
+    resp['Cache-Control'] = 'no-store'
+    return resp
 
 
 @login_required
