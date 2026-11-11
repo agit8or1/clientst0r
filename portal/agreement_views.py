@@ -9,6 +9,7 @@ from __future__ import annotations
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.csrf import csrf_exempt
 
 from docs import agreements
 from docs.agreement_models import Agreement, AgreementSignature
@@ -88,3 +89,29 @@ def agreement_evidence(request, pk):
     agreements._audit(request.user, 'export', 'docs.AgreementSignature', sig.pk,
                       f'Portal download of evidence for {sig}', org, request)
     return evidence_response(sig)
+
+
+@csrf_exempt
+def agreement_reminder_unsubscribe(request, token):
+    """Public, signed link from a reminder e-mail: stop reminders about one
+    agreement for one person. GET asks (mail scanners fetch links); POST
+    records it, including the RFC 8058 one-click POST mail clients send. The
+    signed token is the authority, so no login and no CSRF token are needed
+    for this one action. The agreement itself still waits in the portal."""
+    from audit.models import AuditLog
+    found = agreements.reminder_opt_out_for_token(token)
+    if found is None:
+        return render(request, 'portal/agreement_reminder_unsubscribe.html', {'invalid': True}, status=404)
+    agreement, user = found
+    done = agreement.reminder_opt_outs.filter(user=user).exists()
+    if request.method == 'POST' and not done:
+        agreements.opt_out_of_reminders(agreement, user)
+        AuditLog.log(
+            user=None, action='update', organization=agreement.organization,
+            object_type='docs.Agreement', object_id=agreement.pk, object_repr=user.email,
+            description=f'{user.email} stopped reminder e-mails for agreement "{agreement.title}" by link',
+            path=request.path, extra_data={'event': 'agreement_reminder_unsubscribe'},
+        )
+        done = True
+    return render(request, 'portal/agreement_reminder_unsubscribe.html',
+                  {'agreement': agreement, 'email': user.email, 'done': done})
