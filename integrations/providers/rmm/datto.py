@@ -188,7 +188,9 @@ class DattoRMMProvider(BaseRMMProvider):
 
         except Exception as e:
             logger.error(f"Error listing Datto RMM software for device {device_id}: {e}")
-            return software_list
+            # Raise so the sync keeps this device\'s stored software
+            # instead of reading the failure as "nothing installed".
+            raise ProviderError(f"Failed to list software: {e}")
 
     def normalize_device(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """

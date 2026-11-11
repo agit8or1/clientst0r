@@ -84,8 +84,6 @@ On the development branch `dev/program-2026-11`. Not released, tagged or deploye
 - **The AI gateway worker runs as its own OS user.**
 
 ### Fixed
-- **Software sync never worked for NinjaOne, Datto RMM, Atera and ConnectWise Automate** (a wrong argument raised an error on every device).
-- **Datto RMM device and software addresses** follow its API v2; Automate's MAC address is read.
 - **Recording a payment always failed**, and the per-customer PSA opt-out removal always crashed.
 - **Audit entries were lost** on pages whose address carries a long ID.
 - **An LDAP user's first sign-in** could reset the account to a local one.
@@ -100,6 +98,17 @@ On the development branch `dev/program-2026-11`. Not released, tagged or deploye
 - **psa 0083** drops five unused per-customer PSA switches. Nothing read them, so behaviour doesn't change.
 - **Existing installs keep following `main`** (Preview channel) after upgrading; new installs default to Stable.
 - Ticket routing, the alert policy, AI Troubleshoot, geo dispatch, service lists and the "all clear" digest are all off after upgrading.
+
+## [3.17.663] - 2026-11-11
+
+### Fixed
+- **Installed software now syncs for NinjaOne, Datto RMM, Atera and ConnectWise Automate.**
+  - The sync passed an argument only Tactical RMM accepts, so every device failed for the other four and their software lists stayed empty.
+  - Datto RMM used device and software addresses its API doesn't have. It now uses `/api/v2/device/{uid}` and `/api/v2/audit/device/{uid}/software`.
+  - ConnectWise Automate MAC addresses are read from `MacAddress` as well as `MACAddress`.
+- **A failed software read no longer erases a device's software list.**
+  - When an RMM couldn't be reached, the providers answered "no software", and the sync deleted what it had stored. They now report the failure. The stored list is kept, and the failure is counted as a sync error.
+  - This also applies to Tactical RMM.
 
 ## [3.17.662] - 2026-11-11
 

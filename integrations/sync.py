@@ -705,13 +705,13 @@ class RMMSync:
                     # raw_data['id'] is the numeric PK when present. Fall back to external_id
                     # (UUID) so the provider can also try UUID-based paths.
                     numeric_id = raw.get('id')
-                    # Only use as numeric if it's actually an integer (not a UUID string)
                     if self.connection.provider_type != 'tactical_rmm':
                         # Only Tactical RMM's software route takes the numeric
                         # key; every other client takes the device's own ID
                         # (and has no `uuid` argument).
                         software_data = self.provider.list_software(device.external_id)
                     else:
+                        # Only use as numeric if it's actually an integer (not a UUID string)
                         if numeric_id and not str(numeric_id).replace('-', '').isalpha():
                             rmm_id = str(numeric_id)
                         else:
@@ -741,7 +741,9 @@ class RMMSync:
                         logger.debug(f"Removed {deleted_count} software items from device {device.external_id}")
                         
                 except Exception as e:
+                    # Stored software is kept: a failed read is not "nothing installed".
                     logger.error(f"Error syncing software for device {device.external_id}: {e}")
+                    self.stats['software']['errors'] += 1
 
         except Exception as e:
             logger.error(f"Error in software sync: {e}")
