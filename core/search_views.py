@@ -84,9 +84,10 @@ def global_search(request):
     def permitted(model, perm):
         """`scoped()` narrowed to the customers whose role grants `perm`.
 
-        Role flags vault_view / docs_view / assets_view are enforced here the
-        same way the section middleware enforces them on /vault/, /docs/ and
-        /assets/ — search must not list titles a user can't open.
+        Role flags vault_view / docs_view / assets_view / integrations_view
+        are enforced here the same way the section middleware enforces them
+        on /vault/, /docs/, /assets/ and /integrations/ — search must not
+        list titles a user can't open.
         """
         return filter_by_org_perm(scoped(model), user, perm)
 
@@ -149,13 +150,14 @@ def global_search(request):
 
         # Search PSA Companies / Contacts. Scoped by their own organization
         # the way `integrations.views` does, not via the connection — same
-        # rows, and it picks up descendants like everything else here.
+        # rows, and it picks up descendants like everything else here. They
+        # open under /integrations/, so integrations_view governs them.
         try:
-            take('psa_companies', scoped(PSACompany).filter(
+            take('psa_companies', permitted(PSACompany, 'integrations_view').filter(
                 Q(name__icontains=query)
             ))
 
-            take('psa_contacts', scoped(PSAContact).filter(
+            take('psa_contacts', permitted(PSAContact, 'integrations_view').filter(
                 Q(name__icontains=query) |
                 Q(email__icontains=query)
             ))

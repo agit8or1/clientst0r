@@ -91,6 +91,8 @@ def _user_payload(user):
             'assets_view', 'assets_create', 'assets_edit', 'assets_delete',
             # KB / docs
             'docs_view',
+            # Files, monitoring, integrations (enforced after v3.17.659).
+            'files_view', 'monitoring_view', 'integrations_view',
         ):
             permissions[perm] = user_has_perm(user, perm)
         # The *_view flags are enforced per customer server-side; report
@@ -98,7 +100,8 @@ def _user_payload(user):
         # honours an MSP staff member's global role) so the app's tab
         # gating agrees with what the list endpoints will return.
         from .scoping import has_any_perm
-        for perm in ('vault_view', 'docs_view', 'assets_view'):
+        for perm in ('vault_view', 'docs_view', 'assets_view',
+                     'files_view', 'monitoring_view', 'integrations_view'):
             permissions[perm] = has_any_perm(user, perm)
     except Exception:
         permissions = {}
