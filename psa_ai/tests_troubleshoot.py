@@ -384,6 +384,32 @@ class PermissionPathTests(TroubleshootBase):
         self.assertEqual(RMMRequest.objects.count(), 0)
 
 
+class PanelPlacementTests(TroubleshootBase):
+    """{% ai_troubleshoot_panel %} on the ticket RMM side panel and the Device
+    Workspace; nothing when AI is off."""
+
+    def test_ticket_rmm_panel(self):
+        html = self.c.get(f'/psa/t/{self.ticket.ticket_number}/').content.decode()
+        self.assertIn('id="ticket-rmm-panel"', html)
+        panel = html.split('id="ticket-rmm-panel"', 1)[1]
+        self.assertIn('data-ai-troubleshoot-panel', panel)
+        self.assertIn(f'/psa/ai/troubleshoot/ticket/{self.ticket.ticket_number}/', panel)
+
+    def test_device_workspace(self):
+        html = self.c.get(f'/assets/{self.asset.pk}/workspace/').content.decode()
+        self.assertIn('data-ai-troubleshoot-panel', html)
+        self.assertIn(f'/psa/ai/troubleshoot/device/{self.dev.pk}/', html)
+
+    def test_nothing_when_ai_is_off(self):
+        s = SystemSetting.get_settings()
+        s.psa_ai_enabled = False
+        s.save()
+        for url in (f'/psa/t/{self.ticket.ticket_number}/', f'/assets/{self.asset.pk}/workspace/'):
+            r = self.c.get(url)
+            self.assertEqual(r.status_code, 200, url)
+            self.assertNotIn('data-ai-troubleshoot-panel', r.content.decode(), url)
+
+
 class DeviceOutputInjectionTests(TroubleshootBase):
     """Device job output posted to the ticket (source='rmm', from the device
     workspace's "Add result as internal note") is attacker-influenceable."""

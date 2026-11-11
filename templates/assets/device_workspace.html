@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ai_troubleshoot %}
 {% comment %}
 Device Workspace (assets/workspace_views.py). Technicians only. Everything an
 RMM reported (names, users, software, alert text) is autoescaped text.
@@ -77,6 +78,9 @@ current, "none" or "no".
         {% endif %}
     </div>
 </div>
+
+{# OPTIONAL AI: renders nothing when AI is off or for anyone without access. #}
+{% if sel and not blocked_reason %}{% ai_troubleshoot_panel device=sel.device %}{% endif %}
 
 {% if blocked_reason %}
 <div class="alert alert-danger" data-ws-blocked>RMM data for this device is withheld: {{ blocked_reason }}</div>
