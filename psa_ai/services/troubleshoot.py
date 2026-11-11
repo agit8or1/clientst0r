@@ -25,7 +25,8 @@ off customer or a disabled profile while a run waits stops it there):
   * the model profile is usable here (profiles.profile_refusal: enabled,
     allowed by policy, credential owner, local-only, not excluded);
   * usage limits: runs per day for the customer and per technician, then the
-    daily and monthly spend ceilings (budget.reserve, atomic).
+    daily and monthly spend ceilings and the installation-wide monthly cap
+    (budget.reserve, atomic).
 
 Layers (models.py has the storage): Observation / AI inference /
 Technician-requested action / Verified result. The UI keeps them apart.
@@ -182,6 +183,8 @@ def availability(user, *, ticket=None, device=None, multi=False) -> Tuple[bool, 
     month = budget.month_remaining(org)
     if month is not None and month <= 0:
         reasons.append("This month's AI budget for this customer is used up.")
+    if budget.installation_refusal():
+        reasons.append(budget.INSTALLATION_MESSAGE)
     if reasons:
         return False, reasons, []
     chosen, why = plan(org, user, policy, multi)
@@ -305,45 +308,110 @@ def _actions(user, ticket, labels) -> List[dict]:
     return out
 
 
-def _keywords(text) -> List[str]:
+def _keywords(text, limit=8) -> List[str]:
     words = [w.lower() for w in _WORD.findall(text or '')]
-    return list(dict.fromkeys(w for w in words if w not in _STOPWORDS))[:8]
+    return list(dict.fromkeys(w for w in words if w not in _STOPWORDS))[:limit]
 
 
-def _runbooks(org, text, mask) -> List[dict]:
-    """KB articles and runbooks the technician can open at this customer
-    (its own or global), whose title matches the problem's words."""
+# --- runbook / KB matching ---------------------------------------------------
+# Scored locally; only the chosen titles (masked) ever reach a model, and
+# only when the customer's sharing rules allow KB titles.
+RUNBOOK_KEYWORDS = 12
+RUNBOOK_CANDIDATES = 100
+RUNBOOK_MIN_SCORE = 2
+_TAG = re.compile(r'<[^>]+>')
+
+
+def _match_score(words, title, labels, body):
+    """(score, matched_on): 3 per word in the title, 2 per word in a tag or
+    the category, 1 per word only in the body."""
+    title, body = (title or '').lower(), (body or '').lower()
+    labels = [lab.lower() for lab in labels if lab]
+    score, where = 0, set()
+    for w in words:
+        if w in title:
+            points, place = 3, 'title'
+        elif any(w in lab for lab in labels):
+            points, place = 2, 'tags'
+        elif w in body:
+            points, place = 1, 'body'
+        else:
+            continue
+        score += points
+        where.add(place)
+    return score, sorted(where)
+
+
+def _may_read_kb(user, org):
+    """(customer articles, global articles) this technician may open: the
+    customer's own need docs_view there; the global KB is MSP staff only,
+    as on the global KB pages."""
+    if user is None:
+        return False, False
+    from accounts.permission_utils import has_perm_for_org
+    from psa.visibility import is_msp_staff
+    staff = is_msp_staff(user)
+    return bool(staff and has_perm_for_org(user, org, 'docs_view')), bool(staff)
+
+
+def _runbooks(org, text, mask, user=None) -> List[dict]:
+    """Published KB articles and runbooks this technician may open at this
+    customer (its own, and the global KB for MSP staff), ranked by how well
+    their title, tags, category and body match the problem's words. Drafts,
+    archived items and templates never match. Each carries whether the
+    article is visible to the customer in the portal, so the model is told
+    which ones may be pointed at in a customer response."""
     from django.db.models import Q
-    words = _keywords(text)
+    words = _keywords(text, RUNBOOK_KEYWORDS)
     if not words:
         return []
-    out = []
+    own, global_ok = _may_read_kb(user, org)
+    if not (own or global_ok):
+        return []
+    scope = Q(pk__in=[])
+    if own:
+        scope |= Q(organization=org, is_global=False)
+    if global_ok:
+        scope |= Q(is_global=True)
+    scored = []
     try:
         from docs.models import Document
         q = Q()
         for w in words:
-            q |= Q(title__icontains=w)
-        docs = (Document.objects.filter(Q(organization=org) | Q(is_global=True))
-                .filter(is_published=True, is_archived=False, is_template=False).filter(q)
-                .order_by('-updated_at')[:MAX_RUNBOOKS])
+            q |= Q(title__icontains=w) | Q(tags__name__icontains=w) | Q(category__name__icontains=w) \
+                | Q(body__icontains=w)
+        docs = (Document.objects.published().filter(scope).filter(is_template=False).filter(q).distinct()
+                .select_related('category').prefetch_related('tags').order_by('-updated_at')[:RUNBOOK_CANDIDATES])
         for d in docs:
-            out.append({'kind': 'kb_article', 'pk': d.pk, 'slug': d.slug, 'global': bool(d.is_global),
-                        'title': mask(d.title, 200)})
+            labels = [t.name for t in d.tags.all()] + ([d.category.name] if d.category_id else [])
+            body = _TAG.sub(' ', d.body or '') if d.content_type != 'file' else ''
+            score, where = _match_score(words, d.title, labels, body)
+            if score >= RUNBOOK_MIN_SCORE:
+                scored.append((score, d.updated_at, {
+                    'kind': 'kb_article', 'pk': d.pk, 'slug': d.slug, 'global': bool(d.is_global),
+                    'client_visible': bool(d.is_client_visible), 'matched_on': where,
+                    'title': mask(d.title, 200)}))
     except Exception:
         logger.exception('troubleshoot: KB lookup failed')
     try:
         from processes.models import Process
         q = Q()
         for w in words:
-            q |= Q(title__icontains=w)
-        procs = (Process.objects.filter(Q(organization=org) | Q(is_global=True))
-                 .filter(is_published=True, is_archived=False).filter(q).order_by('-updated_at')[:MAX_RUNBOOKS])
+            q |= Q(title__icontains=w) | Q(tags__name__icontains=w) | Q(category__icontains=w) \
+                | Q(description__icontains=w)
+        procs = (Process.objects.filter(scope).filter(is_published=True, is_archived=False, is_template=False)
+                 .filter(q).distinct().prefetch_related('tags').order_by('-updated_at')[:RUNBOOK_CANDIDATES])
         for p in procs:
-            out.append({'kind': 'runbook', 'pk': p.pk, 'slug': p.slug, 'global': bool(p.is_global),
-                        'title': mask(p.title, 200)})
+            labels = [t.name for t in p.tags.all()] + [p.category, p.get_category_display()]
+            score, where = _match_score(words, p.title, labels, p.description)
+            if score >= RUNBOOK_MIN_SCORE:
+                scored.append((score, p.updated_at, {
+                    'kind': 'runbook', 'pk': p.pk, 'slug': p.slug, 'global': bool(p.is_global),
+                    'client_visible': False, 'matched_on': where, 'title': mask(p.title, 200)}))
     except Exception:
         logger.exception('troubleshoot: runbook lookup failed')
-    out = out[:MAX_RUNBOOKS]
+    scored.sort(key=lambda s: (-s[0], -s[1].timestamp(), s[2]['kind'], s[2]['pk']))
+    out = [s[2] for s in scored[:MAX_RUNBOOKS]]
     for n, r in enumerate(out, start=1):
         r['id'] = f'R{n}'
     return out
@@ -458,9 +526,12 @@ def build_observations(user, *, ticket=None, device=None, policy=None) -> dict:
         for n, d in enumerate(devices, start=1):
             labels[d.pk] = f'device D{n}'
 
+    # Matched locally (nothing here is sent): subject first, then alerts, then
+    # the description, so the most specific words win the keyword budget.
     problem = ' '.join(filter(None, [ticket.subject if ticket is not None else '',
-                                     *[a['text'] for a in items if a['kind'].startswith('rmm.alert')]]))
-    runbooks = _runbooks(org, problem, mask) if rules.kb_titles else []
+                                     *[a['text'] for a in items if a['kind'].startswith('rmm.alert')],
+                                     ticket.description if ticket is not None else '']))
+    runbooks = _runbooks(org, problem, mask, user=user) if rules.kb_titles else []
     if not rules.kb_titles:
         withheld.append('kb_titles')
     actions = _actions(user, ticket, labels)
@@ -495,8 +566,10 @@ def prompt_text(obs: dict) -> str:
     if not obs.get('items'):
         lines.append('(none shared)')
     if obs.get('runbooks'):
-        lines.append('Runbooks and KB articles available:')
-        lines += [f'[{r["id"]}] {r["kind"]}: {_MARKER.sub("‹‹‹", r["title"])}' for r in obs['runbooks']]
+        lines.append('Runbooks and KB articles available (only customer-visible ones may be mentioned in '
+                     'customer_response):')
+        lines += [f'[{r["id"]}] {r["kind"]} ({"customer-visible" if r.get("client_visible") else "internal only"}): '
+                  f'{_MARKER.sub("‹‹‹", r["title"])}' for r in obs['runbooks']]
     if obs.get('actions'):
         lines.append('Approved actions the technician may request (the RMM approves and runs them, never you):')
         lines += [f'[{a["id"]}] {a["label"]} on {a["device"]} ({a["risk"]})' for a in obs['actions']]
@@ -555,9 +628,10 @@ def start(user, *, ticket=None, device=None, multi=False, key='', request=None):
                 budget.release(org, c)
             _, _, need = profiles.estimate(profile, chars)
             month = budget.month_remaining(org)
-            raise Refused("This month's AI budget for this customer doesn't cover this run."
-                          if month is not None and month < need
-                          else "Today's AI budget for this customer doesn't cover this run.", 429)
+            raise Refused(budget.installation_refusal(need)
+                          or ("This month's AI budget for this customer doesn't cover this run."
+                              if month is not None and month < need
+                              else "Today's AI budget for this customer doesn't cover this run."), 429)
         reserved.append((profile, cost))
     try:
         with transaction.atomic():
