@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import requester_site_views, views
 
 app_name = 'psa'
 
@@ -9,8 +9,10 @@ urlpatterns = [
     path('new/', views.ticket_create, name='ticket_create'),
     path('new/assets/', views.ticket_client_assets, name='ticket_client_assets'),
     path('settings/', views.psa_global_settings_view, name='settings'),
-    # Legacy per-client URL — redirects to the new global page.
+    # Per-customer settings: native PSA opt-out and the customer portal.
     path('settings/client/', views.client_settings_view, name='client_settings'),
+    # Phase 60.6: requesters' default ticket sites for the selected customer.
+    path('requester-sites/', requester_site_views.requester_sites, name='requester_sites'),
     # Canned replies (Phase 2b)
     path('canned/', views.canned_reply_list, name='canned_reply_list'),
     path('canned/new/', views.canned_reply_create, name='canned_reply_create'),

@@ -62,11 +62,6 @@ class FeatureFlagDefaultsTests(TestCase):
         cps = ClientPSASettings.objects.create(organization=org)
         self.assertTrue(cps.enabled, 'master enabled flag should default to True (cascades from global)')
         self.assertFalse(cps.portal_enabled)
-        self.assertFalse(cps.anonymous_ticket_form_enabled)
-        self.assertFalse(cps.email_to_ticket_enabled)
-        self.assertFalse(cps.sms_notifications_enabled)
-        self.assertFalse(cps.desktop_alerts_enabled)
-        self.assertFalse(cps.external_alert_ingest_enabled)
 
     def test_explicit_client_opt_out_blocks(self):
         """Admins can still opt a specific client OUT by setting enabled=False."""

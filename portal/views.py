@@ -445,6 +445,8 @@ def post_reply(request, ticket_number):
 def ticket_create(request):
     """Client-side ticket submission."""
     m = request.portal_membership
+    from psa.ticket_site import SOURCE_PORTAL, portal_default_site, portal_sites_for
+    sites = list(portal_sites_for(m.organization)[:200])
 
     if request.method == 'POST':
         subject = (request.POST.get('subject') or '').strip()[:300]
@@ -452,6 +454,15 @@ def ticket_create(request):
         if not subject:
             messages.error(request, 'Subject is required.')
             return redirect(request.path)
+        # Site: one of this customer's own active sites, or none (then the
+        # usual intake rules in psa.ticket_site fill it when they can).
+        raw_site = (request.POST.get('site') or '').strip()
+        site = None
+        if raw_site:
+            site = next((loc for loc in sites if str(loc.pk) == raw_site), None)
+            if site is None:
+                messages.error(request, 'Pick one of your organization\'s sites.')
+                return redirect(request.path)
 
         # Use the client's default queue/priority/type — fall back to any.
         queue = Queue.objects.filter(is_active=True).first()
@@ -471,6 +482,7 @@ def ticket_create(request):
             requester_name=request.user.get_full_name() or request.user.username,
             requester_email=request.user.email or '',
             created_by=request.user,
+            site=site, site_source=SOURCE_PORTAL if site else '',
         )
         AuditLog.log(
             user=request.user, action='create',
@@ -483,8 +495,11 @@ def ticket_create(request):
         messages.success(request, f'Ticket {ticket.ticket_number} created.')
         return redirect('portal:ticket_detail', ticket_number=ticket.ticket_number)
 
+    default_site = portal_default_site(m.organization, request.user) if sites else None
     return render(request, 'portal/ticket_create.html', {
         'organization': m.organization,
+        'sites': sites,
+        'default_site_id': default_site.pk if default_site else None,
     })
 
 
@@ -675,6 +690,39 @@ def kb_detail(request, slug):
         'article_html': article.render_for_client(),
         'organization': m.organization,
     })
+
+
+@portal_required
+@require_http_methods(['GET', 'HEAD'])
+def kb_download(request, slug):
+    """The uploaded file of a customer-visible "Uploaded File" KB article.
+
+    Same visibility rule as kb_detail (portal_kb_queryset: client-visible,
+    live, global or this customer's); anything else, including internal
+    articles and other customers' articles, is a 404. Audited.
+    """
+    import posixpath
+    from django.utils.text import slugify
+    from core.media_views import resolve_under_media_root, stream_file
+    m = request.portal_membership
+    article = (portal_kb_queryset(m.organization)
+               .filter(slug=slug, content_type='file').order_by('pk').first())
+    if article is None or not article.file:
+        raise Http404('Not found')
+    full_path = resolve_under_media_root(article.file.name)
+    if not full_path.is_file():
+        raise Http404('Not found')
+    AuditLog.log(
+        user=request.user, action='read', organization=m.organization,
+        object_type='docs.Document', object_id=article.pk,
+        object_repr=article.title[:255],
+        description=f'Portal download of KB article "{article.title}"',
+        path=request.path,
+        extra_data={'source': 'portal_kb_download', 'global': article.organization_id is None},
+    )
+    ext = posixpath.splitext(article.file.name)[1]
+    download_name = f'{slugify(article.title) or "article"}{ext}'
+    return stream_file(request, full_path, article.file.name, download_name)
 
 
 # ---------------------------------------------------------------------------

@@ -214,12 +214,13 @@ plugs into existing models so we don't duplicate.
   forever. The vault context page (`/psa/t/<num>/context/`) requires
   full staff auth — the portal is a separate Django app with its own
   middleware.
-- Per-client opt-in — `core.SystemSetting.psa_portal_enabled` (global)
-  must be on AND the client's `ClientPSASettings.portal_enabled` (or
-  the future replacement signal) must be on. Default OFF.
-- Anonymous submission lives behind another flag
-  (`psa_anonymous_ticket_form_enabled`) plus rate-limiting via
-  `django-ratelimit` (already a dep).
+- Per-client opt-in — the client's `ClientPSASettings.portal_enabled`
+  (PSA → Settings → Per-customer PSA settings, or sending a portal
+  invite) must be on. Default OFF. There is no global portal switch: the
+  unused `SystemSetting.psa_portal_enabled` was removed in core 0087.
+- There is no anonymous ticket form. Its global and per-client switches
+  were never read and were removed (core 0087, psa 0083); a public form
+  would need its own design, with rate-limiting via `django-ratelimit`.
 
 ### Routes (planned)
 - `/portal/login/`, `/portal/tickets/`, `/portal/tickets/new/`,

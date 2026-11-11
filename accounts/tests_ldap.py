@@ -108,6 +108,8 @@ class FakeDirectory:
         _, attr, value = node
         if attr.lower() == f'member:{IN_CHAIN}:':
             return self._member_in_chain(dn, value)
+        if attr.lower() == 'objectclass' and value == '*':
+            return True  # every entry has an objectClass
         values = self._values(dn, attr)
         if value == '*':
             return bool(values)

@@ -1162,6 +1162,7 @@ class ScheduledTask(models.Model):
         ('psa_purge_secure_replies', 'Erase Expired Secure Ticket Replies'),
         ('agreement_reminders', 'Agreement Signature Reminders'),
         ('kb_link_check', 'KB Dead Link Check'),
+        ('ldap_group_sync', 'LDAP Group Mapping Sync'),
     ]
 
     task_type = models.CharField(max_length=50, choices=TASK_TYPES, unique=True)
@@ -1691,6 +1692,15 @@ class ScheduledTask(models.Model):
             'description': 'Find dead links in published KB articles: internal links to missing or '
                            'archived documents, and external links (SSRF-safe HEAD check)',
             'interval_minutes': 1440,
+            'enabled': True,
+        },
+        {
+            # Does nothing unless LDAP sign-in and group mappings are set up.
+            'task_type': 'ldap_group_sync',
+            'description': 'Re-check mapped LDAP group membership for LDAP users who have not '
+                           'signed in again (batch of 100, each user at most hourly; skips and '
+                           'reports when the directory is unreachable)',
+            'interval_minutes': 15,
             'enabled': True,
         },
     ]

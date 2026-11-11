@@ -57,11 +57,17 @@ def _audit(user, action, membership, description, extra):
         logger.exception('Could not write LDAP mapping audit entry')
 
 
-def sync_memberships(user, mappings, member_ids):
+def sync_memberships(user, mappings, member_ids, skip_org_ids=(), trigger='sign_in'):
     """Apply the mapping result for `user`. Returns a list of change tuples
-    (action, organization_id) for callers / tests."""
+    (action, organization_id) for callers / tests.
+
+    `skip_org_ids`: customers whose result is uncertain (a group lookup
+    failed); nothing is granted, changed or removed there. `trigger` is
+    recorded on every audit entry ('sign_in' or 'background_sync').
+    """
     from accounts.models import Membership, Role
 
+    skip_org_ids = set(skip_org_ids or ())
     changes = []
     # Customer -> mapping that grants it (lowest pk wins, but a mapping that
     # already manages the membership is kept so the role doesn't flap).
@@ -69,7 +75,8 @@ def sync_memberships(user, mappings, member_ids):
         user=user, ldap_group_mapping__isnull=False).select_related('ldap_group_mapping')}
     wanted = {}
     for mapping in mappings:
-        if mapping.pk not in member_ids or not mapping.role_allowed():
+        if (mapping.pk not in member_ids or not mapping.role_allowed()
+                or mapping.organization_id in skip_org_ids):
             continue
         current = wanted.get(mapping.organization_id)
         existing = managed.get(mapping.organization_id)
@@ -81,7 +88,7 @@ def sync_memberships(user, mappings, member_ids):
         for org_id, mapping in wanted.items():
             membership = Membership.objects.filter(user=user, organization_id=org_id).first()
             extra = {'group_dn': mapping.group_dn, 'mapping_id': mapping.pk,
-                     'role_template': mapping.role_template.name}
+                     'role_template': mapping.role_template.name, 'trigger': trigger}
             if membership is None:
                 membership = Membership.objects.create(
                     user=user, organization_id=org_id, role=Role.READONLY,
@@ -119,7 +126,7 @@ def sync_memberships(user, mappings, member_ids):
                     changes.append(('update', org_id))
 
         for org_id, membership in managed.items():
-            if org_id in wanted or not membership.is_active:
+            if org_id in wanted or org_id in skip_org_ids or not membership.is_active:
                 continue
             membership.is_active = False
             membership.save(update_fields=['is_active', 'updated_at'])
@@ -128,7 +135,7 @@ def sync_memberships(user, mappings, member_ids):
                    f'{membership.organization.name}: no longer in a mapped group',
                    {'group_dn': membership.ldap_group_mapping.group_dn,
                     'mapping_id': membership.ldap_group_mapping_id,
-                    'deactivated': True})
+                    'deactivated': True, 'trigger': trigger})
             changes.append(('deactivate', org_id))
     return changes
 

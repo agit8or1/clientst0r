@@ -29,6 +29,7 @@ SOURCE_ASSET = 'asset'
 SOURCE_CONTACT = 'contact'
 SOURCE_REQUESTER = 'requester'
 SOURCE_ONLY_SITE = 'only_site'
+SOURCE_PORTAL = 'portal'
 SOURCE_CHOICES = [
     ('', 'Not set'),
     (SOURCE_MANUAL, 'Set on the ticket'),
@@ -36,6 +37,7 @@ SOURCE_CHOICES = [
     (SOURCE_CONTACT, "Contact's default site"),
     (SOURCE_REQUESTER, "Portal user's default site"),
     (SOURCE_ONLY_SITE, "The customer's only site"),
+    (SOURCE_PORTAL, 'Chosen by the requester in the portal'),
 ]
 
 INACTIVE_STATUSES = ('inactive', 'closed')
@@ -52,6 +54,50 @@ def sites_for(organization):
             .exclude(status__in=INACTIVE_STATUSES)
             .distinct()
             .order_by('-is_primary', 'name'))
+
+
+def portal_sites_for(organization):
+    """Sites a portal user of `organization` may pick on a new ticket: the
+    customer's own active sites only (never another customer's shared site,
+    even one associated with this customer)."""
+    from locations.models import Location
+    if organization is None or getattr(organization, 'pk', None) is None:
+        return Location.objects.none()
+    return (Location.objects.filter(organization_id=organization.pk)
+            .exclude(status__in=INACTIVE_STATUSES).order_by('-is_primary', 'name'))
+
+
+def portal_default_site(organization, user):
+    """The portal user's default site at this customer, if it is still one
+    they may pick."""
+    loc = _default_for(organization, user=user)
+    if loc is None or not portal_sites_for(organization).filter(pk=loc.pk).exists():
+        return None
+    return loc
+
+
+def set_default(organization, location, *, contact=None, user=None, actor=None):
+    """Set (or with location=None clear) a contact's or portal user's default
+    site at `organization`. Raises ValueError for a site or requester that
+    does not belong to the customer."""
+    from psa.models import RequesterDefaultSite
+    if (contact is None) == (user is None):
+        raise ValueError('Pick a contact or a portal user.')
+    if contact is not None and contact.organization_id != organization.pk:
+        raise ValueError('That contact belongs to a different customer.')
+    if user is not None:
+        from accounts.models import Membership
+        if not Membership.objects.filter(user=user, organization=organization, is_active=True).exists():
+            raise ValueError('That user is not a member of this customer.')
+    key = {'contact': contact} if contact is not None else {'user': user}
+    if location is None:
+        RequesterDefaultSite.objects.filter(organization=organization, **key).delete()
+        return None
+    if not site_allowed(organization, location) or location.status in INACTIVE_STATUSES:
+        raise ValueError("That site doesn't belong to this customer.")
+    row, _ = RequesterDefaultSite.objects.update_or_create(
+        organization=organization, **key, defaults={'location': location, 'updated_by': actor})
+    return row
 
 
 def site_allowed(organization, location) -> bool:

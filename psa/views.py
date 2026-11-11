@@ -394,7 +394,7 @@ def ticket_detail(request, ticket_number):
 
     context = {
         **workspace,
-        **_ticket_asset_context(ticket, workspace['is_msp_staff']),
+        **_ticket_asset_context(ticket, workspace['is_msp_staff'], request.user),
         **_ticket_site_context(ticket, workspace['is_msp_staff']),
         'ticket_rmm_panel': _ticket_rmm_panel(request, ticket, workspace['is_msp_staff']),
         'ticket': ticket,
@@ -844,10 +844,13 @@ def psa_global_settings_view(request):
             if cps is not None:
                 cps_pk = cps.pk
                 org_repr = str(cps.organization)
-                cps.delete()
+                # enabled=True is the auto-detect default. The row is kept,
+                # not deleted: it also holds the customer's portal switch.
+                cps.enabled = True
+                cps.save(update_fields=['enabled', 'updated_at'])
                 AuditLog.log(
-                    user=request.user, action='delete',
-                    organization_id=int(org_id),
+                    user=request.user, action='update',
+                    organization=cps.organization,
                     object_type='psa.ClientPSASettings', object_id=cps_pk,
                     object_repr=f'PSA opt-out removed for {org_repr}',
                     description='Removed PSA opt-out — client returns to auto-detect',
@@ -912,12 +915,61 @@ def psa_global_settings_view(request):
     })
 
 
-# Backwards-compat shim: the old per-client URL still resolves but
-# redirects to the new global page so any bookmarks keep working.
 @login_required
 @require_psa_enabled
 def client_settings_view(request):
-    return redirect('psa:settings')
+    """Per-customer PSA settings for the selected customer: the native PSA
+    opt-out and the customer portal switch.
+
+    Those are the only two per-customer switches anything reads
+    (`is_psa_enabled_for_client` and the portal's membership query). The
+    five other per-customer switches this page used to show (anonymous
+    form, email-to-ticket, SMS, desktop alerts, external ingest) were never
+    read and were removed in psa 0083, as the global ones were in core 0087.
+    Superuser-only, like the global PSA settings page. Audited.
+    """
+    if not request.user.is_superuser:
+        raise Http404()
+    from psa.feature_flags import client_has_external_psa, get_external_psa_summary
+    org = get_request_organization(request)
+    if org is None:
+        messages.info(request, 'Select a customer to change its PSA settings.')
+        return redirect('psa:settings')
+    has_external = client_has_external_psa(org)
+    cps = ClientPSASettings.objects.filter(organization=org).first()
+
+    if request.method == 'POST':
+        row = cps or ClientPSASettings(organization=org)
+        before = {'enabled': row.enabled, 'portal_enabled': row.portal_enabled} if cps else {}
+        if request.POST.get('reset_to_auto'):
+            row.enabled = True  # a row with enabled=True is the auto-detect default
+        else:
+            row.enabled = (request.POST.get('enabled') == 'on') if not has_external else row.enabled
+            row.portal_enabled = request.POST.get('portal_enabled') == 'on'
+        row.save()
+        after = {'enabled': row.enabled, 'portal_enabled': row.portal_enabled}
+        changed = {k: {'from': before.get(k), 'to': v} for k, v in after.items() if before.get(k) != v}
+        if changed:
+            AuditLog.log(
+                user=request.user, action='update' if cps else 'create', organization=org,
+                object_type='psa.ClientPSASettings', object_id=row.pk,
+                object_repr=f'PSA settings for {org.name}'[:255],
+                description=f'Updated PSA settings for {org.name}: ' + ', '.join(
+                    f'{k} {v["from"]} -> {v["to"]}' for k, v in changed.items()),
+                ip_address=_client_ip(request), path=request.path,
+                extra_data={'changed_fields': changed},
+            )
+        messages.success(request, f'PSA settings for {org.name} saved.')
+        return redirect('psa:client_settings')
+
+    return render(request, 'psa/client_settings.html', {
+        'cps': cps or ClientPSASettings(organization=org),
+        'current_organization': org,
+        'effective_enabled': is_psa_enabled_for_client(org),
+        'using_auto_detect': cps is None or cps.enabled,
+        'has_external_psa': has_external,
+        'external_psa_summary': get_external_psa_summary(org) if has_external else '',
+    })
 
 
 @login_required
@@ -969,7 +1021,7 @@ def ticket_vault_context(request, ticket_number):
     })
 
 
-def _ticket_asset_context(ticket, staff):
+def _ticket_asset_context(ticket, staff, user=None):
     """The ticket's asset and, for technicians, what its RMMs report.
 
     Built from synced data only, so an RMM outage never slows or breaks the
@@ -983,7 +1035,10 @@ def _ticket_asset_context(ticket, staff):
            'ticket_rmm': [], 'ticket_asset_choices': []}
     if not staff:
         return ctx
-    if asset and not foreign:
+    # RMM details follow integrations_view (or RMM device access) for the
+    # ticket's customer, like the same devices under /integrations/.
+    from integrations.rmm_visibility import can_see_rmm_data
+    if asset and not foreign and (user is None or can_see_rmm_data(user, ticket.organization)):
         from integrations.rmm_association import summaries_for_asset
         ctx['ticket_rmm'] = summaries_for_asset(asset)
     ctx['ticket_asset_choices'] = list(

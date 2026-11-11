@@ -571,10 +571,12 @@
     <div class="tab-pane fade" id="photos">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5><i class="fas fa-images"></i> Vehicle Photos</h5>
+            {% if can_upload_files %}
             <button class="btn btn-primary btn-sm" data-click="#photoUploadInput">
                 <i class="fas fa-upload"></i> Upload Photos
             </button>
             <input type="file" id="photoUploadInput" accept="image/*" multiple style="display:none;" data-on-change="uploadVehiclePhotos" data-args='["$files"]'>
+            {% endif %}
         </div>
 
         <div id="photoUploadProgress" class="alert alert-info d-none mb-3">
@@ -594,9 +596,9 @@
                             <p class="card-text text-truncate mb-1" style="color:#e2e8f0;font-size:0.78rem;" title="{{ photo.original_filename }}">{{ photo.original_filename }}</p>
                             <div class="d-flex justify-content-between align-items-center">
                                 <small style="color:#64748b;">{{ photo.file_size|filesizeformat }}</small>
-                                <button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:0.7rem;" data-action="deleteVehiclePhoto" data-args='[{{ photo.id }}]'>
+                                {% if can_delete_files %}<button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:0.7rem;" data-action="deleteVehiclePhoto" data-args='[{{ photo.id }}]'>
                                     <i class="fas fa-trash"></i>
-                                </button>
+                                </button>{% endif %}
                             </div>
                         </div>
                     </div>
@@ -975,7 +977,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (d.photoIds && d.photoIds.length > 0) {
                         photoHtml = `<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap;">`;
                         d.photoIds.slice(0, 4).forEach(pid => {
-                            photoHtml += `<img src="/files/attachments/${pid}/" style="width:56px;height:42px;object-fit:cover;border-radius:3px;border:1px solid #475569;cursor:pointer;" data-open-url="/files/attachments/${pid}/">`;
+                            photoHtml += `<img src="/files/serve/${pid}/" style="width:56px;height:42px;object-fit:cover;border-radius:3px;border:1px solid #475569;cursor:pointer;" data-open-url="/files/serve/${pid}/">`;
                         });
                         if (d.photoIds.length > 4) photoHtml += `<span style="font-size:0.7rem;color:#94a3b8;align-self:center;">+${d.photoIds.length - 4} more</span>`;
                         photoHtml += `</div>`;

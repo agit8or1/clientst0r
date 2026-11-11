@@ -58,6 +58,7 @@ COMMAND_TASKS = {
     'psa_purge_secure_replies': ('psa_purge_secure_replies', []),
     'agreement_reminders': ('agreement_reminders', []),
     'kb_link_check': ('kb_link_check', []),
+    'ldap_group_sync': ('ldap_group_sync', []),
 }
 
 

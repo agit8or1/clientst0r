@@ -44,6 +44,11 @@
                     {% endif %}
                     <dt class="col-5 text-muted small">Added</dt>
                     <dd class="col-7 small">{{ contact.created_at|date:"M j, Y" }}</dd>
+                    {% if show_ticket_site %}
+                    <dt class="col-5 text-muted small">Default ticket site</dt>
+                    <dd class="col-7 small">{{ default_ticket_site.name|default:"None" }}
+                        <a href="{% url 'psa:requester_sites' %}" class="ms-1">change</a></dd>
+                    {% endif %}
                 </dl>
                 {% if contact.notes %}
                 <hr class="my-2">

@@ -163,9 +163,12 @@ def asset_detail(request, pk):
     # never shows another customer's machine here.
     # Technicians only, like the ticket page: RMM status, software, alerts
     # and the console links are MSP working data, never shown to customers.
+    # The integrations_view flag (or RMM device access) for this customer
+    # decides it, as it does for the same devices under /integrations/.
     from integrations.rmm_association import exposed_devices, summaries_for_asset
+    from integrations.rmm_visibility import can_see_rmm_data
     from psa.visibility import is_msp_staff
-    if is_msp_staff(request.user):
+    if can_see_rmm_data(request.user, asset_org):
         rmm_devices = exposed_devices(asset).prefetch_related('software', 'alerts')
         rmm_summaries = summaries_for_asset(asset)
     else:
@@ -215,6 +218,8 @@ def asset_detail(request, pk):
         'custom_field_rows': display_rows(asset),
         'relationships': relationships,
         'asset_images': asset_images,
+        'can_upload_files': has_perm_for_org(request.user, asset_org, 'files_upload'),
+        'can_delete_files': has_perm_for_org(request.user, asset_org, 'files_delete'),
         'in_global_view': in_global_view,
         'has_ai': has_ai,
         'rmm_devices': rmm_devices,
@@ -380,7 +385,21 @@ def contact_detail(request, pk):
     if not request.user.is_superuser:
         notes_qs = notes_qs.filter(is_private=False) | notes_qs.filter(author=request.user)
 
+    # Staff: the contact's default ticket site (Phase 60.6), set on the PSA
+    # requester sites page.
+    from psa.feature_flags import is_psa_enabled
+    from psa.visibility import is_msp_staff
+    show_ticket_site = is_psa_enabled() and is_msp_staff(request.user)
+    default_ticket_site = None
+    if show_ticket_site:
+        from psa.models import RequesterDefaultSite
+        row = RequesterDefaultSite.objects.filter(
+            organization=org, contact=contact).select_related('location').first()
+        default_ticket_site = row.location if row else None
+
     return render(request, 'assets/contact_detail.html', {
+        'show_ticket_site': show_ticket_site,
+        'default_ticket_site': default_ticket_site,
         'contact': contact,
         'assets': assets,
         'ratings': ratings_qs,
