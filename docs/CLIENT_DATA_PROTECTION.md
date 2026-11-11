@@ -124,6 +124,15 @@ Evidence: `psa/views.py` (`ticket_detail`, `STAFF_ONLY_TICKET_CONTEXT`,
 `integrations/tests_rmm_association.py`
 (`test_asset_page_offers_rmm_to_technicians_only`).
 
+The RMM pages themselves (`/integrations/rmm/`: devices, software, alerts,
+console links, connections, sync) answer 403 to customer users, whatever role
+they hold at their own organization. Among technicians, deleting a device or
+changing a connection needs an administrator, a sync needs write access, and
+a device outside the selected customer answers 404. Evidence:
+`accounts/middleware.py` (`STAFF_ONLY_PREFIXES`), `integrations/views.py`
+(`rmm_staff_only`, `rmm_device_delete`); tests
+`integrations/tests_rmm_scope.py`.
+
 ## A secret sent with a ticket reply
 
 *Example.* Ridgeline's new starter needs a temporary password. The
