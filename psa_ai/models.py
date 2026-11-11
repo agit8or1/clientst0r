@@ -575,6 +575,12 @@ class Rem0teAlertEvent(models.Model):
     body = models.JSONField(default=dict)
     received_via = models.CharField(max_length=8, default='push')
     received_at = models.DateTimeField(auto_now_add=True)
+    # False: authentic (signature verified) but not applied — e.g. a shape
+    # this ClientSt0r does not understand. Kept so the gap-free cursor moves
+    # on, shown on the connection's health, and re-tried by reconciliation
+    # after the next successful capabilities check.
+    applied = models.BooleanField(default=True)
+    problem = models.CharField(max_length=300, blank=True, default='')
 
     class Meta:
         db_table = 'psa_ai_rem0te_alert_events'
@@ -608,6 +614,10 @@ class Rem0teAlertTicket(models.Model):
     link_attempts = models.PositiveIntegerField(default=0)
     next_link_at = models.DateTimeField(null=True, blank=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
+    # Contract revision 2: Rem0te's redacted patch summary of the computer on
+    # a REBOOT_PENDING alert (KB numbers, states, ages, labels only), as of
+    # the latest event. Empty for other alerts and revision-1 peers.
+    patch_summary = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

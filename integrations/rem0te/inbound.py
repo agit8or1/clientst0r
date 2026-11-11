@@ -70,16 +70,27 @@ def authenticate(request) -> Tuple[List, str, str]:
         raise InboundRefused('ClientSt0r has no Rem0te identity configured', 404, 'NOT_CONFIGURED')
     message = protocol.request_signing_string(ident.audience, request.method, request.get_full_path(), ts, nonce,
                                               protocol.sha256_hex(body))
-    verified, known_kid = [], False
+    verified, known = [], []
     for conn in RMMConnection.objects.filter(provider_type='rem0te', is_active=True).order_by('pk'):
         key = pairing.keyring(conn).get(kid)
         if key is None:
             continue
-        known_kid = True
+        known.append(conn)
         if protocol.verify(key, message, sig):
             verified.append(conn)
+    from . import health
     if not verified:
-        raise InboundRefused('signature invalid' if known_kid else f'unknown key id "{kid}"')
+        # Unauthenticated: nothing is stored for an unknown key id (anyone can
+        # send one). A known key id whose signature fails is shown on those
+        # connections — Rem0te's audience for ClientSt0r or its key changed.
+        for conn in known[:20]:
+            health.note(conn, 'inbound_auth', f'Rem0te\'s request signed with key "{kid}" did not verify '
+                                              f'({request.method} {request.path}).', code='INBOUND_SIGNATURE',
+                        action="Check ClientSt0r's audience (peerAudience in the peers file) and Rem0te's "
+                               'signing key on this connection.')
+        raise InboundRefused('signature invalid' if known else f'unknown key id "{kid}"')
+    for conn in verified:
+        health.clear(conn, 'inbound_auth')
     try:
         with transaction.atomic():
             Rem0teReplayGuard.objects.create(key=f'in:{kid}:{nonce}', expires_at=timezone.now() + NONCE_TTL)

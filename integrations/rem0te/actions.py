@@ -29,6 +29,7 @@ from . import client, pairing, protocol, schema
 logger = logging.getLogger('integrations.rem0te')
 
 POLL_EVERY = timedelta(seconds=30)
+EXPIRY_GRACE = timedelta(minutes=10)
 
 # Rem0te's proposal status → RMMRequest.status.
 STATUS_MAP = {
@@ -140,9 +141,21 @@ def send(req) -> str:
         # idempotency answers with the original if the first one landed.
         _update(req, error=f'{r.message} ClientSt0r will retry.'[:500])
         return 'retrying'
+    from . import health
+    if r.code == 'CONTAINED' or r.status == 423:
+        # A containment pause: not a rejection of this proposal. Rem0te's
+        # free-text pause reason is not kept.
+        why = ('Rem0te has paused approved actions for this business (containment). Nothing was proposed; propose '
+               'it again once a Rem0te administrator lifts the pause.')
+        _update(req, status='unavailable', remote_status='CONTAINED', error=why)
+        health.note(req.connection, 'actions', why, code='CONTAINED',
+                    action='A Rem0te administrator lifts the pause once the review is done.')
+        return 'unavailable'
     text = REFUSAL_TEXT.get(r.code, 'Rem0te refused the proposal.')
     _update(req, status='rejected' if r.status in (400, 403, 409) else 'failed', remote_status=r.code[:40],
             error=f'{text} ({r.code}: {r.message})'[:500])
+    if r.status not in (400, 409):
+        health.note(req.connection, 'actions', f'{text} ({r.code})', code=r.code)
     return 'failed'
 
 
@@ -164,15 +177,23 @@ def refresh(req, force=False) -> str:
         _apply_proposal(req, r.data)
     else:
         _update(req, error=f'Could not read the proposal from Rem0te ({r.code}: {r.message})'[:500])
+        if req.remote_status == 'awaiting_approval' and req.approval_expires_at \
+                and timezone.now() > req.approval_expires_at + EXPIRY_GRACE:
+            # Rem0te's approval window is over and Rem0te cannot be asked:
+            # nothing can be approved any more, so stop showing it as open.
+            _update(req, status='expired', remote_status='expired',
+                    status_note='The approval window ended (Rem0te could not be reached to confirm).')
     return req.status
 
 
-def poll_open(limit=100) -> int:
+def poll_open(limit=100, connection=None) -> int:
     from psa_ai.models import RMMRequest
     n = 0
     qs = (RMMRequest.objects.filter(connection__provider_type='rem0te', kind=RMMRequest.KIND_FIX)
-          .exclude(status__in=['succeeded', 'failed', 'rejected', 'expired', 'unavailable', 'completed', 'sent'])
-          .select_related('connection', 'actor').order_by('updated_at')[:limit])
+          .exclude(status__in=['succeeded', 'failed', 'rejected', 'expired', 'unavailable', 'completed', 'sent']))
+    if connection is not None:
+        qs = qs.filter(connection=connection)
+    qs = qs.select_related('connection', 'actor').order_by('updated_at')[:limit]
     for req in qs:
         try:
             refresh(req)
