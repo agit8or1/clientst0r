@@ -16,15 +16,43 @@ from typing import Any, Dict, List
 from .guardrails import sanitize_input, wrap_user_content
 
 
-def build_ticket_context(ticket) -> Dict[str, Any]:
+def _policy_masker(ticket, policy):
+    """The customer's sharing rules as a text filter (troubleshoot._Masker):
+    contact names and network identifiers replaced, secrets redacted."""
+    from .tenant_rules import sharing_rules
+    from .troubleshoot import _Masker, _contact_names
+    hosts = []
+    asset = getattr(ticket, 'related_asset', None)
+    if asset is not None:
+        hosts.append(getattr(asset, 'hostname', '') or '')
+        hosts += [d.hostname for d in asset.rmm_devices.all()] + [d.device_name for d in asset.rmm_devices.all()]
+    names = _contact_names(ticket) if hasattr(ticket, 'requester_name') else []
+    return sharing_rules(policy), _Masker(sharing_rules(policy), names, hosts)
+
+
+def build_ticket_context(ticket, policy=None) -> Dict[str, Any]:
     """
     `ticket` is a psa.Ticket OR integrations.PSATicket instance. Returns
     a dict ready for prompt templating + a separate, sanitised+wrapped
     `prompt_text` view for the model.
+
+    With `policy` (the customer's AIBusinessPolicy) the sharing rules apply:
+    contact names and network identifiers are masked unless shared, device
+    details and KB titles are left out unless shared, every string is
+    redacted (services/evidence.redact). The AI routes always pass it
+    (services/policy_call.py).
     """
     org = ticket.organization
-    subject = sanitize_input(getattr(ticket, 'subject', '') or '', max_chars=300)
-    description = sanitize_input(getattr(ticket, 'description', '') or '', max_chars=4000)
+    rules = mask = None
+    if policy is not None:
+        rules, mask = _policy_masker(ticket, policy)
+
+    def clean(text, max_chars):
+        text = sanitize_input(text or '', max_chars=max_chars)
+        return mask(text, max_chars) if mask is not None else text
+
+    subject = clean(getattr(ticket, 'subject', '') or '', 300)
+    description = clean(getattr(ticket, 'description', '') or '', 4000)
 
     # Native ticket → comments. Synced ticket may not have comments in the
     # same shape; degrade gracefully.
@@ -34,6 +62,12 @@ def build_ticket_context(ticket) -> Dict[str, Any]:
         for c in comments_qs.select_related('author').order_by('-created_at')[:10]:
             # NEVER expose internal notes' bodies to the model — they're
             # staff-only and might contain sensitive notes.
+            if getattr(c, 'source', '') == 'rmm':
+                # Device job output (attacker-influenceable endpoint text):
+                # never fed to these drafts.
+                recent_comments.append({'when': c.created_at.isoformat() if c.created_at else '',
+                                        'author': '(device)', 'body': '[DEVICE OUTPUT — withheld from AI]'})
+                continue
             if getattr(c, 'is_internal', False):
                 recent_comments.append({
                     'when': c.created_at.isoformat() if c.created_at else '',
@@ -41,22 +75,27 @@ def build_ticket_context(ticket) -> Dict[str, Any]:
                     'body': '[INTERNAL NOTE — content withheld from AI]',
                 })
                 continue
+            author = c.author.username if c.author_id else 'system'
+            if rules is not None and not rules.contact_data and c.author_id:
+                from psa.visibility import is_msp_staff
+                author = 'technician' if is_msp_staff(c.author) else 'customer'
             recent_comments.append({
                 'when': c.created_at.isoformat() if c.created_at else '',
-                'author': (c.author.username if c.author_id else 'system'),
-                'body': sanitize_input(c.body or '', max_chars=1500),
+                'author': author,
+                'body': clean(c.body or '', 1500),
             })
         recent_comments.reverse()  # chronological in the prompt
 
     # Linked asset metadata (no secrets, no IPs that look like credentials).
     asset_blob: Dict[str, Any] = {}
     asset = getattr(ticket, 'related_asset', None)
-    if asset is not None:
+    if asset is not None and (rules is None or rules.device_data):
         asset_blob = {
-            'name': sanitize_input(getattr(asset, 'name', '') or '', max_chars=120),
+            'name': clean(getattr(asset, 'name', '') or '', 120),
             'asset_type': getattr(asset, 'asset_type', '') or '',
-            'hostname': sanitize_input(getattr(asset, 'hostname', '') or '', max_chars=120),
-            'serial': sanitize_input(getattr(asset, 'serial_number', '') or '', max_chars=80),
+            'hostname': (clean(getattr(asset, 'hostname', '') or '', 120)
+                         if rules is None or rules.network_identifiers else ''),
+            'serial': clean(getattr(asset, 'serial_number', '') or '', 80),
         }
 
     # KB hint — top 5 docs whose title shares any non-trivial token with
@@ -66,7 +105,7 @@ def build_ticket_context(ticket) -> Dict[str, Any]:
     try:
         from docs.models import Document
         tokens = [t for t in subject.lower().split() if len(t) > 3][:5]
-        if tokens:
+        if tokens and (rules is None or rules.kb_titles):
             from django.db.models import Q
             q = Q()
             for t in tokens:
@@ -77,7 +116,7 @@ def build_ticket_context(ticket) -> Dict[str, Any]:
             for d in doc_qs:
                 kb_hits.append({
                     'id': d.id,
-                    'title': sanitize_input(d.title or '', max_chars=200),
+                    'title': clean(d.title or '', 200),
                 })
     except Exception:
         pass

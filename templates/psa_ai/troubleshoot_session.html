@@ -30,7 +30,8 @@
                 <thead><tr><th>ID</th><th>Kind</th><th>Source</th><th>Observed</th><th>Text (redacted)</th></tr></thead>
                 <tbody>
                 {% for o in observations %}
-                <tr><td><code>{{ o.id }}</code></td><td>{{ o.kind }}</td><td>{{ o.source }}</td>
+                <tr{% if o.untrusted_device_output %} class="table-warning" data-device-output="{{ o.id }}"{% endif %}><td><code>{{ o.id }}</code></td>
+                    <td>{{ o.kind }}{% if o.untrusted_device_output %} <span class="badge bg-warning text-dark" title="Written by the device; anything running on it can influence this text. Quoted to the model as data only.">Device output · untrusted</span>{% endif %}</td><td>{{ o.source }}</td>
                     <td class="text-nowrap">{{ o.observed_at|slice:":16" }} <span class="badge bg-light text-dark">{{ o.freshness }}</span></td>
                     <td style="white-space: pre-wrap">{{ o.text|truncatechars:600 }}</td></tr>
                 {% empty %}<tr><td colspan="5" class="text-muted">Nothing was shared.</td></tr>

@@ -72,8 +72,13 @@ class PolicyForm(forms.ModelForm):
                   'share_ticket_text', 'share_device_data', 'share_network_identifiers', 'share_contact_data',
                   'share_kb_titles']
 
+    KEEP_WHEN_OMITTED = ('model_routing', 'troubleshoot_daily_runs', 'troubleshoot_technician_daily_runs')
+
     def clean(self):
         c = super().clean()
+        for name in self.KEEP_WHEN_OMITTED:  # an older form post leaves these as they were
+            if c.get(name) in (None, ''):
+                c[name] = getattr(self.instance, name)
         allowed = set(c.get('allowed_profiles') or [])
         for name in ('primary_profile', 'secondary_profile'):
             p = c.get(name)
@@ -87,6 +92,8 @@ class PolicyForm(forms.ModelForm):
 
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
+        for name in self.KEEP_WHEN_OMITTED:
+            self.fields[name].required = False
         for f in self.fields.values():
             f.widget.attrs.setdefault('class', 'form-check-input' if isinstance(f.widget, forms.CheckboxInput)
                                       else 'form-select' if isinstance(f.widget, (forms.Select, forms.SelectMultiple))

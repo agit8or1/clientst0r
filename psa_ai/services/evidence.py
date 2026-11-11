@@ -118,7 +118,11 @@ def build_evidence(ticket) -> dict:
 
     comments = ticket.comments.select_related('author', 'author__profile').order_by('created_at', 'pk')
     internal = comments.filter(is_internal=True).count()
-    public = list(comments.filter(is_internal=False, is_system=False))
+    # Device job output posted to the ticket (source='rmm') is attacker-
+    # influenceable text from the endpoint. It is never part of this evidence
+    # as conversation; AI Troubleshoot quotes it separately as untrusted.
+    device_output = comments.filter(source='rmm').count()
+    public = list(comments.filter(is_internal=False, is_system=False).exclude(source='rmm'))
     omitted_old = max(0, len(public) - MAX_COMMENTS)
     for n, c in enumerate(public[-MAX_COMMENTS:], start=1):
         items.append({'id': f'C{n}', 'kind': 'comment', 'role': _author_role(c),
@@ -142,6 +146,7 @@ def build_evidence(ticket) -> dict:
             'internal_notes': internal,
             'attachments': attachments,
             'older_comments': omitted_old,
+            'device_output_notes': device_output,
             'vault_data': 'never included',
             'raw_rmm_payloads': 'never included',
             'remote_session_data': 'never included',
