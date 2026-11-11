@@ -71,7 +71,19 @@ def _choices():
         'fallback_choices': FALLBACK_CHOICES,
         'proficiencies': PROFICIENCIES,
         'weekdays': WEEKDAYS,
+        'sites': _site_choices(),
     }
+
+
+def _site_choices():
+    """Every customer's active sites, labelled with the customer."""
+    try:
+        from locations.models import Location
+        from psa.ticket_site import INACTIVE_STATUSES
+        return list(Location.objects.exclude(status__in=INACTIVE_STATUSES)
+                    .select_related('organization').order_by('organization__name', 'name')[:2000])
+    except Exception:  # noqa: BLE001 — locations optional
+        return []
 
 
 def _contract_types():
@@ -241,10 +253,14 @@ def payload_from_post(post):
         'contract': post.get('contract') if post.get('contract') in ('yes', 'no') else 'any',
         'contract_types': [s for s in post.getlist('contract_types') if s][:20],
         'hours': post.get('hours') if post.get('hours') in ('business', 'after') else 'any',
+        'sites': ids('sites')[:50],
+        'site': post.get('site') if post.get('site') in ('set', 'unset') else 'any',
     }
     if (post.get('sla_pct_at_least') or '').strip():
         conditions['sla_pct_at_least'] = _int(post.get('sla_pct_at_least'), 0, 0, 1000)
     conditions = {k: v for k, v in conditions.items() if v not in ([], '', None)}
+    if conditions.get('site') == 'any':
+        conditions.pop('site')
     dtype = post.get('destination_type') or 'queue'
     if dtype not in dict(DESTINATION_CHOICES):
         dtype = 'queue'
@@ -402,6 +418,8 @@ def _normalise_payload(raw):
     q['keywords_any'] = ','.join(c.get('keywords_any') or [])
     q['contract'] = str(c.get('contract') or 'any')
     q['hours'] = str(c.get('hours') or 'any')
+    q.setlist('sites', [str(v) for v in (c.get('sites') or [])])
+    q['site'] = str(c.get('site') or 'any')
     if c.get('sla_pct_at_least') not in (None, ''):
         q['sla_pct_at_least'] = str(c['sla_pct_at_least'])
     d = raw.get('destination') or {}
@@ -547,6 +565,13 @@ def _sample_ticket(get):
         status=TicketStatus.objects.filter(slug='new').first(),
         tags=[w.strip().lower() for w in (get.get('tags') or '').split(',') if w.strip()],
     )
+    site_id = _int(get.get('site'), 0, 0, 10 ** 12)
+    if site_id:
+        from psa.ticket_site import site_allowed
+        from locations.models import Location
+        loc = Location.objects.filter(pk=site_id).first()
+        if loc is not None and site_allowed(org, loc):
+            t.site = loc
     service_slug = (get.get('service') or '').strip()
     if service_slug:
         t.custom_fields = {'service_request': {'catalog_item_slug': service_slug}}
@@ -565,7 +590,7 @@ def test_routing(request):
     at = _dt(params.get('at')) if params.get('at') else None
     if params.get('ticket_number'):
         ticket = (Ticket.objects.select_related('organization', 'priority', 'queue', 'ticket_type',
-                                                'status', 'assigned_to')
+                                                'status', 'assigned_to', 'site')
                   .filter(ticket_number=params['ticket_number'].strip()).first())
         if ticket is None or not _ticket_in_scope(request.user, ticket):
             error = 'No ticket with that number that you are authorized to see.'

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Dispatch locations{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 900px;">
+  <h1 class="h3 mb-3"><i class="fa-solid fa-route me-2"></i>Dispatch locations</h1>
+  <p class="text-muted">Geo-aware dispatch shows each sharing technician's distance and an estimated travel time to a ticket's site on the dispatch board, and lets routing rules choose the nearest eligible technician. Technicians opt in themselves; {{ sharing_count }} do{{ sharing_count|pluralize:"es," }} now, and {{ position_count }} position{{ position_count|pluralize }} {{ position_count|pluralize:"is,are" }} stored.</p>
+
+  <form method="post" class="card">
+    {% csrf_token %}
+    <div class="card-body small">
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" name="enabled" id="geo-enabled" {% if cfg.enabled %}checked{% endif %}>
+        <label class="form-check-label" for="geo-enabled"><strong>Use technician positions for dispatch</strong> (switching off deletes every stored position)</label>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-4"><label class="form-label">Use positions newer than (minutes)</label><input type="number" min="1" max="1440" name="freshness_minutes" class="form-control form-control-sm" value="{{ cfg.freshness_minutes }}"></div>
+        <div class="col-md-4"><label class="form-label">Delete positions after (hours)</label><input type="number" min="1" max="168" name="retention_hours" class="form-control form-control-sm" value="{{ cfg.retention_hours }}"></div>
+        <div class="col-md-4"><label class="form-label">Distance unit</label><select name="distance_unit" class="form-select form-select-sm">{% for c, l in unit_choices %}<option value="{{ c }}" {% if cfg.distance_unit == c %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+        <div class="col-md-4"><label class="form-label">Average speed (unit per hour)</label><input type="number" min="1" max="200" name="average_speed" class="form-control form-control-sm" value="{{ cfg.average_speed }}"></div>
+        <div class="col-md-4"><label class="form-label">Road factor</label><input type="number" step="0.05" min="1" max="3" name="road_factor" class="form-control form-control-sm" value="{{ cfg.road_factor }}"><small class="text-muted">Straight line × factor ≈ road distance.</small></div>
+      </div>
+      <hr>
+      <h6>Optional routing server</h6>
+      <p class="text-muted">Without one, every estimate is straight-line distance at the average speed. With an OSRM-compatible server you run or contract, a dispatcher can ask for road estimates for one ticket; the request goes through the outbound connection policy and sends only two coordinate pairs. It is never called while pages load or routing runs.</p>
+      <div class="row g-3">
+        <div class="col-md-5"><label class="form-label">Provider</label><select name="routing_provider" class="form-select form-select-sm">{% for c, l in provider_choices %}<option value="{{ c }}" {% if cfg.routing_provider == c %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+        <div class="col-md-7"><label class="form-label">Server address</label><input type="url" name="routing_base_url" class="form-control form-control-sm" value="{{ cfg.routing_base_url }}" placeholder="https://router.example.com"></div>
+      </div>
+    </div>
+    <div class="card-footer"><button class="btn btn-primary btn-sm">Save</button></div>
+  </form>
+</div>
+{% endblock %}

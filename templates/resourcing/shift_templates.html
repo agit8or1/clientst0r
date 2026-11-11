@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Shift templates{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="mb-1"><i class="fas fa-layer-group"></i> Shift templates</h1>
+        <p class="text-muted mb-0">Reusable shifts for the <a href="{% url 'resourcing:shift_schedule' %}">weekly schedule</a>. Times are in each technician's own time zone; an end at or before the start finishes the next day.</p>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card">
+            <table class="table table-sm mb-0">
+                <thead class="table-light"><tr><th>Name</th><th>Hours</th><th>On call</th><th>Used by</th><th></th></tr></thead>
+                <tbody>
+                    {% for t in templates %}
+                    <tr{% if not t.is_active %} class="text-muted"{% endif %}>
+                        <td>{{ t.name }}{% if not t.is_active %} <span class="badge text-bg-secondary">off</span>{% endif %}</td>
+                        <td>{{ t.start_time|time:"H:i" }}–{{ t.end_time|time:"H:i" }}{% if t.overnight %} <span class="text-muted">(overnight)</span>{% endif %}</td>
+                        <td>{% if t.is_on_call %}<span class="badge text-bg-warning">on call</span>{% endif %}</td>
+                        <td>{{ t.assignments.count }}</td>
+                        <td class="text-end d-flex gap-1 justify-content-end">
+                            <a class="btn btn-sm btn-outline-secondary" href="?edit={{ t.pk }}">Edit</a>
+                            <form method="post">{% csrf_token %}<input type="hidden" name="delete" value="{{ t.pk }}"><button class="btn btn-sm btn-outline-danger">Delete</button></form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-muted text-center py-3">No shift templates yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header"><strong>{% if edit %}Edit "{{ edit.name }}"{% else %}New shift template{% endif %}</strong></div>
+            <div class="card-body">
+                <form method="post" class="small">
+                    {% csrf_token %}
+                    {% if edit %}<input type="hidden" name="pk" value="{{ edit.pk }}">{% endif %}
+                    <div class="mb-2"><label class="form-label">Name</label><input type="text" name="name" class="form-control form-control-sm" required value="{{ edit.name|default:'' }}" placeholder="e.g. Early, Night on-call"></div>
+                    <div class="row g-2 mb-2">
+                        <div class="col"><label class="form-label">Start</label><input type="time" name="start_time" class="form-control form-control-sm" required value="{{ edit.start_time|time:'H:i' }}"></div>
+                        <div class="col"><label class="form-label">End</label><input type="time" name="end_time" class="form-control form-control-sm" required value="{{ edit.end_time|time:'H:i' }}"></div>
+                    </div>
+                    <div class="form-check"><input class="form-check-input" type="checkbox" name="is_on_call" id="tpl-oncall" {% if edit.is_on_call %}checked{% endif %}><label class="form-check-label" for="tpl-oncall">On-call shift (counts as on call for ticket routing)</label></div>
+                    <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="is_active" id="tpl-active" {% if not edit or edit.is_active %}checked{% endif %}><label class="form-check-label" for="tpl-active">Active</label></div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-4"><label class="form-label">Colour</label><input type="text" name="color" class="form-control form-control-sm" value="{{ edit.color|default:'' }}" placeholder="#0d6efd"></div>
+                        <div class="col-8"><label class="form-label">Notes</label><input type="text" name="notes" class="form-control form-control-sm" value="{{ edit.notes|default:'' }}"></div>
+                    </div>
+                    <button class="btn btn-sm btn-primary">Save</button>
+                    {% if edit %}<a href="{% url 'resourcing:shift_templates' %}" class="btn btn-sm btn-link">Cancel</a>{% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

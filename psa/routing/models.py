@@ -99,6 +99,7 @@ DEST_TEAM = 'team'
 DEST_ROUND_ROBIN = 'round_robin'
 DEST_SKILL = 'skill_match'
 DEST_LEAST_LOADED = 'least_loaded'
+DEST_NEAREST = 'nearest'
 DESTINATION_CHOICES = [
     (DEST_QUEUE, 'Queue only'),
     (DEST_TECHNICIAN, 'Named technician'),
@@ -106,8 +107,9 @@ DESTINATION_CHOICES = [
     (DEST_ROUND_ROBIN, 'Round-robin'),
     (DEST_SKILL, 'Skill match'),
     (DEST_LEAST_LOADED, 'Least-loaded eligible technician'),
+    (DEST_NEAREST, 'Nearest eligible technician (shared position)'),
 ]
-PICKING_DESTINATIONS = {DEST_TECHNICIAN, DEST_ROUND_ROBIN, DEST_SKILL, DEST_LEAST_LOADED}
+PICKING_DESTINATIONS = {DEST_TECHNICIAN, DEST_ROUND_ROBIN, DEST_SKILL, DEST_LEAST_LOADED, DEST_NEAREST}
 
 FALLBACK_QUEUE = 'queue'
 FALLBACK_TRIAGE = 'triage'
@@ -125,7 +127,8 @@ class RoutingRule(models.Model):
     conditions: {sources, ticket_types, priorities, queues, tags_any,
                  keywords_any, services, contract_types, contract
                  ('any'|'yes'|'no'), hours ('any'|'business'|'after'),
-                 sla_pct_at_least}
+                 sla_pct_at_least, sites (Location ids), site
+                 ('any'|'set'|'unset')}
     destination: {type, queue_id, user_id, team_id, skills, min_proficiency,
                   require_on_call, require_available}
     fallback: {type: 'queue'|'triage', queue_id}

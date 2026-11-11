@@ -193,7 +193,7 @@ def _route_once(ticket_id, trigger, key, *, now=None):
 
         ticket = (Ticket.objects.select_for_update()
                   .select_related('organization', 'status', 'priority', 'queue',
-                                  'ticket_type', 'assigned_to')
+                                  'ticket_type', 'assigned_to', 'site')
                   .get(pk=ticket_id))
         decision.previous_assignee_id = ticket.assigned_to_id
         decision.previous_queue_id = ticket.queue_id

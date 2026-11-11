@@ -359,3 +359,107 @@ def working_days_in_period(user, start_date, end_date, organization=None):
         days += 1
         cur += timedelta(days=1)
     return days
+
+
+# ---------------------------------------------------------------------------
+# Phase 11 — shift templates + weekly shift schedule
+# ---------------------------------------------------------------------------
+
+
+class ShiftTemplate(models.Model):
+    """A reusable shift: "Early 07:00–15:00", "Night on-call 22:00–06:00".
+
+    Times are wall-clock times in each technician's profile time zone (the
+    same rule as WorkingHours). An end at or before the start runs past
+    midnight into the next day. `is_on_call` shifts make the technician on
+    call for routing while they run.
+    """
+    name = models.CharField(max_length=100)
+    start_time = models.TimeField()
+    end_time = models.TimeField(help_text='At or before the start = ends the next day.')
+    is_on_call = models.BooleanField(
+        default=False, help_text='Technicians on this shift count as on call for ticket routing.')
+    color = models.CharField(max_length=20, blank=True, default='',
+                             help_text='Optional CSS colour for the schedule, e.g. #0d6efd.')
+    notes = models.CharField(max_length=200, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'resourcing_shift_templates'
+        ordering = ['start_time', 'name']
+
+    def __str__(self):
+        return f'{self.name} {self.start_time:%H:%M}–{self.end_time:%H:%M}'
+
+    @property
+    def overnight(self):
+        return self.end_time <= self.start_time
+
+    @property
+    def duration_minutes(self):
+        start = self.start_time.hour * 60 + self.start_time.minute
+        end = self.end_time.hour * 60 + self.end_time.minute
+        return (end - start) % (24 * 60) or 24 * 60
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.color and not all(ch.isalnum() or ch == '#' for ch in self.color):
+            raise ValidationError({'color': 'Use a colour name or a #hex value.'})
+
+
+class ShiftAssignment(models.Model):
+    """A template worked on some weekdays by one technician or by a whole team
+    (auth.Group), from `effective_from` until `effective_until` (blank = no
+    end). Dispatch, on-call and routing availability read the schedule through
+    resourcing/shifts.py."""
+    template = models.ForeignKey(ShiftTemplate, on_delete=models.CASCADE, related_name='assignments')
+    user = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             null=True, blank=True, related_name='resourcing_shift_assignments')
+    team = models.ForeignKey('auth.Group', on_delete=models.CASCADE, null=True, blank=True,
+                             related_name='resourcing_shift_assignments')
+    weekdays = models.JSONField(default=list, help_text='0=Monday .. 6=Sunday')
+    effective_from = models.DateField()
+    effective_until = models.DateField(null=True, blank=True)
+    notes = models.CharField(max_length=200, blank=True)
+    created_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'resourcing_shift_assignments'
+        ordering = ['effective_from', 'pk']
+        indexes = [models.Index(fields=['user', 'effective_from']),
+                   models.Index(fields=['team', 'effective_from'])]
+        constraints = [
+            models.CheckConstraint(
+                condition=(models.Q(user__isnull=False, team__isnull=True)
+                           | models.Q(user__isnull=True, team__isnull=False)),
+                name='resourcing_shift_user_xor_team'),
+        ]
+
+    def __str__(self):
+        who = self.user.get_username() if self.user_id else f'team {self.team}'
+        return f'{who}: {self.template} on {self.weekday_labels}'
+
+    @property
+    def weekday_labels(self):
+        names = dict(WorkingHours.WEEKDAYS)
+        return ', '.join(names.get(int(d), '?')[:3] for d in sorted(self.weekdays or []))
+
+    def covers(self, day):
+        if day < self.effective_from:
+            return False
+        if self.effective_until and day > self.effective_until:
+            return False
+        return day.weekday() in {int(d) for d in (self.weekdays or [])}
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if bool(self.user_id) == bool(self.team_id):
+            raise ValidationError('Choose a technician or a team.')
+        if not self.weekdays:
+            raise ValidationError({'weekdays': 'Pick at least one weekday.'})
+        if self.effective_until and self.effective_until < self.effective_from:
+            raise ValidationError({'effective_until': 'The end date must be on or after the start date.'})

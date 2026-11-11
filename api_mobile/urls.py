@@ -139,6 +139,7 @@ urlpatterns = [
 
     # Field Ops — Phase 8 (v3.17.410)
     path('locations/', views_field_ops.location_ping_view, name='location_ping'),
+    path('dispatch-sharing/', views_field_ops.dispatch_sharing_view, name='dispatch_sharing'),
     path('timeclock/clock-in/', views_field_ops.clock_in_view, name='clock_in'),
     path('timeclock/clock-out/', views_field_ops.clock_out_view, name='clock_out'),
     path('timeclock/me/', views_field_ops.timeclock_me_view, name='timeclock_me'),

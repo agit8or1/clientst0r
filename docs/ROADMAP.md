@@ -237,16 +237,16 @@ Planned capabilities:
 
 Planned capabilities:
 - Drag/drop dispatch board *(shipped — v3.17.112)*
-- Technician scheduling *(partial — Phase 2 WorkingHours shipped)*
-- Shift management
+- Technician scheduling *(partial — Phase 2 WorkingHours shipped)*; weekly shift schedule *(in progress — on the development branch, not yet released)*: shift templates (start/end in each technician's time zone, overnight shifts, optional on-call flag) assigned per technician or per team on chosen weekdays with start/end dates. Ticket routing availability, on-call, dispatch-board rows, assignment conflict warnings, skill ranking and mobile off-shift ping suppression read the schedule; technicians without a schedule keep using their working hours, so upgrades change nothing until a schedule is entered
+- Shift management *(in progress — on the development branch, not yet released)*: Resourcing → Shift schedule shows a week grid per technician with leave, pending leave and holidays, and marks shifts that clash with them; managers (leave approvers or routing managers) add and remove assignments and see clashes as they save; a template in use is switched off rather than deleted
 - PTO conflict awareness *(11.2 — shipped v3.17.208; extends Phase 2.2 LeaveRequest)*
 - Calendar conflict detection *(11.2 — shipped v3.17.208)*
 - Recurring onsite scheduling *(deferred — handled by `scheduling.ScheduledTask` recurrence; not a separate dispatch surface)*
 - Dispatch prioritization (auto-rank queue by SLA + priority) *(11.1 — shipped v3.17.194)*
 - SLA-aware dispatching — SLA-burn panel for tickets due ≤ 4h *(11.1 — shipped v3.17.194)*
 - Technician utilization metrics *(shipped — Phase 2.3 capacity report)*
-- Geo-aware technician routing *(deferred — needs GPS data on User + Ticket which Phase 8 mobile timeclock will provide; revisit then)*
-- Travel time estimation *(deferred — pending Phase 8 GPS data)*
+- Geo-aware technician routing *(in progress — on the development branch, not yet released)*: off until an administrator switches it on (Field Ops → Dispatch locations). Technicians opt in themselves (web page or mobile API) and see exactly what dispatch holds about them; one last known position per technician, taken from on-shift mobile pings (the geofence centre only for customers in geofence-only mode), used only while fresh (default 30 minutes), deleted after a retention window (default 8 hours), on withdrawal of consent and when the feature is switched off. MSP staff only; customers never see positions, distances or travel times. Routing rules gain a "nearest eligible technician" destination, measured to the ticket's site (60.6) or the customer's primary site
+- Travel time estimation *(in progress — on the development branch, not yet released)*: straight-line distance × a road factor at a configurable average speed, shown on the dispatch board (nearest technician on open unassigned tickets, position age per technician row) and in a per-ticket travel estimate. An optional OSRM-compatible routing server configured by the administrator refines on-demand estimates through the outbound connection policy; it is never called while pages render or routing runs
 - Dispatch heatmaps *(11.3 — shipped v3.17.209)*
 - **Home-dashboard Schedule + Tasks panels** — the main dashboard now leads with a 7-day agenda (scheduled tasks + ticket resolution deadlines, grouped by day, empty days omitted) and an open-work Tasks list ordered most-urgent-first with undated items last. Expiring passwords, tracked expirations and SSL certificates are folded into Tasks rather than sitting in their own panel — an expiry is something somebody has to act on. Replaces the "My Recent", "Recent Activity" and "Expiring Soon" panels, which showed what had already happened. Same shapes as the mobile agenda (v3.17.478), so both surfaces agree on what "upcoming" means *(shipped v3.17.524)*
 
@@ -2154,7 +2154,13 @@ ticket's customer, access or SLA clock.
 - **60.5 Visual builder actions** *(in progress — on the development branch, not yet released)*: the workflow rule builder offers
   round-robin, skill-group and least-loaded assignment; raw JSON rules keep
   working.
-- **60.6 Site conditions** *(planned)*: tickets carry no site yet.
+- **60.6 Site conditions** *(in progress — on the development branch, not yet released)*: tickets carry an optional site (one of the customer's
+  own or shared locations), filled at intake from the asset's site, the requester
+  contact's or portal user's default site, or the customer's only site, and editable
+  on the ticket (optionally remembered as the requester's default). Routing rules and
+  the visual builder match on specific sites or on "has a site / has none"; a site from
+  another customer is a review error. Routing still never changes the customer, access,
+  SLA or the site.
 
 ## Phase 61 — One-customer migration rehearsals (IT Glue, Hudu) **(M · imports)** [in progress]
 

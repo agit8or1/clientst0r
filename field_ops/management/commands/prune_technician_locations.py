@@ -40,3 +40,10 @@ class Command(BaseCommand):
             f'Deleted {deleted} expired TechnicianLocation row(s) '
             f'(retention_until < {today.isoformat()}).'
         ))
+        # Geo-aware dispatch keeps one last-known position per consenting
+        # technician; it has its own, much shorter, retention in hours.
+        from field_ops.geo_dispatch import purge_expired
+        purged = purge_expired()
+        self.stdout.write(self.style.SUCCESS(
+            f'Deleted {purged} expired dispatch position(s).'
+        ))

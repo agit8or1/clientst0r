@@ -543,3 +543,96 @@ class GeofenceVisit(models.Model):
 
     def __str__(self) -> str:
         return f'GeofenceVisit#{self.pk or "?"} u={self.user_id} g={self.geofence_id}'
+
+
+# -----------------------------------------------------------------------------
+# Phase 11 (deferred items) — geo-aware dispatch + travel time estimation
+# -----------------------------------------------------------------------------
+
+DISTANCE_UNIT_CHOICES = (
+    ('mi', 'Miles'),
+    ('km', 'Kilometres'),
+)
+ROUTING_PROVIDER_CHOICES = (
+    ('none', 'None — straight-line estimate only'),
+    ('osrm', 'OSRM-compatible routing server (administrator-configured URL)'),
+)
+
+
+class DispatchGeoSettings(models.Model):
+    """MSP-wide switch and parameters for geo-aware dispatch. One row (pk=1).
+
+    Off on fresh installs and upgrades. While off, no position is kept for
+    dispatch and nothing on the dispatch board or in routing uses location.
+    Reading never creates the row (`load()` returns unsaved defaults).
+    """
+    enabled = models.BooleanField(default=False)
+    freshness_minutes = models.PositiveSmallIntegerField(
+        default=30, help_text='A position older than this is not used.')
+    retention_hours = models.PositiveSmallIntegerField(
+        default=8, help_text='Last-known positions are deleted after this many hours.')
+    distance_unit = models.CharField(max_length=2, choices=DISTANCE_UNIT_CHOICES, default='mi')
+    average_speed = models.PositiveSmallIntegerField(
+        default=30, help_text='Average travel speed, in the distance unit per hour.')
+    road_factor = models.DecimalField(
+        max_digits=4, decimal_places=2, default=Decimal('1.30'),
+        help_text='Straight-line distance × this ≈ road distance.')
+    routing_provider = models.CharField(max_length=10, choices=ROUTING_PROVIDER_CHOICES, default='none')
+    routing_base_url = models.URLField(
+        blank=True, help_text='e.g. https://router.example.com — used only for on-demand road estimates.')
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Dispatch geo settings'
+        verbose_name_plural = 'Dispatch geo settings'
+
+    def __str__(self) -> str:
+        return f'Dispatch geo ({"on" if self.enabled else "off"})'
+
+    @classmethod
+    def load(cls):
+        return cls.objects.filter(pk=1).first() or cls(pk=1)
+
+
+class DispatchLocationConsent(models.Model):
+    """A technician's own choice to share their last known position with
+    dispatch. No row, or `share_with_dispatch=False`, means not shared."""
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                related_name='dispatch_location_consent')
+    share_with_dispatch = models.BooleanField(default=False)
+    decided_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = 'Dispatch location consent'
+
+    def __str__(self) -> str:
+        return f'{self.user_id}: {"shares" if self.share_with_dispatch else "does not share"}'
+
+
+POSITION_SOURCE_CHOICES = (
+    ('gps', 'Mobile app GPS'),
+    ('geofence', 'Inside a customer geofence (centre point; raw position not kept)'),
+)
+
+
+class DispatchPosition(models.Model):
+    """A technician's last known position for dispatch: one row per
+    technician, overwritten by newer pings, deleted when they withdraw
+    consent, when dispatch geo is switched off, and after `retention_hours`.
+    Staff-only; never shown to customers."""
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                related_name='dispatch_position')
+    lat = models.DecimalField(max_digits=9, decimal_places=6)
+    lon = models.DecimalField(max_digits=9, decimal_places=6)
+    accuracy = models.PositiveIntegerField(default=0, help_text='Metres')
+    recorded_at = models.DateTimeField(db_index=True)
+    source = models.CharField(max_length=10, choices=POSITION_SOURCE_CHOICES, default='gps')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Dispatch last-known position'
+
+    def __str__(self) -> str:
+        return f'{self.user_id} @ {self.recorded_at:%Y-%m-%d %H:%M}'
