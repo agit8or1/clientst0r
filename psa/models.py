@@ -275,6 +275,19 @@ class Ticket(models.Model):
         null=True, blank=True, related_name='generated_tickets',
         help_text='Set when the ticket was created by a recurring schedule',
     )
+    # Phase 60.6 — the customer's site (locations.Location) the ticket is
+    # about. Optional; filled at intake when it can be worked out (see
+    # psa/ticket_site.py) and editable on the ticket. Routing rules can match
+    # on it and dispatch measures travel to it; neither changes it.
+    site = models.ForeignKey(
+        'locations.Location', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='psa_tickets',
+        help_text="The customer's site this ticket is about",
+    )
+    site_source = models.CharField(
+        max_length=20, blank=True, default='',
+        help_text='How the site was set: manual, asset, contact, requester or only_site',
+    )
 
     # Severity scoring
     # Phase 40.4 (v3.17.542) — status-page incidents. The flag marks a ticket
@@ -403,6 +416,13 @@ class Ticket(models.Model):
     def save(self, *args, **kwargs):
         if not self.ticket_number:
             self.ticket_number = self._generate_ticket_number()
+        if self.pk is None:
+            try:
+                from psa.ticket_site import fill_on_create
+                fill_on_create(self)
+            except Exception:  # noqa: BLE001 — a site lookup never blocks intake
+                import logging
+                logging.getLogger('psa.ticket_site').exception('site inference failed')
         super().save(*args, **kwargs)
 
     @property
@@ -585,6 +605,41 @@ class Ticket(models.Model):
 # ---------------------------------------------------------------------------
 # Ticket comments / notes / attachments
 # ---------------------------------------------------------------------------
+
+class RequesterDefaultSite(models.Model):
+    """Phase 60.6 — the site a requester usually raises tickets from, at one
+    customer. Either a contact or a portal user, never both. Read at intake
+    (psa/ticket_site.py) and written when a technician sets a ticket's site
+    and ticks "remember for this requester". Staff-only."""
+    organization = models.ForeignKey('core.Organization', on_delete=models.CASCADE,
+                                     related_name='psa_requester_sites')
+    location = models.ForeignKey('locations.Location', on_delete=models.CASCADE,
+                                 related_name='psa_requester_defaults')
+    contact = models.ForeignKey('assets.Contact', on_delete=models.CASCADE, null=True, blank=True,
+                                related_name='psa_default_sites')
+    user = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             null=True, blank=True, related_name='psa_default_sites')
+    updated_by = models.ForeignKey(django_settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, blank=True, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'psa_requester_default_sites'
+        constraints = [
+            models.UniqueConstraint(fields=['organization', 'contact'], condition=models.Q(contact__isnull=False),
+                                    name='uniq_psa_default_site_contact'),
+            models.UniqueConstraint(fields=['organization', 'user'], condition=models.Q(user__isnull=False),
+                                    name='uniq_psa_default_site_user'),
+            models.CheckConstraint(
+                condition=(models.Q(contact__isnull=False, user__isnull=True)
+                           | models.Q(contact__isnull=True, user__isnull=False)),
+                name='psa_default_site_contact_xor_user'),
+        ]
+
+    def __str__(self):
+        who = self.contact or self.user
+        return f'{who} @ {self.location}'
+
 
 class TicketComment(models.Model):
     """

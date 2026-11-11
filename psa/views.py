@@ -393,6 +393,7 @@ def ticket_detail(request, ticket_number):
     context = {
         **workspace,
         **_ticket_asset_context(ticket, workspace['is_msp_staff']),
+        **_ticket_site_context(ticket, workspace['is_msp_staff']),
         'ticket_rmm_panel': _ticket_rmm_panel(request, ticket, workspace['is_msp_staff']),
         'ticket': ticket,
         'workflow_executions': workflow_executions,
@@ -995,6 +996,20 @@ def _ticket_asset_context(ticket, staff):
     ctx['ticket_asset_choices'] = list(
         Asset.objects.filter(organization_id=ticket.organization_id).order_by('name')
         .only('id', 'name', 'hostname')[:500])
+    return ctx
+
+
+def _ticket_site_context(ticket, staff):
+    """Phase 60.6: the ticket's site and, for technicians, the sites they can
+    pick from. A site that no longer belongs to the customer is hidden."""
+    from psa.ticket_site import SOURCE_CHOICES, site_allowed, sites_for
+    site = ticket.site if ticket.site_id else None
+    if site is not None and not site_allowed(ticket.organization, site):
+        site = None
+    ctx = {'ticket_site': site, 'ticket_site_source': dict(SOURCE_CHOICES).get(ticket.site_source or '', ''),
+           'ticket_site_choices': []}
+    if staff:
+        ctx['ticket_site_choices'] = list(sites_for(ticket.organization)[:500])
     return ctx
 
 
@@ -1782,6 +1797,40 @@ def _ticket_quick_action(request, ticket_number):
         )
         description = f'Asset of {ticket.ticket_number}: {prev.name if prev else "none"} → {asset.name if asset else "none"}'
         audit_extra['previous_asset_id'] = prev.pk if prev else None
+
+    elif action == 'set_site':
+        # Phase 60.6. Changes the site only — never the customer, access,
+        # assignment or SLA. Routing does not re-run because of it.
+        if not is_msp_staff(request.user):
+            from django.core.exceptions import ValidationError as _VE
+            raise _VE('Only MSP technicians can change the ticket site.')
+        from locations.models import Location
+        from psa.ticket_site import SOURCE_MANUAL, remember_default, site_allowed
+        raw = (request.POST.get('site') or '').strip()
+        site = None
+        if raw:
+            site = Location.objects.filter(pk=int(raw) if raw.isdigit() else 0).first()
+            if site is None or not site_allowed(ticket.organization, site):
+                messages.error(request, "That site doesn't belong to this ticket's customer.")
+                return redirect(reverse('psa:ticket_detail', kwargs={'ticket_number': ticket.ticket_number}))
+        prev = ticket.site if ticket.site_id else None
+        ticket.site = site
+        ticket.site_source = SOURCE_MANUAL if site else ''
+        ticket.updated_by = request.user
+        ticket.save(update_fields=['site', 'site_source', 'updated_by', 'updated_at'])
+        remembered = ''
+        if site is not None and request.POST.get('remember') == 'on':
+            remembered = remember_default(ticket, site, actor=request.user)
+        TicketComment.objects.create(
+            ticket=ticket, author=request.user,
+            body=(f'Site: {prev.name if prev else "none"} → {site.name if site else "none"}.'
+                  + (f' Remembered as the {remembered}.' if remembered else '')),
+            is_internal=True, is_system=True,
+        )
+        description = f'Site of {ticket.ticket_number}: {prev.name if prev else "none"} → {site.name if site else "none"}'
+        audit_extra['previous_site_id'] = prev.pk if prev else None
+        if remembered:
+            audit_extra['remembered'] = remembered
 
     elif action == 'set_status':
         try:
@@ -4474,6 +4523,19 @@ def _dispatch_conflicts(tech_user, ticket):
     except Exception:  # noqa: BLE001 — resourcing may be absent
         pass
 
+    # Shift schedule: a technician with a weekly schedule who is not on a
+    # shift when the ticket is due. Technicians without one are not checked.
+    try:
+        from resourcing.shifts import has_schedule, shift_at, user_tz
+        local_due = due.astimezone(user_tz(tech_user))
+        if has_schedule(tech_user, on=local_due.date()) and shift_at(tech_user, due) is None:
+            warnings.append(
+                f'Shift conflict: {tech_user.username} has no scheduled shift at '
+                f'{local_due.strftime("%a %H:%M")}'
+            )
+    except Exception:  # noqa: BLE001 — resourcing may be absent
+        pass
+
     # Calendar overlap. Window = ±2 hours. Excludes the ticket itself
     # and any closed/cancelled tickets.
     from datetime import timedelta
@@ -4494,6 +4556,97 @@ def _dispatch_conflicts(tech_user, ticket):
                 f'{other.ticket_number} due {other_due.strftime("%H:%M %Z")}'.rstrip()
             )
     return warnings
+
+
+def _dispatch_geo(rows, open_unassigned):
+    """Attach `position` to each technician row and return ({ticket_pk:
+    'tech · 3.1 mi · ~8 min'}, enabled). Straight-line estimates only; never
+    raises."""
+    try:
+        from field_ops import geo_dispatch
+        cfg = geo_dispatch.load_settings()
+        if not cfg.enabled:
+            return {}, False
+        techs = [r['tech'] for r in rows if r['is_tech']]
+        pos = geo_dispatch.positions(techs, cfg=cfg)
+        for r in rows:
+            r['position'] = pos.get(r['tech'].pk)
+        located = [r['tech'] for r in rows if r.get('position') is not None]
+        out = {}
+        if located:
+            for t in open_unassigned[:200]:
+                point = geo_dispatch.site_point(t)
+                if point is None:
+                    continue
+                best = min(((u, geo_dispatch.estimate(pos[u.pk], point, cfg)) for u in located),
+                           key=lambda r: (r[1].distance_km, r[0].pk))
+                out[t.pk] = f'{best[0].username} · {best[1].label}'
+        return out, True
+    except Exception:  # noqa: BLE001 — geo is advisory
+        logger.exception('dispatch geo lookup failed')
+        return {}, False
+
+
+def _dispatch_shift_info(users, days):
+    """{user_id: {'now': label or '', 'days': [[labels]], 'conflicts': [str]}}
+    from the weekly shift schedule. Never raises."""
+    out = {}
+    try:
+        from resourcing.shifts import shift_at, week_grid
+        techs = [u for u in users if u.is_active]
+        for row in week_grid(techs, days[0], len(days)):
+            u = row['user']
+            if not any(c['shifts'] for c in row['cells']):
+                continue
+            current = shift_at(u)
+            out[u.id] = {
+                'now': current.label if current else '',
+                'days': [[s.label for s in c['shifts']] for c in row['cells']],
+                'conflicts': [c['conflict'] for c in row['cells']],
+            }
+    except Exception:  # noqa: BLE001 — resourcing may be absent
+        logger.exception('dispatch shift lookup failed')
+    return out
+
+
+@login_required
+@require_psa_enabled
+def dispatch_travel(request, ticket_number):
+    """JSON travel estimates from each technician's last shared position to
+    the ticket's site. Staff dispatchers only. Straight-line by default; with
+    `?road=1` and a routing server configured by the administrator, the five
+    nearest are refined through it. Never exposed to customers."""
+    _staff_or_403(request)
+    org = get_request_organization(request)
+    qs = Ticket.objects.select_related('organization', 'site')
+    if org is not None:
+        qs = qs.filter(organization=org)
+    ticket = get_object_or_404(qs, ticket_number=ticket_number)
+    if not _can_assign(request, ticket.organization):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied('Not allowed to dispatch this ticket.')
+    from field_ops import geo_dispatch
+    cfg = geo_dispatch.load_settings()
+    if not cfg.enabled:
+        return JsonResponse({'enabled': False, 'site': None, 'technicians': []})
+    from psa.visibility import msp_technicians
+    ranked, missing, point = geo_dispatch.nearest(ticket, list(msp_technicians()), cfg=cfg)
+    if point is None:
+        return JsonResponse({'enabled': True, 'site': None, 'technicians': [],
+                             'error': 'The ticket has no site with coordinates.'})
+    road = request.GET.get('road') == '1'
+    pos = geo_dispatch.positions([u for u, _ in ranked], cfg=cfg) if road else {}
+    out = []
+    for i, (u, est) in enumerate(ranked):
+        if road and i < 5:
+            est = geo_dispatch.road_estimate(pos[u.pk], point, cfg)
+        out.append({'user_id': u.pk, 'username': u.username, **est.as_dict()})
+    AuditLog.log(user=request.user, action='read', organization=ticket.organization,
+                 object_type='psa.Ticket', object_id=ticket.pk, object_repr=ticket.ticket_number,
+                 description=f'Travel estimates viewed for {ticket.ticket_number}'
+                             + (' (road estimates)' if road else ''), path=request.path)
+    return JsonResponse({'enabled': True, 'site': point[2], 'technicians': out,
+                         'without_position': len(missing)})
 
 
 @login_required
@@ -4584,15 +4737,34 @@ def dispatch_board(request):
     # the row is flagged and can't receive drops.
     from psa.visibility import is_msp_staff
     techs_sorted = sorted(techs.values(), key=lambda u: (u.username or '').lower())
+    shift_info = _dispatch_shift_info(techs_sorted, days)
     rows = []
     for u in techs_sorted:
+        info = shift_info.get(u.id, {})
         rows.append({
             'tech': u,
             'is_tech': bool(u.is_active and is_msp_staff(u)),
             'cells': [cells.get((u.id, d), []) for d in days],
             'other': cells.get((u.id, OTHER), []),
+            # Phase 11 — shift schedule: today's shift(s), per-day labels and
+            # PTO clashes. Empty for technicians without a schedule.
+            'shift_now': info.get('now'),
+            'day_cells': list(zip(
+                [cells.get((u.id, d), []) for d in days],
+                info.get('days', [[] for _ in days]),
+                info.get('conflicts', ['' for _ in days]))),
         })
     rows.sort(key=lambda r: (not r['is_tech'], (r['tech'].username or '').lower()))
+
+    # Geo-aware dispatch (opt-in per technician, off unless switched on):
+    # last shared position per tech row and, on open unassigned tickets, the
+    # nearest technician by straight-line estimate. No network call here.
+    nearest_by_ticket = {}
+    geo_enabled = False
+    if can_assign:
+        nearest_by_ticket, geo_enabled = _dispatch_geo(rows, [
+            t for lane in list(unassigned_by_day.values()) + [overdue]
+            for t in lane if not t.assigned_to_id and not (t.status_id and t.status.is_terminal)])
 
     # Phase 2.3 — skill ranking. For each ticket card, top 5 candidates
     # by skill+availability score. Only computed for admins who can assign.
@@ -4629,6 +4801,8 @@ def dispatch_board(request):
         'sla_burn': sla_burn,  # Phase 11.1
         'can_assign': can_assign,
         'skill_rankings': skill_rankings,
+        'nearest_by_ticket': nearest_by_ticket,
+        'geo_enabled': geo_enabled,
     })
 
 

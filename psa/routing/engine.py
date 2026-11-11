@@ -15,7 +15,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from .models import (
-    DEST_LEAST_LOADED, DEST_QUEUE, DEST_ROUND_ROBIN, DEST_SKILL, DEST_TEAM,
+    DEST_LEAST_LOADED, DEST_NEAREST, DEST_QUEUE, DEST_ROUND_ROBIN, DEST_SKILL, DEST_TEAM,
     DEST_TECHNICIAN, FALLBACK_QUEUE, MODE_INHERIT, MODE_OFF, PICKING_DESTINATIONS,
     CustomerRoutingSettings, RoundRobinPointer, RoutingRule, RoutingSettings,
 )
@@ -115,7 +115,11 @@ def ticket_facts(ticket, now, msp):
         'contract_type': '',
         'business_hours': in_business_hours(now, msp, getattr(ticket, 'organization', None)),
         'sla_pct': 0.0,
+        'site_id': getattr(ticket, 'site_id', None),
+        'site': '',
     }
+    if facts['site_id']:
+        facts['site'] = getattr(getattr(ticket, 'site', None), 'name', '') or f'#{facts["site_id"]}'
     try:
         from psa.service_requests import SERVICE_REQUEST_KEY
         rec = (ticket.custom_fields or {}).get(SERVICE_REQUEST_KEY) or {}
@@ -172,6 +176,14 @@ def condition_failures(conditions, facts) -> List[str]:
     ctypes = _as_list(c.get('contract_types'))
     if ctypes and facts['contract_type'] not in ctypes:
         out.append(f'contract type is "{facts["contract_type"] or "none"}", not one of {", ".join(ctypes)}')
+    site_ids = [str(v) for v in _as_list(c.get('sites'))]
+    if site_ids and str(facts.get('site_id') or '') not in site_ids:
+        out.append(f'site is "{facts.get("site") or "none"}", not one of the rule\'s sites')
+    site_state = c.get('site') or 'any'
+    if site_state == 'set' and not facts.get('site_id'):
+        out.append('the ticket has no site')
+    if site_state == 'unset' and facts.get('site_id'):
+        out.append(f'the ticket has a site ({facts.get("site")})')
     hours = c.get('hours') or 'any'
     if hours == 'business' and not facts['business_hours']:
         out.append('it is outside business hours')
@@ -241,28 +253,30 @@ def _skill_problem(user, skills, min_prof):
 
 
 def _on_call(user, team_id, now):
+    """On call now: an on-call shift entered on the Ticket Routing page, or a
+    running on-call shift from the weekly shift schedule (Resourcing)."""
     from .models import OnCallShift
     qs = OnCallShift.objects.filter(user=user, starts_at__lte=now, ends_at__gt=now)
     if team_id:
         qs = qs.filter(Q(team__isnull=True) | Q(team_id=team_id))
-    return qs.exists()
+    if qs.exists():
+        return True
+    try:
+        from resourcing.shifts import on_call_shift
+        return on_call_shift(user, now, team_id=team_id) is not None
+    except Exception:  # noqa: BLE001 — resourcing optional
+        logger.exception('shift schedule on-call lookup failed')
+        return False
 
 
 def _availability_problem(user, now, msp):
+    """Leave, then the weekly shift schedule when the technician has one,
+    else WorkingHours (resourcing/shifts.py)."""
     try:
-        from resourcing.models import LeaveRequest, WorkingHours
+        from resourcing.shifts import availability_problem
     except Exception:  # noqa: BLE001
         return None
-    profile = getattr(user, 'profile', None)
-    local = now.astimezone(_tz(getattr(profile, 'timezone', '') or msp.business_timezone))
-    if LeaveRequest.is_user_on_leave(user, local.date()):
-        return 'on approved leave today'
-    rows = list(WorkingHours.objects.filter(user=user, is_active=True))
-    if rows:
-        t = local.time()
-        if not any(r.weekday == local.weekday() and r.start_time <= t < r.end_time for r in rows):
-            return 'outside their working hours'
-    return None
+    return availability_problem(user, now, tz_fallback=msp.business_timezone)
 
 
 def candidates(ticket, destination, now, msp, cust=None):
@@ -291,7 +305,8 @@ def candidates(ticket, destination, now, msp, cust=None):
         from django.contrib.auth.models import Group
         team_members = set(Group.objects.filter(pk=team_id)
                            .values_list('user__pk', flat=True))
-    skills = _as_list(dest.get('skills')) if dtype in (DEST_SKILL, DEST_ROUND_ROBIN, DEST_LEAST_LOADED) else []
+    skills = (_as_list(dest.get('skills'))
+              if dtype in (DEST_SKILL, DEST_ROUND_ROBIN, DEST_LEAST_LOADED, DEST_NEAREST) else [])
     min_prof = dest.get('min_proficiency') or ''
     require_on_call = bool(dest.get('require_on_call'))
     require_available = dest.get('require_available', True) is not False
@@ -468,6 +483,8 @@ def evaluate(ticket, *, now=None, msp=None, counter_override=None, ignore_mode=F
         return _fallback(ev, version, f'{why}: unknown destination "{dtype}".')
 
     eligible, skipped = candidates(ticket, dest, now, msp, cust)
+    if dtype == DEST_NEAREST:
+        return _nearest(ev, version, why, ticket, eligible, skipped, dest_queue, now)
     ev.eligible, ev.skipped = eligible, skipped
     if dtype == DEST_ROUND_ROBIN:
         ev.round_robin_key = round_robin_key(rule.pk)
@@ -481,6 +498,37 @@ def evaluate(ticket, *, now=None, msp=None, counter_override=None, ignore_mode=F
     ev.assignee = chosen
     ev.queue = dest_queue
     ev.reason = f'{why}: {chosen.get_username()} ({how}).'
+    return ev
+
+
+def _nearest(ev, version, why, ticket, eligible, skipped, dest_queue, now):
+    """Nearest eligible technician by straight-line distance from their last
+    shared position to the ticket's site (field_ops/geo_dispatch.py). Reads
+    only; no routing provider is called here. Technicians without a recent
+    shared position are skipped with that reason."""
+    try:
+        from field_ops import geo_dispatch
+        cfg = geo_dispatch.load_settings()
+    except Exception:  # noqa: BLE001 — field_ops optional
+        cfg = None
+    if cfg is None or not cfg.enabled:
+        ev.eligible, ev.skipped = [], skipped
+        return _fallback(ev, version, f'{why}: geo-aware dispatch is switched off.')
+    ranked, missing, point = geo_dispatch.nearest(ticket, eligible, now=now, cfg=cfg)
+    ev.skipped = skipped + missing
+    if point is None:
+        ev.eligible = []
+        return _fallback(ev, version, f'{why}: the ticket has no site with coordinates '
+                                      '(and the customer has no primary site with coordinates).')
+    ev.eligible = [u for u, _ in ranked]
+    if not ranked:
+        n = len(ev.skipped)
+        return _fallback(ev, version, f'{why}: nobody qualifies with a recent shared position '
+                                      f'({n} technician{"s" if n != 1 else ""} skipped).')
+    chosen, est = ranked[0]
+    ev.assignee = chosen
+    ev.queue = dest_queue
+    ev.reason = f'{why}: {chosen.get_username()} (nearest to {point[2]}, {est.label}).'
     return ev
 
 

@@ -614,6 +614,7 @@
                     <dt class="col-5">Urgency</dt><dd class="col-7">{{ ticket.get_urgency_display }}</dd>
                     <dt class="col-5">Assignee</dt><dd class="col-7">{{ ticket.assigned_to.username|default:"—" }}</dd>
                     <dt class="col-5">Contact</dt><dd class="col-7">{{ ticket.contact|default:"—" }}</dd>
+                    <dt class="col-5">Site</dt><dd class="col-7">{% if ticket_site %}{{ ticket_site.name }}{% if is_msp_staff and ticket_site_source %} <span class="text-muted small">({{ ticket_site_source }})</span>{% endif %}{% else %}—{% endif %}</dd>
                     <dt class="col-5">Asset</dt><dd class="col-7">{% if ticket_asset %}{% if is_msp_staff %}<a href="{% url 'assets:asset_detail' ticket_asset.pk %}">{{ ticket_asset.name }}</a>{% else %}{{ ticket_asset.name }}{% endif %}{% else %}—{% endif %}</dd>
                     <dt class="col-5">Doc</dt><dd class="col-7">{{ ticket.related_documentation|default:"—" }}</dd>
                     <dt class="col-5">KB</dt><dd class="col-7">{{ ticket.related_kb_article|default:"—" }}</dd>
@@ -649,6 +650,39 @@
                     </select>
                     <button class="btn btn-sm btn-outline-primary">Set</button>
                 </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if is_msp_staff %}
+        {# Phase 60.6 — the customer's site this ticket is about. #}
+        <div class="card mt-3" id="ticket-site-card">
+            <div class="card-header"><strong><i class="fas fa-map-marker-alt me-1"></i>Site</strong></div>
+            <div class="card-body small">
+                {% if ticket_site %}
+                <p class="mb-2">{{ ticket_site.name }}{% if ticket_site.city %} · {{ ticket_site.city }}{% endif %}{% if ticket_site_source %} <span class="text-muted">({{ ticket_site_source }})</span>{% endif %}</p>
+                {% endif %}
+                {% if ticket_site_choices %}
+                <form method="post" action="{% url 'psa:ticket_quick_action' ticket.ticket_number %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="set_site">
+                    <div class="d-flex gap-2">
+                        <select name="site" class="form-select form-select-sm" aria-label="Site for this ticket">
+                            <option value="">— No site —</option>
+                            {% for loc in ticket_site_choices %}
+                            <option value="{{ loc.pk }}" {% if ticket_site and ticket_site.pk == loc.pk %}selected{% endif %}>{{ loc.name }}{% if loc.city %} ({{ loc.city }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn btn-sm btn-outline-primary">Set</button>
+                    </div>
+                    <div class="form-check mt-1">
+                        <input class="form-check-input" type="checkbox" name="remember" id="site-remember">
+                        <label class="form-check-label" for="site-remember">Remember as the requester's default site</label>
+                    </div>
+                </form>
+                {% else %}
+                <p class="text-muted mb-0">This customer has no active sites.</p>
+                {% endif %}
             </div>
         </div>
         {% endif %}

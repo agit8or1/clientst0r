@@ -124,6 +124,7 @@ urlpatterns = [
     path('dispatch/', views.dispatch_board, name='dispatch_board'),
     path('dispatch/assign/', views.dispatch_assign, name='dispatch_assign'),
     path('dispatch/heatmap/', views.dispatch_heatmap, name='dispatch_heatmap'),
+    path('dispatch/travel/<str:ticket_number>/', views.dispatch_travel, name='dispatch_travel'),
     # Invoices + payments (Workstream 5 billing)
     path('invoices/', views.invoice_list, name='invoice_list'),
     path('invoices/new/', views.invoice_form, name='invoice_create'),

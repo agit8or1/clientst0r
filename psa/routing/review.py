@@ -8,7 +8,7 @@ from __future__ import annotations
 from django.db.models import Q
 
 from .models import (
-    DEST_LEAST_LOADED, DEST_QUEUE, DEST_ROUND_ROBIN, DEST_SKILL, DEST_TEAM, DEST_TECHNICIAN,
+    DEST_LEAST_LOADED, DEST_NEAREST, DEST_QUEUE, DEST_ROUND_ROBIN, DEST_SKILL, DEST_TEAM, DEST_TECHNICIAN,
     FALLBACK_QUEUE, MODE_OFF, PICKING_DESTINATIONS, RoutingRule,
 )
 
@@ -48,6 +48,16 @@ def _names(model, field, values):
     return list(model.objects.filter(**{f'{field}__in': values}).values_list('name', flat=True))
 
 
+def _site_names(ids):
+    try:
+        from locations.models import Location
+        rows = {str(pk): name for pk, name in Location.objects.filter(
+            pk__in=[int(i) for i in ids if str(i).isdigit()]).values_list('pk', 'name')}
+    except Exception:  # noqa: BLE001
+        rows = {}
+    return [rows.get(str(i), f'(missing site #{i})') for i in ids]
+
+
 def summarize(organization, conditions, destination, fallback):
     """One paragraph, plain words."""
     from django.contrib.auth.models import Group, User
@@ -83,6 +93,12 @@ def summarize(organization, conditions, destination, fallback):
         parts.append('outside business hours')
     if c.get('sla_pct_at_least') not in (None, ''):
         parts.append(f'once {c["sla_pct_at_least"]}% of the resolution SLA has elapsed')
+    if c.get('sites'):
+        parts.append('at site ' + ' or '.join(_site_names(c['sites'])))
+    if c.get('site') == 'set':
+        parts.append('that name a site')
+    elif c.get('site') == 'unset':
+        parts.append('that name no site')
     lead = f'For {who}' + (', ' + ', '.join(parts) if parts else '') + ': '
 
     dtype = d.get('type') or DEST_QUEUE
@@ -94,7 +110,7 @@ def summarize(organization, conditions, destination, fallback):
                  + (f' ({d["min_proficiency"]} or above)' if d.get('min_proficiency') else '')) if skills else ''
     oncall = ' who is on call now' if d.get('require_on_call') else ''
     avail = ('' if d.get('require_on_call') or d.get('require_available', True) is False
-             else ', skipping anyone on leave or outside their working hours')
+             else ', skipping anyone on leave or outside their shifts or working hours')
     if dtype == DEST_QUEUE:
         what = f'put it in queue {queue.name if queue else "(missing queue)"} without assigning anyone'
     elif dtype == DEST_TEAM:
@@ -109,6 +125,9 @@ def summarize(organization, conditions, destination, fallback):
         what = f'assign it to the least-busy authorized technician{team_txt}{skill_txt}{oncall}'
     elif dtype == DEST_LEAST_LOADED:
         what = f'assign it to the authorized technician{team_txt}{skill_txt}{oncall} with the fewest open tickets'
+    elif dtype == DEST_NEAREST:
+        what = (f'assign it to the authorized technician{team_txt}{skill_txt}{oncall} nearest to the ticket\'s '
+                'site, by their last shared position')
     else:
         what = f'(unknown destination "{dtype}")'
     if dtype in PICKING_DESTINATIONS:
@@ -181,8 +200,39 @@ def problems(rule_pk, organization, priority, conditions, destination, fallback)
             errors.append('Choose an active fallback queue (or leave unassigned in triage).')
     if d.get('require_on_call'):
         from .models import OnCallShift
-        if not OnCallShift.objects.exists():
+        try:
+            from resourcing.models import ShiftAssignment
+            scheduled = ShiftAssignment.objects.filter(template__is_on_call=True, template__is_active=True).exists()
+        except Exception:  # noqa: BLE001
+            scheduled = False
+        if not OnCallShift.objects.exists() and not scheduled:
             warnings.append('No on-call shifts exist yet; until one is added this rule will always fall back.')
+    site_ids = [int(i) for i in (conditions or {}).get('sites') or [] if str(i).isdigit()]
+    if site_ids:
+        from locations.models import Location
+        found = {loc.pk: loc for loc in Location.objects.filter(pk__in=site_ids)}
+        missing = [i for i in site_ids if i not in found]
+        if missing:
+            warnings.append(f'{len(missing)} site(s) in this rule no longer exist; they never match.')
+        if organization is not None:
+            from psa.ticket_site import site_allowed
+            foreign = [loc.name for loc in found.values() if not site_allowed(organization, loc)]
+            if foreign:
+                errors.append(f'Site(s) {", ".join(foreign)} do not belong to {organization.name}.')
+        if (conditions or {}).get('site') == 'unset':
+            errors.append('"Has no site" cannot be combined with a list of sites.')
+    if dtype == DEST_NEAREST:
+        try:
+            from field_ops.models import DispatchGeoSettings
+            geo_on = DispatchGeoSettings.load().enabled
+        except Exception:  # noqa: BLE001
+            geo_on = False
+        if not geo_on:
+            warnings.append('Geo-aware dispatch is switched off (Field Ops → Dispatch locations); until it is on, '
+                            'this rule always falls back.')
+        else:
+            warnings.append('Only technicians who share their position with dispatch and whose position is '
+                            'recent are candidates; tickets need a site with coordinates.')
     if (conditions or {}).get('hours') in ('business', 'after'):
         warnings.append('Business hours come from Ticket Routing settings (MSP-wide) and holidays in Resourcing.')
 
