@@ -24,9 +24,8 @@ from vault.secret_fields import EncryptedTextField, SealedTextField
 
 class ClientPSASettings(models.Model):
     """
-    Per-org PSA configuration. PSA is off by default for every client; an
-    admin must explicitly enable it. Additional client-level toggles guard
-    the more sensitive surfaces (portal, anonymous tickets, ingestion).
+    Per-org PSA configuration: the native PSA opt-out (`enabled`) and the
+    customer portal switch (`portal_enabled`, off by default).
     """
     organization = models.OneToOneField(
         'core.Organization',
@@ -40,13 +39,13 @@ class ClientPSASettings(models.Model):
                   'use this to opt a specific client OUT.',
     )
 
-    # Surface flags — every external surface defaults to OFF.
+    # The customer portal is off until switched on for this customer.
+    # (Five other per-customer switches — anonymous form, email-to-ticket,
+    # SMS, desktop alerts, external ingest — were saved but never read and
+    # were removed in psa 0082: email-to-ticket follows each mailbox, SMS
+    # follows Settings -> SMS and each technician, and there is no anonymous
+    # form, desktop channel or ingest gate.)
     portal_enabled = models.BooleanField(default=False, help_text='Allow this client to use the customer portal')
-    anonymous_ticket_form_enabled = models.BooleanField(default=False, help_text='Allow public/anonymous ticket submission')
-    email_to_ticket_enabled = models.BooleanField(default=False, help_text='Convert inbound emails to tickets')
-    sms_notifications_enabled = models.BooleanField(default=False, help_text='Send SMS to staff for this client (no secrets)')
-    desktop_alerts_enabled = models.BooleanField(default=False, help_text='Send desktop/browser alerts to staff for this client')
-    external_alert_ingest_enabled = models.BooleanField(default=False, help_text='Accept alerts from external monitoring/RMM for this client')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -53,13 +53,12 @@
 
 {% comment %} OVERRIDE form — only needed when admin wants to change the auto-decision.
    With an external PSA active the master "enabled" toggle is forced off
-   and disabled (the auto-opt-out is a hard rule). Per-surface flags are
-   still adjustable for record-keeping but have no effect when the master
-   is off. {% endcomment %}
+   and disabled (the auto-opt-out is a hard rule). The portal switch is
+   saved either way; the portal's ticket features follow the master switch. {% endcomment %}
 <div class="card mt-3">
     <div class="card-header">
-        <strong>Override</strong>
-        <small class="text-muted ms-2">Optional — only set if you want to opt this client OUT of native PSA.</small>
+        <strong>Settings</strong>
+        <small class="text-muted ms-2">Untick "Native PSA enabled" only to opt this client OUT of native PSA.</small>
     </div>
     <form method="post">
         {% csrf_token %}
@@ -75,31 +74,11 @@
             </div>
 
             <hr>
-            <h6 class="text-muted">External surfaces (always off unless explicitly enabled)</h6>
+            <h6 class="text-muted">Customer portal (off unless switched on)</h6>
 
             <div class="form-check form-switch mb-2">
                 <input class="form-check-input" type="checkbox" id="portal_enabled" name="portal_enabled" {% if cps.portal_enabled %}checked{% endif %}>
-                <label class="form-check-label" for="portal_enabled">Client portal <small class="text-muted">— customer self-service</small></label>
-            </div>
-            <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" id="anonymous_ticket_form_enabled" name="anonymous_ticket_form_enabled" {% if cps.anonymous_ticket_form_enabled %}checked{% endif %}>
-                <label class="form-check-label" for="anonymous_ticket_form_enabled">Anonymous ticket form <small class="text-muted">— public submissions</small></label>
-            </div>
-            <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" id="email_to_ticket_enabled" name="email_to_ticket_enabled" {% if cps.email_to_ticket_enabled %}checked{% endif %}>
-                <label class="form-check-label" for="email_to_ticket_enabled">Email-to-ticket <small class="text-muted">— inbound mailbox parsing</small></label>
-            </div>
-            <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" id="sms_notifications_enabled" name="sms_notifications_enabled" {% if cps.sms_notifications_enabled %}checked{% endif %}>
-                <label class="form-check-label" for="sms_notifications_enabled">SMS notifications to staff <small class="text-muted">— never includes secrets</small></label>
-            </div>
-            <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" id="desktop_alerts_enabled" name="desktop_alerts_enabled" {% if cps.desktop_alerts_enabled %}checked{% endif %}>
-                <label class="form-check-label" for="desktop_alerts_enabled">Desktop / browser alerts <small class="text-muted">— per-user opt-in</small></label>
-            </div>
-            <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" id="external_alert_ingest_enabled" name="external_alert_ingest_enabled" {% if cps.external_alert_ingest_enabled %}checked{% endif %}>
-                <label class="form-check-label" for="external_alert_ingest_enabled">External alert / RMM ingestion <small class="text-muted">— monitoring webhooks → tickets</small></label>
+                <label class="form-check-label" for="portal_enabled">Client portal <small class="text-muted">— this customer's members can sign in to the portal</small></label>
             </div>
         </div>
         <div class="card-footer d-flex justify-content-between align-items-center">
@@ -109,9 +88,9 @@
                 <i class="fas fa-undo me-1"></i>Reset to auto-detect
             </button>
             {% else %}
-            <span class="text-muted small"><i class="fas fa-magic me-1"></i>Auto-detect is in effect — saving creates an explicit override.</span>
+            <span class="text-muted small"><i class="fas fa-magic me-1"></i>Auto-detect decides whether native PSA is on for this client.</span>
             {% endif %}
-            <button type="submit" class="btn btn-primary">Save Override</button>
+            <button type="submit" class="btn btn-primary">Save</button>
         </div>
     </form>
 </div>
