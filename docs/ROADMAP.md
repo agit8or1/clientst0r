@@ -1777,12 +1777,34 @@ someone else.
   reminder, open asset, plan replacement). Every section and total follows
   the user's role for that customer; customer users see only their own
   customer and only what their role allows.
+  Uptime also lists WAN connections that are down or failed recent checks,
+  active RMM alerts on the customer's devices (for roles with integrations
+  access) and SSL certificates and domains that have expired or are about
+  to; "Send reminder" on an overdue invoice emails the invoice PDF to the
+  customer's contact in one click (needs the send-invoices permission for
+  that customer; audit-logged; a second click within 10 minutes is
+  refused); and MSP technicians can open any customer page instead of being
+  sent back to the list.
+  *(in progress — on the development branch, not yet released)*
+- **Invoice and client account pages need the view-invoices permission** —
+  the invoice page, its PDF and the client account summary are refused to
+  roles without it (customer editors and read-only users, technicians whose
+  global role leaves billing out); customer users only reach invoices billed
+  to their own customers, in every view mode.
+  *(in progress — on the development branch, not yet released)*
 - **Optional modules settings page** *(in progress — on the development branch, not yet released)* — Settings → System → Optional Modules lists every optional
   module with whether it is on, what it needs (Ticket AI, portal, routing
   and CSAT need PSA; status pages need monitoring), what people see when it
   is on and a link to its settings. Turning a module on while what it needs
   is off is refused; turning a dependency off says which modules stop
   working. No default changes. Ticket AI is listed as **OPTIONAL AI**.
+  The six PSA settings switches that were saved but never read (client
+  portal, anonymous ticket form, email to ticket, SMS to staff, desktop
+  alerts, external alert ingest) are removed; the portal, mailboxes and SMS
+  keep their own settings. Reports & Analytics and Secure Notes (Settings →
+  Features) now switch their module off: menus, pages and scheduled reports
+  (secure-note links already sent keep working). Both stay on after an
+  upgrade. *(in progress — on the development branch, not yet released)*
 
 ## Phase 53 — Documentation readiness and lifecycle **(L)** [shipped — v3.17.656]
 
@@ -2009,7 +2031,11 @@ v3.17.658; the RMM side waits on rem0te.
   key; a restricted worker without the vault master key; destination allowlist,
   no redirects, metadata and DNS-rebinding blocked. *(partial — shipped
   v3.17.646; worker runs as the same OS user, a separate user is a deployment
-  step)*
+  step)* The worker as its own OS user (`clientst0r-ai`) that can't read
+  `.env`: set up by `bash install.sh` on MariaDB/MySQL installs and by
+  `deploy/setup-ai-gateway-user.sh` on existing ones, the `ai-gateway` compose
+  profile on Docker, checked in the native-install CI job.
+  *(in progress — on the development branch, not yet released)*
 - **57.4 Protected changes** — widening needs fresh authentication and a
   distinct approver; self-promotion and own-recovery-address approvals refused;
   the previously verified contact is notified. *(shipped v3.17.646)* The e-mail
